@@ -1,0 +1,428 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2867
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 FITNESS STUDIO TRAINING APP  \
+Complete Product & Development Specification\
+\
+Version: 1.0  \
+Purpose: Guide the full development of a cross-platform application for managing training sessions and athlete registrations in a fitness studio.\
+\
+This document defines the system requirements, architecture, database structure, user flows, and development roadmap.  \
+The system should be implemented step-by-step according to this document.\
+\
+--------------------------------\
+1. SYSTEM OVERVIEW\
+--------------------------------\
+\
+The system is a cross-platform mobile application designed for a fitness studio that manages group training sessions.\
+\
+The application will allow:\
+- Athletes to register for training sessions\
+- Coaches to view participants and manage attendance\
+- Managers to control the schedule and approve new athletes\
+\
+The system must support:\
+\
+1. Mobile application (iOS + Android)\
+2. User authentication with username/password\
+3. Role-based permissions\
+4. Athlete approval process\
+5. Training session registration\
+6. Waiting list notifications\
+7. Cancellation tracking\
+8. Historical records\
+9. Administrative control of the training schedule\
+10. Automatic opening of registrations every Thursday at 08:00\
+\
+--------------------------------\
+2. TECHNOLOGY STACK\
+--------------------------------\
+\
+Frontend (Mobile App)\
+React Native with Expo\
+\
+Backend / Infrastructure\
+Supabase\
+\
+Database\
+PostgreSQL\
+\
+Authentication\
+Supabase Auth\
+\
+Notifications\
+Push Notifications\
+\
+Admin Panel\
+Web dashboard\
+\
+Automation\
+Supabase Edge Functions (Cron)\
+\
+Version Control\
+Git + GitHub\
+\
+Development Environment\
+Cursor IDE\
+\
+--------------------------------\
+3. USER ROLES\
+--------------------------------\
+\
+The system has three types of users.\
+\
+1. Athlete\
+2. Coach\
+3. Manager (Admin)\
+\
+Each role has different permissions.\
+\
+--------------------------------\
+4. ATHLETE FUNCTIONALITY\
+--------------------------------\
+\
+Registration\
+\
+An athlete must register with the following information:\
+\
+username  \
+password  \
+full name  \
+phone number  \
+age  \
+gender  \
+email  \
+\
+After registration:\
+\
+- The profile status is "pending approval".\
+- The athlete cannot register for training sessions yet.\
+- A manager must review and approve the profile.\
+\
+Manager Approval\
+\
+The manager will contact the athlete by phone in order to:\
+\
+- understand physical limitations\
+- understand training goals\
+- introduce the studio\
+\
+Only after approval can the athlete register for training sessions.\
+\
+Athlete Capabilities After Approval\
+\
+Athletes can:\
+\
+View all available training sessions  \
+Register for sessions with available spots  \
+Request notification if a session is full  \
+View all sessions they registered for  \
+Cancel a registration with a cancellation reason\
+\
+Cancellation Rule\
+\
+If an athlete cancels less than 12 hours before the training session, they will be charged the full session price.\
+\
+The system must record this event.\
+\
+--------------------------------\
+5. COACH FUNCTIONALITY\
+--------------------------------\
+\
+Coaches can:\
+\
+View all training sessions  \
+View registered athletes for each session  \
+View athletes waiting for notification  \
+Manually add athletes to sessions\
+\
+Coaches cannot remove registered athletes.\
+\
+--------------------------------\
+6. MANAGER FUNCTIONALITY\
+--------------------------------\
+\
+Managers have all coach permissions plus:\
+\
+Approve new athletes  \
+Remove registered athletes from sessions  \
+Create training sessions  \
+Edit training sessions  \
+Define session capacity  \
+Assign coach to session  \
+Control which sessions are open for registration\
+\
+--------------------------------\
+7. TRAINING SESSION RULES\
+--------------------------------\
+\
+Managers define the training schedule.\
+\
+Each session includes:\
+\
+day  \
+date  \
+start time  \
+coach  \
+maximum participants  \
+\
+Only sessions defined by managers appear in the athlete application.\
+\
+--------------------------------\
+8. REGISTRATION OPENING RULE\
+--------------------------------\
+\
+Every Thursday at 08:00:\
+\
+Registration opens only for the following week.\
+\
+Example:\
+\
+Thursday \uc0\u8594  registration opens for next week's Sunday\'96Saturday.\
+\
+This must be implemented as a scheduled backend job.\
+\
+--------------------------------\
+9. DATABASE STRUCTURE\
+--------------------------------\
+\
+users\
+\
+id  \
+username  \
+email  \
+password_hash  \
+role (athlete / coach / manager)  \
+created_at  \
+\
+profiles\
+\
+user_id  \
+full_name  \
+phone  \
+age  \
+gender  \
+approval_status (pending / approved / rejected)  \
+\
+training_sessions\
+\
+id  \
+date  \
+start_time  \
+coach_id  \
+max_participants  \
+is_open_for_registration  \
+\
+session_registrations\
+\
+id  \
+session_id  \
+user_id  \
+registered_at  \
+status (active / cancelled)\
+\
+waitlist_requests\
+\
+id  \
+session_id  \
+user_id  \
+requested_at  \
+\
+cancellations\
+\
+id  \
+session_id  \
+user_id  \
+cancelled_at  \
+reason  \
+charged_full_price (true / false)\
+\
+registration_history\
+\
+id  \
+session_id  \
+user_id  \
+event_type (registered / cancelled / removed)  \
+timestamp  \
+\
+--------------------------------\
+10. BUSINESS LOGIC RULES\
+--------------------------------\
+\
+Only approved athletes can register for sessions.\
+\
+Session capacity must never be exceeded.\
+\
+If a session is full:\
+\
+Athletes can request notification.\
+\
+If a spot opens:\
+\
+The system sends a push notification.\
+\
+Cancellation < 12 hours:\
+\
+charged_full_price = true\
+\
+Coach permissions:\
+\
+add athletes\
+\
+Manager permissions:\
+\
+add athletes  \
+remove athletes\
+\
+--------------------------------\
+11. MOBILE APP SCREENS\
+--------------------------------\
+\
+Authentication\
+\
+Login screen  \
+Signup screen\
+\
+Athlete Screens\
+\
+Pending approval screen  \
+Available sessions screen  \
+Session details  \
+Register button  \
+Waitlist button  \
+My sessions screen  \
+Cancel session dialog  \
+Cancellation reason input\
+\
+Coach Screens\
+\
+Session list  \
+Session participants  \
+Waitlist view  \
+Manual add athlete\
+\
+Manager Screens\
+\
+All sessions  \
+Edit session  \
+Create session  \
+Approve athletes  \
+Remove athletes\
+\
+--------------------------------\
+12. ADMIN WEB DASHBOARD\
+--------------------------------\
+\
+Managers and coaches should preferably use a web dashboard.\
+\
+This dashboard should include:\
+\
+Athlete management  \
+Session schedule management  \
+Registration history  \
+Cancellation logs  \
+Waitlist management\
+\
+--------------------------------\
+13. NOTIFICATION SYSTEM\
+--------------------------------\
+\
+Push notifications must be used.\
+\
+Notifications include:\
+\
+Spot opened in session  \
+Possible administrative messages\
+\
+--------------------------------\
+14. AUTOMATION\
+--------------------------------\
+\
+A scheduled function must run every Thursday at 08:00.\
+\
+The function should:\
+\
+Open registrations for next week  \
+Close registrations for other weeks if needed\
+\
+--------------------------------\
+15. DEVELOPMENT ROADMAP\
+--------------------------------\
+\
+Phase 1 \'96 Project Setup\
+\
+Create Expo project  \
+Create Supabase project  \
+Connect mobile app to Supabase\
+\
+Phase 2 \'96 Authentication\
+\
+Implement signup  \
+Implement login  \
+Create user profiles  \
+Implement pending approval state\
+\
+Phase 3 \'96 Athlete Flow\
+\
+Display available sessions  \
+Register for session  \
+My sessions screen\
+\
+Phase 4 \'96 Cancellation System\
+\
+Cancel registration  \
+Store cancellation reason  \
+Implement 12-hour rule\
+\
+Phase 5 \'96 Manager System\
+\
+Approve athletes  \
+Create training sessions  \
+Edit sessions\
+\
+Phase 6 \'96 Coach Tools\
+\
+View participants  \
+Add athletes manually\
+\
+Phase 7 \'96 Waitlist System\
+\
+Request notification  \
+Detect opened spots  \
+Send notifications\
+\
+Phase 8 \'96 Automation\
+\
+Create scheduled backend job  \
+Open weekly registration\
+\
+Phase 9 \'96 Final Testing\
+\
+Edge cases  \
+Load tests  \
+UX polish\
+\
+--------------------------------\
+16. DEVELOPMENT PRINCIPLES\
+--------------------------------\
+\
+Implement features incrementally.\
+\
+Always ensure:\
+\
+Database integrity  \
+Role-based access control  \
+Secure authentication  \
+Clear separation between roles\
+\
+Never rely only on frontend validation.\
+\
+All critical rules must also exist in backend logic.\
+\
+--------------------------------\
+END OF DOCUMENT\
+--------------------------------}
