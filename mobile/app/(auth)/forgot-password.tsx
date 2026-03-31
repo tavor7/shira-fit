@@ -6,14 +6,17 @@ import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ActionButton } from "../../src/components/ActionButton";
 import { theme } from "../../src/theme";
+import { useI18n } from "../../src/context/I18nContext";
+import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 
 export default function ForgotPasswordScreen() {
+  const { language, t, isRTL } = useI18n();
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function sendReset() {
     if (!email.trim()) {
-      Alert.alert("Email required");
+      Alert.alert(language === "he" ? "נדרש אימייל" : "Email required");
       return;
     }
     setBusy(true);
@@ -23,7 +26,7 @@ export default function ForgotPasswordScreen() {
     });
     if (error) {
       setBusy(false);
-      Alert.alert("Error", error.message);
+      Alert.alert(t("common.error"), error.message);
       return;
     }
     setBusy(false);
@@ -35,14 +38,17 @@ export default function ForgotPasswordScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
+      <LanguageToggleChip />
       <View style={styles.logoWrap}>
       <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
       </View>
-      <Text style={styles.title}>Forgot password</Text>
-      <Text style={styles.hint}>Enter your account email. We’ll send a reset link.</Text>
+      <Text style={[styles.title, isRTL && { textAlign: "right" }]}>{t("auth.forgotPassword")}</Text>
+      <Text style={[styles.hint, isRTL && { textAlign: "right" }]}>
+        {language === "he" ? "הזינו את אימייל החשבון. נשלח קישור לאיפוס סיסמה." : "Enter your account email. We’ll send a reset link."}
+      </Text>
       <TextInput
         style={styles.input}
-        placeholder="Email"
+        placeholder={t("auth.email")}
         placeholderTextColor={theme.colors.textSoft}
         autoCapitalize="none"
         keyboardType="email-address"
@@ -50,12 +56,12 @@ export default function ForgotPasswordScreen() {
         onChangeText={setEmail}
       />
       <PrimaryButton
-        label="Send reset link"
-        loadingLabel="Sending…"
+        label={language === "he" ? "שליחת קישור איפוס" : "Send reset link"}
+        loadingLabel={t("common.loading")}
         loading={busy}
         onPress={sendReset}
       />
-      <ActionButton label="Back to sign in" onPress={() => router.push("/(auth)/login")} style={styles.navBtn} />
+      <ActionButton label={language === "he" ? "חזרה להתחברות" : "Back to sign in"} onPress={() => router.push("/(auth)/login")} style={styles.navBtn} />
     </KeyboardAvoidingView>
   );
 }

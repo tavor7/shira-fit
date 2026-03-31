@@ -5,37 +5,40 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { theme } from "../src/theme";
 import { StudioContactFooter } from "../src/components/StudioContactFooter";
+import { I18nProvider } from "../src/context/I18nContext";
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <AuthProvider>
-          <StatusBar style="light" />
-          <View style={{ flex: 1 }}>
-            <Stack
-              screenOptions={{
-                // Nested stacks (/(auth), /(app)) render their own headers as needed.
-                // Keeping the root header hidden avoids showing route-group titles like "(app)".
-                headerShown: false,
-                headerBackTitle: "Back",
-                headerShadowVisible: false,
-                headerStyle: {
-                  backgroundColor: theme.colors.backgroundAlt,
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.colors.borderMuted,
-                } as object,
-                headerTintColor: theme.colors.text,
-                headerTitleStyle: {
-                  fontWeight: "600",
-                  fontSize: 17,
-                  color: theme.colors.text,
-                  letterSpacing: 0.2,
-                } as object,
-              }}
-            />
-          </View>
-          <StudioContactFooter />
+          <I18nProvider>
+            <StatusBar style="light" />
+            <View style={{ flex: 1 }}>
+              <Stack
+                screenOptions={{
+                  // Nested stacks (/(auth), /(app)) render their own headers as needed.
+                  // Keeping the root header hidden avoids showing route-group titles like "(app)".
+                  headerShown: false,
+                  headerBackTitle: "Back",
+                  headerShadowVisible: false,
+                  headerStyle: {
+                    backgroundColor: theme.colors.backgroundAlt,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.borderMuted,
+                  } as object,
+                  headerTintColor: theme.colors.text,
+                  headerTitleStyle: {
+                    fontWeight: "600",
+                    fontSize: 17,
+                    color: theme.colors.text,
+                    letterSpacing: 0.2,
+                  } as object,
+                }}
+              />
+            </View>
+            <StudioContactFooter />
+          </I18nProvider>
         </AuthProvider>
       </View>
     </SafeAreaProvider>

@@ -10,6 +10,8 @@ import {
   isSessionInProgress,
   sessionStartsAt,
 } from "../lib/sessionTime";
+import { useI18n } from "../context/I18nContext";
+import { isBirthdayToday } from "../lib/birthday";
 
 type Props = {
   userId: string | undefined;
@@ -47,10 +49,12 @@ function isInNext7Days(sessionDate: string, startTime: string, now: Date) {
 }
 
 export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Props) {
+  const { language, isRTL } = useI18n();
   const [now, setNow] = useState(() => new Date());
   const [attending, setAttending] = useState<TrainingSessionWithTrainer[]>([]);
   const [attendingLoading, setAttendingLoading] = useState(true);
   const [participantMap, setParticipantMap] = useState<Record<string, string[]>>({});
+  const [staffBirthdays, setStaffBirthdays] = useState<{ name: string; role: string }[]>([]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60000);
@@ -123,6 +127,35 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
     loadAttending();
   }, [loadAttending, refreshSeq]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, role, date_of_birth")
+        .in("role", ["coach", "manager"])
+        .order("full_name", { ascending: true });
+      if (cancelled) return;
+      if (error || !data) {
+        setStaffBirthdays([]);
+        return;
+      }
+      const today = new Date();
+      const list = (data as any[])
+        .map((r) => ({
+          name: String(r.full_name ?? "").trim(),
+          role: String(r.role ?? "").trim(),
+          dob: (r.date_of_birth as string | null | undefined) ?? null,
+        }))
+        .filter((r) => r.name && isBirthdayToday(r.dob, today))
+        .map((r) => ({ name: r.name, role: r.role }));
+      setStaffBirthdays(list);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshSeq]);
+
   const teachingNotEnded = useMemo(() => {
     if (!userId) return [];
     return sessions
@@ -189,7 +222,15 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
 
   if (!userId) return null;
 
-  function SessionLine({ s, prefix }: { s: TrainingSessionWithTrainer; prefix?: string }) {
+  function SessionLine({
+    s,
+    prefix,
+    alignRight,
+  }: {
+    s: TrainingSessionWithTrainer;
+    prefix?: string;
+    alignRight?: boolean;
+  }) {
     const label = `${s.session_date} · ${formatSessionTimeRange(s.start_time, durMin(s))}`;
     const trainer = s.trainer?.full_name ? ` · ${s.trainer.full_name}` : "";
     return (
@@ -197,7 +238,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
         style={({ pressed }) => [styles.line, pressed && styles.linePressed]}
         onPress={() => router.push(sessionPath(variant, s.id) as Href)}
       >
-        <Text style={styles.lineText}>
+        <Text style={[styles.lineText, alignRight && styles.rtlText]}>
           {prefix ? `${prefix}: ` : ""}
           {label}
           {trainer}
@@ -210,9 +251,9 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
     const names = participantMap[sessionId] ?? [];
     return (
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={[styles.cardTitle, isRTL && styles.rtlText]}>{title}</Text>
         {names.length === 0 ? (
-          <Text style={styles.muted}>No active registrations.</Text>
+          <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין הרשמות פעילות." : "No active registrations."}</Text>
         ) : (
           names.map((n, idx) => (
             <Text key={`${sessionId}-${idx}`} style={styles.participantName}>
@@ -226,38 +267,64 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.sectionTitle}>Your upcoming</Text>
-      <Text style={styles.sectionHint}>Sessions you’re signed up for in the next 7 days (today included).</Text>
+      {staffBirthdays.length > 0 ? (
+        <View style={styles.bdayCard}>
+          <Text style={[styles.bdayText, isRTL && styles.rtlText]}>
+            🎂{" "}
+            {language === "he"
+              ? `לצוות יש יום הולדת היום: ${staffBirthdays.map((p) => p.name).join(" · ")}`
+              : `Staff birthdays today: ${staffBirthdays.map((p) => p.name).join(" · ")}`}
+          </Text>
+        </View>
+      ) : null}
+      <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{language === "he" ? "הקרובים שלך" : "Your upcoming"}</Text>
+      <Text style={[styles.sectionHint, isRTL && styles.rtlText]}>
+        {language === "he"
+          ? "אימונים שנרשמת אליהם ב-7 הימים הקרובים (כולל היום)."
+          : "Sessions you’re signed up for in the next 7 days (today included)."}
+      </Text>
       {attendingLoading ? (
         <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
       ) : attending.length === 0 ? (
-        <Text style={styles.muted}>None right now.</Text>
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין כרגע." : "None right now."}</Text>
       ) : (
         attending.map((s) => <SessionLine key={`a-${s.id}`} s={s} />)
       )}
 
-      <Text style={[styles.sectionTitle, styles.sectionSpaced]}>Sessions you’re training</Text>
-      <Text style={styles.sectionHint}>All sessions where you’re the trainer in the next 7 days (today included).</Text>
+      <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
+        {language === "he" ? "אימונים שאתה מאמן" : "Sessions you’re training"}
+      </Text>
+      <Text style={[styles.sectionHint, isRTL && styles.rtlText]}>
+        {language === "he"
+          ? "כל האימונים שבהם אתה המאמן ב-7 הימים הקרובים (כולל היום)."
+          : "All sessions where you’re the trainer in the next 7 days (today included)."}
+      </Text>
       {teachingNotEnded.length === 0 ? (
-        <Text style={styles.muted}>None right now.</Text>
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין כרגע." : "None right now."}</Text>
       ) : (
-        teachingNotEnded.map((s) => <SessionLine key={`t-${s.id}`} s={s} />)
+        teachingNotEnded.map((s) => <SessionLine key={`t-${s.id}`} s={s} alignRight={isRTL} />)
       )}
 
       {(currentTeaching || nextTeaching) && (
         <>
-          <Text style={[styles.sectionTitle, styles.sectionSpaced]}>Current & next training</Text>
-          <Text style={styles.sectionHint}>Participants are shown only for your current and next session as trainer.</Text>
+          <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
+            {language === "he" ? "אימון נוכחי והבא" : "Current & next training"}
+          </Text>
+          <Text style={[styles.sectionHint, isRTL && styles.rtlText]}>
+            {language === "he"
+              ? "המשתתפים מוצגים רק עבור האימון הנוכחי והאימון הבא שלך כמאמן."
+              : "Participants are shown only for your current and next session as trainer."}
+          </Text>
           {currentTeaching ? (
             <>
-              <SessionLine s={currentTeaching} prefix="Current" />
-              <ParticipantBlock sessionId={currentTeaching.id} title="Participants (current)" />
+              <SessionLine s={currentTeaching} prefix={language === "he" ? "נוכחי" : "Current"} alignRight={isRTL} />
+              <ParticipantBlock sessionId={currentTeaching.id} title={language === "he" ? "משתתפים (נוכחי)" : "Participants (current)"} />
             </>
           ) : null}
           {nextTeaching ? (
             <>
-              <SessionLine s={nextTeaching} prefix="Next" />
-              <ParticipantBlock sessionId={nextTeaching.id} title="Participants (next)" />
+              <SessionLine s={nextTeaching} prefix={language === "he" ? "הבא" : "Next"} alignRight={isRTL} />
+              <ParticipantBlock sessionId={nextTeaching.id} title={language === "he" ? "משתתפים (הבא)" : "Participants (next)"} />
             </>
           ) : null}
         </>
@@ -272,10 +339,21 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.md,
   },
+  bdayCard: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    borderRadius: theme.radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: theme.spacing.md,
+  },
+  bdayText: { color: theme.colors.textMuted, fontSize: 13, fontWeight: "700", lineHeight: 18 },
   sectionTitle: { fontSize: 17, fontWeight: "700", color: theme.colors.text },
   sectionHint: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4, marginBottom: theme.spacing.sm },
   sectionSpaced: { marginTop: theme.spacing.lg },
   muted: { fontSize: 14, color: theme.colors.textMuted, fontStyle: "italic" },
+  rtlText: { textAlign: "right" },
   loader: { marginVertical: theme.spacing.sm },
   line: {
     paddingVertical: 10,

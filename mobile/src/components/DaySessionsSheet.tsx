@@ -16,6 +16,7 @@ import { formatISODateLong } from "../lib/dateFormat";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { supabase } from "../lib/supabase";
 import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
+import { useI18n } from "../context/I18nContext";
 
 export type DaySheetVariant = "athlete" | "coach" | "manager";
 
@@ -40,12 +41,16 @@ export function DaySessionsSheet({
   onAddSession,
   onChanged,
 }: Props) {
+  const { language } = useI18n();
   const title = formatISODateLong(dateIso);
   const isStaff = variant === "coach" || variant === "manager";
   const [busyId, setBusyId] = useState<string | null>(null);
 
   function confirmDelete(sessionId: string) {
-    const msg = "Delete this session? Registrations for it will be removed too.";
+    const msg =
+      language === "he"
+        ? "למחוק את האימון? גם ההרשמות אליו יימחקו."
+        : "Delete this session? Registrations for it will be removed too.";
 
     const runDelete = async () => {
       setBusyId(sessionId);
@@ -53,9 +58,9 @@ export function DaySessionsSheet({
       setBusyId(null);
       if (error) {
         if (Platform.OS === "web" && typeof window !== "undefined") {
-          window.alert(`Could not delete: ${error.message}`);
+          window.alert(language === "he" ? `לא ניתן למחוק: ${error.message}` : `Could not delete: ${error.message}`);
         } else {
-          Alert.alert("Could not delete", error.message);
+          Alert.alert(language === "he" ? "לא ניתן למחוק" : "Could not delete", error.message);
         }
         return;
       }
@@ -70,9 +75,9 @@ export function DaySessionsSheet({
       return;
     }
 
-    Alert.alert("Delete session?", msg, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => void runDelete() },
+    Alert.alert(language === "he" ? "מחיקת אימון?" : "Delete session?", msg, [
+      { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
+      { text: language === "he" ? "מחיקה" : "Delete", style: "destructive", onPress: () => void runDelete() },
     ]);
   }
 
@@ -94,21 +99,27 @@ export function DaySessionsSheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalRoot}>
-        <Pressable style={styles.backdropFill} onPress={onClose} accessibilityLabel="Dismiss" />
+        <Pressable style={styles.backdropFill} onPress={onClose} accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <Text style={styles.sheetTitle}>{title}</Text>
           <Text style={styles.sheetSub}>
             {items.length === 0
               ? isStaff
-                ? "No sessions scheduled."
-                : "No open sessions this day."
-              : `${items.length} session${items.length === 1 ? "" : "s"}`}
+                ? language === "he"
+                  ? "אין אימונים מתוכננים."
+                  : "No sessions scheduled."
+                : language === "he"
+                  ? "אין אימונים פתוחים ביום זה."
+                  : "No open sessions this day."
+              : language === "he"
+                ? `${items.length} אימון${items.length === 1 ? "" : "ים"}`
+                : `${items.length} session${items.length === 1 ? "" : "s"}`}
           </Text>
 
           {isStaff && onAddSession ? (
             <Pressable style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.9 }]} onPress={onAddSession}>
-              <Text style={styles.addBtnTxt}>+ Add session</Text>
+              <Text style={styles.addBtnTxt}>{language === "he" ? "+ הוספת אימון" : "+ Add session"}</Text>
             </Pressable>
           ) : null}
 
@@ -133,7 +144,7 @@ export function DaySessionsSheet({
                       }}
                       disabled={!it.onPress}
                     >
-                      <Text style={styles.primaryTapTxt}>View session</Text>
+                      <Text style={styles.primaryTapTxt}>{language === "he" ? "צפייה באימון" : "View session"}</Text>
                     </Pressable>
                   ) : (
                     <View style={styles.rowBtns}>
@@ -141,7 +152,15 @@ export function DaySessionsSheet({
                         style={({ pressed }) => [styles.ghostBtn, pressed && { opacity: 0.85 }]}
                         onPress={() => goEdit(it.key, it.coachId)}
                       >
-                        <Text style={styles.ghostBtnTxt}>{canEditMeta ? "Edit" : "Roster"}</Text>
+                        <Text style={styles.ghostBtnTxt}>
+                          {canEditMeta
+                            ? language === "he"
+                              ? "עריכה"
+                              : "Edit"
+                            : language === "he"
+                              ? "רשימה"
+                              : "Roster"}
+                        </Text>
                       </Pressable>
                       {canDelete ? (
                         <Pressable
@@ -152,7 +171,7 @@ export function DaySessionsSheet({
                           {busyId === it.key ? (
                             <ActivityIndicator color="#fff" size="small" />
                           ) : (
-                            <Text style={styles.dangerBtnTxt}>Delete</Text>
+                            <Text style={styles.dangerBtnTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
                           )}
                         </Pressable>
                       ) : null}
@@ -164,7 +183,7 @@ export function DaySessionsSheet({
           </ScrollView>
 
           <Pressable style={({ pressed }) => [styles.closeFooter, pressed && { opacity: 0.85 }]} onPress={onClose}>
-            <Text style={styles.closeFooterTxt}>Close</Text>
+            <Text style={styles.closeFooterTxt}>{language === "he" ? "סגור" : "Close"}</Text>
           </Pressable>
         </View>
       </View>

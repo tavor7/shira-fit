@@ -5,6 +5,7 @@ import { supabase } from "../../../../src/lib/supabase";
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { ParticipantAttendanceList } from "../../../../src/components/ParticipantAttendanceList";
+import { useI18n } from "../../../../src/context/I18nContext";
 
 type W = { user_id: string; profiles: { full_name: string } };
 type CancellationRow = {
@@ -17,6 +18,7 @@ type CancellationRow = {
 
 export default function CoachSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { language, t, isRTL } = useI18n();
   const [participantsRev, setParticipantsRev] = useState(0);
   const [waitlist, setWaitlist] = useState<W[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
@@ -76,23 +78,23 @@ export default function CoachSessionDetail() {
 
   async function addExistingAthlete(userId: string) {
     const { data, error } = await supabase.rpc("coach_add_athlete", { p_session_id: id, p_user_id: userId });
-    if (error) Alert.alert("Error", error.message);
+    if (error) Alert.alert(t("common.error"), error.message);
     else if (data?.ok) {
-      Alert.alert("Added");
+      Alert.alert(language === "he" ? "נוסף" : "Added");
       setAddOpen(false);
       setQ("");
       setResults([]);
       loadWaitlist();
       loadCancellations();
       setParticipantsRev((n) => n + 1);
-    } else Alert.alert("Failed", data?.error ?? "");
+    } else Alert.alert(t("common.failed"), data?.error ?? "");
   }
 
   async function quickAdd() {
     const name = quickName.trim();
     const phone = quickPhone.trim();
     if (name.length < 2 || phone.length < 3) {
-      Alert.alert("Missing info", "Enter name and phone.");
+      Alert.alert(language === "he" ? "חסר מידע" : "Missing info", language === "he" ? "הזינו שם וטלפון." : "Enter name and phone.");
       return;
     }
     const { data: up, error: upErr } = await supabase.rpc("upsert_manual_participant", {
@@ -100,33 +102,35 @@ export default function CoachSessionDetail() {
       p_phone: phone,
     });
     if (upErr) {
-      Alert.alert("Error", upErr.message);
+      Alert.alert(t("common.error"), upErr.message);
       return;
     }
     const mid = up?.manual_participant_id as string | undefined;
     if (!mid) {
-      Alert.alert("Failed", up?.error ?? "Could not create");
+      Alert.alert(t("common.failed"), up?.error ?? (language === "he" ? "לא ניתן ליצור" : "Could not create"));
       return;
     }
     const { data, error } = await supabase.rpc("add_manual_participant_to_session", {
       p_session_id: id,
       p_manual_participant_id: mid,
     });
-    if (error) Alert.alert("Error", error.message);
+    if (error) Alert.alert(t("common.error"), error.message);
     else if (data?.ok) {
-      Alert.alert("Added");
+      Alert.alert(language === "he" ? "נוסף" : "Added");
       setQuickName("");
       setQuickPhone("");
       setAddOpen(false);
       setParticipantsRev((n) => n + 1);
-    } else Alert.alert("Failed", data?.error ?? "");
+    } else Alert.alert(t("common.failed"), data?.error ?? "");
   }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.h}>Participants & attendance</Text>
-      <Text style={styles.sub}>
-        Mark who arrived after the session (or anytime). Athletes with an active registration appear here.
+      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משתתפים ונוכחות" : "Participants & attendance"}</Text>
+      <Text style={[styles.sub, isRTL && styles.rtlText]}>
+        {language === "he"
+          ? "סמנו מי הגיע לאחר האימון (או בכל זמן). מתאמנים עם הרשמה פעילה מופיעים כאן."
+          : "Mark who arrived after the session (or anytime). Athletes with an active registration appear here."}
       </Text>
       <ParticipantAttendanceList
         sessionId={id}
@@ -137,9 +141,9 @@ export default function CoachSessionDetail() {
         }}
       />
 
-      <Text style={styles.h}>Waitlist</Text>
+      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "רשימת המתנה" : "Waitlist"}</Text>
       {waitlist.length === 0 ? (
-        <Text style={styles.muted}>None</Text>
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
       ) : (
         waitlist.map((item) => (
           <Text key={item.user_id} style={styles.row}>
@@ -148,7 +152,7 @@ export default function CoachSessionDetail() {
         ))
       )}
       <PrimaryButton
-        label="Add participant"
+        label={language === "he" ? "הוספת משתתף" : "Add participant"}
         onPress={() => {
           setAddOpen(true);
           searchAthletes();
@@ -156,10 +160,10 @@ export default function CoachSessionDetail() {
         variant="ghost"
       />
 
-      <Text style={styles.h}>Cancellations</Text>
-      <Text style={styles.sub}>Visible to coaches and managers only.</Text>
+      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "ביטולים" : "Cancellations"}</Text>
+      <Text style={[styles.sub, isRTL && styles.rtlText]}>{language === "he" ? "גלוי רק למאמנים ולמנהלים." : "Visible to coaches and managers only."}</Text>
       {cancellations.length === 0 ? (
-        <Text style={styles.muted}>None</Text>
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
       ) : (
         cancellations.map((c) => {
           const p = c.profiles ? (Array.isArray(c.profiles) ? c.profiles[0] : c.profiles) : null;
@@ -168,8 +172,12 @@ export default function CoachSessionDetail() {
             <View key={`${c.user_id}-${c.cancelled_at}`} style={styles.cancelCard}>
               <Text style={styles.cancelName}>{name}</Text>
               <Text style={styles.cancelMeta}>{new Date(c.cancelled_at).toLocaleString()}</Text>
-              <Text style={styles.cancelReason}>Reason: {c.reason}</Text>
-              {c.charged_full_price ? <Text style={styles.chargeWarn}>Late cancellation (&lt;24h) — charged</Text> : null}
+              <Text style={styles.cancelReason}>{language === "he" ? "סיבה: " : "Reason: "}{c.reason}</Text>
+              {c.charged_full_price ? (
+                <Text style={styles.chargeWarn}>
+                  {language === "he" ? "ביטול מאוחר (<24ש׳) — חיוב" : "Late cancellation (<24h) — charged"}
+                </Text>
+              ) : null}
             </View>
           );
         })
@@ -177,21 +185,25 @@ export default function CoachSessionDetail() {
       <Modal visible={addOpen} transparent>
         <View style={styles.modal}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Add participant</Text>
-            <Text style={styles.modalHint}>Search existing athletes, or quick-add by name + phone (no account).</Text>
+            <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{language === "he" ? "הוספת משתתף" : "Add participant"}</Text>
+            <Text style={[styles.modalHint, isRTL && styles.rtlText]}>
+              {language === "he"
+                ? "חפשו מתאמנים קיימים, או הוספה מהירה לפי שם וטלפון (ללא חשבון)."
+                : "Search existing athletes, or quick-add by name + phone (no account)."}
+            </Text>
 
-            <Text style={styles.modalSub}>Search existing</Text>
+            <Text style={[styles.modalSub, isRTL && styles.rtlText]}>{language === "he" ? "חיפוש קיים" : "Search existing"}</Text>
             <View style={styles.searchRow}>
               <TextInput
                 style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                placeholder="Search name / phone / username…"
+                placeholder={language === "he" ? "חיפוש שם / טלפון / משתמש…" : "Search name / phone / username…"}
                 placeholderTextColor={theme.colors.textSoft}
                 value={q}
                 onChangeText={setQ}
                 autoCapitalize="none"
               />
               <Pressable style={({ pressed }) => [styles.searchBtn, pressed && { opacity: 0.9 }]} onPress={searchAthletes}>
-                <Text style={styles.searchBtnTxt}>{searching ? "…" : "Search"}</Text>
+                <Text style={styles.searchBtnTxt}>{searching ? "…" : t("common.search")}</Text>
               </Pressable>
             </View>
             <FlatList
@@ -204,28 +216,38 @@ export default function CoachSessionDetail() {
                   <Text style={styles.pickMeta}>@{item.username} · {item.phone}</Text>
                 </Pressable>
               )}
-              ListEmptyComponent={<Text style={styles.muted}>{q.trim() ? "No matches." : "Search to see results."}</Text>}
+              ListEmptyComponent={
+                <Text style={[styles.muted, isRTL && styles.rtlText]}>
+                  {q.trim()
+                    ? language === "he"
+                      ? "אין התאמות."
+                      : "No matches."
+                    : language === "he"
+                      ? "חפשו כדי לראות תוצאות."
+                      : "Search to see results."}
+                </Text>
+              }
             />
 
-            <Text style={[styles.modalSub, { marginTop: 14 }]}>Quick add (no account)</Text>
+            <Text style={[styles.modalSub, { marginTop: 14 }, isRTL && styles.rtlText]}>{language === "he" ? "הוספה מהירה (ללא חשבון)" : "Quick add (no account)"}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Full name"
+              placeholder={t("profile.fullName")}
               placeholderTextColor={theme.colors.textSoft}
               value={quickName}
               onChangeText={setQuickName}
             />
             <TextInput
               style={styles.input}
-              placeholder="Phone"
+              placeholder={t("profile.phone")}
               placeholderTextColor={theme.colors.textSoft}
               value={quickPhone}
               onChangeText={setQuickPhone}
               keyboardType="phone-pad"
             />
-            <PrimaryButton label="Quick add" onPress={quickAdd} />
+            <PrimaryButton label={language === "he" ? "הוספה מהירה" : "Quick add"} onPress={quickAdd} />
             <Pressable onPress={() => setAddOpen(false)}>
-              <Text style={styles.cancel}>Cancel</Text>
+              <Text style={styles.cancel}>{t("common.cancel")}</Text>
             </Pressable>
           </View>
         </View>
@@ -239,6 +261,7 @@ const styles = StyleSheet.create({
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
   h: { fontWeight: "700", marginTop: theme.spacing.md, marginBottom: 8, color: theme.colors.text },
   sub: { fontSize: 13, color: theme.colors.textMuted, marginBottom: theme.spacing.sm, lineHeight: 18 },
+  rtlText: { textAlign: "right" },
   row: { paddingVertical: 8, borderBottomWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
   muted: { color: theme.colors.textSoft },
   cancelCard: {

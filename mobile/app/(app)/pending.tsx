@@ -3,9 +3,11 @@ import { useCallback } from "react";
 import { View, Text, StyleSheet, Image } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
 import { theme } from "../../src/theme";
+import { useI18n } from "../../src/context/I18nContext";
 
 export default function PendingScreen() {
   const { profile, refreshProfile } = useAuth();
+  const { language, isRTL } = useI18n();
 
   useFocusEffect(
     useCallback(() => {
@@ -26,9 +28,11 @@ export default function PendingScreen() {
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
       </View>
       <View style={styles.card}>
-        <Text style={styles.title}>Pending approval</Text>
-        <Text style={styles.body}>
-          Hi {profile?.full_name || profile?.username}. A manager will contact you by phone before you can book sessions.
+        <Text style={[styles.title, isRTL && styles.rtlText]}>{language === "he" ? "ממתין לאישור" : "Pending approval"}</Text>
+        <Text style={[styles.body, isRTL && styles.rtlText]}>
+          {language === "he"
+            ? `שלום ${profile?.full_name || profile?.username}. מנהל יצור איתך קשר בטלפון לפני שתוכל/י להזמין אימונים.`
+            : `Hi ${profile?.full_name || profile?.username}. A manager will contact you by phone before you can book sessions.`}
         </Text>
       </View>
     </View>
@@ -48,4 +52,5 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 22, fontWeight: "700", marginBottom: theme.spacing.sm, color: theme.colors.text, letterSpacing: 0.2 },
   body: { fontSize: 16, color: theme.colors.textMuted, lineHeight: 24 },
+  rtlText: { textAlign: "right" },
 });

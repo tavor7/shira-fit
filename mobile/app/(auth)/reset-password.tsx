@@ -14,12 +14,15 @@ import { router } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { theme } from "../../src/theme";
+import { useI18n } from "../../src/context/I18nContext";
+import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 
 /**
  * User lands here after clicking the email link (tokens in URL hash on web).
  * Supabase must have this redirect URL allowlisted.
  */
 export default function ResetPasswordScreen() {
+  const { language, t, isRTL } = useI18n();
   const [ready, setReady] = useState(false);
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -43,7 +46,10 @@ export default function ResetPasswordScreen() {
       const { data } = await supabase.auth.getSession();
       if (!cancelled) setReady(true);
       if (!data.session && Platform.OS !== "web") {
-        Alert.alert("Invalid or expired link", "Request a new reset email from Forgot password.");
+        Alert.alert(
+          language === "he" ? "קישור לא תקין או שפג תוקפו" : "Invalid or expired link",
+          language === "he" ? "בקשו אימייל איפוס חדש מ״שכחתי סיסמה״." : "Request a new reset email from Forgot password."
+        );
       }
     })();
     return () => {
@@ -53,17 +59,23 @@ export default function ResetPasswordScreen() {
 
   async function save() {
     if (password.length < 6) {
-      Alert.alert("Password too short", "Use at least 6 characters.");
+      Alert.alert(
+        language === "he" ? "סיסמה קצרה מדי" : "Password too short",
+        language === "he" ? "השתמשו בלפחות 6 תווים." : "Use at least 6 characters."
+      );
       return;
     }
     if (password !== password2) {
-      Alert.alert("Mismatch", "Passwords do not match.");
+      Alert.alert(
+        language === "he" ? "אי התאמה" : "Mismatch",
+        language === "he" ? "הסיסמאות אינן תואמות." : "Passwords do not match."
+      );
       return;
     }
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
-    if (error) Alert.alert("Error", error.message);
+    if (error) Alert.alert(t("common.error"), error.message);
     else router.replace("/(auth)/password-updated");
   }
 
@@ -71,17 +83,20 @@ export default function ResetPasswordScreen() {
     return (
       <View style={[styles.container, { justifyContent: "center" }]}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={styles.loadingText}>Loading…</Text>
+        <Text style={[styles.loadingText, isRTL && { textAlign: "right" }]}>{t("common.loading")}</Text>
       </View>
     );
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
-      <Text style={styles.title}>New password</Text>
-      <Text style={styles.hint}>Choose a new password for your account.</Text>
+      <LanguageToggleChip />
+      <Text style={[styles.title, isRTL && { textAlign: "right" }]}>{language === "he" ? "סיסמה חדשה" : "New password"}</Text>
+      <Text style={[styles.hint, isRTL && { textAlign: "right" }]}>
+        {language === "he" ? "בחרו סיסמה חדשה לחשבון שלכם." : "Choose a new password for your account."}
+      </Text>
       <TextInput
         style={styles.input}
-        placeholder="New password (min 6)"
+        placeholder={language === "he" ? "סיסמה חדשה (מינימום 6)" : "New password (min 6)"}
         placeholderTextColor={theme.colors.textSoft}
         secureTextEntry
         value={password}
@@ -89,15 +104,15 @@ export default function ResetPasswordScreen() {
       />
       <TextInput
         style={styles.input}
-        placeholder="Confirm password"
+        placeholder={language === "he" ? "אישור סיסמה" : "Confirm password"}
         placeholderTextColor={theme.colors.textSoft}
         secureTextEntry
         value={password2}
         onChangeText={setPassword2}
       />
       <PrimaryButton
-        label="Update password"
-        loadingLabel="Saving…"
+        label={language === "he" ? "עדכון סיסמה" : "Update password"}
+        loadingLabel={t("common.loading")}
         loading={busy}
         onPress={save}
       />

@@ -6,6 +6,7 @@ import { theme } from "../../../src/theme";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
+import { useI18n } from "../../../src/context/I18nContext";
 
 type TsNested = {
   id: string;
@@ -17,6 +18,7 @@ type TsNested = {
 type Row = { session_id: string; training_sessions: TsNested };
 
 export default function MySessionsScreen() {
+  const { language } = useI18n();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
@@ -61,7 +63,7 @@ export default function MySessionsScreen() {
           session_date: ts.session_date,
           start_time: ts.start_time,
           timeLabel: formatSessionTimeRange(ts.start_time, dm),
-          subtitle: "Registered",
+          subtitle: language === "he" ? "נרשם" : "Registered",
           onPress: () => router.push(`/(app)/athlete/session/${ts.id}`),
         };
       }),
@@ -75,7 +77,7 @@ export default function MySessionsScreen() {
       <SessionsWeekCalendar
         items={items}
         isLoading={loading}
-        emptyLabel="No active registrations."
+        emptyLabel={language === "he" ? "אין הרשמות פעילות." : "No active registrations."}
         onDayPress={(iso) => setSheetDay(iso)}
       />
       <DaySessionsSheet

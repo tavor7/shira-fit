@@ -15,6 +15,7 @@ import { supabase } from "../lib/supabase";
 import { TRAINER_COLOR_PRESETS, normalizeHexInput, resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { useI18n } from "../context/I18nContext";
 
 type Row = {
   user_id: string;
@@ -25,6 +26,7 @@ type Row = {
 };
 
 export default function TrainerCalendarColorsScreen() {
+  const { language, t, isRTL } = useI18n();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -51,7 +53,7 @@ export default function TrainerCalendarColorsScreen() {
     if (error) {
       setRows([]);
       if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-      else Alert.alert("Error", error.message);
+      else Alert.alert(t("common.error"), error.message);
     } else {
       const list = ((data ?? []) as Row[]).map((r) => ({ ...r, calendar_color: r.calendar_color ?? null }));
       setRows(list);
@@ -74,7 +76,10 @@ export default function TrainerCalendarColorsScreen() {
     if (raw.length > 0) {
       const norm = normalizeHexInput(raw.startsWith("#") ? raw : `#${raw}`);
       if (!norm) {
-        Alert.alert("Invalid color", "Use a hex color like #5B9BD5 (six digits after #).");
+        Alert.alert(
+          language === "he" ? "צבע לא תקין" : "Invalid color",
+          language === "he" ? "השתמשו בצבע הקס כמו ‎#5B9BD5‎ (6 ספרות אחרי #)." : "Use a hex color like #5B9BD5 (six digits after #)."
+        );
         return;
       }
       value = norm;
@@ -84,7 +89,7 @@ export default function TrainerCalendarColorsScreen() {
     setSavingId(null);
     if (error) {
       if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-      else Alert.alert("Error", error.message);
+      else Alert.alert(t("common.error"), error.message);
       return;
     }
     setRows((prev) => prev.map((r) => (r.user_id === userId ? { ...r, calendar_color: value } : r)));
@@ -99,16 +104,17 @@ export default function TrainerCalendarColorsScreen() {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={styles.muted}>Loading trainers…</Text>
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "טוען מאמנים…" : "Loading trainers…"}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.intro}>
-        Each trainer gets a color stripe on session cards. Leave the field empty to use an automatic color. Only managers
-        can change these.
+      <Text style={[styles.intro, isRTL && styles.rtlText]}>
+        {language === "he"
+          ? "לכל מאמן יש פס צבע בכרטיסי האימונים. השאירו ריק כדי להשתמש בצבע אוטומטי. רק מנהלים יכולים לשנות."
+          : "Each trainer gets a color stripe on session cards. Leave the field empty to use an automatic color. Only managers can change these."}
       </Text>
       <FlatList
         data={rows}
@@ -136,16 +142,16 @@ export default function TrainerCalendarColorsScreen() {
                   </Text>
                 </View>
               </View>
-              <Text style={styles.label}>Hex (#RRGGBB)</Text>
+              <Text style={[styles.label, isRTL && styles.rtlText]}>Hex (#RRGGBB)</Text>
               <TextInput
                 style={styles.input}
                 value={drafts[item.user_id] ?? ""}
                 onChangeText={(t) => setDrafts((p) => ({ ...p, [item.user_id]: t }))}
-                placeholder="#5B9BD5 or empty"
+                placeholder={language === "he" ? "#5B9BD5 או ריק" : "#5B9BD5 or empty"}
                 placeholderTextColor={theme.colors.placeholderOnLight}
                 autoCapitalize="characters"
               />
-              <Text style={styles.presetsLabel}>Presets</Text>
+              <Text style={[styles.presetsLabel, isRTL && styles.rtlText]}>{language === "he" ? "בחירות מהירות" : "Presets"}</Text>
               <View style={styles.presets}>
                 {TRAINER_COLOR_PRESETS.map((hex) => (
                   <Pressable
@@ -159,11 +165,16 @@ export default function TrainerCalendarColorsScreen() {
                   />
                 ))}
               </View>
-              <PrimaryButton label="Save color" onPress={() => save(item.user_id)} loading={busy} loadingLabel="Saving…" />
+              <PrimaryButton
+                label={language === "he" ? "שמירת צבע" : "Save color"}
+                onPress={() => save(item.user_id)}
+                loading={busy}
+                loadingLabel={t("common.loading")}
+              />
             </View>
           );
         }}
-        ListEmptyComponent={<Text style={styles.empty}>No coaches or managers found.</Text>}
+        ListEmptyComponent={<Text style={[styles.empty, isRTL && styles.rtlText]}>{language === "he" ? "לא נמצאו מאמנים או מנהלים." : "No coaches or managers found."}</Text>}
       />
     </View>
   );
@@ -173,6 +184,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", padding: theme.spacing.xl },
   muted: { marginTop: 10, color: theme.colors.textMuted },
+  rtlText: { textAlign: "right" },
   intro: {
     padding: theme.spacing.md,
     paddingBottom: theme.spacing.sm,

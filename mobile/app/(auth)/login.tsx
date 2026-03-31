@@ -14,6 +14,8 @@ import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ActionButton } from "../../src/components/ActionButton";
 import { theme } from "../../src/theme";
+import { useI18n } from "../../src/context/I18nContext";
+import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 
 function getLoginErrorMessage(error: { message: string }): string {
   const msg = (error.message || "").toLowerCase();
@@ -27,19 +29,24 @@ function getLoginErrorMessage(error: { message: string }): string {
 }
 
 export default function LoginScreen() {
+  const { language, t, isRTL } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  function tr(msgEn: string, msgHe: string) {
+    return language === "he" ? msgHe : msgEn;
+  }
+
   async function onLogin() {
     setErrorMessage("");
     if (!email.trim()) {
-      setErrorMessage("Please enter your email.");
+      setErrorMessage(tr("Please enter your email.", "אנא הזינו אימייל."));
       return;
     }
     if (!password) {
-      setErrorMessage("Please enter your password.");
+      setErrorMessage(tr("Please enter your password.", "אנא הזינו סיסמה."));
       return;
     }
     setBusy(true);
@@ -49,13 +56,28 @@ export default function LoginScreen() {
     });
     setBusy(false);
     if (error) {
-      setErrorMessage(getLoginErrorMessage(error));
+      const msg = getLoginErrorMessage(error);
+      // Keep original error mapping but translate the common cases we generate in getLoginErrorMessage().
+      if (msg.startsWith("Wrong email or password")) {
+        setErrorMessage(
+          tr(
+            msg,
+            "אימייל או סיסמה שגויים. אם אין לך חשבון, בצעו הרשמה. אחרת בדקו את הסיסמה או השתמשו ב״שכחתי סיסמה״."
+          )
+        );
+      } else if (msg.startsWith("Please confirm your email")) {
+        setErrorMessage(tr(msg, "אנא אשרו את האימייל דרך הקישור ששלחנו, ואז נסו שוב."));
+      } else if (msg.startsWith("Login failed")) {
+        setErrorMessage(tr(msg, "ההתחברות נכשלה. נסו שוב."));
+      } else {
+        setErrorMessage(msg);
+      }
       return;
     }
     if (data.session) {
       router.replace("/");
     } else {
-      setErrorMessage("Sign-in didn't complete. Please try again.");
+      setErrorMessage(tr("Sign-in didn't complete. Please try again.", "ההתחברות לא הושלמה. נסו שוב."));
     }
   }
 
@@ -64,18 +86,19 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.container}
     >
+      <LanguageToggleChip />
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
       </View>
-      <Text style={styles.sub}>Sign in to your account</Text>
+      <Text style={[styles.sub, isRTL && { textAlign: "right" }]}>{tr("Sign in to your account", "התחברות לחשבון")}</Text>
       {errorMessage ? (
         <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{errorMessage}</Text>
+          <Text style={[styles.errorText, isRTL && { textAlign: "right" }]}>{errorMessage}</Text>
         </View>
       ) : null}
       <TextInput
         style={[styles.input, errorMessage ? styles.inputError : null]}
-        placeholder="Email"
+        placeholder={t("auth.email")}
         placeholderTextColor={theme.colors.textSoft}
         autoCapitalize="none"
         keyboardType="email-address"
@@ -84,20 +107,20 @@ export default function LoginScreen() {
       />
       <TextInput
         style={[styles.input, errorMessage ? styles.inputError : null]}
-        placeholder="Password"
+        placeholder={t("auth.password")}
         placeholderTextColor={theme.colors.textSoft}
         secureTextEntry
         value={password}
         onChangeText={(t) => { setPassword(t); setErrorMessage(""); }}
       />
       <PrimaryButton
-        label="Log in"
-        loadingLabel="Signing in…"
+        label={t("auth.signIn")}
+        loadingLabel={t("common.loading")}
         loading={busy}
         onPress={onLogin}
       />
-      <ActionButton label="Forgot password?" onPress={() => router.push("/(auth)/forgot-password")} style={styles.navBtn} />
-      <ActionButton label="Create account" onPress={() => router.push("/(auth)/signup")} style={styles.navBtn} />
+      <ActionButton label={t("auth.forgotPassword") + "?"} onPress={() => router.push("/(auth)/forgot-password")} style={styles.navBtn} />
+      <ActionButton label={t("auth.createAccount")} onPress={() => router.push("/(auth)/signup")} style={styles.navBtn} />
     </KeyboardAvoidingView>
   );
 }

@@ -7,9 +7,11 @@ import { formatSessionTimeRange } from "../../../../src/lib/sessionTime";
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { ActionButton } from "../../../../src/components/ActionButton";
+import { useI18n } from "../../../../src/context/I18nContext";
 
 export default function AthleteSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { language, t, isRTL } = useI18n();
   const [session, setSession] = useState<TrainingSessionWithTrainer | null>(null);
   const [count, setCount] = useState(0);
   const [onWaitlist, setOnWaitlist] = useState(false);
@@ -55,9 +57,9 @@ export default function AthleteSessionDetail() {
 
   async function register() {
     const { data, error } = await supabase.rpc("register_for_session", { p_session_id: id });
-    if (error) Alert.alert("Error", error.message);
+    if (error) Alert.alert(t("common.error"), error.message);
     else if (data?.ok) {
-      Alert.alert("Registered");
+      Alert.alert(language === "he" ? "נרשמת" : "Registered");
       setRegistered(true);
       const { count: c } = await supabase
         .from("session_registrations")
@@ -65,21 +67,21 @@ export default function AthleteSessionDetail() {
         .eq("session_id", id)
         .eq("status", "active");
       setCount(c ?? 0);
-    } else Alert.alert("Could not register", data?.error ?? "");
+    } else Alert.alert(language === "he" ? "לא ניתן להירשם" : "Could not register", data?.error ?? "");
   }
 
   async function waitlist() {
     const { data, error } = await supabase.rpc("request_waitlist", { p_session_id: id });
-    if (error) Alert.alert("Error", error.message);
+    if (error) Alert.alert(t("common.error"), error.message);
     else if (data?.ok) {
-      Alert.alert("You will be notified if a spot opens");
+      Alert.alert(language === "he" ? "תקבלו הודעה אם יתפנה מקום" : "You will be notified if a spot opens");
       setOnWaitlist(true);
-    } else Alert.alert("Waitlist", data?.error ?? "");
+    } else Alert.alert(language === "he" ? "רשימת המתנה" : "Waitlist", data?.error ?? "");
   }
 
   async function cancel() {
     if (!reason.trim()) {
-      Alert.alert("Reason required");
+      Alert.alert(language === "he" ? "נדרשת סיבה" : "Reason required");
       return;
     }
     const { data, error } = await supabase.rpc("cancel_registration", {
@@ -88,13 +90,17 @@ export default function AthleteSessionDetail() {
     });
     setCancelOpen(false);
     setReason("");
-    if (error) Alert.alert("Error", error.message);
+    if (error) Alert.alert(t("common.error"), error.message);
     else if (data?.ok) {
       Alert.alert(
-        "Cancelled",
+        language === "he" ? "בוטל" : "Cancelled",
         data.charged_full_price
-          ? "Cancelled less than 24 hours before the workout — you will be charged for the session."
-          : "Cancelled successfully."
+          ? language === "he"
+            ? "בוטל פחות מ-24 שעות לפני האימון — תחויב/י עבור האימון."
+            : "Cancelled less than 24 hours before the workout — you will be charged for the session."
+          : language === "he"
+            ? "בוטל בהצלחה."
+            : "Cancelled successfully."
       );
       setRegistered(false);
       const { count: c } = await supabase
@@ -104,10 +110,16 @@ export default function AthleteSessionDetail() {
         .eq("status", "active");
       setCount(c ?? 0);
       /* Notify waitlist: configure Supabase Cron or webhook to POST notify-waitlist with CRON_SECRET */
-    } else Alert.alert("Error", data?.error ?? "");
+    } else Alert.alert(t("common.error"), data?.error ?? "");
   }
 
-  if (!session) return <View style={styles.box}><ActivityIndicator size="large" color={theme.colors.cta} /><Text style={styles.loadingText}>Loading…</Text></View>;
+  if (!session)
+    return (
+      <View style={styles.box}>
+        <ActivityIndicator size="large" color={theme.colors.cta} />
+        <Text style={[styles.loadingText, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
+      </View>
+    );
   const full = count >= session.max_participants;
 
   return (
@@ -115,30 +127,62 @@ export default function AthleteSessionDetail() {
       <View style={styles.card}>
         <Text style={styles.title}>{session.session_date}</Text>
         <Text style={styles.sub}>{formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}</Text>
-        {session.trainer?.full_name ? <Text style={styles.sub}>Trainer: {session.trainer.full_name}</Text> : null}
-        <Text style={styles.sub}>Spots: {count} / {session.max_participants}</Text>
+        {session.trainer?.full_name ? (
+          <Text style={[styles.sub, isRTL && styles.rtlText]}>
+            {language === "he" ? "מאמן: " : "Trainer: "}
+            {session.trainer.full_name}
+          </Text>
+        ) : null}
+        <Text style={[styles.sub, isRTL && styles.rtlText]}>
+          {language === "he" ? "מקומות: " : "Spots: "}
+          {count} / {session.max_participants}
+        </Text>
       </View>
       {!registered ? (
         <>
-          <PrimaryButton label="Register" onPress={register} disabled={full} style={full ? styles.disabled : undefined} />
+          <PrimaryButton
+            label={language === "he" ? "הרשמה" : "Register"}
+            onPress={register}
+            disabled={full}
+            style={full ? styles.disabled : undefined}
+          />
           {full && (
             <Pressable style={styles.btn2} onPress={waitlist}>
-              <Text style={styles.btnText2}>{onWaitlist ? "On waitlist" : "Notify if spot opens"}</Text>
+              <Text style={styles.btnText2}>
+                {onWaitlist
+                  ? language === "he"
+                    ? "ברשימת המתנה"
+                    : "On waitlist"
+                  : language === "he"
+                    ? "עדכנו אם יתפנה מקום"
+                    : "Notify if spot opens"}
+              </Text>
             </Pressable>
           )}
         </>
       ) : (
         <Pressable style={styles.btnDanger} onPress={() => setCancelOpen(true)}>
-          <Text style={styles.btnText}>Cancel registration</Text>
+          <Text style={styles.btnText}>{language === "he" ? "ביטול הרשמה" : "Cancel registration"}</Text>
         </Pressable>
       )}
       <Modal visible={cancelOpen} transparent animationType="slide">
         <View style={styles.modal}>
           <View style={styles.modalCard}>
-            <Text style={styles.mTitle}>Cancellation reason</Text>
-            <TextInput style={styles.input} placeholder="Reason" placeholderTextColor={theme.colors.textSoft} value={reason} onChangeText={setReason} multiline />
-            <PrimaryButton label="Confirm cancel" onPress={cancel} />
-            <ActionButton label="Close" onPress={() => setCancelOpen(false)} style={{ marginTop: 16, alignSelf: "center" }} />
+            <Text style={[styles.mTitle, isRTL && styles.rtlText]}>{language === "he" ? "סיבת ביטול" : "Cancellation reason"}</Text>
+            <TextInput
+              style={styles.input}
+              placeholder={language === "he" ? "סיבה" : "Reason"}
+              placeholderTextColor={theme.colors.textSoft}
+              value={reason}
+              onChangeText={setReason}
+              multiline
+            />
+            <PrimaryButton label={language === "he" ? "אישור ביטול" : "Confirm cancel"} onPress={cancel} />
+            <ActionButton
+              label={language === "he" ? "סגור" : "Close"}
+              onPress={() => setCancelOpen(false)}
+              style={{ marginTop: 16, alignSelf: "center" }}
+            />
           </View>
         </View>
       </Modal>
@@ -149,6 +193,7 @@ export default function AthleteSessionDetail() {
 const styles = StyleSheet.create({
   box: { flex: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.backgroundAlt },
   loadingText: { marginTop: 12, color: theme.colors.textMuted },
+  rtlText: { textAlign: "right" },
   card: {
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.lg,

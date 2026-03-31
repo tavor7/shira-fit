@@ -3,6 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-nativ
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { useI18n } from "../context/I18nContext";
 
 const WEEKDAYS: { id: number; label: string }[] = [
   { id: 0, label: "Sunday" },
@@ -23,6 +24,7 @@ export default function RegistrationOpeningScheduleScreen() {
   const [time, setTime] = useState<string>("08:00");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { language, t, isRTL } = useI18n();
 
   const weekdayLabel = useMemo(() => WEEKDAYS.find((w) => w.id === weekday)?.label ?? "—", [weekday]);
 
@@ -43,37 +45,48 @@ export default function RegistrationOpeningScheduleScreen() {
   }, [load]);
 
   async function save() {
-    const t = time.trim();
-    if (!isValidHHMM(t)) {
-      Alert.alert("Invalid time", "Use HH:MM in 24-hour format, e.g. 08:00.");
+    const timeStr = time.trim();
+    if (!isValidHHMM(timeStr)) {
+      Alert.alert(
+        language === "he" ? "שעה לא תקינה" : "Invalid time",
+        language === "he" ? "השתמשו בפורמט HH:MM (24 שעות), לדוגמה 08:00." : "Use HH:MM in 24-hour format, e.g. 08:00.",
+      );
       return;
     }
     setSaving(true);
     const { data, error } = await supabase.rpc("set_registration_opening_schedule", {
       p_weekday: weekday,
-      p_time: t,
+      p_time: timeStr,
     });
     setSaving(false);
     if (error) {
-      Alert.alert("Error", error.message);
+      Alert.alert(t("common.error"), error.message);
       return;
     }
     if (!data?.ok) {
-      Alert.alert("Failed", data?.error ?? "Unknown error");
+      Alert.alert(t("common.failed"), data?.error ?? "Unknown error");
       return;
     }
-    Alert.alert("Saved", `Weekly opening set to ${weekdayLabel} at ${t} (UTC).`);
+    Alert.alert(
+      t("common.saved"),
+      language === "he"
+        ? `פתיחת הרשמה שבועית נקבעה ל-${weekdayLabel} בשעה ${timeStr} (UTC).`
+        : `Weekly opening set to ${weekdayLabel} at ${timeStr} (UTC).`,
+    );
   }
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Registration opening</Text>
-      <Text style={styles.hint}>
-        Next-week sessions stay closed until the opening time. At the opening, all non-hidden sessions in next week (Sun–Sat)
-        become open for registration. Time is stored as UTC.
+      <Text style={[styles.title, isRTL && styles.rtlText]}>
+        {language === "he" ? "פתיחת הרשמה" : "Registration opening"}
+      </Text>
+      <Text style={[styles.hint, isRTL && styles.rtlText]}>
+        {language === "he"
+          ? "אימונים של שבוע הבא נשארים סגורים עד זמן הפתיחה. בזמן הפתיחה, כל האימונים שאינם מוסתרים בשבוע הבא (א׳–ש׳) ייפתחו להרשמה. השעה נשמרת כ-UTC."
+          : "Next-week sessions stay closed until the opening time. At the opening, all non-hidden sessions in next week (Sun–Sat) become open for registration. Time is stored as UTC."}
       </Text>
 
-      <Text style={styles.label}>Day</Text>
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "יום" : "Day"}</Text>
       <View style={styles.row}>
         {WEEKDAYS.map((d) => (
           <Pressable
@@ -90,7 +103,7 @@ export default function RegistrationOpeningScheduleScreen() {
         ))}
       </View>
 
-      <Text style={styles.label}>Time (UTC)</Text>
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "שעה (UTC)" : "Time (UTC)"}</Text>
       <TextInput
         value={time}
         onChangeText={setTime}
@@ -100,7 +113,12 @@ export default function RegistrationOpeningScheduleScreen() {
         autoCapitalize="none"
       />
 
-      <PrimaryButton label={loading ? "Loading…" : "Save"} onPress={save} loading={saving} loadingLabel="Saving…" />
+      <PrimaryButton
+        label={loading ? t("common.loading") : t("common.save")}
+        onPress={save}
+        loading={saving}
+        loadingLabel={t("common.loading")}
+      />
     </View>
   );
 }
@@ -110,6 +128,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
   hint: { marginTop: 8, color: theme.colors.textMuted, lineHeight: 18 },
   label: { marginTop: theme.spacing.md, fontWeight: "700", color: theme.colors.text },
+  rtlText: { textAlign: "right" },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
   dayChip: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: theme.radius.full, borderWidth: 1 },
   dayChipOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },

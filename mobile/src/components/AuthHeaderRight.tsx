@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { theme } from "../theme";
 import { router } from "expo-router";
+import { useI18n } from "../context/I18nContext";
 
 function formatRole(role: string | undefined) {
   if (!role) return "";
@@ -10,12 +11,13 @@ function formatRole(role: string | undefined) {
 
 export function AuthHeaderRight() {
   const { profile, signOut, loading } = useAuth();
+  const { t, isRTL } = useI18n();
 
-  const name = profile?.full_name || profile?.username || "Account";
+  const name = profile?.full_name || profile?.username || t("common.account");
   const role = formatRole(profile?.role);
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, isRTL && styles.wrapRTL]}>
       <View style={styles.nameBlock}>
         <Text style={styles.name} numberOfLines={1}>
           {loading ? "…" : name}
@@ -31,14 +33,14 @@ export function AuthHeaderRight() {
         disabled={loading}
         style={({ pressed }) => [styles.chip, pressed && !loading && styles.chipPressed]}
       >
-        <Text style={styles.chipTxt}>Profile</Text>
+        <Text style={styles.chipTxt}>{t("header.profile")}</Text>
       </Pressable>
       <Pressable
         onPress={signOut}
         disabled={loading}
         style={({ pressed }) => [styles.chipMuted, pressed && !loading && styles.chipPressed]}
       >
-        <Text style={styles.chipTxtMuted}>Log out</Text>
+        <Text style={styles.chipTxtMuted}>{t("header.logout")}</Text>
       </Pressable>
     </View>
   );
@@ -53,6 +55,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     maxWidth: 300,
   },
+  wrapRTL: { flexDirection: "row-reverse" },
   nameBlock: { maxWidth: 120, marginRight: 2 },
   name: { fontSize: 12, fontWeight: "700", color: theme.colors.text, letterSpacing: 0.2 },
   rolePill: {

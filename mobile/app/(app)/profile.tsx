@@ -4,6 +4,7 @@ import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../src/context/AuthContext";
 import { theme } from "../../src/theme";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
+import { useI18n } from "../../src/context/I18nContext";
 
 function getUpdateErrorMessage(message: string) {
   const msg = (message || "").toLowerCase();
@@ -16,6 +17,7 @@ function getUpdateErrorMessage(message: string) {
 
 export default function ProfileScreen() {
   const { session, profile, refreshProfile } = useAuth();
+  const { language, t, isRTL } = useI18n();
 
   const initialEmail = session?.user?.email ?? "";
   const initialPhone = profile?.phone ?? "";
@@ -41,7 +43,7 @@ export default function ProfileScreen() {
 
     const uid = session?.user?.id;
     if (!uid) {
-      setError("Not authenticated.");
+      setError(language === "he" ? "לא מחובר/ת." : "Not authenticated.");
       return;
     }
 
@@ -49,11 +51,11 @@ export default function ProfileScreen() {
     const phoneTrim = phone.trim();
 
     if (!emailTrim) {
-      setError("Email is required.");
+      setError(language === "he" ? "נדרש אימייל." : "Email is required.");
       return;
     }
     if (!phoneTrim) {
-      setError("Phone is required.");
+      setError(language === "he" ? "נדרש טלפון." : "Phone is required.");
       return;
     }
 
@@ -80,7 +82,7 @@ export default function ProfileScreen() {
       }
 
       await refreshProfile();
-      setSuccess("Saved!");
+      setSuccess(language === "he" ? "נשמר!" : "Saved!");
     } finally {
       setBusy(false);
     }
@@ -91,7 +93,7 @@ export default function ProfileScreen() {
     return (
       <View style={styles.loadingWrap}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={styles.loadingText}>Loading…</Text>
+        <Text style={[styles.loadingText, isRTL && { textAlign: "right" }]}>{t("common.loading")}</Text>
       </View>
     );
   }
@@ -102,16 +104,16 @@ export default function ProfileScreen() {
       style={{ flex: 1, backgroundColor: theme.colors.backgroundAlt }}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>My info</Text>
-        <Text style={styles.subtitle}>
-          Loaded from your account ({profile.role}).
+        <Text style={[styles.title, isRTL && { textAlign: "right" }]}>{language === "he" ? "הפרטים שלי" : "My info"}</Text>
+        <Text style={[styles.subtitle, isRTL && { textAlign: "right" }]}>
+          {language === "he" ? `נטען מהחשבון שלך (${profile.role}).` : `Loaded from your account (${profile.role}).`}
         </Text>
 
         {success ? <Text style={styles.success}>{success}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.field}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={[styles.label, isRTL && { textAlign: "right" }]}>{t("auth.email")}</Text>
           <TextInput
             style={styles.input}
             value={email}
@@ -122,13 +124,13 @@ export default function ProfileScreen() {
             }}
             keyboardType="email-address"
             autoCapitalize="none"
-            placeholder="Email"
+            placeholder={t("auth.email")}
             placeholderTextColor={theme.colors.textSoft}
           />
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Phone</Text>
+          <Text style={[styles.label, isRTL && { textAlign: "right" }]}>{t("profile.phone")}</Text>
           <TextInput
             style={styles.input}
             value={phone}
@@ -139,17 +141,17 @@ export default function ProfileScreen() {
             }}
             keyboardType="phone-pad"
             autoCapitalize="none"
-            placeholder="Phone"
+            placeholder={t("profile.phone")}
             placeholderTextColor={theme.colors.textSoft}
           />
         </View>
 
         <PrimaryButton
-          label="Save changes"
+          label={language === "he" ? "שמירת שינויים" : "Save changes"}
           onPress={save}
           loading={busy}
           disabled={!canSave}
-          loadingLabel="Saving…"
+          loadingLabel={t("common.loading")}
           style={{ marginTop: theme.spacing.lg }}
         />
       </ScrollView>

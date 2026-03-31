@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
+import { useI18n } from "../context/I18nContext";
 
 type Props = {
   item: SessionsWeekItem;
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export function SessionAgendaCardContent({ item, compact }: Props) {
+  const { language } = useI18n();
   const accent = item.accentColor;
   const showFill = item.signedUpCount !== undefined && item.maxParticipants !== undefined;
   const staffLabels = item.showStaffSessionLabels === true;
@@ -30,12 +32,12 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
         <View style={styles.tags}>
           <View style={[styles.tag, item.isHidden ? styles.tagHidden : styles.tagListed]}>
             <Text style={[styles.tagTxt, item.isHidden ? styles.tagTxtHidden : styles.tagTxtListed]}>
-              {item.isHidden ? "Hidden" : "Visible"}
+              {item.isHidden ? (language === "he" ? "מוסתר" : "Hidden") : language === "he" ? "גלוי" : "Visible"}
             </Text>
           </View>
           <View style={[styles.tag, item.isOpenForRegistration ? styles.tagOpen : styles.tagClosed]}>
             <Text style={[styles.tagTxt, item.isOpenForRegistration ? styles.tagTxtOpen : styles.tagTxtClosed]}>
-              {item.isOpenForRegistration ? "Open" : "Closed"}
+              {item.isOpenForRegistration ? (language === "he" ? "פתוח" : "Open") : language === "he" ? "סגור" : "Closed"}
             </Text>
           </View>
         </View>

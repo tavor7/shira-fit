@@ -11,9 +11,11 @@ import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/compon
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { StaffHomeOverview } from "../../../src/components/StaffHomeOverview";
 import { useAuth } from "../../../src/context/AuthContext";
+import { useI18n } from "../../../src/context/I18nContext";
 
 export default function CoachSessionsScreen() {
   const { profile } = useAuth();
+  const { language } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
@@ -71,7 +73,12 @@ export default function CoachSessionsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
         <StaffHomeOverview userId={profile?.user_id} sessions={rows} variant="coach" refreshSeq={refreshSeq} />
-        <SessionsWeekCalendar items={items} isLoading={loading} emptyLabel="No sessions found." onDayPress={(iso) => setSheetDay(iso)} />
+        <SessionsWeekCalendar
+          items={items}
+          isLoading={loading}
+          emptyLabel={language === "he" ? "לא נמצאו אימונים." : "No sessions found."}
+          onDayPress={(iso) => setSheetDay(iso)}
+        />
       </ScrollView>
       <DaySessionsSheet
         visible={sheetDay !== null}

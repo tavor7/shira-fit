@@ -14,7 +14,7 @@ type Props = {
 
 export function PrimaryButton({
   label,
-  loadingLabel = "Please wait…",
+  loadingLabel = "Loading…",
   loading,
   onPress,
   disabled,

@@ -19,6 +19,7 @@ import { formatSessionTimeRange } from "../lib/sessionTime";
 import { toISODateLocal, isValidISODateString, parseISODateLocal } from "../lib/isoDate";
 import type { ManagerCoachSessionReportRow } from "../types/database";
 import { DatePickerField } from "../components/DatePickerField";
+import { useI18n } from "../context/I18nContext";
 
 function defaultEndISO() {
   return toISODateLocal(new Date());
@@ -32,15 +33,8 @@ function defaultStartISO() {
 
 type Trainer = { user_id: string; full_name: string; username: string; role: string; phone?: string | null };
 
-function showError(msg: string) {
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    window.alert(msg);
-  } else {
-    Alert.alert("Error", msg);
-  }
-}
-
 export default function ManagerCoachSessionsReportScreen() {
+  const { language, t, isRTL } = useI18n();
   const [start, setStart] = useState(defaultStartISO);
   const [end, setEnd] = useState(defaultEndISO);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -72,15 +66,21 @@ export default function ManagerCoachSessionsReportScreen() {
     const s = start.trim();
     const e = end.trim();
     if (!isValidISODateString(s) || !isValidISODateString(e)) {
-      showError("Please choose valid start and end dates.");
+      const msg = language === "he" ? "בחרו תאריכי התחלה וסיום תקינים." : "Please choose valid start and end dates.";
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
+      else Alert.alert(t("common.error"), msg);
       return;
     }
     if (s > e) {
-      showError("Start date must be on or before end date.");
+      const msg = language === "he" ? "תאריך ההתחלה חייב להיות לפני או שווה לתאריך הסיום." : "Start date must be on or before end date.";
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
+      else Alert.alert(t("common.error"), msg);
       return;
     }
     if (!coachId) {
-      showError("Choose a trainer (coach or manager).");
+      const msg = language === "he" ? "בחרו מאמן/ת (מאמן או מנהל)." : "Choose a trainer (coach or manager).";
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
+      else Alert.alert(t("common.error"), msg);
       return;
     }
     setLoading(true);
@@ -92,29 +92,37 @@ export default function ManagerCoachSessionsReportScreen() {
     setLoading(false);
     setHasSearched(true);
     if (error) {
-      showError(error.message);
+      const msg = error.message;
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
+      else Alert.alert(t("common.error"), msg);
       setRows([]);
       return;
     }
     setRows((data as ManagerCoachSessionReportRow[]) ?? []);
-  }, [start, end, coachId]);
+  }, [start, end, coachId, language, t]);
 
   return (
     <View style={styles.screen}>
       <View style={styles.filters}>
-        <DatePickerField label="From" value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
-        <DatePickerField label="To" value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
-        <Text style={styles.label}>Trainer</Text>
+        <DatePickerField label={t("common.from")} value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
+        <DatePickerField label={t("common.to")} value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
+        <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן" : "Trainer"}</Text>
         <Pressable style={styles.pickerTouch} onPress={() => setPickerOpen(true)}>
           <Text style={coachLabel ? styles.pickerText : styles.pickerPlaceholder}>
-            {coachLabel || "Choose coach or manager…"}
+            {coachLabel || (language === "he" ? "בחרו מאמן או מנהל…" : "Choose coach or manager…")}
           </Text>
         </Pressable>
-        <Text style={styles.hint}>
-          Lists every session assigned to that trainer in the range. Registered = active sign-ups; arrived = marked as
-          attended.
+        <Text style={[styles.hint, isRTL && styles.rtlText]}>
+          {language === "he"
+            ? "מציג את כל האימונים של אותו מאמן בטווח. נרשמו = הרשמות פעילות; הגיעו = סומנו כנוכחים."
+            : "Lists every session assigned to that trainer in the range. Registered = active sign-ups; arrived = marked as attended."}
         </Text>
-        <PrimaryButton label="Load report" onPress={loadReport} loading={loading} loadingLabel="Loading…" />
+        <PrimaryButton
+          label={language === "he" ? "טעינת דוח" : "Load report"}
+          onPress={loadReport}
+          loading={loading}
+          loadingLabel={t("common.loading")}
+        />
       </View>
 
       <Modal visible={pickerOpen} transparent animationType="slide">
@@ -122,16 +130,16 @@ export default function ManagerCoachSessionsReportScreen() {
           <Pressable style={styles.modalBackdropTouch} onPress={() => setPickerOpen(false)} />
           <View style={styles.modalBox}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Trainers</Text>
+              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{language === "he" ? "מאמנים" : "Trainers"}</Text>
               <Pressable onPress={() => setPickerOpen(false)}>
-                <Text style={styles.modalClose}>Done</Text>
+                <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
               </Pressable>
             </View>
             <View style={styles.modalSearchRow}>
               <TextInput
                 value={pickerQ}
                 onChangeText={setPickerQ}
-                placeholder="Search name / username / phone…"
+                placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
                 placeholderTextColor={theme.colors.placeholderOnLight}
                 style={styles.modalSearch}
                 autoCapitalize="none"
@@ -167,7 +175,9 @@ export default function ManagerCoachSessionsReportScreen() {
                     </Text>
                   </Pressable>
                 )}
-                ListEmptyComponent={<Text style={styles.pickerEmpty}>No trainers</Text>}
+                ListEmptyComponent={
+                  <Text style={[styles.pickerEmpty, isRTL && styles.rtlText]}>{language === "he" ? "אין מאמנים" : "No trainers"}</Text>
+                }
               />
             )}
           </View>
@@ -187,13 +197,20 @@ export default function ManagerCoachSessionsReportScreen() {
             <Text style={styles.rowDate}>{item.session_date}</Text>
             <Text style={styles.rowTime}>{formatSessionTimeRange(item.start_time, item.duration_minutes ?? 60)}</Text>
             <Text style={styles.rowStats}>
-              Registered: {item.registered_count} · Arrived: {item.arrived_count}
+              {language === "he" ? "נרשמו" : "Registered"}: {item.registered_count} · {language === "he" ? "הגיעו" : "Arrived"}:{" "}
+              {item.arrived_count}
             </Text>
           </Pressable>
         )}
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {!hasSearched ? "Pick a trainer and date range, then tap Load report." : "No sessions in this range."}
+            {!hasSearched
+              ? language === "he"
+                ? "בחרו מאמן וטווח תאריכים, ואז לחצו על טעינת דוח."
+                : "Pick a trainer and date range, then tap Load report."
+              : language === "he"
+                ? "אין אימונים בטווח הזה."
+                : "No sessions in this range."}
           </Text>
         }
       />
@@ -210,6 +227,7 @@ const styles = StyleSheet.create({
   },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   hint: { marginTop: theme.spacing.sm, fontSize: 12, color: theme.colors.textMuted, lineHeight: 18 },
+  rtlText: { textAlign: "right" },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.borderInput,

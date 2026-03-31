@@ -2,6 +2,8 @@ import { View, Text, Pressable, StyleSheet, ScrollView, Image } from "react-nati
 import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { theme } from "../../src/theme";
+import { useI18n } from "../../src/context/I18nContext";
+import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 
 /**
  * Shown after successful signup so users always see clear confirmation
@@ -9,6 +11,7 @@ import { theme } from "../../src/theme";
  */
 export default function SignupSuccessScreen() {
   const { email } = useLocalSearchParams<{ email?: string }>();
+  const { language, t, isRTL } = useI18n();
 
   async function goLogin() {
     await supabase.auth.signOut();
@@ -17,6 +20,7 @@ export default function SignupSuccessScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <LanguageToggleChip />
       <View style={styles.logoWrap}>
       <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
       </View>
@@ -24,26 +28,37 @@ export default function SignupSuccessScreen() {
         <View style={styles.badge}>
           <Text style={styles.badgeText}>✓</Text>
         </View>
-        <Text style={styles.title}>Request sent</Text>
-        <Text style={styles.lead}>
-          Your registration was received. Your account is <Text style={styles.em}>waiting for manager approval</Text>.
-          The studio will contact you when you can book sessions.
+        <Text style={[styles.title, isRTL && { textAlign: "right" }]}>{language === "he" ? "הבקשה נשלחה" : "Request sent"}</Text>
+        <Text style={[styles.lead, isRTL && { textAlign: "right" }]}>
+          {language === "he" ? (
+            <>
+              ההרשמה התקבלה. החשבון שלך{" "}
+              <Text style={styles.em}>ממתין לאישור מנהל</Text>. הסטודיו יצור איתך קשר כשניתן יהיה להזמין אימונים.
+            </>
+          ) : (
+            <>
+              Your registration was received. Your account is <Text style={styles.em}>waiting for manager approval</Text>.
+              The studio will contact you when you can book sessions.
+            </>
+          )}
         </Text>
         {email ? (
           <View style={styles.box}>
-            <Text style={styles.boxLabel}>Registered email</Text>
+            <Text style={[styles.boxLabel, isRTL && { textAlign: "right" }]}>{language === "he" ? "אימייל הרשמה" : "Registered email"}</Text>
             <Text style={styles.boxValue}>{email}</Text>
           </View>
         ) : null}
-        <Text style={styles.note}>
-          If email confirmation is turned on in your project, check your inbox and confirm before signing in.
+        <Text style={[styles.note, isRTL && { textAlign: "right" }]}>
+          {language === "he"
+            ? "אם אישור אימייל מופעל בפרויקט, בדקו את תיבת הדואר ואשרו לפני התחברות."
+            : "If email confirmation is turned on in your project, check your inbox and confirm before signing in."}
         </Text>
         <Pressable
           style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
           onPress={goLogin}
           android_ripple={{ color: "rgba(255,255,255,0.3)" }}
         >
-          <Text style={styles.btnText}>Back to sign in</Text>
+          <Text style={styles.btnText}>{language === "he" ? "חזרה להתחברות" : "Back to sign in"}</Text>
         </Pressable>
       </View>
     </ScrollView>

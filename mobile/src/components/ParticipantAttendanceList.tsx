@@ -4,22 +4,30 @@ import { useFocusEffect } from "expo-router";
 import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { useI18n } from "../context/I18nContext";
+import { isBirthdayToday } from "../lib/birthday";
 
 type RegRow = {
   user_id: string;
   attended: boolean | null;
-  profiles: { full_name: string; username: string } | { full_name: string; username: string }[] | null;
+  profiles:
+    | { full_name: string; username: string; date_of_birth?: string | null }
+    | { full_name: string; username: string; date_of_birth?: string | null }[]
+    | null;
 };
 
 type ManualRow = {
   manual_participant_id: string;
   attended: boolean | null;
-  manual_participants: { full_name: string; phone: string } | { full_name: string; phone: string }[] | null;
+  manual_participants:
+    | { full_name: string; phone: string; date_of_birth?: string | null }
+    | { full_name: string; phone: string; date_of_birth?: string | null }[]
+    | null;
 };
 
 type Row =
-  | { kind: "registered"; id: string; name: string; attended: boolean | null; userId: string }
-  | { kind: "manual"; id: string; name: string; phone: string; attended: boolean | null; manualId: string };
+  | { kind: "registered"; id: string; name: string; attended: boolean | null; userId: string; birthdayToday: boolean }
+  | { kind: "manual"; id: string; name: string; phone: string; attended: boolean | null; manualId: string; birthdayToday: boolean };
 
 type AttendanceStatus = "unset" | "arrived" | "absent";
 
@@ -33,6 +41,7 @@ type Props = {
 };
 
 export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce = 0, onRemoveAthlete }: Props) {
+  const { language, t, isRTL } = useI18n();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -41,12 +50,12 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
     setLoading(true);
     const { data, error } = await supabase
       .from("session_registrations")
-      .select("user_id, attended, profiles(full_name, username)")
+      .select("user_id, attended, profiles(full_name, username, date_of_birth)")
       .eq("session_id", sessionId)
       .eq("status", "active");
     const { data: mData, error: mErr } = await supabase
       .from("session_manual_participants")
-      .select("manual_participant_id, attended, manual_participants(full_name, phone)")
+      .select("manual_participant_id, attended, manual_participants(full_name, phone, date_of_birth)")
       .eq("session_id", sessionId);
 
     if (error && mErr) {
@@ -63,6 +72,7 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
         userId: r.user_id,
         name: p?.full_name ?? "—",
         attended: r.attended ?? null,
+        birthdayToday: isBirthdayToday(p?.date_of_birth ?? null),
       };
     });
 
@@ -75,6 +85,7 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
         name: p?.full_name ?? "—",
         phone: p?.phone ?? "",
         attended: r.attended ?? null,
+        birthdayToday: isBirthdayToday(p?.date_of_birth ?? null),
       };
     });
 
@@ -110,11 +121,11 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
           });
     setBusyKey(null);
     if (error) {
-      Alert.alert("Error", error.message);
+      Alert.alert(t("common.error"), error.message);
       return;
     }
     if (!data?.ok) {
-      Alert.alert("Could not save", data?.error ?? "");
+      Alert.alert(language === "he" ? "לא ניתן לשמור" : "Could not save", data?.error ?? "");
       return;
     }
     await load();
@@ -126,7 +137,7 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
   }
 
   if (rows.length === 0) {
-    return <Text style={styles.muted}>No active registrations.</Text>;
+    return <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין הרשמות פעילות." : "No active registrations."}</Text>;
   }
 
   return (
@@ -139,7 +150,10 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
           <View key={item.id} style={styles.card}>
             <View style={styles.nameRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{item.name}</Text>
+                <Text style={styles.name}>
+                  {item.name}
+                  {item.birthdayToday ? <Text style={styles.bday}>{"  "}🎂</Text> : null}
+                </Text>
                 {item.kind === "manual" && item.phone ? <Text style={styles.sub}>{item.phone}</Text> : null}
               </View>
               <View style={styles.nameRight}>
@@ -154,7 +168,7 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
                     hitSlop={8}
                     style={({ pressed }) => pressed && { opacity: 0.7 }}
                   >
-                    <Text style={styles.edit}>Edit</Text>
+                    <Text style={styles.edit}>{language === "he" ? "עריכה" : "Edit"}</Text>
                   </Pressable>
                 ) : null}
                 {item.kind === "registered" && onRemoveAthlete && !busy ? (
@@ -163,12 +177,12 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
                     hitSlop={8}
                     style={({ pressed }) => pressed && { opacity: 0.7 }}
                   >
-                    <Text style={styles.remove}>Remove</Text>
+                    <Text style={styles.remove}>{language === "he" ? "הסרה" : "Remove"}</Text>
                   </Pressable>
                 ) : null}
               </View>
             </View>
-            <Text style={styles.hint}>Attendance</Text>
+            <Text style={[styles.hint, isRTL && styles.rtlText]}>{language === "he" ? "נוכחות" : "Attendance"}</Text>
             <View style={styles.seg}>
               {(["unset", "arrived", "absent"] as const).map((st) => (
                 <Pressable
@@ -182,7 +196,17 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
                   ]}
                 >
                   <Text style={[styles.segTxt, current === st && styles.segTxtOn]}>
-                    {st === "unset" ? "Not set" : st === "arrived" ? "Arrived" : "Absent"}
+                    {st === "unset"
+                      ? language === "he"
+                        ? "לא סומן"
+                        : "Not set"
+                      : st === "arrived"
+                        ? language === "he"
+                          ? "הגיע"
+                          : "Arrived"
+                        : language === "he"
+                          ? "נעדר"
+                          : "Absent"}
                   </Text>
                 </Pressable>
               ))}
@@ -197,6 +221,7 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
 const styles = StyleSheet.create({
   loader: { marginVertical: theme.spacing.md },
   muted: { color: theme.colors.textMuted, fontStyle: "italic", marginVertical: 8 },
+  rtlText: { textAlign: "right" },
   list: { gap: theme.spacing.sm },
   card: {
     padding: theme.spacing.md,
@@ -207,6 +232,7 @@ const styles = StyleSheet.create({
   },
   nameRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   name: { flex: 1, fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  bday: { color: theme.colors.cta, fontWeight: "900" },
   sub: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
   nameRight: { flexDirection: "row", alignItems: "center", gap: 10 },
   edit: { color: theme.colors.cta, fontWeight: "800", fontSize: 14 },

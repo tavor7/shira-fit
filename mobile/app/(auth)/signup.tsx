@@ -17,6 +17,8 @@ import { ActionButton } from "../../src/components/ActionButton";
 import { DatePickerField } from "../../src/components/DatePickerField";
 import { theme } from "../../src/theme";
 import { parseISODateLocal, toISODateLocal, isValidISODateString } from "../../src/lib/isoDate";
+import { useI18n } from "../../src/context/I18nContext";
+import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 
 const today = new Date();
 const minDob = new Date(1900, 0, 1);
@@ -30,6 +32,7 @@ function getSignupErrorMessage(error: { message: string }): string {
 }
 
 export default function SignupScreen() {
+  const { language, t, isRTL } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -53,20 +56,28 @@ export default function SignupScreen() {
   async function onSignup() {
     setErrorMessage("");
     if (!email.trim() || password.length < 6 || !fullName.trim() || !phone.trim()) {
-      setErrorMessage("Please fill in email, password (min 6), full name, and phone.");
+      setErrorMessage(
+        language === "he"
+          ? "אנא מלאו אימייל, סיסמה (מינימום 6), שם מלא וטלפון."
+          : "Please fill in email, password (min 6), full name, and phone."
+      );
       return;
     }
     if (!healthConfirmed) {
-      setErrorMessage("Please complete the health declaration and confirm it before signing up.");
+      setErrorMessage(
+        language === "he"
+          ? "אנא מלאו את הצהרת הבריאות ואשרו זאת לפני ההרשמה."
+          : "Please complete the health declaration and confirm it before signing up."
+      );
       return;
     }
     if (!isValidISODateString(dobText.trim())) {
-      setErrorMessage("Please choose a valid date of birth.");
+      setErrorMessage(language === "he" ? "בחרו תאריך לידה תקין." : "Please choose a valid date of birth.");
       return;
     }
     const dobFinal = parseISODateLocal(dobText.trim())!;
     if (dobFinal > today || dobFinal < minDob) {
-      setErrorMessage("Date of birth must be between 1900 and today.");
+      setErrorMessage(language === "he" ? "תאריך הלידה חייב להיות בין 1900 להיום." : "Date of birth must be between 1900 and today.");
       return;
     }
     const dobIso = toISODateLocal(dobFinal);
@@ -114,16 +125,21 @@ export default function SignupScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Register</Text>
-        <Text style={styles.hint}>Athlete account — approval required before booking.</Text>
+        <LanguageToggleChip />
+        <Text style={[styles.title, isRTL && { textAlign: "right" }]}>{t("auth.register")}</Text>
+        <Text style={[styles.hint, isRTL && { textAlign: "right" }]}>
+          {language === "he"
+            ? "חשבון מתאמן — נדרש אישור לפני הזמנת אימונים."
+            : "Athlete account — approval required before booking."}
+        </Text>
         {errorMessage ? (
           <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{errorMessage}</Text>
+            <Text style={[styles.errorText, isRTL && { textAlign: "right" }]}>{errorMessage}</Text>
           </View>
         ) : null}
         <TextInput
           style={styles.input}
-          placeholder="Email"
+          placeholder={t("auth.email")}
           placeholderTextColor={theme.colors.textSoft}
           autoCapitalize="none"
           keyboardType="email-address"
@@ -135,7 +151,7 @@ export default function SignupScreen() {
         />
         <TextInput
           style={styles.input}
-          placeholder="Password (min 6)"
+          placeholder={t("auth.passwordMin6")}
           placeholderTextColor={theme.colors.textSoft}
           secureTextEntry
           value={password}
@@ -143,14 +159,14 @@ export default function SignupScreen() {
         />
         <TextInput
           style={styles.input}
-          placeholder="Full name"
+          placeholder={t("profile.fullName")}
           placeholderTextColor={theme.colors.textSoft}
           value={fullName}
           onChangeText={setFullName}
         />
         <TextInput
           style={styles.input}
-          placeholder="Phone"
+          placeholder={t("profile.phone")}
           placeholderTextColor={theme.colors.textSoft}
           keyboardType="phone-pad"
           value={phone}
@@ -158,7 +174,7 @@ export default function SignupScreen() {
         />
 
         <DatePickerField
-          label="Date of birth"
+          label={language === "he" ? "תאריך לידה" : "Date of birth"}
           value={dobText}
           onChange={(iso) => {
             setDobText(iso);
@@ -168,7 +184,7 @@ export default function SignupScreen() {
           maximumDate={today}
         />
 
-        <Text style={styles.label}>Gender</Text>
+        <Text style={[styles.label, isRTL && { textAlign: "right" }]}>{t("profile.gender")}</Text>
         <View style={styles.genderRow}>
           {(["male", "female"] as const).map((g) => (
             <Pressable
@@ -177,18 +193,18 @@ export default function SignupScreen() {
               onPress={() => setGender(g)}
             >
               <Text style={[styles.genderTxt, gender === g && styles.genderTxtOn]}>
-                {g === "male" ? "Male" : "Female"}
+                {g === "male" ? (language === "he" ? "זכר" : "Male") : language === "he" ? "נקבה" : "Female"}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        <Text style={styles.label}>Health declaration (required)</Text>
+        <Text style={[styles.label, isRTL && { textAlign: "right" }]}>{t("health.required")}</Text>
         <Pressable
           style={({ pressed }) => [styles.healthLink, pressed && { opacity: 0.9 }]}
           onPress={openHealthDeclaration}
         >
-          <Text style={styles.healthLinkTxt}>Open health declaration form</Text>
+          <Text style={styles.healthLinkTxt}>{t("health.openForm")}</Text>
           <Text style={styles.healthLinkSub}>{healthUrl}</Text>
         </Pressable>
         <Pressable
@@ -203,16 +219,16 @@ export default function SignupScreen() {
           <View style={[styles.checkbox, healthConfirmed && styles.checkboxOn]}>
             {healthConfirmed ? <Text style={styles.checkboxMark}>✓</Text> : null}
           </View>
-          <Text style={styles.checkTxt}>I completed the health declaration</Text>
+          <Text style={[styles.checkTxt, isRTL && { textAlign: "right" }]}>{t("health.confirmDone")}</Text>
         </Pressable>
 
         <PrimaryButton
-          label="Sign up"
-          loadingLabel="Creating account…"
+          label={t("auth.signUp")}
+          loadingLabel={t("common.loading")}
           loading={busy}
           onPress={onSignup}
         />
-        <ActionButton label="Already have an account" onPress={() => router.push("/(auth)/login")} style={styles.navBtn} />
+        <ActionButton label={t("auth.alreadyHaveAccount")} onPress={() => router.push("/(auth)/login")} style={styles.navBtn} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabase";
 import { formatSessionTimeRange } from "../lib/sessionTime";
 import { toISODateLocal, isValidISODateString, parseISODateLocal } from "../lib/isoDate";
 import type { ParticipantHistoryRow } from "../types/database";
+import { useI18n } from "../context/I18nContext";
 
 function defaultEndISO() {
   return toISODateLocal(new Date());
@@ -39,15 +40,8 @@ function groupByAthlete(rows: ParticipantHistoryRow[]): Section[] {
     .sort((a, b) => a.title.localeCompare(b.title));
 }
 
-function showError(msg: string) {
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    window.alert(msg);
-  } else {
-    Alert.alert("Error", msg);
-  }
-}
-
 export default function ParticipantHistoryScreen() {
+  const { language, t, isRTL } = useI18n();
   const [start, setStart] = useState(defaultStartISO);
   const [end, setEnd] = useState(defaultEndISO);
   const [athleteId, setAthleteId] = useState<string>("");
@@ -60,7 +54,15 @@ export default function ParticipantHistoryScreen() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [rows, setRows] = useState<ParticipantHistoryRow[]>([]);
-  const [emptyHint, setEmptyHint] = useState<string>("No records for those dates.");
+  const [emptyHint, setEmptyHint] = useState<string>(language === "he" ? "אין רשומות לתאריכים שנבחרו." : "No records for those dates.");
+
+  function showError(msg: string) {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.alert(msg);
+    } else {
+      Alert.alert(t("common.error"), msg);
+    }
+  }
 
   const sections = useMemo(() => groupByAthlete(rows), [rows]);
 
@@ -89,15 +91,15 @@ export default function ParticipantHistoryScreen() {
     const s = start.trim();
     const e = end.trim();
     if (!isValidISODateString(s) || !isValidISODateString(e)) {
-      showError("Please choose valid start and end dates.");
+      showError(language === "he" ? "בחרו תאריכי התחלה וסיום תקינים." : "Please choose valid start and end dates.");
       return;
     }
     if (s > e) {
-      showError("Start date must be on or before end date.");
+      showError(language === "he" ? "תאריך ההתחלה חייב להיות לפני או שווה לתאריך הסיום." : "Start date must be on or before end date.");
       return;
     }
     if (!athleteId) {
-      showError("Choose an athlete first.");
+      showError(language === "he" ? "בחרו מתאמן קודם." : "Choose an athlete first.");
       return;
     }
     setLoading(true);
@@ -117,21 +119,23 @@ export default function ParticipantHistoryScreen() {
     const next = (data as ParticipantHistoryRow[]) ?? [];
     setRows(next);
 
-    if (next.length === 0) setEmptyHint("No records for those dates.");
+    if (next.length === 0) setEmptyHint(language === "he" ? "אין רשומות לתאריכים שנבחרו." : "No records for those dates.");
 
     setLoading(false);
     setHasSearched(true);
-  }, [start, end, phone, athleteId]);
+  }, [start, end, phone, athleteId, language]);
 
   return (
     <View style={styles.screen}>
       <View style={styles.filters}>
-        <DatePickerField label="From" value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
-        <DatePickerField label="To" value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
-        <Text style={styles.label}>Athlete (search by name, username, or phone)</Text>
+        <DatePickerField label={t("common.from")} value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
+        <DatePickerField label={t("common.to")} value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
+        <Text style={[styles.label, isRTL && styles.rtlText]}>
+          {language === "he" ? "מתאמן (חיפוש לפי שם, משתמש או טלפון)" : "Athlete (search by name, username, or phone)"}
+        </Text>
         <Pressable style={styles.pickerTouch} onPress={() => { setPickerOpen(true); loadAthletes(); }}>
           <Text style={athleteLabel ? styles.pickerText : styles.pickerPlaceholder}>
-            {athleteLabel || "Choose an athlete…"}
+            {athleteLabel || (language === "he" ? "בחרו מתאמן…" : "Choose an athlete…")}
           </Text>
         </Pressable>
         {athleteId ? (
@@ -143,13 +147,15 @@ export default function ParticipantHistoryScreen() {
               setPhone("");
             }}
           >
-            <Text style={styles.clearSelTxt}>Clear selection</Text>
+            <Text style={styles.clearSelTxt}>{t("common.clearSelection")}</Text>
           </Pressable>
         ) : null}
-        <Text style={styles.hint}>
-          Pick an athlete first, then load registrations in the date range.
+        <Text style={[styles.hint, isRTL && styles.rtlText]}>
+          {language === "he"
+            ? "בחרו מתאמן ואז טענו רישומים בטווח התאריכים."
+            : "Pick an athlete first, then load registrations in the date range."}
         </Text>
-        <PrimaryButton label="Load" onPress={load} loading={loading} loadingLabel="Loading…" />
+        <PrimaryButton label={t("common.load")} onPress={load} loading={loading} loadingLabel={t("common.loading")} />
       </View>
 
       <Modal visible={pickerOpen} transparent animationType="slide">
@@ -157,23 +163,23 @@ export default function ParticipantHistoryScreen() {
           <Pressable style={styles.modalBackdropTouch} onPress={() => setPickerOpen(false)} />
           <View style={styles.modalBox}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Athletes</Text>
+              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{language === "he" ? "מתאמנים" : "Athletes"}</Text>
               <Pressable onPress={() => setPickerOpen(false)}>
-                <Text style={styles.modalClose}>Done</Text>
+                <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
               </Pressable>
             </View>
             <View style={styles.modalSearchRow}>
               <TextInput
                 value={pickerQ}
                 onChangeText={setPickerQ}
-                placeholder="Search name / username / phone…"
+                placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
                 placeholderTextColor={theme.colors.placeholderOnLight}
                 style={styles.modalSearch}
                 autoCapitalize="none"
                 onSubmitEditing={loadAthletes}
               />
               <Pressable style={({ pressed }) => [styles.modalSearchBtn, pressed && { opacity: 0.9 }]} onPress={loadAthletes}>
-                <Text style={styles.modalSearchBtnTxt}>Search</Text>
+                <Text style={styles.modalSearchBtnTxt}>{t("common.search")}</Text>
               </Pressable>
             </View>
             {athletesLoading ? (
@@ -198,7 +204,9 @@ export default function ParticipantHistoryScreen() {
                     </Text>
                   </Pressable>
                 )}
-                ListEmptyComponent={<Text style={styles.pickerEmpty}>No athletes</Text>}
+                ListEmptyComponent={
+                  <Text style={[styles.pickerEmpty, isRTL && styles.rtlText]}>{language === "he" ? "אין מתאמנים" : "No athletes"}</Text>
+                }
               />
             )}
           </View>
@@ -217,7 +225,17 @@ export default function ParticipantHistoryScreen() {
         renderItem={({ item }) => {
           const att = item.attended;
           const attLabel =
-            att === true ? "Arrived" : att === false ? "Absent" : "Attendance not set";
+            att === true
+              ? language === "he"
+                ? "הגיע"
+                : "Arrived"
+              : att === false
+                ? language === "he"
+                  ? "נעדר"
+                  : "Absent"
+                : language === "he"
+                  ? "נוכחות לא סומנה"
+                  : "Attendance not set";
           const attStyle =
             att === true ? styles.badgeAttYes : att === false ? styles.badgeAttNo : styles.badgeAttUnset;
           const attTxtStyle =
@@ -228,7 +246,13 @@ export default function ParticipantHistoryScreen() {
               <Text style={styles.rowTime}>{formatSessionTimeRange(item.start_time, item.duration_minutes ?? 60)}</Text>
               <View style={[styles.badge, item.reg_status === "active" ? styles.badgeOn : styles.badgeOff]}>
                 <Text style={[styles.badgeTxt, item.reg_status === "active" ? styles.badgeTxtOn : styles.badgeTxtOff]}>
-                  {item.reg_status === "active" ? "Active" : "Cancelled"}
+                  {item.reg_status === "active"
+                    ? language === "he"
+                      ? "פעיל"
+                      : "Active"
+                    : language === "he"
+                      ? "בוטל"
+                      : "Cancelled"}
                 </Text>
               </View>
               {item.reg_status === "active" ? (
@@ -241,7 +265,11 @@ export default function ParticipantHistoryScreen() {
         }}
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {!hasSearched ? "Set the period (and optional phone), then tap Load." : emptyHint}
+            {!hasSearched
+              ? language === "he"
+                ? "בחרו טווח תאריכים ומתאמן, ואז לחצו על טען."
+                : "Set the period (and optional phone), then tap Load."
+              : emptyHint}
           </Text>
         }
         contentContainerStyle={styles.listContent}
@@ -253,6 +281,7 @@ export default function ParticipantHistoryScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  rtlText: { textAlign: "right" },
   filters: {
     padding: theme.spacing.md,
     borderBottomWidth: 1,

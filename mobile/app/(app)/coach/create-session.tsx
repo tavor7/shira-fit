@@ -4,8 +4,10 @@ import { useLocalSearchParams } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
 import { CreateSessionForm } from "../../../src/components/CreateSessionForm";
+import { useI18n } from "../../../src/context/I18nContext";
 
 export default function CoachCreateSessionScreen() {
+  const { t, isRTL } = useI18n();
   const { date } = useLocalSearchParams<{ date?: string | string[] }>();
   const initialDate = Array.isArray(date) ? date[0] : date;
   const [uid, setUid] = useState<string | null>(null);
@@ -26,7 +28,7 @@ export default function CoachCreateSessionScreen() {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={styles.muted}>Loading…</Text>
+        <Text style={[styles.muted, isRTL && { textAlign: "right" }]}>{t("common.loading")}</Text>
       </View>
     );
   }

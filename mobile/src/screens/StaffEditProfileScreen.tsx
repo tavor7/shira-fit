@@ -4,10 +4,12 @@ import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { useI18n } from "../context/I18nContext";
 
 export default function StaffEditProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = String(id ?? "");
+  const { t, isRTL } = useI18n();
 
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState("");
@@ -44,45 +46,45 @@ export default function StaffEditProfileScreen() {
     });
     setSaving(false);
     if (error) {
-      Alert.alert("Error", error.message);
+      Alert.alert(t("common.error"), error.message);
       return;
     }
     if (!data?.ok) {
-      Alert.alert("Failed", data?.error ?? "Unknown error");
+      Alert.alert(t("common.failed"), data?.error ?? "Unknown error");
       return;
     }
-    Alert.alert("Saved");
+    Alert.alert(t("common.saved"));
     router.back();
   }
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Edit user</Text>
-      {loading ? <Text style={styles.muted}>Loading…</Text> : null}
+      <Text style={[styles.title, isRTL && styles.rtlText]}>{t("profile.editUser")}</Text>
+      {loading ? <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("common.loading")}</Text> : null}
 
-      <Text style={styles.label}>Full name</Text>
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.fullName")}</Text>
       <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholderTextColor={theme.colors.textSoft} />
 
-      <Text style={styles.label}>Phone</Text>
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.phone")}</Text>
       <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholderTextColor={theme.colors.textSoft} />
 
-      <Text style={styles.label}>Gender</Text>
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.gender")}</Text>
       <TextInput style={styles.input} value={gender} onChangeText={setGender} placeholder="male / female" placeholderTextColor={theme.colors.textSoft} />
 
-      <Text style={styles.label}>Date of birth (YYYY-MM-DD)</Text>
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.dob")}</Text>
       <TextInput style={styles.input} value={dob} onChangeText={setDob} placeholder="2000-01-15" placeholderTextColor={theme.colors.textSoft} />
 
-      <PrimaryButton label="Save" onPress={save} loading={saving} loadingLabel="Saving…" />
+      <PrimaryButton label={t("common.save")} onPress={save} loading={saving} loadingLabel={t("common.loading")} />
 
       <Pressable
         onPress={() => router.replace("/(app)/staff/users")}
         style={({ pressed }) => [styles.backToList, pressed && { opacity: 0.9 }]}
       >
-        <Text style={styles.backToListTxt}>Back to users</Text>
+        <Text style={styles.backToListTxt}>{t("common.backToUsers")}</Text>
       </Pressable>
 
       <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancel, pressed && { opacity: 0.9 }]}>
-        <Text style={styles.cancelTxt}>Cancel</Text>
+        <Text style={styles.cancelTxt}>{t("common.cancel")}</Text>
       </Pressable>
     </View>
   );
@@ -93,6 +95,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
   muted: { color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
   label: { marginTop: theme.spacing.sm, fontWeight: "700", color: theme.colors.text, fontSize: 13 },
+  rtlText: { textAlign: "right" },
   input: {
     marginTop: 6,
     borderWidth: 1,

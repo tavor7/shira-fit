@@ -10,8 +10,10 @@ import { theme } from "../../../src/theme";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { ActionButton } from "../../../src/components/ActionButton";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
+import { useI18n } from "../../../src/context/I18nContext";
 
 export default function AthleteSessionsScreen() {
+  const { language } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
@@ -57,7 +59,7 @@ export default function AthleteSessionsScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.topRow}>
-        <ActionButton label="My sessions" onPress={() => router.push("/(app)/athlete/my-sessions")} />
+        <ActionButton label={language === "he" ? "האימונים שלי" : "My sessions"} onPress={() => router.push("/(app)/athlete/my-sessions")} />
       </View>
       <ScrollView
         style={styles.scroll}
@@ -67,7 +69,7 @@ export default function AthleteSessionsScreen() {
         <SessionsWeekCalendar
           items={items}
           isLoading={loading}
-          emptyLabel="No sessions open yet (Thu 08:00 opens next week)."
+          emptyLabel={language === "he" ? "אין אימונים פתוחים עדיין (חמישי 08:00 פותח את שבוע הבא)." : "No sessions open yet (Thu 08:00 opens next week)."}
           onDayPress={(iso) => setSheetDay(iso)}
         />
       </ScrollView>

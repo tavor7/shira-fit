@@ -8,6 +8,7 @@ import { addDaysToISODate } from "../lib/sessionTime";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { toISODateLocal, isValidISODateString } from "../lib/isoDate";
 import { DatePickerField } from "./DatePickerField";
+import { useI18n } from "../context/I18nContext";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
 
@@ -19,10 +20,13 @@ type Props = {
 };
 
 export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }: Props) {
+  const { language, t, isRTL } = useI18n();
   const [date, setDate] = useState(() => initialDate?.trim() || toISODateLocal(new Date()));
   const [time, setTime] = useState("18:00");
   const [coachId, setCoachId] = useState(fixedCoachId ?? "");
-  const [coachLabel, setCoachLabel] = useState(fixedCoachLabel ? `${fixedCoachLabel} — you` : "");
+  const [coachLabel, setCoachLabel] = useState(
+    fixedCoachLabel ? `${fixedCoachLabel} — ${language === "he" ? "את/ה" : "you"}` : ""
+  );
   const [coachOptions, setCoachOptions] = useState<CoachOption[]>([]);
   const [coachOptionsLoading, setCoachOptionsLoading] = useState(!fixedCoachId);
   const [showCoachPicker, setShowCoachPicker] = useState(false);
@@ -42,10 +46,10 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   useEffect(() => {
     if (fixedCoachId) {
       setCoachId(fixedCoachId);
-      setCoachLabel(fixedCoachLabel ? `${fixedCoachLabel} — you` : "You");
+      setCoachLabel(fixedCoachLabel ? `${fixedCoachLabel} — ${language === "he" ? "את/ה" : "you"}` : language === "he" ? "את/ה" : "You");
       setCoachOptionsLoading(false);
     }
-  }, [fixedCoachId, fixedCoachLabel]);
+  }, [fixedCoachId, fixedCoachLabel, language]);
 
   const loadCoaches = useCallback(async () => {
     if (fixedCoachId) return;
@@ -71,17 +75,29 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     setError(null);
     const trimmedDate = date.trim();
     if (!isValidISODateString(trimmedDate)) {
-      setError("Please choose a valid session date.");
+      setError(language === "he" ? "בחרו תאריך אימון תקין." : "Please choose a valid session date.");
       return;
     }
     if (!coachId) {
-      setError(fixedCoachId ? "Could not resolve your account." : "Please choose a coach or manager.");
+      setError(
+        fixedCoachId
+          ? language === "he"
+            ? "לא ניתן לזהות את החשבון שלך."
+            : "Could not resolve your account."
+          : language === "he"
+            ? "בחרו מאמן או מנהל."
+            : "Please choose a coach or manager."
+      );
       return;
     }
     const parsedDuration = parseInt(durationMinutes.trim(), 10);
     const duration = Number.isFinite(parsedDuration) ? parsedDuration : 55;
     if (duration < 1 || duration > 24 * 60) {
-      setError("Session length must be between 1 and 1440 minutes (24 hours).");
+      setError(
+        language === "he"
+          ? "משך האימון חייב להיות בין 1 ל-1440 דקות (24 שעות)."
+          : "Session length must be between 1 and 1440 minutes (24 hours)."
+      );
       return;
     }
     const startT = time.trim() || "18:00";
@@ -114,25 +130,30 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     setSaving(false);
     if (err) {
       setError(err.message);
-      Alert.alert("Error", err.message);
+      Alert.alert(t("common.error"), err.message);
       return;
     }
     if (usedLegacyInsert && hidden) {
       Alert.alert(
-        "Saved (visible sessions)",
-        "Your project is missing the `is_hidden` column (migration not applied). Sessions were created as normal. In Supabase → SQL Editor, run `supabase/migrations/20250330180000_session_hidden.sql`. If the column exists but you still see this, open Project Settings → API → Reload schema."
+        language === "he" ? "נשמר (אימונים גלויים)" : "Saved (visible sessions)",
+        language === "he"
+          ? "חסרה בעמודה `is_hidden` בפרויקט (המיגרציה לא הופעלה). האימונים נוצרו כרגיל. ב-Supabase → SQL Editor הריצו `supabase/migrations/20250330180000_session_hidden.sql`. אם העמודה קיימת ועדיין מופיע, לכו ל-Project Settings → API → Reload schema."
+          : "Your project is missing the `is_hidden` column (migration not applied). Sessions were created as normal. In Supabase → SQL Editor, run `supabase/migrations/20250330180000_session_hidden.sql`. If the column exists but you still see this, open Project Settings → API → Reload schema."
       );
     }
     if (count > 1 && !(usedLegacyInsert && hidden)) {
-      Alert.alert("Saved", `Created ${count} weekly sessions.`);
+      Alert.alert(
+        t("common.saved"),
+        language === "he" ? `נוצרו ${count} אימונים שבועיים.` : `Created ${count} weekly sessions.`
+      );
     }
     router.back();
   }
 
   return (
     <ScrollView contentContainerStyle={styles.box} keyboardShouldPersistTaps="handled">
-      <DatePickerField label="Session date" value={date} onChange={setDate} />
-      <Text style={styles.label}>Start time (HH:MM)</Text>
+      <DatePickerField label={language === "he" ? "תאריך אימון" : "Session date"} value={date} onChange={setDate} />
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "שעת התחלה (HH:MM)" : "Start time (HH:MM)"}</Text>
       <TextInput
         style={styles.input}
         value={time}
@@ -141,24 +162,26 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       />
       {fixedCoachId ? (
         <>
-          <Text style={styles.label}>Trainer</Text>
+          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן" : "Trainer"}</Text>
           <View style={styles.fixedCoachBox}>
-            <Text style={styles.fixedCoachTxt}>{coachLabel || "You"}</Text>
+            <Text style={styles.fixedCoachTxt}>{coachLabel || (language === "he" ? "את/ה" : "You")}</Text>
           </View>
         </>
       ) : (
         <>
-          <Text style={styles.label}>Trainer (coach or manager)</Text>
+          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן (מאמן או מנהל)" : "Trainer (coach or manager)"}</Text>
           <Pressable style={styles.pickerTouch} onPress={() => setShowCoachPicker(true)}>
-            <Text style={coachLabel ? styles.pickerText : styles.pickerPlaceholder}>{coachLabel || "Choose trainer by name…"}</Text>
+            <Text style={coachLabel ? styles.pickerText : styles.pickerPlaceholder}>
+              {coachLabel || (language === "he" ? "בחרו מאמן לפי שם…" : "Choose trainer by name…")}
+            </Text>
           </Pressable>
           <Modal visible={showCoachPicker} transparent animationType="slide">
             <View style={styles.modalBackdrop}>
               <Pressable style={styles.modalBackdropTouch} onPress={() => setShowCoachPicker(false)} />
               <View style={styles.modalBox}>
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>All trainers</Text>
-                  <Pressable onPress={() => setShowCoachPicker(false)}><Text style={styles.modalClose}>Done</Text></Pressable>
+                  <Text style={styles.modalTitle}>{language === "he" ? "כל המאמנים" : "All trainers"}</Text>
+                  <Pressable onPress={() => setShowCoachPicker(false)}><Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text></Pressable>
                 </View>
                 {coachOptionsLoading ? (
                   <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
@@ -176,7 +199,9 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                         </View>
                       </Pressable>
                     )}
-                    ListEmptyComponent={<Text style={styles.pickerEmpty}>No coaches or managers yet</Text>}
+                    ListEmptyComponent={
+                      <Text style={styles.pickerEmpty}>{language === "he" ? "עדיין אין מאמנים או מנהלים" : "No coaches or managers yet"}</Text>
+                    }
                   />
                 )}
               </View>
@@ -184,16 +209,16 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
           </Modal>
         </>
       )}
-      <Text style={styles.label}>Session length (minutes)</Text>
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "משך אימון (דקות)" : "Session length (minutes)"}</Text>
       <TextInput
         style={styles.input}
         value={durationMinutes}
         onChangeText={setDurationMinutes}
         keyboardType="number-pad"
-        placeholder="55 (default)"
+        placeholder={language === "he" ? "55 (ברירת מחדל)" : "55 (default)"}
         placeholderTextColor={theme.colors.placeholderOnLight}
       />
-      <Text style={styles.label}>Max participants</Text>
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
       <TextInput
         style={styles.input}
         value={max}
@@ -202,11 +227,14 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         placeholderTextColor={theme.colors.placeholderOnLight}
       />
       <Pressable style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }]} onPress={() => setRepeatWeekly(!repeatWeekly)}>
-        <Text style={styles.toggleText}>Repeat weekly (same weekday): {repeatWeekly ? "Yes" : "No"}</Text>
+        <Text style={styles.toggleText}>
+          {language === "he" ? "חזרה שבועית (אותו יום): " : "Repeat weekly (same weekday): "}
+          {repeatWeekly ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
+        </Text>
       </Pressable>
       {repeatWeekly ? (
         <>
-          <Text style={styles.label}>Number of sessions (one per week)</Text>
+          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מספר אימונים (אחד לשבוע)" : "Number of sessions (one per week)"}</Text>
           <TextInput
             style={styles.input}
             value={weeklyOccurrences}
@@ -218,15 +246,23 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         </>
       ) : null}
       <Pressable style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }]} onPress={() => setOpen(!open)}>
-        <Text style={styles.toggleText}>Open for registration: {open ? "Yes" : "No"} (Thu job sets week)</Text>
+        <Text style={styles.toggleText}>
+          {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
+          {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}{" "}
+          {language === "he" ? "(פתיחה שבועית לפי תזמון)" : "(Thu job sets week)"}
+        </Text>
       </Pressable>
       <Pressable style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }]} onPress={() => setHidden(!hidden)}>
         <Text style={styles.toggleText}>
-          Hidden session: {hidden ? "Yes" : "No"} (only coaches/managers see it on the calendar; athletes can’t self-register)
+          {language === "he" ? "אימון מוסתר: " : "Hidden session: "}
+          {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}{" "}
+          {language === "he"
+            ? "(רק מאמנים/מנהלים רואים ביומן; מתאמנים לא יכולים להירשם לבד)"
+            : "(only coaches/managers see it on the calendar; athletes can’t self-register)"}
         </Text>
       </Pressable>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
-      <PrimaryButton label="Save session" onPress={save} loading={saving} loadingLabel="Saving…" />
+      <PrimaryButton label={language === "he" ? "שמירת אימון" : "Save session"} onPress={save} loading={saving} loadingLabel={t("common.loading")} />
     </ScrollView>
   );
 }
@@ -234,6 +270,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 const styles = StyleSheet.create({
   box: { flexGrow: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.backgroundAlt },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text },
+  rtlText: { textAlign: "right" },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.borderInput,

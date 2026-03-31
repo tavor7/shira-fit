@@ -8,9 +8,11 @@ import { PrimaryButton } from "../../../../../src/components/PrimaryButton";
 import { DatePickerField } from "../../../../../src/components/DatePickerField";
 import { isMissingColumnError } from "../../../../../src/lib/dbColumnErrors";
 import { isValidISODateString } from "../../../../../src/lib/isoDate";
+import { useI18n } from "../../../../../src/context/I18nContext";
 
 export default function CoachSessionManageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { language, t, isRTL } = useI18n();
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [ready, setReady] = useState(false);
@@ -51,7 +53,10 @@ export default function CoachSessionManageScreen() {
 
   async function saveSession() {
     if (!isValidISODateString(date.trim())) {
-      Alert.alert("Invalid date", "Please choose a valid session date.");
+      Alert.alert(
+        language === "he" ? "תאריך לא תקין" : "Invalid date",
+        language === "he" ? "בחרו תאריך אימון תקין." : "Please choose a valid session date."
+      );
       return;
     }
     const payload = {
@@ -71,19 +76,28 @@ export default function CoachSessionManageScreen() {
       if (!error) savedWithoutHidden = true;
     }
     if (error) {
-      Alert.alert("Error", error.message);
+      Alert.alert(t("common.error"), error.message);
       return;
     }
     router.replace("/(app)/coach/sessions");
     if (savedWithoutHidden) {
-      Alert.alert("Note", "Hidden-session column is not on the database yet; other fields were saved.");
+      Alert.alert(
+        language === "he" ? "הערה" : "Note",
+        language === "he"
+          ? "העמודה לאימון מוסתר עדיין לא קיימת במסד הנתונים; שאר השדות נשמרו."
+          : "Hidden-session column is not on the database yet; other fields were saved."
+      );
     }
   }
 
   if (forbidden) {
     return (
       <View style={styles.screen}>
-        <Text style={styles.err}>You can only edit sessions where you are the trainer.</Text>
+        <Text style={[styles.err, isRTL && styles.rtlText]}>
+          {language === "he"
+            ? "אפשר לערוך רק אימונים שבהם אתה/את המאמן/ת."
+            : "You can only edit sessions where you are the trainer."}
+        </Text>
       </View>
     );
   }
@@ -92,7 +106,7 @@ export default function CoachSessionManageScreen() {
     return (
       <View style={styles.screen}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={styles.muted}>Loading…</Text>
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
       </View>
     );
   }
@@ -100,30 +114,36 @@ export default function CoachSessionManageScreen() {
   if (!session) {
     return (
       <View style={styles.screen}>
-        <Text style={styles.err}>Session not found.</Text>
+        <Text style={[styles.err, isRTL && styles.rtlText]}>{language === "he" ? "האימון לא נמצא." : "Session not found."}</Text>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-      <Text style={styles.h}>Edit your session</Text>
-      <DatePickerField label="Session date" value={date} onChange={setDate} />
-      <Text style={styles.label}>Start time (HH:MM)</Text>
+      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "עריכת האימון שלך" : "Edit your session"}</Text>
+      <DatePickerField label={language === "he" ? "תאריך אימון" : "Session date"} value={date} onChange={setDate} />
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "שעת התחלה (HH:MM)" : "Start time (HH:MM)"}</Text>
       <TextInput style={styles.input} value={time} onChangeText={setTime} placeholderTextColor={theme.colors.placeholderOnLight} />
-      <Text style={styles.label}>Max participants</Text>
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
       <TextInput style={styles.input} value={maxP} onChangeText={setMaxP} keyboardType="number-pad" placeholderTextColor={theme.colors.placeholderOnLight} />
-      <Text style={styles.h}>Length (minutes)</Text>
+      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משך (דקות)" : "Length (minutes)"}</Text>
       <TextInput style={styles.input} value={durationMin} onChangeText={setDurationMin} keyboardType="number-pad" placeholderTextColor={theme.colors.placeholderOnLight} />
       <Pressable style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }]} onPress={() => setOpen(!open)}>
-        <Text style={styles.toggleText}>Open for registration: {open ? "Yes" : "No"}</Text>
+        <Text style={styles.toggleText}>
+          {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
+          {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
+        </Text>
       </Pressable>
       <Pressable style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }]} onPress={() => setHidden(!hidden)}>
         <Text style={styles.toggleText}>
-          Hidden (staff calendar only, no athlete self-register): {hidden ? "Yes" : "No"}
+          {language === "he"
+            ? "מוסתר (צוות בלבד ביומן, ללא הרשמה עצמית): "
+            : "Hidden (staff calendar only, no athlete self-register): "}
+          {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
         </Text>
       </Pressable>
-      <PrimaryButton label="Save" onPress={saveSession} />
+      <PrimaryButton label={t("common.save")} onPress={saveSession} />
     </ScrollView>
   );
 }
@@ -133,6 +153,7 @@ const styles = StyleSheet.create({
   scroll: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
   h: { fontWeight: "700", marginTop: theme.spacing.md, marginBottom: 8, color: theme.colors.text },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
+  rtlText: { textAlign: "right" },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.borderInput,

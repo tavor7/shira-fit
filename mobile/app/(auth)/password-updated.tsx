@@ -1,17 +1,23 @@
 import { View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../../src/theme";
+import { useI18n } from "../../src/context/I18nContext";
+import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 
 export default function PasswordUpdatedScreen() {
+  const { language, t, isRTL } = useI18n();
   return (
     <View style={styles.container}>
+      <LanguageToggleChip />
       <View style={styles.logoWrap}>
       <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
       </View>
-      <Text style={styles.title}>Password updated</Text>
-      <Text style={styles.body}>You can sign in with your new password.</Text>
+      <Text style={[styles.title, isRTL && { textAlign: "right" }]}>{t("auth.passwordUpdated")}</Text>
+      <Text style={[styles.body, isRTL && { textAlign: "right" }]}>
+        {language === "he" ? "אפשר להתחבר עם הסיסמה החדשה." : "You can sign in with your new password."}
+      </Text>
       <Pressable style={styles.btn} onPress={() => router.replace("/(auth)/login")} android_ripple={{ color: "rgba(255,255,255,0.3)" }}>
-        <Text style={styles.btnText}>Sign in</Text>
+        <Text style={styles.btnText}>{t("auth.signIn")}</Text>
       </Pressable>
     </View>
   );

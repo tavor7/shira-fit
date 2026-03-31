@@ -4,29 +4,35 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import { theme } from "../theme";
 import { parseISODateLocal, toISODateLocal, formatISODateShortDisplay, isValidISODateString } from "../lib/isoDate";
 import type { DatePickerFieldProps } from "./DatePickerField.types";
+import { useI18n } from "../context/I18nContext";
 
 export function DatePickerField({ label, value, onChange, minimumDate, maximumDate }: DatePickerFieldProps) {
   const [androidOpen, setAndroidOpen] = useState(false);
   const [iosOpen, setIosOpen] = useState(false);
   const [iosDraft, setIosDraft] = useState<Date>(() => parseISODateLocal(value) ?? new Date());
+  const { language, isRTL } = useI18n();
 
   useEffect(() => {
     const p = parseISODateLocal(value);
     if (p) setIosDraft(p);
   }, [value]);
 
-  const displayText = isValidISODateString(value) ? formatISODateShortDisplay(value) : "Choose date";
+  const displayText = isValidISODateString(value)
+    ? formatISODateShortDisplay(value)
+    : language === "he"
+      ? "בחרו תאריך"
+      : "Choose date";
   const pickerValue = parseISODateLocal(value) ?? new Date();
 
   if (Platform.OS === "android") {
     return (
       <View style={styles.wrap}>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
         <Pressable
           onPress={() => setAndroidOpen(true)}
           style={({ pressed }) => [styles.touch, pressed && styles.touchPressed]}
         >
-          <Text style={styles.touchText}>{displayText}</Text>
+          <Text style={[styles.touchText, isRTL && styles.rtlTextLight]}>{displayText}</Text>
           <Text style={styles.chev}>▼</Text>
         </Pressable>
         {androidOpen ? (
@@ -50,18 +56,18 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
       <Pressable onPress={() => setIosOpen(true)} style={({ pressed }) => [styles.touch, pressed && styles.touchPressed]}>
-        <Text style={styles.touchText}>{displayText}</Text>
+        <Text style={[styles.touchText, isRTL && styles.rtlTextLight]}>{displayText}</Text>
         <Text style={styles.chev}>▼</Text>
       </Pressable>
       <Modal visible={iosOpen} transparent animationType="slide" onRequestClose={() => setIosOpen(false)}>
         <View style={styles.modalRoot}>
-          <Pressable style={styles.backdropFlex} onPress={() => setIosOpen(false)} accessibilityLabel="Dismiss" />
+          <Pressable style={styles.backdropFlex} onPress={() => setIosOpen(false)} accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"} />
           <View style={styles.sheet}>
             <View style={styles.toolbar}>
               <Pressable onPress={() => setIosOpen(false)} hitSlop={12} style={styles.tbBtn}>
-                <Text style={styles.tbMuted}>Cancel</Text>
+                <Text style={styles.tbMuted}>{language === "he" ? "ביטול" : "Cancel"}</Text>
               </Pressable>
               <Text style={styles.tbTitle} numberOfLines={1}>
                 {label}
@@ -74,7 +80,7 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
                 hitSlop={12}
                 style={styles.tbBtn}
               >
-                <Text style={styles.tbCta}>Done</Text>
+                <Text style={styles.tbCta}>{language === "he" ? "אישור" : "Done"}</Text>
               </Pressable>
             </View>
             <DateTimePicker
@@ -97,6 +103,7 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
 const styles = StyleSheet.create({
   wrap: { marginTop: theme.spacing.sm },
   label: { marginBottom: 6, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
+  rtlText: { textAlign: "right" },
   touch: {
     flexDirection: "row",
     alignItems: "center",
@@ -110,6 +117,7 @@ const styles = StyleSheet.create({
   },
   touchPressed: { opacity: 0.92 },
   touchText: { flex: 1, fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
+  rtlTextLight: { textAlign: "right" },
   chev: { fontSize: 10, color: theme.colors.textMutedOnLight, marginLeft: 8 },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   backdropFlex: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },

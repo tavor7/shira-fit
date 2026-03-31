@@ -3,10 +3,12 @@ import { FlatList, Text, View, Pressable, StyleSheet, Alert } from "react-native
 import { useFocusEffect } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
+import { useI18n } from "../../../src/context/I18nContext";
 
 type Row = { user_id: string; username: string; full_name: string; phone: string };
 
 export default function ApproveAthletesScreen() {
+  const { language, t, isRTL } = useI18n();
   const [rows, setRows] = useState<Row[]>([]);
 
   const load = useCallback(async () => {
@@ -25,29 +27,31 @@ export default function ApproveAthletesScreen() {
       p_user_id: uid,
       p_status: status,
     });
-    if (error) Alert.alert("Error", error.message);
+    if (error) Alert.alert(t("common.error"), error.message);
     else if (data?.ok) load();
-    else Alert.alert("Failed", data?.error ?? "");
+    else Alert.alert(t("common.failed"), data?.error ?? "");
   }
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Pending athletes</Text>
+      <Text style={[styles.title, isRTL && { textAlign: "right" }]}>
+        {language === "he" ? "מתאמנים בהמתנה" : "Pending athletes"}
+      </Text>
       <FlatList
         data={rows}
         keyExtractor={(i) => i.user_id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No pending</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{language === "he" ? "אין ממתינים" : "No pending"}</Text>}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.n}>{item.full_name}</Text>
             <Text style={styles.m}>{item.username} · {item.phone}</Text>
             <View style={styles.actions}>
               <Pressable style={({ pressed }) => [styles.ok, pressed && { opacity: 0.9 }]} onPress={() => setStatus(item.user_id, "approved")}>
-                <Text style={styles.okT}>Approve</Text>
+                <Text style={styles.okT}>{language === "he" ? "אישור" : "Approve"}</Text>
               </Pressable>
               <Pressable style={({ pressed }) => [styles.no, pressed && { opacity: 0.9 }]} onPress={() => setStatus(item.user_id, "rejected")}>
-                <Text style={styles.noT}>Reject</Text>
+                <Text style={styles.noT}>{language === "he" ? "דחייה" : "Reject"}</Text>
               </Pressable>
             </View>
           </View>

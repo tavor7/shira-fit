@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { useI18n } from "../context/I18nContext";
 
 type Role = "athlete" | "coach" | "manager";
 type Row = {
@@ -14,6 +15,7 @@ type Row = {
 };
 
 export default function RoleManagementScreen() {
+  const { language, t, isRTL } = useI18n();
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,23 +40,23 @@ export default function RoleManagementScreen() {
     const { data, error } = await query;
     setLoading(false);
     if (error) {
-      Alert.alert("Error", error.message);
+      Alert.alert(t("common.error"), error.message);
       setRows([]);
       return;
     }
     setRows((data as Row[]) ?? []);
-  }, [qTrim]);
+  }, [qTrim, t]);
 
   const filtered = useMemo(() => rows, [rows]);
 
   async function setRole(userId: string, role: Role) {
     const { data, error } = await supabase.rpc("set_user_role", { p_user_id: userId, p_role: role });
     if (error) {
-      Alert.alert("Error", error.message);
+      Alert.alert(t("common.error"), error.message);
       return;
     }
     if (!data?.ok) {
-      Alert.alert("Failed", data?.error ?? "Unknown error");
+      Alert.alert(t("common.failed"), data?.error ?? "Unknown error");
       return;
     }
     load();
@@ -75,18 +77,22 @@ export default function RoleManagementScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.top}>
-        <Text style={styles.title}>Roles</Text>
-        <Text style={styles.hint}>Search by name, username, or phone. Managers can promote/demote roles.</Text>
+        <Text style={[styles.title, isRTL && styles.rtlText]}>{t("menu.roles")}</Text>
+        <Text style={[styles.hint, isRTL && styles.rtlText]}>
+          {language === "he"
+            ? "חיפוש לפי שם, משתמש או טלפון. מנהלים יכולים לשנות תפקידים."
+            : "Search by name, username, or phone. Managers can promote/demote roles."}
+        </Text>
         <TextInput
           value={q}
           onChangeText={setQ}
-          placeholder="Search…"
+          placeholder={language === "he" ? "חיפוש…" : "Search…"}
           placeholderTextColor={theme.colors.placeholderOnLight}
           style={styles.input}
           autoCapitalize="none"
         />
         <Pressable onPress={load} style={({ pressed }) => [styles.loadBtn, pressed && { opacity: 0.9 }]}>
-          <Text style={styles.loadTxt}>{loading ? "Loading…" : "Load"}</Text>
+          <Text style={styles.loadTxt}>{loading ? t("common.loading") : t("common.load")}</Text>
         </Pressable>
       </View>
 
@@ -94,7 +100,11 @@ export default function RoleManagementScreen() {
         data={filtered}
         keyExtractor={(i) => i.user_id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>{loading ? "Loading…" : "No users found."}</Text>}
+        ListEmptyComponent={
+          <Text style={[styles.empty, isRTL && styles.rtlText]}>
+            {loading ? t("common.loading") : language === "he" ? "לא נמצאו משתמשים." : "No users found."}
+          </Text>
+        }
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.name}>{item.full_name}</Text>
@@ -102,9 +112,21 @@ export default function RoleManagementScreen() {
               @{item.username} · {item.phone} · {item.approval_status}
             </Text>
             <View style={styles.row}>
-              <RoleChip label="Athlete" active={item.role === "athlete"} onPress={() => setRole(item.user_id, "athlete")} />
-              <RoleChip label="Coach" active={item.role === "coach"} onPress={() => setRole(item.user_id, "coach")} />
-              <RoleChip label="Manager" active={item.role === "manager"} onPress={() => setRole(item.user_id, "manager")} />
+              <RoleChip
+                label={language === "he" ? "מתאמן" : "Athlete"}
+                active={item.role === "athlete"}
+                onPress={() => setRole(item.user_id, "athlete")}
+              />
+              <RoleChip
+                label={language === "he" ? "מאמן" : "Coach"}
+                active={item.role === "coach"}
+                onPress={() => setRole(item.user_id, "coach")}
+              />
+              <RoleChip
+                label={language === "he" ? "מנהל" : "Manager"}
+                active={item.role === "manager"}
+                onPress={() => setRole(item.user_id, "manager")}
+              />
             </View>
           </View>
         )}
@@ -118,6 +140,7 @@ const styles = StyleSheet.create({
   top: { padding: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.borderMuted },
   title: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
   hint: { marginTop: 6, fontSize: 12, lineHeight: 18, color: theme.colors.textMuted },
+  rtlText: { textAlign: "right" },
   input: {
     marginTop: theme.spacing.sm,
     borderWidth: 1,

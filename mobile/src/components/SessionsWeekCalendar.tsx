@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
+import { useI18n } from "../context/I18nContext";
 
 export type SessionsWeekItem = {
   key: string;
@@ -33,7 +34,8 @@ type Props = {
   onDayPress?: (isoDate: string) => void;
 };
 
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_NAMES_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_NAMES_HE = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 
 function addDays(d: Date, days: number) {
   const next = new Date(d);
@@ -56,18 +58,21 @@ function dateToISODate(d: Date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function formatWeekLabel(start: Date, end: Date) {
+function formatWeekLabel(start: Date, end: Date, locale: string) {
   // If year differs, include it on both ends.
   const optsA: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
   const optsYear: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
   const useYear = start.getFullYear() !== end.getFullYear();
-  const fmtA = (x: Date) => x.toLocaleDateString("en-US", useYear ? optsYear : optsA);
+  const fmtA = (x: Date) => x.toLocaleDateString(locale, useYear ? optsYear : optsA);
   return `${fmtA(start)} - ${fmtA(end)}`;
 }
 
 export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
   const today = useMemo(() => new Date(), []);
+  const { language, t, isRTL } = useI18n();
+  const locale = language === "he" ? "he-IL" : "en-US";
+  const dayNames = language === "he" ? DAY_NAMES_HE : DAY_NAMES_EN;
 
   const weekStart = useMemo(() => {
     const base = startOfWeekSunday(today);
@@ -117,14 +122,14 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
   const weekLabel = useMemo(() => {
     const start = weekDays[0]?.date ?? weekStart;
     const end = weekDays[6]?.date ?? weekStart;
-    return formatWeekLabel(start, end);
-  }, [weekDays, weekStart]);
+    return formatWeekLabel(start, end, locale);
+  }, [weekDays, weekStart, locale]);
 
   if (isLoading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={styles.loadingText}>Loading…</Text>
+        <Text style={styles.loadingText}>{t("common.loading")}</Text>
       </View>
     );
   }
@@ -136,18 +141,18 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
           onPress={() => setWeekOffset((o) => o - 1)}
           style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8 }]}
           accessibilityRole="button"
-          accessibilityLabel="Previous week"
+          accessibilityLabel={language === "he" ? "שבוע קודם" : "Previous week"}
         >
-          <Text style={styles.navTxt}>{"<"}</Text>
+          <Text style={[styles.navTxt, isRTL && styles.navTxtRTL]}>{"<"}</Text>
         </Pressable>
         <Text style={styles.weekTitle}>{weekLabel}</Text>
         <Pressable
           onPress={() => setWeekOffset((o) => o + 1)}
           style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8 }]}
           accessibilityRole="button"
-          accessibilityLabel="Next week"
+          accessibilityLabel={language === "he" ? "שבוע הבא" : "Next week"}
         >
-          <Text style={styles.navTxt}>{">"}</Text>
+          <Text style={[styles.navTxt, isRTL && styles.navTxtRTL]}>{">"}</Text>
         </Pressable>
       </View>
 
@@ -169,9 +174,9 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
                 style={({ pressed }) => [styles.dayCol, pressed && onDayPress && styles.dayColPressed]}
               >
                 <View style={styles.dayHeaderBox}>
-                  <Text style={styles.dayName}>{DAY_NAMES[d.date.getDay()]}</Text>
+                  <Text style={styles.dayName}>{dayNames[d.date.getDay()]}</Text>
                   <Text style={styles.dayNum}>{d.date.getDate()}</Text>
-                  <Text style={styles.dayMonth}>{d.date.toLocaleDateString("en-US", { month: "short" })}</Text>
+                  <Text style={styles.dayMonth}>{d.date.toLocaleDateString(locale, { month: "short" })}</Text>
                   {count > 0 ? (
                     <View style={styles.countPill}>
                       <Text style={styles.countPillTxt}>{count}</Text>
@@ -200,7 +205,7 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
 
         {weekItemsCount === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>{emptyLabel ?? "No sessions in this week."}</Text>
+            <Text style={styles.emptyText}>{emptyLabel ?? (language === "he" ? "אין אימונים בשבוע זה." : "No sessions in this week.")}</Text>
           </View>
         ) : null}
       </View>
@@ -235,6 +240,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   navTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 15 },
+  navTxtRTL: { transform: [{ rotate: "180deg" }] },
   body: { width: "100%", alignItems: "stretch" },
   /** When the 7 day columns are narrower than the screen, center them; when wider (small phones), scroll still works. */
   scroller: { width: "100%" },
