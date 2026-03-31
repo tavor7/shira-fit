@@ -1,0 +1,25 @@
+# Render Blueprint: static Expo web app from mobile/
+# https://render.com/docs/blueprint-spec
+#
+# After linking the repo, set EXPO_PUBLIC_* when prompted (sync: false),
+# or add them under the service → Environment.
+
+services:
+  - type: web
+    name: shira-fit-mobile-web
+    runtime: static
+    rootDir: mobile
+    buildCommand: npm install && npm run build:web
+    staticPublishPath: ./dist
+    buildFilter:
+      paths:
+        - mobile/**
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: EXPO_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: EXPO_PUBLIC_SUPABASE_ANON_KEY
+        sync: false

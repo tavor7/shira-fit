@@ -118,34 +118,40 @@ cd mobile
 npm run build:web
 ```
 
-Output is **`mobile/dist/`**. You can upload `dist/` manually, or let Vercel build from Git (recommended).
+Output is **`mobile/dist/`**. You can upload `dist/` manually, or let a host (e.g. **Render**) build from Git on every push.
 
-#### Vercel (step by step)
+#### Render (step by step)
 
-1. **Push the repo** to GitHub, GitLab, or Bitbucket (Vercel needs a remote to import).
-2. Go to [vercel.com](https://vercel.com) → sign in → **Add New…** → **Project** → **Import** your repository.
-3. **Root Directory:** set to **`mobile`** (the folder that contains `package.json` and `vercel.json`). If Vercel does not show this on the first screen, expand **Root Directory** / **Edit** and choose `mobile`.
-4. **Build settings:** leave as detected or use:
-   - **Build Command:** `npm run build:web`
-   - **Output Directory:** `dist`  
-   The repo’s `mobile/vercel.json` already sets these; Vercel usually picks them up.
-5. **Environment Variables** (required — the app is built with these baked in):
-   - `EXPO_PUBLIC_SUPABASE_URL` — same value as in local `mobile/.env`
-   - `EXPO_PUBLIC_SUPABASE_ANON_KEY` — same as in local `mobile/.env`  
-   Add both for **Production** (and **Preview** if you want preview deployments to work).
-6. Click **Deploy**. When it finishes, open the **.vercel.app** URL and sign in to test.
+[Render](https://render.com) static sites work well for this Expo web export. The repo includes **`render.yaml`** at the root (Blueprint) so you can create the service in one flow.
+
+**Option A — Blueprint (uses `render.yaml`)**
+
+1. Push the repo to GitHub/GitLab/Bitbucket.
+2. [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint** → connect the repo.
+3. Render reads `render.yaml`. When prompted, set:
+   - `EXPO_PUBLIC_SUPABASE_URL`
+   - `EXPO_PUBLIC_SUPABASE_ANON_KEY`  
+   (same values as `mobile/.env`.) They are **baked in at build time** — after changing them, trigger a **manual deploy**.
+4. After deploy, open your **`*.onrender.com`** URL and test login.
+
+**Option B — Static Site manually (no Blueprint)**
+
+1. **New** → **Static Site** → connect the repo.
+2. **Root Directory:** `mobile`
+3. **Build Command:** `npm install && npm run build:web`
+4. **Publish Directory:** `dist` (relative to `mobile/`, i.e. the folder produced by the build)
+5. **Environment** → add `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+6. **Redirects / Rewrites** (required for Expo Router — deep links must not 404):
+   - **Rewrite:** Source `/*` → Destination `/index.html` (action **Rewrite**, not redirect).  
+   Same rule as in [Render’s client-side routing docs](https://render.com/docs/redirects-rewrites).
 
 **Supabase:** Dashboard → **Authentication** → **URL Configuration**  
-Set **Site URL** to your Vercel URL (e.g. `https://shira-fit-xxx.vercel.app`). Under **Redirect URLs**, add at least:
+Set **Site URL** to your Render URL (e.g. `https://shira-fit-mobile-web.onrender.com`). Under **Redirect URLs**, add:
 
-- `https://YOUR_VERCEL_HOST/--/(auth)/reset-password`  
-  (and the same for any custom domain you attach later)
+- `https://YOUR_RENDER_HOST/--/(auth)/reset-password`  
+  (repeat for a custom domain if you add one under the static site’s **Settings → Custom Domains**.)
 
-**Optional:** **Project** → **Settings** → **Domains** to add your own domain.
-
-**CLI (alternative):** from `mobile/`, run `npx vercel` and follow prompts; set the same env vars in the dashboard under **Settings → Environment Variables** if the CLI did not add them.
-
-- **Netlify:** root `mobile`, build command `npm run build:web`, publish `dist` (see `mobile/netlify.toml`).
+**Other hosts:** **Vercel** — root `mobile`, env vars as above, `mobile/vercel.json` sets build + SPA rewrite. **Netlify** — see `mobile/netlify.toml`.
 
 On a phone: open the URL in Safari/Chrome and use **Share → Add to Home Screen** for an app-like icon. Native App Store / Play builds later use **EAS Build**; they are separate from this static web deploy.
 
