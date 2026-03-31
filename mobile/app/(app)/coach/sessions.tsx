@@ -9,7 +9,6 @@ import { resolveTrainerAccentColor } from "../../../src/lib/trainerCalendarColor
 import { theme } from "../../../src/theme";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
-import { ActionButton } from "../../../src/components/ActionButton";
 import { StaffHomeOverview } from "../../../src/components/StaffHomeOverview";
 import { useAuth } from "../../../src/context/AuthContext";
 
@@ -66,9 +65,6 @@ export default function CoachSessionsScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.topRow}>
-        <ActionButton label="Participant history" onPress={() => router.push("/(app)/coach/participant-history")} />
-      </View>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -97,7 +93,6 @@ export default function CoachSessionsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  topRow: { padding: theme.spacing.md, paddingBottom: theme.spacing.sm },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: theme.spacing.lg },
 });

@@ -15,7 +15,9 @@ export default function RootLayout() {
           <View style={{ flex: 1 }}>
             <Stack
               screenOptions={{
-                headerShown: true,
+                // Nested stacks (/(auth), /(app)) render their own headers as needed.
+                // Keeping the root header hidden avoids showing route-group titles like "(app)".
+                headerShown: false,
                 headerBackTitle: "Back",
                 headerShadowVisible: false,
                 headerStyle: {

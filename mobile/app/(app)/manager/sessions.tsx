@@ -8,7 +8,6 @@ import { fetchActiveSignupCountsBySession } from "../../../src/lib/sessionSignup
 import { resolveTrainerAccentColor } from "../../../src/lib/trainerCalendarColor";
 import { theme } from "../../../src/theme";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
-import { ActionButton } from "../../../src/components/ActionButton";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { StaffHomeOverview } from "../../../src/components/StaffHomeOverview";
 import { useAuth } from "../../../src/context/AuthContext";
@@ -66,15 +65,6 @@ export default function ManagerSessionsScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.topRow}>
-        <View style={styles.actions}>
-          <ActionButton label="Approve" onPress={() => router.push("/(app)/manager/approve")} />
-          <ActionButton label="Create" onPress={() => router.push("/(app)/manager/create-session")} />
-          <ActionButton label="History" onPress={() => router.push("/(app)/manager/participant-history")} />
-          <ActionButton label="Trainer report" onPress={() => router.push("/(app)/manager/coach-sessions-report")} />
-          <ActionButton label="Trainer colors" onPress={() => router.push("/(app)/manager/trainer-colors")} />
-        </View>
-      </View>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -102,8 +92,6 @@ export default function ManagerSessionsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  topRow: { padding: theme.spacing.md, paddingBottom: theme.spacing.sm },
-  actions: { flexDirection: "row", gap: theme.spacing.sm, alignItems: "center", flexWrap: "wrap" },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: theme.spacing.lg },
 });

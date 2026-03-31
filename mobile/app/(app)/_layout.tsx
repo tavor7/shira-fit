@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { useAuth } from "../../src/context/AuthContext";
 import { Redirect } from "expo-router";
 import { AuthHeaderRight } from "../../src/components/AuthHeaderRight";
+import { GlobalQuickMenu } from "../../src/components/GlobalQuickMenu";
 import { theme } from "../../src/theme";
 
 export default function AppLayout() {
@@ -12,6 +13,9 @@ export default function AppLayout() {
     <Stack
       screenOptions={{
         headerShown: true,
+        // Don't show route names like "manager/sessions" in the header.
+        headerTitle: "",
+        headerLeft: () => <GlobalQuickMenu />,
         headerRight: () => <AuthHeaderRight />,
         headerShadowVisible: false,
         headerStyle: {
