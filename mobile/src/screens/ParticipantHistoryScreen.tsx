@@ -53,6 +53,7 @@ export default function ParticipantHistoryScreen() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [rows, setRows] = useState<ParticipantHistoryRow[]>([]);
+  const [emptyHint, setEmptyHint] = useState<string>("No records for those dates.");
 
   const sections = useMemo(() => groupByAthlete(rows), [rows]);
 
@@ -74,14 +75,38 @@ export default function ParticipantHistoryScreen() {
       p_end: e,
       p_phone_search: phoneArg,
     });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       showError(error.message);
       setRows([]);
       setHasSearched(true);
       return;
     }
-    setRows((data as ParticipantHistoryRow[]) ?? []);
+    const next = (data as ParticipantHistoryRow[]) ?? [];
+    setRows(next);
+
+    if (next.length === 0) {
+      if (!phoneArg) {
+        setEmptyHint("No records for those dates.");
+      } else {
+        const { count, error: phoneErr } = await supabase
+          .from("profiles")
+          .select("user_id", { count: "exact", head: true })
+          .eq("role", "athlete")
+          .ilike("phone", `%${phoneArg}%`);
+
+        if (phoneErr) {
+          // Fall back to a generic message if RLS/schema/etc prevents the existence check.
+          setEmptyHint("No records for those dates.");
+        } else if (!count || count < 1) {
+          setEmptyHint("This phone number doesn’t exist.");
+        } else {
+          setEmptyHint("No records for those dates.");
+        }
+      }
+    }
+
+    setLoading(false);
     setHasSearched(true);
   }, [start, end, phone]);
 
@@ -139,7 +164,7 @@ export default function ParticipantHistoryScreen() {
         }}
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {!hasSearched ? "Set the period (and optional phone), then tap Load." : "No registrations match this filter."}
+            {!hasSearched ? "Set the period (and optional phone), then tap Load." : emptyHint}
           </Text>
         }
         contentContainerStyle={styles.listContent}
