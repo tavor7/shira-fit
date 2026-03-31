@@ -7,11 +7,19 @@ import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { ParticipantAttendanceList } from "../../../../src/components/ParticipantAttendanceList";
 
 type W = { user_id: string; profiles: { full_name: string } };
+type CancellationRow = {
+  user_id: string;
+  cancelled_at: string;
+  reason: string;
+  charged_full_price: boolean;
+  profiles: { full_name: string } | { full_name: string }[] | null;
+};
 
 export default function CoachSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [participantsRev, setParticipantsRev] = useState(0);
   const [waitlist, setWaitlist] = useState<W[]>([]);
+  const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [athleteId, setAthleteId] = useState("");
 
@@ -23,8 +31,22 @@ export default function CoachSessionDetail() {
     setWaitlist((w as unknown as W[]) ?? []);
   }
 
+  async function loadCancellations() {
+    const { data, error } = await supabase
+      .from("cancellations")
+      .select("user_id, cancelled_at, reason, charged_full_price, profiles(full_name)")
+      .eq("session_id", id)
+      .order("cancelled_at", { ascending: false });
+    if (error) {
+      setCancellations([]);
+      return;
+    }
+    setCancellations((data as unknown as CancellationRow[]) ?? []);
+  }
+
   useEffect(() => {
     loadWaitlist();
+    loadCancellations();
   }, [id]);
 
   async function addAthlete() {
@@ -39,6 +61,7 @@ export default function CoachSessionDetail() {
     else if (data?.ok) {
       Alert.alert("Added");
       loadWaitlist();
+      loadCancellations();
       setParticipantsRev((n) => n + 1);
     } else Alert.alert("Failed", data?.error ?? "");
   }
@@ -52,7 +75,10 @@ export default function CoachSessionDetail() {
       <ParticipantAttendanceList
         sessionId={id}
         refreshNonce={participantsRev}
-        onChanged={loadWaitlist}
+        onChanged={() => {
+          loadWaitlist();
+          loadCancellations();
+        }}
       />
 
       <Text style={styles.h}>Waitlist</Text>
@@ -66,6 +92,25 @@ export default function CoachSessionDetail() {
         ))
       )}
       <PrimaryButton label="Manual add athlete (user_id UUID)" onPress={() => setAddOpen(true)} variant="ghost" />
+
+      <Text style={styles.h}>Cancellations</Text>
+      <Text style={styles.sub}>Visible to coaches and managers only.</Text>
+      {cancellations.length === 0 ? (
+        <Text style={styles.muted}>None</Text>
+      ) : (
+        cancellations.map((c) => {
+          const p = c.profiles ? (Array.isArray(c.profiles) ? c.profiles[0] : c.profiles) : null;
+          const name = p?.full_name ?? c.user_id;
+          return (
+            <View key={`${c.user_id}-${c.cancelled_at}`} style={styles.cancelCard}>
+              <Text style={styles.cancelName}>{name}</Text>
+              <Text style={styles.cancelMeta}>{new Date(c.cancelled_at).toLocaleString()}</Text>
+              <Text style={styles.cancelReason}>Reason: {c.reason}</Text>
+              {c.charged_full_price ? <Text style={styles.chargeWarn}>Late cancellation (&lt;24h) — charged</Text> : null}
+            </View>
+          );
+        })
+      )}
       <Modal visible={addOpen} transparent>
         <View style={styles.modal}>
           <View style={styles.modalCard}>
@@ -95,6 +140,18 @@ const styles = StyleSheet.create({
   sub: { fontSize: 13, color: theme.colors.textMuted, marginBottom: theme.spacing.sm, lineHeight: 18 },
   row: { paddingVertical: 8, borderBottomWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
   muted: { color: theme.colors.textSoft },
+  cancelCard: {
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  cancelName: { color: theme.colors.text, fontWeight: "800" },
+  cancelMeta: { marginTop: 4, color: theme.colors.textMuted, fontSize: 12 },
+  cancelReason: { marginTop: 6, color: theme.colors.text, lineHeight: 18 },
+  chargeWarn: { marginTop: 8, color: theme.colors.error, fontWeight: "800" },
   modal: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.4)" },
   modalCard: {
     backgroundColor: theme.colors.surfaceElevated,

@@ -26,6 +26,26 @@ function durMin(s: TrainingSessionWithTrainer) {
   return s.duration_minutes ?? 60;
 }
 
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function addDays(d: Date, days: number) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + days);
+  return x;
+}
+
+function isInNext7Days(sessionDate: string, startTime: string, now: Date) {
+  const start = sessionStartsAt(sessionDate, startTime);
+  const windowStart = startOfDay(now);
+  // inclusive of today, up to (but not including) day 8
+  const windowEndExclusive = addDays(windowStart, 8);
+  return start.getTime() >= windowStart.getTime() && start.getTime() < windowEndExclusive.getTime();
+}
+
 export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Props) {
   const [now, setNow] = useState(() => new Date());
   const [attending, setAttending] = useState<TrainingSessionWithTrainer[]>([]);
@@ -80,7 +100,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
       const raw = r.training_sessions;
       const s = Array.isArray(raw) ? raw[0] : raw;
       if (!s?.id) continue;
-      if (hasSessionNotEnded(s.session_date, s.start_time, durMin(s), at)) {
+      if (hasSessionNotEnded(s.session_date, s.start_time, durMin(s), at) && isInNext7Days(s.session_date, s.start_time, at)) {
         list.push(s);
       }
     }
@@ -106,7 +126,12 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
   const teachingNotEnded = useMemo(() => {
     if (!userId) return [];
     return sessions
-      .filter((s) => s.coach_id === userId && hasSessionNotEnded(s.session_date, s.start_time, durMin(s), now))
+      .filter(
+        (s) =>
+          s.coach_id === userId &&
+          hasSessionNotEnded(s.session_date, s.start_time, durMin(s), now) &&
+          isInNext7Days(s.session_date, s.start_time, now)
+      )
       .sort(
         (a, b) =>
           sessionStartsAt(a.session_date, a.start_time).getTime() -
@@ -202,7 +227,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
   return (
     <View style={styles.wrap}>
       <Text style={styles.sectionTitle}>Your upcoming</Text>
-      <Text style={styles.sectionHint}>Sessions you’re signed up for that haven’t ended yet.</Text>
+      <Text style={styles.sectionHint}>Sessions you’re signed up for in the next 7 days (today included).</Text>
       {attendingLoading ? (
         <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
       ) : attending.length === 0 ? (
@@ -212,7 +237,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
       )}
 
       <Text style={[styles.sectionTitle, styles.sectionSpaced]}>Sessions you’re training</Text>
-      <Text style={styles.sectionHint}>All sessions where you’re the trainer and haven’t ended yet.</Text>
+      <Text style={styles.sectionHint}>All sessions where you’re the trainer in the next 7 days (today included).</Text>
       {teachingNotEnded.length === 0 ? (
         <Text style={styles.muted}>None right now.</Text>
       ) : (

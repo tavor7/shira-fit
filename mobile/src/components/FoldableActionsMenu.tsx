@@ -6,6 +6,7 @@ import { ActionButton } from "./ActionButton";
 export type FoldableActionsMenuItem = {
   label: string;
   onPress: () => void;
+  badgeCount?: number;
 };
 
 type Props = {
@@ -37,7 +38,16 @@ export function FoldableActionsMenu({ label = "Menu", items, renderTrigger }: Pr
                 }}
                 accessibilityRole="button"
               >
-                <Text style={styles.itemText}>{item.label}</Text>
+                <View style={styles.itemRow}>
+                  <Text style={styles.itemText}>{item.label}</Text>
+                  {item.badgeCount && item.badgeCount > 0 ? (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeTxt}>
+                        {item.badgeCount > 99 ? "99+" : String(item.badgeCount)}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
               </Pressable>
             ))}
           </View>
@@ -78,7 +88,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderMuted,
   },
+  itemRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   itemPressed: { backgroundColor: theme.colors.surfaceElevated },
   itemText: { color: theme.colors.text, fontWeight: "700", fontSize: 14, letterSpacing: 0.2 },
+  badge: {
+    minWidth: 22,
+    paddingHorizontal: 8,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.error,
+  },
+  badgeTxt: { color: "#fff", fontWeight: "900", fontSize: 11, letterSpacing: 0.2 },
 });
 

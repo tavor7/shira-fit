@@ -10,6 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { router } from "expo-router";
+import * as Linking from "expo-linking";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ActionButton } from "../../src/components/ActionButton";
@@ -35,13 +36,20 @@ export default function SignupScreen() {
   const [phone, setPhone] = useState("");
   const [dobText, setDobText] = useState("2000-01-15");
   const [gender, setGender] = useState<"male" | "female">("male");
+  const [healthConfirmed, setHealthConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const healthUrl = "https://tpz.link/gdtw8";
 
   async function onSignup() {
     setErrorMessage("");
     if (!email.trim() || password.length < 6 || !fullName.trim() || !phone.trim()) {
       setErrorMessage("Please fill in email, password (min 6), full name, and phone.");
+      return;
+    }
+    if (!healthConfirmed) {
+      setErrorMessage("Please complete the health declaration and confirm it before signing up.");
       return;
     }
     if (!isValidISODateString(dobText.trim())) {
@@ -81,6 +89,7 @@ export default function SignupScreen() {
           gender,
           date_of_birth: dobIso,
           age: new Date().getFullYear() - dobFinal.getFullYear(),
+          health_declaration_confirmed_at: new Date().toISOString(),
         })
         .eq("user_id", data.user.id);
     }
@@ -166,6 +175,29 @@ export default function SignupScreen() {
           ))}
         </View>
 
+        <Text style={styles.label}>Health declaration (required)</Text>
+        <Pressable
+          style={({ pressed }) => [styles.healthLink, pressed && { opacity: 0.9 }]}
+          onPress={() => Linking.openURL(healthUrl)}
+        >
+          <Text style={styles.healthLinkTxt}>Open health declaration form</Text>
+          <Text style={styles.healthLinkSub}>{healthUrl}</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.checkRow, pressed && { opacity: 0.9 }]}
+          onPress={() => {
+            setHealthConfirmed((v) => !v);
+            setErrorMessage("");
+          }}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: healthConfirmed }}
+        >
+          <View style={[styles.checkbox, healthConfirmed && styles.checkboxOn]}>
+            {healthConfirmed ? <Text style={styles.checkboxMark}>✓</Text> : null}
+          </View>
+          <Text style={styles.checkTxt}>I completed the health declaration</Text>
+        </Pressable>
+
         <PrimaryButton
           label="Sign up"
           loadingLabel="Creating account…"
@@ -214,5 +246,29 @@ const styles = StyleSheet.create({
   genderBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   genderTxt: { fontSize: 16, color: theme.colors.text },
   genderTxtOn: { color: theme.colors.ctaText, fontWeight: "600" },
+  healthLink: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderInput,
+    borderRadius: theme.radius.md,
+    padding: 14,
+    backgroundColor: theme.colors.backgroundAlt,
+    marginBottom: 10,
+  },
+  healthLinkTxt: { color: theme.colors.cta, fontWeight: "800" },
+  healthLinkSub: { marginTop: 6, color: theme.colors.textMuted, fontSize: 12 },
+  checkRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16, marginTop: 2 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.borderInput,
+    backgroundColor: theme.colors.backgroundAlt,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  checkboxMark: { color: theme.colors.ctaText, fontWeight: "900" },
+  checkTxt: { flex: 1, color: theme.colors.text, fontWeight: "600" },
   navBtn: { marginTop: 16, alignSelf: "center", width: "100%" },
 });

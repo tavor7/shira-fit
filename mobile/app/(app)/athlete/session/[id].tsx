@@ -90,7 +90,12 @@ export default function AthleteSessionDetail() {
     setReason("");
     if (error) Alert.alert("Error", error.message);
     else if (data?.ok) {
-      Alert.alert("Cancelled", data.charged_full_price ? "Within 12h — full price applies (recorded)." : "No late fee.");
+      Alert.alert(
+        "Cancelled",
+        data.charged_full_price
+          ? "Cancelled less than 24 hours before the workout — you will be charged for the session."
+          : "Cancelled successfully."
+      );
       setRegistered(false);
       const { count: c } = await supabase
         .from("session_registrations")

@@ -19,16 +19,38 @@ import { DatePickerField } from "../../../../src/components/DatePickerField";
 import { isMissingColumnError } from "../../../../src/lib/dbColumnErrors";
 import { isValidISODateString } from "../../../../src/lib/isoDate";
 
+type CancellationRow = {
+  user_id: string;
+  cancelled_at: string;
+  reason: string;
+  charged_full_price: boolean;
+  profiles: { full_name: string } | { full_name: string }[] | null;
+};
+
 export default function ManagerSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [participantsRev, setParticipantsRev] = useState(0);
   const [session, setSession] = useState<TrainingSession | null>(null);
+  const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [maxP, setMaxP] = useState("");
   const [durationMin, setDurationMin] = useState("");
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
+
+  async function loadCancellations() {
+    const { data, error } = await supabase
+      .from("cancellations")
+      .select("user_id, cancelled_at, reason, charged_full_price, profiles(full_name)")
+      .eq("session_id", id)
+      .order("cancelled_at", { ascending: false });
+    if (error) {
+      setCancellations([]);
+      return;
+    }
+    setCancellations((data as unknown as CancellationRow[]) ?? []);
+  }
 
   async function load() {
     const { data: s } = await supabase.from("training_sessions").select("*").eq("id", id).single();
@@ -41,6 +63,7 @@ export default function ManagerSessionDetail() {
       setOpen(s.is_open_for_registration);
       setHidden(!!(s as { is_hidden?: boolean }).is_hidden);
     }
+    loadCancellations();
   }
 
   useEffect(() => {
@@ -119,6 +142,25 @@ export default function ManagerSessionDetail() {
         onRemoveAthlete={removeAthlete}
       />
 
+      <Text style={styles.h}>Cancellations</Text>
+      <Text style={styles.sub}>Visible to coaches and managers only.</Text>
+      {cancellations.length === 0 ? (
+        <Text style={styles.muted}>None</Text>
+      ) : (
+        cancellations.map((c) => {
+          const p = c.profiles ? (Array.isArray(c.profiles) ? c.profiles[0] : c.profiles) : null;
+          const name = p?.full_name ?? c.user_id;
+          return (
+            <View key={`${c.user_id}-${c.cancelled_at}`} style={styles.cancelCard}>
+              <Text style={styles.cancelName}>{name}</Text>
+              <Text style={styles.cancelMeta}>{new Date(c.cancelled_at).toLocaleString()}</Text>
+              <Text style={styles.cancelReason}>Reason: {c.reason}</Text>
+              {c.charged_full_price ? <Text style={styles.chargeWarn}>Late cancellation (&lt;24h) — charged</Text> : null}
+            </View>
+          );
+        })
+      )}
+
       <View style={styles.link}>
         <ActionButton label="Coach view (waitlist / add)" onPress={() => router.push(`/(app)/coach/session/${id}`)} />
       </View>
@@ -133,6 +175,7 @@ const styles = StyleSheet.create({
   h: { fontWeight: "700", marginTop: theme.spacing.md, marginBottom: 8, color: theme.colors.text },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   sub: { fontSize: 13, color: theme.colors.textMuted, marginBottom: theme.spacing.sm, lineHeight: 18 },
+  muted: { color: theme.colors.textSoft },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.borderInput,
@@ -147,4 +190,16 @@ const styles = StyleSheet.create({
   toggle: { padding: 12, backgroundColor: theme.colors.white, borderRadius: theme.radius.sm, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
   toggleText: { color: theme.colors.textOnLight, fontSize: 16 },
   link: { marginTop: theme.spacing.lg },
+  cancelCard: {
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  cancelName: { color: theme.colors.text, fontWeight: "800" },
+  cancelMeta: { marginTop: 4, color: theme.colors.textMuted, fontSize: 12 },
+  cancelReason: { marginTop: 6, color: theme.colors.text, lineHeight: 18 },
+  chargeWarn: { marginTop: 8, color: theme.colors.error, fontWeight: "800" },
 });

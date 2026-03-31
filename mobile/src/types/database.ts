@@ -9,6 +9,7 @@ export interface Profile {
   age: number | null;
   gender: "male" | "female";
   date_of_birth?: string | null;
+  health_declaration_confirmed_at?: string | null;
   approval_status: ApprovalStatus;
   role: UserRole;
   expo_push_token: string | null;

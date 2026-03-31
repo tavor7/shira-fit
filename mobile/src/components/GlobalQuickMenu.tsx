@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router, usePathname } from "expo-router";
 import { theme } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { FoldableActionsMenu, type FoldableActionsMenuItem } from "./FoldableActionsMenu";
+import { supabase } from "../lib/supabase";
 
 type RouteItem = FoldableActionsMenuItem & {
   /** Match current pathname; when true we hide the item. */
@@ -17,6 +18,27 @@ function startsWithAny(pathname: string, prefixes: string[]) {
 export function GlobalQuickMenu() {
   const { profile } = useAuth();
   const pathname = usePathname() ?? "";
+  const [pendingApproveCount, setPendingApproveCount] = useState(0);
+
+  useEffect(() => {
+    if (profile?.role !== "manager") {
+      setPendingApproveCount(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { count, error } = await supabase
+        .from("profiles")
+        .select("user_id", { count: "exact", head: true })
+        .eq("role", "athlete")
+        .eq("approval_status", "pending");
+      if (!cancelled && !error) setPendingApproveCount(count ?? 0);
+      if (!cancelled && error) setPendingApproveCount(0);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.role]);
 
   const items = useMemo<RouteItem[]>(() => {
     const role = profile?.role ?? "";
@@ -33,6 +55,7 @@ export function GlobalQuickMenu() {
           label: "Approve",
           onPress: () => router.push("/(app)/manager/approve"),
           isActive: (p) => startsWithAny(p, ["/manager/approve"]),
+          badgeCount: pendingApproveCount,
         },
         {
           label: "Create",
@@ -53,6 +76,16 @@ export function GlobalQuickMenu() {
           label: "Trainer colors",
           onPress: () => router.push("/(app)/manager/trainer-colors"),
           isActive: (p) => startsWithAny(p, ["/manager/trainer-colors"]),
+        },
+        {
+          label: "Roles",
+          onPress: () => router.push("/(app)/manager/roles"),
+          isActive: (p) => startsWithAny(p, ["/manager/roles"]),
+        },
+        {
+          label: "Opening schedule",
+          onPress: () => router.push("/(app)/manager/opening-schedule"),
+          isActive: (p) => startsWithAny(p, ["/manager/opening-schedule"]),
         },
       ];
     }
@@ -90,7 +123,7 @@ export function GlobalQuickMenu() {
         isActive: (p) => startsWithAny(p, ["/athlete/my-sessions"]),
       },
     ];
-  }, [profile?.role]);
+  }, [profile?.role, pendingApproveCount]);
 
   const visible = useMemo(() => items.filter((i) => !i.isActive(pathname)), [items, pathname]);
 

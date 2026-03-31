@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { View, Text, SectionList, TextInput, StyleSheet, Platform, Alert } from "react-native";
+import { View, Text, SectionList, TextInput, StyleSheet, Platform, Alert, Pressable, Modal, FlatList, ActivityIndicator } from "react-native";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { DatePickerField } from "../components/DatePickerField";
@@ -19,6 +19,7 @@ function defaultStartISO() {
 }
 
 type Section = { title: string; data: ParticipantHistoryRow[] };
+type Athlete = { user_id: string; full_name: string; username: string; phone: string };
 
 function groupByAthlete(rows: ParticipantHistoryRow[]): Section[] {
   const map = new Map<string, ParticipantHistoryRow[]>();
@@ -49,13 +50,40 @@ function showError(msg: string) {
 export default function ParticipantHistoryScreen() {
   const [start, setStart] = useState(defaultStartISO);
   const [end, setEnd] = useState(defaultEndISO);
-  const [phone, setPhone] = useState("");
+  const [athleteId, setAthleteId] = useState<string>("");
+  const [athleteLabel, setAthleteLabel] = useState<string>("");
+  const [phone, setPhone] = useState(""); // used as RPC filter; set from athlete selection
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQ, setPickerQ] = useState("");
+  const [athletes, setAthletes] = useState<Athlete[]>([]);
+  const [athletesLoading, setAthletesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [rows, setRows] = useState<ParticipantHistoryRow[]>([]);
   const [emptyHint, setEmptyHint] = useState<string>("No records for those dates.");
 
   const sections = useMemo(() => groupByAthlete(rows), [rows]);
+
+  const loadAthletes = useCallback(async () => {
+    const q = pickerQ.trim();
+    setAthletesLoading(true);
+    let query = supabase
+      .from("profiles")
+      .select("user_id, full_name, username, phone")
+      .eq("role", "athlete")
+      .order("full_name", { ascending: true })
+      .limit(200);
+    if (q.length > 0) {
+      query = query.or(`full_name.ilike.%${q}%,username.ilike.%${q}%,phone.ilike.%${q}%`);
+    }
+    const { data, error } = await query;
+    setAthletesLoading(false);
+    if (error) {
+      setAthletes([]);
+      return;
+    }
+    setAthletes((data as Athlete[]) ?? []);
+  }, [pickerQ]);
 
   const load = useCallback(async () => {
     const s = start.trim();
@@ -66,6 +94,10 @@ export default function ParticipantHistoryScreen() {
     }
     if (s > e) {
       showError("Start date must be on or before end date.");
+      return;
+    }
+    if (!athleteId) {
+      showError("Choose an athlete first.");
       return;
     }
     setLoading(true);
@@ -85,48 +117,93 @@ export default function ParticipantHistoryScreen() {
     const next = (data as ParticipantHistoryRow[]) ?? [];
     setRows(next);
 
-    if (next.length === 0) {
-      if (!phoneArg) {
-        setEmptyHint("No records for those dates.");
-      } else {
-        const { count, error: phoneErr } = await supabase
-          .from("profiles")
-          .select("user_id", { count: "exact", head: true })
-          .eq("role", "athlete")
-          .ilike("phone", `%${phoneArg}%`);
-
-        if (phoneErr) {
-          // Fall back to a generic message if RLS/schema/etc prevents the existence check.
-          setEmptyHint("No records for those dates.");
-        } else if (!count || count < 1) {
-          setEmptyHint("This phone number doesn’t exist.");
-        } else {
-          setEmptyHint("No records for those dates.");
-        }
-      }
-    }
+    if (next.length === 0) setEmptyHint("No records for those dates.");
 
     setLoading(false);
     setHasSearched(true);
-  }, [start, end, phone]);
+  }, [start, end, phone, athleteId]);
 
   return (
     <View style={styles.screen}>
       <View style={styles.filters}>
         <DatePickerField label="From" value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
         <DatePickerField label="To" value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
-        <Text style={styles.label}>Phone contains (optional)</Text>
-        <TextInput
-          style={styles.input}
-          value={phone}
-          onChangeText={setPhone}
-          placeholder="e.g. 054"
-          placeholderTextColor={theme.colors.placeholderOnLight}
-          keyboardType="phone-pad"
-        />
-        <Text style={styles.hint}>Shows athletes registered for sessions in this range. Phone filters the list.</Text>
+        <Text style={styles.label}>Athlete (search by name, username, or phone)</Text>
+        <Pressable style={styles.pickerTouch} onPress={() => { setPickerOpen(true); loadAthletes(); }}>
+          <Text style={athleteLabel ? styles.pickerText : styles.pickerPlaceholder}>
+            {athleteLabel || "Choose an athlete…"}
+          </Text>
+        </Pressable>
+        {athleteId ? (
+          <Pressable
+            style={({ pressed }) => [styles.clearSel, pressed && { opacity: 0.9 }]}
+            onPress={() => {
+              setAthleteId("");
+              setAthleteLabel("");
+              setPhone("");
+            }}
+          >
+            <Text style={styles.clearSelTxt}>Clear selection</Text>
+          </Pressable>
+        ) : null}
+        <Text style={styles.hint}>
+          Pick an athlete first, then load registrations in the date range.
+        </Text>
         <PrimaryButton label="Load" onPress={load} loading={loading} loadingLabel="Loading…" />
       </View>
+
+      <Modal visible={pickerOpen} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <Pressable style={styles.modalBackdropTouch} onPress={() => setPickerOpen(false)} />
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Athletes</Text>
+              <Pressable onPress={() => setPickerOpen(false)}>
+                <Text style={styles.modalClose}>Done</Text>
+              </Pressable>
+            </View>
+            <View style={styles.modalSearchRow}>
+              <TextInput
+                value={pickerQ}
+                onChangeText={setPickerQ}
+                placeholder="Search name / username / phone…"
+                placeholderTextColor={theme.colors.placeholderOnLight}
+                style={styles.modalSearch}
+                autoCapitalize="none"
+                onSubmitEditing={loadAthletes}
+              />
+              <Pressable style={({ pressed }) => [styles.modalSearchBtn, pressed && { opacity: 0.9 }]} onPress={loadAthletes}>
+                <Text style={styles.modalSearchBtnTxt}>Search</Text>
+              </Pressable>
+            </View>
+            {athletesLoading ? (
+              <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
+            ) : (
+              <FlatList
+                data={athletes}
+                keyExtractor={(item) => item.user_id}
+                renderItem={({ item }) => (
+                  <Pressable
+                    style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
+                    onPress={() => {
+                      setAthleteId(item.user_id);
+                      setAthleteLabel(`${item.full_name} (@${item.username}) · ${item.phone}`);
+                      setPhone(item.phone);
+                      setPickerOpen(false);
+                    }}
+                  >
+                    <Text style={styles.pickerItemName}>{item.full_name}</Text>
+                    <Text style={styles.pickerItemRole}>
+                      @{item.username} · {item.phone}
+                    </Text>
+                  </Pressable>
+                )}
+                ListEmptyComponent={<Text style={styles.pickerEmpty}>No athletes</Text>}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <SectionList
         style={styles.list}
@@ -193,6 +270,43 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.white,
     color: theme.colors.textOnLight,
   },
+  pickerTouch: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderInput,
+    borderRadius: theme.radius.md,
+    padding: 12,
+    marginTop: 6,
+    backgroundColor: theme.colors.white,
+    minHeight: 48,
+    justifyContent: "center",
+  },
+  pickerText: { fontSize: 16, color: theme.colors.textOnLight },
+  pickerPlaceholder: { fontSize: 16, color: theme.colors.textSoftOnLight },
+  clearSel: { marginTop: 8, alignSelf: "flex-start" },
+  clearSelTxt: { color: theme.colors.textMuted, fontWeight: "700" },
+  modalBackdrop: { flex: 1, justifyContent: "flex-end" },
+  modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
+  modalBox: { backgroundColor: theme.colors.white, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: "75%" },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.border },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textOnLight },
+  modalClose: { fontSize: 16, color: theme.colors.textMutedOnLight, fontWeight: "700" },
+  modalSearchRow: { flexDirection: "row", gap: 10, padding: theme.spacing.md, paddingTop: theme.spacing.sm },
+  modalSearch: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: theme.colors.borderInput,
+    borderRadius: theme.radius.md,
+    padding: 12,
+    backgroundColor: theme.colors.white,
+    color: theme.colors.textOnLight,
+  },
+  modalSearchBtn: { paddingHorizontal: 14, borderRadius: theme.radius.md, backgroundColor: theme.colors.cta, alignItems: "center", justifyContent: "center" },
+  modalSearchBtnTxt: { color: theme.colors.ctaText, fontWeight: "800" },
+  modalLoader: { padding: theme.spacing.xl },
+  pickerItem: { paddingVertical: 14, paddingHorizontal: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.border },
+  pickerItemName: { fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
+  pickerItemRole: { fontSize: 13, color: theme.colors.textMutedOnLight, marginTop: 4 },
+  pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoftOnLight, textAlign: "center" },
   list: { flex: 1 },
   listContent: { paddingBottom: theme.spacing.xl, flexGrow: 1 },
   sectionHead: {

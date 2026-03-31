@@ -1,9 +1,25 @@
-import { View, Text, StyleSheet, Pressable, Image } from "react-native";
+import { Redirect, useFocusEffect } from "expo-router";
+import { useCallback } from "react";
+import { View, Text, StyleSheet, Image } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
 import { theme } from "../../src/theme";
 
 export default function PendingScreen() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshProfile().catch(() => undefined);
+    }, [refreshProfile])
+  );
+
+  // If approval status changed, don't let the user get stuck here.
+  if (profile?.role === "athlete" && profile.approval_status === "approved") {
+    return <Redirect href="/(app)/athlete/sessions" />;
+  }
+  if (profile?.role === "coach") return <Redirect href="/(app)/coach/sessions" />;
+  if (profile?.role === "manager") return <Redirect href="/(app)/manager/sessions" />;
+
   return (
     <View style={styles.box}>
       <View style={styles.logoWrap}>

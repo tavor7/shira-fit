@@ -30,7 +30,7 @@ function defaultStartISO() {
   return toISODateLocal(d);
 }
 
-type Trainer = { user_id: string; full_name: string; username: string; role: string };
+type Trainer = { user_id: string; full_name: string; username: string; role: string; phone?: string | null };
 
 function showError(msg: string) {
   if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -47,6 +47,7 @@ export default function ManagerCoachSessionsReportScreen() {
   const [coachId, setCoachId] = useState("");
   const [coachLabel, setCoachLabel] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQ, setPickerQ] = useState("");
   const [trainersLoading, setTrainersLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<ManagerCoachSessionReportRow[]>([]);
@@ -56,7 +57,7 @@ export default function ManagerCoachSessionsReportScreen() {
     setTrainersLoading(true);
     const { data } = await supabase
       .from("profiles")
-      .select("user_id, full_name, username, role")
+      .select("user_id, full_name, username, role, phone")
       .in("role", ["coach", "manager"])
       .order("full_name");
     setTrainers((data as Trainer[]) ?? []);
@@ -126,11 +127,30 @@ export default function ManagerCoachSessionsReportScreen() {
                 <Text style={styles.modalClose}>Done</Text>
               </Pressable>
             </View>
+            <View style={styles.modalSearchRow}>
+              <TextInput
+                value={pickerQ}
+                onChangeText={setPickerQ}
+                placeholder="Search name / username / phone…"
+                placeholderTextColor={theme.colors.placeholderOnLight}
+                style={styles.modalSearch}
+                autoCapitalize="none"
+              />
+            </View>
             {trainersLoading ? (
               <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
             ) : (
               <FlatList
-                data={trainers}
+                data={trainers.filter((t) => {
+                  const q = pickerQ.trim().toLowerCase();
+                  if (!q) return true;
+                  const phone = (t as unknown as { phone?: string | null }).phone ?? "";
+                  return (
+                    (t.full_name ?? "").toLowerCase().includes(q) ||
+                    (t.username ?? "").toLowerCase().includes(q) ||
+                    String(phone).toLowerCase().includes(q)
+                  );
+                })}
                 keyExtractor={(item) => item.user_id}
                 renderItem={({ item }) => (
                   <Pressable
@@ -231,6 +251,15 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textOnLight },
   modalClose: { fontSize: 16, color: theme.colors.textMutedOnLight, fontWeight: "700" },
   modalLoader: { padding: theme.spacing.xl },
+  modalSearchRow: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.sm },
+  modalSearch: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderInput,
+    borderRadius: theme.radius.md,
+    padding: 12,
+    backgroundColor: theme.colors.white,
+    color: theme.colors.textOnLight,
+  },
   pickerItem: { paddingVertical: 14, paddingHorizontal: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.border },
   pickerItemName: { fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
   pickerItemRole: { fontSize: 13, color: theme.colors.textMutedOnLight, marginTop: 4 },
