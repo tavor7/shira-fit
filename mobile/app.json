@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Shira Fit",
+    "slug": "shira-fit",
+    "version": "1.0.0",
+    "scheme": "shirafit",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "plugins": ["expo-router"],
+    "experiments": { "typedRoutes": true },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.shirafit.app" },
+    "android": {
+      "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#ffffff" },
+      "package": "com.shirafit.app"
+    }
+  }
+}

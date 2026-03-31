@@ -1,0 +1,94 @@
+import { useCallback, useMemo, useState } from "react";
+import { View, StyleSheet } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { supabase } from "../../../src/lib/supabase";
+import { theme } from "../../../src/theme";
+import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
+import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
+import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
+
+type TsNested = {
+  id: string;
+  session_date: string;
+  start_time: string;
+  duration_minutes?: number | null;
+};
+
+type Row = { session_id: string; training_sessions: TsNested };
+
+export default function MySessionsScreen() {
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sheetDay, setSheetDay] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const u = (await supabase.auth.getUser()).data.user?.id;
+    if (!u) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    const { data } = await supabase
+      .from("session_registrations")
+      .select("session_id, training_sessions(id, session_date, start_time, duration_minutes)")
+      .eq("user_id", u)
+      .eq("status", "active");
+
+    const list: Row[] = [];
+    for (const r of data ?? []) {
+      const raw = r as { session_id: string; training_sessions: TsNested | TsNested[] | null };
+      const ts = raw.training_sessions;
+      if (ts && !Array.isArray(ts)) list.push({ session_id: raw.session_id, training_sessions: ts });
+    }
+    setRows(list);
+    setLoading(false);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  const items = useMemo<SessionsWeekItem[]>(
+    () =>
+      rows.map((r) => {
+        const ts = r.training_sessions;
+        const dm = ts.duration_minutes ?? 60;
+        return {
+          key: ts.id,
+          session_date: ts.session_date,
+          start_time: ts.start_time,
+          timeLabel: formatSessionTimeRange(ts.start_time, dm),
+          subtitle: "Registered",
+          onPress: () => router.push(`/(app)/athlete/session/${ts.id}`),
+        };
+      }),
+    [rows]
+  );
+
+  const sheetItems = useMemo(() => (sheetDay ? items.filter((i) => i.session_date === sheetDay) : []), [items, sheetDay]);
+
+  return (
+    <View style={styles.screen}>
+      <SessionsWeekCalendar
+        items={items}
+        isLoading={loading}
+        emptyLabel="No active registrations."
+        onDayPress={(iso) => setSheetDay(iso)}
+      />
+      <DaySessionsSheet
+        visible={sheetDay !== null}
+        onClose={() => setSheetDay(null)}
+        dateIso={sheetDay ?? ""}
+        items={sheetItems}
+        variant="athlete"
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+});
