@@ -1,22 +1,27 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 
-type Row = {
+type RegRow = {
   user_id: string;
   attended: boolean | null;
   profiles: { full_name: string; username: string } | { full_name: string; username: string }[] | null;
 };
 
-type AttendanceStatus = "unset" | "arrived" | "absent";
+type ManualRow = {
+  manual_participant_id: string;
+  attended: boolean | null;
+  manual_participants: { full_name: string; phone: string } | { full_name: string; phone: string }[] | null;
+};
 
-function profileName(p: Row["profiles"]): string {
-  if (!p) return "—";
-  const one = Array.isArray(p) ? p[0] : p;
-  return one?.full_name ?? "—";
-}
+type Row =
+  | { kind: "registered"; id: string; name: string; attended: boolean | null; userId: string }
+  | { kind: "manual"; id: string; name: string; phone: string; attended: boolean | null; manualId: string };
+
+type AttendanceStatus = "unset" | "arrived" | "absent";
 
 type Props = {
   sessionId: string;
@@ -30,7 +35,7 @@ type Props = {
 export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce = 0, onRemoveAthlete }: Props) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,12 +44,42 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
       .select("user_id, attended, profiles(full_name, username)")
       .eq("session_id", sessionId)
       .eq("status", "active");
-    if (error) {
+    const { data: mData, error: mErr } = await supabase
+      .from("session_manual_participants")
+      .select("manual_participant_id, attended, manual_participants(full_name, phone)")
+      .eq("session_id", sessionId);
+
+    if (error && mErr) {
       setRows([]);
       setLoading(false);
       return;
     }
-    setRows((data as unknown as Row[]) ?? []);
+
+    const regRows: Row[] = ((data as unknown as RegRow[]) ?? []).map((r) => {
+      const p = r.profiles ? (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles) : null;
+      return {
+        kind: "registered",
+        id: `u:${r.user_id}`,
+        userId: r.user_id,
+        name: p?.full_name ?? "—",
+        attended: r.attended ?? null,
+      };
+    });
+
+    const manualRows: Row[] = ((mData as unknown as ManualRow[]) ?? []).map((r) => {
+      const p = r.manual_participants ? (Array.isArray(r.manual_participants) ? r.manual_participants[0] : r.manual_participants) : null;
+      return {
+        kind: "manual",
+        id: `m:${r.manual_participant_id}`,
+        manualId: r.manual_participant_id,
+        name: p?.full_name ?? "—",
+        phone: p?.phone ?? "",
+        attended: r.attended ?? null,
+      };
+    });
+
+    const all = [...regRows, ...manualRows].sort((a, b) => a.name.localeCompare(b.name));
+    setRows(all);
     setLoading(false);
   }, [sessionId]);
 
@@ -58,14 +93,22 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
     if (refreshNonce > 0) load();
   }, [refreshNonce, load]);
 
-  async function setStatus(userId: string, status: AttendanceStatus) {
-    setBusyUserId(userId);
-    const { data, error } = await supabase.rpc("set_registration_attendance", {
-      p_session_id: sessionId,
-      p_user_id: userId,
-      p_status: status,
-    });
-    setBusyUserId(null);
+  async function setStatus(row: Row, status: AttendanceStatus) {
+    const key = row.id;
+    setBusyKey(key);
+    const { data, error } =
+      row.kind === "registered"
+        ? await supabase.rpc("set_registration_attendance", {
+            p_session_id: sessionId,
+            p_user_id: row.userId,
+            p_status: status,
+          })
+        : await supabase.rpc("set_manual_participant_attendance", {
+            p_session_id: sessionId,
+            p_manual_participant_id: row.manualId,
+            p_status: status,
+          });
+    setBusyKey(null);
     if (error) {
       Alert.alert("Error", error.message);
       return;
@@ -91,16 +134,32 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
       {rows.map((item) => {
         const current: AttendanceStatus =
           item.attended === true ? "arrived" : item.attended === false ? "absent" : "unset";
-        const busy = busyUserId === item.user_id;
+        const busy = busyKey === item.id;
         return (
-          <View key={item.user_id} style={styles.card}>
+          <View key={item.id} style={styles.card}>
             <View style={styles.nameRow}>
-              <Text style={styles.name}>{profileName(item.profiles)}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.name}>{item.name}</Text>
+                {item.kind === "manual" && item.phone ? <Text style={styles.sub}>{item.phone}</Text> : null}
+              </View>
               <View style={styles.nameRight}>
                 {busy ? <ActivityIndicator size="small" color={theme.colors.cta} /> : null}
-                {onRemoveAthlete && !busy ? (
+                {!busy ? (
                   <Pressable
-                    onPress={() => onRemoveAthlete(item.user_id)}
+                    onPress={() =>
+                      item.kind === "registered"
+                        ? router.push(`/(app)/staff/profile/${item.userId}` as never)
+                        : router.push(`/(app)/staff/manual/${item.manualId}` as never)
+                    }
+                    hitSlop={8}
+                    style={({ pressed }) => pressed && { opacity: 0.7 }}
+                  >
+                    <Text style={styles.edit}>Edit</Text>
+                  </Pressable>
+                ) : null}
+                {item.kind === "registered" && onRemoveAthlete && !busy ? (
+                  <Pressable
+                    onPress={() => onRemoveAthlete(item.userId)}
                     hitSlop={8}
                     style={({ pressed }) => pressed && { opacity: 0.7 }}
                   >
@@ -115,7 +174,7 @@ export function ParticipantAttendanceList({ sessionId, onChanged, refreshNonce =
                 <Pressable
                   key={st}
                   disabled={busy}
-                  onPress={() => setStatus(item.user_id, st)}
+                  onPress={() => setStatus(item, st)}
                   style={({ pressed }) => [
                     styles.segBtn,
                     current === st && styles.segBtnOn,
@@ -148,7 +207,9 @@ const styles = StyleSheet.create({
   },
   nameRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   name: { flex: 1, fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  sub: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
   nameRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+  edit: { color: theme.colors.cta, fontWeight: "800", fontSize: 14 },
   remove: { color: theme.colors.error, fontWeight: "700", fontSize: 14 },
   hint: { marginTop: 8, fontSize: 12, color: theme.colors.textMuted, fontWeight: "600" },
   seg: { flexDirection: "row", marginTop: 8, gap: 6, flexWrap: "wrap" },

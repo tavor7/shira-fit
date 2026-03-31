@@ -42,6 +42,14 @@ export default function SignupScreen() {
 
   const healthUrl = "https://tpz.link/gdtw8";
 
+  function openHealthDeclaration() {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.open(healthUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    Linking.openURL(healthUrl);
+  }
+
   async function onSignup() {
     setErrorMessage("");
     if (!email.trim() || password.length < 6 || !fullName.trim() || !phone.trim()) {
@@ -178,7 +186,7 @@ export default function SignupScreen() {
         <Text style={styles.label}>Health declaration (required)</Text>
         <Pressable
           style={({ pressed }) => [styles.healthLink, pressed && { opacity: 0.9 }]}
-          onPress={() => Linking.openURL(healthUrl)}
+          onPress={openHealthDeclaration}
         >
           <Text style={styles.healthLinkTxt}>Open health declaration form</Text>
           <Text style={styles.healthLinkSub}>{healthUrl}</Text>

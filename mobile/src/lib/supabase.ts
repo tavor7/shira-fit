@@ -41,6 +41,9 @@ const key =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
   "";
 
+export const supabaseUrl = url;
+export const supabaseAnonKey = key;
+
 export const supabase = createClient(url, key, {
   auth: {
     storage: createAuthStorage(),

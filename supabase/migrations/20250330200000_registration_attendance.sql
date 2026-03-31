@@ -122,7 +122,30 @@ begin
       or length(trim(p_phone_search)) = 0
       or p.phone ilike '%' || trim(p_phone_search) || '%'
     )
-  order by p.full_name asc, s.session_date desc, s.start_time desc;
+  union all
+  select
+    mp.id as registration_id,
+    mp.id as athlete_user_id,
+    mp.full_name as athlete_name,
+    mp.phone as athlete_phone,
+    s.id as session_id,
+    s.session_date,
+    s.start_time,
+    coalesce(s.duration_minutes, 60)::int,
+    'active'::public.registration_status as reg_status,
+    smp.added_at as registered_at,
+    smp.attended
+  from public.session_manual_participants smp
+  join public.manual_participants mp on mp.id = smp.manual_participant_id
+  join public.training_sessions s on s.id = smp.session_id
+  where s.session_date >= p_start
+    and s.session_date <= p_end
+    and (
+      p_phone_search is null
+      or length(trim(p_phone_search)) = 0
+      or mp.phone ilike '%' || trim(p_phone_search) || '%'
+    )
+  order by athlete_name asc, session_date desc, start_time desc;
 end;
 $$;
 

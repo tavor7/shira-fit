@@ -18,6 +18,16 @@ export interface Profile {
   calendar_color?: string | null;
 }
 
+export type ManualParticipant = {
+  id: string;
+  full_name: string;
+  phone: string;
+  gender?: string | null;
+  date_of_birth?: string | null;
+  notes?: string | null;
+  linked_user_id?: string | null;
+};
+
 export interface TrainingSession {
   id: string;
   session_date: string;

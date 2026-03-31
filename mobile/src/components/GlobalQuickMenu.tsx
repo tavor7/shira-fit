@@ -58,6 +58,11 @@ export function GlobalQuickMenu() {
           badgeCount: pendingApproveCount,
         },
         {
+          label: "Edit users",
+          onPress: () => router.push("/(app)/staff/users"),
+          isActive: (p) => startsWithAny(p, ["/staff/users", "/staff/profile", "/staff/manual"]),
+        },
+        {
           label: "Create",
           onPress: () => router.push("/(app)/manager/create-session"),
           isActive: (p) => startsWithAny(p, ["/manager/create-session"]),
@@ -96,6 +101,11 @@ export function GlobalQuickMenu() {
           label: "Sessions",
           onPress: () => router.push("/(app)/coach/sessions"),
           isActive: (p) => startsWithAny(p, ["/coach/sessions"]),
+        },
+        {
+          label: "Edit users",
+          onPress: () => router.push("/(app)/staff/users"),
+          isActive: (p) => startsWithAny(p, ["/staff/users", "/staff/profile", "/staff/manual"]),
         },
         {
           label: "Participant history",
