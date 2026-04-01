@@ -7,15 +7,19 @@ export type FoldableActionsMenuItem = {
   label: string;
   onPress: () => void;
   badgeCount?: number;
+  /** Screen reader label; defaults to `label`. */
+  accessibilityLabel?: string;
 };
 
 type Props = {
   label?: string;
   items: FoldableActionsMenuItem[];
   renderTrigger?: (open: () => void) => ReactNode;
+  /** Announced for the full-screen dismiss layer (required for i18n). */
+  backdropAccessibilityLabel: string;
 };
 
-export function FoldableActionsMenu({ label = "Menu", items, renderTrigger }: Props) {
+export function FoldableActionsMenu({ label = "Menu", items, renderTrigger, backdropAccessibilityLabel }: Props) {
   const [open, setOpen] = useState(false);
 
   const safeItems = useMemo(() => items.filter((i) => i.label.trim().length > 0), [items]);
@@ -26,7 +30,12 @@ export function FoldableActionsMenu({ label = "Menu", items, renderTrigger }: Pr
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <View style={styles.backdrop}>
           {/* Separate overlay avoids nested <button> on react-native-web */}
-          <Pressable style={styles.overlay} onPress={() => setOpen(false)} accessibilityRole="button" />
+          <Pressable
+            style={styles.overlay}
+            onPress={() => setOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel={backdropAccessibilityLabel}
+          />
           <View style={styles.card}>
             {safeItems.map((item) => (
               <Pressable
@@ -37,6 +46,7 @@ export function FoldableActionsMenu({ label = "Menu", items, renderTrigger }: Pr
                   item.onPress();
                 }}
                 accessibilityRole="button"
+                accessibilityLabel={item.accessibilityLabel ?? item.label}
               >
                 <View style={styles.itemRow}>
                   <Text style={styles.itemText}>{item.label}</Text>

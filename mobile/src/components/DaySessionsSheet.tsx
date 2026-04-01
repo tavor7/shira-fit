@@ -17,6 +17,7 @@ import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { supabase } from "../lib/supabase";
 import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
 import { useI18n } from "../context/I18nContext";
+import { appendNetworkHint } from "../lib/networkErrors";
 
 export type DaySheetVariant = "athlete" | "coach" | "manager";
 
@@ -41,8 +42,8 @@ export function DaySessionsSheet({
   onAddSession,
   onChanged,
 }: Props) {
-  const { language } = useI18n();
-  const title = formatISODateLong(dateIso);
+  const { language, t } = useI18n();
+  const title = formatISODateLong(dateIso, language);
   const isStaff = variant === "coach" || variant === "manager";
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -155,8 +156,8 @@ export function DaySessionsSheet({
                         <Text style={styles.ghostBtnTxt}>
                           {canEditMeta
                             ? language === "he"
-                              ? "עריכה"
-                              : "Edit"
+                              ? "עריכת אימון"
+                              : "Edit session"
                             : language === "he"
                               ? "רשימה"
                               : "Roster"}
@@ -169,7 +170,7 @@ export function DaySessionsSheet({
                           disabled={busyId === it.key}
                         >
                           {busyId === it.key ? (
-                            <ActivityIndicator color="#fff" size="small" />
+                            <ActivityIndicator color={theme.colors.white} size="small" />
                           ) : (
                             <Text style={styles.dangerBtnTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
                           )}
@@ -262,6 +263,7 @@ const styles = StyleSheet.create({
   },
   primaryTapTxt: { color: theme.colors.ctaText, fontWeight: "700", fontSize: 15, letterSpacing: 0.2 },
   rowBtns: { flexDirection: "row", gap: 10, marginTop: 4 },
+  rowBtnsRtl: { flexDirection: "row-reverse" },
   ghostBtn: {
     flex: 1,
     borderWidth: 1,
@@ -281,7 +283,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 42,
   },
-  dangerBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  dangerBtnTxt: { color: theme.colors.white, fontWeight: "700", fontSize: 14 },
   closeFooter: {
     marginTop: theme.spacing.sm,
     marginHorizontal: theme.spacing.lg,

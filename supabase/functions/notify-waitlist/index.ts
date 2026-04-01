@@ -44,12 +44,17 @@ Deno.serve(async (req) => {
     .single();
   if (!sess) return new Response(JSON.stringify({ error: "session not found" }), { status: 404, headers: cors });
 
-  const { count } = await supabase
+  const { count: regCount } = await supabase
     .from("session_registrations")
     .select("*", { count: "exact", head: true })
     .eq("session_id", sessionId)
     .eq("status", "active");
-  if ((count ?? 0) >= sess.max_participants)
+  const { count: manualCount } = await supabase
+    .from("session_manual_participants")
+    .select("*", { count: "exact", head: true })
+    .eq("session_id", sessionId);
+  const filled = (regCount ?? 0) + (manualCount ?? 0);
+  if (filled >= sess.max_participants)
     return new Response(JSON.stringify({ ok: true, notified: false, reason: "still_full" }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });

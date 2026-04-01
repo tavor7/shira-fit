@@ -8,8 +8,16 @@ export async function fetchActiveSignupCountsBySession(sessionIds: string[]): Pr
     .select("session_id")
     .in("session_id", sessionIds)
     .eq("status", "active");
+  const { data: mData } = await supabase
+    .from("session_manual_participants")
+    .select("session_id")
+    .in("session_id", sessionIds);
   const m: Record<string, number> = {};
   for (const row of data ?? []) {
+    const id = (row as { session_id: string }).session_id;
+    m[id] = (m[id] ?? 0) + 1;
+  }
+  for (const row of mData ?? []) {
     const id = (row as { session_id: string }).session_id;
     m[id] = (m[id] ?? 0) + 1;
   }

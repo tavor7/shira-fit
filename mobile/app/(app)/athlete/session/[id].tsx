@@ -4,14 +4,21 @@ import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, ActivityInd
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../../src/types/database";
 import { formatSessionTimeRange } from "../../../../src/lib/sessionTime";
+import { formatISODateFull } from "../../../../src/lib/dateFormat";
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { ActionButton } from "../../../../src/components/ActionButton";
 import { useI18n } from "../../../../src/context/I18nContext";
+import { useToast } from "../../../../src/context/ToastContext";
+import { appendNetworkHint } from "../../../../src/lib/networkErrors";
+import { StatusChip } from "../../../../src/components/StatusChip";
+import { scheduleSessionReminders, cancelSessionReminders } from "../../../../src/lib/sessionReminders";
+import { clearWaitlistSpotFlag } from "../../../../src/lib/waitlistSpotNotifier";
 
 export default function AthleteSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
+  const { showToast } = useToast();
   const [session, setSession] = useState<TrainingSessionWithTrainer | null>(null);
   const [count, setCount] = useState(0);
   const [onWaitlist, setOnWaitlist] = useState(false);
@@ -28,12 +35,16 @@ export default function AthleteSessionDetail() {
         .eq("id", id)
         .single();
       setSession(s as TrainingSessionWithTrainer);
-      const { count: c } = await supabase
+      const { count: c1 } = await supabase
         .from("session_registrations")
         .select("*", { count: "exact", head: true })
         .eq("session_id", id)
         .eq("status", "active");
-      setCount(c ?? 0);
+      const { count: c2 } = await supabase
+        .from("session_manual_participants")
+        .select("*", { count: "exact", head: true })
+        .eq("session_id", id);
+      setCount((c1 ?? 0) + (c2 ?? 0));
       const u = (await supabase.auth.getUser()).data.user?.id;
       if (u) {
         const { data: r } = await supabase
@@ -61,20 +72,38 @@ export default function AthleteSessionDetail() {
     else if (data?.ok) {
       Alert.alert(language === "he" ? "נרשמת" : "Registered");
       setRegistered(true);
-      const { count: c } = await supabase
+      if (session) {
+        await scheduleSessionReminders({
+          sessionId: id,
+          sessionDate: session.session_date,
+          startTime: session.start_time,
+          title: language === "he" ? "תזכורת לאימון" : "Workout reminder",
+          bodyNear: `${formatISODateFull(session.session_date, language)} · ${formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}`,
+        });
+      }
+      await clearWaitlistSpotFlag(id);
+      const { count: c1 } = await supabase
         .from("session_registrations")
         .select("*", { count: "exact", head: true })
         .eq("session_id", id)
         .eq("status", "active");
-      setCount(c ?? 0);
+      const { count: c2 } = await supabase
+        .from("session_manual_participants")
+        .select("*", { count: "exact", head: true })
+        .eq("session_id", id);
+      setCount((c1 ?? 0) + (c2 ?? 0));
     } else Alert.alert(language === "he" ? "לא ניתן להירשם" : "Could not register", data?.error ?? "");
   }
 
   async function waitlist() {
     const { data, error } = await supabase.rpc("request_waitlist", { p_session_id: id });
-    if (error) Alert.alert(t("common.error"), error.message);
+    if (error) Alert.alert(t("common.error"), appendNetworkHint(error, t("network.offlineHint")));
     else if (data?.ok) {
-      Alert.alert(language === "he" ? "תקבלו הודעה אם יתפנה מקום" : "You will be notified if a spot opens");
+      showToast({
+        message:
+          language === "he" ? "תקבלו הודעה אם יתפנה מקום" : "You’ll be notified if a spot opens",
+        variant: "success",
+      });
       setOnWaitlist(true);
     } else Alert.alert(language === "he" ? "רשימת המתנה" : "Waitlist", data?.error ?? "");
   }
@@ -90,25 +119,28 @@ export default function AthleteSessionDetail() {
     });
     setCancelOpen(false);
     setReason("");
-    if (error) Alert.alert(t("common.error"), error.message);
+    if (error) Alert.alert(t("common.error"), appendNetworkHint(error, t("network.offlineHint")));
     else if (data?.ok) {
-      Alert.alert(
-        language === "he" ? "בוטל" : "Cancelled",
-        data.charged_full_price
-          ? language === "he"
-            ? "בוטל פחות מ-24 שעות לפני האימון — תחויב/י עבור האימון."
-            : "Cancelled less than 24 hours before the workout — you will be charged for the session."
-          : language === "he"
-            ? "בוטל בהצלחה."
-            : "Cancelled successfully."
-      );
+      await cancelSessionReminders(id);
+      const cancelMsg = data.charged_full_price
+        ? language === "he"
+          ? "בוטל פחות מ-24 שעות לפני האימון — תחויב/י עבור האימון."
+          : "Cancelled less than 24 hours before the workout — you will be charged for the session."
+        : language === "he"
+          ? "ההרשמה בוטלה."
+          : "Registration cancelled.";
+      showToast({ message: cancelMsg, variant: "success" });
       setRegistered(false);
-      const { count: c } = await supabase
+      const { count: c1 } = await supabase
         .from("session_registrations")
         .select("*", { count: "exact", head: true })
         .eq("session_id", id)
         .eq("status", "active");
-      setCount(c ?? 0);
+      const { count: c2 } = await supabase
+        .from("session_manual_participants")
+        .select("*", { count: "exact", head: true })
+        .eq("session_id", id);
+      setCount((c1 ?? 0) + (c2 ?? 0));
       /* Notify waitlist: configure Supabase Cron or webhook to POST notify-waitlist with CRON_SECRET */
     } else Alert.alert(t("common.error"), data?.error ?? "");
   }
@@ -121,11 +153,12 @@ export default function AthleteSessionDetail() {
       </View>
     );
   const full = count >= session.max_participants;
+  const spotsLeft = Math.max(0, session.max_participants - count);
 
   return (
     <View style={styles.box}>
       <View style={styles.card}>
-        <Text style={styles.title}>{session.session_date}</Text>
+        <Text style={styles.title}>{formatISODateFull(session.session_date, language)}</Text>
         <Text style={styles.sub}>{formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}</Text>
         {session.trainer?.full_name ? (
           <Text style={[styles.sub, isRTL && styles.rtlText]}>
@@ -133,10 +166,17 @@ export default function AthleteSessionDetail() {
             {session.trainer.full_name}
           </Text>
         ) : null}
-        <Text style={[styles.sub, isRTL && styles.rtlText]}>
-          {language === "he" ? "מקומות: " : "Spots: "}
-          {count} / {session.max_participants}
-        </Text>
+        <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+          {full ? (
+            <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" />
+          ) : (
+            <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
+          )}
+          <StatusChip
+            label={language === "he" ? `${spotsLeft} פנוי` : `${spotsLeft} left`}
+            tone={spotsLeft === 0 ? "danger" : "neutral"}
+          />
+        </View>
       </View>
       {!registered ? (
         <>
@@ -204,6 +244,8 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 22, fontWeight: "700", color: theme.colors.text, letterSpacing: 0.2 },
   sub: { marginTop: 8, color: theme.colors.textMuted },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  chipsRtl: { flexDirection: "row-reverse" },
   disabled: { opacity: 0.5 },
   btn2: {
     marginTop: 12,

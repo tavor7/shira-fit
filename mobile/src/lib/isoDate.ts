@@ -1,3 +1,6 @@
+import type { LanguageCode } from "../i18n/translations";
+import { appLocale } from "./appLocale";
+
 export function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
@@ -20,8 +23,14 @@ export function isValidISODateString(s: string): boolean {
   return parseISODateLocal(s) !== null;
 }
 
-export function formatISODateShortDisplay(iso: string): string {
+/** Picker / compact display: weekday + day, month, year (en-GB / he-IL order). */
+export function formatISODateShortDisplay(iso: string, language: LanguageCode = "en"): string {
   const d = parseISODateLocal(iso);
-  if (!d) return "Choose date";
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  if (!d) return language === "he" ? "בחרו תאריך" : "Choose date";
+  return d.toLocaleDateString(appLocale(language), {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }

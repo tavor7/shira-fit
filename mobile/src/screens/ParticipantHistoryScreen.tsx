@@ -1,11 +1,13 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, SectionList, TextInput, StyleSheet, Platform, Alert, Pressable, Modal, FlatList, ActivityIndicator } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { DatePickerField } from "../components/DatePickerField";
 import { supabase } from "../lib/supabase";
 import { formatSessionTimeRange } from "../lib/sessionTime";
 import { toISODateLocal, isValidISODateString, parseISODateLocal } from "../lib/isoDate";
+import { formatISODateFull } from "../lib/dateFormat";
 import type { ParticipantHistoryRow } from "../types/database";
 import { useI18n } from "../context/I18nContext";
 
@@ -41,6 +43,7 @@ function groupByAthlete(rows: ParticipantHistoryRow[]): Section[] {
 }
 
 export default function ParticipantHistoryScreen() {
+  const { presetUserId } = useLocalSearchParams<{ presetUserId?: string }>();
   const { language, t, isRTL } = useI18n();
   const [start, setStart] = useState(defaultStartISO);
   const [end, setEnd] = useState(defaultEndISO);
@@ -65,6 +68,22 @@ export default function ParticipantHistoryScreen() {
   }
 
   const sections = useMemo(() => groupByAthlete(rows), [rows]);
+
+  useEffect(() => {
+    const uid = typeof presetUserId === "string" ? presetUserId : Array.isArray(presetUserId) ? presetUserId[0] : undefined;
+    if (!uid) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, username, phone")
+        .eq("user_id", uid)
+        .maybeSingle();
+      if (error || !data) return;
+      setAthleteId(uid);
+      setAthleteLabel(`${data.full_name} (@${data.username ?? ""}) · ${data.phone ?? ""}`);
+      setPhone((data.phone ?? "").trim());
+    })();
+  }, [presetUserId]);
 
   const loadAthletes = useCallback(async () => {
     const q = pickerQ.trim();
@@ -128,6 +147,7 @@ export default function ParticipantHistoryScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.filters}>
+        <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t("menu.athleteActivity")}</Text>
         <DatePickerField label={t("common.from")} value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
         <DatePickerField label={t("common.to")} value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
         <Text style={[styles.label, isRTL && styles.rtlText]}>
@@ -150,11 +170,6 @@ export default function ParticipantHistoryScreen() {
             <Text style={styles.clearSelTxt}>{t("common.clearSelection")}</Text>
           </Pressable>
         ) : null}
-        <Text style={[styles.hint, isRTL && styles.rtlText]}>
-          {language === "he"
-            ? "בחרו מתאמן ואז טענו רישומים בטווח התאריכים."
-            : "Pick an athlete first, then load registrations in the date range."}
-        </Text>
         <PrimaryButton label={t("common.load")} onPress={load} loading={loading} loadingLabel={t("common.loading")} />
       </View>
 
@@ -242,7 +257,7 @@ export default function ParticipantHistoryScreen() {
             att === true ? styles.badgeAttTxtYes : att === false ? styles.badgeAttTxtNo : styles.badgeAttTxtUnset;
           return (
             <View style={styles.row}>
-              <Text style={styles.rowDate}>{item.session_date}</Text>
+              <Text style={styles.rowDate}>{formatISODateFull(item.session_date, language)}</Text>
               <Text style={styles.rowTime}>{formatSessionTimeRange(item.start_time, item.duration_minutes ?? 60)}</Text>
               <View style={[styles.badge, item.reg_status === "active" ? styles.badgeOn : styles.badgeOff]}>
                 <Text style={[styles.badgeTxt, item.reg_status === "active" ? styles.badgeTxtOn : styles.badgeTxtOff]}>
@@ -287,6 +302,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderMuted,
   },
+  screenTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   hint: { marginTop: theme.spacing.sm, fontSize: 12, color: theme.colors.textMuted, lineHeight: 18 },
   input: {

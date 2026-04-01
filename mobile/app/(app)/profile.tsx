@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, TextInput, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../src/context/AuthContext";
 import { theme } from "../../src/theme";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { useI18n } from "../../src/context/I18nContext";
+import { NotificationSettingsPanel } from "../../src/components/NotificationSettingsPanel";
 
 function getUpdateErrorMessage(message: string) {
   const msg = (message || "").toLowerCase();
@@ -15,9 +17,18 @@ function getUpdateErrorMessage(message: string) {
   return message || "Update failed. Please try again.";
 }
 
+type Segment = "account" | "notifications";
+
 export default function ProfileScreen() {
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const { session, profile, refreshProfile } = useAuth();
   const { language, t, isRTL } = useI18n();
+
+  const [segment, setSegment] = useState<Segment>(() => (tab === "notifications" ? "notifications" : "account"));
+
+  useEffect(() => {
+    if (tab === "notifications") setSegment("notifications");
+  }, [tab]);
 
   const initialEmail = session?.user?.email ?? "";
   const initialPhone = profile?.phone ?? "";
@@ -61,7 +72,6 @@ export default function ProfileScreen() {
 
     setBusy(true);
     try {
-      // 1) Update email in Supabase Auth (uniqueness enforced by Supabase)
       if (emailTrim !== (session?.user?.email ?? "")) {
         const { error: emailErr } = await supabase.auth.updateUser({ email: emailTrim });
         if (emailErr) {
@@ -70,11 +80,7 @@ export default function ProfileScreen() {
         }
       }
 
-      // 2) Update phone in profiles
-      const { error: phoneErr } = await supabase
-        .from("profiles")
-        .update({ phone: phoneTrim })
-        .eq("user_id", uid);
+      const { error: phoneErr } = await supabase.from("profiles").update({ phone: phoneTrim }).eq("user_id", uid);
 
       if (phoneErr) {
         setError(phoneErr.message);
@@ -98,62 +104,101 @@ export default function ProfileScreen() {
     );
   }
 
+  const rtl = isRTL;
+  const accountLabel = language === "he" ? "פרטים" : "Account";
+  const notifLabel = language === "he" ? "התראות" : "Notifications";
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1, backgroundColor: theme.colors.backgroundAlt }}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={[styles.title, isRTL && { textAlign: "right" }]}>{language === "he" ? "הפרטים שלי" : "My info"}</Text>
-        <Text style={[styles.subtitle, isRTL && { textAlign: "right" }]}>
-          {language === "he" ? `נטען מהחשבון שלך (${profile.role}).` : `Loaded from your account (${profile.role}).`}
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <Text style={[styles.title, rtl && { textAlign: "right" }]}>
+          {language === "he" ? "פרופיל" : "Profile"}
+        </Text>
+        <Text style={[styles.subtitle, rtl && { textAlign: "right" }]}>
+          {language === "he" ? `חשבון (${profile.role}).` : `Account (${profile.role}).`}
         </Text>
 
-        {success ? <Text style={styles.success}>{success}</Text> : null}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <View style={styles.field}>
-          <Text style={[styles.label, isRTL && { textAlign: "right" }]}>{t("auth.email")}</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={(t) => {
-              setEmail(t);
-              setError(null);
-              setSuccess(null);
-            }}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            placeholder={t("auth.email")}
-            placeholderTextColor={theme.colors.textSoft}
-          />
+        <View style={[styles.segmentTrack, rtl && styles.segmentTrackRtl]}>
+          <Pressable
+            onPress={() => setSegment("account")}
+            style={({ pressed }) => [
+              styles.segmentSlot,
+              segment === "account" && styles.segmentSlotActive,
+              pressed && segment !== "account" && styles.segmentSlotPressed,
+            ]}
+          >
+            <Text style={[styles.segmentTxt, segment === "account" && styles.segmentTxtActive]} numberOfLines={1}>
+              {accountLabel}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setSegment("notifications")}
+            style={({ pressed }) => [
+              styles.segmentSlot,
+              segment === "notifications" && styles.segmentSlotActive,
+              pressed && segment !== "notifications" && styles.segmentSlotPressed,
+            ]}
+          >
+            <Text style={[styles.segmentTxt, segment === "notifications" && styles.segmentTxtActive]} numberOfLines={1}>
+              {notifLabel}
+            </Text>
+          </Pressable>
         </View>
 
-        <View style={styles.field}>
-          <Text style={[styles.label, isRTL && { textAlign: "right" }]}>{t("profile.phone")}</Text>
-          <TextInput
-            style={styles.input}
-            value={phone}
-            onChangeText={(t) => {
-              setPhone(t);
-              setError(null);
-              setSuccess(null);
-            }}
-            keyboardType="phone-pad"
-            autoCapitalize="none"
-            placeholder={t("profile.phone")}
-            placeholderTextColor={theme.colors.textSoft}
-          />
-        </View>
+        {segment === "account" ? (
+          <>
+            {success ? <Text style={styles.success}>{success}</Text> : null}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <PrimaryButton
-          label={language === "he" ? "שמירת שינויים" : "Save changes"}
-          onPress={save}
-          loading={busy}
-          disabled={!canSave}
-          loadingLabel={t("common.loading")}
-          style={{ marginTop: theme.spacing.lg }}
-        />
+            <View style={styles.field}>
+              <Text style={[styles.label, rtl && { textAlign: "right" }]}>{t("auth.email")}</Text>
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={(v) => {
+                  setEmail(v);
+                  setError(null);
+                  setSuccess(null);
+                }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholder={t("auth.email")}
+                placeholderTextColor={theme.colors.textSoft}
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={[styles.label, rtl && { textAlign: "right" }]}>{t("profile.phone")}</Text>
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={(v) => {
+                  setPhone(v);
+                  setError(null);
+                  setSuccess(null);
+                }}
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+                placeholder={t("profile.phone")}
+                placeholderTextColor={theme.colors.textSoft}
+              />
+            </View>
+
+            <PrimaryButton
+              label={language === "he" ? "שמירת שינויים" : "Save changes"}
+              onPress={save}
+              loading={busy}
+              disabled={!canSave}
+              loadingLabel={t("common.loading")}
+              style={{ marginTop: theme.spacing.lg }}
+            />
+          </>
+        ) : (
+          <NotificationSettingsPanel variant="embedded" />
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -162,9 +207,43 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.colors.backgroundAlt },
   loadingText: { marginTop: 12, color: theme.colors.textMuted },
-  scrollContent: { flexGrow: 1, padding: theme.spacing.lg },
+  scrollContent: { flexGrow: 1, padding: theme.spacing.lg, paddingBottom: theme.spacing.xl },
   title: { fontSize: 22, fontWeight: "800", color: theme.colors.text },
-  subtitle: { marginTop: 6, color: theme.colors.textMuted, marginBottom: theme.spacing.lg },
+  subtitle: { marginTop: 6, color: theme.colors.textMuted, marginBottom: theme.spacing.md },
+  segmentTrack: {
+    flexDirection: "row",
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.full,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    marginBottom: theme.spacing.lg,
+    gap: 4,
+  },
+  segmentTrackRtl: { flexDirection: "row-reverse" },
+  segmentSlot: {
+    flex: 1,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segmentSlotActive: {
+    backgroundColor: theme.colors.cta,
+  },
+  segmentSlotPressed: {
+    opacity: 0.85,
+  },
+  segmentTxt: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: theme.colors.textSoft,
+    letterSpacing: 0.2,
+  },
+  segmentTxtActive: {
+    color: theme.colors.ctaText,
+  },
   field: { marginBottom: theme.spacing.md },
   label: { fontWeight: "700", color: theme.colors.textSoft, marginBottom: 8 },
   input: {
@@ -179,4 +258,3 @@ const styles = StyleSheet.create({
   error: { color: theme.colors.error, marginBottom: theme.spacing.md, fontWeight: "600" },
   success: { color: theme.colors.success, marginBottom: theme.spacing.md, fontWeight: "700" },
 });
-

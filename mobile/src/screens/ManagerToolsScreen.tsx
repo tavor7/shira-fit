@@ -8,10 +8,10 @@ type Tool = { title: string; subtitle: string; path: string };
 const tools: Tool[] = [
   { title: "Approve athletes", subtitle: "Approve or reject new athletes", path: "/(app)/manager/approve" },
   { title: "Roles", subtitle: "Promote/demote users (athlete/coach/manager)", path: "/(app)/manager/roles" },
-  { title: "Trainer colors", subtitle: "Set calendar colors for coaches/managers", path: "/(app)/manager/trainer-colors" },
-  { title: "Participant history", subtitle: "Search athlete and view registrations", path: "/(app)/manager/participant-history" },
-  { title: "Trainer report", subtitle: "Sessions + registered/arrived counts", path: "/(app)/manager/coach-sessions-report" },
-  { title: "Registration opening", subtitle: "Configure the weekly opening day/time", path: "/(app)/manager/opening-schedule" },
+  { title: "Coach colors", subtitle: "Set calendar colors for coaches/managers", path: "/(app)/manager/trainer-colors" },
+  { title: "Athlete activity", subtitle: "Search athlete and view registrations", path: "/(app)/manager/participant-history" },
+  { title: "Coach history", subtitle: "Sessions + registered/arrived counts", path: "/(app)/manager/coach-sessions-report" },
+  { title: "Opening schedule", subtitle: "Configure the weekly opening day/time", path: "/(app)/manager/opening-schedule" },
 ];
 
 export default function ManagerToolsScreen() {
@@ -24,46 +24,46 @@ export default function ManagerToolsScreen() {
       </Text>
 
       <View style={styles.grid}>
-        {tools.map((t) => (
+        {tools.map((tool) => (
           <Pressable
-            key={t.path}
-            onPress={() => router.push(t.path as never)}
+            key={tool.path}
+            onPress={() => router.push(tool.path as never)}
             style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
             accessibilityRole="button"
           >
             <Text style={[styles.cardTitle, isRTL && styles.rtlText]}>
               {language === "he"
-                ? t.title === "Approve athletes"
+                ? tool.title === "Approve athletes"
                   ? "אישור מתאמנים"
-                  : t.title === "Roles"
+                  : tool.title === "Roles"
                     ? "תפקידים"
-                    : t.title === "Trainer colors"
+                    : tool.title === "Coach colors"
                       ? "צבעי מאמנים"
-                      : t.title === "Participant history"
-                        ? "היסטוריית מתאמנים"
-                        : t.title === "Trainer report"
-                          ? "דוח מאמן"
-                          : t.title === "Registration opening"
+                      : tool.title === "Athlete activity"
+                        ? "פעילות מתאמנים"
+                        : tool.title === "Coach history"
+                          ? "היסטוריית מאמנים"
+                          : tool.title === "Opening schedule"
                             ? "פתיחת הרשמה"
-                            : t.title
-                : t.title}
+                            : tool.title
+                : tool.title}
             </Text>
             <Text style={[styles.cardSub, isRTL && styles.rtlText]}>
               {language === "he"
-                ? t.subtitle === "Approve or reject new athletes"
+                ? tool.subtitle === "Approve or reject new athletes"
                   ? "אישור או דחייה של מתאמנים חדשים"
-                  : t.subtitle === "Promote/demote users (athlete/coach/manager)"
+                  : tool.subtitle === "Promote/demote users (athlete/coach/manager)"
                     ? "שינוי תפקידים (מתאמן/מאמן/מנהל)"
-                    : t.subtitle === "Set calendar colors for coaches/managers"
+                    : tool.subtitle === "Set calendar colors for coaches/managers"
                       ? "קביעת צבעים ביומן למאמנים/מנהלים"
-                      : t.subtitle === "Search athlete and view registrations"
+                      : tool.subtitle === "Search athlete and view registrations"
                         ? "חיפוש מתאמן וצפייה בהרשמות"
-                        : t.subtitle === "Sessions + registered/arrived counts"
+                        : tool.subtitle === "Sessions + registered/arrived counts"
                           ? "אימונים + מספר נרשמו/הגיעו"
-                          : t.subtitle === "Configure the weekly opening day/time"
+                          : tool.subtitle === "Configure the weekly opening day/time"
                             ? "קביעת יום/שעה לפתיחת הרשמה שבועית"
-                            : t.subtitle
-                : t.subtitle}
+                            : tool.subtitle
+                : tool.subtitle}
             </Text>
           </Pressable>
         ))}
@@ -89,4 +89,3 @@ const styles = StyleSheet.create({
   cardTitle: { color: theme.colors.text, fontWeight: "900", fontSize: 16 },
   cardSub: { marginTop: 6, color: theme.colors.textMuted, lineHeight: 18 },
 });
-

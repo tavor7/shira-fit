@@ -7,12 +7,15 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "plugins": ["expo-router"],
+    "plugins": ["expo-router", "expo-notifications"],
     "experiments": { "typedRoutes": true },
     "ios": { "supportsTablet": true, "bundleIdentifier": "com.shirafit.app" },
     "android": {
       "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#ffffff" },
       "package": "com.shirafit.app"
+    },
+    "extra": {
+      "deepLinkExamples": "Scheme: shirafit — e.g. shirafit:///(app)/athlete/session/<sessionId> or https://<your-domain>/(app)/athlete/sessions with expo-router + associated domains / intent filters."
     }
   }
 }

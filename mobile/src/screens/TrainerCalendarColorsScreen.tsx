@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   FlatList,
   Pressable,
@@ -12,9 +11,8 @@ import {
 } from "react-native";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
-import { TRAINER_COLOR_PRESETS, normalizeHexInput, resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
+import { TRAINER_COLOR_PRESETS, resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
-import { PrimaryButton } from "../components/PrimaryButton";
 import { useI18n } from "../context/I18nContext";
 
 type Row = {
@@ -29,7 +27,6 @@ export default function TrainerCalendarColorsScreen() {
   const { language, t, isRTL } = useI18n();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -57,11 +54,6 @@ export default function TrainerCalendarColorsScreen() {
     } else {
       const list = ((data ?? []) as Row[]).map((r) => ({ ...r, calendar_color: r.calendar_color ?? null }));
       setRows(list);
-      const d: Record<string, string> = {};
-      for (const r of list) {
-        d[r.user_id] = r.calendar_color?.trim() ?? "";
-      }
-      setDrafts(d);
     }
     setLoading(false);
   }, []);
@@ -70,20 +62,7 @@ export default function TrainerCalendarColorsScreen() {
     load();
   }, [load]);
 
-  async function save(userId: string) {
-    const raw = drafts[userId]?.trim() ?? "";
-    let value: string | null = null;
-    if (raw.length > 0) {
-      const norm = normalizeHexInput(raw.startsWith("#") ? raw : `#${raw}`);
-      if (!norm) {
-        Alert.alert(
-          language === "he" ? "צבע לא תקין" : "Invalid color",
-          language === "he" ? "השתמשו בצבע הקס כמו ‎#5B9BD5‎ (6 ספרות אחרי #)." : "Use a hex color like #5B9BD5 (six digits after #)."
-        );
-        return;
-      }
-      value = norm;
-    }
+  async function saveNow(userId: string, value: string | null) {
     setSavingId(userId);
     const { error } = await supabase.from("profiles").update({ calendar_color: value }).eq("user_id", userId);
     setSavingId(null);
@@ -93,11 +72,6 @@ export default function TrainerCalendarColorsScreen() {
       return;
     }
     setRows((prev) => prev.map((r) => (r.user_id === userId ? { ...r, calendar_color: value } : r)));
-    setDrafts((prev) => ({ ...prev, [userId]: value ?? "" }));
-  }
-
-  function applyPreset(userId: string, hex: string) {
-    setDrafts((prev) => ({ ...prev, [userId]: hex }));
   }
 
   if (loading) {
@@ -111,25 +85,16 @@ export default function TrainerCalendarColorsScreen() {
 
   return (
     <View style={styles.screen}>
-      <Text style={[styles.intro, isRTL && styles.rtlText]}>
-        {language === "he"
-          ? "לכל מאמן יש פס צבע בכרטיסי האימונים. השאירו ריק כדי להשתמש בצבע אוטומטי. רק מנהלים יכולים לשנות."
-          : "Each trainer gets a color stripe on session cards. Leave the field empty to use an automatic color. Only managers can change these."}
+      <Text style={[styles.header, isRTL && styles.rtlText]}>{t("menu.trainerColors")}</Text>
+      <Text style={[styles.subhead, isRTL && styles.rtlText]}>
+        {language === "he" ? "בחירה נשמרת אוטומטית." : "Changes save automatically."}
       </Text>
       <FlatList
         data={rows}
         keyExtractor={(item) => item.user_id}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => {
-          const draftRaw = drafts[item.user_id]?.trim() ?? "";
-          let effectiveStored: string | null | undefined = item.calendar_color;
-          if (draftRaw.length > 0) {
-            const n = normalizeHexInput(draftRaw.startsWith("#") ? draftRaw : `#${draftRaw}`);
-            effectiveStored = n ?? item.calendar_color;
-          } else if (draftRaw === "" && drafts[item.user_id] !== undefined) {
-            effectiveStored = null;
-          }
-          const preview = resolveTrainerAccentColor(effectiveStored, item.user_id);
+          const preview = resolveTrainerAccentColor(item.calendar_color ?? null, item.user_id);
           const busy = savingId === item.user_id;
           return (
             <View style={styles.card}>
@@ -141,36 +106,41 @@ export default function TrainerCalendarColorsScreen() {
                     @{item.username} · {item.role}
                   </Text>
                 </View>
+                {busy ? <ActivityIndicator size="small" color={theme.colors.cta} /> : null}
               </View>
-              <Text style={[styles.label, isRTL && styles.rtlText]}>Hex (#RRGGBB)</Text>
-              <TextInput
-                style={styles.input}
-                value={drafts[item.user_id] ?? ""}
-                onChangeText={(t) => setDrafts((p) => ({ ...p, [item.user_id]: t }))}
-                placeholder={language === "he" ? "#5B9BD5 או ריק" : "#5B9BD5 or empty"}
-                placeholderTextColor={theme.colors.placeholderOnLight}
-                autoCapitalize="characters"
-              />
-              <Text style={[styles.presetsLabel, isRTL && styles.rtlText]}>{language === "he" ? "בחירות מהירות" : "Presets"}</Text>
-              <View style={styles.presets}>
-                {TRAINER_COLOR_PRESETS.map((hex) => (
-                  <Pressable
-                    key={hex}
-                    onPress={() => applyPreset(item.user_id, hex)}
-                    style={({ pressed }) => [
-                      styles.presetDot,
-                      { backgroundColor: hex },
-                      pressed && { opacity: 0.85 },
-                    ]}
-                  />
-                ))}
+              <View style={[styles.pickerRow, isRTL && styles.pickerRowRtl]}>
+                <Pressable
+                  disabled={busy}
+                  onPress={() => void saveNow(item.user_id, null)}
+                  style={({ pressed }) => [
+                    styles.autoBtn,
+                    item.calendar_color == null && styles.autoBtnOn,
+                    pressed && !busy && { opacity: 0.9 },
+                  ]}
+                >
+                  <Text style={[styles.autoTxt, item.calendar_color == null && styles.autoTxtOn]}>
+                    {language === "he" ? "אוטומטי" : "Auto"}
+                  </Text>
+                </Pressable>
+                <View style={styles.presets}>
+                  {TRAINER_COLOR_PRESETS.map((hex) => {
+                    const selected = (item.calendar_color ?? "").toLowerCase() === hex.toLowerCase();
+                    return (
+                      <Pressable
+                        key={hex}
+                        disabled={busy}
+                        onPress={() => void saveNow(item.user_id, hex)}
+                        style={({ pressed }) => [
+                          styles.presetDot,
+                          { backgroundColor: hex },
+                          selected && styles.presetDotOn,
+                          pressed && !busy && { opacity: 0.9 },
+                        ]}
+                      />
+                    );
+                  })}
+                </View>
               </View>
-              <PrimaryButton
-                label={language === "he" ? "שמירת צבע" : "Save color"}
-                onPress={() => save(item.user_id)}
-                loading={busy}
-                loadingLabel={t("common.loading")}
-              />
             </View>
           );
         }}
@@ -185,13 +155,8 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: "center", alignItems: "center", padding: theme.spacing.xl },
   muted: { marginTop: 10, color: theme.colors.textMuted },
   rtlText: { textAlign: "right" },
-  intro: {
-    padding: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
-    fontSize: 13,
-    lineHeight: 19,
-    color: theme.colors.textMuted,
-  },
+  header: { padding: theme.spacing.md, paddingBottom: 2, fontSize: 18, fontWeight: "900", color: theme.colors.text },
+  subhead: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.sm, fontSize: 13, color: theme.colors.textMuted },
   list: { padding: theme.spacing.md, paddingTop: 0, paddingBottom: theme.spacing.xl, gap: theme.spacing.md },
   card: {
     padding: theme.spacing.md,
@@ -205,19 +170,21 @@ const styles = StyleSheet.create({
   cardHeadText: { flex: 1 },
   name: { fontSize: 17, fontWeight: "700", color: theme.colors.text },
   meta: { marginTop: 4, fontSize: 13, color: theme.colors.textMuted },
-  label: { marginTop: theme.spacing.sm, fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
-  input: {
-    marginTop: 6,
+  pickerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  pickerRowRtl: { flexDirection: "row-reverse" },
+  autoBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
   },
-  presetsLabel: { marginTop: theme.spacing.md, fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
-  presets: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10, marginBottom: theme.spacing.md },
-  presetDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
+  autoBtnOn: { borderColor: theme.colors.cta, backgroundColor: theme.colors.cta, opacity: 0.95 },
+  autoTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
+  autoTxtOn: { color: theme.colors.ctaText },
+  presets: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  presetDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: "rgba(0,0,0,0.08)" },
+  presetDotOn: { borderColor: theme.colors.text, borderWidth: 2 },
   empty: { textAlign: "center", color: theme.colors.textSoft, padding: theme.spacing.xl },
 });

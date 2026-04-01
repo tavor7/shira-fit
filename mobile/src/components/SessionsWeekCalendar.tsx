@@ -59,25 +59,30 @@ function dateToISODate(d: Date) {
 }
 
 function formatWeekLabel(start: Date, end: Date, locale: string) {
-  // If year differs, include it on both ends.
-  const optsA: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-  const optsYear: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
+  // Month + day only (no year): keep compact range as-is for same calendar year span.
+  const optsShort: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
   const useYear = start.getFullYear() !== end.getFullYear();
-  const fmtA = (x: Date) => x.toLocaleDateString(locale, useYear ? optsYear : optsA);
+  const localeYear = locale === "he-IL" ? "he-IL" : "en-GB";
+  const fmtWithYear = (x: Date) =>
+    x.toLocaleDateString(localeYear, { day: "numeric", month: "short", year: "numeric" });
+  const fmtShort = (x: Date) => x.toLocaleDateString(locale, optsShort);
+  const fmtA = (x: Date) => (useYear ? fmtWithYear(x) : fmtShort(x));
   return `${fmtA(start)} - ${fmtA(end)}`;
 }
 
 export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
-  const today = useMemo(() => new Date(), []);
   const { language, t, isRTL } = useI18n();
   const locale = language === "he" ? "he-IL" : "en-US";
   const dayNames = language === "he" ? DAY_NAMES_HE : DAY_NAMES_EN;
 
+  /** Recomputed each render so “today” stays correct if the week view stays open past midnight. */
+  const todayIso = dateToISODate(new Date());
+
   const weekStart = useMemo(() => {
-    const base = startOfWeekSunday(today);
+    const base = startOfWeekSunday(new Date());
     return addDays(base, weekOffset * 7);
-  }, [today, weekOffset]);
+  }, [weekOffset]);
 
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }).map((_, i) => {
@@ -136,19 +141,21 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.header}>
+      <View style={[styles.header, isRTL && styles.headerRtl]}>
         <Pressable
           onPress={() => setWeekOffset((o) => o - 1)}
-          style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8 }]}
+          style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
           accessibilityRole="button"
           accessibilityLabel={language === "he" ? "שבוע קודם" : "Previous week"}
         >
           <Text style={[styles.navTxt, isRTL && styles.navTxtRTL]}>{"<"}</Text>
         </Pressable>
-        <Text style={styles.weekTitle}>{weekLabel}</Text>
+        <Text style={styles.weekTitle} numberOfLines={1}>
+          {weekLabel}
+        </Text>
         <Pressable
           onPress={() => setWeekOffset((o) => o + 1)}
-          style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8 }]}
+          style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
           accessibilityRole="button"
           accessibilityLabel={language === "he" ? "שבוע הבא" : "Next week"}
         >
@@ -160,23 +167,37 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.scrollerContent}
+          contentContainerStyle={[styles.scrollerContent, isRTL && styles.scrollerContentRtl]}
           style={styles.scroller}
         >
           {weekDays.map((d) => {
             const dayList = byDate.get(d.iso) ?? [];
             const count = dayList.length;
+            const isToday = d.iso === todayIso;
             return (
               <Pressable
                 key={d.iso}
                 onPress={() => onDayPress?.(d.iso)}
                 disabled={!onDayPress}
-                style={({ pressed }) => [styles.dayCol, pressed && onDayPress && styles.dayColPressed]}
+                style={({ pressed }) => [
+                  styles.dayCol,
+                  isToday && styles.dayColToday,
+                  pressed && onDayPress && styles.dayColPressed,
+                ]}
+                accessibilityLabel={
+                  isToday
+                    ? language === "he"
+                      ? `${dayNames[d.date.getDay()]} ${d.date.getDate()}, היום`
+                      : `Today, ${dayNames[d.date.getDay()]} ${d.date.getDate()}`
+                    : `${dayNames[d.date.getDay()]} ${d.date.getDate()}`
+                }
               >
                 <View style={styles.dayHeaderBox}>
                   <Text style={styles.dayName}>{dayNames[d.date.getDay()]}</Text>
-                  <Text style={styles.dayNum}>{d.date.getDate()}</Text>
-                  <Text style={styles.dayMonth}>{d.date.toLocaleDateString(locale, { month: "short" })}</Text>
+                  <Text style={[styles.dayNum, isToday && styles.dayNumToday]}>{d.date.getDate()}</Text>
+                  <Text style={[styles.dayMonth, isToday && styles.dayMonthToday]}>
+                    {d.date.toLocaleDateString(locale, { month: "short" })}
+                  </Text>
                   {count > 0 ? (
                     <View style={styles.countPill}>
                       <Text style={styles.countPillTxt}>{count}</Text>
@@ -205,7 +226,15 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
 
         {weekItemsCount === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>{emptyLabel ?? (language === "he" ? "אין אימונים בשבוע זה." : "No sessions in this week.")}</Text>
+            <Text style={styles.emptyText}>{emptyLabel ?? (language === "he" ? "אין אימונים בשבוע זה." : "No sessions this week.")}</Text>
+            <View style={[styles.emptyActions, isRTL && styles.emptyActionsRtl]}>
+              <Pressable style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.9 }]} onPress={() => setWeekOffset((o) => o - 1)}>
+                <Text style={styles.emptyBtnTxt}>{language === "he" ? "שבוע קודם" : "Prev week"}</Text>
+              </Pressable>
+              <Pressable style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.9 }]} onPress={() => setWeekOffset((o) => o + 1)}>
+                <Text style={styles.emptyBtnTxt}>{language === "he" ? "שבוע הבא" : "Next week"}</Text>
+              </Pressable>
+            </View>
           </View>
         ) : null}
       </View>
@@ -223,6 +252,7 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.xs,
   },
+  headerRtl: { flexDirection: "row-reverse" },
   weekTitle: {
     flex: 1,
     textAlign: "center",
@@ -235,10 +265,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: theme.radius.full,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceElevated,
   },
+  navBtnPressed: { opacity: 0.88 },
   navTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 15 },
   navTxtRTL: { transform: [{ rotate: "180deg" }] },
   body: { width: "100%", alignItems: "stretch" },
@@ -254,17 +283,39 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     ...(Platform.OS === "web" ? ({ minWidth: "100%" } as const) : {}),
   },
+  scrollerContentRtl: { flexDirection: "row-reverse" },
   dayCol: {
     width: 112,
     borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceElevated,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.md,
     minHeight: 240,
+    borderWidth: 2,
+    borderColor: "transparent",
   },
-  dayColPressed: { opacity: 0.88, borderColor: theme.colors.border },
+  /** Today: CTA-colored frame + soft glow (theme accent on dark UI). */
+  dayColToday: {
+    borderColor: theme.colors.cta,
+    backgroundColor: theme.colors.surface,
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.colors.cta,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.28,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 5,
+        shadowColor: theme.colors.cta,
+      },
+      default: {
+        // RN Web
+        boxShadow: `0 0 0 1px ${theme.colors.cta}, 0 0 20px rgba(244,244,245,0.12)`,
+      },
+    }),
+  },
+  dayColPressed: { opacity: 0.88 },
   dayHeaderBox: { alignItems: "center", justifyContent: "center", marginBottom: theme.spacing.sm, position: "relative" },
   countPill: {
     marginTop: 6,
@@ -283,7 +334,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   dayNum: { fontSize: 22, fontWeight: "800", color: theme.colors.text, lineHeight: 24 },
+  dayNumToday: { color: theme.colors.cta },
   dayMonth: { fontSize: 11, fontWeight: "600", color: theme.colors.textMuted, marginTop: 2 },
+  dayMonthToday: { color: theme.colors.text, fontWeight: "700" },
   dayItems: { gap: 8, flex: 1 },
   card: {
     paddingVertical: 8,
@@ -294,7 +347,16 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   empty: { paddingTop: theme.spacing.md, paddingBottom: theme.spacing.lg, alignItems: "center" },
-  emptyText: { textAlign: "center", color: theme.colors.textSoft },
+  emptyText: { textAlign: "center", color: theme.colors.textSoft, maxWidth: 320 },
+  emptyActions: { flexDirection: "row", gap: 10, marginTop: 14 },
+  emptyActionsRtl: { flexDirection: "row-reverse" },
+  emptyBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  emptyBtnTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 13 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", padding: theme.spacing.lg },
   loadingText: { marginTop: 12, color: theme.colors.textMuted },
 });

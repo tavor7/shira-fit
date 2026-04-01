@@ -182,6 +182,61 @@ supabase/
 
 ---
 
+## Waitlist push when a spot opens (automatic)
+
+The mobile app saves **`profiles.expo_push_token`** when notification prefs are on. The Edge Function **`notify-waitlist`** sends an Expo push to the first waitlisted user (FIFO) when capacity drops below `max_participants`.
+
+After you apply migrations, wire the database to **call** that function when someone cancels or is removed (included in `20260403100000_notify_waitlist_on_spot_open.sql` via **pg_net** + triggers).
+
+### 1. Edge Function secrets (Supabase Dashboard → Edge Functions → `notify-waitlist` → Secrets)
+
+Set **`CRON_SECRET`** to a long random string (same value you will store in Vault in step 2).
+
+Deploy the function if it is not deployed yet:
+
+`supabase functions deploy notify-waitlist`
+
+### 2. Vault secrets (Supabase Dashboard → SQL Editor)
+
+Replace `YOUR_PROJECT_REF` with your project ref (from the project URL). Use the **same** string as **`CRON_SECRET`** for the second line.
+
+```sql
+select vault.create_secret(
+  'https://YOUR_PROJECT_REF.supabase.co/functions/v1/notify-waitlist',
+  'notify_waitlist_url'
+);
+
+select vault.create_secret(
+  'PASTE_THE_SAME_VALUE_AS_CRON_SECRET_HERE',
+  'notify_waitlist_secret'
+);
+```
+
+Enable the **pg_net** extension if the dashboard asks (Database → Extensions → `pg_net`). The migration runs `create extension if not exists pg_net;` when allowed.
+
+### 3. Apply migrations
+
+```bash
+supabase db push
+```
+
+(or run the new migration SQL in the Dashboard.)
+
+### What runs automatically
+
+- **`session_registrations`**: after **`active` → `cancelled`** (athlete cancel, coach/manager remove from registration).
+- **`session_manual_participants`**: after a row is **deleted** (manual participant removed from the session).
+
+If Vault secrets are missing, **`invoke_notify_waitlist_edge`** does nothing (no error).
+
+### Verify
+
+1. Fill a session; join waitlist as another user (with push token on profile).
+2. Cancel a registration so a spot opens.
+3. Check **Edge Functions → notify-waitlist → Logs** and the device for the push.
+
+---
+
 ## Assumptions (see PROGRESS.md)
 
 - Login identifier: **email** (Supabase); **username** on profile.  

@@ -9,6 +9,8 @@ import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { toISODateLocal, isValidISODateString } from "../lib/isoDate";
 import { DatePickerField } from "./DatePickerField";
 import { useI18n } from "../context/I18nContext";
+import { useToast } from "../context/ToastContext";
+import { appendNetworkHint } from "../lib/networkErrors";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
 
@@ -21,6 +23,7 @@ type Props = {
 
 export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }: Props) {
   const { language, t, isRTL } = useI18n();
+  const { showToast } = useToast();
   const [date, setDate] = useState(() => initialDate?.trim() || toISODateLocal(new Date()));
   const [time, setTime] = useState("18:00");
   const [coachId, setCoachId] = useState(fixedCoachId ?? "");
@@ -141,11 +144,15 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
           : "Your project is missing the `is_hidden` column (migration not applied). Sessions were created as normal. In Supabase → SQL Editor, run `supabase/migrations/20250330180000_session_hidden.sql`. If the column exists but you still see this, open Project Settings → API → Reload schema."
       );
     }
-    if (count > 1 && !(usedLegacyInsert && hidden)) {
-      Alert.alert(
-        t("common.saved"),
-        language === "he" ? `נוצרו ${count} אימונים שבועיים.` : `Created ${count} weekly sessions.`
-      );
+    if (!(usedLegacyInsert && hidden)) {
+      if (count > 1) {
+        showToast({
+          message: language === "he" ? `נוצרו ${count} אימונים שבועיים.` : `Created ${count} weekly sessions.`,
+          variant: "success",
+        });
+      } else {
+        showToast({ message: t("common.saved"), variant: "success" });
+      }
     }
     router.back();
   }
@@ -248,17 +255,13 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       <Pressable style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }]} onPress={() => setOpen(!open)}>
         <Text style={styles.toggleText}>
           {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
-          {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}{" "}
-          {language === "he" ? "(פתיחה שבועית לפי תזמון)" : "(Thu job sets week)"}
+          {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
         </Text>
       </Pressable>
       <Pressable style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }]} onPress={() => setHidden(!hidden)}>
         <Text style={styles.toggleText}>
           {language === "he" ? "אימון מוסתר: " : "Hidden session: "}
-          {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}{" "}
-          {language === "he"
-            ? "(רק מאמנים/מנהלים רואים ביומן; מתאמנים לא יכולים להירשם לבד)"
-            : "(only coaches/managers see it on the calendar; athletes can’t self-register)"}
+          {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
         </Text>
       </Pressable>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}

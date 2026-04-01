@@ -1,13 +1,35 @@
-import { Stack } from "expo-router";
+import { Stack, Redirect } from "expo-router";
+import { ActivityIndicator, View, type TextStyle, type ViewStyle } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
-import { Redirect } from "expo-router";
-import { AuthHeaderRight } from "../../src/components/AuthHeaderRight";
-import { GlobalQuickMenu } from "../../src/components/GlobalQuickMenu";
+import { AppHeaderRight } from "../../src/components/AppHeaderRight";
+import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
 import { theme } from "../../src/theme";
+import { useAndroidSessionsBackHandler } from "../../src/hooks/useAndroidSessionsBackHandler";
+
+const headerStyle: ViewStyle = {
+  backgroundColor: theme.colors.backgroundAlt,
+  borderBottomWidth: 1,
+  borderBottomColor: theme.colors.borderMuted,
+};
+
+const headerTitleStyle: TextStyle = {
+  fontWeight: "600",
+  fontSize: 17,
+  color: theme.colors.text,
+  letterSpacing: 0.2,
+};
 
 export default function AppLayout() {
   const { session, loading } = useAuth();
-  if (loading) return null;
+  useAndroidSessionsBackHandler(!!session && !loading);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.cta} />
+      </View>
+    );
+  }
   if (!session) return <Redirect href="/(auth)/login" />;
   return (
     <Stack
@@ -15,21 +37,13 @@ export default function AppLayout() {
         headerShown: true,
         // Don't show route names like "manager/sessions" in the header.
         headerTitle: "",
-        headerLeft: () => <GlobalQuickMenu />,
-        headerRight: () => <AuthHeaderRight />,
+        headerLeft: () => <AppHeaderLeft />,
+        headerRight: () => <AppHeaderRight />,
         headerShadowVisible: false,
-        headerStyle: {
-          backgroundColor: theme.colors.backgroundAlt,
-          borderBottomWidth: 1,
-          borderBottomColor: theme.colors.borderMuted,
-        } as object,
+        // expo-router typed routes narrow header styles; runtime accepts full RN styles.
+        headerStyle: headerStyle as object,
         headerTintColor: theme.colors.text,
-        headerTitleStyle: {
-          fontWeight: "600",
-          fontSize: 17,
-          color: theme.colors.text,
-          letterSpacing: 0.2,
-        } as object,
+        headerTitleStyle: headerTitleStyle as object,
       }}
     />
   );

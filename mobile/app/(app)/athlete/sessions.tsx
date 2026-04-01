@@ -11,6 +11,9 @@ import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/compon
 import { ActionButton } from "../../../src/components/ActionButton";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { useI18n } from "../../../src/context/I18nContext";
+import { AthleteNextSessionHero } from "../../../src/components/AthleteNextSessionHero";
+import { checkWaitlistSpotsAndNotify } from "../../../src/lib/waitlistSpotNotifier";
+import { syncExpoPushTokenIfNeeded } from "../../../src/lib/pushTokenSync";
 
 export default function AthleteSessionsScreen() {
   const { language } = useI18n();
@@ -34,7 +37,9 @@ export default function AthleteSessionsScreen() {
   useFocusEffect(
     useCallback(() => {
       load(false);
-    }, [load])
+      void syncExpoPushTokenIfNeeded();
+      void checkWaitlistSpotsAndNotify(language === "he" ? "he" : "en");
+    }, [load, language])
   );
 
   const items = useMemo<SessionsWeekItem[]>(
@@ -66,6 +71,7 @@ export default function AthleteSessionsScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
+        <AthleteNextSessionHero sessions={rows} signupBySession={signupBySession} onDidChange={() => load(true)} />
         <SessionsWeekCalendar
           items={items}
           isLoading={loading}
@@ -88,5 +94,5 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   topRow: { padding: theme.spacing.md, paddingBottom: theme.spacing.sm },
   scroll: { flex: 1 },
-  scrollContent: { flexGrow: 1, flex: 1, justifyContent: "center" },
+  scrollContent: { flexGrow: 1, flex: 1, justifyContent: "center", paddingHorizontal: theme.spacing.md },
 });

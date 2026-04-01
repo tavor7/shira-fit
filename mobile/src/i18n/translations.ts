@@ -8,15 +8,19 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
 
     "menu.sessions": "Sessions",
     "menu.approve": "Approve",
+    "menu.overview": "Overview",
     "menu.editUsers": "Edit users",
     "menu.create": "Create",
-    "menu.history": "History",
-    "menu.trainerReport": "Trainer report",
-    "menu.trainerColors": "Trainer colors",
+    "menu.athleteActivity": "Athlete activity",
+    "menu.coachHistory": "Coach history",
+    "menu.trainerColors": "Coach colors",
     "menu.roles": "Roles",
     "menu.openingSchedule": "Opening schedule",
-    "menu.participantHistory": "Participant history",
+    "menu.participantHistory": "Athlete activity",
     "menu.createSession": "Create session",
+
+    "dashboard.management": "Management",
+    "dashboard.weeklyOverview": "Weekly overview",
 
     "header.profile": "Profile",
     "header.logout": "Log out",
@@ -30,6 +34,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "common.failed": "Failed",
     "common.saved": "Saved",
     "common.ok": "OK",
+    "common.on": "On",
+    "common.off": "Off",
 
     "auth.login": "Login",
     "auth.register": "Register",
@@ -58,6 +64,14 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "common.clearSelection": "Clear selection",
     "common.load": "Load",
 
+    "a11y.headerBack": "Go back to previous screen",
+    "a11y.headerBackToOverview": "Back to overview",
+    "a11y.headerBackToSessions": "Back to sessions calendar",
+    "a11y.openMenu": "Open navigation menu",
+    "a11y.closeMenu": "Close menu",
+
+    "network.offlineHint": "Check your connection and try again.",
+
     "health.required": "Health declaration (required)",
     "health.openForm": "Open health declaration form",
     "health.confirmDone": "I completed the health declaration",
@@ -69,15 +83,19 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
 
     "menu.sessions": "אימונים",
     "menu.approve": "אישור משתמשים",
+    "menu.overview": "סקירה",
     "menu.editUsers": "עריכת משתמשים",
     "menu.create": "יצירה",
-    "menu.history": "היסטוריה",
-    "menu.trainerReport": "דוח מאמן",
+    "menu.athleteActivity": "פעילות מתאמנים",
+    "menu.coachHistory": "היסטוריית מאמנים",
     "menu.trainerColors": "צבעי מאמנים",
     "menu.roles": "תפקידים",
     "menu.openingSchedule": "פתיחת הרשמה",
-    "menu.participantHistory": "היסטוריית מתאמנים",
+    "menu.participantHistory": "פעילות מתאמנים",
     "menu.createSession": "יצירת אימון",
+
+    "dashboard.management": "ניהול",
+    "dashboard.weeklyOverview": "סקירה שבועית",
 
     "header.profile": "פרופיל",
     "header.logout": "התנתקות",
@@ -91,6 +109,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "common.failed": "נכשל",
     "common.saved": "נשמר",
     "common.ok": "אישור",
+    "common.on": "פעיל",
+    "common.off": "כבוי",
 
     "auth.login": "התחברות",
     "auth.register": "הרשמה",
@@ -118,6 +138,14 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "common.search": "חיפוש",
     "common.clearSelection": "נקה בחירה",
     "common.load": "טען",
+
+    "a11y.headerBack": "חזרה למסך הקודם",
+    "a11y.headerBackToOverview": "חזרה לסקירה",
+    "a11y.headerBackToSessions": "חזרה ללוח האימונים",
+    "a11y.openMenu": "פתיחת תפריט ניווט",
+    "a11y.closeMenu": "סגירת תפריט",
+
+    "network.offlineHint": "בדקו את החיבור לאינטרנט ונסו שוב.",
 
     "health.required": "הצהרת בריאות (חובה)",
     "health.openForm": "פתיחת טופס הצהרת בריאות",

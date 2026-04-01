@@ -2,6 +2,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { useI18n } from "../context/I18nContext";
+import { StatusChip } from "./StatusChip";
 
 type Props = {
   item: SessionsWeekItem;
@@ -10,10 +11,14 @@ type Props = {
 };
 
 export function SessionAgendaCardContent({ item, compact }: Props) {
-  const { language } = useI18n();
+  const { language, isRTL } = useI18n();
   const accent = item.accentColor;
   const showFill = item.signedUpCount !== undefined && item.maxParticipants !== undefined;
   const staffLabels = item.showStaffSessionLabels === true;
+  const c = item.signedUpCount ?? 0;
+  const m = item.maxParticipants ?? 0;
+  const full = showFill && m > 0 && c >= m;
+  const left = showFill && m > 0 ? Math.max(0, m - c) : null;
 
   return (
     <View style={[styles.inner, accent ? { borderLeftWidth: 3, borderLeftColor: accent, paddingLeft: 8 } : null]}>
@@ -23,7 +28,21 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
           {item.trainerName}
         </Text>
       ) : null}
-      {showFill ? (
+      {showFill && !staffLabels ? (
+        <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+          {full ? (
+            <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" />
+          ) : (
+            <>
+              <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
+              {left !== null ? (
+                <StatusChip label={language === "he" ? `${left} מקומות` : `${left} left`} tone="neutral" />
+              ) : null}
+            </>
+          )}
+        </View>
+      ) : null}
+      {showFill && staffLabels ? (
         <Text style={[styles.fill, compact && styles.fillCompact]}>
           {item.signedUpCount} / {item.maxParticipants}
         </Text>
@@ -56,6 +75,8 @@ const styles = StyleSheet.create({
   timeCompact: { fontSize: 12 },
   trainer: { marginTop: 4, color: theme.colors.text, fontSize: 12, fontWeight: "600", lineHeight: 15 },
   trainerCompact: { fontSize: 11, marginTop: 3 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
+  chipsRtl: { flexDirection: "row-reverse" },
   fill: { marginTop: 6, fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, letterSpacing: 0.5 },
   fillCompact: { marginTop: 4, fontSize: 11 },
   subtitle: { marginTop: 4, color: theme.colors.textMuted, fontSize: 11, lineHeight: 14 },

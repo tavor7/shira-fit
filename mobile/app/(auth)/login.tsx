@@ -17,6 +17,8 @@ import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 
+export const options = { headerShown: false };
+
 function getLoginErrorMessage(error: { message: string }): string {
   const msg = (error.message || "").toLowerCase();
   if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials")) {

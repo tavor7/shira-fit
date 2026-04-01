@@ -12,6 +12,7 @@ import {
 } from "../lib/sessionTime";
 import { useI18n } from "../context/I18nContext";
 import { isBirthdayToday } from "../lib/birthday";
+import { formatISODateFull } from "../lib/dateFormat";
 
 type Props = {
   userId: string | undefined;
@@ -231,7 +232,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
     prefix?: string;
     alignRight?: boolean;
   }) {
-    const label = `${s.session_date} · ${formatSessionTimeRange(s.start_time, durMin(s))}`;
+    const label = `${formatISODateFull(s.session_date, language)} · ${formatSessionTimeRange(s.start_time, durMin(s))}`;
     const trainer = s.trainer?.full_name ? ` · ${s.trainer.full_name}` : "";
     return (
       <Pressable
@@ -278,15 +279,10 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
         </View>
       ) : null}
       <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{language === "he" ? "הקרובים שלך" : "Your upcoming"}</Text>
-      <Text style={[styles.sectionHint, isRTL && styles.rtlText]}>
-        {language === "he"
-          ? "אימונים שנרשמת אליהם ב-7 הימים הקרובים (כולל היום)."
-          : "Sessions you’re signed up for in the next 7 days (today included)."}
-      </Text>
       {attendingLoading ? (
         <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
       ) : attending.length === 0 ? (
-        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין כרגע." : "None right now."}</Text>
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
       ) : (
         attending.map((s) => <SessionLine key={`a-${s.id}`} s={s} />)
       )}
@@ -294,13 +290,8 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
       <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
         {language === "he" ? "אימונים שאתה מאמן" : "Sessions you’re training"}
       </Text>
-      <Text style={[styles.sectionHint, isRTL && styles.rtlText]}>
-        {language === "he"
-          ? "כל האימונים שבהם אתה המאמן ב-7 הימים הקרובים (כולל היום)."
-          : "All sessions where you’re the trainer in the next 7 days (today included)."}
-      </Text>
       {teachingNotEnded.length === 0 ? (
-        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין כרגע." : "None right now."}</Text>
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
       ) : (
         teachingNotEnded.map((s) => <SessionLine key={`t-${s.id}`} s={s} alignRight={isRTL} />)
       )}
@@ -309,11 +300,6 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
         <>
           <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
             {language === "he" ? "אימון נוכחי והבא" : "Current & next training"}
-          </Text>
-          <Text style={[styles.sectionHint, isRTL && styles.rtlText]}>
-            {language === "he"
-              ? "המשתתפים מוצגים רק עבור האימון הנוכחי והאימון הבא שלך כמאמן."
-              : "Participants are shown only for your current and next session as trainer."}
           </Text>
           {currentTeaching ? (
             <>

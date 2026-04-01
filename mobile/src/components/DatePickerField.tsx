@@ -18,7 +18,7 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
   }, [value]);
 
   const displayText = isValidISODateString(value)
-    ? formatISODateShortDisplay(value)
+    ? formatISODateShortDisplay(value, language)
     : language === "he"
       ? "בחרו תאריך"
       : "Choose date";

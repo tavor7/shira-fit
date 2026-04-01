@@ -17,6 +17,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { supabase } from "../lib/supabase";
 import { formatSessionTimeRange } from "../lib/sessionTime";
 import { toISODateLocal, isValidISODateString, parseISODateLocal } from "../lib/isoDate";
+import { formatISODateFull } from "../lib/dateFormat";
 import type { ManagerCoachSessionReportRow } from "../types/database";
 import { DatePickerField } from "../components/DatePickerField";
 import { useI18n } from "../context/I18nContext";
@@ -104,9 +105,10 @@ export default function ManagerCoachSessionsReportScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.filters}>
+        <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t("menu.coachHistory")}</Text>
         <DatePickerField label={t("common.from")} value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
         <DatePickerField label={t("common.to")} value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
-        <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן" : "Trainer"}</Text>
+        <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן" : "Coach"}</Text>
         <Pressable style={styles.pickerTouch} onPress={() => setPickerOpen(true)}>
           <Text style={coachLabel ? styles.pickerText : styles.pickerPlaceholder}>
             {coachLabel || (language === "he" ? "בחרו מאמן או מנהל…" : "Choose coach or manager…")}
@@ -194,7 +196,7 @@ export default function ManagerCoachSessionsReportScreen() {
             style={({ pressed }) => [styles.row, pressed && { opacity: 0.9 }]}
             onPress={() => router.push(`/(app)/manager/session/${item.session_id}` as Href)}
           >
-            <Text style={styles.rowDate}>{item.session_date}</Text>
+            <Text style={styles.rowDate}>{formatISODateFull(item.session_date, language)}</Text>
             <Text style={styles.rowTime}>{formatSessionTimeRange(item.start_time, item.duration_minutes ?? 60)}</Text>
             <Text style={styles.rowStats}>
               {language === "he" ? "נרשמו" : "Registered"}: {item.registered_count} · {language === "he" ? "הגיעו" : "Arrived"}:{" "}
@@ -225,6 +227,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderMuted,
   },
+  screenTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   hint: { marginTop: theme.spacing.sm, fontSize: 12, color: theme.colors.textMuted, lineHeight: 18 },
   rtlText: { textAlign: "right" },
