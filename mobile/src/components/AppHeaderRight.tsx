@@ -71,13 +71,14 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 2,
     minWidth: 0,
-    /** Inset from the header’s trailing edge (screen right in LTR). */
-    marginEnd: 14,
+    /** Match left cluster: logical horizontal inset on both sides (fixes RTL / web `dir=rtl`). */
+    paddingStart: theme.spacing.md,
+    paddingEnd: theme.spacing.md,
   },
   wrapRTL: { flexDirection: "row-reverse", justifyContent: "flex-start" },
   nameBlock: {
     alignItems: "flex-end",
-    marginRight: 4,
+    marginEnd: 4,
     maxWidth: 140,
     minWidth: 0,
   },

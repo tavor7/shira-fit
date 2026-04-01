@@ -20,6 +20,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingLeft: theme.spacing.sm,
+    /** Logical horizontal inset so LTR + RTL (and web `dir=rtl`) both keep gutter from screen edges. */
+    paddingStart: theme.spacing.md,
+    paddingEnd: theme.spacing.md,
   },
 });

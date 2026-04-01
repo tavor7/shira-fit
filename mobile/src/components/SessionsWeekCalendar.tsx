@@ -141,14 +141,18 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      {/*
+        Under `dir=rtl` (Hebrew web) or I18nManager RTL, flex `row` still mirrors main axis,
+        which swaps the two buttons. Isolate this bar as LTR so prev stays screen-left with `<`.
+      */}
+      <View style={styles.header}>
         <Pressable
           onPress={() => setWeekOffset((o) => o - 1)}
           style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
           accessibilityRole="button"
           accessibilityLabel={language === "he" ? "שבוע קודם" : "Previous week"}
         >
-          <Text style={[styles.navTxt, isRTL && styles.navTxtRTL]}>{"<"}</Text>
+          <Text style={styles.navChevron}>{"<"}</Text>
         </Pressable>
         <Text style={styles.weekTitle} numberOfLines={1}>
           {weekLabel}
@@ -159,7 +163,7 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
           accessibilityRole="button"
           accessibilityLabel={language === "he" ? "שבוע הבא" : "Next week"}
         >
-          <Text style={[styles.navTxt, isRTL && styles.navTxtRTL]}>{">"}</Text>
+          <Text style={styles.navChevron}>{">"}</Text>
         </Pressable>
       </View>
 
@@ -227,7 +231,7 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
         {weekItemsCount === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyText}>{emptyLabel ?? (language === "he" ? "אין אימונים בשבוע זה." : "No sessions this week.")}</Text>
-            <View style={[styles.emptyActions, isRTL && styles.emptyActionsRtl]}>
+            <View style={styles.emptyActions}>
               <Pressable style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.9 }]} onPress={() => setWeekOffset((o) => o - 1)}>
                 <Text style={styles.emptyBtnTxt}>{language === "he" ? "שבוע קודם" : "Prev week"}</Text>
               </Pressable>
@@ -246,13 +250,14 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, paddingBottom: theme.spacing.xl },
   header: {
     flexDirection: "row",
+    /** Override document / parent RTL so flex order is [prev][title][next] left-to-right. */
+    direction: "ltr",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.xs,
   },
-  headerRtl: { flexDirection: "row-reverse" },
   weekTitle: {
     flex: 1,
     textAlign: "center",
@@ -268,8 +273,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
   },
   navBtnPressed: { opacity: 0.88 },
-  navTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 15 },
-  navTxtRTL: { transform: [{ rotate: "180deg" }] },
+  /** LTR glyphs so `<` / `>` are not bidi-mirrored inside Hebrew UI. */
+  navChevron: {
+    color: theme.colors.text,
+    fontWeight: "700",
+    fontSize: 15,
+    writingDirection: "ltr",
+  },
   body: { width: "100%", alignItems: "stretch" },
   /** When the 7 day columns are narrower than the screen, center them; when wider (small phones), scroll still works. */
   scroller: { width: "100%" },
@@ -348,8 +358,7 @@ const styles = StyleSheet.create({
   },
   empty: { paddingTop: theme.spacing.md, paddingBottom: theme.spacing.lg, alignItems: "center" },
   emptyText: { textAlign: "center", color: theme.colors.textSoft, maxWidth: 320 },
-  emptyActions: { flexDirection: "row", gap: 10, marginTop: 14 },
-  emptyActionsRtl: { flexDirection: "row-reverse" },
+  emptyActions: { flexDirection: "row", direction: "ltr", gap: 10, marginTop: 14 },
   emptyBtn: {
     paddingVertical: 10,
     paddingHorizontal: 14,

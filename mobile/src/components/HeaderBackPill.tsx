@@ -46,28 +46,19 @@ export function HeaderBackPill() {
     return !!sessionsHomeHref;
   }, [atSessionsHome, onPendingGate, canPop, sessionsHomeHref]);
 
-  if (!visible) return null;
-
-  const a11yBack = t("a11y.headerBack");
-  const a11yToOverview = t("a11y.headerBackToOverview");
-  const a11yToSessions = t("a11y.headerBackToSessions");
-
+  // Hooks must run every render — never place hooks after `if (!visible) return null`.
   const a11yLabel = useMemo(() => {
+    const a11yBack = t("a11y.headerBack");
+    const a11yToOverview = t("a11y.headerBackToOverview");
+    const a11yToSessions = t("a11y.headerBackToSessions");
     if ((onPendingGate && canPop) || (inSessionDrilldown && canPop)) return a11yBack;
     if (isManager && isManagerOverviewStaffDrilldown(pathname) && canPop) return a11yBack;
     if (isManager && isManagerOverviewFlatTool(pathname)) return a11yToOverview;
     if (isManager && isManagerOverviewHub(pathname)) return a11yToSessions;
     return a11yToSessions;
-  }, [
-    onPendingGate,
-    canPop,
-    inSessionDrilldown,
-    isManager,
-    pathname,
-    a11yBack,
-    a11yToOverview,
-    a11yToSessions,
-  ]);
+  }, [t, onPendingGate, canPop, inSessionDrilldown, isManager, pathname]);
+
+  if (!visible) return null;
 
   function onPress() {
     if (onPendingGate && navigation.canGoBack()) {
