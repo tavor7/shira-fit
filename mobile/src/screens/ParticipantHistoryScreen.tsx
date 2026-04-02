@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, SectionList, TextInput, StyleSheet, Platform, Alert, Pressable, Modal, FlatList, ActivityIndicator } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, usePathname } from "expo-router";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { DatePickerField } from "../components/DatePickerField";
@@ -45,6 +45,8 @@ function groupByAthlete(rows: ParticipantHistoryRow[]): Section[] {
 export default function ParticipantHistoryScreen() {
   const { presetUserId } = useLocalSearchParams<{ presetUserId?: string }>();
   const { language, t, isRTL } = useI18n();
+  const pathname = usePathname();
+  const isCoachHistory = pathname?.startsWith("/coach/participant-history") ?? false;
   const [start, setStart] = useState(defaultStartISO);
   const [end, setEnd] = useState(defaultEndISO);
   const [athleteId, setAthleteId] = useState<string>("");
@@ -147,7 +149,7 @@ export default function ParticipantHistoryScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.filters}>
-        <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t("menu.athleteActivity")}</Text>
+        <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t(isCoachHistory ? "menu.coachHistory" : "menu.athleteActivity")}</Text>
         <DatePickerField label={t("common.from")} value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
         <DatePickerField label={t("common.to")} value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
         <Text style={[styles.label, isRTL && styles.rtlText]}>
@@ -256,9 +258,13 @@ export default function ParticipantHistoryScreen() {
           const attTxtStyle =
             att === true ? styles.badgeAttTxtYes : att === false ? styles.badgeAttTxtNo : styles.badgeAttTxtUnset;
           return (
-            <View style={styles.row}>
-              <Text style={styles.rowDate}>{formatISODateFull(item.session_date, language)}</Text>
-              <Text style={styles.rowTime}>{formatSessionTimeRange(item.start_time, item.duration_minutes ?? 60)}</Text>
+            <View style={[styles.row, isRTL && styles.rowRtl]}>
+              <Text style={[styles.rowDate, isRTL && styles.rtlText]} numberOfLines={1} ellipsizeMode="tail">
+                {formatISODateFull(item.session_date, language)}
+              </Text>
+              <Text style={[styles.rowTime, isRTL && styles.rtlText]} numberOfLines={1} ellipsizeMode="tail">
+                {formatSessionTimeRange(item.start_time, item.duration_minutes ?? 60)}
+              </Text>
               <View style={[styles.badge, item.reg_status === "active" ? styles.badgeOn : styles.badgeOff]}>
                 <Text style={[styles.badgeTxt, item.reg_status === "active" ? styles.badgeTxtOn : styles.badgeTxtOff]}>
                   {item.reg_status === "active"
@@ -298,9 +304,12 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   rtlText: { textAlign: "right" },
   filters: {
+    margin: theme.spacing.md,
     padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderMuted,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.lg,
   },
   screenTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
@@ -366,15 +375,20 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.md,
     marginTop: theme.spacing.sm,
     padding: theme.spacing.md,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "flex-start",
+    // Prevent long date strings from visually overflowing.
+    overflow: "hidden",
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  rowDate: { fontSize: 15, fontWeight: "700", color: theme.colors.text },
-  rowTime: { marginTop: 4, fontSize: 14, color: theme.colors.cta, fontWeight: "600" },
+  rowRtl: { flexDirection: "row-reverse" },
+  rowDate: { fontSize: 15, fontWeight: "700", color: theme.colors.text, flex: 1, minWidth: 150 },
+  rowTime: { fontSize: 14, color: theme.colors.cta, fontWeight: "600", flex: 1, minWidth: 110 },
   badge: {
-    marginTop: 8,
     alignSelf: "flex-start",
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -385,7 +399,7 @@ const styles = StyleSheet.create({
   badgeTxt: { fontSize: 11, fontWeight: "800" },
   badgeTxtOn: { color: theme.colors.success },
   badgeTxtOff: { color: theme.colors.textMuted },
-  badgeAtt: { marginTop: 6 },
+  badgeAtt: {},
   badgeAttYes: { backgroundColor: theme.colors.successBg, borderWidth: 0 },
   badgeAttTxtYes: { color: theme.colors.success },
   badgeAttNo: { backgroundColor: theme.colors.errorBg, borderWidth: 1, borderColor: theme.colors.errorBorder },

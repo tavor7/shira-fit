@@ -152,7 +152,7 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
           accessibilityRole="button"
           accessibilityLabel={language === "he" ? "שבוע קודם" : "Previous week"}
         >
-          <Text style={styles.navChevron}>{"<"}</Text>
+          <Text style={styles.navChevron}>{"←"}</Text>
         </Pressable>
         <Text style={styles.weekTitle} numberOfLines={1}>
           {weekLabel}
@@ -163,7 +163,7 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
           accessibilityRole="button"
           accessibilityLabel={language === "he" ? "שבוע הבא" : "Next week"}
         >
-          <Text style={styles.navChevron}>{">"}</Text>
+          <Text style={styles.navChevron}>{"→"}</Text>
         </Pressable>
       </View>
 
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     /** Override document / parent RTL so flex order is [prev][title][next] left-to-right. */
-    direction: "ltr",
+    writingDirection: "ltr",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: theme.spacing.md,
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   },
   empty: { paddingTop: theme.spacing.md, paddingBottom: theme.spacing.lg, alignItems: "center" },
   emptyText: { textAlign: "center", color: theme.colors.textSoft, maxWidth: 320 },
-  emptyActions: { flexDirection: "row", direction: "ltr", gap: 10, marginTop: 14 },
+  emptyActions: { flexDirection: "row", writingDirection: "ltr", gap: 10, marginTop: 14 },
   emptyBtn: {
     paddingVertical: 10,
     paddingHorizontal: 14,

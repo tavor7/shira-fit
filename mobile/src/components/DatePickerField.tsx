@@ -32,8 +32,14 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
           onPress={() => setAndroidOpen(true)}
           style={({ pressed }) => [styles.touch, pressed && styles.touchPressed]}
         >
-          <Text style={[styles.touchText, isRTL && styles.rtlTextLight]}>{displayText}</Text>
-          <Text style={styles.chev}>▼</Text>
+          <Text
+            style={[styles.touchText, isRTL && styles.rtlTextLight]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {displayText}
+          </Text>
+          <Text style={[styles.chev, isRTL ? styles.chevRtl : styles.chevLtr]}>▼</Text>
         </Pressable>
         {androidOpen ? (
           <DateTimePicker
@@ -58,8 +64,14 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
     <View style={styles.wrap}>
       <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
       <Pressable onPress={() => setIosOpen(true)} style={({ pressed }) => [styles.touch, pressed && styles.touchPressed]}>
-        <Text style={[styles.touchText, isRTL && styles.rtlTextLight]}>{displayText}</Text>
-        <Text style={styles.chev}>▼</Text>
+        <Text
+          style={[styles.touchText, isRTL && styles.rtlTextLight]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {displayText}
+        </Text>
+        <Text style={[styles.chev, isRTL ? styles.chevRtl : styles.chevLtr]}>▼</Text>
       </Pressable>
       <Modal visible={iosOpen} transparent animationType="slide" onRequestClose={() => setIosOpen(false)}>
         <View style={styles.modalRoot}>
@@ -114,11 +126,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     backgroundColor: theme.colors.white,
+    overflow: "hidden",
   },
   touchPressed: { opacity: 0.92 },
-  touchText: { flex: 1, fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
+  touchText: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
   rtlTextLight: { textAlign: "right" },
-  chev: { fontSize: 10, color: theme.colors.textMutedOnLight, marginLeft: 8 },
+  chev: { fontSize: 10, color: theme.colors.textMutedOnLight },
+  chevLtr: { marginLeft: 8 },
+  chevRtl: { marginRight: 8 },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   backdropFlex: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
   sheet: {

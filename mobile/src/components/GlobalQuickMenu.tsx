@@ -62,7 +62,7 @@ export function GlobalQuickMenu() {
 
     // A minimal set that stays consistent across pages.
     if (role === "manager") {
-      return [
+      const managerItems: RouteItem[] = [
         {
           label: t("menu.sessions"),
           onPress: () => router.push("/(app)/manager/sessions"),
@@ -82,12 +82,19 @@ export function GlobalQuickMenu() {
               "/staff/manual",
             ]),
         },
-        {
+      ];
+
+      // Only show the approve tab when there is something to approve.
+      if (pendingApproveCount > 0) {
+        managerItems.push({
           label: t("menu.approve"),
           onPress: () => router.push("/(app)/manager/approve"),
           isActive: (p) => startsWithAny(p, ["/manager/approve"]),
           badgeCount: pendingApproveCount,
-        },
+        });
+      }
+
+      managerItems.push(
         {
           label: t("menu.create"),
           onPress: () => router.push("/(app)/manager/create-session"),
@@ -112,7 +119,9 @@ export function GlobalQuickMenu() {
           isActive: () => false,
         },
         languageItem,
-      ];
+      );
+
+      return managerItems;
     }
 
     if (role === "coach") {
