@@ -355,6 +355,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
+    overflow: "hidden",
   },
   empty: { paddingTop: theme.spacing.md, paddingBottom: theme.spacing.lg, alignItems: "center" },
   emptyText: { textAlign: "center", color: theme.colors.textSoft, maxWidth: 320 },

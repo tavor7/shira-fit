@@ -171,14 +171,20 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         <>
           <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן" : "Trainer"}</Text>
           <View style={styles.fixedCoachBox}>
-            <Text style={styles.fixedCoachTxt}>{coachLabel || (language === "he" ? "את/ה" : "You")}</Text>
+            <Text style={styles.fixedCoachTxt} numberOfLines={1} ellipsizeMode="tail">
+              {coachLabel || (language === "he" ? "את/ה" : "You")}
+            </Text>
           </View>
         </>
       ) : (
         <>
           <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן (מאמן או מנהל)" : "Trainer (coach or manager)"}</Text>
           <Pressable style={styles.pickerTouch} onPress={() => setShowCoachPicker(true)}>
-            <Text style={coachLabel ? styles.pickerText : styles.pickerPlaceholder}>
+            <Text
+              style={coachLabel ? styles.pickerText : styles.pickerPlaceholder}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
               {coachLabel || (language === "he" ? "בחרו מאמן לפי שם…" : "Choose trainer by name…")}
             </Text>
           </Pressable>
@@ -199,8 +205,10 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                     renderItem={({ item }) => (
                       <Pressable style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.8 }]} onPress={() => selectCoach(item)}>
                         <View style={styles.pickerItemTextCol}>
-                          <Text style={styles.pickerItemName}>{item.full_name}</Text>
-                          <Text style={styles.pickerItemRole}>
+                          <Text style={styles.pickerItemName} numberOfLines={1} ellipsizeMode="tail">
+                            {item.full_name}
+                          </Text>
+                          <Text style={styles.pickerItemRole} numberOfLines={1} ellipsizeMode="tail">
                             @{item.username} · {item.role}
                           </Text>
                         </View>

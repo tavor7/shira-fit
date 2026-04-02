@@ -21,8 +21,15 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
   const left = showFill && m > 0 ? Math.max(0, m - c) : null;
 
   return (
-    <View style={[styles.inner, accent ? { borderLeftWidth: 3, borderLeftColor: accent, paddingLeft: 8 } : null]}>
-      <Text style={[styles.time, compact && styles.timeCompact]}>{item.timeLabel ?? item.start_time}</Text>
+    <View
+      style={[
+        styles.inner,
+        accent ? { borderLeftWidth: 3, borderLeftColor: accent, paddingLeft: 8 } : null,
+      ]}
+    >
+      <Text style={[styles.time, compact && styles.timeCompact]}>
+        {item.timeLabel ?? item.start_time}
+      </Text>
       {item.trainerName ? (
         <Text style={[styles.trainer, compact && styles.trainerCompact]} numberOfLines={2}>
           {item.trainerName}
@@ -48,7 +55,7 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
         </Text>
       ) : null}
       {staffLabels ? (
-        <View style={styles.tags}>
+        <View style={[styles.tags, isRTL && styles.tagsRtl]}>
           <View style={[styles.tag, item.isHidden ? styles.tagHidden : styles.tagListed]}>
             <Text style={[styles.tagTxt, item.isHidden ? styles.tagTxtHidden : styles.tagTxtListed]}>
               {item.isHidden ? (language === "he" ? "מוסתר" : "Hidden") : language === "he" ? "גלוי" : "Visible"}
@@ -82,6 +89,7 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 4, color: theme.colors.textMuted, fontSize: 11, lineHeight: 14 },
   subtitleCompact: { fontSize: 10, marginTop: 3 },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
+  tagsRtl: { flexDirection: "row-reverse" },
   tag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: theme.radius.full, borderWidth: 1 },
   tagHidden: { backgroundColor: "rgba(245,158,11,0.12)", borderColor: "rgba(245,158,11,0.35)" },
   tagListed: { backgroundColor: "rgba(148,163,184,0.12)", borderColor: "rgba(148,163,184,0.3)" },

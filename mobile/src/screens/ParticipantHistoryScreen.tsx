@@ -236,7 +236,9 @@ export default function ParticipantHistoryScreen() {
         keyExtractor={(item) => item.registration_id}
         renderSectionHeader={({ section: { title } }) => (
           <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>{title}</Text>
+            <Text style={styles.sectionTitle} numberOfLines={1} ellipsizeMode="tail">
+              {title}
+            </Text>
           </View>
         )}
         renderItem={({ item }) => {
@@ -364,11 +366,13 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { paddingBottom: theme.spacing.xl, flexGrow: 1 },
   sectionHead: {
-    backgroundColor: theme.colors.backgroundAlt,
+    backgroundColor: theme.colors.surfaceElevated,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderMuted,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    borderRadius: theme.radius.lg,
+    marginHorizontal: theme.spacing.md,
   },
   sectionTitle: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
   row: {
@@ -386,13 +390,14 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   rowRtl: { flexDirection: "row-reverse" },
-  rowDate: { fontSize: 15, fontWeight: "700", color: theme.colors.text, flex: 1, minWidth: 150 },
-  rowTime: { fontSize: 14, color: theme.colors.cta, fontWeight: "600", flex: 1, minWidth: 110 },
+  rowDate: { fontSize: 15, fontWeight: "700", color: theme.colors.text, flex: 1, minWidth: 120, flexShrink: 1 },
+  rowTime: { fontSize: 14, color: theme.colors.cta, fontWeight: "600", flex: 1, minWidth: 90, flexShrink: 1 },
   badge: {
     alignSelf: "flex-start",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: theme.radius.full,
+    flexShrink: 0,
   },
   badgeOn: { backgroundColor: theme.colors.successBg },
   badgeOff: { backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.borderMuted },

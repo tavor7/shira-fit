@@ -129,14 +129,20 @@ export default function CoachSessionManageScreen() {
       <TextInput style={styles.input} value={maxP} onChangeText={setMaxP} keyboardType="number-pad" placeholderTextColor={theme.colors.placeholderOnLight} />
       <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משך (דקות)" : "Length (minutes)"}</Text>
       <TextInput style={styles.input} value={durationMin} onChangeText={setDurationMin} keyboardType="number-pad" placeholderTextColor={theme.colors.placeholderOnLight} />
-      <Pressable style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }]} onPress={() => setOpen(!open)}>
-        <Text style={styles.toggleText}>
+      <Pressable
+        style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
+        onPress={() => setOpen(!open)}
+      >
+        <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl]}>
           {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
           {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
         </Text>
       </Pressable>
-      <Pressable style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }]} onPress={() => setHidden(!hidden)}>
-        <Text style={styles.toggleText}>
+      <Pressable
+        style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
+        onPress={() => setHidden(!hidden)}
+      >
+        <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl]}>
           {language === "he"
             ? "מוסתר (צוות בלבד ביומן, ללא הרשמה עצמית): "
             : "Hidden (staff calendar only, no athlete self-register): "}
@@ -167,6 +173,8 @@ const styles = StyleSheet.create({
   },
   toggle: { padding: 12, backgroundColor: theme.colors.white, borderRadius: theme.radius.sm, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
   toggleText: { color: theme.colors.textOnLight, fontSize: 16 },
+  toggleRtl: { alignItems: "flex-end" },
+  toggleTextRtl: { textAlign: "right", writingDirection: "rtl", alignSelf: "stretch", width: "100%" },
   muted: { marginTop: 12, color: theme.colors.textMuted },
   err: { color: theme.colors.error, fontSize: 16, fontWeight: "600" },
 });
