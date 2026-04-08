@@ -55,6 +55,9 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
   const [attending, setAttending] = useState<TrainingSessionWithTrainer[]>([]);
   const [attendingLoading, setAttendingLoading] = useState(true);
   const [participantMap, setParticipantMap] = useState<Record<string, string[]>>({});
+  const [noteMap, setNoteMap] = useState<
+    Record<string, { body: string; authorName: string; created_at: string } | null>
+  >({});
   const [staffBirthdays, setStaffBirthdays] = useState<{ name: string; role: string }[]>([]);
 
   useEffect(() => {
@@ -190,6 +193,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
     const ids = [currentTeaching?.id, nextTeaching?.id].filter(Boolean) as string[];
     if (ids.length === 0) {
       setParticipantMap({});
+      setNoteMap({});
       return;
     }
     let cancelled = false;
@@ -215,6 +219,45 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
         if (map[sid] !== undefined) map[sid].push(name);
       }
       if (!cancelled) setParticipantMap(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTeaching?.id, nextTeaching?.id]);
+
+  useEffect(() => {
+    const ids = [currentTeaching?.id, nextTeaching?.id].filter(Boolean) as string[];
+    if (ids.length === 0) {
+      setNoteMap({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("session_notes")
+        .select("session_id, body, created_at, profiles(full_name)")
+        .in("session_id", ids)
+        .order("created_at", { ascending: false });
+
+      const map: Record<string, { body: string; authorName: string; created_at: string } | null> = {};
+      for (const id of ids) map[id] = null;
+      for (const row of data ?? []) {
+        const r = row as {
+          session_id: string;
+          body: string;
+          created_at: string;
+          profiles: { full_name: string } | { full_name: string }[] | null;
+        };
+        // Keep newest per session (query is sorted desc).
+        if (map[r.session_id]) continue;
+        const p = r.profiles ? (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles) : null;
+        map[r.session_id] = {
+          body: String(r.body ?? ""),
+          authorName: String(p?.full_name ?? "—"),
+          created_at: String(r.created_at ?? ""),
+        };
+      }
+      if (!cancelled) setNoteMap(map);
     })();
     return () => {
       cancelled = true;
@@ -266,6 +309,22 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
     );
   }
 
+  function NoteBlock({ sessionId, title }: { sessionId: string; title: string }) {
+    const note = noteMap[sessionId] ?? null;
+    if (!note?.body) return null;
+    return (
+      <View style={styles.card}>
+        <Text style={[styles.cardTitle, isRTL && styles.rtlText]}>{title}</Text>
+        <Text style={[styles.noteMeta, isRTL && styles.rtlText]} numberOfLines={1}>
+          {note.authorName} · {formatISODateFull(note.created_at.slice(0, 10), language)}
+        </Text>
+        <Text style={[styles.noteBody, isRTL && styles.rtlText]} numberOfLines={4}>
+          {note.body}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.wrap}>
       {staffBirthdays.length > 0 ? (
@@ -305,12 +364,14 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
             <>
               <SessionLine s={currentTeaching} prefix={language === "he" ? "נוכחי" : "Current"} alignRight={isRTL} />
               <ParticipantBlock sessionId={currentTeaching.id} title={language === "he" ? "משתתפים (נוכחי)" : "Participants (current)"} />
+              <NoteBlock sessionId={currentTeaching.id} title={language === "he" ? "הערות (נוכחי)" : "Notes (current)"} />
             </>
           ) : null}
           {nextTeaching ? (
             <>
               <SessionLine s={nextTeaching} prefix={language === "he" ? "הבא" : "Next"} alignRight={isRTL} />
               <ParticipantBlock sessionId={nextTeaching.id} title={language === "he" ? "משתתפים (הבא)" : "Participants (next)"} />
+              <NoteBlock sessionId={nextTeaching.id} title={language === "he" ? "הערות (הבא)" : "Notes (next)"} />
             </>
           ) : null}
         </>
@@ -363,4 +424,6 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 14, fontWeight: "700", color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
   participantName: { fontSize: 15, color: theme.colors.text, marginBottom: 4 },
+  noteMeta: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700", marginBottom: 6 },
+  noteBody: { color: theme.colors.text, fontSize: 14, fontWeight: "700", lineHeight: 18 },
 });

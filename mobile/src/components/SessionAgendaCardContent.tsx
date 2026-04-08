@@ -19,6 +19,7 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
   const m = item.maxParticipants ?? 0;
   const full = showFill && m > 0 && c >= m;
   const left = showFill && m > 0 ? Math.max(0, m - c) : null;
+  const regOpen = item.isOpenForRegistration !== false;
 
   return (
     <View
@@ -39,6 +40,8 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
         <View style={[styles.chips, isRTL && styles.chipsRtl]}>
           {full ? (
             <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" />
+          ) : !regOpen ? (
+            <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
           ) : (
             <>
               <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
@@ -48,6 +51,11 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
             </>
           )}
         </View>
+      ) : null}
+      {showFill && !staffLabels ? (
+        <Text style={[styles.fill, compact && styles.fillCompact]}>
+          {c} / {m}
+        </Text>
       ) : null}
       {showFill && staffLabels ? (
         <Text style={[styles.fill, compact && styles.fillCompact]}>

@@ -25,6 +25,7 @@ export default function AthleteSessionDetail() {
   const [registered, setRegistered] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [names, setNames] = useState<string[]>([]);
   const uid = async () => (await supabase.auth.getUser()).data.user?.id;
 
   useEffect(() => {
@@ -63,6 +64,10 @@ export default function AthleteSessionDetail() {
           .maybeSingle();
         setOnWaitlist(!!w);
       }
+
+      const { data: ppl } = await supabase.rpc("list_session_participants", { p_session_id: id });
+      const list = Array.isArray(ppl) ? (ppl as { full_name: string }[]).map((x) => x.full_name).filter(Boolean) : [];
+      setNames(list);
     })();
   }, [id]);
 
@@ -154,6 +159,7 @@ export default function AthleteSessionDetail() {
     );
   const full = count >= session.max_participants;
   const spotsLeft = Math.max(0, session.max_participants - count);
+  const regOpen = !!session.is_open_for_registration;
 
   return (
     <View style={styles.box}>
@@ -169,6 +175,8 @@ export default function AthleteSessionDetail() {
         <View style={[styles.chips, isRTL && styles.chipsRtl]}>
           {full ? (
             <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" />
+          ) : !regOpen ? (
+            <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
           ) : (
             <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
           )}
@@ -178,13 +186,36 @@ export default function AthleteSessionDetail() {
           />
         </View>
       </View>
+
+      <View style={styles.partCard}>
+        <Text style={[styles.partTitle, isRTL && styles.rtlText]}>{language === "he" ? "משתתפים" : "Participants"}</Text>
+        {names.length === 0 ? (
+          <Text style={[styles.partEmpty, isRTL && styles.rtlText]}>
+            {language === "he" ? "אין משתתפים רשומים עדיין." : "No registered participants yet."}
+          </Text>
+        ) : (
+          <View style={styles.partList}>
+            {names.slice(0, 24).map((n) => (
+              <Text key={n} style={[styles.partName, isRTL && styles.rtlText]} numberOfLines={1}>
+                {n}
+              </Text>
+            ))}
+            {names.length > 24 ? (
+              <Text style={[styles.partMore, isRTL && styles.rtlText]}>
+                {language === "he" ? `ועוד ${names.length - 24}` : `+${names.length - 24} more`}
+              </Text>
+            ) : null}
+          </View>
+        )}
+      </View>
+
       {!registered ? (
         <>
           <PrimaryButton
             label={language === "he" ? "הרשמה" : "Register"}
             onPress={register}
-            disabled={full}
-            style={full ? styles.disabled : undefined}
+            disabled={full || !regOpen}
+            style={full || !regOpen ? styles.disabled : undefined}
           />
           {full && (
             <Pressable style={styles.btn2} onPress={waitlist}>
@@ -199,6 +230,11 @@ export default function AthleteSessionDetail() {
               </Text>
             </Pressable>
           )}
+          {!full && !regOpen ? (
+            <Text style={[styles.closedHint, isRTL && styles.rtlText]}>
+              {language === "he" ? "ההרשמה סגורה כרגע." : "Registration is currently closed."}
+            </Text>
+          ) : null}
         </>
       ) : (
         <Pressable style={styles.btnDanger} onPress={() => setCancelOpen(true)}>
@@ -256,9 +292,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: theme.colors.surface,
   },
+  closedHint: { marginTop: 10, color: theme.colors.textMuted, fontWeight: "700" },
   btnText: { color: "#fff", textAlign: "center", fontWeight: "600" },
   btnText2: { color: theme.colors.cta, fontWeight: "600" },
   btnDanger: { marginTop: 24, backgroundColor: theme.colors.error, padding: 16, borderRadius: theme.radius.md, alignItems: "center" },
+  partCard: {
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.lg,
+    borderRadius: theme.radius.lg,
+    marginBottom: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  partTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  partEmpty: { marginTop: 8, color: theme.colors.textMuted, fontWeight: "600" },
+  partList: { marginTop: 10, gap: 6 },
+  partName: { color: theme.colors.text, fontWeight: "700" },
+  partMore: { marginTop: 6, color: theme.colors.textMuted, fontWeight: "800" },
   modal: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.4)" },
   modalCard: {
     backgroundColor: theme.colors.surfaceElevated,

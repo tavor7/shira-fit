@@ -79,6 +79,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
   const max = next?.max_participants ?? 0;
   const full = next ? count >= max : false;
   const spotsLeft = Math.max(0, max - count);
+  const regOpen = !!next?.is_open_for_registration;
 
   async function onRegister() {
     if (!next) return;
@@ -178,7 +179,11 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
 
   const chips = (
     <View style={[styles.chips, isRTL && styles.chipsRtl]}>
-      <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
+      {regOpen ? (
+        <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
+      ) : (
+        <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
+      )}
       {full ? <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" /> : null}
       {regId ? <StatusChip label={language === "he" ? "נרשמת" : "Registered"} tone="info" /> : null}
       {waitlist && !regId ? <StatusChip label={language === "he" ? "המתנה" : "Waitlist"} tone="warning" /> : null}
@@ -213,10 +218,24 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
       ) : !busy && !regId ? (
         <PrimaryButton
           label={primaryLabel}
-          onPress={full ? (waitlist ? () => router.push(`/(app)/athlete/session/${next.id}`) : onWaitlist) : onRegister}
-          disabled={full && waitlist}
+          onPress={
+            !regOpen
+              ? () => router.push(`/(app)/athlete/session/${next.id}`)
+              : full
+                ? waitlist
+                  ? () => router.push(`/(app)/athlete/session/${next.id}`)
+                  : onWaitlist
+                : onRegister
+          }
+          disabled={!regOpen || (full && waitlist)}
           style={{ marginTop: theme.spacing.md }}
         />
+      ) : null}
+
+      {!regOpen && !regId ? (
+        <Text style={[styles.closedHint, isRTL && styles.rtl]}>
+          {language === "he" ? "ההרשמה סגורה כרגע." : "Registration is currently closed."}
+        </Text>
       ) : null}
 
       <Pressable style={styles.detailTap} onPress={() => router.push(`/(app)/athlete/session/${next.id}`)} disabled={busy}>
@@ -256,6 +275,7 @@ const styles = StyleSheet.create({
   chipsRtl: { flexDirection: "row-reverse" },
   spots: { marginTop: 10, fontSize: 16, fontWeight: "800", color: theme.colors.cta },
   rtl: { textAlign: "right", alignSelf: "stretch" },
+  closedHint: { marginTop: 10, color: theme.colors.textMuted, fontWeight: "700" },
   linkBtn: { marginTop: 12, alignSelf: "flex-start" },
   linkTxt: { color: theme.colors.cta, fontWeight: "800" },
   detailTap: { marginTop: 10, alignSelf: "flex-start" },

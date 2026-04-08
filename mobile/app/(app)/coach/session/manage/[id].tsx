@@ -11,6 +11,15 @@ import { isMissingColumnError } from "../../../../../src/lib/dbColumnErrors";
 import { isValidISODateString } from "../../../../../src/lib/isoDate";
 import { useI18n } from "../../../../../src/context/I18nContext";
 
+type EditSnapshot = {
+  date: string;
+  time: string;
+  maxP: string;
+  durationMin: string;
+  open: boolean;
+  hidden: boolean;
+};
+
 export default function CoachSessionManageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
@@ -23,6 +32,41 @@ export default function CoachSessionManageScreen() {
   const [durationMin, setDurationMin] = useState("");
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [undoStack, setUndoStack] = useState<EditSnapshot[]>([]);
+
+  function pushUndo() {
+    setUndoStack((prev) => {
+      const snap: EditSnapshot = { date, time, maxP, durationMin, open, hidden };
+      const head = prev[prev.length - 1];
+      if (
+        head &&
+        head.date === snap.date &&
+        head.time === snap.time &&
+        head.maxP === snap.maxP &&
+        head.durationMin === snap.durationMin &&
+        head.open === snap.open &&
+        head.hidden === snap.hidden
+      ) {
+        return prev;
+      }
+      if (prev.length >= 30) return [...prev.slice(prev.length - 29), snap];
+      return [...prev, snap];
+    });
+  }
+
+  function undoLast() {
+    setUndoStack((prev) => {
+      const snap = prev[prev.length - 1];
+      if (!snap) return prev;
+      setDate(snap.date);
+      setTime(snap.time);
+      setMaxP(snap.maxP);
+      setDurationMin(snap.durationMin);
+      setOpen(snap.open);
+      setHidden(snap.hidden);
+      return prev.slice(0, -1);
+    });
+  }
 
   useEffect(() => {
     (async () => {
@@ -47,6 +91,7 @@ export default function CoachSessionManageScreen() {
       setDurationMin(String(s.duration_minutes ?? 60));
       setOpen(s.is_open_for_registration);
       setHidden(!!(s as { is_hidden?: boolean }).is_hidden);
+      setUndoStack([]);
       setForbidden(false);
       setReady(true);
     })();
@@ -123,15 +168,50 @@ export default function CoachSessionManageScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
       <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "עריכת האימון שלך" : "Edit your session"}</Text>
-      <DatePickerField label={language === "he" ? "תאריך אימון" : "Session date"} value={date} onChange={setDate} />
-      <TimePickerField label={language === "he" ? "שעת התחלה" : "Start time"} value={time} onChange={setTime} />
+      <DatePickerField
+        label={language === "he" ? "תאריך אימון" : "Session date"}
+        value={date}
+        onChange={(v) => {
+          pushUndo();
+          setDate(v);
+        }}
+      />
+      <TimePickerField
+        label={language === "he" ? "שעת התחלה" : "Start time"}
+        value={time}
+        onChange={(v) => {
+          pushUndo();
+          setTime(v);
+        }}
+      />
       <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
-      <TextInput style={styles.input} value={maxP} onChangeText={setMaxP} keyboardType="number-pad" placeholderTextColor={theme.colors.placeholderOnLight} />
+      <TextInput
+        style={styles.input}
+        value={maxP}
+        onChangeText={(v) => {
+          pushUndo();
+          setMaxP(v);
+        }}
+        keyboardType="number-pad"
+        placeholderTextColor={theme.colors.placeholderOnLight}
+      />
       <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משך (דקות)" : "Length (minutes)"}</Text>
-      <TextInput style={styles.input} value={durationMin} onChangeText={setDurationMin} keyboardType="number-pad" placeholderTextColor={theme.colors.placeholderOnLight} />
+      <TextInput
+        style={styles.input}
+        value={durationMin}
+        onChangeText={(v) => {
+          pushUndo();
+          setDurationMin(v);
+        }}
+        keyboardType="number-pad"
+        placeholderTextColor={theme.colors.placeholderOnLight}
+      />
       <Pressable
         style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
-        onPress={() => setOpen(!open)}
+        onPress={() => {
+          pushUndo();
+          setOpen(!open);
+        }}
       >
         <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl]}>
           {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
@@ -140,7 +220,10 @@ export default function CoachSessionManageScreen() {
       </Pressable>
       <Pressable
         style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
-        onPress={() => setHidden(!hidden)}
+        onPress={() => {
+          pushUndo();
+          setHidden(!hidden);
+        }}
       >
         <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl]}>
           {language === "he"
@@ -148,6 +231,17 @@ export default function CoachSessionManageScreen() {
             : "Hidden (staff calendar only, no athlete self-register): "}
           {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
         </Text>
+      </Pressable>
+      <Pressable
+        onPress={undoLast}
+        disabled={undoStack.length === 0}
+        style={({ pressed }) => [
+          styles.undoBtn,
+          pressed && undoStack.length > 0 && { opacity: 0.85 },
+          undoStack.length === 0 && { opacity: 0.45 },
+        ]}
+      >
+        <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
       </Pressable>
       <PrimaryButton label={t("common.save")} onPress={saveSession} />
     </ScrollView>
@@ -175,6 +269,17 @@ const styles = StyleSheet.create({
   toggleText: { color: theme.colors.textOnLight, fontSize: 16 },
   toggleRtl: { alignItems: "flex-end" },
   toggleTextRtl: { textAlign: "right", writingDirection: "rtl", alignSelf: "stretch", width: "100%" },
+  undoBtn: {
+    marginTop: 4,
+    marginBottom: theme.spacing.sm,
+    paddingVertical: 12,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+  },
+  undoBtnTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
   muted: { marginTop: 12, color: theme.colors.textMuted },
   err: { color: theme.colors.error, fontSize: 16, fontWeight: "600" },
 });

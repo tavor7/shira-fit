@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Alert } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Alert, TextInput, Pressable, ActivityIndicator } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
@@ -18,12 +18,23 @@ type CancellationRow = {
   profiles: { full_name: string } | { full_name: string }[] | null;
 };
 
+type NoteRow = {
+  id: string;
+  body: string;
+  author_id: string;
+  created_at: string;
+  profiles: { full_name: string } | { full_name: string }[] | null;
+};
+
 export default function CoachSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
   const [participantsRev, setParticipantsRev] = useState(0);
   const [waitlist, setWaitlist] = useState<W[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
+  const [notes, setNotes] = useState<NoteRow[]>([]);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteBusy, setNoteBusy] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [coachId, setCoachId] = useState<string | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
@@ -49,9 +60,23 @@ export default function CoachSessionDetail() {
     setCancellations((data as unknown as CancellationRow[]) ?? []);
   }
 
+  async function loadNotes() {
+    const { data, error } = await supabase
+      .from("session_notes")
+      .select("id, body, author_id, created_at, profiles(full_name)")
+      .eq("session_id", id)
+      .order("created_at", { ascending: false });
+    if (error) {
+      setNotes([]);
+      return;
+    }
+    setNotes((data as unknown as NoteRow[]) ?? []);
+  }
+
   useEffect(() => {
     loadWaitlist();
     loadCancellations();
+    loadNotes();
     void (async () => {
       const uid = (await supabase.auth.getUser()).data.user?.id ?? null;
       setMyId(uid);
@@ -59,6 +84,46 @@ export default function CoachSessionDetail() {
       setCoachId((s as { coach_id?: string } | null)?.coach_id ?? null);
     })();
   }, [id]);
+
+  async function addNote() {
+    const body = noteDraft.trim();
+    if (!body) return;
+    setNoteBusy(true);
+    const { data, error } = await supabase.rpc("add_session_note", { p_session_id: id, p_body: body });
+    setNoteBusy(false);
+    if (error) {
+      Alert.alert(t("common.error"), error.message);
+      return;
+    }
+    if (!data?.ok) {
+      Alert.alert(t("common.failed"), data?.error ?? "");
+      return;
+    }
+    setNoteDraft("");
+    await loadNotes();
+  }
+
+  async function deleteNote(noteId: string) {
+    const msg = language === "he" ? "למחוק את ההערה?" : "Delete this note?";
+    const run = async () => {
+      setNoteBusy(true);
+      const { data, error } = await supabase.rpc("delete_session_note", { p_note_id: noteId });
+      setNoteBusy(false);
+      if (error) {
+        Alert.alert(t("common.error"), error.message);
+        return;
+      }
+      if (!data?.ok) {
+        Alert.alert(t("common.failed"), data?.error ?? "");
+        return;
+      }
+      await loadNotes();
+    };
+    Alert.alert(language === "he" ? "מחיקת הערה" : "Delete note", msg, [
+      { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
+      { text: language === "he" ? "מחיקה" : "Delete", style: "destructive", onPress: () => void run() },
+    ]);
+  }
 
   async function removeAthlete(userId: string) {
     const { data, error } = await supabase.rpc("coach_remove_athlete", { p_session_id: id, p_user_id: userId });
@@ -84,6 +149,7 @@ export default function CoachSessionDetail() {
   function afterParticipantsChange() {
     loadWaitlist();
     loadCancellations();
+    loadNotes();
   }
 
   return (
@@ -95,6 +161,50 @@ export default function CoachSessionDetail() {
           variant="ghost"
         />
       ) : null}
+
+      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "הערות" : "Notes"}</Text>
+      <View style={styles.notesCard}>
+        <TextInput
+          style={[styles.noteInput, isRTL && styles.noteInputRtl]}
+          value={noteDraft}
+          onChangeText={setNoteDraft}
+          placeholder={language === "he" ? "הוספת הערה לצוות…" : "Add a staff-only note…"}
+          placeholderTextColor={theme.colors.placeholderOnLight}
+          multiline
+        />
+        <Pressable
+          style={({ pressed }) => [styles.noteBtn, pressed && { opacity: 0.9 }, (noteBusy || !noteDraft.trim()) && { opacity: 0.5 }]}
+          onPress={() => void addNote()}
+          disabled={noteBusy || !noteDraft.trim()}
+        >
+          {noteBusy ? <ActivityIndicator color={theme.colors.ctaText} /> : <Text style={styles.noteBtnTxt}>{language === "he" ? "שמירה" : "Save note"}</Text>}
+        </Pressable>
+
+        {notes.length === 0 ? (
+          <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין הערות." : "No notes yet."}</Text>
+        ) : (
+          <View style={styles.noteList}>
+            {notes.map((n) => {
+              const p = n.profiles ? (Array.isArray(n.profiles) ? n.profiles[0] : n.profiles) : null;
+              const name = p?.full_name ?? n.author_id;
+              const canDelete = !!myId && myId === n.author_id;
+              return (
+                <View key={n.id} style={styles.noteRow}>
+                  <Text style={[styles.noteMeta, isRTL && styles.rtlText]}>
+                    {name} · {formatDateTimeForDisplay(n.created_at, language)}
+                  </Text>
+                  <Text style={[styles.noteBody, isRTL && styles.rtlText]}>{n.body}</Text>
+                  {canDelete ? (
+                    <Pressable style={({ pressed }) => [styles.noteDelete, pressed && { opacity: 0.85 }]} onPress={() => deleteNote(n.id)}>
+                      <Text style={styles.noteDeleteTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </View>
 
       <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משתתפים ונוכחות" : "Participants & attendance"}</Text>
       <ParticipantAttendanceList
@@ -166,6 +276,44 @@ const styles = StyleSheet.create({
   rtlText: { textAlign: "right" },
   row: { paddingVertical: 8, borderBottomWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
   muted: { color: theme.colors.textSoft },
+  notesCard: {
+    marginTop: 4,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+  },
+  noteInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderInput,
+    borderRadius: theme.radius.sm,
+    padding: 12,
+    minHeight: 84,
+    backgroundColor: theme.colors.white,
+    color: theme.colors.textOnLight,
+  },
+  noteInputRtl: { textAlign: "right", writingDirection: "rtl" },
+  noteBtn: {
+    marginTop: theme.spacing.sm,
+    backgroundColor: theme.colors.cta,
+    paddingVertical: 12,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+  },
+  noteBtnTxt: { color: theme.colors.ctaText, fontWeight: "900" },
+  noteList: { marginTop: theme.spacing.md, gap: 10 },
+  noteRow: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+  },
+  noteMeta: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700" },
+  noteBody: { marginTop: 6, color: theme.colors.text, fontWeight: "700", lineHeight: 18 },
+  noteDelete: { marginTop: 10, alignSelf: "flex-start" },
+  noteDeleteTxt: { color: theme.colors.error, fontWeight: "900" },
   cancelCard: {
     marginTop: theme.spacing.sm,
     padding: theme.spacing.md,

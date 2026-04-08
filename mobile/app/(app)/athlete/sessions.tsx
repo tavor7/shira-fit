@@ -54,6 +54,7 @@ export default function AthleteSessionsScreen() {
         signedUpCount: signupBySession[s.id] ?? 0,
         maxParticipants: s.max_participants,
         accentColor: resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id),
+        isOpenForRegistration: !!s.is_open_for_registration,
         onPress: () => router.push(`/(app)/athlete/session/${s.id}`),
       })),
     [rows, signupBySession]

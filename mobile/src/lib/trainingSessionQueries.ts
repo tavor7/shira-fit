@@ -18,12 +18,11 @@ export async function fetchStaffTrainingSessionsForCalendar() {
   return res;
 }
 
-/** Athlete browse: open sessions; retries if `is_hidden` or `calendar_color` is missing on DB. */
+/** Athlete browse: all non-hidden sessions (even if closed); retries if `is_hidden` or `calendar_color` is missing on DB. */
 export async function fetchAthleteOpenSessionsForCalendar() {
   let res = await supabase
     .from("training_sessions")
     .select("*, trainer:profiles!coach_id(full_name, calendar_color)")
-    .eq("is_open_for_registration", true)
     .eq("is_hidden", false)
     .order("session_date")
     .order("start_time");
@@ -31,7 +30,6 @@ export async function fetchAthleteOpenSessionsForCalendar() {
     res = await supabase
       .from("training_sessions")
       .select("*, trainer:profiles!coach_id(full_name, calendar_color)")
-      .eq("is_open_for_registration", true)
       .order("session_date")
       .order("start_time");
   }
@@ -39,7 +37,6 @@ export async function fetchAthleteOpenSessionsForCalendar() {
     res = await supabase
       .from("training_sessions")
       .select("*, trainer:profiles!coach_id(full_name)")
-      .eq("is_open_for_registration", true)
       .eq("is_hidden", false)
       .order("session_date")
       .order("start_time");
@@ -47,7 +44,6 @@ export async function fetchAthleteOpenSessionsForCalendar() {
       res = await supabase
         .from("training_sessions")
         .select("*, trainer:profiles!coach_id(full_name)")
-        .eq("is_open_for_registration", true)
         .order("session_date")
         .order("start_time");
     }
