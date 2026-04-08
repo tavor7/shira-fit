@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
+import { ManagerOverviewTabs } from "../components/ManagerOverviewTabs";
 
 type Row = {
   user_id: string;
@@ -65,6 +66,7 @@ export default function StaffUsersScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.top}>
+        {isManager ? <ManagerOverviewTabs /> : null}
         <Text style={[styles.title, isRTL && styles.rtlText]}>{language === "he" ? "משתמשים" : "Users"}</Text>
         <Text style={[styles.hint, isRTL && styles.rtlText]}>{subtitle}</Text>
         <TextInput

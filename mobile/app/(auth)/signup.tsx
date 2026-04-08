@@ -138,7 +138,7 @@ export default function SignupScreen() {
           </View>
         ) : null}
         <TextInput
-          style={styles.input}
+          style={[styles.input, isRTL && styles.inputRtl]}
           placeholder={t("auth.email")}
           placeholderTextColor={theme.colors.textSoft}
           autoCapitalize="none"
@@ -150,7 +150,7 @@ export default function SignupScreen() {
           }}
         />
         <TextInput
-          style={styles.input}
+          style={[styles.input, isRTL && styles.inputRtl]}
           placeholder={t("auth.passwordMin6")}
           placeholderTextColor={theme.colors.textSoft}
           secureTextEntry
@@ -158,14 +158,14 @@ export default function SignupScreen() {
           onChangeText={setPassword}
         />
         <TextInput
-          style={styles.input}
+          style={[styles.input, isRTL && styles.inputRtl]}
           placeholder={t("profile.fullName")}
           placeholderTextColor={theme.colors.textSoft}
           value={fullName}
           onChangeText={setFullName}
         />
         <TextInput
-          style={styles.input}
+          style={[styles.input, isRTL && styles.inputRtl]}
           placeholder={t("profile.phone")}
           placeholderTextColor={theme.colors.textSoft}
           keyboardType="phone-pad"
@@ -258,6 +258,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
     color: theme.colors.text,
   },
+  inputRtl: { textAlign: "right", writingDirection: "rtl" },
   genderRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
   genderBtn: {
     flex: 1,

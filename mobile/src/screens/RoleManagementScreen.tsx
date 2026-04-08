@@ -3,6 +3,7 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "r
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { ManagerOverviewTabs } from "../components/ManagerOverviewTabs";
 
 type Role = "athlete" | "coach" | "manager";
 type Row = {
@@ -77,6 +78,7 @@ export default function RoleManagementScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.top}>
+        <ManagerOverviewTabs />
         <Text style={[styles.title, isRTL && styles.rtlText]}>{t("menu.roles")}</Text>
         <Text style={[styles.hint, isRTL && styles.rtlText]}>
           {language === "he"

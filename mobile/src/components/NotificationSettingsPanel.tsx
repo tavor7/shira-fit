@@ -6,6 +6,7 @@ import { useI18n } from "../context/I18nContext";
 import { loadNotificationPrefs, saveNotificationPrefs, type NotificationPrefs } from "../lib/notificationPrefs";
 import { syncExpoPushTokenIfNeeded } from "../lib/pushTokenSync";
 import * as Notifications from "expo-notifications";
+import { useToast } from "../context/ToastContext";
 
 type Props = {
   /** Standalone screen shows main title; embedded in Profile uses tab label only. */
@@ -14,6 +15,7 @@ type Props = {
 
 export function NotificationSettingsPanel({ variant = "screen" }: Props) {
   const { language, isRTL } = useI18n();
+  const { showToast } = useToast();
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
 
   const load = useCallback(async () => {
@@ -31,7 +33,18 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
     await saveNotificationPrefs(next);
     if (key === "sessionReminders" || key === "waitlistAlerts") {
       if (!next.sessionReminders && !next.waitlistAlerts) {
-        await Notifications.cancelAllScheduledNotificationsAsync();
+        if (Platform.OS === "web") {
+          showToast({
+            message: language === "he" ? "התראות מקומיות זמינות בעיקר בנייד." : "Local alerts work best on iOS/Android.",
+            variant: "info",
+          });
+        } else {
+          try {
+            await Notifications.cancelAllScheduledNotificationsAsync();
+          } catch {
+            // ignore (permissions missing, not supported, etc.)
+          }
+        }
       }
     }
     void syncExpoPushTokenIfNeeded();

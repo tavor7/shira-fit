@@ -9,6 +9,10 @@
     "userInterfaceStyle": "light",
     "plugins": ["expo-router", "expo-notifications"],
     "experiments": { "typedRoutes": true },
+    "updates": {
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "ios": { "supportsTablet": true, "bundleIdentifier": "com.shirafit.app" },
     "android": {
       "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#ffffff" },

@@ -33,16 +33,29 @@ export default function MySessionsScreen() {
     }
     const { data } = await supabase
       .from("session_registrations")
-      .select("session_id, training_sessions(id, session_date, start_time, duration_minutes)")
+      .select("session_id")
       .eq("user_id", u)
       .eq("status", "active");
 
-    const list: Row[] = [];
-    for (const r of data ?? []) {
-      const raw = r as { session_id: string; training_sessions: TsNested | TsNested[] | null };
-      const ts = raw.training_sessions;
-      if (ts && !Array.isArray(ts)) list.push({ session_id: raw.session_id, training_sessions: ts });
+    const sessionIds = (data ?? []).map((r) => String((r as any).session_id)).filter(Boolean);
+    if (sessionIds.length === 0) {
+      setRows([]);
+      setLoading(false);
+      return;
     }
+
+    // Fetch sessions separately so hidden sessions still appear for already-registered athletes,
+    // even if the foreign-table join is affected by RLS filtering.
+    const { data: sessData } = await supabase
+      .from("training_sessions")
+      .select("id, session_date, start_time, duration_minutes")
+      .in("id", sessionIds);
+    const sessions = ((sessData as TsNested[]) ?? []).filter((x) => !!x?.id);
+    const byId = new Map(sessions.map((s) => [s.id, s]));
+    const list: Row[] = sessionIds.map((id) => {
+      const ts = byId.get(id);
+      return ts ? { session_id: id, training_sessions: ts } : null;
+    }).filter((x): x is Row => x !== null);
     setRows(list);
     setLoading(false);
   }, []);

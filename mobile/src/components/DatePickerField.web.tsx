@@ -3,14 +3,16 @@ import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { toISODateLocal } from "../lib/isoDate";
 import type { DatePickerFieldProps } from "./DatePickerField.types";
+import { useI18n } from "../context/I18nContext";
 
 export function DatePickerField({ label, value, onChange, minimumDate, maximumDate }: DatePickerFieldProps) {
+  const { isRTL } = useI18n();
   const min = minimumDate ? toISODateLocal(minimumDate) : undefined;
   const max = maximumDate ? toISODateLocal(maximumDate) : undefined;
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
       {createElement("input", {
         type: "date",
         value: value || "",
@@ -27,6 +29,7 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
           backgroundColor: theme.colors.white,
           color: theme.colors.textOnLight,
           fontFamily: "system-ui, -apple-system, sans-serif",
+          textAlign: isRTL ? ("right" as const) : ("left" as const),
         },
       })}
     </View>
@@ -36,4 +39,5 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
 const styles = StyleSheet.create({
   wrap: { marginTop: theme.spacing.sm },
   label: { marginBottom: 6, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
+  rtlText: { textAlign: "right" },
 });

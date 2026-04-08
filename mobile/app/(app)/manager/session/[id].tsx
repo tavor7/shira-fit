@@ -16,6 +16,7 @@ import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { ParticipantAttendanceList } from "../../../../src/components/ParticipantAttendanceList";
 import { AddParticipantToSessionModal } from "../../../../src/components/AddParticipantToSessionModal";
 import { DatePickerField } from "../../../../src/components/DatePickerField";
+import { TimePickerField } from "../../../../src/components/TimePickerField";
 import { isMissingColumnError } from "../../../../src/lib/dbColumnErrors";
 import { isValidISODateString } from "../../../../src/lib/isoDate";
 import { useI18n } from "../../../../src/context/I18nContext";
@@ -167,8 +168,7 @@ export default function ManagerSessionDetail() {
         <View style={styles.editBlock}>
           <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "עריכת אימון" : "Edit session"}</Text>
           <DatePickerField label={language === "he" ? "תאריך אימון" : "Session date"} value={date} onChange={setDate} />
-          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "שעת התחלה (HH:MM)" : "Start time (HH:MM)"}</Text>
-          <TextInput style={styles.input} value={time} onChangeText={setTime} placeholderTextColor={theme.colors.placeholderOnLight} />
+          <TimePickerField label={language === "he" ? "שעת התחלה" : "Start time"} value={time} onChange={setTime} />
           <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
           <TextInput style={styles.input} value={maxP} onChangeText={setMaxP} keyboardType="number-pad" placeholderTextColor={theme.colors.placeholderOnLight} />
           <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משך (דקות)" : "Length (minutes)"}</Text>

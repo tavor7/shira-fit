@@ -8,6 +8,7 @@ import { addDaysToISODate } from "../lib/sessionTime";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { toISODateLocal, isValidISODateString } from "../lib/isoDate";
 import { DatePickerField } from "./DatePickerField";
+import { TimePickerField } from "./TimePickerField";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { appendNetworkHint } from "../lib/networkErrors";
@@ -160,13 +161,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   return (
     <ScrollView contentContainerStyle={styles.box} keyboardShouldPersistTaps="handled">
       <DatePickerField label={language === "he" ? "תאריך אימון" : "Session date"} value={date} onChange={setDate} />
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "שעת התחלה (HH:MM)" : "Start time (HH:MM)"}</Text>
-      <TextInput
-        style={styles.input}
-        value={time}
-        onChangeText={setTime}
-        placeholderTextColor={theme.colors.placeholderOnLight}
-      />
+      <TimePickerField label={language === "he" ? "שעת התחלה" : "Start time"} value={time} onChange={setTime} />
       {fixedCoachId ? (
         <>
           <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן" : "Trainer"}</Text>

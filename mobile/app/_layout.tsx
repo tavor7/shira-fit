@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 import { AuthProvider } from "../src/context/AuthContext";
-import { View, type TextStyle, type ViewStyle } from "react-native";
+import { Platform, View, type TextStyle, type ViewStyle } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { theme } from "../src/theme";
@@ -10,6 +10,8 @@ import { ManagerAthletePreviewProvider } from "../src/context/ManagerAthletePrev
 import { ToastProvider } from "../src/context/ToastContext";
 import { AppErrorBoundary } from "../src/components/AppErrorBoundary";
 import { initNotificationHandler } from "../src/lib/notificationsInit";
+import { useEffect } from "react";
+import * as Updates from "expo-updates";
 
 initNotificationHandler();
 
@@ -27,6 +29,21 @@ const rootHeaderTitleStyle: TextStyle = {
 };
 
 export default function RootLayout() {
+  useEffect(() => {
+    if (__DEV__) return;
+    if (Platform.OS === "web") return;
+    (async () => {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (!update.isAvailable) return;
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
+      } catch {
+        // ignore (offline, disabled updates, etc.)
+      }
+    })();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>

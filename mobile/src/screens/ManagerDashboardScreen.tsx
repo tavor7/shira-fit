@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from "react-native";
-import { router } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { formatISODateFull } from "../lib/dateFormat";
 import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "../components/StatusChip";
+import { ManagerOverviewTabs } from "../components/ManagerOverviewTabs";
 
 function startOfWeekSunday(d: Date) {
   const x = new Date(d);
@@ -55,39 +55,10 @@ export default function ManagerDashboardScreen() {
     return Object.entries(p).sort((a, b) => b[1] - a[1]);
   }, [data]);
 
-  const tools = useMemo(
-    () => [
-      { label: t("menu.editUsers"), sub: language === "he" ? "פרופילים ומשתתפים ידניים" : "Profiles & manual participants", path: "/(app)/staff/users" as const },
-      { label: t("menu.trainerColors"), sub: language === "he" ? "פס צבע ביומן" : "Calendar stripe colors", path: "/(app)/manager/trainer-colors" as const },
-      { label: t("menu.roles"), sub: language === "he" ? "מאמן / מנהל / מתאמן" : "Coach, manager, athlete", path: "/(app)/manager/roles" as const },
-      { label: t("menu.openingSchedule"), sub: language === "he" ? "מתי נפתחת הרשמה לשבוע הבא" : "When next week opens", path: "/(app)/manager/opening-schedule" as const },
-    ],
-    [t, language]
-  );
-
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>{t("dashboard.management")}</Text>
-      <View style={[styles.toolsRow, isRTL && styles.toolsRowRtl]}>
-        {tools.map((x) => (
-          <Pressable
-            key={x.path}
-            onPress={() => router.push(x.path)}
-            accessibilityRole="button"
-            accessibilityLabel={x.label}
-            style={({ pressed }) => [styles.toolCard, pressed && styles.toolCardPressed]}
-          >
-            <Text style={styles.toolLabel} numberOfLines={3}>
-              {x.label}
-            </Text>
-            <Text style={styles.toolSub} numberOfLines={3}>
-              {x.sub}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={[styles.h, isRTL && styles.rtl, { marginTop: 8 }]}>{t("dashboard.weeklyOverview")}</Text>
+      <ManagerOverviewTabs />
+      <Text style={[styles.h, isRTL && styles.rtl]}>{t("dashboard.weeklyOverview")}</Text>
       <View style={[styles.weekNav, isRTL && styles.weekNavRtl]}>
         <Pressable style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]} onPress={() => setWeekStart((w) => shiftWeek(w, -7))}>
           <Text style={styles.navBtnTxt}>{"<"}</Text>
@@ -163,36 +134,6 @@ function shiftWeek(iso: string, days: number): string {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: 40 },
-  sectionTitle: { fontSize: 13, fontWeight: "800", color: theme.colors.textSoft, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 12 },
-  toolsRow: { flexDirection: "row", gap: 8, marginBottom: 24 },
-  toolsRowRtl: { flexDirection: "row-reverse" },
-  toolCard: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 100,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surfaceElevated,
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  toolCardPressed: { opacity: 0.92 },
-  toolLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: theme.colors.text,
-    lineHeight: 15,
-    textAlign: "center",
-  },
-  toolSub: {
-    marginTop: 6,
-    fontSize: 10,
-    color: theme.colors.textMuted,
-    lineHeight: 13,
-    fontWeight: "600",
-    textAlign: "center",
-  },
   h: { fontSize: 20, fontWeight: "900", color: theme.colors.text, marginBottom: 12 },
   rtl: { textAlign: "right", alignSelf: "stretch" },
   weekNav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },

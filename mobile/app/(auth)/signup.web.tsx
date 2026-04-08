@@ -139,7 +139,7 @@ export default function SignupScreen() {
           </View>
         ) : null}
         <TextInput
-          style={styles.input}
+          style={[styles.input, isRTL && styles.inputRtl]}
           placeholder={t("auth.email")}
           placeholderTextColor={theme.colors.textSoft}
           autoCapitalize="none"
@@ -148,15 +148,28 @@ export default function SignupScreen() {
           onChangeText={(t) => { setEmail(t); setErrorMessage(""); }}
         />
         <TextInput
-          style={styles.input}
+          style={[styles.input, isRTL && styles.inputRtl]}
           placeholder={t("auth.passwordMin6")}
           placeholderTextColor={theme.colors.textSoft}
           secureTextEntry
           value={password}
           onChangeText={setPassword}
         />
-        <TextInput style={styles.input} placeholder={t("profile.fullName")} placeholderTextColor={theme.colors.textSoft} value={fullName} onChangeText={setFullName} />
-        <TextInput style={styles.input} placeholder={t("profile.phone")} placeholderTextColor={theme.colors.textSoft} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+        <TextInput
+          style={[styles.input, isRTL && styles.inputRtl]}
+          placeholder={t("profile.fullName")}
+          placeholderTextColor={theme.colors.textSoft}
+          value={fullName}
+          onChangeText={setFullName}
+        />
+        <TextInput
+          style={[styles.input, isRTL && styles.inputRtl]}
+          placeholder={t("profile.phone")}
+          placeholderTextColor={theme.colors.textSoft}
+          keyboardType="phone-pad"
+          value={phone}
+          onChangeText={setPhone}
+        />
         <DatePickerField
           label={language === "he" ? "תאריך לידה" : "Date of birth"}
           value={dobText}
@@ -236,6 +249,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
     color: theme.colors.text,
   },
+  inputRtl: { textAlign: "right", writingDirection: "rtl" },
   genderRow: { flexDirection: "row", gap: theme.spacing.sm, marginBottom: theme.spacing.md },
   genderBtn: {
     flex: 1,

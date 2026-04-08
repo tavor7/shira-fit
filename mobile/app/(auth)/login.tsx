@@ -92,14 +92,14 @@ export default function LoginScreen() {
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
       </View>
-      <Text style={[styles.sub, isRTL && { textAlign: "right" }]}>{tr("Sign in to your account", "התחברות לחשבון")}</Text>
+      <Text style={[styles.sub, isRTL && styles.subRtl]}>{tr("Sign in to your account", "התחברות לחשבון")}</Text>
       {errorMessage ? (
         <View style={styles.errorBox}>
           <Text style={[styles.errorText, isRTL && { textAlign: "right" }]}>{errorMessage}</Text>
         </View>
       ) : null}
       <TextInput
-        style={[styles.input, errorMessage ? styles.inputError : null]}
+        style={[styles.input, isRTL && styles.inputRtl, errorMessage ? styles.inputError : null]}
         placeholder={t("auth.email")}
         placeholderTextColor={theme.colors.textSoft}
         autoCapitalize="none"
@@ -108,7 +108,7 @@ export default function LoginScreen() {
         onChangeText={(t) => { setEmail(t); setErrorMessage(""); }}
       />
       <TextInput
-        style={[styles.input, errorMessage ? styles.inputError : null]}
+        style={[styles.input, isRTL && styles.inputRtl, errorMessage ? styles.inputError : null]}
         placeholder={t("auth.password")}
         placeholderTextColor={theme.colors.textSoft}
         secureTextEntry
@@ -148,6 +148,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: theme.spacing.lg,
   },
+  subRtl: { textAlign: "center" },
   errorBox: {
     backgroundColor: theme.colors.errorBg,
     borderWidth: 1,
@@ -167,6 +168,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
     color: theme.colors.text,
   },
+  inputRtl: { textAlign: "right", writingDirection: "rtl" },
   inputError: { borderColor: theme.colors.error },
   navBtn: { marginTop: theme.spacing.md, alignSelf: "center", width: "100%" },
 });

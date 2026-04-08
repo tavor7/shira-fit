@@ -14,6 +14,7 @@ import { supabase } from "../lib/supabase";
 import { TRAINER_COLOR_PRESETS, resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { useI18n } from "../context/I18nContext";
+import { ManagerOverviewTabs } from "../components/ManagerOverviewTabs";
 
 type Row = {
   user_id: string;
@@ -85,6 +86,7 @@ export default function TrainerCalendarColorsScreen() {
 
   return (
     <View style={styles.screen}>
+      <ManagerOverviewTabs />
       <Text style={[styles.header, isRTL && styles.rtlText]}>{t("menu.trainerColors")}</Text>
       <Text style={[styles.subhead, isRTL && styles.rtlText]}>
         {language === "he" ? "בחירה נשמרת אוטומטית." : "Changes save automatically."}
