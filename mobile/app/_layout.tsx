@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import Head from "expo-router/head";
 import { AuthProvider } from "../src/context/AuthContext";
 import { Platform, View, type TextStyle, type ViewStyle } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -47,6 +48,30 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        {Platform.OS === "web" ? (
+          <Head>
+            <meta name="color-scheme" content="dark light" />
+            <style>{`
+              :root { color-scheme: dark; }
+              input[type="date"], input[type="time"] {
+                color-scheme: dark;
+              }
+              /* Safari temporal inputs: normalize inner padding/height */
+              ::-webkit-datetime-edit,
+              ::-webkit-datetime-edit-fields-wrapper,
+              ::-webkit-datetime-edit-text,
+              ::-webkit-datetime-edit-minute-field,
+              ::-webkit-datetime-edit-hour-field,
+              ::-webkit-datetime-edit-meridiem-field,
+              ::-webkit-datetime-edit-day-field,
+              ::-webkit-datetime-edit-month-field,
+              ::-webkit-datetime-edit-year-field {
+                padding: 0;
+              }
+              input::-webkit-inner-spin-button { height: auto; }
+            `}</style>
+          </Head>
+        ) : null}
         <AuthProvider>
           <I18nProvider>
             <ManagerAthletePreviewProvider>
