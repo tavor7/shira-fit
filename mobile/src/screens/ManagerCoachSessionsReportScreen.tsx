@@ -34,7 +34,7 @@ function defaultStartISO() {
 
 type Trainer = { user_id: string; full_name: string; username: string; role: string; phone?: string | null };
 
-export default function ManagerCoachSessionsReportScreen() {
+export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: { hideTitle?: boolean } = {}) {
   const { language, t, isRTL } = useI18n();
   const [start, setStart] = useState(defaultStartISO);
   const [end, setEnd] = useState(defaultEndISO);
@@ -105,7 +105,9 @@ export default function ManagerCoachSessionsReportScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.filters}>
-        <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t("menu.coachHistory")}</Text>
+        {!hideTitle ? (
+          <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t("menu.coachHistory")}</Text>
+        ) : null}
         <DatePickerField label={t("common.from")} value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
         <DatePickerField label={t("common.to")} value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
         <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן" : "Coach"}</Text>

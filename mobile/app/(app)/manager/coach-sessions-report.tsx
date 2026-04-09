@@ -1,5 +1,7 @@
-import ManagerCoachSessionsReportScreen from "../../../src/screens/ManagerCoachSessionsReportScreen";
+import { Redirect } from "expo-router";
 
 export const options = { title: "" };
 
-export default ManagerCoachSessionsReportScreen;
+export default function CoachSessionsReportRedirect() {
+  return <Redirect href="/(app)/manager/reports?tab=coach" />;
+}

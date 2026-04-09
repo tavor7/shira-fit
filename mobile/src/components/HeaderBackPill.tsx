@@ -85,9 +85,14 @@ export function HeaderBackPill() {
       if (sessionsHomeHref) router.replace(sessionsHomeHref);
       return;
     }
-    if (!onPendingGate && sessionsHomeHref) {
-      router.replace(sessionsHomeHref);
+    // Default: behave like a normal back button when possible.
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
     }
+
+    // Fallback when we don't have stack history (deep links, replace navigations, etc.).
+    if (!onPendingGate && sessionsHomeHref) router.replace(sessionsHomeHref);
   }
 
   return (

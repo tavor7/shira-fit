@@ -211,8 +211,8 @@ export default function CoachSessionDetail() {
         sessionId={id}
         refreshNonce={participantsRev}
         onChanged={afterParticipantsChange}
-        onRemoveAthlete={removeAthlete}
-        onRemoveManualParticipant={removeManual}
+        onRemoveAthlete={canEditSession ? removeAthlete : undefined}
+        onRemoveManualParticipant={canEditSession ? removeManual : undefined}
       />
 
       <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "רשימת המתנה" : "Waitlist"}</Text>
@@ -225,11 +225,13 @@ export default function CoachSessionDetail() {
           </Text>
         ))
       )}
-      <PrimaryButton
-        label={language === "he" ? "הוספת משתתף" : "Add participant"}
-        onPress={() => setAddOpen(true)}
-        variant="ghost"
-      />
+      {canEditSession ? (
+        <PrimaryButton
+          label={language === "he" ? "הוספת משתתף" : "Add participant"}
+          onPress={() => setAddOpen(true)}
+          variant="ghost"
+        />
+      ) : null}
 
       <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "ביטולים" : "Cancellations"}</Text>
       {cancellations.length === 0 ? (

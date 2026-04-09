@@ -46,7 +46,7 @@ export function GlobalQuickMenu() {
     return () => {
       cancelled = true;
     };
-  }, [profile?.role]);
+  }, [profile?.role, pathname]);
 
   const navRole = useEffectiveNavRole(profile);
   const { setEnabled } = useManagerAthletePreview();
@@ -82,33 +82,19 @@ export function GlobalQuickMenu() {
               "/staff/manual",
             ]),
         },
-      ];
-
-      // Only show the approve tab when there is something to approve.
-      if (pendingApproveCount > 0) {
-        managerItems.push({
+        {
           label: t("menu.approve"),
           onPress: () => router.push("/(app)/manager/approve"),
           isActive: (p) => startsWithAny(p, ["/manager/approve"]),
-          badgeCount: pendingApproveCount,
-        });
-      }
+          badgeCount: pendingApproveCount > 0 ? pendingApproveCount : undefined,
+        },
+      ];
 
       managerItems.push(
         {
           label: t("menu.create"),
           onPress: () => router.push("/(app)/manager/create-session"),
           isActive: (p) => startsWithAny(p, ["/manager/create-session"]),
-        },
-        {
-          label: t("menu.athleteActivity"),
-          onPress: () => router.push("/(app)/manager/participant-history"),
-          isActive: (p) => startsWithAny(p, ["/manager/participant-history"]),
-        },
-        {
-          label: t("menu.coachHistory"),
-          onPress: () => router.push("/(app)/manager/coach-sessions-report"),
-          isActive: (p) => startsWithAny(p, ["/manager/coach-sessions-report"]),
         },
         {
           label: language === "he" ? "תצוגת מתאמן" : "Athlete view",

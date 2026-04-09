@@ -28,6 +28,12 @@ export default function AthleteSessionDetail() {
   const [names, setNames] = useState<string[]>([]);
   const uid = async () => (await supabase.auth.getUser()).data.user?.id;
 
+  async function loadNames() {
+    const { data: ppl } = await supabase.rpc("list_session_participants", { p_session_id: id });
+    const list = Array.isArray(ppl) ? (ppl as { full_name: string }[]).map((x) => x.full_name).filter(Boolean) : [];
+    setNames(list);
+  }
+
   useEffect(() => {
     (async () => {
       const { data: s } = await supabase
@@ -65,9 +71,7 @@ export default function AthleteSessionDetail() {
         setOnWaitlist(!!w);
       }
 
-      const { data: ppl } = await supabase.rpc("list_session_participants", { p_session_id: id });
-      const list = Array.isArray(ppl) ? (ppl as { full_name: string }[]).map((x) => x.full_name).filter(Boolean) : [];
-      setNames(list);
+      await loadNames();
     })();
   }, [id]);
 
@@ -77,6 +81,7 @@ export default function AthleteSessionDetail() {
     else if (data?.ok) {
       Alert.alert(language === "he" ? "נרשמת" : "Registered");
       setRegistered(true);
+      await loadNames();
       if (session) {
         await scheduleSessionReminders({
           sessionId: id,
@@ -110,6 +115,7 @@ export default function AthleteSessionDetail() {
         variant: "success",
       });
       setOnWaitlist(true);
+      await loadNames();
     } else Alert.alert(language === "he" ? "רשימת המתנה" : "Waitlist", data?.error ?? "");
   }
 
@@ -136,6 +142,7 @@ export default function AthleteSessionDetail() {
           : "Registration cancelled.";
       showToast({ message: cancelMsg, variant: "success" });
       setRegistered(false);
+      setNames([]);
       const { count: c1 } = await supabase
         .from("session_registrations")
         .select("*", { count: "exact", head: true })
@@ -189,7 +196,13 @@ export default function AthleteSessionDetail() {
 
       <View style={styles.partCard}>
         <Text style={[styles.partTitle, isRTL && styles.rtlText]}>{language === "he" ? "משתתפים" : "Participants"}</Text>
-        {names.length === 0 ? (
+        {!registered && !onWaitlist ? (
+          <Text style={[styles.partEmpty, isRTL && styles.rtlText]}>
+            {language === "he"
+              ? "רשימת המשתתפים מוצגת לאחר הרשמה/רשימת המתנה."
+              : "Participant names are shown after you register or join the waitlist."}
+          </Text>
+        ) : names.length === 0 ? (
           <Text style={[styles.partEmpty, isRTL && styles.rtlText]}>
             {language === "he" ? "אין משתתפים רשומים עדיין." : "No registered participants yet."}
           </Text>

@@ -1,5 +1,7 @@
-import ParticipantHistoryScreen from "../../../src/screens/ParticipantHistoryScreen";
+import { Redirect } from "expo-router";
 
-export const options = { title: "Athlete activity" };
+export const options = { title: "" };
 
-export default ParticipantHistoryScreen;
+export default function ParticipantHistoryRedirect() {
+  return <Redirect href="/(app)/manager/reports?tab=athlete" />;
+}

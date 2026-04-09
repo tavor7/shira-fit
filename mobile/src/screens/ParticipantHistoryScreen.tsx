@@ -42,7 +42,7 @@ function groupByAthlete(rows: ParticipantHistoryRow[]): Section[] {
     .sort((a, b) => a.title.localeCompare(b.title));
 }
 
-export default function ParticipantHistoryScreen() {
+export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTitle?: boolean } = {}) {
   const { presetUserId } = useLocalSearchParams<{ presetUserId?: string }>();
   const { language, t, isRTL } = useI18n();
   const pathname = usePathname();
@@ -149,7 +149,11 @@ export default function ParticipantHistoryScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.filters}>
-        <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t(isCoachHistory ? "menu.coachHistory" : "menu.athleteActivity")}</Text>
+        {!hideTitle ? (
+          <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>
+            {t(isCoachHistory ? "menu.coachHistory" : "menu.athleteActivity")}
+          </Text>
+        ) : null}
         <DatePickerField label={t("common.from")} value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
         <DatePickerField label={t("common.to")} value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
         <Text style={[styles.label, isRTL && styles.rtlText]}>
