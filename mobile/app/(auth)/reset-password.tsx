@@ -32,20 +32,35 @@ export default function ResetPasswordScreen() {
     let cancelled = false;
     (async () => {
       if (Platform.OS === "web" && typeof window !== "undefined") {
-        const hash = window.location.hash;
-        if (hash && hash.includes("access_token")) {
-          const params = new URLSearchParams(hash.replace(/^#/, ""));
-          const access_token = params.get("access_token");
-          const refresh_token = params.get("refresh_token");
-          if (access_token && refresh_token) {
-            await supabase.auth.setSession({ access_token, refresh_token });
-            window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        // Supabase recovery links can be either:
+        // - legacy implicit: tokens in hash (#access_token=...&refresh_token=...)
+        // - PKCE: code in query (?code=...)
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get("code");
+        if (code) {
+          try {
+            await supabase.auth.exchangeCodeForSession(code);
+          } catch {
+            // ignore; we'll validate via getSession below
+          }
+          url.searchParams.delete("code");
+          window.history.replaceState(null, "", url.pathname + (url.search ? `?${url.searchParams.toString()}` : ""));
+        } else {
+          const hash = window.location.hash;
+          if (hash && hash.includes("access_token")) {
+            const params = new URLSearchParams(hash.replace(/^#/, ""));
+            const access_token = params.get("access_token");
+            const refresh_token = params.get("refresh_token");
+            if (access_token && refresh_token) {
+              await supabase.auth.setSession({ access_token, refresh_token });
+              window.history.replaceState(null, "", window.location.pathname + window.location.search);
+            }
           }
         }
       }
       const { data } = await supabase.auth.getSession();
       if (!cancelled) setReady(true);
-      if (!data.session && Platform.OS !== "web") {
+      if (!data.session) {
         Alert.alert(
           language === "he" ? "קישור לא תקין או שפג תוקפו" : "Invalid or expired link",
           language === "he" ? "בקשו אימייל איפוס חדש מ״שכחתי סיסמה״." : "Request a new reset email from Forgot password."

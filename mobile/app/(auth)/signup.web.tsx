@@ -83,10 +83,12 @@ export default function SignupScreen() {
     }
     const dobIso = toISODateLocal(dobFinal);
     setBusy(true);
+    const emailRedirectTo = Linking.createURL("/(auth)/confirm-email");
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
+        emailRedirectTo,
         data: {
           full_name: fullName.trim(),
           phone: phone.trim(),

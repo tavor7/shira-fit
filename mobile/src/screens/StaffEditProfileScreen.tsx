@@ -9,7 +9,7 @@ import { useI18n } from "../context/I18nContext";
 export default function StaffEditProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = String(id ?? "");
-  const { t, isRTL } = useI18n();
+  const { t, isRTL, language } = useI18n();
 
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState("");
