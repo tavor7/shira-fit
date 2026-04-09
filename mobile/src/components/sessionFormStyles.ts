@@ -26,9 +26,17 @@ export const sessionFormStyles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  row: { flexDirection: "row", gap: 10, alignItems: "stretch" },
+  /**
+   * Use flex-wrap rather than a single breakpoint so 2-up rows never overlap
+   * on narrow phones, large text sizes, or localized labels.
+   */
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 10, alignItems: "stretch" },
   rowStack: { flexDirection: "column" },
-  col: { flex: 1, flexBasis: 0, minWidth: 0 },
+  /**
+   * `minWidth` ensures each control has enough space; when there's not enough,
+   * the row wraps to the next line instead of overflowing/overlapping.
+   */
+  col: { flexGrow: 1, flexShrink: 1, flexBasis: 160, minWidth: 160, maxWidth: "100%" },
 
   label: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
   labelRtl: { textAlign: "right" },
