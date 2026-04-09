@@ -132,7 +132,8 @@ const styles = StyleSheet.create({
   label: { marginBottom: 6, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   rtlText: { textAlign: "right" },
   touch: {
-    width: "100%",
+    alignSelf: "stretch",
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
