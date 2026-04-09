@@ -4,6 +4,15 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import type { TimePickerFieldProps } from "./TimePickerField";
 
+function isIOSSafari(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const isWebKit = /WebKit/.test(ua);
+  const isNotChrome = !/CriOS|FxiOS|EdgiOS/.test(ua);
+  return isIOS && isWebKit && isNotChrome;
+}
+
 function normalizeHHMM(v: string): string {
   const s = String(v ?? "").trim();
   const m = /^(\d{1,2}):(\d{2})/.exec(s);
@@ -17,15 +26,19 @@ function normalizeHHMM(v: string): string {
 export function TimePickerField({ label, value, onChange }: TimePickerFieldProps) {
   const { isRTL } = useI18n();
   const normalized = normalizeHHMM(value);
+  const useTextFallback = isIOSSafari();
 
   return (
     <View style={styles.wrap}>
       <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
       {createElement("input", {
-        type: "time",
-        value: normalized,
-        step: 300, // 5 minutes
+        type: useTextFallback ? "text" : "time",
+        value: useTextFallback ? value || "" : normalized,
+        ...(useTextFallback ? {} : { step: 300 }),
         onChange: (e: { target: { value: string } }) => onChange(e.target.value),
+        placeholder: useTextFallback ? "HH:MM" : undefined,
+        inputMode: useTextFallback ? ("numeric" as any) : undefined,
+        autoComplete: "off",
         style: {
           width: "100%",
           boxSizing: "border-box" as const,
