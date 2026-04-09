@@ -197,10 +197,10 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       <View style={sf.card}>
         <Text style={sf.cardTitle}>{language === "he" ? "מתי" : "When"}</Text>
         <View style={[sf.row, compact && sf.rowStack]}>
-          <View style={{ flex: 1 }}>
+          <View style={sf.col}>
             <DatePickerField label={language === "he" ? "תאריך אימון" : "Session date"} value={date} onChange={setDate} />
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={sf.col}>
             <TimePickerField label={language === "he" ? "שעת התחלה" : "Start time"} value={time} onChange={setTime} />
           </View>
         </View>
@@ -320,7 +320,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       <View style={sf.card}>
         <Text style={sf.cardTitle}>{language === "he" ? "קיבולת" : "Capacity"}</Text>
         <View style={[sf.row, compact && sf.rowStack]}>
-          <View style={{ flex: 1 }}>
+          <View style={sf.col}>
             <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "משך (דקות)" : "Length (min)"}</Text>
             <TextInput
               style={[sf.control, sf.controlInput]}
@@ -331,7 +331,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
               placeholderTextColor={theme.colors.textSoft}
             />
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={sf.col}>
             <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
             <TextInput
               style={[sf.control, sf.controlInput]}

@@ -26,8 +26,9 @@ export const sessionFormStyles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  row: { flexDirection: "row", gap: 10 },
+  row: { flexDirection: "row", gap: 10, alignItems: "stretch" },
   rowStack: { flexDirection: "column" },
+  col: { flex: 1, flexBasis: 0, minWidth: 0 },
 
   label: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
   labelRtl: { textAlign: "right" },

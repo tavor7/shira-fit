@@ -354,7 +354,7 @@ export default function ManagerSessionDetail() {
           <View style={sf.card}>
             <Text style={sf.cardTitle}>{language === "he" ? "מתי" : "When"}</Text>
             <View style={[sf.row, compact && sf.rowStack]}>
-              <View style={{ flex: 1 }}>
+              <View style={sf.col}>
                 <DatePickerField
                   label={language === "he" ? "תאריך אימון" : "Session date"}
                   value={date}
@@ -364,7 +364,7 @@ export default function ManagerSessionDetail() {
                   }}
                 />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={sf.col}>
                 <TimePickerField
                   label={language === "he" ? "שעת התחלה" : "Start time"}
                   value={time}
@@ -428,7 +428,7 @@ export default function ManagerSessionDetail() {
           <View style={sf.card}>
             <Text style={sf.cardTitle}>{language === "he" ? "קיבולת" : "Capacity"}</Text>
             <View style={[sf.row, compact && sf.rowStack]}>
-              <View style={{ flex: 1 }}>
+              <View style={sf.col}>
                 <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "משך (דקות)" : "Length (min)"}</Text>
                 <TextInput
                   style={[sf.control, sf.controlInput]}
@@ -441,7 +441,7 @@ export default function ManagerSessionDetail() {
                   placeholderTextColor={theme.colors.textSoft}
                 />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={sf.col}>
                 <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
                 <TextInput
                   style={[sf.control, sf.controlInput]}
