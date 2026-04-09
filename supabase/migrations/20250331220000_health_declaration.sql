@@ -6,3 +6,4 @@ alter table public.profiles
 comment on column public.profiles.health_declaration_confirmed_at is
   'Timestamp when the user confirmed they completed the required health declaration form during signup.';
 
+ 
