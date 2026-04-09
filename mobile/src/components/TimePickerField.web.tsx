@@ -45,6 +45,7 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
           minHeight: 48,
           padding: "12px 12px",
           fontSize: 16,
+          fontWeight: 700 as any,
           borderRadius: theme.radius.md,
           border: `1px solid ${theme.colors.borderMuted}`,
           backgroundColor: theme.colors.surfaceElevated,
@@ -59,7 +60,7 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
 
 const styles = StyleSheet.create({
   wrap: { marginTop: theme.spacing.sm, alignSelf: "stretch", minWidth: 0 },
-  label: { marginBottom: 6, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
+  label: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
   rtlText: { textAlign: "right" },
 });
 

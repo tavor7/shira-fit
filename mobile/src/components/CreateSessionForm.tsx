@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Modal, FlatList, ActivityIndicator, useWindowDimensions } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -183,15 +183,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     router.back();
   }
 
-  const summary = useMemo(() => {
-    const d = date.trim();
-    if (!isValidISODateString(d)) return null;
-    const dur = Math.max(1, Math.min(24 * 60, parseInt(durationMinutes.trim(), 10) || 55));
-    return language === "he"
-      ? `${d} · ${time} · ${dur} דק׳`
-      : `${d} · ${time} · ${dur} min`;
-  }, [date, time, durationMinutes, language]);
-
   return (
     <ScrollView contentContainerStyle={sf.content} style={sf.screen} keyboardShouldPersistTaps="handled">
       <View style={sf.card}>
@@ -204,7 +195,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
             <TimePickerField label={language === "he" ? "שעת התחלה" : "Start time"} value={time} onChange={setTime} />
           </View>
         </View>
-        {summary ? <Text style={[sf.toggleSub, isRTL && { textAlign: "right" }]}>{summary}</Text> : null}
       </View>
 
       <View style={sf.card}>
