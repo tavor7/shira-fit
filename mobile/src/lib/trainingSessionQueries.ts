@@ -20,6 +20,15 @@ export async function fetchStaffTrainingSessionsForCalendar() {
 
 /** Athlete browse: all non-hidden sessions (even if closed); retries if `is_hidden` or `calendar_color` is missing on DB. */
 export async function fetchAthleteOpenSessionsForCalendar() {
+  // Opportunistic auto-open for next week (idempotent; runs only when due).
+  // This is what makes "auto-open at configured day/time" work even if no server cron is configured.
+  // Ignore failures (offline / older DB) and proceed with normal fetch.
+  try {
+    await supabase.rpc("open_next_week_sessions_if_due");
+  } catch {
+    // noop
+  }
+
   let res = await supabase
     .from("training_sessions")
     .select("*, trainer:profiles!coach_id(full_name, calendar_color)")

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
@@ -32,6 +32,8 @@ type Props = {
   emptyLabel?: string;
   /** Tap a day column (header or empty area; session chips still open the session). */
   onDayPress?: (isoDate: string) => void;
+  /** Reports the currently displayed week range (Sun–Sat), in ISO dates. */
+  onWeekChange?: (weekStartIso: string, weekEndIso: string) => void;
 };
 
 const DAY_NAMES_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -70,7 +72,7 @@ function formatWeekLabel(start: Date, end: Date, locale: string) {
   return `${fmtA(start)} - ${fmtA(end)}`;
 }
 
-export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress }: Props) {
+export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress, onWeekChange }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
   const { language, t, isRTL } = useI18n();
   const locale = language === "he" ? "he-IL" : "en-US";
@@ -93,6 +95,12 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress 
       };
     });
   }, [weekStart]);
+
+  useEffect(() => {
+    const startIso = weekDays[0]?.iso;
+    const endIso = weekDays[6]?.iso;
+    if (startIso && endIso) onWeekChange?.(startIso, endIso);
+  }, [weekDays, onWeekChange]);
 
   const { byDate, weekItemsCount } = useMemo(() => {
     const map = new Map<string, SessionsWeekItem[]>();

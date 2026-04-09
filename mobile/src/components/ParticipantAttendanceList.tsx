@@ -331,7 +331,9 @@ export function ParticipantAttendanceList({
                   disabled={busy}
                   onPress={() => {
                     if (st === "arrived") {
-                      void setStatus(item, "arrived", null);
+                      // When marking arrived, prompt for payment method immediately (slick flow).
+                      setPayFor(item);
+                      setPayOpen(true);
                       return;
                     }
                     void setStatus(item, st, null);

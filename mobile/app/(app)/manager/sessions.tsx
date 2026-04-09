@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl, Alert, Pressable, ActivityIndicator, Text } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
@@ -12,6 +12,7 @@ import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { StaffHomeOverview } from "../../../src/components/StaffHomeOverview";
 import { useAuth } from "../../../src/context/AuthContext";
 import { useI18n } from "../../../src/context/I18nContext";
+import { supabase } from "../../../src/lib/supabase";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
@@ -22,6 +23,8 @@ export default function ManagerSessionsScreen() {
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [refreshSeq, setRefreshSeq] = useState(0);
+  const [weekStartIso, setWeekStartIso] = useState<string>("");
+  const [openWeekBusy, setOpenWeekBusy] = useState(false);
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
@@ -65,6 +68,38 @@ export default function ManagerSessionsScreen() {
 
   const sheetItems = useMemo(() => (sheetDay ? items.filter((i) => i.session_date === sheetDay) : []), [items, sheetDay]);
 
+  async function openSelectedWeek() {
+    if (!weekStartIso) return;
+    const msg =
+      language === "he"
+        ? "לפתוח להרשמה את כל האימונים בשבוע הזה (א׳–ש׳), שאינם מוסתרים?"
+        : "Open registration for all non-hidden sessions in this week (Sun–Sat)?";
+    Alert.alert(language === "he" ? "פתיחת שבוע" : "Open week", msg, [
+      { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
+      {
+        text: language === "he" ? "פתיחה" : "Open",
+        onPress: async () => {
+          setOpenWeekBusy(true);
+          const { data, error } = await supabase.rpc("open_sessions_for_week", { p_week_start: weekStartIso });
+          setOpenWeekBusy(false);
+          if (error) {
+            Alert.alert(language === "he" ? "שגיאה" : "Error", error.message);
+            return;
+          }
+          if (!data?.ok) {
+            Alert.alert(language === "he" ? "נכשל" : "Failed", data?.error ?? "");
+            return;
+          }
+          Alert.alert(
+            language === "he" ? "נפתח" : "Opened",
+            language === "he" ? `נפתחו ${data.opened ?? 0} אימונים.` : `Opened ${data.opened ?? 0} sessions.`
+          );
+          load(true);
+        },
+      },
+    ]);
+  }
+
   return (
     <View style={styles.screen}>
       <ScrollView
@@ -78,7 +113,29 @@ export default function ManagerSessionsScreen() {
           isLoading={loading}
           emptyLabel={language === "he" ? "לא נמצאו אימונים." : "No sessions found."}
           onDayPress={(iso) => setSheetDay(iso)}
+          onWeekChange={(startIso) => setWeekStartIso(startIso)}
         />
+        {weekStartIso ? (
+          <View style={styles.weekActions}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.openWeekBtn,
+                pressed && { opacity: 0.9 },
+                openWeekBusy && { opacity: 0.6 },
+              ]}
+              onPress={() => void openSelectedWeek()}
+              disabled={openWeekBusy}
+            >
+              {openWeekBusy ? (
+                <ActivityIndicator color={theme.colors.ctaText} />
+              ) : (
+                <Text style={styles.openWeekBtnTxt}>
+                  {language === "he" ? "פתיחת הרשמה לשבוע המוצג" : "Open registration for shown week"}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
       <DaySessionsSheet
         visible={sheetDay !== null}
@@ -101,4 +158,16 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: theme.spacing.lg },
+  weekActions: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md },
+  openWeekBtn: {
+    backgroundColor: theme.colors.cta,
+    borderRadius: theme.radius.full,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: theme.colors.cta,
+  },
+  openWeekBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", letterSpacing: 0.2 },
 });
