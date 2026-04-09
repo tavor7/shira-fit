@@ -127,10 +127,12 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginTop: theme.spacing.sm },
+  // Critical: allow this field to shrink inside rows without overflowing/overlapping.
+  wrap: { marginTop: theme.spacing.sm, alignSelf: "stretch", minWidth: 0 },
   label: { marginBottom: 6, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   rtlText: { textAlign: "right" },
   touch: {
+    width: "100%",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
