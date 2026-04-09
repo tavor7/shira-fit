@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Alert, Pressable, ActivityIndicator, Text } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl, Alert, Pressable, ActivityIndicator, Text, Platform } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
@@ -74,29 +74,38 @@ export default function ManagerSessionsScreen() {
       language === "he"
         ? "לפתוח להרשמה את כל האימונים בשבוע הזה (א׳–ש׳), שאינם מוסתרים?"
         : "Open registration for all non-hidden sessions in this week (Sun–Sat)?";
-    Alert.alert(language === "he" ? "פתיחת שבוע" : "Open week", msg, [
+    const title = language === "he" ? "פתיחת שבוע" : "Open week";
+
+    const run = async () => {
+      setOpenWeekBusy(true);
+      const { data, error } = await supabase.rpc("open_sessions_for_week", { p_week_start: weekStartIso });
+      setOpenWeekBusy(false);
+      if (error) {
+        if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
+        else Alert.alert(language === "he" ? "שגיאה" : "Error", error.message);
+        return;
+      }
+      if (!data?.ok) {
+        const m = data?.error ?? "";
+        if (Platform.OS === "web" && typeof window !== "undefined") window.alert(m);
+        else Alert.alert(language === "he" ? "נכשל" : "Failed", m);
+        return;
+      }
+      const doneMsg = language === "he" ? `נפתחו ${data.opened ?? 0} אימונים.` : `Opened ${data.opened ?? 0} sessions.`;
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(doneMsg);
+      else Alert.alert(language === "he" ? "נפתח" : "Opened", doneMsg);
+      load(true);
+    };
+
+    // RN Web: multi-button Alert often does not show — use native confirm.
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined" && window.confirm(`${title}\n\n${msg}`)) void run();
+      return;
+    }
+
+    Alert.alert(title, msg, [
       { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
-      {
-        text: language === "he" ? "פתיחה" : "Open",
-        onPress: async () => {
-          setOpenWeekBusy(true);
-          const { data, error } = await supabase.rpc("open_sessions_for_week", { p_week_start: weekStartIso });
-          setOpenWeekBusy(false);
-          if (error) {
-            Alert.alert(language === "he" ? "שגיאה" : "Error", error.message);
-            return;
-          }
-          if (!data?.ok) {
-            Alert.alert(language === "he" ? "נכשל" : "Failed", data?.error ?? "");
-            return;
-          }
-          Alert.alert(
-            language === "he" ? "נפתח" : "Opened",
-            language === "he" ? `נפתחו ${data.opened ?? 0} אימונים.` : `Opened ${data.opened ?? 0} sessions.`
-          );
-          load(true);
-        },
-      },
+      { text: language === "he" ? "פתיחה" : "Open", onPress: () => void run() },
     ]);
   }
 
