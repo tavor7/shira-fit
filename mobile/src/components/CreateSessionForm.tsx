@@ -14,7 +14,7 @@ import { useToast } from "../context/ToastContext";
 import { appendNetworkHint } from "../lib/networkErrors";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "./sessionFormStyles";
 
-type CoachOption = { user_id: string; full_name: string; role: string; username: string };
+type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
 
 type Props = {
   initialDate?: string;
@@ -34,6 +34,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const [coachLabel, setCoachLabel] = useState(
     fixedCoachLabel ? `${fixedCoachLabel} — ${language === "he" ? "את/ה" : "you"}` : ""
   );
+  const [coachColor, setCoachColor] = useState<string | null>(null);
   const [coachOptions, setCoachOptions] = useState<CoachOption[]>([]);
   const [coachOptionsLoading, setCoachOptionsLoading] = useState(!fixedCoachId);
   const [showCoachPicker, setShowCoachPicker] = useState(false);
@@ -58,15 +59,35 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     }
   }, [fixedCoachId, fixedCoachLabel, language]);
 
+  useEffect(() => {
+    if (!fixedCoachId) return;
+    (async () => {
+      // Optional: show a color dot for fixed coach accounts too.
+      let res = await supabase.from("profiles").select("calendar_color").eq("user_id", fixedCoachId).maybeSingle();
+      if (res.error && isMissingColumnError(res.error.message, "calendar_color")) {
+        setCoachColor(null);
+        return;
+      }
+      setCoachColor((res.data as { calendar_color?: string | null } | null)?.calendar_color ?? null);
+    })();
+  }, [fixedCoachId]);
+
   const loadCoaches = useCallback(async () => {
     if (fixedCoachId) return;
     setCoachOptionsLoading(true);
-    const { data } = await supabase
+    let res: any = await supabase
       .from("profiles")
-      .select("user_id, full_name, role, username")
+      .select("user_id, full_name, role, username, calendar_color")
       .in("role", ["coach", "manager"])
       .order("full_name");
-    setCoachOptions((data as CoachOption[]) ?? []);
+    if (res.error && isMissingColumnError(res.error.message, "calendar_color")) {
+      res = await supabase
+        .from("profiles")
+        .select("user_id, full_name, role, username")
+        .in("role", ["coach", "manager"])
+        .order("full_name");
+    }
+    setCoachOptions((res.data as CoachOption[]) ?? []);
     setCoachOptionsLoading(false);
   }, [fixedCoachId]);
 
@@ -75,6 +96,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   function selectCoach(opt: CoachOption) {
     setCoachId(opt.user_id);
     setCoachLabel(`${opt.full_name} — ${opt.role}`);
+    setCoachColor(opt.calendar_color ?? null);
     setShowCoachPicker(false);
   }
 
@@ -189,9 +211,23 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         <Text style={sf.cardTitle}>{language === "he" ? "מאמן" : "Trainer"}</Text>
         {fixedCoachId ? (
           <View style={[sf.control, { justifyContent: "center" }]}>
-            <Text style={sf.controlText} numberOfLines={1} ellipsizeMode="tail">
-              {coachLabel || (language === "he" ? "את/ה" : "You")}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              {coachColor ? (
+                <View
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 999,
+                    backgroundColor: coachColor,
+                    borderWidth: 1,
+                    borderColor: theme.colors.borderMuted,
+                  }}
+                />
+              ) : null}
+              <Text style={[sf.controlText, { flex: 1 }]} numberOfLines={1} ellipsizeMode="tail">
+                {coachLabel || (language === "he" ? "את/ה" : "You")}
+              </Text>
+            </View>
           </View>
         ) : (
           <>
@@ -200,13 +236,27 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
               onPress={() => setShowCoachPicker(true)}
               accessibilityRole="button"
             >
-              <Text
-                style={coachLabel ? sf.controlText : sf.controlPlaceholder}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {coachLabel || (language === "he" ? "בחרו מאמן לפי שם…" : "Choose trainer by name…")}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                {coachLabel && coachColor ? (
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 999,
+                      backgroundColor: coachColor,
+                      borderWidth: 1,
+                      borderColor: theme.colors.borderMuted,
+                    }}
+                  />
+                ) : null}
+                <Text
+                  style={[coachLabel ? sf.controlText : sf.controlPlaceholder, { flex: 1 }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {coachLabel || (language === "he" ? "בחרו מאמן לפי שם…" : "Choose trainer by name…")}
+                </Text>
+              </View>
             </Pressable>
             <Modal visible={showCoachPicker} transparent animationType="slide">
               <View style={styles.modalBackdrop}>
@@ -229,13 +279,27 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                           style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
                           onPress={() => selectCoach(item)}
                         >
-                          <View style={styles.pickerItemTextCol}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                            {item.calendar_color ? (
+                              <View
+                                style={{
+                                  width: 10,
+                                  height: 10,
+                                  borderRadius: 999,
+                                  backgroundColor: item.calendar_color,
+                                  borderWidth: 1,
+                                  borderColor: theme.colors.borderMuted,
+                                }}
+                              />
+                            ) : null}
+                            <View style={styles.pickerItemTextCol}>
                             <Text style={styles.pickerItemName} numberOfLines={1} ellipsizeMode="tail">
                               {item.full_name}
                             </Text>
                             <Text style={styles.pickerItemRole} numberOfLines={1} ellipsizeMode="tail">
                               @{item.username} · {item.role}
                             </Text>
+                            </View>
                           </View>
                         </Pressable>
                       )}
