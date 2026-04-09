@@ -11,6 +11,7 @@ import {
   Modal,
   FlatList,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSession } from "../../../../src/types/database";
@@ -25,6 +26,7 @@ import { isValidISODateString } from "../../../../src/lib/isoDate";
 import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay, formatISODateFull } from "../../../../src/lib/dateFormat";
 import { useAuth } from "../../../../src/context/AuthContext";
+import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../src/components/sessionFormStyles";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
 
@@ -59,6 +61,8 @@ export default function ManagerSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
   const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const compact = sessionFormIsCompact(width);
   const [participantsRev, setParticipantsRev] = useState(0);
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
@@ -347,29 +351,42 @@ export default function ManagerSessionDetail() {
         </View>
       ) : (
         <View style={styles.editBlock}>
-          <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "עריכת אימון" : "Edit session"}</Text>
-          <DatePickerField
-            label={language === "he" ? "תאריך אימון" : "Session date"}
-            value={date}
-            onChange={(v) => {
-              pushUndo();
-              setDate(v);
-            }}
-          />
-          <TimePickerField
-            label={language === "he" ? "שעת התחלה" : "Start time"}
-            value={time}
-            onChange={(v) => {
-              pushUndo();
-              setTime(v);
-            }}
-          />
-          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן/ת" : "Trainer"}</Text>
-          <Pressable style={styles.pickerTouch} onPress={() => setShowCoachPicker(true)}>
-            <Text style={coachLabel ? styles.pickerText : styles.pickerPlaceholder} numberOfLines={1} ellipsizeMode="tail">
-              {coachLabel || (language === "he" ? "בחירת מאמן לפי שם…" : "Choose trainer by name…")}
-            </Text>
-          </Pressable>
+          <View style={sf.card}>
+            <Text style={sf.cardTitle}>{language === "he" ? "מתי" : "When"}</Text>
+            <View style={[sf.row, compact && sf.rowStack]}>
+              <View style={{ flex: 1 }}>
+                <DatePickerField
+                  label={language === "he" ? "תאריך אימון" : "Session date"}
+                  value={date}
+                  onChange={(v) => {
+                    pushUndo();
+                    setDate(v);
+                  }}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <TimePickerField
+                  label={language === "he" ? "שעת התחלה" : "Start time"}
+                  value={time}
+                  onChange={(v) => {
+                    pushUndo();
+                    setTime(v);
+                  }}
+                />
+              </View>
+            </View>
+          </View>
+
+          <View style={sf.card}>
+            <Text style={sf.cardTitle}>{language === "he" ? "מאמן" : "Trainer"}</Text>
+            <Pressable
+              style={({ pressed }) => [sf.control, pressed && { opacity: 0.9 }, { justifyContent: "center" }]}
+              onPress={() => setShowCoachPicker(true)}
+            >
+              <Text style={coachLabel ? sf.controlText : sf.controlPlaceholder} numberOfLines={1} ellipsizeMode="tail">
+                {coachLabel || (language === "he" ? "בחירת מאמן לפי שם…" : "Choose trainer by name…")}
+              </Text>
+            </Pressable>
           <Modal visible={showCoachPicker} transparent animationType="slide" onRequestClose={() => setShowCoachPicker(false)}>
             <View style={styles.modalBackdrop}>
               <Pressable style={styles.modalBackdropTouch} onPress={() => setShowCoachPicker(false)} accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"} />
@@ -406,73 +423,92 @@ export default function ManagerSessionDetail() {
               </View>
             </View>
           </Modal>
-          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
-          <TextInput
-            style={styles.input}
-            value={maxP}
-            onChangeText={(v) => {
-              pushUndo();
-              setMaxP(v);
-            }}
-            keyboardType="number-pad"
-            placeholderTextColor={theme.colors.placeholderOnLight}
-          />
-          <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משך (דקות)" : "Length (minutes)"}</Text>
-          <TextInput
-            style={styles.input}
-            value={durationMin}
-            onChangeText={(v) => {
-              pushUndo();
-              setDurationMin(v);
-            }}
-            keyboardType="number-pad"
-            placeholderTextColor={theme.colors.placeholderOnLight}
-          />
-          <Pressable
-            style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
-            onPress={() => {
-              pushUndo();
-              setOpen(!open);
-            }}
-          >
-            <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl]}>
-              {language === "he" ? "פתוח: " : "Open: "}
-              {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
-            onPress={() => {
-              pushUndo();
-              setHidden(!hidden);
-            }}
-          >
-            <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl]}>
-              {language === "he" ? "מוסתר: " : "Hidden: "}
-              {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={undoLast}
-            disabled={undoStack.length === 0}
-            style={({ pressed }) => [
-              styles.undoBtn,
-              pressed && undoStack.length > 0 && { opacity: 0.85 },
-              undoStack.length === 0 && { opacity: 0.45 },
-            ]}
-          >
-            <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
-          </Pressable>
-          <PrimaryButton label={t("common.save")} onPress={saveSession} />
-          <Pressable
-            onPress={() => {
-              void load();
-              setEditingSession(false);
-            }}
-            style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.cancelEditTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
-          </Pressable>
+          </View>
+
+          <View style={sf.card}>
+            <Text style={sf.cardTitle}>{language === "he" ? "קיבולת" : "Capacity"}</Text>
+            <View style={[sf.row, compact && sf.rowStack]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "משך (דקות)" : "Length (min)"}</Text>
+                <TextInput
+                  style={[sf.control, sf.controlInput]}
+                  value={durationMin}
+                  onChangeText={(v) => {
+                    pushUndo();
+                    setDurationMin(v);
+                  }}
+                  keyboardType="number-pad"
+                  placeholderTextColor={theme.colors.textSoft}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
+                <TextInput
+                  style={[sf.control, sf.controlInput]}
+                  value={maxP}
+                  onChangeText={(v) => {
+                    pushUndo();
+                    setMaxP(v);
+                  }}
+                  keyboardType="number-pad"
+                  placeholderTextColor={theme.colors.textSoft}
+                />
+              </View>
+            </View>
+          </View>
+
+          <View style={sf.card}>
+            <Text style={sf.cardTitle}>{language === "he" ? "אפשרויות" : "Options"}</Text>
+            <Pressable
+              style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
+              onPress={() => {
+                pushUndo();
+                setOpen(!open);
+              }}
+            >
+              <Text style={[sf.toggleText, isRTL && styles.toggleTextRtl]}>
+                {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
+                {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
+              </Text>
+            </Pressable>
+            <View style={{ height: 10 }} />
+            <Pressable
+              style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
+              onPress={() => {
+                pushUndo();
+                setHidden(!hidden);
+              }}
+            >
+              <Text style={[sf.toggleText, isRTL && styles.toggleTextRtl]}>
+                {language === "he" ? "מוסתר (צוות בלבד): " : "Hidden (staff-only): "}
+                {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={[sf.card, { marginBottom: 0 }]}>
+            <Pressable
+              onPress={undoLast}
+              disabled={undoStack.length === 0}
+              style={({ pressed }) => [
+                styles.undoBtn,
+                pressed && undoStack.length > 0 && { opacity: 0.85 },
+                undoStack.length === 0 && { opacity: 0.45 },
+              ]}
+            >
+              <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
+            </Pressable>
+            <PrimaryButton label={t("common.save")} onPress={saveSession} />
+            <Pressable
+              onPress={() => {
+                void load();
+                setEditingSession(false);
+              }}
+              style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={styles.cancelEditTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+            </Pressable>
+          </View>
         </View>
       )}
 

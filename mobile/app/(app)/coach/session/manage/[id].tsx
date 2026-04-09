@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator, ScrollView, useWindowDimensions } from "react-native";
 import { supabase } from "../../../../../src/lib/supabase";
 import type { TrainingSession } from "../../../../../src/types/database";
 import { theme } from "../../../../../src/theme";
@@ -10,6 +10,7 @@ import { TimePickerField } from "../../../../../src/components/TimePickerField";
 import { isMissingColumnError } from "../../../../../src/lib/dbColumnErrors";
 import { isValidISODateString } from "../../../../../src/lib/isoDate";
 import { useI18n } from "../../../../../src/context/I18nContext";
+import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../../src/components/sessionFormStyles";
 
 type EditSnapshot = {
   date: string;
@@ -23,6 +24,8 @@ type EditSnapshot = {
 export default function CoachSessionManageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
+  const { width } = useWindowDimensions();
+  const compact = sessionFormIsCompact(width);
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [ready, setReady] = useState(false);
@@ -138,7 +141,7 @@ export default function CoachSessionManageScreen() {
 
   if (forbidden) {
     return (
-      <View style={styles.screen}>
+      <View style={sf.screen}>
         <Text style={[styles.err, isRTL && styles.rtlText]}>
           {language === "he"
             ? "אפשר לערוך רק אימונים שבהם אתה/את המאמן/ת."
@@ -150,7 +153,7 @@ export default function CoachSessionManageScreen() {
 
   if (!ready) {
     return (
-      <View style={styles.screen}>
+      <View style={sf.screen}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
         <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
       </View>
@@ -159,118 +162,129 @@ export default function CoachSessionManageScreen() {
 
   if (!session) {
     return (
-      <View style={styles.screen}>
+      <View style={sf.screen}>
         <Text style={[styles.err, isRTL && styles.rtlText]}>{language === "he" ? "האימון לא נמצא." : "Session not found."}</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "עריכת האימון שלך" : "Edit your session"}</Text>
-      <DatePickerField
-        label={language === "he" ? "תאריך אימון" : "Session date"}
-        value={date}
-        onChange={(v) => {
-          pushUndo();
-          setDate(v);
-        }}
-      />
-      <TimePickerField
-        label={language === "he" ? "שעת התחלה" : "Start time"}
-        value={time}
-        onChange={(v) => {
-          pushUndo();
-          setTime(v);
-        }}
-      />
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
-      <TextInput
-        style={styles.input}
-        value={maxP}
-        onChangeText={(v) => {
-          pushUndo();
-          setMaxP(v);
-        }}
-        keyboardType="number-pad"
-        placeholderTextColor={theme.colors.placeholderOnLight}
-      />
-      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משך (דקות)" : "Length (minutes)"}</Text>
-      <TextInput
-        style={styles.input}
-        value={durationMin}
-        onChangeText={(v) => {
-          pushUndo();
-          setDurationMin(v);
-        }}
-        keyboardType="number-pad"
-        placeholderTextColor={theme.colors.placeholderOnLight}
-      />
-      <Pressable
-        style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
-        onPress={() => {
-          pushUndo();
-          setOpen(!open);
-        }}
-      >
-        <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl]}>
-          {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
-          {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-        </Text>
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
-        onPress={() => {
-          pushUndo();
-          setHidden(!hidden);
-        }}
-      >
-        <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl]}>
-          {language === "he"
-            ? "מוסתר (צוות בלבד ביומן, ללא הרשמה עצמית): "
-            : "Hidden (staff calendar only, no athlete self-register): "}
-          {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-        </Text>
-      </Pressable>
-      <Pressable
-        onPress={undoLast}
-        disabled={undoStack.length === 0}
-        style={({ pressed }) => [
-          styles.undoBtn,
-          pressed && undoStack.length > 0 && { opacity: 0.85 },
-          undoStack.length === 0 && { opacity: 0.45 },
-        ]}
-      >
-        <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
-      </Pressable>
-      <PrimaryButton label={t("common.save")} onPress={saveSession} />
+    <ScrollView style={sf.screen} contentContainerStyle={sf.content} keyboardShouldPersistTaps="handled">
+      <View style={sf.card}>
+        <Text style={[sf.cardTitle, isRTL && { textAlign: "right" }]}>{language === "he" ? "עריכה" : "Edit"}</Text>
+        <View style={[sf.row, compact && sf.rowStack]}>
+          <View style={{ flex: 1 }}>
+            <DatePickerField
+              label={language === "he" ? "תאריך אימון" : "Session date"}
+              value={date}
+              onChange={(v) => {
+                pushUndo();
+                setDate(v);
+              }}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <TimePickerField
+              label={language === "he" ? "שעת התחלה" : "Start time"}
+              value={time}
+              onChange={(v) => {
+                pushUndo();
+                setTime(v);
+              }}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={sf.card}>
+        <Text style={sf.cardTitle}>{language === "he" ? "קיבולת" : "Capacity"}</Text>
+        <View style={[sf.row, compact && sf.rowStack]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "משך (דקות)" : "Length (min)"}</Text>
+            <TextInput
+              style={[sf.control, sf.controlInput]}
+              value={durationMin}
+              onChangeText={(v) => {
+                pushUndo();
+                setDurationMin(v);
+              }}
+              keyboardType="number-pad"
+              placeholderTextColor={theme.colors.textSoft}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
+            <TextInput
+              style={[sf.control, sf.controlInput]}
+              value={maxP}
+              onChangeText={(v) => {
+                pushUndo();
+                setMaxP(v);
+              }}
+              keyboardType="number-pad"
+              placeholderTextColor={theme.colors.textSoft}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={sf.card}>
+        <Text style={sf.cardTitle}>{language === "he" ? "אפשרויות" : "Options"}</Text>
+        <Pressable
+          style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
+          onPress={() => {
+            pushUndo();
+            setOpen(!open);
+          }}
+        >
+          <Text style={[sf.toggleText, isRTL && styles.toggleTextRtl]}>
+            {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
+            {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
+          </Text>
+        </Pressable>
+        <View style={{ height: 10 }} />
+        <Pressable
+          style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
+          onPress={() => {
+            pushUndo();
+            setHidden(!hidden);
+          }}
+        >
+          <Text style={[sf.toggleText, isRTL && styles.toggleTextRtl]}>
+            {language === "he"
+              ? "מוסתר (צוות בלבד, ללא הרשמה עצמית): "
+              : "Hidden (staff-only, no athlete self-register): "}
+            {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
+          </Text>
+        </Pressable>
+      </View>
+
+      <View style={[sf.card, { marginBottom: 0 }]}>
+        <Pressable
+          onPress={undoLast}
+          disabled={undoStack.length === 0}
+          style={({ pressed }) => [
+            styles.undoBtn,
+            pressed && undoStack.length > 0 && { opacity: 0.85 },
+            undoStack.length === 0 && { opacity: 0.45 },
+          ]}
+        >
+          <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
+        </Pressable>
+        <PrimaryButton label={t("common.save")} onPress={saveSession} />
+        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}>
+          <Text style={styles.cancelEditTxt}>{t("common.cancel")}</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  scroll: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
-  h: { fontWeight: "700", marginTop: theme.spacing.md, marginBottom: 8, color: theme.colors.text },
-  label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   rtlText: { textAlign: "right" },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.sm,
-    padding: 10,
-    marginTop: 6,
-    marginBottom: 8,
-    fontSize: 16,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
-  },
-  toggle: { padding: 12, backgroundColor: theme.colors.white, borderRadius: theme.radius.sm, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
-  toggleText: { color: theme.colors.textOnLight, fontSize: 16 },
   toggleRtl: { alignItems: "flex-end" },
   toggleTextRtl: { textAlign: "right", writingDirection: "rtl", alignSelf: "stretch", width: "100%" },
   undoBtn: {
-    marginTop: 4,
     marginBottom: theme.spacing.sm,
     paddingVertical: 12,
     borderRadius: theme.radius.md,
@@ -282,4 +296,6 @@ const styles = StyleSheet.create({
   undoBtnTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
   muted: { marginTop: 12, color: theme.colors.textMuted },
   err: { color: theme.colors.error, fontSize: 16, fontWeight: "600" },
+  cancelEdit: { marginTop: theme.spacing.sm, paddingVertical: 12, alignItems: "center" },
+  cancelEditTxt: { color: theme.colors.textSoft, fontWeight: "800", fontSize: 15 },
 });

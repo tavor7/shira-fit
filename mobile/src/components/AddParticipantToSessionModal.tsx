@@ -82,8 +82,10 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     return currentCount >= maxCap;
   }
 
+  const full = isFull();
+
   async function addExistingAthlete(userId: string) {
-    if (isFull()) {
+    if (full) {
       Alert.alert(language === "he" ? "האימון מלא" : "Session full");
       return;
     }
@@ -114,7 +116,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   }
 
   async function addExistingManual(manualId: string) {
-    if (isFull()) {
+    if (full) {
       Alert.alert(language === "he" ? "האימון מלא" : "Session full");
       return;
     }
@@ -163,7 +165,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       Alert.alert(language === "he" ? "חסר מידע" : "Missing info", language === "he" ? "הזינו שם וטלפון." : "Enter name and phone.");
       return;
     }
-    if (isFull()) {
+    if (full) {
       Alert.alert(language === "he" ? "האימון מלא" : "Session full");
       return;
     }
@@ -200,6 +202,12 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       <View style={styles.modal}>
         <View style={styles.modalCard}>
           <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{language === "he" ? "הוספת משתתף" : "Add participant"}</Text>
+          <Text style={[styles.capacityLine, isRTL && styles.rtlText]}>
+            {language === "he" ? "קיבולת: " : "Capacity: "}
+            {currentCount}
+            {maxCap != null ? `/${maxCap}` : ""}
+            {full ? (language === "he" ? " · מלא" : " · Full") : ""}
+          </Text>
 
           <Text style={[styles.modalSub, isRTL && styles.rtlText]}>{language === "he" ? "חיפוש קיים" : "Search existing"}</Text>
           <View style={styles.searchRow}>
@@ -220,7 +228,15 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
             keyExtractor={(i) => i.user_id}
             style={{ maxHeight: 200, marginTop: 10 }}
             renderItem={({ item }) => (
-              <Pressable style={({ pressed }) => [styles.pickRow, pressed && { opacity: 0.85 }]} onPress={() => addExistingAthlete(item.user_id)}>
+              <Pressable
+                disabled={full}
+                style={({ pressed }) => [
+                  styles.pickRow,
+                  full && styles.pickRowDisabled,
+                  pressed && !full && styles.pickRowPressed,
+                ]}
+                onPress={() => addExistingAthlete(item.user_id)}
+              >
                 <Text style={styles.pickName}>{item.full_name}</Text>
                 <Text style={styles.pickMeta}>
                   @{item.username} · {item.phone}
@@ -248,7 +264,15 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
             keyExtractor={(i) => i.id}
             style={{ maxHeight: 160, marginTop: 10 }}
             renderItem={({ item }) => (
-              <Pressable style={({ pressed }) => [styles.pickRow, pressed && { opacity: 0.85 }]} onPress={() => addExistingManual(item.id)}>
+              <Pressable
+                disabled={full}
+                style={({ pressed }) => [
+                  styles.pickRow,
+                  full && styles.pickRowDisabled,
+                  pressed && !full && styles.pickRowPressed,
+                ]}
+                onPress={() => addExistingManual(item.id)}
+              >
                 <Text style={styles.pickName}>{item.full_name}</Text>
                 <Text style={styles.pickMeta}>{item.phone}</Text>
               </Pressable>
@@ -284,7 +308,12 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
             onChangeText={setQuickPhone}
             keyboardType="phone-pad"
           />
-          <PrimaryButton label={language === "he" ? "הוספה מהירה" : "Quick add"} onPress={quickAdd} />
+          <PrimaryButton
+            label={language === "he" ? "הוספה מהירה" : "Quick add"}
+            onPress={quickAdd}
+            disabled={full}
+            style={full ? { opacity: 0.5 } : undefined}
+          />
           <Pressable onPress={onClose}>
             <Text style={styles.cancel}>{t("common.cancel")}</Text>
           </Pressable>
@@ -306,11 +335,22 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   modalTitle: { fontSize: 18, fontWeight: "800", color: theme.colors.text, marginBottom: 8 },
+  capacityLine: { color: theme.colors.textMuted, fontWeight: "800", marginBottom: 10 },
   modalSub: { fontWeight: "800", color: theme.colors.text, marginTop: 4, marginBottom: 8 },
   searchRow: { flexDirection: "row", gap: 10, alignItems: "center" },
   searchBtn: { paddingHorizontal: 12, height: 44, borderRadius: theme.radius.md, backgroundColor: theme.colors.cta, alignItems: "center", justifyContent: "center" },
   searchBtnTxt: { color: theme.colors.ctaText, fontWeight: "900" },
-  pickRow: { paddingVertical: 10, borderBottomWidth: 1, borderColor: theme.colors.borderMuted },
+  pickRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    marginBottom: 8,
+    backgroundColor: theme.colors.surface,
+  },
+  pickRowPressed: { opacity: 0.92, transform: [{ scale: 0.99 }], backgroundColor: theme.colors.surfaceElevated },
+  pickRowDisabled: { opacity: 0.5 },
   pickName: { color: theme.colors.text, fontWeight: "800" },
   pickMeta: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
   input: {

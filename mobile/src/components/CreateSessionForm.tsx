@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Modal, FlatList, ActivityIndicator } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Modal, FlatList, ActivityIndicator, useWindowDimensions } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
@@ -12,6 +12,7 @@ import { TimePickerField } from "./TimePickerField";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { appendNetworkHint } from "../lib/networkErrors";
+import { sessionFormIsCompact, sessionFormStyles as sf } from "./sessionFormStyles";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
 
@@ -25,6 +26,8 @@ type Props = {
 export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
+  const { width } = useWindowDimensions();
+  const compact = sessionFormIsCompact(width);
   const [date, setDate] = useState(() => initialDate?.trim() || toISODateLocal(new Date()));
   const [time, setTime] = useState("18:00");
   const [coachId, setCoachId] = useState(fixedCoachId ?? "");
@@ -158,162 +161,216 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     router.back();
   }
 
+  const summary = useMemo(() => {
+    const d = date.trim();
+    if (!isValidISODateString(d)) return null;
+    const dur = Math.max(1, Math.min(24 * 60, parseInt(durationMinutes.trim(), 10) || 55));
+    return language === "he"
+      ? `${d} · ${time} · ${dur} דק׳`
+      : `${d} · ${time} · ${dur} min`;
+  }, [date, time, durationMinutes, language]);
+
   return (
-    <ScrollView contentContainerStyle={styles.box} keyboardShouldPersistTaps="handled">
-      <DatePickerField label={language === "he" ? "תאריך אימון" : "Session date"} value={date} onChange={setDate} />
-      <TimePickerField label={language === "he" ? "שעת התחלה" : "Start time"} value={time} onChange={setTime} />
-      {fixedCoachId ? (
-        <>
-          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן" : "Trainer"}</Text>
-          <View style={styles.fixedCoachBox}>
-            <Text style={styles.fixedCoachTxt} numberOfLines={1} ellipsizeMode="tail">
+    <ScrollView contentContainerStyle={sf.content} style={sf.screen} keyboardShouldPersistTaps="handled">
+      <View style={sf.card}>
+        <Text style={sf.cardTitle}>{language === "he" ? "מתי" : "When"}</Text>
+        <View style={[sf.row, compact && sf.rowStack]}>
+          <View style={{ flex: 1 }}>
+            <DatePickerField label={language === "he" ? "תאריך אימון" : "Session date"} value={date} onChange={setDate} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <TimePickerField label={language === "he" ? "שעת התחלה" : "Start time"} value={time} onChange={setTime} />
+          </View>
+        </View>
+        {summary ? <Text style={[sf.toggleSub, isRTL && { textAlign: "right" }]}>{summary}</Text> : null}
+      </View>
+
+      <View style={sf.card}>
+        <Text style={sf.cardTitle}>{language === "he" ? "מאמן" : "Trainer"}</Text>
+        {fixedCoachId ? (
+          <View style={[sf.control, { justifyContent: "center" }]}>
+            <Text style={sf.controlText} numberOfLines={1} ellipsizeMode="tail">
               {coachLabel || (language === "he" ? "את/ה" : "You")}
             </Text>
           </View>
-        </>
-      ) : (
-        <>
-          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן (מאמן או מנהל)" : "Trainer (coach or manager)"}</Text>
-          <Pressable style={styles.pickerTouch} onPress={() => setShowCoachPicker(true)}>
-            <Text
-              style={coachLabel ? styles.pickerText : styles.pickerPlaceholder}
-              numberOfLines={1}
-              ellipsizeMode="tail"
+        ) : (
+          <>
+            <Pressable
+              style={({ pressed }) => [sf.control, pressed && { opacity: 0.9 }, { justifyContent: "center" }]}
+              onPress={() => setShowCoachPicker(true)}
+              accessibilityRole="button"
             >
-              {coachLabel || (language === "he" ? "בחרו מאמן לפי שם…" : "Choose trainer by name…")}
-            </Text>
-          </Pressable>
-          <Modal visible={showCoachPicker} transparent animationType="slide">
-            <View style={styles.modalBackdrop}>
-              <Pressable style={styles.modalBackdropTouch} onPress={() => setShowCoachPicker(false)} />
-              <View style={styles.modalBox}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>{language === "he" ? "כל המאמנים" : "All trainers"}</Text>
-                  <Pressable onPress={() => setShowCoachPicker(false)}><Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text></Pressable>
+              <Text
+                style={coachLabel ? sf.controlText : sf.controlPlaceholder}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {coachLabel || (language === "he" ? "בחרו מאמן לפי שם…" : "Choose trainer by name…")}
+              </Text>
+            </Pressable>
+            <Modal visible={showCoachPicker} transparent animationType="slide">
+              <View style={styles.modalBackdrop}>
+                <Pressable style={styles.modalBackdropTouch} onPress={() => setShowCoachPicker(false)} />
+                <View style={styles.modalBox}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>{language === "he" ? "כל המאמנים" : "All trainers"}</Text>
+                    <Pressable onPress={() => setShowCoachPicker(false)}>
+                      <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
+                    </Pressable>
+                  </View>
+                  {coachOptionsLoading ? (
+                    <ActivityIndicator size="large" color={theme.colors.text} style={styles.modalLoader} />
+                  ) : (
+                    <FlatList
+                      data={coachOptions}
+                      keyExtractor={(item) => item.user_id}
+                      renderItem={({ item }) => (
+                        <Pressable
+                          style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
+                          onPress={() => selectCoach(item)}
+                        >
+                          <View style={styles.pickerItemTextCol}>
+                            <Text style={styles.pickerItemName} numberOfLines={1} ellipsizeMode="tail">
+                              {item.full_name}
+                            </Text>
+                            <Text style={styles.pickerItemRole} numberOfLines={1} ellipsizeMode="tail">
+                              @{item.username} · {item.role}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      )}
+                      ListEmptyComponent={
+                        <Text style={styles.pickerEmpty}>
+                          {language === "he" ? "עדיין אין מאמנים או מנהלים" : "No coaches or managers yet"}
+                        </Text>
+                      }
+                    />
+                  )}
                 </View>
-                {coachOptionsLoading ? (
-                  <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
-                ) : (
-                  <FlatList
-                    data={coachOptions}
-                    keyExtractor={(item) => item.user_id}
-                    renderItem={({ item }) => (
-                      <Pressable style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.8 }]} onPress={() => selectCoach(item)}>
-                        <View style={styles.pickerItemTextCol}>
-                          <Text style={styles.pickerItemName} numberOfLines={1} ellipsizeMode="tail">
-                            {item.full_name}
-                          </Text>
-                          <Text style={styles.pickerItemRole} numberOfLines={1} ellipsizeMode="tail">
-                            @{item.username} · {item.role}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    )}
-                    ListEmptyComponent={
-                      <Text style={styles.pickerEmpty}>{language === "he" ? "עדיין אין מאמנים או מנהלים" : "No coaches or managers yet"}</Text>
-                    }
-                  />
-                )}
               </View>
-            </View>
-          </Modal>
-        </>
-      )}
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "משך אימון (דקות)" : "Session length (minutes)"}</Text>
-      <TextInput
-        style={styles.input}
-        value={durationMinutes}
-        onChangeText={setDurationMinutes}
-        keyboardType="number-pad"
-        placeholder={language === "he" ? "55 (ברירת מחדל)" : "55 (default)"}
-        placeholderTextColor={theme.colors.placeholderOnLight}
-      />
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
-      <TextInput
-        style={styles.input}
-        value={max}
-        onChangeText={setMax}
-        keyboardType="number-pad"
-        placeholderTextColor={theme.colors.placeholderOnLight}
-      />
-      <Pressable style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }]} onPress={() => setRepeatWeekly(!repeatWeekly)}>
-        <Text style={styles.toggleText}>
-          {language === "he" ? "חזרה שבועית (אותו יום): " : "Repeat weekly (same weekday): "}
-          {repeatWeekly ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-        </Text>
-      </Pressable>
-      {repeatWeekly ? (
-        <>
-          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מספר אימונים (אחד לשבוע)" : "Number of sessions (one per week)"}</Text>
-          <TextInput
-            style={styles.input}
-            value={weeklyOccurrences}
-            onChangeText={setWeeklyOccurrences}
-            keyboardType="number-pad"
-            placeholder="4"
-            placeholderTextColor={theme.colors.placeholderOnLight}
-          />
-        </>
-      ) : null}
-      <Pressable style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }]} onPress={() => setOpen(!open)}>
-        <Text style={styles.toggleText}>
-          {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
-          {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-        </Text>
-      </Pressable>
-      <Pressable style={({ pressed }) => [styles.toggle, pressed && { opacity: 0.9 }]} onPress={() => setHidden(!hidden)}>
-        <Text style={styles.toggleText}>
-          {language === "he" ? "אימון מוסתר: " : "Hidden session: "}
-          {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-        </Text>
-      </Pressable>
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-      <PrimaryButton label={language === "he" ? "שמירת אימון" : "Save session"} onPress={save} loading={saving} loadingLabel={t("common.loading")} />
+            </Modal>
+          </>
+        )}
+      </View>
+
+      <View style={sf.card}>
+        <Text style={sf.cardTitle}>{language === "he" ? "קיבולת" : "Capacity"}</Text>
+        <View style={[sf.row, compact && sf.rowStack]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "משך (דקות)" : "Length (min)"}</Text>
+            <TextInput
+              style={[sf.control, sf.controlInput]}
+              value={durationMinutes}
+              onChangeText={setDurationMinutes}
+              keyboardType="number-pad"
+              placeholder={language === "he" ? "55" : "55"}
+              placeholderTextColor={theme.colors.textSoft}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
+            <TextInput
+              style={[sf.control, sf.controlInput]}
+              value={max}
+              onChangeText={setMax}
+              keyboardType="number-pad"
+              placeholder={language === "he" ? "12" : "12"}
+              placeholderTextColor={theme.colors.textSoft}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={sf.card}>
+        <Text style={sf.cardTitle}>{language === "he" ? "אפשרויות" : "Options"}</Text>
+        <Pressable style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }]} onPress={() => setOpen(!open)}>
+          <Text style={[sf.toggleText, isRTL && { textAlign: "right" }]}>
+            {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
+            {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
+          </Text>
+        </Pressable>
+        <View style={{ height: 10 }} />
+        <Pressable style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }]} onPress={() => setHidden(!hidden)}>
+          <Text style={[sf.toggleText, isRTL && { textAlign: "right" }]}>
+            {language === "he" ? "מוסתר (צוות בלבד): " : "Hidden (staff-only): "}
+            {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
+          </Text>
+          <Text style={[sf.toggleSub, isRTL && { textAlign: "right" }]}>
+            {language === "he"
+              ? "אימונים מוסתרים לא נראים למתאמנים ולא פתוחים להרשמה."
+              : "Hidden sessions are not shown to athletes and cannot be self-registered."}
+          </Text>
+        </Pressable>
+      </View>
+
+      <View style={sf.card}>
+        <Text style={sf.cardTitle}>{language === "he" ? "חזרה" : "Repeat"}</Text>
+        <Pressable style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }]} onPress={() => setRepeatWeekly(!repeatWeekly)}>
+          <Text style={[sf.toggleText, isRTL && { textAlign: "right" }]}>
+            {language === "he" ? "חזרה שבועית: " : "Repeat weekly: "}
+            {repeatWeekly ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
+          </Text>
+        </Pressable>
+        {repeatWeekly ? (
+          <View style={{ marginTop: 10 }}>
+            <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "מספר שבועות" : "Occurrences"}</Text>
+            <TextInput
+              style={[sf.control, sf.controlInput]}
+              value={weeklyOccurrences}
+              onChangeText={setWeeklyOccurrences}
+              keyboardType="number-pad"
+              placeholder="4"
+              placeholderTextColor={theme.colors.textSoft}
+            />
+          </View>
+        ) : null}
+      </View>
+
+      {error ? <Text style={[sf.error, isRTL && { textAlign: "right" }]}>{appendNetworkHint({ message: error } as any, t("network.offlineHint"))}</Text> : null}
+
+      <View style={[sf.card, { marginBottom: 0 }]}>
+        <PrimaryButton
+          label={language === "he" ? "שמירת אימון" : "Save session"}
+          onPress={save}
+          loading={saving}
+          loadingLabel={t("common.loading")}
+        />
+        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.secondaryAction, pressed && { opacity: 0.85 }]}>
+          <Text style={styles.secondaryActionTxt}>{t("common.cancel")}</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  box: { flexGrow: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.backgroundAlt },
-  label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text },
-  rtlText: { textAlign: "right" },
-  input: {
+  modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
+  modalBackdropTouch: { ...StyleSheet.absoluteFillObject },
+  modalBox: {
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: theme.radius.xl,
+    borderTopRightRadius: theme.radius.xl,
     borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.sm,
-    padding: 12,
-    marginTop: 4,
-    fontSize: 16,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+    borderColor: theme.colors.borderMuted,
+    maxHeight: "80%",
+    paddingBottom: theme.spacing.lg,
   },
-  fixedCoachBox: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.sm,
-    padding: 12,
-    marginTop: 4,
-    backgroundColor: theme.colors.white,
-    minHeight: 48,
-    justifyContent: "center",
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: theme.spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.borderMuted,
   },
-  fixedCoachTxt: { fontSize: 16, color: theme.colors.textOnLight, fontWeight: "600" },
-  toggle: { marginTop: theme.spacing.md, padding: theme.spacing.sm, backgroundColor: theme.colors.white, borderRadius: theme.radius.sm, borderWidth: 1, borderColor: theme.colors.border },
-  toggleText: { color: theme.colors.textOnLight, fontSize: 16 },
-  errorText: { marginTop: theme.spacing.sm, color: theme.colors.error, fontSize: 14 },
-  pickerTouch: { borderWidth: 1, borderColor: theme.colors.borderInput, borderRadius: theme.radius.sm, padding: 12, marginTop: 4, backgroundColor: theme.colors.white, minHeight: 48, justifyContent: "center" },
-  pickerText: { fontSize: 16, color: theme.colors.textOnLight },
-  pickerPlaceholder: { fontSize: 16, color: theme.colors.textSoftOnLight },
-  modalBackdrop: { flex: 1, justifyContent: "flex-end" },
-  modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
-  modalBox: { backgroundColor: theme.colors.white, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: "70%" },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.border },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textOnLight },
-  modalClose: { fontSize: 16, color: theme.colors.textMutedOnLight, fontWeight: "700" },
-  modalLoader: { padding: theme.spacing.xl },
-  pickerItem: { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.border },
+  modalTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text },
+  modalClose: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "900" },
+  modalLoader: { paddingVertical: theme.spacing.xl },
+  pickerItem: { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.borderMuted },
   pickerItemTextCol: { flex: 1 },
-  pickerItemName: { fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
-  pickerItemRole: { fontSize: 13, color: theme.colors.textMutedOnLight, marginTop: 4, textTransform: "none" },
-  pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoftOnLight, textAlign: "center" },
+  pickerItemName: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  pickerItemRole: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4, textTransform: "none", fontWeight: "700" },
+  pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoft, textAlign: "center", fontWeight: "700" },
+  secondaryAction: { marginTop: 12, paddingVertical: 10, alignItems: "center" },
+  secondaryActionTxt: { color: theme.colors.textMuted, fontWeight: "900" },
 });
