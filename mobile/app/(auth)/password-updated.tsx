@@ -1,11 +1,18 @@
+import { useEffect } from "react";
 import { View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { router } from "expo-router";
+import { logUserActivity } from "../../src/lib/logUserActivity";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 
 export default function PasswordUpdatedScreen() {
   const { language, t, isRTL } = useI18n();
+
+  useEffect(() => {
+    void logUserActivity("password_reset_completed");
+  }, []);
+
   return (
     <View style={styles.container}>
       <LanguageToggleChip />

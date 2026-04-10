@@ -14,7 +14,6 @@ import * as Linking from "expo-linking";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ActionButton } from "../../src/components/ActionButton";
-import { DatePickerField } from "../../src/components/DatePickerField";
 import { theme } from "../../src/theme";
 import { parseISODateLocal, toISODateLocal, isValidISODateString } from "../../src/lib/isoDate";
 import { useI18n } from "../../src/context/I18nContext";
@@ -172,15 +171,17 @@ export default function SignupScreen() {
           value={phone}
           onChangeText={setPhone}
         />
-        <DatePickerField
-          label={language === "he" ? "תאריך לידה" : "Date of birth"}
+        <Text style={[styles.label, isRTL && { textAlign: "right" }]}>{t("profile.dob")}</Text>
+        <TextInput
+          style={[styles.input, isRTL && styles.inputRtl]}
+          placeholder="2000-01-15"
+          placeholderTextColor={theme.colors.textSoft}
           value={dobText}
-          onChange={(iso) => {
-            setDobText(iso);
+          onChangeText={(v) => {
+            setDobText(v);
             setErrorMessage("");
           }}
-          minimumDate={minDob}
-          maximumDate={today}
+          autoCapitalize="none"
         />
         <Text style={[styles.label, isRTL && { textAlign: "right" }]}>{t("profile.gender")}</Text>
         <View style={styles.genderRow}>

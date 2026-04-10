@@ -1,10 +1,11 @@
-import { Stack, Redirect } from "expo-router";
+import { Stack, Redirect, usePathname } from "expo-router";
 import { ActivityIndicator, View, type TextStyle, type ViewStyle } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
 import { AppHeaderRight } from "../../src/components/AppHeaderRight";
 import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
 import { theme } from "../../src/theme";
 import { useAndroidSessionsBackHandler } from "../../src/hooks/useAndroidSessionsBackHandler";
+import { isPendingPathname } from "../../src/lib/sessionsHomeNavigation";
 
 const headerStyle: ViewStyle = {
   backgroundColor: theme.colors.backgroundAlt,
@@ -20,7 +21,8 @@ const headerTitleStyle: TextStyle = {
 };
 
 export default function AppLayout() {
-  const { session, loading } = useAuth();
+  const { session, loading, profile } = useAuth();
+  const pathname = usePathname() ?? "";
   useAndroidSessionsBackHandler(!!session && !loading);
 
   if (loading) {
@@ -31,6 +33,12 @@ export default function AppLayout() {
     );
   }
   if (!session) return <Redirect href="/(auth)/login" />;
+
+  const pendingAthlete = profile?.role === "athlete" && profile?.approval_status === "pending";
+  if (pendingAthlete && !isPendingPathname(pathname)) {
+    return <Redirect href="/(app)/pending" />;
+  }
+
   return (
     <Stack
       screenOptions={{

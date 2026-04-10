@@ -60,6 +60,10 @@ export function GlobalQuickMenu() {
       isActive: () => false,
     };
 
+    if (profile?.role === "athlete" && profile?.approval_status === "pending") {
+      return [languageItem];
+    }
+
     // A minimal set that stays consistent across pages.
     if (role === "manager") {
       const managerItems: RouteItem[] = [
@@ -87,6 +91,11 @@ export function GlobalQuickMenu() {
           onPress: () => router.push("/(app)/manager/approve"),
           isActive: (p) => startsWithAny(p, ["/manager/approve"]),
           badgeCount: pendingApproveCount > 0 ? pendingApproveCount : undefined,
+        },
+        {
+          label: t("menu.activityLog"),
+          onPress: () => router.push("/(app)/manager/activity-log"),
+          isActive: (p) => startsWithAny(p, ["/manager/activity-log"]),
         },
       ];
 
@@ -166,7 +175,7 @@ export function GlobalQuickMenu() {
     }
     athleteItems.push(languageItem);
     return athleteItems;
-  }, [navRole, profile?.role, pendingApproveCount, t, language, toggleLanguage, setEnabled]);
+  }, [navRole, profile?.role, profile?.approval_status, pendingApproveCount, t, language, toggleLanguage, setEnabled]);
 
   const visible = useMemo(() => items.filter((i) => !i.isActive(pathname)), [items, pathname]);
 

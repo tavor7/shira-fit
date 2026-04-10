@@ -17,6 +17,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "menu.trainerColors": "Coach colors",
     "menu.roles": "Roles",
     "menu.openingSchedule": "Opening schedule",
+    "menu.activityLog": "Activity log",
     "menu.participantHistory": "Athlete activity",
     "menu.createSession": "Create session",
 
@@ -93,6 +94,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "menu.trainerColors": "צבעי מאמנים",
     "menu.roles": "תפקידים",
     "menu.openingSchedule": "פתיחת הרשמה",
+    "menu.activityLog": "יומן פעילות",
     "menu.participantHistory": "פעילות מתאמנים",
     "menu.createSession": "יצירת אימון",
 

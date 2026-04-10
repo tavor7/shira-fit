@@ -36,6 +36,7 @@ export function isManagerOverviewFlatTool(pathname: string): boolean {
     pathname === "/manager/trainer-colors" ||
     pathname === "/manager/roles" ||
     pathname === "/manager/opening-schedule" ||
+    pathname === "/manager/activity-log" ||
     pathname === "/staff/users"
   );
 }

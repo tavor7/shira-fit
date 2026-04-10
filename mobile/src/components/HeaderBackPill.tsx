@@ -41,10 +41,11 @@ export function HeaderBackPill() {
   const inSessionDrilldown = isSessionFlowDrilldown(pathname);
 
   const visible = useMemo(() => {
+    if (isPendingPathname(pathname)) return false;
     if (atSessionsHome) return false;
     if (onPendingGate) return canPop;
     return !!sessionsHomeHref;
-  }, [atSessionsHome, onPendingGate, canPop, sessionsHomeHref]);
+  }, [pathname, atSessionsHome, onPendingGate, canPop, sessionsHomeHref]);
 
   // Hooks must run every render — never place hooks after `if (!visible) return null`.
   const a11yLabel = useMemo(() => {

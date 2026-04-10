@@ -128,8 +128,8 @@ function ApprovePanel() {
   }
   useEffect(() => { load(); }, []);
 
-  async function approve(uid: string, s: "approved" | "rejected") {
-    await supabase.rpc("set_athlete_approval", { p_user_id: uid, p_status: s });
+  async function approve(uid: string) {
+    await supabase.rpc("set_athlete_approval", { p_user_id: uid, p_status: "approved" });
     load();
   }
 
@@ -139,8 +139,7 @@ function ApprovePanel() {
       {rows.map((r) => (
         <div key={r.user_id} style={{ padding: 12, border: "1px solid #fde68a", marginBottom: 8, borderRadius: 8 }}>
           <div>{r.full_name} ({r.username})</div>
-          <button type="button" onClick={() => approve(r.user_id, "approved")}>Approve</button>
-          <button type="button" onClick={() => approve(r.user_id, "rejected")}>Reject</button>
+          <button type="button" onClick={() => approve(r.user_id)}>Approve</button>
         </div>
       ))}
     </div>

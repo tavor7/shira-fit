@@ -4,7 +4,7 @@ import { router, usePathname, type Href } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 
-type TabId = "overview" | "users" | "colors" | "roles" | "opening" | "reports";
+type TabId = "overview" | "users" | "colors" | "roles" | "opening" | "activity" | "reports";
 
 type Tab = { id: TabId; label: string; href: Href; isActive: (p: string) => boolean };
 
@@ -51,6 +51,12 @@ export function ManagerOverviewTabs() {
         label: t("menu.openingSchedule"),
         href: "/(app)/manager/opening-schedule",
         isActive: (p) => startsWithAny(p, ["/manager/opening-schedule"]),
+      },
+      {
+        id: "activity",
+        label: t("menu.activityLog"),
+        href: "/(app)/manager/activity-log",
+        isActive: (p) => startsWithAny(p, ["/manager/activity-log"]),
       },
       {
         id: "reports",

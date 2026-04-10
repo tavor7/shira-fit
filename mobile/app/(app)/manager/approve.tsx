@@ -22,10 +22,10 @@ export default function ApproveAthletesScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  async function setStatus(uid: string, status: "approved" | "rejected") {
+  async function approveAthlete(uid: string) {
     const { data, error } = await supabase.rpc("set_athlete_approval", {
       p_user_id: uid,
-      p_status: status,
+      p_status: "approved",
     });
     if (error) Alert.alert(t("common.error"), error.message);
     else if (data?.ok) load();
@@ -47,11 +47,8 @@ export default function ApproveAthletesScreen() {
             <Text style={styles.n}>{item.full_name}</Text>
             <Text style={styles.m}>{item.username} · {item.phone}</Text>
             <View style={styles.actions}>
-              <Pressable style={({ pressed }) => [styles.ok, pressed && { opacity: 0.9 }]} onPress={() => setStatus(item.user_id, "approved")}>
+              <Pressable style={({ pressed }) => [styles.ok, pressed && { opacity: 0.9 }]} onPress={() => approveAthlete(item.user_id)}>
                 <Text style={styles.okT}>{language === "he" ? "אישור" : "Approve"}</Text>
-              </Pressable>
-              <Pressable style={({ pressed }) => [styles.no, pressed && { opacity: 0.9 }]} onPress={() => setStatus(item.user_id, "rejected")}>
-                <Text style={styles.noT}>{language === "he" ? "דחייה" : "Reject"}</Text>
               </Pressable>
             </View>
           </View>
@@ -79,7 +76,5 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: theme.spacing.sm, marginTop: theme.spacing.sm },
   ok: { flex: 1, backgroundColor: theme.colors.success, padding: 12, borderRadius: theme.radius.md, alignItems: "center" },
   okT: { color: "#fff", fontWeight: "600" },
-  no: { flex: 1, backgroundColor: theme.colors.errorBg, padding: 12, borderRadius: theme.radius.md, alignItems: "center", borderWidth: 1, borderColor: theme.colors.errorBorder },
-  noT: { color: theme.colors.error, fontWeight: "600" },
   empty: { textAlign: "center", marginTop: 48, color: theme.colors.textSoft },
 });

@@ -16,6 +16,7 @@ import { ActionButton } from "../../src/components/ActionButton";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
+import { logUserActivity } from "../../src/lib/logUserActivity";
 
 export const options = { headerShown: false };
 
@@ -77,6 +78,7 @@ export default function LoginScreen() {
       return;
     }
     if (data.session) {
+      void logUserActivity("auth_login");
       router.replace("/");
     } else {
       setErrorMessage(tr("Sign-in didn't complete. Please try again.", "ההתחברות לא הושלמה. נסו שוב."));

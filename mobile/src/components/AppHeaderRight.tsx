@@ -19,6 +19,7 @@ export function AppHeaderRight() {
   const { enabled: athletePreview } = useManagerAthletePreview();
 
   const name = profile?.full_name || profile?.username || t("common.account");
+  const pendingAthlete = profile?.role === "athlete" && profile?.approval_status === "pending";
   const baseRole = formatRole(profile?.role);
   const roleLine =
     profile?.role === "manager" && athletePreview
@@ -41,8 +42,8 @@ export function AppHeaderRight() {
       </View>
       <Pressable
         onPress={() => router.push("/(app)/profile")}
-        disabled={loading}
-        style={({ pressed }) => [styles.chip, pressed && !loading && styles.pressed]}
+        disabled={loading || pendingAthlete}
+        style={({ pressed }) => [styles.chip, (pressed && !loading && !pendingAthlete) && styles.pressed, pendingAthlete && { opacity: 0.45 }]}
       >
         <Text style={styles.chipTxt} numberOfLines={1}>
           {t("header.profile")}

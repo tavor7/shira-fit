@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, Image } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
+import { logUserActivity } from "../../src/lib/logUserActivity";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
@@ -12,6 +14,10 @@ import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 export default function SignupSuccessScreen() {
   const { email } = useLocalSearchParams<{ email?: string }>();
   const { language, t, isRTL } = useI18n();
+
+  useEffect(() => {
+    void logUserActivity("signup_completed");
+  }, []);
 
   async function goLogin() {
     await supabase.auth.signOut();
