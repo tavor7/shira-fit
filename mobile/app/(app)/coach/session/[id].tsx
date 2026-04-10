@@ -35,6 +35,7 @@ export default function CoachSessionDetail() {
   const [notes, setNotes] = useState<NoteRow[]>([]);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
+  const [noteComposerOpen, setNoteComposerOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [coachId, setCoachId] = useState<string | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
@@ -100,6 +101,7 @@ export default function CoachSessionDetail() {
       return;
     }
     setNoteDraft("");
+    setNoteComposerOpen(false);
     await loadNotes();
   }
 
@@ -154,58 +156,6 @@ export default function CoachSessionDetail() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {canEditSession ? (
-        <PrimaryButton
-          label={language === "he" ? "עריכת אימון" : "Edit session"}
-          onPress={() => router.push(`/(app)/coach/session/manage/${id}`)}
-          variant="ghost"
-        />
-      ) : null}
-
-      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "הערות" : "Notes"}</Text>
-      <View style={styles.notesCard}>
-        <TextInput
-          style={[styles.noteInput, isRTL && styles.noteInputRtl]}
-          value={noteDraft}
-          onChangeText={setNoteDraft}
-          placeholder={language === "he" ? "הוספת הערה לצוות…" : "Add a staff-only note…"}
-          placeholderTextColor={theme.colors.placeholderOnLight}
-          multiline
-        />
-        <Pressable
-          style={({ pressed }) => [styles.noteBtn, pressed && { opacity: 0.9 }, (noteBusy || !noteDraft.trim()) && { opacity: 0.5 }]}
-          onPress={() => void addNote()}
-          disabled={noteBusy || !noteDraft.trim()}
-        >
-          {noteBusy ? <ActivityIndicator color={theme.colors.ctaText} /> : <Text style={styles.noteBtnTxt}>{language === "he" ? "שמירה" : "Save note"}</Text>}
-        </Pressable>
-
-        {notes.length === 0 ? (
-          <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין הערות." : "No notes yet."}</Text>
-        ) : (
-          <View style={styles.noteList}>
-            {notes.map((n) => {
-              const p = n.profiles ? (Array.isArray(n.profiles) ? n.profiles[0] : n.profiles) : null;
-              const name = p?.full_name ?? n.author_id;
-              const canDelete = !!myId && myId === n.author_id;
-              return (
-                <View key={n.id} style={styles.noteRow}>
-                  <Text style={[styles.noteMeta, isRTL && styles.rtlText]}>
-                    {name} · {formatDateTimeForDisplay(n.created_at, language)}
-                  </Text>
-                  <Text style={[styles.noteBody, isRTL && styles.rtlText]}>{n.body}</Text>
-                  {canDelete ? (
-                    <Pressable style={({ pressed }) => [styles.noteDelete, pressed && { opacity: 0.85 }]} onPress={() => deleteNote(n.id)}>
-                      <Text style={styles.noteDeleteTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </View>
-
       <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משתתפים ונוכחות" : "Participants & attendance"}</Text>
       <ParticipantAttendanceList
         sessionId={id}
@@ -258,6 +208,99 @@ export default function CoachSessionDetail() {
         })
       )}
 
+      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "הערות" : "Notes"}</Text>
+      <View style={styles.notesCard}>
+        {!noteComposerOpen ? (
+          <Pressable
+            onPress={() => setNoteComposerOpen(true)}
+            style={({ pressed }) => [styles.noteCollapsedTrigger, pressed && { opacity: 0.88 }]}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.noteCollapsedTriggerText, isRTL && styles.rtlText]}>
+              {language === "he" ? "הקשו להוספת הערה לצוות…" : "Tap to add a staff-only note…"}
+            </Text>
+          </Pressable>
+        ) : (
+          <View>
+            <TextInput
+              style={[styles.noteInput, isRTL && styles.noteInputRtl]}
+              value={noteDraft}
+              onChangeText={setNoteDraft}
+              placeholder={language === "he" ? "הוספת הערה לצוות…" : "Add a staff-only note…"}
+              placeholderTextColor={theme.colors.placeholderOnLight}
+              multiline
+              autoFocus
+            />
+            <View style={[styles.noteComposerActions, isRTL && styles.noteComposerActionsRtl]}>
+              <Pressable
+                onPress={() => {
+                  setNoteComposerOpen(false);
+                  setNoteDraft("");
+                }}
+                style={({ pressed }) => [styles.noteCancelBtn, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={styles.noteCancelBtnTxt}>{language === "he" ? "סגירה" : "Close"}</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.noteBtn,
+                  styles.noteBtnInline,
+                  pressed && { opacity: 0.9 },
+                  (noteBusy || !noteDraft.trim()) && { opacity: 0.5 },
+                ]}
+                onPress={() => void addNote()}
+                disabled={noteBusy || !noteDraft.trim()}
+              >
+                {noteBusy ? (
+                  <ActivityIndicator color={theme.colors.ctaText} />
+                ) : (
+                  <Text style={styles.noteBtnTxt}>{language === "he" ? "שמירה" : "Save note"}</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {notes.length === 0 ? (
+          <Text style={[styles.muted, isRTL && styles.rtlText, styles.noteListHint]}>
+            {language === "he" ? "אין הערות שמורות." : "No saved notes yet."}
+          </Text>
+        ) : (
+          <View style={styles.noteList}>
+            {notes.map((n) => {
+              const p = n.profiles ? (Array.isArray(n.profiles) ? n.profiles[0] : n.profiles) : null;
+              const name = p?.full_name ?? n.author_id;
+              const canDelete = !!myId && myId === n.author_id;
+              return (
+                <View key={n.id} style={styles.noteRow}>
+                  <Text style={[styles.noteMeta, isRTL && styles.rtlText]}>
+                    {name} · {formatDateTimeForDisplay(n.created_at, language)}
+                  </Text>
+                  <Text style={[styles.noteBody, isRTL && styles.rtlText]}>{n.body}</Text>
+                  {canDelete ? (
+                    <Pressable style={({ pressed }) => [styles.noteDelete, pressed && { opacity: 0.85 }]} onPress={() => deleteNote(n.id)}>
+                      <Text style={styles.noteDeleteTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </View>
+
+      {canEditSession ? (
+        <PrimaryButton
+          label={language === "he" ? "עריכת אימון" : "Edit session"}
+          onPress={() => {
+            setNoteComposerOpen(false);
+            setNoteDraft("");
+            router.push(`/(app)/coach/session/manage/${id}`);
+          }}
+          variant="ghost"
+        />
+      ) : null}
+
       <AddParticipantToSessionModal
         sessionId={id}
         visible={addOpen}
@@ -286,6 +329,38 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     backgroundColor: theme.colors.surface,
   },
+  noteCollapsedTrigger: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderInput,
+    borderRadius: theme.radius.md,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  noteCollapsedTriggerText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: theme.colors.textMuted,
+  },
+  noteComposerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  noteComposerActionsRtl: { flexDirection: "row-reverse" },
+  noteCancelBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  noteCancelBtnTxt: { fontSize: 14, fontWeight: "800", color: theme.colors.textMuted },
+  noteBtnInline: { marginTop: 0, flexShrink: 0, paddingHorizontal: 20 },
+  noteListHint: { marginTop: theme.spacing.sm },
   noteInput: {
     borderWidth: 1,
     borderColor: theme.colors.borderInput,
