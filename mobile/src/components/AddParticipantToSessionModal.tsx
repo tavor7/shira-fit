@@ -365,7 +365,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
             keyboardShouldPersistTaps="always"
             nestedScrollEnabled
             showsVerticalScrollIndicator
-            style={styles.scrollBody}
+            style={[styles.scrollBody, { maxHeight: scrollViewportMax }]}
             contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPad }]}
             bounces
           >
@@ -538,14 +538,13 @@ const styles = StyleSheet.create({
   },
   closeXText: { fontSize: 18, fontWeight: "700", color: theme.colors.textMuted, lineHeight: 20 },
   capacityLine: { color: theme.colors.textMuted, fontWeight: "800", marginBottom: 8 },
-  /** flex:1 + minHeight:0 is required for ScrollView to scroll inside a capped-height parent (iOS Safari / RN Web). */
+  /** Bounded maxHeight is set inline from window height; minHeight:0 helps nested flex on web. */
   scrollBody: {
-    flex: 1,
     minHeight: 0,
     width: "100%",
     ...(Platform.OS === "web" ? { overflowY: "scroll" as const } : {}),
   },
-  scrollContent: { flexGrow: 1 },
+  scrollContent: {},
   modalSub: { fontWeight: "800", color: theme.colors.text, marginTop: 4, marginBottom: 8 },
   modalSubSpaced: { marginTop: 14 },
   searchRow: { flexDirection: "row", gap: 10, alignItems: "center" },
