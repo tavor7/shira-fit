@@ -9,7 +9,9 @@ import {
   Modal,
   ScrollView,
   Platform,
+  useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { PrimaryButton } from "./PrimaryButton";
@@ -32,6 +34,13 @@ function escapeIlike(term: string) {
 export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAdded }: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
+  const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  /** Pixel cap so the card + ScrollView get a real bounded height on mobile web (flex + % maxHeight is flaky in Safari). */
+  const modalMaxHeight = Math.min(Math.round(windowHeight * 0.92), windowHeight - Math.max(insets.top, 8) - 12);
+  const scrollBottomPad = Math.max(insets.bottom, 12) + 28;
+  /** Header, capacity line, and card vertical padding — scroll viewport = remaining space (explicit px scrolls reliably on iOS web). */
+  const scrollViewportMax = Math.max(200, modalMaxHeight - 122);
   const [maxCap, setMaxCap] = useState<number | null>(null);
   const [currentCount, setCurrentCount] = useState(0);
   const [q, setQ] = useState("");
@@ -327,35 +336,38 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
           onPress={handleClose}
           accessibilityLabel={language === "he" ? "סגירה" : "Close"}
         />
-        <View style={[styles.modalCard, isRTL && styles.modalCardRtl]}>
-          <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
-            <Text style={[styles.modalTitle, isRTL && styles.rtlText]} numberOfLines={2}>
-              {language === "he" ? "הוספת משתתף" : "Add participant"}
-            </Text>
-            <Pressable
-              onPress={handleClose}
-              hitSlop={12}
-              style={({ pressed }) => [styles.closeX, pressed && { opacity: 0.75 }]}
-              accessibilityRole="button"
-              accessibilityLabel={language === "he" ? "סגירה" : "Close"}
-            >
-              <Text style={styles.closeXText}>✕</Text>
-            </Pressable>
-          </View>
+        <View style={[styles.modalCard, isRTL && styles.modalCardRtl, { maxHeight: modalMaxHeight }]}>
+          <View style={styles.modalTopFixed}>
+            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
+              <Text style={[styles.modalTitle, isRTL && styles.rtlText]} numberOfLines={2}>
+                {language === "he" ? "הוספת משתתף" : "Add participant"}
+              </Text>
+              <Pressable
+                onPress={handleClose}
+                hitSlop={12}
+                style={({ pressed }) => [styles.closeX, pressed && { opacity: 0.75 }]}
+                accessibilityRole="button"
+                accessibilityLabel={language === "he" ? "סגירה" : "Close"}
+              >
+                <Text style={styles.closeXText}>✕</Text>
+              </Pressable>
+            </View>
 
-          <Text style={[styles.capacityLine, isRTL && styles.rtlText]}>
-            {language === "he" ? "קיבולת: " : "Capacity: "}
-            {currentCount}
-            {maxCap != null ? `/${maxCap}` : ""}
-            {full ? (language === "he" ? " · מלא" : " · Full") : ""}
-          </Text>
+            <Text style={[styles.capacityLine, isRTL && styles.rtlText]}>
+              {language === "he" ? "קיבולת: " : "Capacity: "}
+              {currentCount}
+              {maxCap != null ? `/${maxCap}` : ""}
+              {full ? (language === "he" ? " · מלא" : " · Full") : ""}
+            </Text>
+          </View>
 
           <ScrollView
             keyboardShouldPersistTaps="always"
             nestedScrollEnabled
             showsVerticalScrollIndicator
             style={styles.scrollBody}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPad }]}
+            bounces
           >
             <Text style={[styles.modalSub, isRTL && styles.rtlText]}>{language === "he" ? "חיפוש קיים" : "Search existing"}</Text>
             <View style={[styles.searchRow, isRTL && styles.searchRowRtl]}>
@@ -489,14 +501,21 @@ const styles = StyleSheet.create({
     position: "relative",
     zIndex: 100,
     elevation: 24,
-    maxHeight: "88%",
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
+    flexDirection: "column",
+    overflow: "hidden",
     backgroundColor: theme.colors.surfaceElevated,
     borderRadius: theme.radius.lg,
-    padding: 20,
+    paddingHorizontal: 20,
     paddingTop: 16,
+    paddingBottom: 12,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
+  /** Header + capacity stay visible; ScrollView below takes remaining height and scrolls. */
+  modalTopFixed: { flexShrink: 0 },
   modalCardRtl: {},
   modalHeader: {
     flexDirection: "row",
@@ -518,9 +537,15 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   closeXText: { fontSize: 18, fontWeight: "700", color: theme.colors.textMuted, lineHeight: 20 },
-  capacityLine: { color: theme.colors.textMuted, fontWeight: "800", marginBottom: 10 },
-  scrollBody: { maxHeight: 420 },
-  scrollContent: { paddingBottom: 8 },
+  capacityLine: { color: theme.colors.textMuted, fontWeight: "800", marginBottom: 8 },
+  /** flex:1 + minHeight:0 is required for ScrollView to scroll inside a capped-height parent (iOS Safari / RN Web). */
+  scrollBody: {
+    flex: 1,
+    minHeight: 0,
+    width: "100%",
+    ...(Platform.OS === "web" ? { overflowY: "scroll" as const } : {}),
+  },
+  scrollContent: { flexGrow: 1 },
   modalSub: { fontWeight: "800", color: theme.colors.text, marginTop: 4, marginBottom: 8 },
   modalSubSpaced: { marginTop: 14 },
   searchRow: { flexDirection: "row", gap: 10, alignItems: "center" },
