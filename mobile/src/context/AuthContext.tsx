@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "../lib/supabase";
+import { clearSupabaseAuthStorage, supabase } from "../lib/supabase";
 import type { Profile } from "../types/database";
 
 type AuthCtx = {
@@ -43,13 +43,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           loadProfile(s.user.id).finally(() => setLoading(false));
         } else setLoading(false);
       })
-      .catch(() => {
+      .catch((e) => {
+        const msg = String((e as any)?.message ?? e ?? "");
+        if (msg.toLowerCase().includes("refresh token") && msg.toLowerCase().includes("not found")) {
+          clearSupabaseAuthStorage();
+          void supabase.auth.signOut({ scope: "local" });
+        }
         // On web, if Supabase is unreachable (CORS/network/etc), avoid crashing the whole screen.
         setSession(null);
         setProfile(null);
         setLoading(false);
       });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      // supabase-js types don't always include refresh-failed, but runtime can emit it.
+      if ((event as unknown as string) === "TOKEN_REFRESH_FAILED") {
+        clearSupabaseAuthStorage();
+        void supabase.auth.signOut({ scope: "local" });
+        setSession(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
       setSession(s);
       if (s?.user?.id) {
         setLoading(true);

@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Alert, TextInput, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Alert, TextInput, Pressable, ActivityIndicator, Platform, TouchableOpacity } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
@@ -8,6 +8,7 @@ import { ParticipantAttendanceList } from "../../../../src/components/Participan
 import { AddParticipantToSessionModal } from "../../../../src/components/AddParticipantToSessionModal";
 import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay } from "../../../../src/lib/dateFormat";
+import { useToast } from "../../../../src/context/ToastContext";
 
 type W = { user_id: string; profiles: { full_name: string } };
 type CancellationRow = {
@@ -29,6 +30,7 @@ type NoteRow = {
 export default function CoachSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
+  const { showToast } = useToast();
   const [participantsRev, setParticipantsRev] = useState(0);
   const [waitlist, setWaitlist] = useState<W[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
@@ -120,7 +122,14 @@ export default function CoachSessionDetail() {
         return;
       }
       await loadNotes();
+      showToast({ message: language === "he" ? "הערה נמחקה" : "Note removed", variant: "success" });
     };
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const ok = window.confirm(`${language === "he" ? "מחיקת הערה" : "Delete note"}\n\n${msg}`);
+      if (!ok) return;
+      await run();
+      return;
+    }
     Alert.alert(language === "he" ? "מחיקת הערה" : "Delete note", msg, [
       { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
       { text: language === "he" ? "מחיקה" : "Delete", style: "destructive", onPress: () => void run() },
@@ -278,9 +287,16 @@ export default function CoachSessionDetail() {
                   </Text>
                   <Text style={[styles.noteBody, isRTL && styles.rtlText]}>{n.body}</Text>
                   {canDelete ? (
-                    <Pressable style={({ pressed }) => [styles.noteDelete, pressed && { opacity: 0.85 }]} onPress={() => deleteNote(n.id)}>
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      delayPressIn={0}
+                      onPress={() => void deleteNote(n.id)}
+                      {...(Platform.OS === "web" ? ({ onClick: () => void deleteNote(n.id) } as any) : null)}
+                      style={[styles.noteDelete, Platform.OS === "web" && styles.noteDeleteWeb]}
+                      accessibilityRole="button"
+                    >
                       <Text style={styles.noteDeleteTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
-                    </Pressable>
+                    </TouchableOpacity>
                   ) : null}
                 </View>
               );
@@ -390,6 +406,7 @@ const styles = StyleSheet.create({
   noteMeta: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700" },
   noteBody: { marginTop: 6, color: theme.colors.text, fontWeight: "700", lineHeight: 18 },
   noteDelete: { marginTop: 10, alignSelf: "flex-start" },
+  noteDeleteWeb: { cursor: "pointer" } as const,
   noteDeleteTxt: { color: theme.colors.error, fontWeight: "900" },
   cancelCard: {
     marginTop: theme.spacing.sm,

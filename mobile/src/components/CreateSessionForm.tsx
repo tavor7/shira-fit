@@ -44,6 +44,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const [weeklyOccurrences, setWeeklyOccurrences] = useState("4");
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -148,19 +149,42 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       duration_minutes: duration,
     }));
     setSaving(true);
-    let err = (await supabase.from("training_sessions").insert(rows)).error;
+    let insertedIds: string[] = [];
+    let res = await supabase.from("training_sessions").insert(rows).select("id");
+    let err = res.error;
+    insertedIds = ((res.data as { id: string }[] | null) ?? []).map((r) => r.id);
     let usedLegacyInsert = false;
     if (err && isMissingColumnError(err.message, "is_hidden")) {
       const rowsLegacy = rows.map(({ is_hidden: _h, ...rest }) => rest);
-      const retry = await supabase.from("training_sessions").insert(rowsLegacy);
+      const retry = await supabase.from("training_sessions").insert(rowsLegacy).select("id");
       err = retry.error;
       if (!err) usedLegacyInsert = true;
+      insertedIds = ((retry.data as { id: string }[] | null) ?? []).map((r) => r.id);
     }
     setSaving(false);
     if (err) {
       setError(err.message);
       Alert.alert(t("common.error"), err.message);
       return;
+    }
+
+    const noteBody = note.trim();
+    if (noteBody && insertedIds.length > 0) {
+      const batch = await supabase.rpc("add_session_note_many", { p_session_ids: insertedIds, p_body: noteBody });
+      if (batch.error) {
+        const m = String(batch.error.message || "");
+        if (m.includes("add_session_note_many")) {
+          for (const sid of insertedIds) {
+            // eslint-disable-next-line no-await-in-loop
+            await supabase.rpc("add_session_note", { p_session_id: sid, p_body: noteBody });
+          }
+        } else {
+          showToast({
+            message: language === "he" ? "האימון נשמר, אבל ההערה לא נשמרה." : "Saved, but the note could not be saved.",
+            variant: "info",
+          });
+        }
+      }
     }
     if (usedLegacyInsert && hidden) {
       Alert.alert(
@@ -331,8 +355,39 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
               placeholder={language === "he" ? "12" : "12"}
               placeholderTextColor={theme.colors.textSoft}
             />
+            <View style={styles.quickCapsRow}>
+              {[1, 2, 4, 12].map((n) => {
+                const active = String(n) === max.trim();
+                return (
+                  <Pressable
+                    key={n}
+                    onPress={() => setMax(String(n))}
+                    style={({ pressed }) => [styles.quickCapBtn, active && styles.quickCapBtnActive, pressed && { opacity: 0.92 }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.quickCapTxt, active && styles.quickCapTxtActive]}>{n}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
         </View>
+      </View>
+
+      <View style={sf.card}>
+        <Text style={sf.cardTitle}>{language === "he" ? "הערה" : "Note"}</Text>
+        <Text style={[sf.label, isRTL && sf.labelRtl]}>
+          {language === "he" ? "הערה לצוות (נשמרת יחד עם האימון)" : "Staff note (saved with the session)"}
+        </Text>
+        <TextInput
+          style={[sf.control, styles.noteInput, isRTL && { textAlign: "right" }]}
+          value={note}
+          onChangeText={setNote}
+          placeholder={language === "he" ? "לדוגמה: עבודה על טכניקה…" : "Example: focus on technique…"}
+          placeholderTextColor={theme.colors.textSoft}
+          multiline
+          textAlignVertical="top"
+        />
       </View>
 
       <View style={sf.card}>
@@ -427,4 +482,19 @@ const styles = StyleSheet.create({
   pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoft, textAlign: "center", fontWeight: "700" },
   secondaryAction: { marginTop: 12, paddingVertical: 10, alignItems: "center" },
   secondaryActionTxt: { color: theme.colors.textMuted, fontWeight: "900" },
+  quickCapsRow: { flexDirection: "row", gap: 8, marginTop: 10, flexWrap: "wrap" },
+  quickCapBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    minWidth: 44,
+    alignItems: "center",
+  },
+  quickCapBtnActive: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  quickCapTxt: { color: theme.colors.text, fontWeight: "900" },
+  quickCapTxtActive: { color: theme.colors.ctaText },
+  noteInput: { minHeight: 110, paddingVertical: 12 },
 });

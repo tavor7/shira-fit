@@ -23,6 +23,10 @@ function defaultStartISO() {
 
 type Section = { title: string; data: ParticipantHistoryRow[] };
 type Athlete = { user_id: string; full_name: string; username: string; phone: string };
+type QuickLinked = { id: string; full_name: string; phone: string; linked_user_id: string };
+type PickerRow =
+  | ({ kind: "athlete" } & Athlete)
+  | ({ kind: "quick" } & QuickLinked);
 
 function groupByAthlete(rows: ParticipantHistoryRow[]): Section[] {
   const map = new Map<string, ParticipantHistoryRow[]>();
@@ -54,7 +58,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [phone, setPhone] = useState(""); // used as RPC filter; set from athlete selection
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQ, setPickerQ] = useState("");
-  const [athletes, setAthletes] = useState<Athlete[]>([]);
+  const [athletes, setAthletes] = useState<PickerRow[]>([]);
   const [athletesLoading, setAthletesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -100,12 +104,29 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       query = query.or(`full_name.ilike.%${q}%,username.ilike.%${q}%,phone.ilike.%${q}%`);
     }
     const { data, error } = await query;
+
+    let mQuery = supabase
+      .from("manual_participants")
+      .select("id, full_name, phone, linked_user_id")
+      .not("linked_user_id", "is", null)
+      .order("full_name", { ascending: true })
+      .limit(200);
+    if (q.length > 0) {
+      mQuery = mQuery.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`);
+    }
+    const { data: mData, error: mErr } = await mQuery;
+
     setAthletesLoading(false);
     if (error) {
       setAthletes([]);
       return;
     }
-    setAthletes((data as Athlete[]) ?? []);
+    const base = ((data as Athlete[]) ?? []).map((a) => ({ kind: "athlete" as const, ...a }));
+    const quick = mErr ? [] : (((mData as QuickLinked[]) ?? []).map((m) => ({ kind: "quick" as const, ...m })));
+
+    const seen = new Set<string>(base.map((b) => b.user_id));
+    const quickDedup = quick.filter((m) => !seen.has(m.linked_user_id));
+    setAthletes([...quickDedup, ...base]);
   }, [pickerQ]);
 
   const load = useCallback(async () => {
@@ -208,20 +229,26 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             ) : (
               <FlatList
                 data={athletes}
-                keyExtractor={(item) => item.user_id}
+                keyExtractor={(item) => (item.kind === "athlete" ? item.user_id : `quick:${item.id}`)}
                 renderItem={({ item }) => (
                   <Pressable
                     style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
                     onPress={() => {
-                      setAthleteId(item.user_id);
-                      setAthleteLabel(`${item.full_name} (@${item.username}) · ${item.phone}`);
-                      setPhone(item.phone);
+                      if (item.kind === "athlete") {
+                        setAthleteId(item.user_id);
+                        setAthleteLabel(`${item.full_name} (@${item.username}) · ${item.phone}`);
+                        setPhone(item.phone);
+                      } else {
+                        setAthleteId(item.linked_user_id);
+                        setAthleteLabel(`${item.full_name} · ${item.phone} · ${language === "he" ? "קישור מרשימת מהיר" : "Quick Add link"}`);
+                        setPhone(item.phone);
+                      }
                       setPickerOpen(false);
                     }}
                   >
                     <Text style={styles.pickerItemName}>{item.full_name}</Text>
                     <Text style={styles.pickerItemRole}>
-                      @{item.username} · {item.phone}
+                      {item.kind === "athlete" ? `@${item.username} · ${item.phone}` : `${item.phone} · ${language === "he" ? "מהיר" : "Quick Add"}`}
                     </Text>
                   </Pressable>
                 )}

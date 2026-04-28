@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator, ScrollView, useWindowDimensions } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator, ScrollView, useWindowDimensions, Modal, Platform } from "react-native";
 import { supabase } from "../../../../../src/lib/supabase";
 import type { TrainingSession } from "../../../../../src/types/database";
 import { theme } from "../../../../../src/theme";
@@ -36,6 +36,10 @@ export default function CoachSessionManageScreen() {
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [undoStack, setUndoStack] = useState<EditSnapshot[]>([]);
+  const [dupOpen, setDupOpen] = useState(false);
+  const [dupDate, setDupDate] = useState("");
+  const [dupTime, setDupTime] = useState("");
+  const [dupBusy, setDupBusy] = useState(false);
 
   function pushUndo() {
     setUndoStack((prev) => {
@@ -137,6 +141,45 @@ export default function CoachSessionManageScreen() {
           : "Hidden-session column is not on the database yet; other fields were saved."
       );
     }
+  }
+
+  async function duplicateSession() {
+    if (!session) return;
+    const d = dupDate.trim();
+    if (!isValidISODateString(d)) {
+      Alert.alert(
+        language === "he" ? "תאריך לא תקין" : "Invalid date",
+        language === "he" ? "בחרו תאריך אימון תקין." : "Please choose a valid session date."
+      );
+      return;
+    }
+    setDupBusy(true);
+    const payload = {
+      session_date: d,
+      start_time: dupTime || time,
+      coach_id: session.coach_id,
+      max_participants: parseInt(maxP, 10) || 1,
+      duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
+      is_open_for_registration: open,
+      is_hidden: hidden,
+    };
+    let res = await supabase.from("training_sessions").insert(payload).select("id").maybeSingle();
+    let error = res.error;
+    if (error && isMissingColumnError(error.message, "is_hidden")) {
+      const { is_hidden: _h, ...rest } = payload as any;
+      res = await supabase.from("training_sessions").insert(rest).select("id").maybeSingle();
+      error = res.error;
+    }
+    setDupBusy(false);
+    if (error) {
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
+      else Alert.alert(t("common.error"), error.message);
+      return;
+    }
+    const newId = (res.data as { id?: string } | null)?.id;
+    setDupOpen(false);
+    if (newId) router.push(`/(app)/coach/session/${newId}`);
+    else router.replace("/(app)/coach/sessions");
   }
 
   if (forbidden) {
@@ -272,10 +315,47 @@ export default function CoachSessionManageScreen() {
           <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
         </Pressable>
         <PrimaryButton label={t("common.save")} onPress={saveSession} />
+        <View style={{ height: 10 }} />
+        <PrimaryButton
+          label={language === "he" ? "שכפול אימון…" : "Duplicate session…"}
+          onPress={() => {
+            setDupDate(date);
+            setDupTime(time);
+            setDupOpen(true);
+          }}
+          variant="ghost"
+        />
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}>
           <Text style={styles.cancelEditTxt}>{t("common.cancel")}</Text>
         </Pressable>
       </View>
+
+      <Modal visible={dupOpen} transparent animationType="fade" onRequestClose={() => (dupBusy ? null : setDupOpen(false))}>
+        <View style={styles.dupBackdrop}>
+          <Pressable style={styles.dupBackdropTouch} onPress={() => (dupBusy ? null : setDupOpen(false))} />
+          <View style={styles.dupCard}>
+            <Text style={[styles.dupTitle, isRTL && styles.rtlText]}>{language === "he" ? "שכפול אימון" : "Duplicate session"}</Text>
+            <View style={[sf.row, compact && sf.rowStack]}>
+              <View style={sf.col}>
+                <DatePickerField label={language === "he" ? "תאריך חדש" : "New date"} value={dupDate} onChange={setDupDate} />
+              </View>
+              <View style={sf.col}>
+                <TimePickerField label={language === "he" ? "שעה חדשה" : "New time"} value={dupTime} onChange={setDupTime} />
+              </View>
+            </View>
+            <View style={{ height: 12 }} />
+            <PrimaryButton
+              label={language === "he" ? "צור עותק" : "Create copy"}
+              onPress={() => void duplicateSession()}
+              loading={dupBusy}
+              loadingLabel={t("common.loading")}
+            />
+            <Pressable style={({ pressed }) => [styles.dupCancel, pressed && { opacity: 0.85 }]} onPress={() => (dupBusy ? null : setDupOpen(false))}>
+              <Text style={styles.dupCancelTxt}>{t("common.cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -298,4 +378,16 @@ const styles = StyleSheet.create({
   err: { color: theme.colors.error, fontSize: 16, fontWeight: "600" },
   cancelEdit: { marginTop: theme.spacing.sm, paddingVertical: 12, alignItems: "center" },
   cancelEditTxt: { color: theme.colors.textSoft, fontWeight: "800", fontSize: 15 },
+  dupBackdrop: { flex: 1, justifyContent: "center", padding: theme.spacing.lg, backgroundColor: "rgba(0,0,0,0.55)" },
+  dupBackdropTouch: { ...StyleSheet.absoluteFillObject },
+  dupCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    padding: theme.spacing.md,
+  },
+  dupTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text, marginBottom: 10 },
+  dupCancel: { marginTop: 10, paddingVertical: 10, alignItems: "center" },
+  dupCancelTxt: { color: theme.colors.textMuted, fontWeight: "900" },
 });

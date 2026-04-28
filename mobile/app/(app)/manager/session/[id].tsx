@@ -1,12 +1,14 @@
-import { useLocalSearchParams, useFocusEffect } from "expo-router";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
   TextInput,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
   ScrollView,
   Modal,
   FlatList,
@@ -27,6 +29,7 @@ import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay, formatISODateFull } from "../../../../src/lib/dateFormat";
 import { useAuth } from "../../../../src/context/AuthContext";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../src/components/sessionFormStyles";
+import { useToast } from "../../../../src/context/ToastContext";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
 
@@ -60,7 +63,8 @@ type CancellationRow = {
 export default function ManagerSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const { showToast } = useToast();
   const { width } = useWindowDimensions();
   const compact = sessionFormIsCompact(width);
   const [participantsRev, setParticipantsRev] = useState(0);
@@ -80,6 +84,10 @@ export default function ManagerSessionDetail() {
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [undoStack, setUndoStack] = useState<EditSnapshot[]>([]);
+  const [dupOpen, setDupOpen] = useState(false);
+  const [dupDate, setDupDate] = useState("");
+  const [dupTime, setDupTime] = useState("");
+  const [dupBusy, setDupBusy] = useState(false);
   const [notes, setNotes] = useState<NoteRow[]>([]);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
@@ -162,7 +170,15 @@ export default function ManagerSessionDetail() {
         return;
       }
       await loadNotes();
+      showToast({ message: language === "he" ? "הערה נמחקה" : "Note removed", variant: "success" });
     };
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      // RN Web often doesn't surface Alert reliably. Use a native confirm dialog.
+      const ok = window.confirm(`${language === "he" ? "מחיקת הערה" : "Delete note"}\n\n${msg}`);
+      if (!ok) return;
+      await run();
+      return;
+    }
     Alert.alert(language === "he" ? "מחיקת הערה" : "Delete note", msg, [
       { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
       { text: language === "he" ? "מחיקה" : "Delete", style: "destructive", onPress: () => void run() },
@@ -298,6 +314,47 @@ export default function ManagerSessionDetail() {
           : "Hidden-session column is not on the database yet; other fields were saved."
       );
     }
+  }
+
+  async function duplicateSession() {
+    const d = dupDate.trim();
+    if (!isValidISODateString(d)) {
+      Alert.alert(
+        language === "he" ? "תאריך לא תקין" : "Invalid date",
+        language === "he" ? "בחרו תאריך אימון תקין." : "Please choose a valid session date."
+      );
+      return;
+    }
+    if (!coachId) {
+      Alert.alert(language === "he" ? "חסר מאמן" : "Missing trainer", language === "he" ? "בחרו מאמן/ת." : "Please choose a trainer.");
+      return;
+    }
+    setDupBusy(true);
+    const payload = {
+      session_date: d,
+      start_time: dupTime || time,
+      coach_id: coachId,
+      max_participants: parseInt(maxP, 10) || 1,
+      duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
+      is_open_for_registration: open,
+      is_hidden: hidden,
+    };
+    let res = await supabase.from("training_sessions").insert(payload).select("id").maybeSingle();
+    let error = res.error;
+    if (error && isMissingColumnError(error.message, "is_hidden")) {
+      const { is_hidden: _h, ...rest } = payload as any;
+      res = await supabase.from("training_sessions").insert(rest).select("id").maybeSingle();
+      error = res.error;
+    }
+    setDupBusy(false);
+    if (error) {
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
+      else Alert.alert(t("common.error"), error.message);
+      return;
+    }
+    const newId = (res.data as { id?: string } | null)?.id;
+    setDupOpen(false);
+    if (newId) router.push(`/(app)/manager/session/${newId}`);
   }
 
   async function removeAthlete(userId: string) {
@@ -493,6 +550,16 @@ export default function ManagerSessionDetail() {
               <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
             </Pressable>
             <PrimaryButton label={t("common.save")} onPress={saveSession} />
+            <View style={{ height: 10 }} />
+            <PrimaryButton
+              label={language === "he" ? "שכפול אימון…" : "Duplicate session…"}
+              onPress={() => {
+                setDupDate(date);
+                setDupTime(time);
+                setDupOpen(true);
+              }}
+              variant="ghost"
+            />
             <Pressable
               onPress={() => {
                 void load();
@@ -505,6 +572,33 @@ export default function ManagerSessionDetail() {
           </View>
         </View>
       )}
+
+      <Modal visible={dupOpen} transparent animationType="fade" onRequestClose={() => (dupBusy ? null : setDupOpen(false))}>
+        <View style={styles.dupBackdrop}>
+          <Pressable style={styles.dupBackdropTouch} onPress={() => (dupBusy ? null : setDupOpen(false))} />
+          <View style={styles.dupCard}>
+            <Text style={[styles.dupTitle, isRTL && styles.rtlText]}>{language === "he" ? "שכפול אימון" : "Duplicate session"}</Text>
+            <View style={[sf.row, compact && sf.rowStack]}>
+              <View style={sf.col}>
+                <DatePickerField label={language === "he" ? "תאריך חדש" : "New date"} value={dupDate} onChange={setDupDate} />
+              </View>
+              <View style={sf.col}>
+                <TimePickerField label={language === "he" ? "שעה חדשה" : "New time"} value={dupTime} onChange={setDupTime} />
+              </View>
+            </View>
+            <View style={{ height: 12 }} />
+            <PrimaryButton
+              label={language === "he" ? "צור עותק" : "Create copy"}
+              onPress={() => void duplicateSession()}
+              loading={dupBusy}
+              loadingLabel={t("common.loading")}
+            />
+            <Pressable style={({ pressed }) => [styles.dupCancel, pressed && { opacity: 0.85 }]} onPress={() => (dupBusy ? null : setDupOpen(false))}>
+              <Text style={styles.dupCancelTxt}>{t("common.cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משתתפים ונוכחות" : "Participants & attendance"}</Text>
       <ParticipantAttendanceList
@@ -606,7 +700,7 @@ export default function ManagerSessionDetail() {
             {notes.map((n) => {
               const p = n.profiles ? (Array.isArray(n.profiles) ? n.profiles[0] : n.profiles) : null;
               const name = p?.full_name ?? n.author_id;
-              const canDelete = !!user?.id && user.id === n.author_id;
+              const canDelete = (profile?.role === "manager") || (!!user?.id && user.id === n.author_id);
               return (
                 <View key={n.id} style={styles.noteRow}>
                   <Text style={[styles.noteMeta, isRTL && styles.rtlText]}>
@@ -614,9 +708,17 @@ export default function ManagerSessionDetail() {
                   </Text>
                   <Text style={[styles.noteBody, isRTL && styles.rtlText]}>{n.body}</Text>
                   {canDelete ? (
-                    <Pressable style={({ pressed }) => [styles.noteDelete, pressed && { opacity: 0.85 }]} onPress={() => deleteNote(n.id)}>
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      delayPressIn={0}
+                      onPress={() => void deleteNote(n.id)}
+                      // Extra fallback for iOS Safari / RN web edge cases.
+                      {...(Platform.OS === "web" ? ({ onClick: () => void deleteNote(n.id) } as any) : null)}
+                      style={[styles.noteDelete, Platform.OS === "web" && styles.noteDeleteWeb]}
+                      accessibilityRole="button"
+                    >
                       <Text style={styles.noteDeleteTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
-                    </Pressable>
+                    </TouchableOpacity>
                   ) : null}
                 </View>
               );
@@ -733,6 +835,7 @@ const styles = StyleSheet.create({
   noteMeta: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700" },
   noteBody: { marginTop: 6, color: theme.colors.text, fontWeight: "700", lineHeight: 18 },
   noteDelete: { marginTop: 10, alignSelf: "flex-start" },
+  noteDeleteWeb: { cursor: "pointer" } as const,
   noteDeleteTxt: { color: theme.colors.error, fontWeight: "900" },
   input: {
     borderWidth: 1,
@@ -806,6 +909,18 @@ const styles = StyleSheet.create({
   undoBtnTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
   cancelEdit: { marginTop: theme.spacing.sm, paddingVertical: 12, alignItems: "center" },
   cancelEditTxt: { color: theme.colors.textSoft, fontWeight: "700", fontSize: 15 },
+  dupBackdrop: { flex: 1, justifyContent: "center", padding: theme.spacing.lg, backgroundColor: "rgba(0,0,0,0.55)" },
+  dupBackdropTouch: { ...StyleSheet.absoluteFillObject },
+  dupCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    padding: theme.spacing.md,
+  },
+  dupTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text, marginBottom: 10 },
+  dupCancel: { marginTop: 10, paddingVertical: 10, alignItems: "center" },
+  dupCancelTxt: { color: theme.colors.textMuted, fontWeight: "900" },
   cancelCard: {
     marginTop: theme.spacing.sm,
     padding: theme.spacing.md,
