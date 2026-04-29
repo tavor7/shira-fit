@@ -187,24 +187,29 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress,
             const count = dayList.length;
             const isToday = d.iso === todayIso;
             return (
-              <Pressable
+              <View
                 key={d.iso}
-                onPress={() => onDayPress?.(d.iso)}
-                disabled={!onDayPress}
-                style={({ pressed }) => [
+                style={[
                   styles.dayCol,
                   isToday && styles.dayColToday,
-                  pressed && onDayPress && styles.dayColPressed,
                 ]}
-                accessibilityLabel={
-                  isToday
-                    ? language === "he"
-                      ? `${dayNames[d.date.getDay()]} ${d.date.getDate()}, היום`
-                      : `Today, ${dayNames[d.date.getDay()]} ${d.date.getDate()}`
-                    : `${dayNames[d.date.getDay()]} ${d.date.getDate()}`
-                }
               >
-                <View style={styles.dayHeaderBox}>
+                <Pressable
+                  onPress={() => onDayPress?.(d.iso)}
+                  disabled={!onDayPress}
+                  style={({ pressed }) => [
+                    styles.dayHeaderBox,
+                    pressed && onDayPress && styles.dayColPressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    isToday
+                      ? language === "he"
+                        ? `${dayNames[d.date.getDay()]} ${d.date.getDate()}, היום`
+                        : `Today, ${dayNames[d.date.getDay()]} ${d.date.getDate()}`
+                      : `${dayNames[d.date.getDay()]} ${d.date.getDate()}`
+                  }
+                >
                   <Text style={styles.dayName}>{dayNames[d.date.getDay()]}</Text>
                   <Text style={[styles.dayNum, isToday && styles.dayNumToday]}>{d.date.getDate()}</Text>
                   <Text style={[styles.dayMonth, isToday && styles.dayMonthToday]}>
@@ -215,7 +220,7 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress,
                       <Text style={styles.countPillTxt}>{count}</Text>
                     </View>
                   ) : null}
-                </View>
+                </Pressable>
                 <View style={styles.dayItems}>
                   {dayList.map((it) => (
                     <Pressable
@@ -231,7 +236,7 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress,
                     </Pressable>
                   ))}
                 </View>
-              </Pressable>
+              </View>
             );
           })}
         </ScrollView>

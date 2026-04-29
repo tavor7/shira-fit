@@ -14,9 +14,11 @@ import { appendNetworkHint } from "../../../../src/lib/networkErrors";
 import { StatusChip } from "../../../../src/components/StatusChip";
 import { scheduleSessionReminders, cancelSessionReminders } from "../../../../src/lib/sessionReminders";
 import { clearWaitlistSpotFlag } from "../../../../src/lib/waitlistSpotNotifier";
+import { fetchActiveSignupCountsBySession } from "../../../../src/lib/sessionSignupCounts";
 
 export default function AthleteSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const sessionId = String(id ?? "").trim();
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
   const [session, setSession] = useState<TrainingSessionWithTrainer | null>(null);
@@ -26,38 +28,56 @@ export default function AthleteSessionDetail() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [names, setNames] = useState<string[]>([]);
-  const uid = async () => (await supabase.auth.getUser()).data.user?.id;
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string>("");
+  const [registering, setRegistering] = useState(false);
+  const [waitlisting, setWaitlisting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  async function refreshCount() {
+    const m = await fetchActiveSignupCountsBySession([sessionId]);
+    setCount(m[sessionId] ?? 0);
+  }
 
   async function loadNames() {
-    const { data: ppl } = await supabase.rpc("list_session_participants", { p_session_id: id });
+    const { data: ppl, error } = await supabase.rpc("list_session_participants", { p_session_id: sessionId });
+    if (error) return;
     const list = Array.isArray(ppl) ? (ppl as { full_name: string }[]).map((x) => x.full_name).filter(Boolean) : [];
     setNames(list);
   }
 
   useEffect(() => {
     (async () => {
-      const { data: s } = await supabase
+      if (!sessionId) {
+        setLoadError(language === "he" ? "מזהה אימון חסר" : "Missing session id");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setLoadError("");
+
+      const { data: s, error: sErr } = await supabase
         .from("training_sessions")
         .select("*, trainer:profiles!coach_id(full_name)")
-        .eq("id", id)
+        .eq("id", sessionId)
         .single();
+      if (sErr || !s) {
+        setSession(null);
+        setLoadError(sErr?.message ?? (language === "he" ? "האימון לא נמצא" : "Session not found"));
+        setLoading(false);
+        return;
+      }
+
       setSession(s as TrainingSessionWithTrainer);
-      const { count: c1 } = await supabase
-        .from("session_registrations")
-        .select("*", { count: "exact", head: true })
-        .eq("session_id", id)
-        .eq("status", "active");
-      const { count: c2 } = await supabase
-        .from("session_manual_participants")
-        .select("*", { count: "exact", head: true })
-        .eq("session_id", id);
-      setCount((c1 ?? 0) + (c2 ?? 0));
+
+      await refreshCount();
       const u = (await supabase.auth.getUser()).data.user?.id;
       if (u) {
         const { data: r } = await supabase
           .from("session_registrations")
           .select("id")
-          .eq("session_id", id)
+          .eq("session_id", sessionId)
           .eq("user_id", u)
           .eq("status", "active")
           .maybeSingle();
@@ -65,49 +85,47 @@ export default function AthleteSessionDetail() {
         const { data: w } = await supabase
           .from("waitlist_requests")
           .select("id")
-          .eq("session_id", id)
+          .eq("session_id", sessionId)
           .eq("user_id", u)
           .maybeSingle();
         setOnWaitlist(!!w);
       }
 
       await loadNames();
+      setLoading(false);
     })();
-  }, [id]);
+  }, [sessionId, language]);
 
   async function register() {
-    const { data, error } = await supabase.rpc("register_for_session", { p_session_id: id });
-    if (error) Alert.alert(t("common.error"), error.message);
+    if (registering || waitlisting || cancelling) return;
+    setRegistering(true);
+    const { data, error } = await supabase.rpc("register_for_session", { p_session_id: sessionId });
+    setRegistering(false);
+    if (error) showToast({ message: t("common.error"), detail: error.message, variant: "error" });
     else if (data?.ok) {
-      Alert.alert(language === "he" ? "נרשמת" : "Registered");
+      showToast({ message: language === "he" ? "נרשמת" : "Registered", variant: "success" });
       setRegistered(true);
       await loadNames();
       if (session) {
         await scheduleSessionReminders({
-          sessionId: id,
+          sessionId,
           sessionDate: session.session_date,
           startTime: session.start_time,
           title: language === "he" ? "תזכורת לאימון" : "Workout reminder",
           bodyNear: `${formatISODateFull(session.session_date, language)} · ${formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}`,
         });
       }
-      await clearWaitlistSpotFlag(id);
-      const { count: c1 } = await supabase
-        .from("session_registrations")
-        .select("*", { count: "exact", head: true })
-        .eq("session_id", id)
-        .eq("status", "active");
-      const { count: c2 } = await supabase
-        .from("session_manual_participants")
-        .select("*", { count: "exact", head: true })
-        .eq("session_id", id);
-      setCount((c1 ?? 0) + (c2 ?? 0));
-    } else Alert.alert(language === "he" ? "לא ניתן להירשם" : "Could not register", data?.error ?? "");
+      await clearWaitlistSpotFlag(sessionId);
+      await refreshCount();
+    } else showToast({ message: language === "he" ? "לא ניתן להירשם" : "Could not register", detail: data?.error ?? "", variant: "error" });
   }
 
   async function waitlist() {
-    const { data, error } = await supabase.rpc("request_waitlist", { p_session_id: id });
-    if (error) Alert.alert(t("common.error"), appendNetworkHint(error, t("network.offlineHint")));
+    if (registering || waitlisting || cancelling) return;
+    setWaitlisting(true);
+    const { data, error } = await supabase.rpc("request_waitlist", { p_session_id: sessionId });
+    setWaitlisting(false);
+    if (error) showToast({ message: t("common.error"), detail: appendNetworkHint(error, t("network.offlineHint")), variant: "error" });
     else if (data?.ok) {
       showToast({
         message:
@@ -116,23 +134,26 @@ export default function AthleteSessionDetail() {
       });
       setOnWaitlist(true);
       await loadNames();
-    } else Alert.alert(language === "he" ? "רשימת המתנה" : "Waitlist", data?.error ?? "");
+    } else showToast({ message: language === "he" ? "רשימת המתנה" : "Waitlist", detail: data?.error ?? "", variant: "error" });
   }
 
   async function cancel() {
+    if (registering || waitlisting || cancelling) return;
     if (!reason.trim()) {
       Alert.alert(language === "he" ? "נדרשת סיבה" : "Reason required");
       return;
     }
+    setCancelling(true);
     const { data, error } = await supabase.rpc("cancel_registration", {
-      p_session_id: id,
+      p_session_id: sessionId,
       p_reason: reason.trim(),
     });
+    setCancelling(false);
     setCancelOpen(false);
     setReason("");
-    if (error) Alert.alert(t("common.error"), appendNetworkHint(error, t("network.offlineHint")));
+    if (error) showToast({ message: t("common.error"), detail: appendNetworkHint(error, t("network.offlineHint")), variant: "error" });
     else if (data?.ok) {
-      await cancelSessionReminders(id);
+      await cancelSessionReminders(sessionId);
       const cancelMsg = data.charged_full_price
         ? language === "he"
           ? "בוטל פחות מ-24 שעות לפני האימון — תחויב/י עבור האימון."
@@ -143,25 +164,31 @@ export default function AthleteSessionDetail() {
       showToast({ message: cancelMsg, variant: "success" });
       setRegistered(false);
       setNames([]);
-      const { count: c1 } = await supabase
-        .from("session_registrations")
-        .select("*", { count: "exact", head: true })
-        .eq("session_id", id)
-        .eq("status", "active");
-      const { count: c2 } = await supabase
-        .from("session_manual_participants")
-        .select("*", { count: "exact", head: true })
-        .eq("session_id", id);
-      setCount((c1 ?? 0) + (c2 ?? 0));
+      await refreshCount();
       /* Notify waitlist: configure Supabase Cron or webhook to POST notify-waitlist with CRON_SECRET */
-    } else Alert.alert(t("common.error"), data?.error ?? "");
+    } else showToast({ message: t("common.error"), detail: data?.error ?? "", variant: "error" });
   }
 
-  if (!session)
+  if (loading)
     return (
       <View style={styles.box}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
         <Text style={[styles.loadingText, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
+      </View>
+    );
+  if (loadError)
+    return (
+      <View style={styles.box}>
+        <Text style={[styles.loadingText, isRTL && styles.rtlText]}>{loadError}</Text>
+        <View style={{ marginTop: theme.spacing.md }}>
+          <ActionButton label={language === "he" ? "נסו שוב" : "Retry"} onPress={() => router.replace(`/(app)/athlete/session/${sessionId}`)} />
+        </View>
+      </View>
+    );
+  if (!session)
+    return (
+      <View style={styles.box}>
+        <Text style={[styles.loadingText, isRTL && styles.rtlText]}>{language === "he" ? "האימון לא נמצא" : "Session not found"}</Text>
       </View>
     );
   const full = count >= session.max_participants;
@@ -225,13 +252,13 @@ export default function AthleteSessionDetail() {
       {!registered ? (
         <>
           <PrimaryButton
-            label={language === "he" ? "הרשמה" : "Register"}
+            label={registering ? t("common.loading") : language === "he" ? "הרשמה" : "Register"}
             onPress={register}
-            disabled={full || !regOpen}
+            disabled={full || !regOpen || registering || waitlisting || cancelling}
             style={full || !regOpen ? styles.disabled : undefined}
           />
           {full && (
-            <Pressable style={styles.btn2} onPress={waitlist}>
+            <Pressable style={styles.btn2} onPress={waitlist} disabled={waitlisting || registering || cancelling}>
               <Text style={styles.btnText2}>
                 {onWaitlist
                   ? language === "he"
@@ -250,7 +277,7 @@ export default function AthleteSessionDetail() {
           ) : null}
         </>
       ) : (
-        <Pressable style={styles.btnDanger} onPress={() => setCancelOpen(true)}>
+        <Pressable style={styles.btnDanger} onPress={() => setCancelOpen(true)} disabled={registering || waitlisting || cancelling}>
           <Text style={styles.btnText}>{language === "he" ? "ביטול הרשמה" : "Cancel registration"}</Text>
         </Pressable>
       )}
@@ -266,7 +293,12 @@ export default function AthleteSessionDetail() {
               onChangeText={setReason}
               multiline
             />
-            <PrimaryButton label={language === "he" ? "אישור ביטול" : "Confirm cancel"} onPress={cancel} />
+            <PrimaryButton
+              label={cancelling ? t("common.loading") : language === "he" ? "אישור ביטול" : "Confirm cancel"}
+              onPress={cancel}
+              loading={cancelling}
+              loadingLabel={t("common.loading")}
+            />
             <ActionButton
               label={language === "he" ? "סגור" : "Close"}
               onPress={() => setCancelOpen(false)}

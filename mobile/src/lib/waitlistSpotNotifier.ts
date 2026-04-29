@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import { formatISODateFull } from "./dateFormat";
 import { loadNotificationPrefs } from "./notificationPrefs";
 import { ensureNotificationPermission } from "./sessionReminders";
+import { fetchActiveSignupCountsBySession } from "./sessionSignupCounts";
 
 function key(sessionId: string) {
   return `waitlist_spot_notified:${sessionId}`;
@@ -22,6 +23,7 @@ export async function checkWaitlistSpotsAndNotify(language: "en" | "he"): Promis
 
   const { data: waits } = await supabase.from("waitlist_requests").select("session_id").eq("user_id", user.id);
   const sessionIds = [...new Set((waits ?? []).map((w) => w.session_id))];
+  const countsBySession = await fetchActiveSignupCountsBySession(sessionIds);
 
   for (const sid of sessionIds) {
     const { data: s } = await supabase
@@ -31,16 +33,7 @@ export async function checkWaitlistSpotsAndNotify(language: "en" | "he"): Promis
       .maybeSingle();
     if (!s) continue;
 
-    const { count: c1 } = await supabase
-      .from("session_registrations")
-      .select("*", { count: "exact", head: true })
-      .eq("session_id", sid)
-      .eq("status", "active");
-    const { count: c2 } = await supabase
-      .from("session_manual_participants")
-      .select("*", { count: "exact", head: true })
-      .eq("session_id", sid);
-    const n = (c1 ?? 0) + (c2 ?? 0);
+    const n = countsBySession[sid] ?? 0;
 
     if (n < s.max_participants && s.is_open_for_registration) {
       const been = await SecureStore.getItemAsync(key(sid));

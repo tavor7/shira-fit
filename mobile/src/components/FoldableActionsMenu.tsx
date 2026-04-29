@@ -1,7 +1,8 @@
 import { ReactNode, useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { theme } from "../theme";
 import { ActionButton } from "./ActionButton";
+import { AppModal } from "./AppModal";
 
 export type FoldableActionsMenuItem = {
   label: string;
@@ -48,87 +49,57 @@ export function FoldableActionsMenu({
   return (
     <>
       {renderTrigger ? renderTrigger(() => setOpen(true)) : <ActionButton label={label} onPress={() => setOpen(true)} />}
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <View style={styles.backdrop}>
-          {/* Separate overlay avoids nested <button> on react-native-web */}
-          <Pressable
-            style={styles.overlay}
-            onPress={() => setOpen(false)}
-            accessibilityRole="button"
-            accessibilityLabel={backdropAccessibilityLabel}
-          />
-          <View style={[styles.card, { width: cardWidth }]}>
-            {!hideHeader ? (
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardHeaderTxt} numberOfLines={1}>
-                  {label}
-                </Text>
-                {!hideCloseButton ? (
-                  <Pressable
-                    onPress={() => setOpen(false)}
-                    style={({ pressed }) => [styles.cardClose, pressed && { opacity: 0.85 }]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Close menu"
-                  >
-                    <Text style={styles.cardCloseTxt}>✕</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : null}
-            {safeItems.map((item) => (
+      <AppModal
+        visible={open}
+        onClose={() => setOpen(false)}
+        variant="popover"
+        width={cardWidth}
+        backdropAccessibilityLabel={backdropAccessibilityLabel}
+      >
+        {!hideHeader ? (
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardHeaderTxt} numberOfLines={1}>
+              {label}
+            </Text>
+            {!hideCloseButton ? (
               <Pressable
-                key={item.label}
-                style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-                onPress={() => {
-                  setOpen(false);
-                  item.onPress();
-                }}
+                onPress={() => setOpen(false)}
+                style={({ pressed }) => [styles.cardClose, pressed && { opacity: 0.85 }]}
                 accessibilityRole="button"
-                accessibilityLabel={item.accessibilityLabel ?? item.label}
+                accessibilityLabel="Close menu"
               >
-                <View style={styles.itemRow}>
-                  <Text style={styles.itemText}>{item.label}</Text>
-                  {item.badgeCount && item.badgeCount > 0 ? (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeTxt}>
-                        {item.badgeCount > 99 ? "99+" : String(item.badgeCount)}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
+                <Text style={styles.cardCloseTxt}>✕</Text>
               </Pressable>
-            ))}
+            ) : null}
           </View>
-        </View>
-      </Modal>
+        ) : null}
+        {safeItems.map((item) => (
+          <Pressable
+            key={item.label}
+            style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+            onPress={() => {
+              setOpen(false);
+              item.onPress();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={item.accessibilityLabel ?? item.label}
+          >
+            <View style={styles.itemRow}>
+              <Text style={styles.itemText}>{item.label}</Text>
+              {item.badgeCount && item.badgeCount > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeTxt}>{item.badgeCount > 99 ? "99+" : String(item.badgeCount)}</Text>
+                </View>
+              ) : null}
+            </View>
+          </Pressable>
+        ))}
+      </AppModal>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    padding: theme.spacing.md,
-    alignItems: "flex-start",
-    justifyContent: "flex-start",
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  card: {
-    marginTop: theme.spacing.sm,
-    backgroundColor: theme.colors.backgroundAlt,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 12,
-  },
   cardHeader: {
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,

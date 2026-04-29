@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, SectionList, TextInput, StyleSheet, Platform, Alert, Pressable, Modal, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, SectionList, TextInput, StyleSheet, Platform, Alert, Pressable, FlatList, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, usePathname } from "expo-router";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { DatePickerField } from "../components/DatePickerField";
+import { AppModal } from "../components/AppModal";
 import { supabase } from "../lib/supabase";
 import { formatSessionTimeRange } from "../lib/sessionTime";
 import { toISODateLocal, isValidISODateString, parseISODateLocal } from "../lib/isoDate";
@@ -201,77 +202,79 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         <PrimaryButton label={t("common.load")} onPress={load} loading={loading} loadingLabel={t("common.loading")} />
       </View>
 
-      <Modal visible={pickerOpen} transparent animationType="slide">
-        <View style={styles.modalBackdrop}>
-          <Pressable style={styles.modalBackdropTouch} onPress={() => setPickerOpen(false)} />
-          <View style={styles.modalBox}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{language === "he" ? "מתאמנים" : "Athletes"}</Text>
-              <Pressable onPress={() => setPickerOpen(false)}>
-                <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
-              </Pressable>
-            </View>
-            <View style={styles.modalSearchRow}>
-              <TextInput
-                value={pickerQ}
-                onChangeText={setPickerQ}
-                placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
-                placeholderTextColor={theme.colors.placeholderOnLight}
-                style={styles.modalSearch}
-                autoCapitalize="none"
-                onSubmitEditing={loadAthletes}
-              />
-              <Pressable style={({ pressed }) => [styles.modalSearchBtn, pressed && { opacity: 0.9 }]} onPress={loadAthletes}>
-                <Text style={styles.modalSearchBtnTxt}>{t("common.search")}</Text>
-              </Pressable>
-            </View>
-            {athletesLoading ? (
-              <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
-            ) : (
-              <FlatList
-                data={athletes}
-                keyExtractor={(item) => (item.kind === "athlete" ? item.user_id : `quick:${item.id}`)}
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
-                    onPress={() => {
-                      if (item.kind === "athlete") {
-                        setAthleteId(item.user_id);
-                        setAthleteLabel(`${item.full_name} (@${item.username}) · ${item.phone}`);
-                        setPhone(item.phone);
-                      } else {
-                        // RPC now supports manual participants too.
-                        setAthleteId(item.linked_user_id ?? item.id);
-                        setAthleteLabel(
-                          `${item.full_name} · ${item.phone} · ${
-                            item.linked_user_id
-                              ? language === "he"
-                                ? "קישור מרשימת מהיר"
-                                : "Quick Add link"
-                              : language === "he"
-                                ? "ללא חשבון"
-                                : "No account"
-                          }`
-                        );
-                        setPhone(item.phone);
-                      }
-                      setPickerOpen(false);
-                    }}
-                  >
-                    <Text style={styles.pickerItemName}>{item.full_name}</Text>
-                    <Text style={styles.pickerItemRole}>
-                      {item.kind === "athlete" ? `@${item.username} · ${item.phone}` : `${item.phone} · ${language === "he" ? "מהיר" : "Quick Add"}`}
-                    </Text>
-                  </Pressable>
-                )}
-                ListEmptyComponent={
-                  <Text style={[styles.pickerEmpty, isRTL && styles.rtlText]}>{language === "he" ? "אין מתאמנים" : "No athletes"}</Text>
-                }
-              />
-            )}
-          </View>
+      <AppModal
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        variant="sheet"
+        backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+        cardStyle={styles.modalBox}
+      >
+        <View style={styles.modalHeader}>
+          <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{language === "he" ? "מתאמנים" : "Athletes"}</Text>
+          <Pressable onPress={() => setPickerOpen(false)}>
+            <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
+          </Pressable>
         </View>
-      </Modal>
+        <View style={styles.modalSearchRow}>
+          <TextInput
+            value={pickerQ}
+            onChangeText={setPickerQ}
+            placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
+            placeholderTextColor={theme.colors.placeholderOnLight}
+            style={styles.modalSearch}
+            autoCapitalize="none"
+            onSubmitEditing={loadAthletes}
+          />
+          <Pressable style={({ pressed }) => [styles.modalSearchBtn, pressed && { opacity: 0.9 }]} onPress={loadAthletes}>
+            <Text style={styles.modalSearchBtnTxt}>{t("common.search")}</Text>
+          </Pressable>
+        </View>
+        {athletesLoading ? (
+          <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
+        ) : (
+          <FlatList
+            data={athletes}
+            keyExtractor={(item) => (item.kind === "athlete" ? item.user_id : `quick:${item.id}`)}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => (
+              <Pressable
+                style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
+                onPress={() => {
+                  if (item.kind === "athlete") {
+                    setAthleteId(item.user_id);
+                    setAthleteLabel(`${item.full_name} (@${item.username}) · ${item.phone}`);
+                    setPhone(item.phone);
+                  } else {
+                    // RPC now supports manual participants too.
+                    setAthleteId(item.linked_user_id ?? item.id);
+                    setAthleteLabel(
+                      `${item.full_name} · ${item.phone} · ${
+                        item.linked_user_id
+                          ? language === "he"
+                            ? "קישור מרשימת מהיר"
+                            : "Quick Add link"
+                          : language === "he"
+                            ? "ללא חשבון"
+                            : "No account"
+                      }`
+                    );
+                    setPhone(item.phone);
+                  }
+                  setPickerOpen(false);
+                }}
+              >
+                <Text style={styles.pickerItemName}>{item.full_name}</Text>
+                <Text style={styles.pickerItemRole}>
+                  {item.kind === "athlete" ? `@${item.username} · ${item.phone}` : `${item.phone} · ${language === "he" ? "מהיר" : "Quick Add"}`}
+                </Text>
+              </Pressable>
+            )}
+            ListEmptyComponent={
+              <Text style={[styles.pickerEmpty, isRTL && styles.rtlText]}>{language === "he" ? "אין מתאמנים" : "No athletes"}</Text>
+            }
+          />
+        )}
+      </AppModal>
 
       <SectionList
         style={styles.list}
