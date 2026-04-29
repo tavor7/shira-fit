@@ -186,6 +186,7 @@ export function GlobalQuickMenu() {
         backdropAccessibilityLabel={closeMenuA11y}
         hideHeader
         hideCloseButton
+        closeOnKey={pathname}
         renderTrigger={(open) => (
           <Pressable
             onPress={open}

@@ -1,4 +1,4 @@
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { theme } from "../theme";
 import { ActionButton } from "./ActionButton";
@@ -21,6 +21,8 @@ type Props = {
   hideHeader?: boolean;
   /** Hide the close (X) button in the header row. */
   hideCloseButton?: boolean;
+  /** When the key changes (usually route change), close the menu to avoid blocking scroll. */
+  closeOnKey?: string;
 };
 
 export function FoldableActionsMenu({
@@ -30,12 +32,18 @@ export function FoldableActionsMenu({
   backdropAccessibilityLabel,
   hideHeader,
   hideCloseButton,
+  closeOnKey,
 }: Props) {
   const [open, setOpen] = useState(false);
   const { width } = useWindowDimensions();
   const cardWidth = Math.min(280, Math.max(200, Math.round(width * 0.78)));
 
   const safeItems = useMemo(() => items.filter((i) => i.label.trim().length > 0), [items]);
+
+  useEffect(() => {
+    // Close on navigation changes so the modal backdrop doesn't "freeze" the UI.
+    setOpen(false);
+  }, [closeOnKey]);
 
   return (
     <>
