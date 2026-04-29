@@ -23,6 +23,14 @@ type Props = {
   fixedCoachLabel?: string;
 };
 
+type AthletePick = { user_id: string; full_name: string; username: string; phone: string };
+type ManualPick = { manual_participant_id: string; full_name: string; phone: string };
+
+/** Escape % and _ so ilike filters stay valid. */
+function escapeIlike(term: string) {
+  return term.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
 export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
@@ -45,6 +53,19 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [note, setNote] = useState("");
+
+  // Trainee selection during creation.
+  const [traineesOpen, setTraineesOpen] = useState(false);
+  const [traineesQ, setTraineesQ] = useState("");
+  const [traineesSearching, setTraineesSearching] = useState(false);
+  const [athleteResults, setAthleteResults] = useState<AthletePick[]>([]);
+  const [manualResults, setManualResults] = useState<{ id: string; full_name: string; phone: string }[]>([]);
+  const [selectedAthletes, setSelectedAthletes] = useState<AthletePick[]>([]);
+  const [selectedManual, setSelectedManual] = useState<ManualPick[]>([]);
+  const [quickName, setQuickName] = useState("");
+  const [quickPhone, setQuickPhone] = useState("");
+  const [traineesBusy, setTraineesBusy] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,6 +120,89 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     setCoachLabel(`${opt.full_name} — ${opt.role}`);
     setCoachColor(opt.calendar_color ?? null);
     setShowCoachPicker(false);
+  }
+
+  async function runTraineeSearch(termRaw: string) {
+    const term = termRaw.trim();
+    const safe = escapeIlike(term);
+    setTraineesSearching(true);
+    try {
+      let pQuery = supabase
+        .from("profiles")
+        .select("user_id, full_name, username, phone")
+        .eq("role", "athlete")
+        .order("full_name", { ascending: true })
+        .limit(50);
+      if (term.length > 0) {
+        pQuery = pQuery.or(`full_name.ilike.%${safe}%,username.ilike.%${safe}%,phone.ilike.%${safe}%`);
+      }
+      const { data: pData, error: pErr } = await pQuery;
+
+      let mQuery = supabase
+        .from("manual_participants")
+        .select("id, full_name, phone")
+        .order("full_name", { ascending: true })
+        .limit(50);
+      if (term.length > 0) {
+        mQuery = mQuery.or(`full_name.ilike.%${safe}%,phone.ilike.%${safe}%`);
+      }
+      const { data: mData, error: mErr } = await mQuery;
+
+      setAthleteResults((!pErr ? (pData as AthletePick[]) ?? [] : []) as AthletePick[]);
+      setManualResults((!mErr ? (mData as any[]) ?? [] : []) as { id: string; full_name: string; phone: string }[]);
+    } finally {
+      setTraineesSearching(false);
+    }
+  }
+
+  function addAthletePick(p: AthletePick) {
+    setSelectedAthletes((prev) => (prev.some((x) => x.user_id === p.user_id) ? prev : [...prev, p]));
+  }
+
+  function addManualPick(m: { id: string; full_name: string; phone: string }) {
+    const pick: ManualPick = { manual_participant_id: m.id, full_name: m.full_name, phone: m.phone };
+    setSelectedManual((prev) => (prev.some((x) => x.manual_participant_id === pick.manual_participant_id) ? prev : [...prev, pick]));
+  }
+
+  function removeAthletePick(userId: string) {
+    setSelectedAthletes((prev) => prev.filter((x) => x.user_id !== userId));
+  }
+
+  function removeManualPick(manualParticipantId: string) {
+    setSelectedManual((prev) => prev.filter((x) => x.manual_participant_id !== manualParticipantId));
+  }
+
+  async function quickAddManual() {
+    const name = quickName.trim();
+    const phone = quickPhone.trim();
+    if (name.length < 2 || phone.length < 3) {
+      showToast({
+        message: language === "he" ? "חסר מידע" : "Missing info",
+        detail: language === "he" ? "הזינו שם וטלפון." : "Enter name and phone.",
+        variant: "info",
+      });
+      return;
+    }
+    if (traineesBusy) return;
+    setTraineesBusy(true);
+    try {
+      const { data, error } = await supabase.rpc("upsert_manual_participant", { p_full_name: name, p_phone: phone });
+      if (error) {
+        showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+        return;
+      }
+      if (!data?.ok) {
+        showToast({ message: t("common.failed"), detail: String(data?.error ?? ""), variant: "error" });
+        return;
+      }
+      const mid = String((data as any)?.manual_participant_id ?? "");
+      if (!mid) return;
+      addManualPick({ id: mid, full_name: name, phone });
+      setQuickName("");
+      setQuickPhone("");
+    } finally {
+      setTraineesBusy(false);
+    }
   }
 
   async function save() {
@@ -164,7 +268,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     setSaving(false);
     if (err) {
       setError(err.message);
-      Alert.alert(t("common.error"), err.message);
+      showToast({ message: t("common.error"), detail: err.message, variant: "error" });
       return;
     }
 
@@ -186,13 +290,54 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         }
       }
     }
+
+    // Add selected trainees to the newly created sessions.
+    if (insertedIds.length > 0 && (selectedAthletes.length > 0 || selectedManual.length > 0)) {
+      const athleteIds = selectedAthletes.map((a) => a.user_id);
+      const manualIds = selectedManual.map((m) => m.manual_participant_id);
+
+      const isBenignDuplicate = (code: string) => code === "already_registered" || code === "already_in_session";
+
+      for (const sid of insertedIds) {
+        for (const uid of athleteIds) {
+          // eslint-disable-next-line no-await-in-loop
+          const { data, error } = await supabase.rpc("coach_add_athlete", { p_session_id: sid, p_user_id: uid });
+          if (error) {
+            showToast({ message: language === "he" ? "שגיאה הוספת מתאמן" : "Error adding trainee", detail: error.message, variant: "error" });
+            continue;
+          }
+          const e = String(data?.error ?? "");
+          if (!data?.ok && e && !isBenignDuplicate(e)) {
+            showToast({ message: t("common.failed"), detail: e, variant: "error" });
+          }
+        }
+        for (const mid of manualIds) {
+          // eslint-disable-next-line no-await-in-loop
+          const { data, error } = await supabase.rpc("add_manual_participant_to_session", {
+            p_session_id: sid,
+            p_manual_participant_id: mid,
+          });
+          if (error) {
+            showToast({ message: language === "he" ? "שגיאה הוספת משתתף ידני" : "Error adding manual participant", detail: error.message, variant: "error" });
+            continue;
+          }
+          const e = String(data?.error ?? "");
+          if (!data?.ok && e && !isBenignDuplicate(e)) {
+            showToast({ message: t("common.failed"), detail: e, variant: "error" });
+          }
+        }
+      }
+    }
+
     if (usedLegacyInsert && hidden) {
-      Alert.alert(
-        language === "he" ? "נשמר (אימונים גלויים)" : "Saved (visible sessions)",
-        language === "he"
-          ? "חסרה בעמודה `is_hidden` בפרויקט (המיגרציה לא הופעלה). האימונים נוצרו כרגיל. ב-Supabase → SQL Editor הריצו `supabase/migrations/20250330180000_session_hidden.sql`. אם העמודה קיימת ועדיין מופיע, לכו ל-Project Settings → API → Reload schema."
-          : "Your project is missing the `is_hidden` column (migration not applied). Sessions were created as normal. In Supabase → SQL Editor, run `supabase/migrations/20250330180000_session_hidden.sql`. If the column exists but you still see this, open Project Settings → API → Reload schema."
-      );
+      showToast({
+        message: language === "he" ? "נשמר (אימונים גלויים)" : "Saved (visible sessions)",
+        detail:
+          language === "he"
+            ? "חסרה בעמודה `is_hidden` בפרויקט (המיגרציה לא הופעלה)."
+            : "Your project is missing the `is_hidden` column (migration not applied).",
+        variant: "info",
+      });
     }
     if (!(usedLegacyInsert && hidden)) {
       if (count > 1) {
@@ -391,6 +536,178 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       </View>
 
       <View style={sf.card}>
+        <Text style={sf.cardTitle}>{language === "he" ? "מתאמנים" : "Trainees"}</Text>
+        <Text style={[sf.label, isRTL && sf.labelRtl]}>
+          {language === "he"
+            ? "בחרו מתאמנים לאימון (הבחירה תישמר עם שמירת האימון)."
+            : "Select trainees for the session (saved when you save the session)."}
+        </Text>
+
+        <PrimaryButton
+          label={language === "he" ? "בחירת מתאמנים" : "Select trainees"}
+          onPress={() => {
+            setTraineesOpen(true);
+            void runTraineeSearch(traineesQ || "");
+          }}
+          variant="ghost"
+        />
+
+        {selectedAthletes.length + selectedManual.length > 0 ? (
+          <View style={styles.selectedList}>
+            {selectedAthletes.map((a) => (
+              <View key={a.user_id} style={styles.selectedChip}>
+                <Text style={styles.selectedChipTxt} numberOfLines={1} ellipsizeMode="tail">
+                  {a.full_name}
+                </Text>
+                <Pressable onPress={() => removeAthletePick(a.user_id)} style={styles.chipX} accessibilityRole="button">
+                  <Text style={styles.chipXTxt}>✕</Text>
+                </Pressable>
+              </View>
+            ))}
+            {selectedManual.map((m) => (
+              <View key={m.manual_participant_id} style={styles.selectedChip}>
+                <Text style={styles.selectedChipTxt} numberOfLines={1} ellipsizeMode="tail">
+                  {m.full_name}
+                </Text>
+                <Pressable onPress={() => removeManualPick(m.manual_participant_id)} style={styles.chipX} accessibilityRole="button">
+                  <Text style={styles.chipXTxt}>✕</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </View>
+
+      <Modal visible={traineesOpen} transparent animationType="slide" onRequestClose={() => setTraineesOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={styles.modalBackdropTouch} onPress={() => setTraineesOpen(false)} />
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{language === "he" ? "מתאמנים" : "Trainees"}</Text>
+              <Pressable onPress={() => setTraineesOpen(false)}>
+                <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <View style={styles.traineeSearchRow}>
+              <TextInput
+                value={traineesQ}
+                onChangeText={setTraineesQ}
+                placeholder={language === "he" ? "חיפוש שם / טלפון…" : "Search name / phone…"}
+                placeholderTextColor={theme.colors.placeholderOnLight}
+                style={styles.traineeSearchInput}
+                autoCapitalize="none"
+                onSubmitEditing={() => void runTraineeSearch(traineesQ)}
+              />
+              <Pressable
+                style={({ pressed }) => [styles.traineeSearchBtn, pressed && { opacity: 0.9 }]}
+                onPress={() => void runTraineeSearch(traineesQ)}
+                disabled={traineesSearching}
+              >
+                <Text style={styles.traineeSearchBtnTxt}>{traineesSearching ? "…" : t("common.search")}</Text>
+              </Pressable>
+              </View>
+
+            <View style={{ height: 10 }} />
+
+            <Text style={styles.modalSubTitle}>{language === "he" ? "מתאמנים עם חשבון" : "Athletes (with account)"}</Text>
+            <View style={styles.traineeList}>
+              {athleteResults.length === 0 ? (
+                <Text style={styles.pickerEmpty}>{language === "he" ? "אין תוצאות." : "No results."}</Text>
+              ) : (
+                athleteResults.map((a) => {
+                  const already = selectedAthletes.some((x) => x.user_id === a.user_id);
+                  return (
+                    <Pressable
+                      key={a.user_id}
+                      style={({ pressed }) => [
+                        styles.pickerRowSlim,
+                        pressed && { opacity: 0.9 },
+                        already && { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.cta },
+                      ]}
+                      onPress={() => {
+                        if (!already) addAthletePick(a);
+                      }}
+                      accessibilityRole="button"
+                      disabled={already}
+                    >
+                      <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
+                        {a.full_name}
+                      </Text>
+                      <Text style={styles.pickerRowMeta} numberOfLines={1} ellipsizeMode="tail">
+                        @{a.username} · {a.phone}
+                      </Text>
+                    </Pressable>
+                  );
+                })
+              )}
+            </View>
+
+            <Text style={[styles.modalSubTitle, { marginTop: 14 }]}>{language === "he" ? "Quick Add" : "Quick Add"}</Text>
+            <View style={styles.traineeList}>
+              {manualResults.length === 0 ? (
+                <Text style={styles.pickerEmpty}>{language === "he" ? "אין תוצאות." : "No results."}</Text>
+              ) : (
+                manualResults.map((m) => {
+                  const already = selectedManual.some((x) => x.manual_participant_id === m.id);
+                  return (
+                    <Pressable
+                      key={m.id}
+                      style={({ pressed }) => [
+                        styles.pickerRowSlim,
+                        pressed && { opacity: 0.9 },
+                        already && { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.cta },
+                      ]}
+                      onPress={() => {
+                        if (!already) addManualPick(m);
+                      }}
+                      accessibilityRole="button"
+                      disabled={already}
+                    >
+                      <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
+                        {m.full_name}
+                      </Text>
+                      <Text style={styles.pickerRowMeta} numberOfLines={1} ellipsizeMode="tail">
+                        {m.phone}
+                      </Text>
+                    </Pressable>
+                  );
+                })
+              )}
+            </View>
+
+            <View style={{ height: 12 }} />
+            <Text style={styles.modalSubTitle}>{language === "he" ? "הוספה מהירה (לא חובה חשבון)" : "Quick add (no account required)"}</Text>
+            <View style={styles.quickAddRow}>
+              <TextInput
+                value={quickName}
+                onChangeText={setQuickName}
+                placeholder={t("profile.fullName")}
+                placeholderTextColor={theme.colors.placeholderOnLight}
+                style={styles.quickAddInput}
+              />
+              <TextInput
+                value={quickPhone}
+                onChangeText={setQuickPhone}
+                placeholder={t("profile.phone")}
+                placeholderTextColor={theme.colors.placeholderOnLight}
+                style={styles.quickAddInput}
+                keyboardType="phone-pad"
+              />
+            </View>
+            <PrimaryButton
+              label={language === "he" ? "הוסף לטרעיינים" : "Add to trainees"}
+              onPress={() => void quickAddManual()}
+              loading={traineesBusy}
+              loadingLabel={t("common.loading")}
+            />
+              </ScrollView>
+            </View>
+        </View>
+      </Modal>
+
+      <View style={sf.card}>
         <Text style={sf.cardTitle}>{language === "he" ? "אפשרויות" : "Options"}</Text>
         <Pressable style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }]} onPress={() => setOpen(!open)}>
           <Text style={[sf.toggleText, isRTL && { textAlign: "right" }]}>
@@ -497,4 +814,35 @@ const styles = StyleSheet.create({
   quickCapTxt: { color: theme.colors.text, fontWeight: "900" },
   quickCapTxtActive: { color: theme.colors.ctaText },
   noteInput: { minHeight: 110, paddingVertical: 12 },
+
+  selectedList: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  selectedChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  selectedChipTxt: { color: theme.colors.text, fontWeight: "900", maxWidth: 140 },
+  chipX: { width: 26, height: 26, borderRadius: theme.radius.full, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderMuted, alignItems: "center", justifyContent: "center" },
+  chipXTxt: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 12, lineHeight: 14 },
+
+  traineeSearchRow: { flexDirection: "row", gap: 10, alignItems: "center" },
+  traineeSearchInput: { flex: 1, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderInput, borderRadius: theme.radius.md, padding: 10, color: theme.colors.text },
+  traineeSearchBtn: { paddingVertical: 12, paddingHorizontal: 14, backgroundColor: theme.colors.cta, borderRadius: theme.radius.md },
+  traineeSearchBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", letterSpacing: 0.2 },
+
+  modalSubTitle: { marginTop: 4, fontWeight: "900", color: theme.colors.textMuted, letterSpacing: 0.2, fontSize: 12, textTransform: "uppercase" },
+
+  traineeList: { marginTop: 8 },
+  pickerRowSlim: { borderWidth: 1, borderColor: theme.colors.borderMuted, borderRadius: theme.radius.md, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: theme.colors.surface, marginBottom: 8 },
+  pickerRowName: { fontWeight: "900", color: theme.colors.text },
+  pickerRowMeta: { marginTop: 2, color: theme.colors.textMuted, fontWeight: "700", fontSize: 12 },
+
+  quickAddRow: { gap: 10 },
+  quickAddInput: { borderWidth: 1, borderColor: theme.colors.borderInput, borderRadius: theme.radius.md, backgroundColor: theme.colors.surface, padding: 12, color: theme.colors.text, marginBottom: 10 },
 });

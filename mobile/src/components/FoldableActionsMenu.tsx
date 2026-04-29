@@ -1,5 +1,5 @@
 import { ReactNode, useMemo, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { theme } from "../theme";
 import { ActionButton } from "./ActionButton";
 
@@ -17,10 +17,23 @@ type Props = {
   renderTrigger?: (open: () => void) => ReactNode;
   /** Announced for the full-screen dismiss layer (required for i18n). */
   backdropAccessibilityLabel: string;
+  /** Hide the small header row (e.g. "Menu"). */
+  hideHeader?: boolean;
+  /** Hide the close (X) button in the header row. */
+  hideCloseButton?: boolean;
 };
 
-export function FoldableActionsMenu({ label = "Menu", items, renderTrigger, backdropAccessibilityLabel }: Props) {
+export function FoldableActionsMenu({
+  label = "Menu",
+  items,
+  renderTrigger,
+  backdropAccessibilityLabel,
+  hideHeader,
+  hideCloseButton,
+}: Props) {
   const [open, setOpen] = useState(false);
+  const { width } = useWindowDimensions();
+  const cardWidth = Math.min(280, Math.max(200, Math.round(width * 0.78)));
 
   const safeItems = useMemo(() => items.filter((i) => i.label.trim().length > 0), [items]);
 
@@ -36,7 +49,24 @@ export function FoldableActionsMenu({ label = "Menu", items, renderTrigger, back
             accessibilityRole="button"
             accessibilityLabel={backdropAccessibilityLabel}
           />
-          <View style={styles.card}>
+          <View style={[styles.card, { width: cardWidth }]}>
+            {!hideHeader ? (
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardHeaderTxt} numberOfLines={1}>
+                  {label}
+                </Text>
+                {!hideCloseButton ? (
+                  <Pressable
+                    onPress={() => setOpen(false)}
+                    style={({ pressed }) => [styles.cardClose, pressed && { opacity: 0.85 }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close menu"
+                  >
+                    <Text style={styles.cardCloseTxt}>✕</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
             {safeItems.map((item) => (
               <Pressable
                 key={item.label}
@@ -85,13 +115,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     overflow: "hidden",
-    minWidth: 240,
     shadowColor: "#000",
     shadowOpacity: 0.35,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
     elevation: 12,
   },
+  cardHeader: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.borderMuted,
+  },
+  cardHeaderTxt: { color: theme.colors.textMuted, fontWeight: "900", letterSpacing: 0.2, fontSize: 12, textTransform: "uppercase", maxWidth: "70%" },
+  cardClose: {
+    width: 34,
+    height: 34,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardCloseTxt: { color: theme.colors.textMuted, fontWeight: "900" },
   item: {
     paddingVertical: 14,
     paddingHorizontal: 14,

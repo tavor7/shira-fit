@@ -1,20 +1,24 @@
 import { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useI18n } from "../context/I18nContext";
+import { useToast } from "../context/ToastContext";
+import { DatePickerField } from "../components/DatePickerField";
+import { isValidISODateString } from "../lib/isoDate";
 
 export default function StaffEditProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = String(id ?? "");
   const { t, isRTL, language } = useI18n();
+  const { showToast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [gender, setGender] = useState("");
+  const [gender, setGender] = useState<"male" | "female" | "">("");
   const [dob, setDob] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -30,30 +34,39 @@ export default function StaffEditProfileScreen() {
       if (error || !data) return;
       setFullName((data as any).full_name ?? "");
       setPhone((data as any).phone ?? "");
-      setGender((data as any).gender ?? "");
+      const g = String((data as any).gender ?? "").trim().toLowerCase();
+      setGender(g === "male" || g === "female" ? (g as any) : "");
       setDob((data as any).date_of_birth ?? "");
     })();
   }, [userId]);
 
   async function save() {
     setSaving(true);
-    const { data, error } = await supabase.rpc("staff_update_profile", {
-      p_user_id: userId,
-      p_full_name: fullName.trim() || null,
-      p_phone: phone.trim() || null,
-      p_gender: gender.trim() || null,
-      p_date_of_birth: dob.trim() ? dob.trim() : null,
-    });
+    // Important: omit optional params when empty.
+    // Passing `null` sometimes prevents PostgREST from resolving the correct
+    // function signature in the schema cache (it can't infer types for nulls).
+    const payload: Record<string, unknown> = { p_user_id: userId };
+    const full = fullName.trim();
+    const ph = phone.trim();
+    const gen = gender;
+    const dobTrim = dob.trim();
+
+    if (full.length > 0) payload.p_full_name = full;
+    if (ph.length > 0) payload.p_phone = ph;
+    if (gen.length > 0) payload.p_gender = gen;
+    if (dobTrim.length > 0 && isValidISODateString(dobTrim)) payload.p_date_of_birth = dobTrim;
+
+    const { data, error } = await supabase.rpc("staff_update_profile_text", payload as any);
     setSaving(false);
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showToast({ message: t("common.error"), detail: error.message, variant: "error" });
       return;
     }
     if (!data?.ok) {
-      Alert.alert(t("common.failed"), data?.error ?? "Unknown error");
+      showToast({ message: t("common.failed"), detail: data?.error ?? "Unknown error", variant: "error" });
       return;
     }
-    Alert.alert(t("common.saved"));
+    showToast({ message: t("common.saved"), variant: "success" });
     router.back();
   }
 
@@ -69,10 +82,24 @@ export default function StaffEditProfileScreen() {
       <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholderTextColor={theme.colors.textSoft} />
 
       <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.gender")}</Text>
-      <TextInput style={styles.input} value={gender} onChangeText={setGender} placeholder="male / female" placeholderTextColor={theme.colors.textSoft} />
+      <View style={[styles.genderRow, isRTL && styles.genderRowRtl]}>
+        <Pressable
+          onPress={() => setGender("male")}
+          style={({ pressed }) => [styles.genderBtn, gender === "male" && styles.genderBtnOn, pressed && { opacity: 0.9 }]}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.genderTxt, gender === "male" && styles.genderTxtOn]}>{language === "he" ? "זכר" : "Male"}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setGender("female")}
+          style={({ pressed }) => [styles.genderBtn, gender === "female" && styles.genderBtnOn, pressed && { opacity: 0.9 }]}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.genderTxt, gender === "female" && styles.genderTxtOn]}>{language === "he" ? "נקבה" : "Female"}</Text>
+        </Pressable>
+      </View>
 
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.dob")}</Text>
-      <TextInput style={styles.input} value={dob} onChangeText={setDob} placeholder="2000-01-15" placeholderTextColor={theme.colors.textSoft} />
+      <DatePickerField label={t("profile.dob")} value={dob} onChange={setDob} />
 
       <PrimaryButton label={t("common.save")} onPress={save} loading={saving} loadingLabel={t("common.loading")} />
 
@@ -96,6 +123,24 @@ const styles = StyleSheet.create({
   muted: { color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
   label: { marginTop: theme.spacing.sm, fontWeight: "700", color: theme.colors.text, fontSize: 13 },
   rtlText: { textAlign: "right" },
+  genderRow: { flexDirection: "row", gap: 10, marginTop: 6 },
+  genderRowRtl: { flexDirection: "row-reverse" },
+  genderBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  genderBtnOn: {
+    backgroundColor: theme.colors.cta,
+    borderColor: theme.colors.cta,
+  },
+  genderTxt: { fontWeight: "900", color: theme.colors.textMuted, letterSpacing: 0.2 },
+  genderTxtOn: { color: theme.colors.ctaText },
   input: {
     marginTop: 6,
     borderWidth: 1,

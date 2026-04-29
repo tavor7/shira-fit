@@ -184,6 +184,8 @@ export function GlobalQuickMenu() {
       <FoldableActionsMenu
         items={visible}
         backdropAccessibilityLabel={closeMenuA11y}
+        hideHeader
+        hideCloseButton
         renderTrigger={(open) => (
           <Pressable
             onPress={open}

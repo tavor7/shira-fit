@@ -23,7 +23,7 @@ function defaultStartISO() {
 
 type Section = { title: string; data: ParticipantHistoryRow[] };
 type Athlete = { user_id: string; full_name: string; username: string; phone: string };
-type QuickLinked = { id: string; full_name: string; phone: string; linked_user_id: string };
+type QuickLinked = { id: string; full_name: string; phone: string; linked_user_id: string | null };
 type PickerRow =
   | ({ kind: "athlete" } & Athlete)
   | ({ kind: "quick" } & QuickLinked);
@@ -108,7 +108,6 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     let mQuery = supabase
       .from("manual_participants")
       .select("id, full_name, phone, linked_user_id")
-      .not("linked_user_id", "is", null)
       .order("full_name", { ascending: true })
       .limit(200);
     if (q.length > 0) {
@@ -125,7 +124,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     const quick = mErr ? [] : (((mData as QuickLinked[]) ?? []).map((m) => ({ kind: "quick" as const, ...m })));
 
     const seen = new Set<string>(base.map((b) => b.user_id));
-    const quickDedup = quick.filter((m) => !seen.has(m.linked_user_id));
+    // Dedup linked quick entries that already appear in the athlete list.
+    // Unlinked quick adds (linked_user_id = null) should always show.
+    const quickDedup = quick.filter((m) => (m.linked_user_id ? !seen.has(m.linked_user_id) : true));
     setAthletes([...quickDedup, ...base]);
   }, [pickerQ]);
 
@@ -239,8 +240,19 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                         setAthleteLabel(`${item.full_name} (@${item.username}) · ${item.phone}`);
                         setPhone(item.phone);
                       } else {
-                        setAthleteId(item.linked_user_id);
-                        setAthleteLabel(`${item.full_name} · ${item.phone} · ${language === "he" ? "קישור מרשימת מהיר" : "Quick Add link"}`);
+                        // RPC now supports manual participants too.
+                        setAthleteId(item.linked_user_id ?? item.id);
+                        setAthleteLabel(
+                          `${item.full_name} · ${item.phone} · ${
+                            item.linked_user_id
+                              ? language === "he"
+                                ? "קישור מרשימת מהיר"
+                                : "Quick Add link"
+                              : language === "he"
+                                ? "ללא חשבון"
+                                : "No account"
+                          }`
+                        );
                         setPhone(item.phone);
                       }
                       setPickerOpen(false);

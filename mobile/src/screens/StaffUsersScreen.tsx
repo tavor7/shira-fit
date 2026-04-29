@@ -7,7 +7,8 @@ import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
 import { ManagerOverviewTabs } from "../components/ManagerOverviewTabs";
 
-type Row = {
+type ProfileRow = {
+  kind: "profile";
   user_id: string;
   full_name: string;
   username: string;
@@ -16,6 +17,17 @@ type Row = {
   approval_status: "pending" | "approved" | "rejected";
   date_of_birth?: string | null;
 };
+
+type ManualRow = {
+  kind: "manual";
+  id: string;
+  full_name: string;
+  phone: string;
+  gender?: string | null;
+  date_of_birth?: string | null;
+};
+
+type Row = ProfileRow | ManualRow;
 
 export default function StaffUsersScreen() {
   const { profile } = useAuth();
@@ -45,13 +57,50 @@ export default function StaffUsersScreen() {
     }
 
     const { data, error } = await query;
-    setLoading(false);
     if (error) {
       Alert.alert(t("common.error"), error.message);
       setRows([]);
+      setLoading(false);
       return;
     }
-    setRows((data as Row[]) ?? []);
+
+    const { data: manuals, error: mErr } = await supabase
+      .from("manual_participants")
+      .select("id, full_name, phone, gender, date_of_birth")
+      .limit(200);
+
+    if (mErr) {
+      // If manual participants query fails, still show profiles.
+      setRows(((data as any[]) ?? []).map((p) => ({ kind: "profile", ...p })) as Row[]);
+      setLoading(false);
+      return;
+    }
+
+    const qManual = qTrim.length > 0 ? qTrim : "";
+    const filteredManuals = !qManual
+      ? (manuals as any[])
+      : (manuals as any[]).filter((m) => {
+          const s = `${m.full_name ?? ""} ${m.phone ?? ""}`.toLowerCase();
+          return s.includes(qManual.toLowerCase());
+        });
+
+    const mappedProfiles = ((data as any[]) ?? []).map((p) => ({ kind: "profile" as const, ...p })) as ProfileRow[];
+    const mappedManuals = ((filteredManuals as any[]) ?? []).map(
+      (m) =>
+        ({
+          kind: "manual" as const,
+          id: m.id,
+          full_name: m.full_name,
+          phone: m.phone,
+          gender: m.gender,
+          date_of_birth: m.date_of_birth,
+        }) as ManualRow
+    );
+
+    const combined: Row[] = [...mappedManuals, ...mappedProfiles];
+    combined.sort((a, b) => String(a.full_name).localeCompare(String(b.full_name)));
+    setRows(combined);
+    setLoading(false);
   }, [isManager, qTrim, t]);
 
   useEffect(() => {
@@ -87,7 +136,7 @@ export default function StaffUsersScreen() {
 
       <FlatList
         data={rows}
-        keyExtractor={(i) => i.user_id}
+        keyExtractor={(i) => (i.kind === "profile" ? i.user_id : `manual:${i.id}`)}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <Text style={[styles.empty, isRTL && styles.rtlText]}>
@@ -96,7 +145,10 @@ export default function StaffUsersScreen() {
         }
         renderItem={({ item }) => (
           <Pressable
-            onPress={() => router.push(`/(app)/staff/profile/${item.user_id}` as never)}
+            onPress={() => {
+              if (item.kind === "profile") router.push(`/(app)/staff/profile/${item.user_id}` as never);
+              else router.push(`/(app)/staff/manual/${item.id}` as never);
+            }}
             style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
             accessibilityRole="button"
           >
@@ -112,7 +164,9 @@ export default function StaffUsersScreen() {
               })()}
             </Text>
             <Text style={styles.meta}>
-              @{item.username} · {item.phone} · {item.role} · {item.approval_status}
+              {item.kind === "profile"
+                ? `@${item.username} · ${item.phone} · ${item.role} · ${item.approval_status}`
+                : `${item.phone} · ${language === "he" ? "מהיר" : "Quick Add"}`}
             </Text>
           </Pressable>
         )}

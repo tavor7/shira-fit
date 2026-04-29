@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useI18n } from "../context/I18nContext";
+import { useToast } from "../context/ToastContext";
 
 export default function StaffEditManualParticipantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const manualId = String(id ?? "");
   const { t, isRTL, language } = useI18n();
+  const { showToast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState("");
@@ -49,14 +51,14 @@ export default function StaffEditManualParticipantScreen() {
     });
     setSaving(false);
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showToast({ message: t("common.error"), detail: error.message, variant: "error" });
       return;
     }
     if (!data?.ok) {
-      Alert.alert(t("common.failed"), data?.error ?? "Unknown error");
+      showToast({ message: t("common.failed"), detail: data?.error ?? "Unknown error", variant: "error" });
       return;
     }
-    Alert.alert(t("common.saved"));
+    showToast({ message: t("common.saved"), variant: "success" });
     router.back();
   }
 
