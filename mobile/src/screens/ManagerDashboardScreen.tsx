@@ -34,7 +34,6 @@ export default function ManagerDashboardScreen() {
   const [weekStart, setWeekStart] = useState(() => startOfWeekSunday(new Date()));
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<StatsPayload | null>(null);
-  const [tabsCollapsed, setTabsCollapsed] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,17 +57,7 @@ export default function ManagerDashboardScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={[styles.tabsRow, isRTL && styles.tabsRowRtl]}>
-        {!tabsCollapsed ? <ManagerOverviewTabs /> : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={tabsCollapsed ? (language === "he" ? "פתח תפריט" : "Open menu") : language === "he" ? "כבה תפריט" : "Collapse menu"}
-          onPress={() => setTabsCollapsed((v) => !v)}
-          style={({ pressed }) => [styles.collapseBtn, pressed && { opacity: 0.9 }]}
-        >
-          <Text style={styles.collapseBtnTxt}>{tabsCollapsed ? (language === "he" ? "תפריט" : "Menu") : language === "he" ? "הסתר" : "Hide"}</Text>
-        </Pressable>
-      </View>
+      <ManagerOverviewTabs />
       <Text style={[styles.h, isRTL && styles.rtl]}>{t("dashboard.weeklyOverview")}</Text>
       <View style={[styles.weekNav, isRTL && styles.weekNavRtl]}>
         <Pressable style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]} onPress={() => setWeekStart((w) => shiftWeek(w, -7))}>
@@ -147,18 +136,6 @@ const styles = StyleSheet.create({
   content: { padding: theme.spacing.md, paddingBottom: 40 },
   h: { fontSize: 20, fontWeight: "900", color: theme.colors.text, marginBottom: 12 },
   rtl: { textAlign: "right", alignSelf: "stretch" },
-  tabsRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 12 },
-  tabsRowRtl: { flexDirection: "row-reverse" },
-  collapseBtn: {
-    alignSelf: "flex-start",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-  },
-  collapseBtnTxt: { fontWeight: "900", color: theme.colors.textMuted, fontSize: 13 },
   weekNav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
   weekNavRtl: { flexDirection: "row-reverse" },
   navBtn: {
