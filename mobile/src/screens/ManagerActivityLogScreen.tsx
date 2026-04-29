@@ -826,7 +826,7 @@ export default function ManagerActivityLogScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   listFlex: { flex: 1 },
-  listHeaderPad: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md, paddingBottom: theme.spacing.xs },
+  listHeaderPad: { paddingTop: theme.spacing.md, paddingBottom: theme.spacing.xs },
   title: { fontSize: 20, fontWeight: "900", color: theme.colors.text, letterSpacing: -0.3 },
   hint: {
     marginTop: 8,

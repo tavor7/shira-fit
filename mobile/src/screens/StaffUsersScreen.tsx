@@ -179,7 +179,13 @@ export default function StaffUsersScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  top: { padding: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.borderMuted, marginBottom: theme.spacing.sm },
+  top: {
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderMuted,
+    marginBottom: theme.spacing.sm,
+  },
   title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
   hint: { marginTop: 6, color: theme.colors.textMuted, lineHeight: 18, fontSize: 12 },
   rtlText: { textAlign: "right" },
@@ -201,7 +207,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.cta,
   },
   searchBtnTxt: { color: theme.colors.ctaText, fontWeight: "900" },
-  list: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
+  list: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
   empty: { textAlign: "center", marginTop: 32, color: theme.colors.textSoft },
   card: {
     padding: theme.spacing.md,

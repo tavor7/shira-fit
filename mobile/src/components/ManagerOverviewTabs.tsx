@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
@@ -71,11 +71,7 @@ export function ManagerOverviewTabs() {
 
   return (
     <View style={styles.trackWrap}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.trackRow, isRTL && styles.trackRowRtl]}
-      >
+      <View style={[styles.trackRow, isRTL && styles.trackRowRtl]}>
         {tabs.map((x) => {
           const active = x.id === activeId;
           return (
@@ -96,7 +92,7 @@ export function ManagerOverviewTabs() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -113,10 +109,11 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     width: "100%",
   },
-  trackRow: { flexDirection: "row", gap: 6, paddingRight: 2 },
-  trackRowRtl: { flexDirection: "row-reverse", paddingRight: 0, paddingLeft: 2 },
+  trackRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, rowGap: 6 },
+  trackRowRtl: { flexDirection: "row-reverse" },
   slot: {
-    flexGrow: 0,
+    flexGrow: 1,
+    flexBasis: 140,
     minWidth: 120,
     paddingVertical: 10,
     paddingHorizontal: 10,
