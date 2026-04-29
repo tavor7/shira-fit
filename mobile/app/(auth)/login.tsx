@@ -3,8 +3,8 @@ import {
   View,
   Text,
   TextInput,
-  Pressable,
   StyleSheet,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
   Image,
@@ -88,52 +88,64 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.container}
+      style={styles.outer}
     >
-      <LanguageToggleChip />
-      <View style={styles.logoWrap}>
-        <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
-      </View>
-      <Text style={[styles.sub, isRTL && styles.subRtl]}>{tr("Sign in to your account", "התחברות לחשבון")}</Text>
-      {errorMessage ? (
-        <View style={styles.errorBox}>
-          <Text style={[styles.errorText, isRTL && { textAlign: "right" }]}>{errorMessage}</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
+        <LanguageToggleChip />
+        <View style={styles.logoWrap}>
+          <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
         </View>
-      ) : null}
-      <TextInput
-        style={[styles.input, isRTL && styles.inputRtl, errorMessage ? styles.inputError : null]}
-        placeholder={t("auth.email")}
-        placeholderTextColor={theme.colors.textSoft}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={(t) => { setEmail(t); setErrorMessage(""); }}
-      />
-      <TextInput
-        style={[styles.input, isRTL && styles.inputRtl, errorMessage ? styles.inputError : null]}
-        placeholder={t("auth.password")}
-        placeholderTextColor={theme.colors.textSoft}
-        secureTextEntry
-        value={password}
-        onChangeText={(t) => { setPassword(t); setErrorMessage(""); }}
-      />
-      <PrimaryButton
-        label={t("auth.signIn")}
-        loadingLabel={t("common.loading")}
-        loading={busy}
-        onPress={onLogin}
-      />
-      <ActionButton label={t("auth.forgotPassword") + "?"} onPress={() => router.push("/(auth)/forgot-password")} style={styles.navBtn} />
-      <ActionButton label={t("auth.createAccount")} onPress={() => router.push("/(auth)/signup")} style={styles.navBtn} />
+        <Text style={[styles.sub, isRTL && styles.subRtl]}>{tr("Sign in to your account", "התחברות לחשבון")}</Text>
+        {errorMessage ? (
+          <View style={styles.errorBox}>
+            <Text style={[styles.errorText, isRTL && { textAlign: "right" }]}>{errorMessage}</Text>
+          </View>
+        ) : null}
+        <TextInput
+          style={[styles.input, isRTL && styles.inputRtl, errorMessage ? styles.inputError : null]}
+          placeholder={t("auth.email")}
+          placeholderTextColor={theme.colors.textSoft}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={(t) => { setEmail(t); setErrorMessage(""); }}
+        />
+        <TextInput
+          style={[styles.input, isRTL && styles.inputRtl, errorMessage ? styles.inputError : null]}
+          placeholder={t("auth.password")}
+          placeholderTextColor={theme.colors.textSoft}
+          secureTextEntry
+          value={password}
+          onChangeText={(t) => { setPassword(t); setErrorMessage(""); }}
+        />
+        <PrimaryButton
+          label={t("auth.signIn")}
+          loadingLabel={t("common.loading")}
+          loading={busy}
+          onPress={onLogin}
+        />
+        <ActionButton label={t("auth.forgotPassword") + "?"} onPress={() => router.push("/(auth)/forgot-password")} style={styles.navBtn} />
+        <ActionButton label={t("auth.createAccount")} onPress={() => router.push("/(auth)/signup")} style={styles.navBtn} />
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  outer: {
     flex: 1,
-    padding: theme.spacing.lg,
+    backgroundColor: theme.colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
+    padding: theme.spacing.lg,
+    paddingBottom: 48,
     backgroundColor: theme.colors.background,
   },
   logoWrap: {
