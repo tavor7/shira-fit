@@ -52,8 +52,6 @@ function isInNext7Days(sessionDate: string, startTime: string, now: Date) {
 export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Props) {
   const { language, isRTL } = useI18n();
   const [now, setNow] = useState(() => new Date());
-  const [attending, setAttending] = useState<TrainingSessionWithTrainer[]>([]);
-  const [attendingLoading, setAttendingLoading] = useState(true);
   const [participantMap, setParticipantMap] = useState<Record<string, string[]>>({});
   const [noteMap, setNoteMap] = useState<
     Record<string, { body: string; authorName: string; created_at: string } | null>
@@ -68,68 +66,6 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
   useEffect(() => {
     setNow(new Date());
   }, [refreshSeq]);
-
-  const loadAttending = useCallback(async () => {
-    if (!userId) {
-      setAttending([]);
-      setAttendingLoading(false);
-      return;
-    }
-    setAttendingLoading(true);
-    const { data, error } = await supabase
-      .from("session_registrations")
-      .select(
-        `
-        training_sessions!inner(
-          id,
-          session_date,
-          start_time,
-          coach_id,
-          duration_minutes,
-          max_participants,
-          is_open_for_registration,
-          trainer:profiles!coach_id(full_name)
-        )
-      `
-      )
-      .eq("user_id", userId)
-      .eq("status", "active");
-
-    if (error || !data) {
-      setAttending([]);
-      setAttendingLoading(false);
-      return;
-    }
-
-    const at = new Date();
-    const list: TrainingSessionWithTrainer[] = [];
-    for (const row of data as unknown[]) {
-      const r = row as { training_sessions: TrainingSessionWithTrainer | TrainingSessionWithTrainer[] | null };
-      const raw = r.training_sessions;
-      const s = Array.isArray(raw) ? raw[0] : raw;
-      if (!s?.id) continue;
-      if (hasSessionNotEnded(s.session_date, s.start_time, durMin(s), at) && isInNext7Days(s.session_date, s.start_time, at)) {
-        list.push(s);
-      }
-    }
-    list.sort(
-      (a, b) =>
-        sessionStartsAt(a.session_date, a.start_time).getTime() -
-        sessionStartsAt(b.session_date, b.start_time).getTime()
-    );
-    setAttending(list);
-    setAttendingLoading(false);
-  }, [userId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadAttending();
-    }, [loadAttending])
-  );
-
-  useEffect(() => {
-    loadAttending();
-  }, [loadAttending, refreshSeq]);
 
   useEffect(() => {
     let cancelled = false;
@@ -337,29 +273,18 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
           </Text>
         </View>
       ) : null}
-      <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{language === "he" ? "הקרובים שלך" : "Your upcoming"}</Text>
-      {attendingLoading ? (
-        <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
-      ) : attending.length === 0 ? (
-        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
-      ) : (
-        attending.map((s) => <SessionLine key={`a-${s.id}`} s={s} />)
-      )}
-
-      <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
-        {language === "he" ? "אימונים שאתה מאמן" : "Sessions you’re training"}
+      <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+        {language === "he" ? "אימון נוכחי והבא" : "Current & next training"}
       </Text>
-      {teachingNotEnded.length === 0 ? (
-        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
+      <Text style={[styles.sectionHint, isRTL && styles.rtlText]}>
+        {language === "he" ? "לכל שאר האימונים השתמשו בלוח השבועי למטה." : "Use the week calendar below to browse all sessions."}
+      </Text>
+      {!currentTeaching && !nextTeaching ? (
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>
+          {language === "he" ? "אין אימונים בשבוע הקרוב." : "No training in the next 7 days."}
+        </Text>
       ) : (
-        teachingNotEnded.map((s) => <SessionLine key={`t-${s.id}`} s={s} alignRight={isRTL} />)
-      )}
-
-      {(currentTeaching || nextTeaching) && (
         <>
-          <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
-            {language === "he" ? "אימון נוכחי והבא" : "Current & next training"}
-          </Text>
           {currentTeaching ? (
             <>
               <SessionLine s={currentTeaching} prefix={language === "he" ? "נוכחי" : "Current"} alignRight={isRTL} />
