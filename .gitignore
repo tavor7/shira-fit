@@ -1,0 +1,4 @@
+# Secrets (never commit)
+supabase/.secrets/.env
+supabase/.secrets/
+
