@@ -14,7 +14,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const secret = Deno.env.get("CRON_SECRET");
   const auth = req.headers.get("Authorization")?.replace("Bearer ", "");
-  if (secret && auth !== secret)
+  if (!secret)
+    return new Response(JSON.stringify({ error: "missing_cron_secret" }), {
+      status: 500,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  if (auth !== secret)
     return new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401,
       headers: { ...cors, "Content-Type": "application/json" },
@@ -61,7 +66,7 @@ Deno.serve(async (req) => {
 
   const { data: first } = await supabase
     .from("waitlist_requests")
-    .select("user_id, profiles(expo_push_token)")
+    .select("id, user_id, profiles(expo_push_token)")
     .eq("session_id", sessionId)
     .order("requested_at", { ascending: true })
     .limit(1)
@@ -72,6 +77,7 @@ Deno.serve(async (req) => {
       headers: { ...cors, "Content-Type": "application/json" },
     });
 
+  const firstId = (first as { id?: string }).id ?? null;
   const token = (first as { profiles?: { expo_push_token?: string } }).profiles?.expo_push_token;
   if (token) {
     await fetch("https://exp.host/--/api/v2/push/send", {
@@ -84,6 +90,11 @@ Deno.serve(async (req) => {
         data: { session_id: sessionId },
       }),
     });
+  }
+
+  // Dequeue to avoid re-notifying the same user on subsequent calls.
+  if (firstId) {
+    await supabase.from("waitlist_requests").delete().eq("id", firstId);
   }
 
   return new Response(JSON.stringify({ ok: true, notified: true, user_id: first.user_id }), {

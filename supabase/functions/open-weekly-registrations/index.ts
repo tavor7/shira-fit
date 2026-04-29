@@ -26,7 +26,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const secret = Deno.env.get("CRON_SECRET");
   const auth = req.headers.get("Authorization")?.replace("Bearer ", "");
-  if (secret && auth !== secret)
+  if (!secret)
+    return new Response(JSON.stringify({ error: "missing_cron_secret" }), {
+      status: 500,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  if (auth !== secret)
     return new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401,
       headers: { ...cors, "Content-Type": "application/json" },
