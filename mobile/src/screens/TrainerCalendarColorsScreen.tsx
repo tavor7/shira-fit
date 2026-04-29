@@ -86,15 +86,20 @@ export default function TrainerCalendarColorsScreen() {
 
   return (
     <View style={styles.screen}>
-      <ManagerOverviewTabs />
-      <Text style={[styles.header, isRTL && styles.rtlText]}>{t("menu.trainerColors")}</Text>
-      <Text style={[styles.subhead, isRTL && styles.rtlText]}>
-        {language === "he" ? "בחירה נשמרת אוטומטית." : "Changes save automatically."}
-      </Text>
       <FlatList
         data={rows}
         keyExtractor={(item) => item.user_id}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <View style={styles.top}>
+            <ManagerOverviewTabs />
+            <Text style={[styles.header, isRTL && styles.rtlText]}>{t("menu.trainerColors")}</Text>
+            <Text style={[styles.subhead, isRTL && styles.rtlText]}>
+              {language === "he" ? "בחירה נשמרת אוטומטית." : "Changes save automatically."}
+            </Text>
+          </View>
+        }
         renderItem={({ item }) => {
           const preview = resolveTrainerAccentColor(item.calendar_color ?? null, item.user_id);
           const busy = savingId === item.user_id;
@@ -154,12 +159,13 @@ export default function TrainerCalendarColorsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  top: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md, paddingBottom: theme.spacing.sm },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", padding: theme.spacing.xl },
   muted: { marginTop: 10, color: theme.colors.textMuted },
   rtlText: { textAlign: "right" },
-  header: { padding: theme.spacing.md, paddingBottom: 2, fontSize: 18, fontWeight: "900", color: theme.colors.text },
-  subhead: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.sm, fontSize: 13, color: theme.colors.textMuted },
-  list: { padding: theme.spacing.md, paddingTop: 0, paddingBottom: theme.spacing.xl, gap: theme.spacing.md },
+  header: { paddingTop: 2, paddingBottom: 2, fontSize: 18, fontWeight: "900", color: theme.colors.text },
+  subhead: { paddingBottom: theme.spacing.sm, fontSize: 13, color: theme.colors.textMuted },
+  list: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.md },
   card: {
     padding: theme.spacing.md,
     borderRadius: theme.radius.lg,
