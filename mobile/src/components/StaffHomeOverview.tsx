@@ -12,7 +12,7 @@ import {
 } from "../lib/sessionTime";
 import { useI18n } from "../context/I18nContext";
 import { isBirthdayToday } from "../lib/birthday";
-import { formatISODateFull } from "../lib/dateFormat";
+import { formatISODateFull, formatISODateLong } from "../lib/dateFormat";
 
 type Props = {
   userId: string | undefined;
@@ -52,6 +52,8 @@ function isInNext7Days(sessionDate: string, startTime: string, now: Date) {
 export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Props) {
   const { language, isRTL } = useI18n();
   const [now, setNow] = useState(() => new Date());
+  const [attending, setAttending] = useState<TrainingSessionWithTrainer[]>([]);
+  const [attendingLoading, setAttendingLoading] = useState(true);
   const [participantMap, setParticipantMap] = useState<Record<string, string[]>>({});
   const [noteMap, setNoteMap] = useState<
     Record<string, { body: string; authorName: string; created_at: string } | null>
@@ -66,6 +68,68 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
   useEffect(() => {
     setNow(new Date());
   }, [refreshSeq]);
+
+  const loadAttending = useCallback(async () => {
+    if (!userId) {
+      setAttending([]);
+      setAttendingLoading(false);
+      return;
+    }
+    setAttendingLoading(true);
+    const { data, error } = await supabase
+      .from("session_registrations")
+      .select(
+        `
+        training_sessions!inner(
+          id,
+          session_date,
+          start_time,
+          coach_id,
+          duration_minutes,
+          max_participants,
+          is_open_for_registration,
+          trainer:profiles!coach_id(full_name)
+        )
+      `
+      )
+      .eq("user_id", userId)
+      .eq("status", "active");
+
+    if (error || !data) {
+      setAttending([]);
+      setAttendingLoading(false);
+      return;
+    }
+
+    const at = new Date();
+    const list: TrainingSessionWithTrainer[] = [];
+    for (const row of data as unknown[]) {
+      const r = row as { training_sessions: TrainingSessionWithTrainer | TrainingSessionWithTrainer[] | null };
+      const raw = r.training_sessions;
+      const s = Array.isArray(raw) ? raw[0] : raw;
+      if (!s?.id) continue;
+      if (hasSessionNotEnded(s.session_date, s.start_time, durMin(s), at) && isInNext7Days(s.session_date, s.start_time, at)) {
+        list.push(s);
+      }
+    }
+    list.sort(
+      (a, b) =>
+        sessionStartsAt(a.session_date, a.start_time).getTime() -
+        sessionStartsAt(b.session_date, b.start_time).getTime()
+    );
+    setAttending(list);
+    setAttendingLoading(false);
+  }, [userId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAttending();
+    }, [loadAttending])
+  );
+
+  useEffect(() => {
+    loadAttending();
+  }, [loadAttending, refreshSeq]);
 
   useEffect(() => {
     let cancelled = false;
@@ -211,8 +275,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
     prefix?: string;
     alignRight?: boolean;
   }) {
-    const label = `${formatISODateFull(s.session_date, language)} · ${formatSessionTimeRange(s.start_time, durMin(s))}`;
-    const trainer = s.trainer?.full_name ? ` · ${s.trainer.full_name}` : "";
+    const label = `${formatISODateLong(s.session_date, language)} · ${formatSessionTimeRange(s.start_time, durMin(s))}`;
     return (
       <Pressable
         style={({ pressed }) => [styles.line, pressed && styles.linePressed]}
@@ -221,9 +284,100 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
         <Text style={[styles.lineText, alignRight && styles.rtlText]}>
           {prefix ? `${prefix}: ` : ""}
           {label}
-          {trainer}
         </Text>
       </Pressable>
+    );
+  }
+
+  function GroupedSessionList({
+    list,
+    emptyText,
+    alignRight,
+  }: {
+    list: TrainingSessionWithTrainer[];
+    emptyText: string;
+    alignRight?: boolean;
+  }) {
+    const groups = useMemo(() => {
+      const byDate: Record<string, TrainingSessionWithTrainer[]> = {};
+      for (const s of list) {
+        (byDate[s.session_date] ??= []).push(s);
+      }
+      const dates = Object.keys(byDate).sort();
+      return dates.map((d) => ({
+        date: d,
+        title: formatISODateLong(d, language),
+        items: byDate[d].sort(
+          (a, b) =>
+            sessionStartsAt(a.session_date, a.start_time).getTime() -
+            sessionStartsAt(b.session_date, b.start_time).getTime()
+        ),
+      }));
+    }, [list, language]);
+
+    const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
+
+    useEffect(() => {
+      // Default: collapsed (agenda view). User can expand a day to see sessions.
+      const next: Record<string, boolean> = {};
+      for (const g of groups) next[g.date] = false;
+      setExpandedDates(next);
+    }, [groups.map((g) => `${g.date}:${g.items.length}`).join("|")]);
+
+    if (groups.length === 0) {
+      return <Text style={[styles.muted, alignRight && styles.rtlText]}>{emptyText}</Text>;
+    }
+
+    return (
+      <View style={styles.groupList}>
+        {groups.map((g) => {
+          const expanded = expandedDates[g.date] ?? false;
+          return (
+            <View key={g.date} style={styles.groupCard}>
+              <Pressable
+                onPress={() =>
+                  setExpandedDates((m) => {
+                    const next: Record<string, boolean> = {};
+                    for (const key of Object.keys(m)) next[key] = false;
+                    next[g.date] = !expanded;
+                    return next;
+                  })
+                }
+                style={({ pressed }) => [styles.groupHeader, pressed && styles.groupHeaderPressed]}
+              >
+                <Text style={[styles.groupTitle, alignRight && styles.rtlText]} numberOfLines={1}>
+                  {g.title}
+                </Text>
+                <View style={styles.groupMeta}>
+                  <View style={styles.countPill}>
+                    <Text style={styles.countPillText}>{g.items.length}</Text>
+                  </View>
+                  <Text style={styles.chev}>{expanded ? "▲" : "▼"}</Text>
+                </View>
+              </Pressable>
+
+              {expanded ? (
+                <View style={styles.groupBody}>
+                  {g.items.map((s) => {
+                    const time = formatSessionTimeRange(s.start_time, durMin(s));
+                    return (
+                      <Pressable
+                        key={s.id}
+                        style={({ pressed }) => [styles.sessionRow, pressed && styles.sessionRowPressed]}
+                        onPress={() => router.push(sessionPath(variant, s.id) as Href)}
+                      >
+                        <Text style={[styles.sessionTime, alignRight && styles.rtlText]} numberOfLines={1}>
+                          {time}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
+      </View>
     );
   }
 
@@ -273,18 +427,23 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
           </Text>
         </View>
       ) : null}
-      <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-        {language === "he" ? "אימון נוכחי והבא" : "Current & next training"}
-      </Text>
-      <Text style={[styles.sectionHint, isRTL && styles.rtlText]}>
-        {language === "he" ? "לכל שאר האימונים השתמשו בלוח השבועי למטה." : "Use the week calendar below to browse all sessions."}
-      </Text>
-      {!currentTeaching && !nextTeaching ? (
-        <Text style={[styles.muted, isRTL && styles.rtlText]}>
-          {language === "he" ? "אין אימונים בשבוע הקרוב." : "No training in the next 7 days."}
-        </Text>
+      <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{language === "he" ? "הקרובים שלך" : "Your upcoming"}</Text>
+      {attendingLoading ? (
+        <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
       ) : (
+        <GroupedSessionList list={attending} emptyText={language === "he" ? "אין" : "None"} alignRight={isRTL} />
+      )}
+
+      <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
+        {language === "he" ? "אימונים שאתה מאמן" : "Sessions you’re training"}
+      </Text>
+      <GroupedSessionList list={teachingNotEnded} emptyText={language === "he" ? "אין" : "None"} alignRight={isRTL} />
+
+      {(currentTeaching || nextTeaching) && (
         <>
+          <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
+            {language === "he" ? "אימון נוכחי והבא" : "Current & next training"}
+          </Text>
           {currentTeaching ? (
             <>
               <SessionLine s={currentTeaching} prefix={language === "he" ? "נוכחי" : "Current"} alignRight={isRTL} />
@@ -338,6 +497,50 @@ const styles = StyleSheet.create({
   },
   linePressed: { opacity: 0.85 },
   lineText: { fontSize: 15, color: theme.colors.text, fontWeight: "500" },
+  groupList: { marginTop: theme.spacing.sm, gap: theme.spacing.sm },
+  groupCard: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    borderRadius: theme.radius.lg,
+    overflow: "hidden",
+  },
+  groupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: theme.colors.surface,
+  },
+  groupHeaderPressed: { opacity: 0.92 },
+  groupTitle: { flex: 1, minWidth: 0, fontSize: 14, fontWeight: "800", color: theme.colors.text },
+  groupMeta: { flexDirection: "row", alignItems: "center", gap: 10, marginLeft: 10 },
+  countPill: {
+    minWidth: 28,
+    height: 22,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    backgroundColor: theme.colors.backgroundAlt,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countPillText: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "900" },
+  chev: { color: theme.colors.textMuted, fontSize: 11, fontWeight: "900" },
+  groupBody: { paddingHorizontal: 8, paddingBottom: 8 },
+  sessionRow: {
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginTop: 8,
+  },
+  sessionRowPressed: { opacity: 0.9 },
+  sessionTime: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
   card: {
     marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.md,
