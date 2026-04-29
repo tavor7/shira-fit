@@ -697,6 +697,7 @@ export default function ManagerActivityLogScreen() {
 
   const listHeader = (
     <View style={styles.listHeaderPad}>
+      <ManagerOverviewTabs />
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.activityLog")}</Text>
       <Text style={[styles.hint, isRTL && styles.rtl]}>{t("activityLog.hint")}</Text>
       {filtersSection}
@@ -770,9 +771,6 @@ export default function ManagerActivityLogScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.topChrome}>
-        <ManagerOverviewTabs />
-      </View>
       <FlatList
         style={styles.listFlex}
         data={rows}
@@ -827,12 +825,8 @@ export default function ManagerActivityLogScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  topChrome: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
-  },
   listFlex: { flex: 1 },
-  listHeaderPad: { paddingBottom: theme.spacing.xs },
+  listHeaderPad: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md, paddingBottom: theme.spacing.xs },
   title: { fontSize: 20, fontWeight: "900", color: theme.colors.text, letterSpacing: -0.3 },
   hint: {
     marginTop: 8,

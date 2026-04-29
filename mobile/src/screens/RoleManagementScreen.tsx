@@ -77,31 +77,33 @@ export default function RoleManagementScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.top}>
-        <ManagerOverviewTabs />
-        <Text style={[styles.title, isRTL && styles.rtlText]}>{t("menu.roles")}</Text>
-        <Text style={[styles.hint, isRTL && styles.rtlText]}>
-          {language === "he"
-            ? "חיפוש לפי שם, משתמש או טלפון. מנהלים יכולים לשנות תפקידים."
-            : "Search by name, username, or phone. Managers can promote/demote roles."}
-        </Text>
-        <TextInput
-          value={q}
-          onChangeText={setQ}
-          placeholder={language === "he" ? "חיפוש…" : "Search…"}
-          placeholderTextColor={theme.colors.placeholderOnLight}
-          style={styles.input}
-          autoCapitalize="none"
-        />
-        <Pressable onPress={load} style={({ pressed }) => [styles.loadBtn, pressed && { opacity: 0.9 }]}>
-          <Text style={styles.loadTxt}>{loading ? t("common.loading") : t("common.load")}</Text>
-        </Pressable>
-      </View>
-
       <FlatList
         data={filtered}
         keyExtractor={(i) => i.user_id}
         contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <View style={styles.top}>
+            <ManagerOverviewTabs />
+            <Text style={[styles.title, isRTL && styles.rtlText]}>{t("menu.roles")}</Text>
+            <Text style={[styles.hint, isRTL && styles.rtlText]}>
+              {language === "he"
+                ? "חיפוש לפי שם, משתמש או טלפון. מנהלים יכולים לשנות תפקידים."
+                : "Search by name, username, or phone. Managers can promote/demote roles."}
+            </Text>
+            <TextInput
+              value={q}
+              onChangeText={setQ}
+              placeholder={language === "he" ? "חיפוש…" : "Search…"}
+              placeholderTextColor={theme.colors.placeholderOnLight}
+              style={styles.input}
+              autoCapitalize="none"
+            />
+            <Pressable onPress={load} style={({ pressed }) => [styles.loadBtn, pressed && { opacity: 0.9 }]}>
+              <Text style={styles.loadTxt}>{loading ? t("common.loading") : t("common.load")}</Text>
+            </Pressable>
+          </View>
+        }
         ListEmptyComponent={
           <Text style={[styles.empty, isRTL && styles.rtlText]}>
             {loading ? t("common.loading") : language === "he" ? "לא נמצאו משתמשים." : "No users found."}
@@ -139,7 +141,7 @@ export default function RoleManagementScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  top: { padding: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.borderMuted },
+  top: { padding: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.borderMuted, marginBottom: theme.spacing.sm },
   title: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
   hint: { marginTop: 6, fontSize: 12, lineHeight: 18, color: theme.colors.textMuted },
   rtlText: { textAlign: "right" },

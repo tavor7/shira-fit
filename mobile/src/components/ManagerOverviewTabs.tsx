@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
@@ -70,48 +70,54 @@ export function ManagerOverviewTabs() {
   const activeId = tabs.find((x) => x.isActive(pathname))?.id ?? "overview";
 
   return (
-    <View style={[styles.track, isRTL && styles.trackRtl]}>
-      {tabs.map((x) => {
-        const active = x.id === activeId;
-        return (
-          <Pressable
-            key={x.id}
-            onPress={() => router.replace(x.href)}
-            style={({ pressed }) => [
-              styles.slot,
-              active && styles.slotActive,
-              pressed && !active && styles.slotPressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
-          >
-            <Text style={[styles.txt, active && styles.txtActive]} numberOfLines={1} ellipsizeMode="tail">
-              {x.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+    <View style={styles.trackWrap}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={[styles.trackRow, isRTL && styles.trackRowRtl]}
+      >
+        {tabs.map((x) => {
+          const active = x.id === activeId;
+          return (
+            <Pressable
+              key={x.id}
+              onPress={() => router.replace(x.href)}
+              style={({ pressed }) => [
+                styles.slot,
+                active && styles.slotActive,
+                pressed && !active && styles.slotPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
+            >
+              <Text style={[styles.txt, active && styles.txtActive]} numberOfLines={1} ellipsizeMode="tail">
+                {x.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  track: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
+  trackWrap: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
     padding: 6,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     marginBottom: theme.spacing.md,
+    overflow: "hidden",
+    alignSelf: "stretch",
+    width: "100%",
   },
-  trackRtl: { flexDirection: "row-reverse" },
+  trackRow: { flexDirection: "row", gap: 6, paddingRight: 2 },
+  trackRowRtl: { flexDirection: "row-reverse", paddingRight: 0, paddingLeft: 2 },
   slot: {
-    flexGrow: 1,
-    flexBasis: 120,
-    minWidth: 110,
+    flexGrow: 0,
+    minWidth: 120,
     paddingVertical: 10,
     paddingHorizontal: 10,
     borderRadius: theme.radius.full,
