@@ -8,12 +8,15 @@ import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { DatePickerField } from "../components/DatePickerField";
 import { isValidISODateString } from "../lib/isoDate";
+import { useAuth } from "../context/AuthContext";
 
 export default function StaffEditProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = String(id ?? "");
   const { t, isRTL, language } = useI18n();
   const { showToast } = useToast();
+  const { profile } = useAuth();
+  const isManager = profile?.role === "manager";
 
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState("");
@@ -21,6 +24,7 @@ export default function StaffEditProfileScreen() {
   const [gender, setGender] = useState<"male" | "female" | "">("");
   const [dob, setDob] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmingEmail, setConfirmingEmail] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -70,6 +74,24 @@ export default function StaffEditProfileScreen() {
     router.back();
   }
 
+  async function confirmEmail() {
+    if (!isManager) return;
+    const uid = userId.trim();
+    if (!uid) return;
+    setConfirmingEmail(true);
+    const { data, error } = await supabase.functions.invoke("admin-confirm-email", { body: { user_id: uid } });
+    setConfirmingEmail(false);
+    if (error) {
+      showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+      return;
+    }
+    if (!data?.ok) {
+      showToast({ message: t("common.failed"), detail: data?.error ?? "Unknown error", variant: "error" });
+      return;
+    }
+    showToast({ message: language === "he" ? "האימייל אושר" : "Email confirmed", variant: "success" });
+  }
+
   return (
     <View style={styles.screen}>
       <Text style={[styles.title, isRTL && styles.rtlText]}>{t("profile.editUser")}</Text>
@@ -102,6 +124,24 @@ export default function StaffEditProfileScreen() {
       <DatePickerField label={t("profile.dob")} value={dob} onChange={setDob} />
 
       <PrimaryButton label={t("common.save")} onPress={save} loading={saving} loadingLabel={t("common.loading")} />
+
+      {isManager ? (
+        <Pressable
+          onPress={confirmEmail}
+          disabled={confirmingEmail}
+          style={({ pressed }) => [
+            styles.confirmEmailBtn,
+            confirmingEmail && { opacity: 0.6 },
+            pressed && !confirmingEmail && { opacity: 0.9 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={language === "he" ? "אישור אימייל" : "Confirm email"}
+        >
+          <Text style={styles.confirmEmailTxt}>
+            {confirmingEmail ? t("common.loading") : language === "he" ? "אישור אימייל" : "Confirm email"}
+          </Text>
+        </Pressable>
+      ) : null}
 
       <Pressable
         onPress={() => router.replace("/(app)/staff/users")}
@@ -150,6 +190,17 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.white,
     color: theme.colors.textOnLight,
   },
+  confirmEmailBtn: {
+    marginTop: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.md,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmEmailTxt: { color: theme.colors.text, fontWeight: "900", letterSpacing: 0.2 },
   backToList: {
     marginTop: theme.spacing.md,
     alignSelf: "center",
