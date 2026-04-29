@@ -141,7 +141,13 @@ export default function RoleManagementScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  top: { padding: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.borderMuted, marginBottom: theme.spacing.sm },
+  top: {
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderMuted,
+    marginBottom: theme.spacing.sm,
+  },
   title: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
   hint: { marginTop: 6, fontSize: 12, lineHeight: 18, color: theme.colors.textMuted },
   rtlText: { textAlign: "right" },
