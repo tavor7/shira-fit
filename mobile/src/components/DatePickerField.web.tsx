@@ -5,31 +5,23 @@ import { toISODateLocal } from "../lib/isoDate";
 import type { DatePickerFieldProps } from "./DatePickerField.types";
 import { useI18n } from "../context/I18nContext";
 
-function isIOSSafari(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent || "";
-  const isIOS = /iPad|iPhone|iPod/.test(ua);
-  const isWebKit = /WebKit/.test(ua);
-  const isNotChrome = !/CriOS|FxiOS|EdgiOS/.test(ua);
-  return isIOS && isWebKit && isNotChrome;
-}
-
 export function DatePickerField({ label, value, onChange, minimumDate, maximumDate }: DatePickerFieldProps) {
   const { isRTL } = useI18n();
   const min = minimumDate ? toISODateLocal(minimumDate) : undefined;
   const max = maximumDate ? toISODateLocal(maximumDate) : undefined;
-  const useTextFallback = isIOSSafari();
 
   return (
     <View style={styles.wrap}>
       <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
       {createElement("input", {
-        type: useTextFallback ? "text" : "date",
+        type: "date",
         value: value || "",
-        ...(useTextFallback ? {} : { min, max }),
+        min,
+        max,
         onChange: (e: { target: { value: string } }) => onChange(e.target.value),
-        placeholder: useTextFallback ? "YYYY-MM-DD" : undefined,
-        inputMode: useTextFallback ? ("numeric" as any) : undefined,
+        onKeyDown: (e: { preventDefault: () => void }) => e.preventDefault(),
+        onPaste: (e: { preventDefault: () => void }) => e.preventDefault(),
+        onBeforeInput: (e: { preventDefault: () => void }) => e.preventDefault(),
         autoComplete: "off",
         style: {
           width: "100%",

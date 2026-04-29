@@ -18,6 +18,7 @@ import { theme } from "../../src/theme";
 import { parseISODateLocal, toISODateLocal, isValidISODateString } from "../../src/lib/isoDate";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
+import { DatePickerField } from "../../src/components/DatePickerField";
 
 const today = new Date();
 const minDob = new Date(1900, 0, 1);
@@ -171,17 +172,15 @@ export default function SignupScreen() {
           value={phone}
           onChangeText={setPhone}
         />
-        <Text style={[styles.label, isRTL && { textAlign: "right" }]}>{t("profile.dob")}</Text>
-        <TextInput
-          style={[styles.input, isRTL && styles.inputRtl]}
-          placeholder="2000-01-15"
-          placeholderTextColor={theme.colors.textSoft}
+        <DatePickerField
+          label={t("profile.dob")}
           value={dobText}
-          onChangeText={(v) => {
+          minimumDate={minDob}
+          maximumDate={today}
+          onChange={(v) => {
             setDobText(v);
             setErrorMessage("");
           }}
-          autoCapitalize="none"
         />
         <Text style={[styles.label, isRTL && { textAlign: "right" }]}>{t("profile.gender")}</Text>
         <View style={styles.genderRow}>
