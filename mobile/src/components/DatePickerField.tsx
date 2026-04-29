@@ -22,6 +22,7 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
     : language === "he"
       ? "בחרו תאריך"
       : "Choose date";
+  const hasValue = isValidISODateString(value);
   const pickerValue = parseISODateLocal(value) ?? new Date();
 
   if (Platform.OS === "android") {
@@ -30,10 +31,10 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
         <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
         <Pressable
           onPress={() => setAndroidOpen(true)}
-          style={({ pressed }) => [styles.touch, pressed && styles.touchPressed]}
+          style={({ pressed }) => [styles.touch, hasValue && styles.touchActive, pressed && styles.touchPressed]}
         >
           <Text
-            style={[styles.touchText, isRTL && styles.rtlTextLight]}
+            style={[styles.touchText, !hasValue && styles.touchTextPlaceholder, isRTL && styles.rtlTextLight]}
             numberOfLines={1}
             ellipsizeMode="tail"
           >
@@ -63,9 +64,12 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
   return (
     <View style={styles.wrap}>
       <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
-      <Pressable onPress={() => setIosOpen(true)} style={({ pressed }) => [styles.touch, pressed && styles.touchPressed]}>
+      <Pressable
+        onPress={() => setIosOpen(true)}
+        style={({ pressed }) => [styles.touch, hasValue && styles.touchActive, pressed && styles.touchPressed]}
+      >
         <Text
-          style={[styles.touchText, isRTL && styles.rtlTextLight]}
+          style={[styles.touchText, !hasValue && styles.touchTextPlaceholder, isRTL && styles.rtlTextLight]}
           numberOfLines={1}
           ellipsizeMode="tail"
         >
@@ -132,8 +136,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
     overflow: "hidden",
   },
+  touchActive: {
+    borderColor: theme.colors.cta,
+    backgroundColor: theme.colors.surface,
+  },
   touchPressed: { opacity: 0.92 },
   touchText: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  touchTextPlaceholder: { color: theme.colors.textMuted, fontWeight: "800" },
   rtlTextLight: { textAlign: "right" },
   chev: { fontSize: 10, color: theme.colors.textMuted },
   chevLtr: { marginLeft: 8 },

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -77,7 +77,12 @@ export default function RegistrationOpeningScheduleScreen() {
   }
 
   return (
-    <View style={styles.screen}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      contentInsetAdjustmentBehavior="automatic"
+    >
       <ManagerOverviewTabs />
       <Text style={[styles.title, isRTL && styles.rtlText]}>
         {language === "he" ? "פתיחת הרשמה" : "Registration opening"}
@@ -121,12 +126,13 @@ export default function RegistrationOpeningScheduleScreen() {
         loading={saving}
         loadingLabel={t("common.loading")}
       />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt, padding: theme.spacing.md },
+  screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
   title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
   hint: { marginTop: 8, color: theme.colors.textMuted, lineHeight: 18 },
   label: { marginTop: theme.spacing.md, fontWeight: "700", color: theme.colors.text },

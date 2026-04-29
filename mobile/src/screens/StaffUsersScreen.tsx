@@ -114,30 +114,32 @@ export default function StaffUsersScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.top}>
-        {isManager ? <ManagerOverviewTabs /> : null}
-        <Text style={[styles.title, isRTL && styles.rtlText]}>{language === "he" ? "משתמשים" : "Users"}</Text>
-        <Text style={[styles.hint, isRTL && styles.rtlText]}>{subtitle}</Text>
-        <TextInput
-          value={q}
-          onChangeText={setQ}
-          placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
-          placeholderTextColor={theme.colors.placeholderOnLight}
-          style={styles.input}
-          autoCapitalize="none"
-          onSubmitEditing={load}
-        />
-        <Pressable style={({ pressed }) => [styles.searchBtn, pressed && { opacity: 0.9 }]} onPress={load}>
-          <Text style={styles.searchBtnTxt}>
-            {loading ? t("common.loading") : language === "he" ? "חיפוש" : "Search"}
-          </Text>
-        </Pressable>
-      </View>
-
       <FlatList
         data={rows}
         keyExtractor={(i) => (i.kind === "profile" ? i.user_id : `manual:${i.id}`)}
         contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <View style={styles.top}>
+            {isManager ? <ManagerOverviewTabs /> : null}
+            <Text style={[styles.title, isRTL && styles.rtlText]}>{language === "he" ? "משתמשים" : "Users"}</Text>
+            <Text style={[styles.hint, isRTL && styles.rtlText]}>{subtitle}</Text>
+            <TextInput
+              value={q}
+              onChangeText={setQ}
+              placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
+              placeholderTextColor={theme.colors.placeholderOnLight}
+              style={styles.input}
+              autoCapitalize="none"
+              onSubmitEditing={load}
+            />
+            <Pressable style={({ pressed }) => [styles.searchBtn, pressed && { opacity: 0.9 }]} onPress={load}>
+              <Text style={styles.searchBtnTxt}>
+                {loading ? t("common.loading") : language === "he" ? "חיפוש" : "Search"}
+              </Text>
+            </Pressable>
+          </View>
+        }
         ListEmptyComponent={
           <Text style={[styles.empty, isRTL && styles.rtlText]}>
             {loading ? t("common.loading") : language === "he" ? "לא נמצאו משתמשים." : "No users found."}
@@ -177,7 +179,7 @@ export default function StaffUsersScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  top: { padding: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.borderMuted },
+  top: { padding: theme.spacing.md, borderBottomWidth: 1, borderBottomColor: theme.colors.borderMuted, marginBottom: theme.spacing.sm },
   title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
   hint: { marginTop: 6, color: theme.colors.textMuted, lineHeight: 18, fontSize: 12 },
   rtlText: { textAlign: "right" },
