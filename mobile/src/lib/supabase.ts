@@ -44,6 +44,39 @@ const key =
 export const supabaseUrl = url;
 export const supabaseAnonKey = key;
 
+function pruneInvalidWebAuthState() {
+  if (Platform.OS !== "web") return;
+  if (typeof localStorage === "undefined") return;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k) keys.push(k);
+    }
+    for (const k of keys) {
+      if (!(k.includes("-auth-token") || k.startsWith("sb-"))) continue;
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw) as any;
+        const rt =
+          parsed?.currentSession?.refresh_token ??
+          parsed?.refresh_token ??
+          parsed?.session?.refresh_token ??
+          null;
+        if (!rt || typeof rt !== "string") {
+          localStorage.removeItem(k);
+        }
+      } catch {
+        // Corrupt JSON → remove it (prevents auth-js init errors).
+        localStorage.removeItem(k);
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
 /** Best-effort clear of persisted auth state (web/localStorage only). */
 export function clearSupabaseAuthStorage() {
   if (Platform.OS !== "web") return;
@@ -65,6 +98,9 @@ export function clearSupabaseAuthStorage() {
     // ignore
   }
 }
+
+// Must run before createClient() on web.
+pruneInvalidWebAuthState();
 
 export const supabase = createClient(url, key, {
   auth: {

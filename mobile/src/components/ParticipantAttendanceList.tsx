@@ -12,8 +12,8 @@ type RegRow = {
   attended: boolean | null;
   payment_method?: string | null;
   profiles:
-    | { full_name: string; username: string; date_of_birth?: string | null }
-    | { full_name: string; username: string; date_of_birth?: string | null }[]
+    | { full_name: string; username: string; phone?: string | null; date_of_birth?: string | null }
+    | { full_name: string; username: string; phone?: string | null; date_of_birth?: string | null }[]
     | null;
 };
 
@@ -32,6 +32,7 @@ type Row =
       kind: "registered";
       id: string;
       name: string;
+      phone?: string;
       attended: boolean | null;
       paymentMethod: string | null;
       userId: string;
@@ -92,7 +93,7 @@ export function ParticipantAttendanceList({
     setLoading(true);
     const { data, error } = await supabase
       .from("session_registrations")
-      .select("user_id, attended, payment_method, profiles(full_name, username, date_of_birth)")
+      .select("user_id, attended, payment_method, profiles(full_name, username, phone, date_of_birth)")
       .eq("session_id", sessionId)
       .eq("status", "active");
     const { data: mData, error: mErr } = await supabase
@@ -113,6 +114,7 @@ export function ParticipantAttendanceList({
         id: `u:${r.user_id}`,
         userId: r.user_id,
         name: p?.full_name ?? "—",
+        phone: (p as any)?.phone ? String((p as any).phone) : "",
         attended: r.attended ?? null,
         paymentMethod: (r as any).payment_method ?? null,
         birthdayToday: isBirthdayToday(p?.date_of_birth ?? null),
@@ -261,7 +263,7 @@ export function ParticipantAttendanceList({
                   {item.name}
                   {item.birthdayToday ? <Text style={styles.bday}>{"  "}🎂</Text> : null}
                 </Text>
-                {item.kind === "manual" && item.phone ? (
+                {item.phone ? (
                   <Text style={[styles.sub, isRTL && styles.rtlText]} numberOfLines={1}>
                     {item.phone}
                   </Text>
