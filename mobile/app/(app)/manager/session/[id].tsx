@@ -60,6 +60,12 @@ type CancellationRow = {
   profiles: { full_name: string } | { full_name: string }[] | null;
 };
 
+type WaitlistRow = {
+  user_id: string;
+  created_at: string;
+  profiles: { full_name: string; phone?: string | null } | { full_name: string; phone?: string | null }[] | null;
+};
+
 export default function ManagerSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
@@ -69,6 +75,7 @@ export default function ManagerSessionDetail() {
   const compact = sessionFormIsCompact(width);
   const [participantsRev, setParticipantsRev] = useState(0);
   const [session, setSession] = useState<TrainingSession | null>(null);
+  const [waitlist, setWaitlist] = useState<WaitlistRow[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
   const [editingSession, setEditingSession] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -106,6 +113,19 @@ export default function ManagerSessionDetail() {
     setCancellations((data as unknown as CancellationRow[]) ?? []);
   }
 
+  async function loadWaitlist() {
+    const { data, error } = await supabase
+      .from("waitlist_requests")
+      .select("user_id, created_at, profiles(full_name, phone)")
+      .eq("session_id", id)
+      .order("created_at", { ascending: true });
+    if (error) {
+      setWaitlist([]);
+      return;
+    }
+    setWaitlist((data as unknown as WaitlistRow[]) ?? []);
+  }
+
   async function load() {
     const { data: s } = await supabase.from("training_sessions").select("*").eq("id", id).single();
     setSession(s as TrainingSession);
@@ -118,6 +138,7 @@ export default function ManagerSessionDetail() {
       setOpen(s.is_open_for_registration);
       setHidden(!!(s as { is_hidden?: boolean }).is_hidden);
     }
+    loadWaitlist();
     loadCancellations();
     loadNotes();
   }
@@ -615,6 +636,26 @@ export default function ManagerSessionDetail() {
         variant="ghost"
       />
 
+      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "רשימת המתנה" : "Waitlist"}</Text>
+      {waitlist.length === 0 ? (
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
+      ) : (
+        waitlist.map((item) => {
+          const p = item.profiles ? (Array.isArray(item.profiles) ? item.profiles[0] : item.profiles) : null;
+          const name = String(p?.full_name ?? item.user_id);
+          const phone = String(p?.phone ?? "").trim();
+          return (
+            <View key={item.user_id} style={styles.waitCard}>
+              <Text style={[styles.waitName, isRTL && styles.rtlText]}>{name}</Text>
+              {phone ? <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>{phone}</Text> : null}
+              <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>
+                {formatDateTimeForDisplay(item.created_at, language)}
+              </Text>
+            </View>
+          );
+        })
+      )}
+
       <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "ביטולים" : "Cancellations"}</Text>
       {cancellations.length === 0 ? (
         <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
@@ -766,6 +807,16 @@ const styles = StyleSheet.create({
   h: { fontWeight: "700", marginTop: theme.spacing.md, marginBottom: 8, color: theme.colors.text },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   muted: { color: theme.colors.textSoft },
+  waitCard: {
+    marginTop: 6,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  waitName: { color: theme.colors.text, fontWeight: "900", fontSize: 15 },
+  waitMeta: { marginTop: 4, color: theme.colors.textMuted, fontWeight: "700" },
   notesCard: {
     marginTop: 4,
     padding: theme.spacing.md,

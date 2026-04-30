@@ -10,7 +10,11 @@ import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay } from "../../../../src/lib/dateFormat";
 import { useToast } from "../../../../src/context/ToastContext";
 
-type W = { user_id: string; profiles: { full_name: string } };
+type W = {
+  user_id: string;
+  created_at: string;
+  profiles: { full_name: string; phone?: string | null } | { full_name: string; phone?: string | null }[] | null;
+};
 type CancellationRow = {
   user_id: string;
   cancelled_at: string;
@@ -45,8 +49,9 @@ export default function CoachSessionDetail() {
   async function loadWaitlist() {
     const { data: w } = await supabase
       .from("waitlist_requests")
-      .select("user_id, profiles(full_name)")
-      .eq("session_id", id);
+      .select("user_id, created_at, profiles(full_name, phone)")
+      .eq("session_id", id)
+      .order("created_at", { ascending: true });
     setWaitlist((w as unknown as W[]) ?? []);
   }
 
@@ -178,11 +183,20 @@ export default function CoachSessionDetail() {
       {waitlist.length === 0 ? (
         <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
       ) : (
-        waitlist.map((item) => (
-          <Text key={item.user_id} style={styles.row}>
-            {item.profiles?.full_name ?? item.user_id}
-          </Text>
-        ))
+        waitlist.map((item) => {
+          const p = item.profiles ? (Array.isArray(item.profiles) ? item.profiles[0] : item.profiles) : null;
+          const name = String(p?.full_name ?? item.user_id);
+          const phone = String(p?.phone ?? "").trim();
+          return (
+            <View key={item.user_id} style={styles.waitCard}>
+              <Text style={[styles.waitName, isRTL && styles.rtlText]}>{name}</Text>
+              {phone ? <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>{phone}</Text> : null}
+              <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>
+                {formatDateTimeForDisplay(item.created_at, language)}
+              </Text>
+            </View>
+          );
+        })
       )}
       {canEditSession ? (
         <PrimaryButton
@@ -337,6 +351,16 @@ const styles = StyleSheet.create({
   rtlText: { textAlign: "right" },
   row: { paddingVertical: 8, borderBottomWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
   muted: { color: theme.colors.textSoft },
+  waitCard: {
+    marginTop: 6,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  waitName: { color: theme.colors.text, fontWeight: "900", fontSize: 15 },
+  waitMeta: { marginTop: 4, color: theme.colors.textMuted, fontWeight: "700" },
   notesCard: {
     marginTop: 4,
     padding: theme.spacing.md,

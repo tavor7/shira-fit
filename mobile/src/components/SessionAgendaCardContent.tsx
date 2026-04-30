@@ -68,29 +68,25 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
         </Text>
       ) : null}
       {showFill && staffLabels ? (
-        <Text style={[styles.fill, compact && styles.fillCompact]}>
-          {item.signedUpCount} / {item.maxParticipants}
-        </Text>
+        <View style={styles.fillRow}>
+          <Text style={[styles.fillInlineText, compact && styles.fillInlineTextCompact]}>{item.signedUpCount}/{item.maxParticipants}</Text>
+          {full && (item.waitlistCount ?? 0) > 0 ? (
+            <Text style={[styles.waitInlineText, compact && styles.waitInlineTextCompact]}>({String(item.waitlistCount)})</Text>
+          ) : null}
+        </View>
       ) : null}
       {staffLabels ? (
-        <View style={[styles.tags, isRTL && styles.tagsRtl]}>
-          <View style={[styles.tag, item.isHidden ? styles.tagHidden : styles.tagListed]}>
-            <Text style={[styles.tagTxt, item.isHidden ? styles.tagTxtHidden : styles.tagTxtListed]}>
-              {item.isHidden ? (language === "he" ? "מוסתר" : "Hidden") : language === "he" ? "גלוי" : "Visible"}
+        <View style={[styles.tagsMini, isRTL && styles.tagsRtl]}>
+          <View style={[styles.tagMini, item.isHidden ? styles.tagHidden : styles.tagListed]}>
+            <Text style={[styles.tagTxtMini, item.isHidden ? styles.tagTxtHidden : styles.tagTxtListed]}>
+              {item.isHidden ? "H" : "V"}
             </Text>
           </View>
-          <View style={[styles.tag, item.isOpenForRegistration ? styles.tagOpen : styles.tagClosed]}>
-            <Text style={[styles.tagTxt, item.isOpenForRegistration ? styles.tagTxtOpen : styles.tagTxtClosed]}>
-              {item.isOpenForRegistration ? (language === "he" ? "פתוח" : "Open") : language === "he" ? "סגור" : "Closed"}
+          <View style={[styles.tagMini, item.isOpenForRegistration ? styles.tagOpen : styles.tagClosed]}>
+            <Text style={[styles.tagTxtMini, item.isOpenForRegistration ? styles.tagTxtOpen : styles.tagTxtClosed]}>
+              {item.isOpenForRegistration ? "O" : "C"}
             </Text>
           </View>
-          {full && (item.waitlistCount ?? 0) > 0 ? (
-            <View style={[styles.tag, styles.tagWaitlist]}>
-              <Text style={[styles.tagTxt, styles.tagTxtWaitlist]}>
-                {language === "he" ? `המתנה ${item.waitlistCount}` : `Waitlist ${item.waitlistCount}`}
-              </Text>
-            </View>
-          ) : null}
         </View>
       ) : item.subtitle ? (
         item.subtitleUnclamped ? (
@@ -125,22 +121,29 @@ const styles = StyleSheet.create({
   trainerCompact: { fontSize: 11, marginTop: 3 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
   chipsRtl: { flexDirection: "row-reverse" },
+  fillRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "nowrap" },
   fill: { marginTop: 6, fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, letterSpacing: 0.5 },
+  fillInline: { marginTop: 0, flexShrink: 1 },
   fillCompact: { marginTop: 4, fontSize: 11 },
+  fillInlineText: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 12, letterSpacing: 0.2 },
+  fillInlineTextCompact: { fontSize: 11 },
+  waitInlineText: { color: "#A5B4FC", fontWeight: "900", fontSize: 12, letterSpacing: 0.2 },
+  waitInlineTextCompact: { fontSize: 11 },
   subtitle: { marginTop: 4, color: theme.colors.textMuted, fontSize: 11, lineHeight: 14 },
   subtitleCompact: { fontSize: 10, marginTop: 3 },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
+  tagsMini: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
   tagsRtl: { flexDirection: "row-reverse" },
   tag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: theme.radius.full, borderWidth: 1 },
+  tagMini: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: theme.radius.full, borderWidth: 1 },
   tagHidden: { backgroundColor: "rgba(245,158,11,0.12)", borderColor: "rgba(245,158,11,0.35)" },
   tagListed: { backgroundColor: "rgba(148,163,184,0.12)", borderColor: "rgba(148,163,184,0.3)" },
   tagOpen: { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.35)" },
   tagClosed: { backgroundColor: "rgba(148,163,184,0.1)", borderColor: "rgba(148,163,184,0.28)" },
-  tagWaitlist: { backgroundColor: "rgba(99,102,241,0.12)", borderColor: "rgba(99,102,241,0.32)" },
   tagTxt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.4, textTransform: "uppercase" },
+  tagTxtMini: { fontSize: 10, fontWeight: "900", letterSpacing: 0.2, textTransform: "uppercase" },
   tagTxtHidden: { color: "#FBBF24" },
   tagTxtListed: { color: theme.colors.textMuted },
   tagTxtOpen: { color: theme.colors.success },
   tagTxtClosed: { color: theme.colors.textSoft },
-  tagTxtWaitlist: { color: "#A5B4FC" },
 });
