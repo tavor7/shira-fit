@@ -223,13 +223,7 @@ export default function AthleteSessionDetail() {
 
       <View style={styles.partCard}>
         <Text style={[styles.partTitle, isRTL && styles.rtlText]}>{language === "he" ? "משתתפים" : "Participants"}</Text>
-        {!registered && !onWaitlist ? (
-          <Text style={[styles.partEmpty, isRTL && styles.rtlText]}>
-            {language === "he"
-              ? "רשימת המשתתפים מוצגת לאחר הרשמה/רשימת המתנה."
-              : "Participant names are shown after you register or join the waitlist."}
-          </Text>
-        ) : names.length === 0 ? (
+        {names.length === 0 ? (
           <Text style={[styles.partEmpty, isRTL && styles.rtlText]}>
             {language === "he" ? "אין משתתפים רשומים עדיין." : "No registered participants yet."}
           </Text>
