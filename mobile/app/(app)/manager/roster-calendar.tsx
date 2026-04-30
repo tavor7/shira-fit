@@ -7,6 +7,7 @@ import { useI18n } from "../../../src/context/I18nContext";
 import { theme } from "../../../src/theme";
 import { fetchStaffTrainingSessionsForCalendar } from "../../../src/lib/trainingSessionQueries";
 import { fetchActiveSignupCountsBySession } from "../../../src/lib/sessionSignupCounts";
+import { fetchWaitlistCountsBySession } from "../../../src/lib/waitlistCounts";
 import { resolveTrainerAccentColor } from "../../../src/lib/trainerCalendarColor";
 import { formatSessionTimeRange, sessionStartsAt } from "../../../src/lib/sessionTime";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
@@ -23,6 +24,7 @@ export default function ManagerRosterCalendarScreen() {
   const { language, t, isRTL } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
+  const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
   const [namesBySession, setNamesBySession] = useState<Record<string, string[]>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -41,7 +43,9 @@ export default function ManagerRosterCalendarScreen() {
     const { data, error } = await fetchStaffTrainingSessionsForCalendar();
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);
-    setSignupBySession(await fetchActiveSignupCountsBySession(list.map((s) => s.id)));
+    const ids = list.map((s) => s.id);
+    setSignupBySession(await fetchActiveSignupCountsBySession(ids));
+    setWaitlistBySession(await fetchWaitlistCountsBySession(ids));
 
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
@@ -77,6 +81,7 @@ export default function ManagerRosterCalendarScreen() {
           const c = signupBySession[s.id] ?? 0;
           const m = s.max_participants ?? 0;
           const badge = m > 0 ? `${c}/${m}` : `${c}`;
+          const wl = waitlistBySession[s.id] ?? 0;
           const subtitle =
             names.length > 0
               ? names.join(", ")
@@ -89,6 +94,8 @@ export default function ManagerRosterCalendarScreen() {
             start_time: s.start_time,
             timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
             timeBadgeText: badge,
+            timeBadgeText2: m > 0 && c >= m && wl > 0 ? `WL ${wl}` : undefined,
+            waitlistCount: wl,
             subtitle,
             subtitleUnclamped: true,
             accentColor,
@@ -104,6 +111,7 @@ export default function ManagerRosterCalendarScreen() {
           coachId: s.coach_id,
           signedUpCount: signupBySession[s.id] ?? 0,
           maxParticipants: s.max_participants,
+          waitlistCount: waitlistBySession[s.id] ?? 0,
           accentColor,
           showStaffSessionLabels: true,
           isHidden: !!s.is_hidden,
@@ -111,7 +119,7 @@ export default function ManagerRosterCalendarScreen() {
           onPress: () => router.push(`/(app)/manager/session/${s.id}`),
         } satisfies SessionsWeekItem;
       }),
-    [filteredRows, signupBySession, groupMode, namesBySession, language]
+    [filteredRows, signupBySession, waitlistBySession, groupMode, namesBySession, language]
   );
 
   const grouped = useMemo(() => {

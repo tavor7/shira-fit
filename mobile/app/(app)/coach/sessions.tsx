@@ -5,6 +5,7 @@ import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
 import { fetchStaffTrainingSessionsForCalendar } from "../../../src/lib/trainingSessionQueries";
 import { fetchActiveSignupCountsBySession } from "../../../src/lib/sessionSignupCounts";
+import { fetchWaitlistCountsBySession } from "../../../src/lib/waitlistCounts";
 import { resolveTrainerAccentColor } from "../../../src/lib/trainerCalendarColor";
 import { theme } from "../../../src/theme";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
@@ -18,6 +19,7 @@ export default function CoachSessionsScreen() {
   const { language } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
+  const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
@@ -30,7 +32,9 @@ export default function CoachSessionsScreen() {
     const { data, error } = await fetchStaffTrainingSessionsForCalendar();
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);
-    setSignupBySession(await fetchActiveSignupCountsBySession(list.map((s) => s.id)));
+    const ids = list.map((s) => s.id);
+    setSignupBySession(await fetchActiveSignupCountsBySession(ids));
+    setWaitlistBySession(await fetchWaitlistCountsBySession(ids));
     setRefreshSeq((n) => n + 1);
 
     if (isRefresh) setRefreshing(false);
@@ -54,13 +58,14 @@ export default function CoachSessionsScreen() {
         coachId: s.coach_id,
         signedUpCount: signupBySession[s.id] ?? 0,
         maxParticipants: s.max_participants,
+        waitlistCount: waitlistBySession[s.id] ?? 0,
         accentColor: resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id),
         showStaffSessionLabels: true,
         isHidden: !!s.is_hidden,
         isOpenForRegistration: s.is_open_for_registration,
         onPress: () => router.push(`/(app)/coach/session/${s.id}`),
       })),
-    [rows, signupBySession]
+    [rows, signupBySession, waitlistBySession]
   );
 
   const sheetItems = useMemo(() => (sheetDay ? items.filter((i) => i.session_date === sheetDay) : []), [items, sheetDay]);

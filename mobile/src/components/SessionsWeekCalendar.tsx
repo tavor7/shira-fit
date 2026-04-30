@@ -12,6 +12,8 @@ export type SessionsWeekItem = {
   timeLabel?: string;
   /** Optional small badge shown next to time (e.g. "7/12"). */
   timeBadgeText?: string;
+  /** Optional second badge shown next to time (e.g. "WL 3"). */
+  timeBadgeText2?: string;
   trainerName?: string;
   /** One-line fallback when not using staff pills (e.g. athlete). */
   subtitle?: string;
@@ -25,6 +27,8 @@ export type SessionsWeekItem = {
   showStaffSessionLabels?: boolean;
   isHidden?: boolean;
   isOpenForRegistration?: boolean;
+  /** Staff-only: waitlist count for the session (shown when full). */
+  waitlistCount?: number;
   /** For staff: assigned coach (edit/delete only when matches current user for coaches). */
   coachId?: string;
   onPress?: () => void;

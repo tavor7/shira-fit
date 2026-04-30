@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, ActivityIndicator, ScrollView } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../../src/types/database";
 import { formatSessionTimeRange } from "../../../../src/lib/sessionTime";
@@ -196,7 +196,12 @@ export default function AthleteSessionDetail() {
   const regOpen = !!session.is_open_for_registration;
 
   return (
-    <View style={styles.box}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.box}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.card}>
         <Text style={styles.title}>{formatISODateFull(session.session_date, language)}</Text>
         <Text style={styles.sub}>{formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}</Text>
@@ -251,7 +256,7 @@ export default function AthleteSessionDetail() {
             disabled={full || !regOpen || registering || waitlisting || cancelling}
             style={full || !regOpen ? styles.disabled : undefined}
           />
-          {full && (
+          {(full || onWaitlist) && (
             <Pressable style={styles.btn2} onPress={waitlist} disabled={waitlisting || registering || cancelling}>
               <Text style={styles.btnText2}>
                 {onWaitlist
@@ -301,12 +306,13 @@ export default function AthleteSessionDetail() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  box: { flex: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.backgroundAlt },
+  scroll: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  box: { flexGrow: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.backgroundAlt },
   loadingText: { marginTop: 12, color: theme.colors.textMuted },
   rtlText: { textAlign: "right" },
   card: {

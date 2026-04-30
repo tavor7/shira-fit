@@ -35,6 +35,11 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
             <Text style={[styles.timeBadgeTxt, compact && styles.timeBadgeTxtCompact]}>{item.timeBadgeText}</Text>
           </View>
         ) : null}
+        {item.timeBadgeText2 ? (
+          <View style={[styles.timeBadge, compact && styles.timeBadgeCompact]}>
+            <Text style={[styles.timeBadgeTxt, compact && styles.timeBadgeTxtCompact]}>{item.timeBadgeText2}</Text>
+          </View>
+        ) : null}
       </View>
       {item.trainerName ? (
         <Text style={[styles.trainer, compact && styles.trainerCompact]} numberOfLines={2}>
@@ -79,6 +84,13 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
               {item.isOpenForRegistration ? (language === "he" ? "פתוח" : "Open") : language === "he" ? "סגור" : "Closed"}
             </Text>
           </View>
+          {full && (item.waitlistCount ?? 0) > 0 ? (
+            <View style={[styles.tag, styles.tagWaitlist]}>
+              <Text style={[styles.tagTxt, styles.tagTxtWaitlist]}>
+                {language === "he" ? `המתנה ${item.waitlistCount}` : `Waitlist ${item.waitlistCount}`}
+              </Text>
+            </View>
+          ) : null}
         </View>
       ) : item.subtitle ? (
         item.subtitleUnclamped ? (
@@ -124,9 +136,11 @@ const styles = StyleSheet.create({
   tagListed: { backgroundColor: "rgba(148,163,184,0.12)", borderColor: "rgba(148,163,184,0.3)" },
   tagOpen: { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.35)" },
   tagClosed: { backgroundColor: "rgba(148,163,184,0.1)", borderColor: "rgba(148,163,184,0.28)" },
+  tagWaitlist: { backgroundColor: "rgba(99,102,241,0.12)", borderColor: "rgba(99,102,241,0.32)" },
   tagTxt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.4, textTransform: "uppercase" },
   tagTxtHidden: { color: "#FBBF24" },
   tagTxtListed: { color: theme.colors.textMuted },
   tagTxtOpen: { color: theme.colors.success },
   tagTxtClosed: { color: theme.colors.textSoft },
+  tagTxtWaitlist: { color: "#A5B4FC" },
 });
