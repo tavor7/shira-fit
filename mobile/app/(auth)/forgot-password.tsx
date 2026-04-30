@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, Image } from "react-native";
 import { router } from "expo-router";
-import * as Linking from "expo-linking";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ActionButton } from "../../src/components/ActionButton";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
+import { buildAuthRedirectUrl } from "../../src/lib/authRedirect";
 
 export default function ForgotPasswordScreen() {
   const { language, t, isRTL } = useI18n();
@@ -20,7 +20,7 @@ export default function ForgotPasswordScreen() {
       return;
     }
     setBusy(true);
-    const redirectTo = Linking.createURL("/(auth)/reset-password");
+    const redirectTo = buildAuthRedirectUrl("/(auth)/reset-password");
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo,
     });

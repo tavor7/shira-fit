@@ -19,6 +19,7 @@ import { parseISODateLocal, toISODateLocal, isValidISODateString } from "../../s
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { DatePickerField } from "../../src/components/DatePickerField";
+import { buildAuthRedirectUrl } from "../../src/lib/authRedirect";
 
 const today = new Date();
 const minDob = new Date(1900, 0, 1);
@@ -83,7 +84,7 @@ export default function SignupScreen() {
     }
     const dobIso = toISODateLocal(dobFinal);
     setBusy(true);
-    const emailRedirectTo = Linking.createURL("/(auth)/confirm-email");
+    const emailRedirectTo = buildAuthRedirectUrl("/(auth)/confirm-email");
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
