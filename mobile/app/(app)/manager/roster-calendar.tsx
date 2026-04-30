@@ -11,6 +11,7 @@ import { fetchWaitlistCountsBySession } from "../../../src/lib/waitlistCounts";
 import { resolveTrainerAccentColor } from "../../../src/lib/trainerCalendarColor";
 import { formatSessionTimeRange, sessionStartsAt } from "../../../src/lib/sessionTime";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
+import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { formatISODateLong } from "../../../src/lib/dateFormat";
 import { supabase } from "../../../src/lib/supabase";
 
@@ -32,6 +33,7 @@ export default function ManagerRosterCalendarScreen() {
   const [weekStartIso, setWeekStartIso] = useState<string>("");
   const [weekEndIso, setWeekEndIso] = useState<string>("");
   const [groupMode, setGroupMode] = useState(false);
+  const [sheetDay, setSheetDay] = useState<string | null>(null);
 
   const isManager = profile?.role === "manager";
   if (!isManager) return <Redirect href="/(app)/manager/sessions" />;
@@ -136,6 +138,8 @@ export default function ManagerRosterCalendarScreen() {
       ),
     }));
   }, [weekSessions, language]);
+
+  const sheetItems = useMemo(() => (sheetDay ? items.filter((i) => i.session_date === sheetDay) : []), [items, sheetDay]);
 
   useEffect(() => {
     let cancelled = false;
@@ -245,6 +249,7 @@ export default function ManagerRosterCalendarScreen() {
           items={items}
           isLoading={loading}
           emptyLabel={language === "he" ? "לא נמצאו אימונים." : "No sessions found."}
+          onDayPress={(iso) => setSheetDay(iso)}
           onWeekChange={(startIso, endIso) => {
             setWeekStartIso(startIso);
             setWeekEndIso(endIso);
@@ -328,6 +333,20 @@ export default function ManagerRosterCalendarScreen() {
       >
         <Text style={styles.backBtnTxt}>{language === "he" ? "חזרה ליומן" : "Back to calendar"}</Text>
       </Pressable>
+
+      <DaySessionsSheet
+        visible={sheetDay !== null}
+        onClose={() => setSheetDay(null)}
+        dateIso={sheetDay ?? ""}
+        items={sheetItems}
+        variant="manager"
+        onAddSession={() => {
+          const d = sheetDay;
+          setSheetDay(null);
+          if (d) router.push({ pathname: "/(app)/manager/create-session", params: { date: d } });
+        }}
+        onChanged={() => void load(true)}
+      />
     </View>
   );
 }
