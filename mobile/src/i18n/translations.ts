@@ -20,6 +20,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "menu.activityLog": "Activity log",
     "menu.participantHistory": "Athlete activity",
     "menu.createSession": "Create session",
+    "menu.rosterCalendar": "Roster calendar",
 
     "dashboard.management": "Management",
     "dashboard.weeklyOverview": "Weekly overview",
@@ -124,6 +125,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "menu.activityLog": "יומן פעילות",
     "menu.participantHistory": "פעילות מתאמנים",
     "menu.createSession": "יצירת אימון",
+    "menu.rosterCalendar": "יומן משתתפים",
 
     "dashboard.management": "ניהול",
     "dashboard.weeklyOverview": "סקירה שבועית",

@@ -73,6 +73,11 @@ export function GlobalQuickMenu() {
           isActive: (p) => startsWithAny(p, ["/manager/sessions"]),
         },
         {
+          label: t("menu.rosterCalendar"),
+          onPress: () => router.push("/(app)/manager/roster-calendar"),
+          isActive: (p) => startsWithAny(p, ["/manager/roster-calendar"]),
+        },
+        {
           label: t("menu.overview"),
           onPress: () => router.push("/(app)/manager/dashboard"),
           isActive: (p) =>

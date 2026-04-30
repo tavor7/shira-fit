@@ -10,9 +10,13 @@ export type SessionsWeekItem = {
   start_time: string; // HH:MM
   /** Shown on the card (e.g. 18:00–19:00). If omitted, only start_time is shown. */
   timeLabel?: string;
+  /** Optional small badge shown next to time (e.g. "7/12"). */
+  timeBadgeText?: string;
   trainerName?: string;
   /** One-line fallback when not using staff pills (e.g. athlete). */
   subtitle?: string;
+  /** When true, allow subtitle to wrap without ellipsis. */
+  subtitleUnclamped?: boolean;
   signedUpCount?: number;
   maxParticipants?: number;
   /** Left accent (#RRGGBB). */

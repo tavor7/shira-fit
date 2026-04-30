@@ -28,9 +28,14 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
         accent ? { borderLeftWidth: 3, borderLeftColor: accent, paddingLeft: 8 } : null,
       ]}
     >
-      <Text style={[styles.time, compact && styles.timeCompact]}>
-        {item.timeLabel ?? item.start_time}
-      </Text>
+      <View style={styles.timeRow}>
+        <Text style={[styles.time, compact && styles.timeCompact]}>{item.timeLabel ?? item.start_time}</Text>
+        {item.timeBadgeText ? (
+          <View style={[styles.timeBadge, compact && styles.timeBadgeCompact]}>
+            <Text style={[styles.timeBadgeTxt, compact && styles.timeBadgeTxtCompact]}>{item.timeBadgeText}</Text>
+          </View>
+        ) : null}
+      </View>
       {item.trainerName ? (
         <Text style={[styles.trainer, compact && styles.trainerCompact]} numberOfLines={2}>
           {item.trainerName}
@@ -76,9 +81,13 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
           </View>
         </View>
       ) : item.subtitle ? (
-        <Text style={[styles.subtitle, compact && styles.subtitleCompact]} numberOfLines={2}>
-          {item.subtitle}
-        </Text>
+        item.subtitleUnclamped ? (
+          <Text style={[styles.subtitle, compact && styles.subtitleCompact]}>{item.subtitle}</Text>
+        ) : (
+          <Text style={[styles.subtitle, compact && styles.subtitleCompact]} numberOfLines={2}>
+            {item.subtitle}
+          </Text>
+        )
       ) : null}
     </View>
   );
@@ -86,8 +95,20 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
 
 const styles = StyleSheet.create({
   inner: { paddingVertical: 2 },
+  timeRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   time: { fontWeight: "800", color: theme.colors.cta, fontSize: 13, letterSpacing: 0.2 },
   timeCompact: { fontSize: 12 },
+  timeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  timeBadgeCompact: { paddingHorizontal: 7, paddingVertical: 2 },
+  timeBadgeTxt: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 11, letterSpacing: 0.2 },
+  timeBadgeTxtCompact: { fontSize: 10 },
   trainer: { marginTop: 4, color: theme.colors.text, fontSize: 12, fontWeight: "600", lineHeight: 15 },
   trainerCompact: { fontSize: 11, marginTop: 3 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
