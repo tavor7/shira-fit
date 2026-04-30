@@ -123,16 +123,23 @@ export default function CoachSessionDetail() {
         return;
       }
       if (!data?.ok) {
-        Alert.alert(t("common.failed"), data?.error ?? "");
+        Alert.alert(t("common.failed"), String(data?.error ?? ""));
         return;
       }
       await loadNotes();
       showToast({ message: language === "he" ? "הערה נמחקה" : "Note removed", variant: "success" });
     };
     if (Platform.OS === "web" && typeof window !== "undefined") {
-      const ok = window.confirm(`${language === "he" ? "מחיקת הערה" : "Delete note"}\n\n${msg}`);
-      if (!ok) return;
-      await run();
+      try {
+        const ok = typeof window.confirm === "function"
+          ? window.confirm(`${language === "he" ? "מחיקת הערה" : "Delete note"}\n\n${msg}`)
+          : true;
+        if (!ok) return;
+        await run();
+      } catch {
+        // Some embedded webviews block confirm dialogs. Fall back to running the delete.
+        await run();
+      }
       return;
     }
     Alert.alert(language === "he" ? "מחיקת הערה" : "Delete note", msg, [
