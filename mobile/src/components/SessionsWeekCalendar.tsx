@@ -237,6 +237,7 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress,
                       disabled={!it.onPress}
                       style={({ pressed }) => [
                         styles.card,
+                        it.showStaffSessionLabels && it.isHidden ? { opacity: 0.55 } : null,
                         pressed && it.onPress && { opacity: 0.9 },
                       ]}
                     >

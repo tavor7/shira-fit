@@ -76,18 +76,12 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
         </View>
       ) : null}
       {staffLabels ? (
-        <View style={[styles.tagsMini, isRTL && styles.tagsRtl]}>
-          <View style={[styles.tagMini, item.isHidden ? styles.tagHidden : styles.tagListed]}>
-            <Text style={[styles.tagTxtMini, item.isHidden ? styles.tagTxtHidden : styles.tagTxtListed]}>
-              {item.isHidden ? "H" : "V"}
-            </Text>
-          </View>
-          <View style={[styles.tagMini, item.isOpenForRegistration ? styles.tagOpen : styles.tagClosed]}>
-            <Text style={[styles.tagTxtMini, item.isOpenForRegistration ? styles.tagTxtOpen : styles.tagTxtClosed]}>
-              {item.isOpenForRegistration ? "O" : "C"}
-            </Text>
-          </View>
-        </View>
+        <View
+          style={[
+            styles.stateBar,
+            item.isOpenForRegistration ? styles.stateBarOpen : styles.stateBarClosed,
+          ]}
+        />
       ) : item.subtitle ? (
         item.subtitleUnclamped ? (
           <Text style={[styles.subtitle, compact && styles.subtitleCompact]}>{item.subtitle}</Text>
@@ -131,19 +125,12 @@ const styles = StyleSheet.create({
   waitInlineTextCompact: { fontSize: 11 },
   subtitle: { marginTop: 4, color: theme.colors.textMuted, fontSize: 11, lineHeight: 14 },
   subtitleCompact: { fontSize: 10, marginTop: 3 },
-  tags: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
-  tagsMini: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
-  tagsRtl: { flexDirection: "row-reverse" },
-  tag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: theme.radius.full, borderWidth: 1 },
-  tagMini: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: theme.radius.full, borderWidth: 1 },
-  tagHidden: { backgroundColor: "rgba(245,158,11,0.12)", borderColor: "rgba(245,158,11,0.35)" },
-  tagListed: { backgroundColor: "rgba(148,163,184,0.12)", borderColor: "rgba(148,163,184,0.3)" },
-  tagOpen: { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.35)" },
-  tagClosed: { backgroundColor: "rgba(148,163,184,0.1)", borderColor: "rgba(148,163,184,0.28)" },
-  tagTxt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.4, textTransform: "uppercase" },
-  tagTxtMini: { fontSize: 10, fontWeight: "900", letterSpacing: 0.2, textTransform: "uppercase" },
-  tagTxtHidden: { color: "#FBBF24" },
-  tagTxtListed: { color: theme.colors.textMuted },
-  tagTxtOpen: { color: theme.colors.success },
-  tagTxtClosed: { color: theme.colors.textSoft },
+  stateBar: {
+    marginTop: 8,
+    height: 3,
+    borderRadius: 2,
+    alignSelf: "stretch",
+  },
+  stateBarOpen: { backgroundColor: "rgba(34,197,94,0.65)" },
+  stateBarClosed: { backgroundColor: "rgba(148,163,184,0.55)" },
 });
