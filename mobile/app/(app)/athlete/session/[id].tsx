@@ -137,6 +137,28 @@ export default function AthleteSessionDetail() {
     } else showToast({ message: language === "he" ? "רשימת המתנה" : "Waitlist", detail: data?.error ?? "", variant: "error" });
   }
 
+  async function leaveWaitlist() {
+    if (registering || waitlisting || cancelling) return;
+    setWaitlisting(true);
+    const u = (await supabase.auth.getUser()).data.user?.id;
+    if (!u) {
+      setWaitlisting(false);
+      return;
+    }
+    const { error } = await supabase
+      .from("waitlist_requests")
+      .delete()
+      .eq("session_id", sessionId)
+      .eq("user_id", u);
+    setWaitlisting(false);
+    if (error) {
+      showToast({ message: t("common.error"), detail: appendNetworkHint(error, t("network.offlineHint")), variant: "error" });
+      return;
+    }
+    showToast({ message: language === "he" ? "הוסרת מרשימת ההמתנה" : "Removed from waitlist", variant: "success" });
+    setOnWaitlist(false);
+  }
+
   async function cancel() {
     if (registering || waitlisting || cancelling) return;
     if (!reason.trim()) {
@@ -257,15 +279,19 @@ export default function AthleteSessionDetail() {
             style={full || !regOpen ? styles.disabled : undefined}
           />
           {(full || onWaitlist) && (
-            <Pressable style={styles.btn2} onPress={waitlist} disabled={waitlisting || registering || cancelling}>
+            <Pressable
+              style={styles.btn2}
+              onPress={onWaitlist ? leaveWaitlist : waitlist}
+              disabled={waitlisting || registering || cancelling}
+            >
               <Text style={styles.btnText2}>
                 {onWaitlist
                   ? language === "he"
-                    ? "ברשימת המתנה"
-                    : "On waitlist"
+                    ? "הסרה מרשימת המתנה"
+                    : "Remove from waitlist"
                   : language === "he"
-                    ? "עדכנו אם יתפנה מקום"
-                    : "Notify if spot opens"}
+                    ? "הרשמה לרשימת המתנה"
+                    : "Register to waitlist"}
               </Text>
             </Pressable>
           )}
