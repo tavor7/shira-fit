@@ -24,6 +24,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
 
     "dashboard.management": "Management",
     "dashboard.weeklyOverview": "Weekly overview",
+    "dashboard.waitlist": "Waitlist",
+    "dashboard.checkedIn": "Checked in",
+    "dashboard.paymentsHint": "Payment method from registrations (and manual participants when recorded).",
+    "dashboard.noSessionsThisWeek": "No sessions scheduled in this week.",
 
     "header.profile": "Profile",
     "header.logout": "Log out",
@@ -129,6 +133,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
 
     "dashboard.management": "ניהול",
     "dashboard.weeklyOverview": "סקירה שבועית",
+    "dashboard.waitlist": "רשימת המתנה",
+    "dashboard.checkedIn": "סומנו כהגיעו",
+    "dashboard.paymentsHint": "אמצעי תשלום מהרשמות (ומשתתפים ידניים כשנרשם).",
+    "dashboard.noSessionsThisWeek": "אין אימונים מתוכננים לשבוע הזה.",
 
     "header.profile": "פרופיל",
     "header.logout": "התנתקות",

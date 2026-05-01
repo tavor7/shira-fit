@@ -3,18 +3,16 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { formatISODateFull } from "../lib/dateFormat";
+import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "../components/StatusChip";
 import { ManagerOverviewTabs } from "../components/ManagerOverviewTabs";
 
-function startOfWeekSunday(d: Date) {
-  const x = new Date(d);
-  x.setHours(12, 0, 0, 0);
-  x.setDate(x.getDate() - x.getDay());
-  const y = x.getFullYear();
-  const m = String(x.getMonth() + 1).padStart(2, "0");
-  const day = String(x.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+/** Local-calendar Sunday (matches server `public._week_start_sunday`). */
+function startOfWeekSunday(d: Date): string {
+  const cal = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0);
+  cal.setDate(cal.getDate() - cal.getDay());
+  return toISODateLocal(cal);
 }
 
 type StatsPayload = {
@@ -26,11 +24,17 @@ type StatsPayload = {
   utilization_avg_pct?: number;
   cancellations?: number;
   no_shows?: number;
+  waitlist_count?: number;
+  checked_in_count?: number;
   payments_by_method?: Record<string, number>;
 };
 
 export default function ManagerDashboardScreen() {
   const { language, isRTL, t } = useI18n();
+  const pct = (v: unknown) => {
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
   const [weekStart, setWeekStart] = useState(() => startOfWeekSunday(new Date()));
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<StatsPayload | null>(null);
@@ -50,9 +54,18 @@ export default function ManagerDashboardScreen() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (data?.ok && data.week_start && data.week_start !== weekStart) {
+      setWeekStart(String(data.week_start));
+    }
+  }, [data?.ok, data?.week_start, weekStart]);
+
   const paymentRows = useMemo(() => {
     const p = data?.payments_by_method ?? {};
-    return Object.entries(p).sort((a, b) => b[1] - a[1]);
+    return Object.entries(p)
+      .map(([k, v]) => [k, typeof v === "number" ? v : Number(v)] as [string, number])
+      .filter(([, n]) => Number.isFinite(n))
+      .sort((a, b) => b[1] - a[1]);
   }, [data]);
 
   return (
@@ -84,7 +97,7 @@ export default function ManagerDashboardScreen() {
           <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
             <View style={styles.tile}>
               <Text style={styles.tileL}>{language === "he" ? "מילוי ממוצע" : "Avg fill"}</Text>
-              <Text style={styles.tileV}>{data.utilization_avg_pct ?? 0}%</Text>
+              <Text style={styles.tileV}>{pct(data.utilization_avg_pct)}%</Text>
             </View>
             <View style={styles.tile}>
               <Text style={styles.tileL}>{language === "he" ? "ביטולים" : "Cancellations"}</Text>
@@ -101,12 +114,27 @@ export default function ManagerDashboardScreen() {
               <Text style={styles.tileV}>{data.session_count ?? 0}</Text>
             </View>
           </View>
+          <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
+            <View style={styles.tile}>
+              <Text style={styles.tileL}>{t("dashboard.waitlist")}</Text>
+              <Text style={styles.tileV}>{data.waitlist_count ?? 0}</Text>
+            </View>
+            <View style={styles.tile}>
+              <Text style={styles.tileL}>{t("dashboard.checkedIn")}</Text>
+              <Text style={styles.tileV}>{data.checked_in_count ?? 0}</Text>
+            </View>
+          </View>
         </View>
+      ) : null}
+
+      {!loading && data?.ok && (data.session_count ?? 0) === 0 ? (
+        <Text style={[styles.emptyWeek, isRTL && styles.rtl]}>{t("dashboard.noSessionsThisWeek")}</Text>
       ) : null}
 
       {!loading && data?.ok ? (
         <View style={{ marginTop: 16 }}>
           <Text style={[styles.subh, isRTL && styles.rtl]}>{language === "he" ? "תשלומים לפי סוג" : "Payments by method"}</Text>
+          <Text style={[styles.hintLine, isRTL && styles.rtl]}>{t("dashboard.paymentsHint")}</Text>
           {paymentRows.length === 0 ? (
             <Text style={[styles.muted, isRTL && styles.rtl]}>{language === "he" ? "אין נתונים." : "No data."}</Text>
           ) : (
@@ -184,7 +212,9 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
     textAlign: "center",
   },
-  subh: { fontWeight: "800", color: theme.colors.text, marginBottom: 10 },
+  subh: { fontWeight: "800", color: theme.colors.text, marginBottom: 6 },
+  hintLine: { fontSize: 12, color: theme.colors.textMuted, marginBottom: 10, lineHeight: 17 },
+  emptyWeek: { marginTop: 12, fontSize: 14, fontWeight: "700", color: theme.colors.textSoft },
   muted: { color: theme.colors.textSoft },
   payList: { gap: 8 },
   payListRtl: { alignItems: "stretch" },

@@ -20,6 +20,14 @@ export default function StaffEditManualParticipantScreen() {
   const [dob, setDob] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  /** Snapshot from DB — used to keep NOT NULL columns when the user clears a field (same as RPC coalesce). */
+  const [baseline, setBaseline] = useState<{
+    full_name: string;
+    phone: string;
+    gender: string | null;
+    date_of_birth: string | null;
+    notes: string | null;
+  } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -31,31 +39,44 @@ export default function StaffEditManualParticipantScreen() {
         .single();
       setLoading(false);
       if (error || !data) return;
-      setFullName((data as any).full_name ?? "");
-      setPhone((data as any).phone ?? "");
-      setGender((data as any).gender ?? "");
-      setDob((data as any).date_of_birth ?? "");
-      setNotes((data as any).notes ?? "");
+      const row = data as {
+        full_name: string;
+        phone: string;
+        gender: string | null;
+        date_of_birth: string | null;
+        notes: string | null;
+      };
+      setBaseline(row);
+      setFullName(row.full_name ?? "");
+      setPhone(row.phone ?? "");
+      setGender(row.gender ?? "");
+      setDob(row.date_of_birth ?? "");
+      setNotes(row.notes ?? "");
     })();
   }, [manualId]);
 
   async function save() {
+    if (!baseline) return;
     setSaving(true);
-    const { data, error } = await supabase.rpc("staff_update_manual_participant", {
-      p_manual_participant_id: manualId,
-      p_full_name: fullName.trim() || null,
-      p_phone: phone.trim() || null,
-      p_gender: gender.trim() || null,
-      p_date_of_birth: dob.trim() ? dob.trim() : null,
-      p_notes: notes,
-    });
+    const patch = {
+      full_name: fullName.trim() || baseline.full_name,
+      phone: phone.trim() || baseline.phone,
+      gender: (gender.trim() ? gender.trim() : baseline.gender) as string | null,
+      date_of_birth: (dob.trim() ? dob.trim() : baseline.date_of_birth) as string | null,
+      notes: notes as string | null,
+    };
+    const { data, error } = await supabase.from("manual_participants").update(patch).eq("id", manualId).select("id");
     setSaving(false);
     if (error) {
       showToast({ message: t("common.error"), detail: error.message, variant: "error" });
       return;
     }
-    if (!data?.ok) {
-      showToast({ message: t("common.failed"), detail: data?.error ?? "Unknown error", variant: "error" });
+    if (!data?.length) {
+      showToast({
+        message: t("common.failed"),
+        detail: language === "he" ? "לא נמצא רשומה או אין הרשאה." : "Record not found or no permission.",
+        variant: "error",
+      });
       return;
     }
     showToast({ message: t("common.saved"), variant: "success" });

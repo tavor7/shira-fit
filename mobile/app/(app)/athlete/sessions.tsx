@@ -15,6 +15,7 @@ import { useI18n } from "../../../src/context/I18nContext";
 import { checkWaitlistSpotsAndNotify } from "../../../src/lib/waitlistSpotNotifier";
 import { syncExpoPushTokenIfNeeded } from "../../../src/lib/pushTokenSync";
 import { sessionStartsAt } from "../../../src/lib/sessionTime";
+import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 
 export default function AthleteSessionsScreen() {
   const { language } = useI18n();
@@ -29,6 +30,7 @@ export default function AthleteSessionsScreen() {
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
+    await touchWeeklyRegistrationOpenIfDue();
     const { data, error } = await fetchAthleteOpenSessionsForCalendar();
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);

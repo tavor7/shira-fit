@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   top: {
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderMuted,
     marginBottom: theme.spacing.sm,
   },
@@ -169,11 +169,14 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.cta,
   },
   loadTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 13 },
-  list: { paddingVertical: theme.spacing.sm, paddingBottom: theme.spacing.xl },
+  list: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.xl,
+    gap: theme.spacing.sm,
+  },
   empty: { textAlign: "center", marginTop: 32, color: theme.colors.textSoft },
   card: {
-    marginHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
     padding: theme.spacing.md,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,

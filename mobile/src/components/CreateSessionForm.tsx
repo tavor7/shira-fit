@@ -51,7 +51,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [weeklyOccurrences, setWeeklyOccurrences] = useState("4");
   const [open, setOpen] = useState(false);
-  const [hidden, setHidden] = useState(false);
+  const [hidden, setHidden] = useState(true);
   const [note, setNote] = useState("");
 
   // Trainee selection during creation.
@@ -721,16 +721,8 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
             {language === "he" ? "מוסתר (צוות בלבד): " : "Hidden (staff-only): "}
             {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
           </Text>
-          <Text style={[sf.toggleSub, isRTL && { textAlign: "right" }]}>
-            {language === "he"
-              ? "אימונים מוסתרים לא נראים למתאמנים ולא פתוחים להרשמה."
-              : "Hidden sessions are not shown to athletes and cannot be self-registered."}
-          </Text>
         </Pressable>
-      </View>
-
-      <View style={sf.card}>
-        <Text style={sf.cardTitle}>{language === "he" ? "חזרה" : "Repeat"}</Text>
+        <View style={{ height: 10 }} />
         <Pressable style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }]} onPress={() => setRepeatWeekly(!repeatWeekly)}>
           <Text style={[sf.toggleText, isRTL && { textAlign: "right" }]}>
             {language === "he" ? "חזרה שבועית: " : "Repeat weekly: "}
