@@ -26,7 +26,7 @@ import { TimePickerField } from "../../../../src/components/TimePickerField";
 import { isMissingColumnError } from "../../../../src/lib/dbColumnErrors";
 import { isValidISODateString } from "../../../../src/lib/isoDate";
 import { useI18n } from "../../../../src/context/I18nContext";
-import { formatDateTimeForDisplay, formatISODateFull } from "../../../../src/lib/dateFormat";
+import { formatDateTimeForDisplay, formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateFormat";
 import { useAuth } from "../../../../src/context/AuthContext";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../src/context/ToastContext";
@@ -417,7 +417,7 @@ export default function ManagerSessionDetail() {
         <View style={styles.summaryBlock}>
           <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{language === "he" ? "אימון" : "Session"}</Text>
           <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>
-            {formatISODateFull(date, language)} · {time} · {durationMin} {language === "he" ? "דק׳" : "min"} ·{" "}
+            {formatISODateFullWithWeekdayAfter(date, language)} · {time} · {durationMin} {language === "he" ? "דק׳" : "min"} ·{" "}
             {language === "he" ? "עד" : "max"} {maxP}
           </Text>
           <Text style={[styles.summaryMeta, isRTL && styles.rtlText]}>
@@ -792,6 +792,7 @@ export default function ManagerSessionDetail() {
         sessionId={id}
         visible={addOpen}
         onClose={() => setAddOpen(false)}
+        allowIncreaseCapacityWhenFull
         onAdded={() => {
           void load();
           setParticipantsRev((n) => n + 1);

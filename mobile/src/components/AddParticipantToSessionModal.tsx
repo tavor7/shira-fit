@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   View,
   Text,
   TextInput,
@@ -24,6 +25,11 @@ type Props = {
   onClose: () => void;
   /** After a successful add */
   onAdded: () => void;
+  /**
+   * Manager-only behavior:
+   * When the session is full, prompt to increase capacity and proceed only if they add someone.
+   */
+  allowIncreaseCapacityWhenFull?: boolean;
 };
 
 /** Escape % and _ so ilike filters stay valid. */
@@ -31,7 +37,13 @@ function escapeIlike(term: string) {
   return term.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
-export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAdded }: Props) {
+export function AddParticipantToSessionModal({
+  sessionId,
+  visible,
+  onClose,
+  onAdded,
+  allowIncreaseCapacityWhenFull,
+}: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
   const { height: windowHeight } = useWindowDimensions();
@@ -68,6 +80,43 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       .eq("session_id", sid);
     setCurrentCount((c1 ?? 0) + (c2 ?? 0));
   }, [sid]);
+
+  const confirmIncreaseCapacity = useCallback(async (): Promise<boolean> => {
+    const title = language === "he" ? "האימון מלא" : "Session full";
+    const msg =
+      language === "he"
+        ? "האימון מלא. להגדיל את הקיבולת כדי להוסיף משתתף?"
+        : "This session is full. Increase max participants to add someone?";
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      try {
+        // eslint-disable-next-line no-alert
+        return window.confirm(`${title}\n\n${msg}`);
+      } catch {
+        return true; // fallback: don't block add if confirm is unavailable
+      }
+    }
+
+    return await new Promise<boolean>((resolve) => {
+      Alert.alert(title, msg, [
+        { text: language === "he" ? "לא" : "No", style: "cancel", onPress: () => resolve(false) },
+        { text: language === "he" ? "כן" : "Yes", style: "default", onPress: () => resolve(true) },
+      ]);
+    });
+  }, [language]);
+
+  const increaseCapacityByOne = useCallback(async (): Promise<boolean> => {
+    if (!sid) return false;
+    if (maxCap == null) return false;
+    const next = Math.max(1, Number(maxCap) + 1);
+    const { error } = await supabase.from("training_sessions").update({ max_participants: next }).eq("id", sid);
+    if (error) {
+      toastError(t("common.error"), error.message);
+      return false;
+    }
+    setMaxCap(next);
+    return true;
+  }, [maxCap, sid, t]);
 
   const runSearch = useCallback(async (termRaw: string) => {
     const term = termRaw.trim();
@@ -156,8 +205,16 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       return;
     }
     if (full) {
-      toastInfo(language === "he" ? "האימון מלא" : "Session full");
-      return;
+      // Manager flow: optionally allow increasing capacity only if they proceed to add someone.
+      // (We only increase when the manager actually selects a participant.)
+      if (!allowIncreaseCapacityWhenFull) {
+        toastInfo(language === "he" ? "האימון מלא" : "Session full");
+        return;
+      }
+      const ok = await confirmIncreaseCapacity();
+      if (!ok) return;
+      const bumped = await increaseCapacityByOne();
+      if (!bumped) return;
     }
     setAdding(true);
     try {
@@ -209,8 +266,14 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       return;
     }
     if (full) {
-      toastInfo(language === "he" ? "האימון מלא" : "Session full");
-      return;
+      if (!allowIncreaseCapacityWhenFull) {
+        toastInfo(language === "he" ? "האימון מלא" : "Session full");
+        return;
+      }
+      const ok = await confirmIncreaseCapacity();
+      if (!ok) return;
+      const bumped = await increaseCapacityByOne();
+      if (!bumped) return;
     }
     setAdding(true);
     try {
@@ -279,8 +342,14 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       return;
     }
     if (full) {
-      toastInfo(language === "he" ? "האימון מלא" : "Session full");
-      return;
+      if (!allowIncreaseCapacityWhenFull) {
+        toastInfo(language === "he" ? "האימון מלא" : "Session full");
+        return;
+      }
+      const ok = await confirmIncreaseCapacity();
+      if (!ok) return;
+      const bumped = await increaseCapacityByOne();
+      if (!bumped) return;
     }
     if (adding) return;
     setAdding(true);

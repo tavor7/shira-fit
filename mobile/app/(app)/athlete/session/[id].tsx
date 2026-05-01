@@ -4,7 +4,7 @@ import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, ActivityInd
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../../src/types/database";
 import { formatSessionTimeRange } from "../../../../src/lib/sessionTime";
-import { formatISODateFull } from "../../../../src/lib/dateFormat";
+import { formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateFormat";
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { ActionButton } from "../../../../src/components/ActionButton";
@@ -112,7 +112,7 @@ export default function AthleteSessionDetail() {
           sessionDate: session.session_date,
           startTime: session.start_time,
           title: language === "he" ? "תזכורת לאימון" : "Workout reminder",
-          bodyNear: `${formatISODateFull(session.session_date, language)} · ${formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}`,
+          bodyNear: `${formatISODateFullWithWeekdayAfter(session.session_date, language)} · ${formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}`,
         });
       }
       await clearWaitlistSpotFlag(sessionId);
@@ -225,7 +225,7 @@ export default function AthleteSessionDetail() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.card}>
-        <Text style={styles.title}>{formatISODateFull(session.session_date, language)}</Text>
+        <Text style={styles.title}>{formatISODateFullWithWeekdayAfter(session.session_date, language)}</Text>
         <Text style={styles.sub}>{formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}</Text>
         {session.trainer?.full_name ? (
           <Text style={[styles.sub, isRTL && styles.rtlText]}>
