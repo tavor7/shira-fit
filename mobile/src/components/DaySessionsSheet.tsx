@@ -60,7 +60,7 @@ export function DaySessionsSheet({
   onAddSession,
   onChanged,
 }: Props) {
-  const { language, t } = useI18n();
+  const { language, t, isRTL } = useI18n();
   const title = formatISODateLong(dateIso, language);
   const isStaff = variant === "coach" || variant === "manager";
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -68,6 +68,9 @@ export function DaySessionsSheet({
   const [dupOpen, setDupOpen] = useState(false);
   const [dupToDate, setDupToDate] = useState<string>("");
   const [undo, setUndo] = useState<UndoAction | null>(null);
+  /** RN Web: `window.confirm` is flaky inside modals; use inline confirm instead. */
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingClearDay, setPendingClearDay] = useState(false);
 
   const isManager = variant === "manager";
   const offlineHint = useMemo(() => t("network.offlineHint"), [t]);
@@ -75,6 +78,8 @@ export function DaySessionsSheet({
   useEffect(() => {
     if (!visible) return;
     setUndo(null);
+    setPendingDeleteId(null);
+    setPendingClearDay(false);
     if (dupOpen) return;
     const base = parseISODateLocal(dateIso);
     if (!base) return;
@@ -83,41 +88,39 @@ export function DaySessionsSheet({
     setDupToDate(toISODateLocal(d));
   }, [visible, dateIso, dupOpen]);
 
+  async function executeSessionDelete(sessionId: string) {
+    setBusyId(sessionId);
+    const before = await supabase.from("training_sessions").select("*").eq("id", sessionId).single();
+    const sessionRow = before.data as unknown as TrainingSessionRow | null;
+    const { error } = await supabase.from("training_sessions").delete().eq("id", sessionId);
+    setBusyId(null);
+    setPendingDeleteId(null);
+    if (error) {
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.alert(language === "he" ? `לא ניתן למחוק: ${error.message}` : `Could not delete: ${error.message}`);
+      } else {
+        Alert.alert(language === "he" ? "לא ניתן למחוק" : "Could not delete", error.message);
+      }
+      return;
+    }
+    if (sessionRow) setUndo({ kind: "delete_one", sessions: [sessionRow] });
+    onChanged?.();
+  }
+
   function confirmDelete(sessionId: string) {
     const msg =
       language === "he"
         ? "למחוק את האימון? גם ההרשמות אליו יימחקו."
         : "Delete this session? Registrations for it will be removed too.";
 
-    const runDelete = async () => {
-      setBusyId(sessionId);
-      const before = await supabase.from("training_sessions").select("*").eq("id", sessionId).single();
-      const sessionRow = before.data as unknown as TrainingSessionRow | null;
-      const { error } = await supabase.from("training_sessions").delete().eq("id", sessionId);
-      setBusyId(null);
-      if (error) {
-        if (Platform.OS === "web" && typeof window !== "undefined") {
-          window.alert(language === "he" ? `לא ניתן למחוק: ${error.message}` : `Could not delete: ${error.message}`);
-        } else {
-          Alert.alert(language === "he" ? "לא ניתן למחוק" : "Could not delete", error.message);
-        }
-        return;
-      }
-      if (sessionRow) setUndo({ kind: "delete_one", sessions: [sessionRow] });
-      onChanged?.();
-    };
-
-    // RN Web: multi-button Alert often does not show — use native confirm.
     if (Platform.OS === "web") {
-      if (typeof window !== "undefined" && window.confirm(msg)) {
-        void runDelete();
-      }
+      setPendingDeleteId(sessionId);
       return;
     }
 
     Alert.alert(language === "he" ? "מחיקת אימון?" : "Delete session?", msg, [
       { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
-      { text: language === "he" ? "מחיקה" : "Delete", style: "destructive", onPress: () => void runDelete() },
+      { text: language === "he" ? "מחיקה" : "Delete", style: "destructive", onPress: () => void executeSessionDelete(sessionId) },
     ]);
   }
 
@@ -141,38 +144,39 @@ export function DaySessionsSheet({
     else Alert.alert(titleText, message);
   }
 
+  async function executeClearDay() {
+    setBulkBusy(true);
+    setPendingClearDay(false);
+    const before = await supabase.from("training_sessions").select("*").eq("session_date", dateIso);
+    const { data, error } = await supabase.rpc("manager_clear_sessions_for_day", { p_date: dateIso });
+    setBulkBusy(false);
+    if (error) {
+      showError(language === "he" ? "לא ניתן למחוק" : "Could not clear day", appendNetworkHint(error, offlineHint));
+      return;
+    }
+    if (!data?.ok) {
+      showError(language === "he" ? "לא ניתן למחוק" : "Could not clear day", data?.error ?? "");
+      return;
+    }
+    const sessions = (before.data as unknown as TrainingSessionRow[]) ?? [];
+    if (sessions.length) setUndo({ kind: "clear_day", sessions });
+    onChanged?.();
+    onClose();
+  }
+
   function confirmClearDay() {
     const msg =
       language === "he"
         ? "למחוק את כל האימונים ביום הזה? גם ההרשמות אליהם יימחקו."
         : "Delete all sessions on this day? Registrations for them will be removed too.";
 
-    const run = async () => {
-      setBulkBusy(true);
-      const before = await supabase.from("training_sessions").select("*").eq("session_date", dateIso);
-      const { data, error } = await supabase.rpc("manager_clear_sessions_for_day", { p_date: dateIso });
-      setBulkBusy(false);
-      if (error) {
-        showError(language === "he" ? "לא ניתן למחוק" : "Could not clear day", appendNetworkHint(error, offlineHint));
-        return;
-      }
-      if (!data?.ok) {
-        showError(language === "he" ? "לא ניתן למחוק" : "Could not clear day", data?.error ?? "");
-        return;
-      }
-      const sessions = (before.data as unknown as TrainingSessionRow[]) ?? [];
-      if (sessions.length) setUndo({ kind: "clear_day", sessions });
-      onChanged?.();
-      onClose();
-    };
-
     if (Platform.OS === "web") {
-      if (typeof window !== "undefined" && window.confirm(msg)) void run();
+      setPendingClearDay(true);
       return;
     }
     Alert.alert(language === "he" ? "מחיקת יום?" : "Clear day?", msg, [
       { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
-      { text: language === "he" ? "מחיקה" : "Delete", style: "destructive", onPress: () => void run() },
+      { text: language === "he" ? "מחיקה" : "Delete", style: "destructive", onPress: () => void executeClearDay() },
     ]);
   }
 
@@ -287,12 +291,42 @@ export function DaySessionsSheet({
             </View>
           ) : null}
 
+          {isManager && Platform.OS === "web" && pendingClearDay ? (
+            <View style={styles.webConfirmBanner}>
+              <Text style={[styles.webConfirmTxt, isRTL && styles.rtlText]}>
+                {language === "he"
+                  ? "למחוק את כל האימונים ביום? ההרשמות יימחקו."
+                  : "Delete all sessions this day? Registrations will be removed."}
+              </Text>
+              <View style={styles.webConfirmBtns}>
+                <Pressable
+                  style={({ pressed }) => [styles.webConfirmGhost, pressed && { opacity: 0.88 }]}
+                  onPress={() => setPendingClearDay(false)}
+                  disabled={bulkBusy}
+                >
+                  <Text style={styles.webConfirmGhostTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.webConfirmDanger, pressed && { opacity: 0.9 }]}
+                  onPress={() => void executeClearDay()}
+                  disabled={bulkBusy}
+                >
+                  {bulkBusy ? (
+                    <ActivityIndicator color={theme.colors.white} size="small" />
+                  ) : (
+                    <Text style={styles.webConfirmDangerTxt}>{language === "he" ? "מחק הכל" : "Delete all"}</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
           {isManager ? (
             <View style={styles.dayActions}>
               <Pressable
                 style={({ pressed }) => [styles.dayActionBtn, styles.dayActionDanger, pressed && { opacity: 0.9 }]}
                 onPress={confirmClearDay}
-                disabled={bulkBusy}
+                disabled={bulkBusy || pendingClearDay}
               >
                 {bulkBusy ? (
                   <ActivityIndicator color={theme.colors.white} size="small" />
@@ -350,17 +384,45 @@ export function DaySessionsSheet({
                         </Text>
                       </Pressable>
                       {canDelete ? (
-                        <Pressable
-                          style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.85 }]}
-                          onPress={() => confirmDelete(it.key)}
-                          disabled={busyId === it.key}
-                        >
-                          {busyId === it.key ? (
-                            <ActivityIndicator color={theme.colors.white} size="small" />
-                          ) : (
-                            <Text style={styles.dangerBtnTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
-                          )}
-                        </Pressable>
+                        Platform.OS === "web" && pendingDeleteId === it.key ? (
+                          <View style={styles.webDeleteConfirm}>
+                            <Text style={[styles.webDeleteConfirmTxt, isRTL && styles.rtlText]}>
+                              {language === "he" ? "למחוק את האימון?" : "Delete this session?"}
+                            </Text>
+                            <View style={[styles.webDeleteConfirmRow, isRTL && styles.rowBtnsRtl]}>
+                              <Pressable
+                                style={({ pressed }) => [styles.webDeleteCancel, pressed && { opacity: 0.88 }]}
+                                onPress={() => setPendingDeleteId(null)}
+                                disabled={busyId === it.key}
+                              >
+                                <Text style={styles.webDeleteCancelTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                              </Pressable>
+                              <Pressable
+                                style={({ pressed }) => [styles.webDeleteOk, pressed && { opacity: 0.9 }]}
+                                onPress={() => void executeSessionDelete(it.key)}
+                                disabled={busyId === it.key}
+                              >
+                                {busyId === it.key ? (
+                                  <ActivityIndicator color={theme.colors.white} size="small" />
+                                ) : (
+                                  <Text style={styles.webDeleteOkTxt}>{language === "he" ? "מחק" : "Delete"}</Text>
+                                )}
+                              </Pressable>
+                            </View>
+                          </View>
+                        ) : (
+                          <Pressable
+                            style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.85 }]}
+                            onPress={() => confirmDelete(it.key)}
+                            disabled={busyId === it.key}
+                          >
+                            {busyId === it.key ? (
+                              <ActivityIndicator color={theme.colors.white} size="small" />
+                            ) : (
+                              <Text style={styles.dangerBtnTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
+                            )}
+                          </Pressable>
+                        )
                       ) : null}
                     </View>
                   )}
@@ -422,11 +484,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-end",
     backgroundColor: "rgba(0,0,0,0.55)",
+    position: "relative",
   },
   backdropFill: {
     ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
   },
   sheet: {
+    zIndex: 2,
+    position: "relative",
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,
     borderTopRightRadius: theme.radius.xl,
@@ -435,6 +501,58 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.lg,
     maxHeight: "88%",
   },
+  rtlText: { textAlign: "right" },
+  webConfirmBanner: {
+    marginHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
+    padding: 12,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.errorBorder,
+    backgroundColor: theme.colors.errorBg,
+    gap: 10,
+  },
+  webConfirmTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 14, lineHeight: 20 },
+  webConfirmBtns: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
+  webConfirmGhost: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+  },
+  webConfirmGhostTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
+  webConfirmDanger: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.error,
+    minWidth: 100,
+    alignItems: "center",
+  },
+  webConfirmDangerTxt: { color: theme.colors.white, fontWeight: "800", fontSize: 14 },
+  webDeleteConfirm: { marginTop: 8, gap: 8 },
+  webDeleteConfirmTxt: { color: theme.colors.text, fontSize: 13, fontWeight: "700" },
+  webDeleteConfirmRow: { flexDirection: "row", gap: 8 },
+  webDeleteCancel: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    alignItems: "center",
+    backgroundColor: theme.colors.surface,
+  },
+  webDeleteCancelTxt: { color: theme.colors.text, fontWeight: "800" },
+  webDeleteOk: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.error,
+    alignItems: "center",
+  },
+  webDeleteOkTxt: { color: theme.colors.white, fontWeight: "800" },
   handle: {
     alignSelf: "center",
     width: 36,
