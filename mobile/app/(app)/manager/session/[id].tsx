@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ import { formatDateTimeForDisplay, formatISODateFullWithWeekdayAfter } from "../
 import { useAuth } from "../../../../src/context/AuthContext";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../src/context/ToastContext";
+import { copySessionParticipantsToNewSession } from "../../../../src/lib/copySessionParticipants";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
 
@@ -95,6 +96,18 @@ export default function ManagerSessionDetail() {
   const [dupDate, setDupDate] = useState("");
   const [dupTime, setDupTime] = useState("");
   const [dupBusy, setDupBusy] = useState(false);
+  const [dupIncludeParticipants, setDupIncludeParticipants] = useState(false);
+  const [pendingDeleteSession, setPendingDeleteSession] = useState(false);
+  const [deleteSessionBusy, setDeleteSessionBusy] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (!editingSession) return;
+    const id = requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [editingSession]);
   const [notes, setNotes] = useState<NoteRow[]>([]);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
@@ -464,15 +477,67 @@ export default function ManagerSessionDetail() {
       res = await supabase.from("training_sessions").insert(rest).select("id").maybeSingle();
       error = res.error;
     }
-    setDupBusy(false);
     if (error) {
+      setDupBusy(false);
       if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
       else Alert.alert(t("common.error"), error.message);
       return;
     }
     const newId = (res.data as { id?: string } | null)?.id;
+    if (newId && dupIncludeParticipants) {
+      const errs = await copySessionParticipantsToNewSession(String(id), newId);
+      if (errs.length > 0) {
+        showToast({
+          message: language === "he" ? "האימון שוכפל — חלק מהמשתתפים לא הועתקו" : "Session copied — some participants were not copied",
+          detail: errs.slice(0, 8).join("\n"),
+          variant: "error",
+        });
+      }
+    }
+    setDupBusy(false);
     setDupOpen(false);
     if (newId) router.push(`/(app)/manager/session/${newId}`);
+  }
+
+  function openDuplicateModal() {
+    setDupDate(date);
+    setDupTime(time);
+    setDupIncludeParticipants(false);
+    setDupOpen(true);
+  }
+
+  async function runDeleteSession() {
+    const sid = String(id ?? "").trim();
+    if (!sid) return;
+    setDeleteSessionBusy(true);
+    const { error } = await supabase.from("training_sessions").delete().eq("id", sid);
+    setDeleteSessionBusy(false);
+    setPendingDeleteSession(false);
+    if (error) {
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
+      else Alert.alert(t("common.error"), error.message);
+      return;
+    }
+    router.replace("/(app)/manager/sessions");
+  }
+
+  function requestDeleteSession() {
+    const msg =
+      language === "he"
+        ? "למחוק את האימון? גם ההרשמות אליו יימחקו."
+        : "Delete this session? Registrations for it will be removed too.";
+    if (Platform.OS === "web") {
+      setPendingDeleteSession(true);
+      return;
+    }
+    Alert.alert(language === "he" ? "מחיקת אימון?" : "Delete session?", msg, [
+      { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
+      {
+        text: language === "he" ? "מחק" : "Delete",
+        style: "destructive",
+        onPress: () => void runDeleteSession(),
+      },
+    ]);
   }
 
   async function removeAthlete(userId: string) {
@@ -502,7 +567,7 @@ export default function ManagerSessionDetail() {
   if (!session) return <Text style={[styles.loading, isRTL && styles.rtlText]}>{t("common.loading")}</Text>;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
       {!editingSession ? (
         <View style={styles.summaryBlock}>
           <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{language === "he" ? "אימון" : "Session"}</Text>
@@ -669,15 +734,6 @@ export default function ManagerSessionDetail() {
             </Pressable>
             <PrimaryButton label={t("common.save")} onPress={saveSession} />
             <View style={{ height: 10 }} />
-            <PrimaryButton
-              label={language === "he" ? "שכפול אימון…" : "Duplicate session…"}
-              onPress={() => {
-                setDupDate(date);
-                setDupTime(time);
-                setDupOpen(true);
-              }}
-              variant="ghost"
-            />
             <Pressable
               onPress={() => {
                 void load();
@@ -703,6 +759,39 @@ export default function ManagerSessionDetail() {
               <View style={sf.col}>
                 <TimePickerField label={language === "he" ? "שעה חדשה" : "New time"} value={dupTime} onChange={setDupTime} />
               </View>
+            </View>
+            <Text style={[styles.dupSectionLabel, isRTL && styles.rtlText]}>
+              {language === "he" ? "משתתפים" : "Participants"}
+            </Text>
+            <View style={[styles.dupChoiceRow, isRTL && styles.dupChoiceRowRtl]}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.dupChoice,
+                  !dupIncludeParticipants && styles.dupChoiceOn,
+                  pressed && { opacity: 0.9 },
+                  dupBusy && { opacity: 0.5 },
+                ]}
+                onPress={() => !dupBusy && setDupIncludeParticipants(false)}
+                disabled={dupBusy}
+              >
+                <Text style={[styles.dupChoiceTxt, !dupIncludeParticipants && styles.dupChoiceTxtOn, isRTL && styles.rtlText]}>
+                  {language === "he" ? "בלי משתתפים" : "Without participants"}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.dupChoice,
+                  dupIncludeParticipants && styles.dupChoiceOn,
+                  pressed && { opacity: 0.9 },
+                  dupBusy && { opacity: 0.5 },
+                ]}
+                onPress={() => !dupBusy && setDupIncludeParticipants(true)}
+                disabled={dupBusy}
+              >
+                <Text style={[styles.dupChoiceTxt, dupIncludeParticipants && styles.dupChoiceTxtOn, isRTL && styles.rtlText]}>
+                  {language === "he" ? "עם אותם נרשמים" : "With same roster"}
+                </Text>
+              </Pressable>
             </View>
             <View style={{ height: 12 }} />
             <PrimaryButton
@@ -888,16 +977,67 @@ export default function ManagerSessionDetail() {
       </View>
 
       {!editingSession ? (
-        <PrimaryButton
-          label={language === "he" ? "עריכת אימון" : "Edit session"}
-          onPress={() => {
-            setNoteComposerOpen(false);
-            setNoteDraft("");
-            setUndoStack([]);
-            setEditingSession(true);
-          }}
-          variant="ghost"
-        />
+        <View style={styles.sessionFooterActions}>
+          <PrimaryButton
+            label={language === "he" ? "עריכת אימון" : "Edit session"}
+            onPress={() => {
+              setNoteComposerOpen(false);
+              setNoteDraft("");
+              setUndoStack([]);
+              setPendingDeleteSession(false);
+              setEditingSession(true);
+            }}
+            variant="ghost"
+            style={styles.sessionFooterGhostBtn}
+          />
+          {Platform.OS === "web" && pendingDeleteSession ? (
+            <View style={styles.sessionDeleteConfirm}>
+              <Text style={[styles.sessionDeleteConfirmTxt, isRTL && styles.rtlText]}>
+                {language === "he"
+                  ? "למחוק את האימון? ההרשמות יימחקו."
+                  : "Delete this session? Registrations will be removed."}
+              </Text>
+              <View style={[styles.sessionDeleteConfirmRow, isRTL && styles.sessionDeleteConfirmRowRtl]}>
+                <Pressable
+                  style={({ pressed }) => [styles.sessionDeleteCancelBtn, pressed && { opacity: 0.88 }]}
+                  onPress={() => !deleteSessionBusy && setPendingDeleteSession(false)}
+                  disabled={deleteSessionBusy}
+                >
+                  <Text style={styles.sessionDeleteCancelTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.sessionDeleteOkBtn, pressed && { opacity: 0.9 }]}
+                  onPress={() => void runDeleteSession()}
+                  disabled={deleteSessionBusy}
+                >
+                  {deleteSessionBusy ? (
+                    <ActivityIndicator color={theme.colors.white} size="small" />
+                  ) : (
+                    <Text style={styles.sessionDeleteOkTxt}>{language === "he" ? "מחק" : "Delete"}</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <>
+              <PrimaryButton
+                label={language === "he" ? "שכפול אימון" : "Duplicate session"}
+                onPress={openDuplicateModal}
+                variant="ghost"
+                style={styles.sessionFooterGhostBtn}
+              />
+              <Pressable
+                style={({ pressed }) => [styles.sessionDangerBtnGhost, pressed && styles.sessionDangerBtnPressed]}
+                onPress={requestDeleteSession}
+                disabled={deleteSessionBusy}
+                accessibilityRole="button"
+                accessibilityLabel={language === "he" ? "מחיקת אימון" : "Delete session"}
+              >
+                <Text style={[styles.sessionDangerBtnGhostTxt, isRTL && styles.rtlText]}>{language === "he" ? "מחיקת אימון" : "Delete session"}</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
       ) : null}
 
       <AddParticipantToSessionModal
@@ -920,9 +1060,63 @@ const styles = StyleSheet.create({
   loading: { padding: theme.spacing.lg, color: theme.colors.textMuted },
   rtlText: { textAlign: "right" },
   summaryBlock: { marginBottom: theme.spacing.sm },
+  /** Uniform vertical rhythm between Edit / Duplicate / Delete (`PrimaryButton` defaults to marginTop: 8 — zero it here and use gap only). */
+  sessionFooterActions: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
+  sessionFooterGhostBtn: { marginTop: 0 },
   summaryTitle: { fontSize: 17, fontWeight: "800", color: theme.colors.text, marginBottom: 8 },
   summaryLine: { fontSize: 15, fontWeight: "600", color: theme.colors.text, lineHeight: 22 },
   summaryMeta: { marginTop: 6, fontSize: 13, color: theme.colors.textMuted },
+  /** Same size/radius as ghost `PrimaryButton`; light red fill + border so it reads as destructive but matches pill layout. */
+  sessionDangerBtnGhost: {
+    marginTop: 0,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: theme.radius.md,
+    minHeight: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(239, 68, 68, 0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.42)",
+  },
+  sessionDangerBtnPressed: { opacity: 0.88 },
+  sessionDangerBtnGhostTxt: {
+    color: theme.colors.error,
+    fontWeight: "600",
+    fontSize: 16,
+    letterSpacing: 0.2,
+  },
+  sessionDeleteConfirm: {
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.errorBorder,
+    backgroundColor: theme.colors.errorBg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  sessionDeleteConfirmTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 14, lineHeight: 20 },
+  sessionDeleteConfirmRow: { flexDirection: "row", gap: 10 },
+  sessionDeleteConfirmRowRtl: { flexDirection: "row-reverse" },
+  sessionDeleteCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+    alignItems: "center",
+  },
+  sessionDeleteCancelTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
+  sessionDeleteOkBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.error,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+  },
+  sessionDeleteOkTxt: { color: theme.colors.white, fontWeight: "900", fontSize: 14 },
   editBlock: { marginBottom: theme.spacing.md },
   h: { fontWeight: "700", marginTop: theme.spacing.md, marginBottom: 8, color: theme.colors.text },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
@@ -1104,6 +1298,31 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
   },
   dupTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text, marginBottom: 10 },
+  dupSectionLabel: {
+    marginTop: 4,
+    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: "800",
+    color: theme.colors.textMuted,
+    letterSpacing: 0.2,
+  },
+  dupChoiceRow: { flexDirection: "row", gap: 10 },
+  dupChoiceRowRtl: { flexDirection: "row-reverse" },
+  dupChoice: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  dupChoiceOn: { borderColor: theme.colors.cta, backgroundColor: theme.colors.surface },
+  dupChoiceTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted, textAlign: "center" },
+  dupChoiceTxtOn: { color: theme.colors.cta, fontWeight: "900" },
   dupCancel: { marginTop: 10, paddingVertical: 10, alignItems: "center" },
   dupCancelTxt: { color: theme.colors.textMuted, fontWeight: "900" },
   cancelCard: {

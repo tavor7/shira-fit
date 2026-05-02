@@ -11,6 +11,8 @@ import { isMissingColumnError } from "../../../../../src/lib/dbColumnErrors";
 import { isValidISODateString } from "../../../../../src/lib/isoDate";
 import { useI18n } from "../../../../../src/context/I18nContext";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../../src/components/sessionFormStyles";
+import { useToast } from "../../../../../src/context/ToastContext";
+import { copySessionParticipantsToNewSession } from "../../../../../src/lib/copySessionParticipants";
 
 type EditSnapshot = {
   date: string;
@@ -24,6 +26,7 @@ type EditSnapshot = {
 export default function CoachSessionManageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
+  const { showToast } = useToast();
   const { width } = useWindowDimensions();
   const compact = sessionFormIsCompact(width);
   const [session, setSession] = useState<TrainingSession | null>(null);
@@ -40,6 +43,7 @@ export default function CoachSessionManageScreen() {
   const [dupDate, setDupDate] = useState("");
   const [dupTime, setDupTime] = useState("");
   const [dupBusy, setDupBusy] = useState(false);
+  const [dupIncludeParticipants, setDupIncludeParticipants] = useState(false);
 
   function pushUndo() {
     setUndoStack((prev) => {
@@ -170,13 +174,24 @@ export default function CoachSessionManageScreen() {
       res = await supabase.from("training_sessions").insert(rest).select("id").maybeSingle();
       error = res.error;
     }
-    setDupBusy(false);
     if (error) {
+      setDupBusy(false);
       if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
       else Alert.alert(t("common.error"), error.message);
       return;
     }
     const newId = (res.data as { id?: string } | null)?.id;
+    if (newId && dupIncludeParticipants && id) {
+      const errs = await copySessionParticipantsToNewSession(String(id), newId);
+      if (errs.length > 0) {
+        showToast({
+          message: language === "he" ? "האימון שוכפל — חלק מהמשתתפים לא הועתקו" : "Session copied — some participants were not copied",
+          detail: errs.slice(0, 8).join("\n"),
+          variant: "error",
+        });
+      }
+    }
+    setDupBusy(false);
     setDupOpen(false);
     if (newId) router.push(`/(app)/coach/session/${newId}`);
     else router.replace("/(app)/coach/sessions");
@@ -321,6 +336,7 @@ export default function CoachSessionManageScreen() {
           onPress={() => {
             setDupDate(date);
             setDupTime(time);
+            setDupIncludeParticipants(false);
             setDupOpen(true);
           }}
           variant="ghost"
@@ -342,6 +358,39 @@ export default function CoachSessionManageScreen() {
               <View style={sf.col}>
                 <TimePickerField label={language === "he" ? "שעה חדשה" : "New time"} value={dupTime} onChange={setDupTime} />
               </View>
+            </View>
+            <Text style={[styles.dupSectionLabel, isRTL && styles.rtlText]}>
+              {language === "he" ? "משתתפים" : "Participants"}
+            </Text>
+            <View style={[styles.dupChoiceRow, isRTL && styles.dupChoiceRowRtl]}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.dupChoice,
+                  !dupIncludeParticipants && styles.dupChoiceOn,
+                  pressed && { opacity: 0.9 },
+                  dupBusy && { opacity: 0.5 },
+                ]}
+                onPress={() => !dupBusy && setDupIncludeParticipants(false)}
+                disabled={dupBusy}
+              >
+                <Text style={[styles.dupChoiceTxt, !dupIncludeParticipants && styles.dupChoiceTxtOn, isRTL && styles.rtlText]}>
+                  {language === "he" ? "בלי משתתפים" : "Without participants"}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.dupChoice,
+                  dupIncludeParticipants && styles.dupChoiceOn,
+                  pressed && { opacity: 0.9 },
+                  dupBusy && { opacity: 0.5 },
+                ]}
+                onPress={() => !dupBusy && setDupIncludeParticipants(true)}
+                disabled={dupBusy}
+              >
+                <Text style={[styles.dupChoiceTxt, dupIncludeParticipants && styles.dupChoiceTxtOn, isRTL && styles.rtlText]}>
+                  {language === "he" ? "עם אותם נרשמים" : "With same roster"}
+                </Text>
+              </Pressable>
             </View>
             <View style={{ height: 12 }} />
             <PrimaryButton
@@ -388,6 +437,31 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
   },
   dupTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text, marginBottom: 10 },
+  dupSectionLabel: {
+    marginTop: 4,
+    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: "800",
+    color: theme.colors.textMuted,
+    letterSpacing: 0.2,
+  },
+  dupChoiceRow: { flexDirection: "row", gap: 10 },
+  dupChoiceRowRtl: { flexDirection: "row-reverse" },
+  dupChoice: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  dupChoiceOn: { borderColor: theme.colors.cta, backgroundColor: theme.colors.surface },
+  dupChoiceTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted, textAlign: "center" },
+  dupChoiceTxtOn: { color: theme.colors.cta, fontWeight: "900" },
   dupCancel: { marginTop: 10, paddingVertical: 10, alignItems: "center" },
   dupCancelTxt: { color: theme.colors.textMuted, fontWeight: "900" },
 });
