@@ -2,6 +2,7 @@
  * Call when a spot opens (after cancel/remove). POST { "session_id": "uuid" }
  * Authorization: Bearer CRON_SECRET (same as cron) or service invoke.
  * Sends Expo push to first waitlisted user (FIFO by requested_at).
+ * Does not remove waitlist rows — staff can see the full list and add people manually.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -77,7 +78,6 @@ Deno.serve(async (req) => {
       headers: { ...cors, "Content-Type": "application/json" },
     });
 
-  const firstId = (first as { id?: string }).id ?? null;
   const token = (first as { profiles?: { expo_push_token?: string } }).profiles?.expo_push_token;
   if (token) {
     await fetch("https://exp.host/--/api/v2/push/send", {
@@ -90,11 +90,6 @@ Deno.serve(async (req) => {
         data: { session_id: sessionId },
       }),
     });
-  }
-
-  // Dequeue to avoid re-notifying the same user on subsequent calls.
-  if (firstId) {
-    await supabase.from("waitlist_requests").delete().eq("id", firstId);
   }
 
   return new Response(JSON.stringify({ ok: true, notified: true, user_id: first.user_id }), {

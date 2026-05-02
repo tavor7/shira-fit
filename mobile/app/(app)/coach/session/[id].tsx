@@ -12,7 +12,7 @@ import { useToast } from "../../../../src/context/ToastContext";
 
 type W = {
   user_id: string;
-  created_at: string;
+  requested_at: string;
   profiles: { full_name: string; phone?: string | null } | { full_name: string; phone?: string | null }[] | null;
 };
 type CancellationRow = {
@@ -45,13 +45,18 @@ export default function CoachSessionDetail() {
   const [addOpen, setAddOpen] = useState(false);
   const [coachId, setCoachId] = useState<string | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
+  const [waitlistQuickUserId, setWaitlistQuickUserId] = useState<string | null>(null);
 
   async function loadWaitlist() {
-    const { data: w } = await supabase
+    const { data: w, error } = await supabase
       .from("waitlist_requests")
-      .select("user_id, created_at, profiles(full_name, phone)")
+      .select("user_id, requested_at, profiles(full_name, phone)")
       .eq("session_id", id)
-      .order("created_at", { ascending: true });
+      .order("requested_at", { ascending: true });
+    if (error) {
+      setWaitlist([]);
+      return;
+    }
     setWaitlist((w as unknown as W[]) ?? []);
   }
 
@@ -169,6 +174,42 @@ export default function CoachSessionDetail() {
 
   const canEditSession = !!(myId && coachId && myId === coachId);
 
+  async function quickAddWaitlistedAthlete(userId: string) {
+    if (!id || waitlistQuickUserId || !canEditSession) return;
+    setWaitlistQuickUserId(userId);
+    try {
+      const { data, error } = await supabase.rpc("coach_add_athlete", { p_session_id: id, p_user_id: userId });
+      if (error) {
+        showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+        return;
+      }
+      if (data?.ok) {
+        showToast({
+          message: language === "he" ? "נוסף לאימון" : "Added to session",
+          variant: "success",
+        });
+        await loadWaitlist();
+        setParticipantsRev((n) => n + 1);
+        return;
+      }
+      const code = String(data?.error ?? "");
+      if (code === "full") {
+        showToast({
+          message: language === "he" ? "האימון מלא" : "Session full",
+          detail:
+            language === "he"
+              ? "רק מנהל יכול להגדיל קיבולת. אפשר להסיר משתתף או לפנות למנהל."
+              : "Only a manager can raise capacity. Remove someone or ask a manager.",
+          variant: "info",
+        });
+        return;
+      }
+      Alert.alert(t("common.failed"), code || t("common.failed"));
+    } finally {
+      setWaitlistQuickUserId(null);
+    }
+  }
+
   function afterParticipantsChange() {
     loadWaitlist();
     loadCancellations();
@@ -194,13 +235,37 @@ export default function CoachSessionDetail() {
           const p = item.profiles ? (Array.isArray(item.profiles) ? item.profiles[0] : item.profiles) : null;
           const name = String(p?.full_name ?? item.user_id);
           const phone = String(p?.phone ?? "").trim();
+          const busy = waitlistQuickUserId === item.user_id;
           return (
             <View key={item.user_id} style={styles.waitCard}>
-              <Text style={[styles.waitName, isRTL && styles.rtlText]}>{name}</Text>
-              {phone ? <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>{phone}</Text> : null}
-              <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>
-                {formatDateTimeForDisplay(item.created_at, language)}
-              </Text>
+              <View style={[styles.waitCardRow, isRTL && styles.waitCardRowRtl]}>
+                <View style={styles.waitCardMain}>
+                  <Text style={[styles.waitName, isRTL && styles.rtlText]}>{name}</Text>
+                  {phone ? <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>{phone}</Text> : null}
+                  <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>
+                    {formatDateTimeForDisplay(item.requested_at, language)}
+                  </Text>
+                </View>
+                {canEditSession ? (
+                  <Pressable
+                    onPress={() => void quickAddWaitlistedAthlete(item.user_id)}
+                    disabled={!!waitlistQuickUserId}
+                    style={({ pressed }) => [
+                      styles.waitQuickBtn,
+                      pressed && { opacity: 0.88 },
+                      busy && { opacity: 0.65 },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={language === "he" ? "הוספה מהירה לאימון" : "Quick add to session"}
+                  >
+                    {busy ? (
+                      <ActivityIndicator size="small" color={theme.colors.ctaText} />
+                    ) : (
+                      <Text style={styles.waitQuickBtnTxt}>{language === "he" ? "הוסף" : "Add"}</Text>
+                    )}
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
           );
         })
@@ -366,6 +431,20 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     backgroundColor: theme.colors.surfaceElevated,
   },
+  waitCardRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  waitCardRowRtl: { flexDirection: "row-reverse" },
+  waitCardMain: { flex: 1, minWidth: 0 },
+  waitQuickBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.cta,
+    minWidth: 72,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 40,
+  },
+  waitQuickBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 13 },
   waitName: { color: theme.colors.text, fontWeight: "900", fontSize: 15 },
   waitMeta: { marginTop: 4, color: theme.colors.textMuted, fontWeight: "700" },
   notesCard: {
