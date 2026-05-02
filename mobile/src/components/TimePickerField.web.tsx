@@ -1,21 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Modal,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { createElement, type ChangeEvent, type CSSProperties, useState } from "react";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import type { TimePickerFieldProps } from "./TimePickerField";
 
-const ITEM_H = 44;
-const WHEEL_VISIBLE_ROWS = 5;
-const WHEEL_HEIGHT = ITEM_H * WHEEL_VISIBLE_ROWS;
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 
 function parseHHMM(v: string): { hh: number; mm: number } | null {
   const s = String(v ?? "").trim();
@@ -31,82 +21,65 @@ function toHHMM(hh: number, mm: number): string {
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
-type WheelColumnProps = {
-  values: number[];
-  selected: number;
-  onSelect: (n: number) => void;
-  formatItem: (n: number) => string;
+/** Native `<select>` — ScrollView wheels break inside Modal on react-native-web (no reliable scroll). */
+function DomTimeSelect({
+  value,
+  onChange,
+  options,
+  formatOption,
+  width,
+  ariaLabel,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  options: number[];
+  formatOption: (n: number) => string;
   width: number;
-};
+  ariaLabel: string;
+}) {
+  const style: CSSProperties = {
+    width,
+    minHeight: 52,
+    paddingLeft: 12,
+    paddingRight: 28,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    color: theme.colors.text,
+    fontSize: 22,
+    fontWeight: 700,
+    fontVariantNumeric: "tabular-nums",
+    cursor: "pointer",
+    WebkitAppearance: "none",
+    appearance: "none",
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a1a1aa' d='M6 8L2 4h8z'/%3E%3C/svg%3E")`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 10px center",
+    outline: "none",
+    touchAction: "manipulation",
+  };
 
-function WheelColumn({ values, selected, onSelect, formatItem, width }: WheelColumnProps) {
-  const ref = useRef<ScrollView>(null);
-  const pad = (WHEEL_HEIGHT - ITEM_H) / 2;
-  const maxIdx = values.length - 1;
-
-  const scrollToIndex = useCallback(
-    (idx: number, animated: boolean) => {
-      const i = Math.max(0, Math.min(maxIdx, idx));
-      const y = i * ITEM_H;
-      ref.current?.scrollTo({ y, animated });
+  return createElement(
+    "select",
+    {
+      value: String(value),
+      "aria-label": ariaLabel,
+      onChange: (e: ChangeEvent<HTMLSelectElement>) => {
+        onChange(Number(e.target.value));
+      },
+      style,
     },
-    [maxIdx]
-  );
-
-  useEffect(() => {
-    const idx = values.indexOf(selected);
-    if (idx < 0) return;
-    const id = requestAnimationFrame(() => scrollToIndex(idx, false));
-    return () => cancelAnimationFrame(id);
-  }, [selected, values, scrollToIndex]);
-
-  const finalize = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = e.nativeEvent.contentOffset.y;
-      let idx = Math.round(y / ITEM_H);
-      idx = Math.max(0, Math.min(maxIdx, idx));
-      scrollToIndex(idx, true);
-      const v = values[idx];
-      if (v !== undefined && v !== selected) onSelect(v);
-    },
-    [maxIdx, onSelect, scrollToIndex, selected, values]
-  );
-
-  return (
-    <ScrollView
-      ref={ref}
-      style={{ width, height: WHEEL_HEIGHT }}
-      contentContainerStyle={{ paddingVertical: pad }}
-      showsVerticalScrollIndicator={false}
-      snapToInterval={ITEM_H}
-      decelerationRate="fast"
-      nestedScrollEnabled
-      onMomentumScrollEnd={finalize}
-      onScrollEndDrag={finalize}
-    >
-      {values.map((n) => {
-        const active = n === selected;
-        return (
-          <View key={n} style={[styles.wheelItem, { height: ITEM_H, width }]}>
-            <Text style={[styles.wheelItemText, active && styles.wheelItemTextActive]} numberOfLines={1}>
-              {formatItem(n)}
-            </Text>
-          </View>
-        );
-      })}
-    </ScrollView>
+    options.map((n) => createElement("option", { key: n, value: String(n) }, formatOption(n)))
   );
 }
-
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 
 export function TimePickerField({ label, value, onChange }: TimePickerFieldProps) {
   const { language, isRTL } = useI18n();
   const [open, setOpen] = useState(false);
   const [draftH, setDraftH] = useState(18);
   const [draftM, setDraftM] = useState(0);
-  const [sheetKey, setSheetKey] = useState(0);
 
   const display = (() => {
     const p = parseHHMM(value);
@@ -118,7 +91,6 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
     const p = parseHHMM(value);
     setDraftH(p?.hh ?? 18);
     setDraftM(p?.mm ?? 0);
-    setSheetKey((k) => k + 1);
     setOpen(true);
   };
 
@@ -127,7 +99,9 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
     setOpen(false);
   };
 
-  const colW = 76;
+  const colW = 88;
+  const hourLabel = language === "he" ? "שעה" : "Hour";
+  const minLabel = language === "he" ? "דקות" : "Min";
 
   return (
     <View style={styles.wrap}>
@@ -155,33 +129,31 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
               </Pressable>
             </View>
 
-            <View style={[styles.wheelsRow, isRTL && styles.wheelsRowRtl]}>
-              <View style={styles.wheelCol}>
-                <Text style={styles.wheelColLabel}>{language === "he" ? "שעה" : "Hour"}</Text>
-                <View style={styles.wheelFrame}>
-                  <View pointerEvents="none" style={styles.wheelHighlight} />
-                  <WheelColumn
-                    key={`h-${sheetKey}`}
-                    values={HOURS}
-                    selected={draftH}
-                    onSelect={setDraftH}
-                    formatItem={(n) => String(n).padStart(2, "0")}
+            <View style={[styles.pickersRow, isRTL && styles.pickersRowRtl]}>
+              <View style={styles.pickerCol}>
+                <Text style={styles.wheelColLabel}>{hourLabel}</Text>
+                <View style={styles.selectFrame}>
+                  <DomTimeSelect
+                    value={draftH}
+                    onChange={setDraftH}
+                    options={HOURS}
+                    formatOption={(n) => String(n).padStart(2, "0")}
                     width={colW}
+                    ariaLabel={hourLabel}
                   />
                 </View>
               </View>
               <Text style={styles.wheelSep}>:</Text>
-              <View style={styles.wheelCol}>
-                <Text style={styles.wheelColLabel}>{language === "he" ? "דקות" : "Min"}</Text>
-                <View style={styles.wheelFrame}>
-                  <View pointerEvents="none" style={styles.wheelHighlight} />
-                  <WheelColumn
-                    key={`m-${sheetKey}`}
-                    values={MINUTES}
-                    selected={draftM}
-                    onSelect={setDraftM}
-                    formatItem={(n) => String(n).padStart(2, "0")}
+              <View style={styles.pickerCol}>
+                <Text style={styles.wheelColLabel}>{minLabel}</Text>
+                <View style={styles.selectFrame}>
+                  <DomTimeSelect
+                    value={draftM}
+                    onChange={setDraftM}
+                    options={MINUTES}
+                    formatOption={(n) => String(n).padStart(2, "0")}
                     width={colW}
+                    ariaLabel={minLabel}
                   />
                 </View>
               </View>
@@ -241,53 +213,33 @@ const styles = StyleSheet.create({
   tbMuted: { fontSize: 16, fontWeight: "600", color: theme.colors.textMuted },
   tbTitle: { flex: 1, textAlign: "center", fontSize: 15, fontWeight: "700", color: theme.colors.text },
   tbCta: { fontSize: 16, fontWeight: "800", color: theme.colors.cta },
-  wheelsRow: {
+  pickersRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "center",
     paddingTop: theme.spacing.md,
     paddingHorizontal: theme.spacing.md,
-    gap: 6,
+    gap: 8,
   },
-  wheelsRowRtl: { flexDirection: "row-reverse" },
-  wheelCol: { alignItems: "center" },
+  pickersRowRtl: { flexDirection: "row-reverse" },
+  pickerCol: { alignItems: "center" },
   wheelColLabel: {
     fontSize: 11,
     fontWeight: "800",
     color: theme.colors.textSoft,
     textTransform: "uppercase",
     letterSpacing: 0.6,
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  wheelFrame: {
-    position: "relative",
+  selectFrame: {
     borderRadius: theme.radius.md,
     overflow: "hidden",
-    backgroundColor: theme.colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-  },
-  wheelHighlight: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: "50%",
-    marginTop: -ITEM_H / 2,
-    height: ITEM_H,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.borderInput,
-    backgroundColor: "rgba(244,244,245,0.06)",
-    zIndex: 1,
   },
   wheelSep: {
     fontSize: 28,
     fontWeight: "200",
     color: theme.colors.textMuted,
-    marginBottom: ITEM_H * 1.25,
+    marginBottom: 28,
     lineHeight: 32,
   },
-  wheelItem: { alignItems: "center", justifyContent: "center" },
-  wheelItemText: { fontSize: 20, fontWeight: "600", color: theme.colors.textSoft, fontVariant: ["tabular-nums"] as any },
-  wheelItemTextActive: { fontSize: 22, fontWeight: "800", color: theme.colors.text },
 });

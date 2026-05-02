@@ -20,13 +20,15 @@ function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   return iso >= weekStartIso && iso <= weekEndIso;
 }
 
+type RosterEntry = { name: string; phone: string | null };
+
 export default function ManagerRosterCalendarScreen() {
   const { profile } = useAuth();
   const { language, t, isRTL } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
   const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
-  const [namesBySession, setNamesBySession] = useState<Record<string, string[]>>({});
+  const [rosterBySession, setRosterBySession] = useState<Record<string, RosterEntry[]>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [namesLoading, setNamesLoading] = useState(false);
@@ -34,6 +36,7 @@ export default function ManagerRosterCalendarScreen() {
   const [weekEndIso, setWeekEndIso] = useState<string>("");
   const [groupMode, setGroupMode] = useState(false);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
+  const [notesBySession, setNotesBySession] = useState<Record<string, string>>({});
 
   const isManager = profile?.role === "manager";
   if (!isManager) return <Redirect href="/(app)/manager/sessions" />;
@@ -79,14 +82,14 @@ export default function ManagerRosterCalendarScreen() {
       filteredRows.map((s) => {
         const accentColor = resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id);
         if (groupMode) {
-          const names = namesBySession[s.id] ?? [];
+          const roster = rosterBySession[s.id] ?? [];
           const c = signupBySession[s.id] ?? 0;
           const m = s.max_participants ?? 0;
           const badge = m > 0 ? `${c}/${m}` : `${c}`;
           const wl = waitlistBySession[s.id] ?? 0;
           const subtitle =
-            names.length > 0
-              ? names.join(", ")
+            roster.length > 0
+              ? roster.map((r) => r.name).join(", ")
               : language === "he"
                 ? "אין נרשמים"
                 : "No registrations";
@@ -121,7 +124,7 @@ export default function ManagerRosterCalendarScreen() {
           onPress: () => router.push(`/(app)/manager/session/${s.id}`),
         } satisfies SessionsWeekItem;
       }),
-    [filteredRows, signupBySession, waitlistBySession, groupMode, namesBySession, language]
+    [filteredRows, signupBySession, waitlistBySession, groupMode, rosterBySession, language]
   );
 
   const grouped = useMemo(() => {
@@ -144,40 +147,38 @@ export default function ManagerRosterCalendarScreen() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!groupMode) {
-        setNamesLoading(false);
-        setNamesBySession({});
-        return;
-      }
       const ids = weekSessions.map((s) => s.id);
       if (ids.length === 0) {
-        setNamesBySession({});
+        setRosterBySession({});
+        setNotesBySession({});
+        setNamesLoading(false);
         return;
       }
       setNamesLoading(true);
-      const next: Record<string, string[]> = {};
+      const next: Record<string, RosterEntry[]> = {};
       for (const id of ids) next[id] = [];
 
-      // Registered users
-      const reg = await supabase
-        .from("session_registrations")
-        .select("session_id, profiles(full_name)")
-        .in("session_id", ids)
-        .eq("status", "active");
+      const [reg, man, notesRes] = await Promise.all([
+        supabase
+          .from("session_registrations")
+          .select("session_id, profiles(full_name, phone)")
+          .in("session_id", ids)
+          .eq("status", "active"),
+        supabase.from("session_manual_participants").select("session_id, manual_participants(full_name, phone)").in("session_id", ids),
+        supabase.from("session_notes").select("session_id, body, created_at").in("session_id", ids).order("created_at"),
+      ]);
+
       if (!reg.error) {
         for (const row of (reg.data as any[]) ?? []) {
           const session_id = String(row.session_id ?? "");
           const p = row.profiles ? (Array.isArray(row.profiles) ? row.profiles[0] : row.profiles) : null;
           const name = String(p?.full_name ?? "").trim();
-          if (session_id && name && next[session_id]) next[session_id].push(name);
+          const phoneRaw = String(p?.phone ?? "").trim();
+          const phone = phoneRaw.length > 0 ? phoneRaw : null;
+          if (session_id && name && next[session_id]) next[session_id].push({ name, phone });
         }
       }
 
-      // Manual / quick-added participants (managers can view)
-      const man = await supabase
-        .from("session_manual_participants")
-        .select("session_id, manual_participants(full_name)")
-        .in("session_id", ids);
       if (!man.error) {
         for (const row of (man.data as any[]) ?? []) {
           const session_id = String(row.session_id ?? "");
@@ -187,22 +188,40 @@ export default function ManagerRosterCalendarScreen() {
               : row.manual_participants
             : null;
           const name = String(p?.full_name ?? "").trim();
-          if (session_id && name && next[session_id]) next[session_id].push(name);
+          const phoneRaw = String(p?.phone ?? "").trim();
+          const phone = phoneRaw.length > 0 ? phoneRaw : null;
+          if (session_id && name && next[session_id]) next[session_id].push({ name, phone });
         }
       }
 
-      // Sort names for stable display
-      for (const id of Object.keys(next)) next[id].sort((a, b) => a.localeCompare(b));
+      for (const id of Object.keys(next)) {
+        next[id].sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      const notesMap: Record<string, string[]> = {};
+      if (!notesRes.error && notesRes.data) {
+        for (const row of notesRes.data as { session_id: string; body: string }[]) {
+          const sid = String(row.session_id ?? "");
+          const body = String(row.body ?? "").trim();
+          if (!sid || !body) continue;
+          (notesMap[sid] ??= []).push(body);
+        }
+      }
+      const notesJoined: Record<string, string> = {};
+      for (const sid of Object.keys(notesMap)) {
+        notesJoined[sid] = notesMap[sid].join("\n");
+      }
 
       if (!cancelled) {
-        setNamesBySession(next);
+        setRosterBySession(next);
+        setNotesBySession(notesJoined);
         setNamesLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [weekSessions, groupMode]);
+  }, [weekSessions]);
 
   return (
     <View style={styles.screen}>
@@ -282,7 +301,8 @@ export default function ManagerRosterCalendarScreen() {
                   const accent = resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id);
                   const c = signupBySession[s.id] ?? 0;
                   const m = s.max_participants ?? 0;
-                  const names = namesBySession[s.id] ?? [];
+                  const roster = rosterBySession[s.id] ?? [];
+                  const noteText = notesBySession[s.id]?.trim() ?? "";
                   return (
                     <Pressable
                       key={s.id}
@@ -302,19 +322,32 @@ export default function ManagerRosterCalendarScreen() {
                         <Text style={[styles.trainer, isRTL && styles.rtlText]} numberOfLines={1}>
                           {s.trainer?.full_name ?? (language === "he" ? "ללא מאמן" : "No trainer")}
                         </Text>
-                        {names.length === 0 ? (
+                        {roster.length === 0 ? (
                           <Text style={[styles.namesEmpty, isRTL && styles.rtlText]}>
                             {language === "he" ? "אין נרשמים." : "No registrations."}
                           </Text>
                         ) : (
                           <View style={styles.namesList}>
-                            {names.map((n) => (
-                              <Text key={`${s.id}:${n}`} style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
-                                {n}
+                            {roster.map((r, idx) => (
+                              <Text
+                                key={`${s.id}:r:${idx}:${r.name}:${r.phone ?? ""}`}
+                                style={[styles.name, isRTL && styles.rtlText]}
+                                numberOfLines={2}
+                              >
+                                {r.name}
+                                {r.phone ? (language === "he" ? ` · ${r.phone}` : ` · ${r.phone}`) : ""}
                               </Text>
                             ))}
                           </View>
                         )}
+                        {noteText.length > 0 ? (
+                          <View style={styles.notesBlock}>
+                            <Text style={[styles.notesLabel, isRTL && styles.rtlText]}>
+                              {language === "he" ? "הערות" : "Notes"}
+                            </Text>
+                            <Text style={[styles.notesBody, isRTL && styles.rtlText]}>{noteText}</Text>
+                          </View>
+                        ) : null}
                       </View>
                     </Pressable>
                   );
@@ -422,6 +455,16 @@ const styles = StyleSheet.create({
   namesEmpty: { color: theme.colors.textSoft, fontWeight: "700", marginTop: 6 },
   namesList: { marginTop: 2, gap: 4 },
   name: { color: theme.colors.text, fontWeight: "700" },
+  notesBlock: { marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.borderMuted },
+  notesLabel: {
+    color: theme.colors.textSoft,
+    fontWeight: "800",
+    fontSize: 11,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  notesBody: { color: theme.colors.textMuted, fontWeight: "600", fontSize: 13, lineHeight: 18 },
 
   backBtn: {
     position: "absolute",
