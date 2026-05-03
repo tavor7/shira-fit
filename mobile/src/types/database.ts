@@ -65,6 +65,8 @@ export type ParticipantHistoryRow = {
   session_date: string;
   start_time: string;
   duration_minutes: number;
+  /** Session capacity (max participants); relevant for per-session pricing tiers. */
+  max_participants?: number;
   reg_status: "active" | "cancelled";
   registered_at: string;
   /** null = not recorded; true = arrived; false = absent */
@@ -86,4 +88,6 @@ export type ManagerCoachSessionReportRow = {
   duration_minutes: number;
   registered_count: number;
   arrived_count: number;
+  /** Self-cancels recorded with full charge (within 24h of session start). */
+  late_cancellations_within_24h?: number;
 };

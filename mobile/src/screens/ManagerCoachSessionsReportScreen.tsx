@@ -118,8 +118,8 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
         </Pressable>
         <Text style={[styles.hint, isRTL && styles.rtlText]}>
           {language === "he"
-            ? "מציג את כל האימונים של אותו מאמן בטווח. נרשמו = הרשמות פעילות; הגיעו = סומנו כנוכחים."
-            : "Lists every session assigned to that trainer in the range. Registered = active sign-ups; arrived = marked as attended."}
+            ? "מציג את כל האימונים של אותו מאמן בטווח. נרשמו = הרשמות פעילות; הגיעו = סומנו כנוכחים; ביטולים &lt;24ש׳ = ביטול עצמי בטווח 24 שעות לפני האימון."
+            : "Lists each session for that trainer in the range. Registered = active sign-ups; arrived = marked attended; late cancels = self-cancellations inside 24h before start."}
         </Text>
         <PrimaryButton
           label={language === "he" ? "טעינת דוח" : "Load report"}
@@ -203,6 +203,9 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
             <Text style={styles.rowStats}>
               {language === "he" ? "נרשמו" : "Registered"}: {item.registered_count} · {language === "he" ? "הגיעו" : "Arrived"}:{" "}
               {item.arrived_count}
+              {" · "}
+              {language === "he" ? "ביטולים בטווח 24 ש׳" : "Late cancels (<24h)"}:{" "}
+              {typeof item.late_cancellations_within_24h === "number" ? item.late_cancellations_within_24h : 0}
             </Text>
           </Pressable>
         )}

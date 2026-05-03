@@ -344,6 +344,12 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   </View>
                 ) : null}
               </View>
+              {typeof item.max_participants === "number" && item.max_participants > 0 ? (
+                <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
+                  {language === "he" ? "גודל קבוצה (מקס׳ משתתפים): " : "Group size (max spots): "}
+                  {item.max_participants}
+                </Text>
+              ) : null}
               {pay.length > 0 ? (
                 <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
                   {language === "he" ? "תשלום: " : "Payment: "}
