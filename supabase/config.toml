@@ -1,4 +1,9 @@
 
+[functions.delete-account]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/delete-account/index.ts"
+
 [functions.admin-confirm-email]
 enabled = true
 verify_jwt = true

@@ -9,6 +9,9 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Firebase / FCM (download from Firebase Console; reference path in EAS secrets / project settings)
+google-services.json
+
 # Native
 .kotlin/
 *.orig.*

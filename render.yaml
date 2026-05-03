@@ -23,3 +23,7 @@ services:
         sync: false
       - key: EXPO_PUBLIC_SUPABASE_ANON_KEY
         sync: false
+      - key: EXPO_PUBLIC_AUTH_REDIRECT_ORIGIN
+        sync: false
+      - key: EXPO_PUBLIC_PRIVACY_POLICY_URL
+        sync: false

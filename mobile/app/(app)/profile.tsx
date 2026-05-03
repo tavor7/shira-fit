@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, TextInput, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Alert,
+} from "react-native";
 import { useLocalSearchParams, Stack } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../src/context/AuthContext";
@@ -7,6 +18,7 @@ import { theme } from "../../src/theme";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { useI18n } from "../../src/context/I18nContext";
 import { NotificationSettingsPanel } from "../../src/components/NotificationSettingsPanel";
+import { requestAccountDeletion } from "../../src/lib/requestAccountDeletion";
 
 function getUpdateErrorMessage(message: string) {
   const msg = (message || "").toLowerCase();
@@ -21,7 +33,7 @@ type Segment = "account" | "notifications";
 
 export default function ProfileScreen() {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
-  const { session, profile, refreshProfile } = useAuth();
+  const { session, profile, refreshProfile, signOut } = useAuth();
   const { language, t, isRTL } = useI18n();
 
   const [segment, setSegment] = useState<Segment>(() => (tab === "notifications" ? "notifications" : "account"));
@@ -36,6 +48,7 @@ export default function ProfileScreen() {
   const [email, setEmail] = useState(initialEmail);
   const [phone, setPhone] = useState(initialPhone);
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -92,6 +105,45 @@ export default function ProfileScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function confirmDeleteAccount() {
+    const title = t("profile.deleteAccountConfirmTitle");
+    const message = t("profile.deleteAccountConfirmBody");
+    const cancel = t("common.cancel");
+    const del = t("profile.deleteAccount");
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const ok = window.confirm(`${title}\n\n${message}`);
+      if (ok) void runDeleteAccount();
+      return;
+    }
+    Alert.alert(title, message, [
+      { text: cancel, style: "cancel" },
+      {
+        text: del,
+        style: "destructive",
+        onPress: () => void runDeleteAccount(),
+      },
+    ]);
+  }
+
+  async function runDeleteAccount() {
+    const token = session?.access_token;
+    if (!token) {
+      setError(language === "he" ? "לא מחובר/ת." : "Not authenticated.");
+      return;
+    }
+    setDeleting(true);
+    setError(null);
+    const res = await requestAccountDeletion(token);
+    setDeleting(false);
+    if (res.ok) {
+      await signOut();
+      return;
+    }
+    if (res.code === "coach_has_sessions") setError(t("profile.deleteAccountBlockedCoach"));
+    else if (res.code === "cannot_delete_manager") setError(t("profile.deleteAccountBlockedManager"));
+    else setError(t("profile.deleteAccountFailed"));
   }
 
   const showLoading = !session || !profile;
@@ -259,4 +311,18 @@ const styles = StyleSheet.create({
   },
   error: { color: theme.colors.error, marginBottom: theme.spacing.md, fontWeight: "600" },
   success: { color: theme.colors.success, marginBottom: theme.spacing.md, fontWeight: "700" },
+  dangerZone: { marginTop: theme.spacing.xl, paddingTop: theme.spacing.lg, borderTopWidth: 1, borderTopColor: theme.colors.borderMuted, gap: 10 },
+  dangerHint: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 18 },
+  dangerBtn: {
+    alignSelf: "flex-start",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.errorBorder,
+    backgroundColor: theme.colors.errorBg,
+  },
+  dangerBtnPressed: { opacity: 0.88 },
+  dangerBtnDisabled: { opacity: 0.5 },
+  dangerBtnTxt: { color: theme.colors.error, fontWeight: "900", fontSize: 15 },
 });

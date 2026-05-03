@@ -4,8 +4,10 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
 import { useManagerAthletePreview } from "../src/context/ManagerAthletePreviewContext";
 import { theme } from "../src/theme";
+import { useI18n } from "../src/context/I18nContext";
 
 export default function Index() {
+  const { t } = useI18n();
   const { session, profile, loading, refreshProfile, signOut } = useAuth();
   const { enabled: managerAthletePreview, storageReady: athletePreviewStorageReady } = useManagerAthletePreview();
   const [profileRetrying, setProfileRetrying] = useState(false);
@@ -75,7 +77,7 @@ export default function Index() {
               pressed && { opacity: 0.9 },
             ]}
           >
-            <Text style={{ color: theme.colors.ctaText, fontWeight: "900" }}>Retry</Text>
+            <Text style={{ color: theme.colors.ctaText, fontWeight: "900" }}>{t("gate.retry")}</Text>
           </Pressable>
           <Pressable
             onPress={signOut}
@@ -91,7 +93,7 @@ export default function Index() {
               pressed && { opacity: 0.9 },
             ]}
           >
-            <Text style={{ color: theme.colors.textMuted, fontWeight: "900" }}>Sign out</Text>
+            <Text style={{ color: theme.colors.textMuted, fontWeight: "900" }}>{t("gate.signOut")}</Text>
           </Pressable>
         </View>
       </View>

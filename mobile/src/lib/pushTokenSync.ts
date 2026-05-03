@@ -20,6 +20,7 @@ export async function syncExpoPushTokenIfNeeded(): Promise<void> {
   if (!perm.granted && perm.status !== Notifications.PermissionStatus.GRANTED) return;
 
   try {
+    // Production push tokens require an EAS project ID + Apple Push Key + Android FCM in Expo credentials.
     const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
     const tokenRes = projectId
       ? await Notifications.getExpoPushTokenAsync({ projectId })

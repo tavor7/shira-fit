@@ -1,7 +1,8 @@
 import { Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "../theme";
-import { STUDIO_CONTACT } from "../constants/studioContact";
+import { STUDIO_CONTACT, getPrivacyPolicyUrl } from "../constants/studioContact";
+import { useI18n } from "../context/I18nContext";
 
 async function openUrl(url: string) {
   try {
@@ -43,6 +44,7 @@ function Cell({ title, subtitle, onPress }: CellProps) {
 }
 
 export function StudioContactFooter() {
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, 10);
 
@@ -59,6 +61,14 @@ export function StudioContactFooter() {
         <View style={styles.divider} />
         <Cell title="Call" subtitle={STUDIO_CONTACT.phoneDisplay} onPress={() => void openUrl(STUDIO_CONTACT.phoneTel)} />
       </View>
+      <Pressable
+        onPress={() => void openUrl(getPrivacyPolicyUrl())}
+        style={({ pressed }) => [styles.privacyRow, pressed && styles.cellPressed]}
+        accessibilityRole="link"
+        accessibilityLabel={t("footer.privacyPolicy")}
+      >
+        <Text style={styles.privacyTxt}>{t("footer.privacyPolicy")}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -102,5 +112,16 @@ const styles = StyleSheet.create({
     width: StyleSheet.hairlineWidth,
     backgroundColor: theme.colors.borderMuted,
     marginVertical: 6,
+  },
+  privacyRow: {
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: theme.spacing.md,
+  },
+  privacyTxt: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: theme.colors.textMuted,
+    textDecorationLine: "underline",
   },
 });

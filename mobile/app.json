@@ -7,19 +7,46 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "plugins": ["expo-router", "expo-notifications"],
-    "experiments": { "typedRoutes": true },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0b"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "updates": {
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
     },
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.shirafit.app" },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.shirafit.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
     "android": {
-      "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#ffffff" },
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#0a0a0b"
+      },
       "package": "com.shirafit.app"
     },
     "extra": {
-      "deepLinkExamples": "Scheme: shirafit — e.g. shirafit:///(app)/athlete/session/<sessionId> or https://<your-domain>/(app)/athlete/sessions with expo-router + associated domains / intent filters."
-    }
+      "deepLinkExamples": "Scheme: shirafit — e.g. shirafit:///(app)/athlete/session/<sessionId> or https://<your-domain>/(app)/athlete/sessions with expo-router + associated domains / intent filters.",
+      "eas": {
+        "projectId": "962ac0d2-8e62-4de2-896a-67ce33b66524"
+      },
+      "router": {}
+    },
+    "owner": "amittavor"
   }
 }
