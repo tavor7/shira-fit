@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
-import { router, useFocusEffect, type Href } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import { router, type Href } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import type { TrainingSessionWithTrainer } from "../types/database";
@@ -13,6 +13,13 @@ import {
 import { useI18n } from "../context/I18nContext";
 import { isBirthdayToday } from "../lib/birthday";
 import { formatISODateFull, formatISODateLong } from "../lib/dateFormat";
+import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
+
+function truncateNotePreview(body: string, maxLen: number): string {
+  const oneLine = body.replace(/\s+/g, " ").trim();
+  if (oneLine.length <= maxLen) return oneLine;
+  return `${oneLine.slice(0, maxLen - 1)}…`;
+}
 
 type Props = {
   userId: string | undefined;
@@ -52,8 +59,6 @@ function isInNext7Days(sessionDate: string, startTime: string, now: Date) {
 export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Props) {
   const { language, isRTL } = useI18n();
   const [now, setNow] = useState(() => new Date());
-  const [attending, setAttending] = useState<TrainingSessionWithTrainer[]>([]);
-  const [attendingLoading, setAttendingLoading] = useState(true);
   const [participantMap, setParticipantMap] = useState<Record<string, string[]>>({});
   const [noteMap, setNoteMap] = useState<
     Record<string, { body: string; authorName: string; created_at: string } | null>
@@ -68,68 +73,6 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
   useEffect(() => {
     setNow(new Date());
   }, [refreshSeq]);
-
-  const loadAttending = useCallback(async () => {
-    if (!userId) {
-      setAttending([]);
-      setAttendingLoading(false);
-      return;
-    }
-    setAttendingLoading(true);
-    const { data, error } = await supabase
-      .from("session_registrations")
-      .select(
-        `
-        training_sessions!inner(
-          id,
-          session_date,
-          start_time,
-          coach_id,
-          duration_minutes,
-          max_participants,
-          is_open_for_registration,
-          trainer:profiles!coach_id(full_name)
-        )
-      `
-      )
-      .eq("user_id", userId)
-      .eq("status", "active");
-
-    if (error || !data) {
-      setAttending([]);
-      setAttendingLoading(false);
-      return;
-    }
-
-    const at = new Date();
-    const list: TrainingSessionWithTrainer[] = [];
-    for (const row of data as unknown[]) {
-      const r = row as { training_sessions: TrainingSessionWithTrainer | TrainingSessionWithTrainer[] | null };
-      const raw = r.training_sessions;
-      const s = Array.isArray(raw) ? raw[0] : raw;
-      if (!s?.id) continue;
-      if (hasSessionNotEnded(s.session_date, s.start_time, durMin(s), at) && isInNext7Days(s.session_date, s.start_time, at)) {
-        list.push(s);
-      }
-    }
-    list.sort(
-      (a, b) =>
-        sessionStartsAt(a.session_date, a.start_time).getTime() -
-        sessionStartsAt(b.session_date, b.start_time).getTime()
-    );
-    setAttending(list);
-    setAttendingLoading(false);
-  }, [userId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadAttending();
-    }, [loadAttending])
-  );
-
-  useEffect(() => {
-    loadAttending();
-  }, [loadAttending, refreshSeq]);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,6 +118,47 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
           sessionStartsAt(b.session_date, b.start_time).getTime()
       );
   }, [sessions, userId, now]);
+
+  const teachingSessionIdsKey = useMemo(
+    () =>
+      teachingNotEnded
+        .map((s) => s.id)
+        .sort()
+        .join(","),
+    [teachingNotEnded]
+  );
+
+  useEffect(() => {
+    const ids = teachingNotEnded.map((s) => s.id);
+    if (ids.length === 0) {
+      setTeachingSignupCounts({});
+      setTeachingNotePreview({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const counts = await fetchActiveSignupCountsBySession(ids);
+      const { data } = await supabase
+        .from("session_notes")
+        .select("session_id, body, created_at")
+        .in("session_id", ids)
+        .order("created_at", { ascending: false });
+      const previews: Record<string, string> = {};
+      for (const row of data ?? []) {
+        const r = row as { session_id: string; body: string };
+        if (previews[r.session_id]) continue;
+        const body = String(r.body ?? "").trim();
+        if (body.length > 0) previews[r.session_id] = truncateNotePreview(body, 96);
+      }
+      if (!cancelled) {
+        setTeachingSignupCounts(counts);
+        setTeachingNotePreview(previews);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [teachingSessionIdsKey, refreshSeq]);
 
   const { currentTeaching, nextTeaching } = useMemo(() => {
     let current: TrainingSessionWithTrainer | null = null;
@@ -261,26 +245,64 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
 
   if (!userId) return null;
 
-  function SessionLine({
+  function TeachingSessionSummaryCard({
     s,
     prefix,
+    participantTitle,
     alignRight,
+    emphasis,
   }: {
     s: TrainingSessionWithTrainer;
-    prefix?: string;
+    prefix: string;
+    participantTitle: string;
     alignRight?: boolean;
+    emphasis: "current" | "next";
   }) {
+    const names = participantMap[s.id] ?? [];
     const label = `${formatISODateLong(s.session_date, language)} · ${formatSessionTimeRange(s.start_time, durMin(s))}`;
+    const nameAlign = isRTL ? styles.participantNameRtlUi : styles.participantNameLtrUi;
+    const isCurrent = emphasis === "current";
     return (
-      <Pressable
-        style={({ pressed }) => [styles.line, pressed && styles.linePressed]}
-        onPress={() => router.push(sessionPath(variant, s.id) as Href)}
+      <View
+        style={[
+          styles.teachingSessionCardBase,
+          isCurrent ? styles.teachingSessionCardCurrent : styles.teachingSessionCardNext,
+        ]}
       >
-        <Text style={[styles.lineText, alignRight && styles.rtlText]}>
-          {prefix ? `${prefix}: ` : ""}
-          {label}
-        </Text>
-      </Pressable>
+        {isCurrent ? (
+          <View style={[styles.nowBadgeWrap, isRTL && styles.nowBadgeWrapRtl]}>
+            <View style={styles.nowBadge}>
+              <Text style={styles.nowBadgeText}>{language === "he" ? "עכשיו" : "Now"}</Text>
+            </View>
+          </View>
+        ) : null}
+        <Pressable
+          style={({ pressed }) => [styles.sessionCardTimePress, pressed && styles.linePressed]}
+          onPress={() => router.push(sessionPath(variant, s.id) as Href)}
+        >
+          <Text
+            style={[
+              styles.sessionCardTimeText,
+              isCurrent && styles.sessionCardTimeTextCurrent,
+              nameAlign,
+              alignRight && styles.rtlText,
+            ]}
+          >
+            {prefix ? `${prefix}: ` : ""}
+            {label}
+          </Text>
+        </Pressable>
+        <Text style={[styles.sessionCardParticipantHeading, isRTL && styles.rtlText]}>{participantTitle}</Text>
+        {names.length === 0 ? (
+          <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין הרשמות פעילות." : "No active registrations."}</Text>
+        ) : (
+          names.map((n, idx) => (
+            <Text key={`${s.id}-${idx}`} style={[styles.participantName, nameAlign]}>
+              {n}
+            </Text>
+          ))
+        )}
+      </View>
     );
   }
 
@@ -288,10 +310,14 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
     list,
     emptyText,
     alignRight,
+    signupBySession,
+    notePreviewBySession,
   }: {
     list: TrainingSessionWithTrainer[];
     emptyText: string;
     alignRight?: boolean;
+    signupBySession: Record<string, number>;
+    notePreviewBySession: Record<string, string>;
   }) {
     const groups = useMemo(() => {
       const byDate: Record<string, TrainingSessionWithTrainer[]> = {};
@@ -355,15 +381,30 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
                 <View style={styles.groupBody}>
                   {g.items.map((s) => {
                     const time = formatSessionTimeRange(s.start_time, durMin(s));
+                    const signedUp = signupBySession[s.id] ?? 0;
+                    const cap = s.max_participants ?? 0;
+                    const notePv = notePreviewBySession[s.id];
+                    const edgeStyle = alignRight ? styles.participantNameRtlUi : styles.participantNameLtrUi;
                     return (
                       <Pressable
                         key={s.id}
                         style={({ pressed }) => [styles.sessionRow, pressed && styles.sessionRowPressed]}
                         onPress={() => router.push(sessionPath(variant, s.id) as Href)}
                       >
-                        <Text style={[styles.sessionTime, alignRight && styles.rtlText]} numberOfLines={1}>
-                          {time}
-                        </Text>
+                        <View style={[styles.sessionRowTop, alignRight && styles.sessionRowTopRtl]}>
+                          <Text style={[styles.sessionTime, edgeStyle, alignRight && styles.rtlText]} numberOfLines={1}>
+                            {time}
+                          </Text>
+                          <Text style={[styles.sessionCapacity, edgeStyle, alignRight && styles.rtlText]} numberOfLines={1}>
+                            {signedUp}/{cap > 0 ? cap : "—"}
+                          </Text>
+                        </View>
+                        {notePv ? (
+                          <Text style={[styles.sessionNotePreview, edgeStyle]} numberOfLines={2}>
+                            {language === "he" ? "הערה: " : "Note: "}
+                            {notePv}
+                          </Text>
+                        ) : null}
                       </Pressable>
                     );
                   })}
@@ -372,24 +413,6 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
             </View>
           );
         })}
-      </View>
-    );
-  }
-
-  function ParticipantBlock({ sessionId, title }: { sessionId: string; title: string }) {
-    const names = participantMap[sessionId] ?? [];
-    return (
-      <View style={styles.card}>
-        <Text style={[styles.cardTitle, isRTL && styles.rtlText]}>{title}</Text>
-        {names.length === 0 ? (
-          <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין הרשמות פעילות." : "No active registrations."}</Text>
-        ) : (
-          names.map((n, idx) => (
-            <Text key={`${sessionId}-${idx}`} style={styles.participantName}>
-              {n}
-            </Text>
-          ))
-        )}
       </View>
     );
   }
@@ -422,39 +445,49 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
           </Text>
         </View>
       ) : null}
-      <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{language === "he" ? "הקרובים שלך" : "Your upcoming"}</Text>
-      {attendingLoading ? (
-        <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
-      ) : (
-        <GroupedSessionList list={attending} emptyText={language === "he" ? "אין" : "None"} alignRight={isRTL} />
-      )}
-
-      <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
-        {language === "he" ? "אימונים שאתה מאמן" : "Sessions you’re training"}
-      </Text>
-      <GroupedSessionList list={teachingNotEnded} emptyText={language === "he" ? "אין" : "None"} alignRight={isRTL} />
 
       {(currentTeaching || nextTeaching) && (
         <>
-          <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
+          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
             {language === "he" ? "אימון נוכחי והבא" : "Current & next training"}
           </Text>
           {currentTeaching ? (
             <>
-              <SessionLine s={currentTeaching} prefix={language === "he" ? "נוכחי" : "Current"} alignRight={isRTL} />
-              <ParticipantBlock sessionId={currentTeaching.id} title={language === "he" ? "משתתפים (נוכחי)" : "Participants (current)"} />
+              <TeachingSessionSummaryCard
+                s={currentTeaching}
+                prefix={language === "he" ? "נוכחי" : "Current"}
+                participantTitle={language === "he" ? "משתתפים (נוכחי)" : "Participants (current)"}
+                alignRight={isRTL}
+                emphasis="current"
+              />
               <NoteBlock sessionId={currentTeaching.id} title={language === "he" ? "הערות (נוכחי)" : "Notes (current)"} />
             </>
           ) : null}
           {nextTeaching ? (
             <>
-              <SessionLine s={nextTeaching} prefix={language === "he" ? "הבא" : "Next"} alignRight={isRTL} />
-              <ParticipantBlock sessionId={nextTeaching.id} title={language === "he" ? "משתתפים (הבא)" : "Participants (next)"} />
+              <TeachingSessionSummaryCard
+                s={nextTeaching}
+                prefix={language === "he" ? "הבא" : "Next"}
+                participantTitle={language === "he" ? "משתתפים (הבא)" : "Participants (next)"}
+                alignRight={isRTL}
+                emphasis="next"
+              />
               <NoteBlock sessionId={nextTeaching.id} title={language === "he" ? "הערות (הבא)" : "Notes (next)"} />
             </>
           ) : null}
         </>
       )}
+
+      <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
+        {language === "he" ? "אימונים שאתה מאמן" : "Sessions you’re training"}
+      </Text>
+      <GroupedSessionList
+        list={teachingNotEnded}
+        emptyText={language === "he" ? "אין" : "None"}
+        alignRight={isRTL}
+        signupBySession={teachingSignupCounts}
+        notePreviewBySession={teachingNotePreview}
+      />
     </View>
   );
 }
@@ -480,18 +513,52 @@ const styles = StyleSheet.create({
   sectionSpaced: { marginTop: theme.spacing.lg },
   muted: { fontSize: 14, color: theme.colors.textMuted, fontStyle: "italic" },
   rtlText: { textAlign: "right" },
-  loader: { marginVertical: theme.spacing.sm },
-  line: {
-    paddingVertical: 10,
-    paddingHorizontal: theme.spacing.sm,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderRadius: theme.radius.sm,
-    marginBottom: theme.spacing.xs,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
   linePressed: { opacity: 0.85 },
-  lineText: { fontSize: 15, color: theme.colors.text, fontWeight: "500" },
+  teachingSessionCardBase: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+  },
+  /** Happening now — high visibility */
+  teachingSessionCardCurrent: {
+    backgroundColor: theme.colors.successBg,
+    borderWidth: 2,
+    borderColor: theme.colors.success,
+  },
+  /** Scheduled next — standard weight */
+  teachingSessionCardNext: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  nowBadgeWrap: { marginBottom: theme.spacing.sm, alignItems: "flex-start" },
+  nowBadgeWrapRtl: { alignItems: "flex-end" },
+  nowBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.backgroundAlt,
+    borderWidth: 1,
+    borderColor: theme.colors.success,
+  },
+  nowBadgeText: {
+    color: theme.colors.success,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+  },
+  sessionCardTimePress: {
+    marginBottom: theme.spacing.sm,
+  },
+  sessionCardTimeText: { fontSize: 15, color: theme.colors.text, fontWeight: "600" },
+  sessionCardTimeTextCurrent: { fontSize: 16, fontWeight: "800" },
+  sessionCardParticipantHeading: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: theme.colors.textMuted,
+    marginBottom: theme.spacing.sm,
+  },
   groupList: { marginTop: theme.spacing.sm, gap: theme.spacing.sm },
   groupCard: {
     backgroundColor: theme.colors.surfaceElevated,
@@ -535,7 +602,23 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   sessionRowPressed: { opacity: 0.9 },
-  sessionTime: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
+  sessionRowTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing.sm,
+    width: "100%",
+  },
+  sessionRowTopRtl: { flexDirection: "row-reverse" },
+  sessionTime: { flex: 1, minWidth: 0, fontSize: 15, fontWeight: "800", color: theme.colors.text },
+  sessionCapacity: { fontSize: 14, fontWeight: "800", color: theme.colors.textMuted },
+  sessionNotePreview: {
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 16,
+    color: theme.colors.textSoft,
+    width: "100%",
+  },
   card: {
     marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.md,
@@ -546,7 +629,16 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   cardTitle: { fontSize: 14, fontWeight: "700", color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
-  participantName: { fontSize: 15, color: theme.colors.text, marginBottom: 4 },
+  participantName: {
+    fontSize: 15,
+    color: theme.colors.text,
+    marginBottom: 4,
+    alignSelf: "stretch",
+    width: "100%",
+  },
+  /** Force one edge per UI language so mixed Hebrew/Latin names don’t split to opposite sides. */
+  participantNameLtrUi: { textAlign: "left", writingDirection: "ltr" },
+  participantNameRtlUi: { textAlign: "right", writingDirection: "rtl" },
   noteMeta: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700", marginBottom: 6 },
   noteBody: { color: theme.colors.text, fontSize: 14, fontWeight: "700", lineHeight: 18 },
 });
