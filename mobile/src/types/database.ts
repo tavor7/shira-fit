@@ -67,8 +67,15 @@ export type ParticipantHistoryRow = {
   duration_minutes: number;
   reg_status: "active" | "cancelled";
   registered_at: string;
-  /** Present after attendance migration; omit if RPC not upgraded yet. */
+  /** null = not recorded; true = arrived; false = absent */
   attended?: boolean | null;
+  /** Payment method when marked arrived (staff workflow). */
+  payment_method?: string | null;
+  /** From `cancellations.reason` when the athlete self-cancelled. */
+  cancellation_reason?: string | null;
+  /** True when cancellation was within 24h of session start (`charged_full_price`). */
+  cancellation_within_24h?: boolean | null;
+  cancelled_at?: string | null;
 };
 
 /** Row from RPC `manager_coach_sessions_report`. */

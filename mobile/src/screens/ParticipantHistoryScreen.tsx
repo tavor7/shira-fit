@@ -152,6 +152,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       p_start: s,
       p_end: e,
       p_phone_search: phoneArg,
+      p_athlete_key: athleteId,
     });
     if (error) {
       setLoading(false);
@@ -305,29 +306,68 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             att === true ? styles.badgeAttYes : att === false ? styles.badgeAttNo : styles.badgeAttUnset;
           const attTxtStyle =
             att === true ? styles.badgeAttTxtYes : att === false ? styles.badgeAttTxtNo : styles.badgeAttTxtUnset;
+          const pay = (item.payment_method ?? "").trim();
+          const reason = (item.cancellation_reason ?? "").trim();
+          const late =
+            item.cancellation_within_24h === true
+              ? language === "he"
+                ? "ביטול פחות מ־24 ש׳ לפני האימון"
+                : "Cancelled <24h before session"
+              : item.cancellation_within_24h === false
+                ? language === "he"
+                  ? "ביטול מעל 24 ש׳ מראש"
+                  : "Cancelled >24h before session"
+                : null;
           return (
-            <View style={[styles.row, isRTL && styles.rowRtl]}>
-              <Text style={[styles.rowDate, isRTL && styles.rtlText]} numberOfLines={1} ellipsizeMode="tail">
-                {formatISODateFull(item.session_date, language)}
-              </Text>
-              <Text style={[styles.rowTime, isRTL && styles.rtlText]} numberOfLines={1} ellipsizeMode="tail">
-                {formatSessionTimeRange(item.start_time, item.duration_minutes ?? 60)}
-              </Text>
-              <View style={[styles.badge, item.reg_status === "active" ? styles.badgeOn : styles.badgeOff]}>
-                <Text style={[styles.badgeTxt, item.reg_status === "active" ? styles.badgeTxtOn : styles.badgeTxtOff]}>
-                  {item.reg_status === "active"
-                    ? language === "he"
-                      ? "פעיל"
-                      : "Active"
-                    : language === "he"
-                      ? "בוטל"
-                      : "Cancelled"}
+            <View style={styles.row}>
+              <View style={styles.rowMain}>
+                <Text style={[styles.rowDate, isRTL && styles.rtlText]} numberOfLines={1} ellipsizeMode="tail">
+                  {formatISODateFull(item.session_date, language)}
                 </Text>
-              </View>
-              {item.reg_status === "active" ? (
-                <View style={[styles.badge, attStyle, styles.badgeAtt]}>
-                  <Text style={[styles.badgeTxt, attTxtStyle]}>{attLabel}</Text>
+                <Text style={[styles.rowTime, isRTL && styles.rtlText]} numberOfLines={1} ellipsizeMode="tail">
+                  {formatSessionTimeRange(item.start_time, item.duration_minutes ?? 60)}
+                </Text>
+                <View style={[styles.badge, item.reg_status === "active" ? styles.badgeOn : styles.badgeOff]}>
+                  <Text style={[styles.badgeTxt, item.reg_status === "active" ? styles.badgeTxtOn : styles.badgeTxtOff]}>
+                    {item.reg_status === "active"
+                      ? language === "he"
+                        ? "פעיל"
+                        : "Active"
+                      : language === "he"
+                        ? "בוטל"
+                        : "Cancelled"}
+                  </Text>
                 </View>
+                {item.reg_status === "active" ? (
+                  <View style={[styles.badge, attStyle, styles.badgeAtt]}>
+                    <Text style={[styles.badgeTxt, attTxtStyle]}>{attLabel}</Text>
+                  </View>
+                ) : null}
+              </View>
+              {pay.length > 0 ? (
+                <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
+                  {language === "he" ? "תשלום: " : "Payment: "}
+                  {pay}
+                </Text>
+              ) : null}
+              {item.reg_status === "cancelled" ? (
+                <>
+                  {reason.length > 0 ? (
+                    <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
+                      {language === "he" ? "סיבת ביטול: " : "Cancellation reason: "}
+                      {reason}
+                    </Text>
+                  ) : null}
+                  {late ? (
+                    <View style={[styles.badge, item.cancellation_within_24h ? styles.badgeLate : styles.badgeLateOk]}>
+                      <Text
+                        style={[styles.badgeTxt, item.cancellation_within_24h ? styles.badgeLateTxt : styles.badgeLateOkTxt]}
+                      >
+                        {late}
+                      </Text>
+                    </View>
+                  ) : null}
+                </>
               ) : null}
             </View>
           );
@@ -425,17 +465,21 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.md,
     marginTop: theme.spacing.sm,
     padding: theme.spacing.md,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "flex-start",
-    // Prevent long date strings from visually overflowing.
+    flexDirection: "column",
+    alignItems: "stretch",
     overflow: "hidden",
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  rowRtl: { flexDirection: "row-reverse" },
+  rowMain: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "flex-start",
+  },
+  rowMainRtl: { flexDirection: "row-reverse" },
+  rowDetail: { marginTop: 8, fontSize: 13, color: theme.colors.textMuted, lineHeight: 18 },
   rowDate: { fontSize: 15, fontWeight: "700", color: theme.colors.text, flex: 1, minWidth: 120, flexShrink: 1 },
   rowTime: { fontSize: 14, color: theme.colors.cta, fontWeight: "600", flex: 1, minWidth: 90, flexShrink: 1 },
   badge: {
@@ -457,5 +501,9 @@ const styles = StyleSheet.create({
   badgeAttTxtNo: { color: theme.colors.error },
   badgeAttUnset: { backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.borderMuted },
   badgeAttTxtUnset: { color: theme.colors.textMuted },
+  badgeLate: { marginTop: 6, backgroundColor: theme.colors.errorBg, borderWidth: 1, borderColor: theme.colors.errorBorder },
+  badgeLateTxt: { color: theme.colors.error },
+  badgeLateOk: { marginTop: 6, backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.borderMuted },
+  badgeLateOkTxt: { color: theme.colors.textMuted },
   empty: { textAlign: "center", color: theme.colors.textSoft, padding: theme.spacing.xl, fontSize: 14 },
 });

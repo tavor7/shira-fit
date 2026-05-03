@@ -198,27 +198,22 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
     }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("session_registrations")
-        .select("session_id, profiles(full_name)")
-        .in("session_id", ids)
-        .eq("status", "active");
+      // Must match `active_registration_counts` / calendar capacity: include Quick Add
+      // (`session_manual_participants`), not only `session_registrations`.
+      const entries = await Promise.all(
+        ids.map(async (sid) => {
+          const { data, error } = await supabase.rpc("list_session_participants", { p_session_id: sid });
+          if (error || !data) return [sid, [] as string[]] as const;
+          const names = (data as { full_name: string }[])
+            .map((r) => String(r.full_name ?? "").trim())
+            .filter((n) => n.length > 0);
+          return [sid, names] as const;
+        })
+      );
+      if (cancelled) return;
       const map: Record<string, string[]> = {};
-      for (const id of ids) map[id] = [];
-      for (const row of data ?? []) {
-        const r = row as {
-          session_id: string;
-          profiles: { full_name: string } | { full_name: string }[] | null;
-        };
-        const sid = r.session_id;
-        let name = "—";
-        if (r.profiles) {
-          const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
-          name = p?.full_name ?? "—";
-        }
-        if (map[sid] !== undefined) map[sid].push(name);
-      }
-      if (!cancelled) setParticipantMap(map);
+      for (const [sid, names] of entries) map[sid] = names;
+      setParticipantMap(map);
     })();
     return () => {
       cancelled = true;
