@@ -13,12 +13,15 @@ export type FoldableActionsMenuItem = {
 };
 
 type Props = {
-  label?: string;
+  /** Shown in the popover header and as the default trigger label when `renderTrigger` is omitted. */
+  menuTitle: string;
+  /** Announced for the header close (X) control; required when the close button is shown. */
+  closeAccessibilityLabel: string;
   items: FoldableActionsMenuItem[];
   renderTrigger?: (open: () => void) => ReactNode;
   /** Announced for the full-screen dismiss layer (required for i18n). */
   backdropAccessibilityLabel: string;
-  /** Hide the small header row (e.g. "Menu"). */
+  /** Hide the small header row (e.g. when using a custom trigger only). */
   hideHeader?: boolean;
   /** Hide the close (X) button in the header row. */
   hideCloseButton?: boolean;
@@ -27,7 +30,8 @@ type Props = {
 };
 
 export function FoldableActionsMenu({
-  label = "Menu",
+  menuTitle,
+  closeAccessibilityLabel,
   items,
   renderTrigger,
   backdropAccessibilityLabel,
@@ -48,7 +52,7 @@ export function FoldableActionsMenu({
 
   return (
     <>
-      {renderTrigger ? renderTrigger(() => setOpen(true)) : <ActionButton label={label} onPress={() => setOpen(true)} />}
+      {renderTrigger ? renderTrigger(() => setOpen(true)) : <ActionButton label={menuTitle} onPress={() => setOpen(true)} />}
       <AppModal
         visible={open}
         onClose={() => setOpen(false)}
@@ -58,17 +62,19 @@ export function FoldableActionsMenu({
       >
         {!hideHeader ? (
           <View style={styles.cardHeader}>
-            <Text style={styles.cardHeaderTxt} numberOfLines={1}>
-              {label}
+            <Text style={styles.cardHeaderTxt} numberOfLines={1} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
+              {menuTitle}
             </Text>
             {!hideCloseButton ? (
               <Pressable
                 onPress={() => setOpen(false)}
                 style={({ pressed }) => [styles.cardClose, pressed && { opacity: 0.85 }]}
                 accessibilityRole="button"
-                accessibilityLabel="Close menu"
+                accessibilityLabel={closeAccessibilityLabel}
               >
-                <Text style={styles.cardCloseTxt}>✕</Text>
+                <Text style={styles.cardCloseTxt} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
+                  ✕
+                </Text>
               </Pressable>
             ) : null}
           </View>
@@ -85,10 +91,14 @@ export function FoldableActionsMenu({
             accessibilityLabel={item.accessibilityLabel ?? item.label}
           >
             <View style={styles.itemRow}>
-              <Text style={styles.itemText}>{item.label}</Text>
+              <Text style={styles.itemText} maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}>
+                {item.label}
+              </Text>
               {item.badgeCount && item.badgeCount > 0 ? (
                 <View style={styles.badge}>
-                  <Text style={styles.badgeTxt}>{item.badgeCount > 99 ? "99+" : String(item.badgeCount)}</Text>
+                  <Text style={styles.badgeTxt} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
+                    {item.badgeCount > 99 ? "99+" : String(item.badgeCount)}
+                  </Text>
                 </View>
               ) : null}
             </View>
@@ -141,4 +151,3 @@ const styles = StyleSheet.create({
   },
   badgeTxt: { color: "#fff", fontWeight: "900", fontSize: 11, letterSpacing: 0.2 },
 });
-

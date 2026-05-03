@@ -58,4 +58,9 @@ export const theme = {
     bold: "700" as const,
     heavy: "800" as const,
   },
+  /** Dynamic type: cap scaling on dense chrome so headers and pills stay usable. */
+  a11y: {
+    chromeMaxFontMultiplier: 1.35,
+    bodyMaxFontMultiplier: 1.6,
+  },
 };

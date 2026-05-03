@@ -1,7 +1,13 @@
-import { Redirect } from "expo-router";
+import { Stack } from "expo-router";
+import ManagerCoachSessionsReportScreen from "../../../src/screens/ManagerCoachSessionsReportScreen";
+import { useI18n } from "../../../src/context/I18nContext";
 
-export const options = { title: "" };
-
-export default function CoachSessionsReportRedirect() {
-  return <Redirect href="/(app)/manager/reports?tab=coach" />;
+export default function ManagerCoachSessionsReportRoute() {
+  const { t } = useI18n();
+  return (
+    <>
+      <Stack.Screen options={{ title: t("screen.managerCoachSessionsReport") }} />
+      <ManagerCoachSessionsReportScreen />
+    </>
+  );
 }

@@ -1,5 +1,12 @@
 import { Pressable, Text, View, ActivityIndicator, StyleSheet, ViewStyle, TextStyle, Platform } from "react-native";
+import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
+
+function primaryTapFeedback() {
+  if (Platform.OS === "ios" || Platform.OS === "android") {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
+}
 
 type Props = {
   label: string;
@@ -32,7 +39,11 @@ export function PrimaryButton({
         pressed && !busy && (isCta ? styles.pressedCta : styles.pressedGhost),
         style,
       ]}
-      onPress={onPress}
+      onPress={() => {
+        if (busy) return;
+        primaryTapFeedback();
+        onPress();
+      }}
       disabled={busy}
       android_ripple={{
         color: isCta ? "rgba(10,10,11,0.12)" : "rgba(244,244,245,0.08)",
@@ -44,7 +55,9 @@ export function PrimaryButton({
           <Text style={[styles.text, isCta ? styles.textCta : styles.textGhost]}>{loadingLabel}</Text>
         </View>
       ) : (
-        <Text style={[styles.text, isCta ? styles.textCta : styles.textGhost]}>{label}</Text>
+        <Text style={[styles.text, isCta ? styles.textCta : styles.textGhost]} maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}>
+          {label}
+        </Text>
       )}
     </Pressable>
   );

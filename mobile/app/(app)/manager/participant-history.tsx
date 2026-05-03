@@ -1,7 +1,13 @@
-import { Redirect } from "expo-router";
+import { Stack } from "expo-router";
+import ParticipantHistoryScreen from "../../../src/screens/ParticipantHistoryScreen";
+import { useI18n } from "../../../src/context/I18nContext";
 
-export const options = { title: "" };
-
-export default function ParticipantHistoryRedirect() {
-  return <Redirect href="/(app)/manager/reports?tab=athlete" />;
+export default function ManagerParticipantHistoryRoute() {
+  const { t } = useI18n();
+  return (
+    <>
+      <Stack.Screen options={{ title: t("screen.managerParticipantHistory") }} />
+      <ParticipantHistoryScreen />
+    </>
+  );
 }

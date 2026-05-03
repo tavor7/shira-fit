@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { FlatList, Text, View, Pressable, StyleSheet, Alert } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, Stack } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
 import { useI18n } from "../../../src/context/I18nContext";
@@ -34,6 +34,7 @@ export default function ApproveAthletesScreen() {
 
   return (
     <View style={styles.screen}>
+      <Stack.Screen options={{ title: t("screen.managerApprove") }} />
       <Text style={[styles.title, isRTL && { textAlign: "right" }]}>
         {language === "he" ? "מתאמנים בהמתנה" : "Pending athletes"}
       </Text>

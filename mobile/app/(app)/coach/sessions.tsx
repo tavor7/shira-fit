@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
 import { fetchStaffTrainingSessionsForCalendar } from "../../../src/lib/trainingSessionQueries";
@@ -16,7 +16,7 @@ import { useI18n } from "../../../src/context/I18nContext";
 
 export default function CoachSessionsScreen() {
   const { profile } = useAuth();
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
   const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
@@ -73,6 +73,7 @@ export default function CoachSessionsScreen() {
 
   return (
     <View style={styles.screen}>
+      <Stack.Screen options={{ title: t("screen.coachSessions") }} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}

@@ -251,16 +251,20 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
     s,
     prefix,
     participantTitle,
+    notesTitle,
     alignRight,
     emphasis,
   }: {
     s: TrainingSessionWithTrainer;
     prefix: string;
     participantTitle: string;
+    /** When set and a note exists for this session, show it inside this card below participants. */
+    notesTitle?: string;
     alignRight?: boolean;
     emphasis: "current" | "next";
   }) {
     const names = participantMap[s.id] ?? [];
+    const note = noteMap[s.id] ?? null;
     const label = `${formatISODateLong(s.session_date, language)} · ${formatSessionTimeRange(s.start_time, durMin(s))}`;
     const nameAlign = isRTL ? styles.participantNameRtlUi : styles.participantNameLtrUi;
     const isCurrent = emphasis === "current";
@@ -304,6 +308,17 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
             </Text>
           ))
         )}
+        {notesTitle && note?.body ? (
+          <View style={styles.teachingCardNotesSection}>
+            <Text style={[styles.sessionCardParticipantHeading, isRTL && styles.rtlText]}>{notesTitle}</Text>
+            <Text style={[styles.noteMeta, isRTL && styles.rtlText]} numberOfLines={1}>
+              {note.authorName} · {formatISODateFull(note.created_at.slice(0, 10), language)}
+            </Text>
+            <Text style={[styles.noteBody, isRTL && styles.rtlText]} numberOfLines={6}>
+              {note.body}
+            </Text>
+          </View>
+        ) : null}
       </View>
     );
   }
@@ -419,22 +434,6 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
     );
   }
 
-  function NoteBlock({ sessionId, title }: { sessionId: string; title: string }) {
-    const note = noteMap[sessionId] ?? null;
-    if (!note?.body) return null;
-    return (
-      <View style={styles.card}>
-        <Text style={[styles.cardTitle, isRTL && styles.rtlText]}>{title}</Text>
-        <Text style={[styles.noteMeta, isRTL && styles.rtlText]} numberOfLines={1}>
-          {note.authorName} · {formatISODateFull(note.created_at.slice(0, 10), language)}
-        </Text>
-        <Text style={[styles.noteBody, isRTL && styles.rtlText]} numberOfLines={4}>
-          {note.body}
-        </Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.wrap}>
       {staffBirthdays.length > 0 ? (
@@ -459,10 +458,10 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
                 s={currentTeaching}
                 prefix={language === "he" ? "נוכחי" : "Current"}
                 participantTitle={language === "he" ? "משתתפים (נוכחי)" : "Participants (current)"}
+                notesTitle={language === "he" ? "הערות (נוכחי)" : "Notes (current)"}
                 alignRight={isRTL}
                 emphasis="current"
               />
-              <NoteBlock sessionId={currentTeaching.id} title={language === "he" ? "הערות (נוכחי)" : "Notes (current)"} />
             </>
           ) : null}
           {nextTeaching ? (
@@ -471,10 +470,10 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
                 s={nextTeaching}
                 prefix={language === "he" ? "הבא" : "Next"}
                 participantTitle={language === "he" ? "משתתפים (הבא)" : "Participants (next)"}
+                notesTitle={language === "he" ? "הערות (הבא)" : "Notes (next)"}
                 alignRight={isRTL}
                 emphasis="next"
               />
-              <NoteBlock sessionId={nextTeaching.id} title={language === "he" ? "הערות (הבא)" : "Notes (next)"} />
             </>
           ) : null}
         </>
@@ -561,6 +560,12 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     marginBottom: theme.spacing.sm,
   },
+  teachingCardNotesSection: {
+    marginTop: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+  },
   groupList: { marginTop: theme.spacing.sm, gap: theme.spacing.sm },
   groupCard: {
     backgroundColor: theme.colors.surfaceElevated,
@@ -621,16 +626,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textSoft,
     width: "100%",
   },
-  card: {
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  cardTitle: { fontSize: 14, fontWeight: "700", color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
   participantName: {
     fontSize: 15,
     color: theme.colors.text,

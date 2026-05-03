@@ -6,7 +6,7 @@
     "scheme": "shirafit",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "plugins": ["expo-router", "expo-notifications"],
     "experiments": { "typedRoutes": true },
     "updates": {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
 import { CreateSessionForm } from "../../../src/components/CreateSessionForm";
@@ -33,7 +33,12 @@ export default function CoachCreateSessionScreen() {
     );
   }
 
-  return <CreateSessionForm initialDate={initialDate} fixedCoachId={uid} fixedCoachLabel={name ?? undefined} />;
+  return (
+    <>
+      <Stack.Screen options={{ title: t("screen.coachCreateSession") }} />
+      <CreateSessionForm initialDate={initialDate} fixedCoachId={uid} fixedCoachLabel={name ?? undefined} />
+    </>
+  );
 }
 
 const styles = StyleSheet.create({

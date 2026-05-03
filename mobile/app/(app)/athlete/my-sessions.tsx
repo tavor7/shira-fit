@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { View, StyleSheet } from "react-native";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, Stack } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
@@ -18,7 +18,7 @@ type TsNested = {
 type Row = { session_id: string; training_sessions: TsNested };
 
 export default function MySessionsScreen() {
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
@@ -88,6 +88,7 @@ export default function MySessionsScreen() {
 
   return (
     <View style={styles.screen}>
+      <Stack.Screen options={{ title: t("screen.athleteMySessions") }} />
       <SessionsWeekCalendar
         items={items}
         isLoading={loading}

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl, Alert, Pressable, ActivityIndicator, Text, Platform } from "react-native";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
 import { fetchStaffTrainingSessionsForCalendar } from "../../../src/lib/trainingSessionQueries";
@@ -17,7 +17,7 @@ import { supabase } from "../../../src/lib/supabase";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
   const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
@@ -117,6 +117,7 @@ export default function ManagerSessionsScreen() {
 
   return (
     <View style={styles.screen}>
+      <Stack.Screen options={{ title: t("screen.managerSessions") }} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}

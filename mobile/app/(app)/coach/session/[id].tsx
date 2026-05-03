@@ -1,4 +1,4 @@
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Alert, TextInput, Pressable, ActivityIndicator, Platform, TouchableOpacity } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
@@ -217,7 +217,9 @@ export default function CoachSessionDetail() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <>
+      <Stack.Screen options={{ title: t("screen.coachSession") }} />
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משתתפים ונוכחות" : "Participants & attendance"}</Text>
       <ParticipantAttendanceList
         sessionId={id}
@@ -413,6 +415,7 @@ export default function CoachSessionDetail() {
         }}
       />
     </ScrollView>
+    </>
   );
 }
 

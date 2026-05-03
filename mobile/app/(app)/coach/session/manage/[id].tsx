@@ -1,4 +1,4 @@
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator, ScrollView, useWindowDimensions, Modal, Platform } from "react-native";
 import { supabase } from "../../../../../src/lib/supabase";
@@ -199,6 +199,8 @@ export default function CoachSessionManageScreen() {
 
   if (forbidden) {
     return (
+      <>
+        <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
       <View style={sf.screen}>
         <Text style={[styles.err, isRTL && styles.rtlText]}>
           {language === "he"
@@ -206,28 +208,37 @@ export default function CoachSessionManageScreen() {
             : "You can only edit sessions where you are the trainer."}
         </Text>
       </View>
+      </>
     );
   }
 
   if (!ready) {
     return (
+      <>
+        <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
       <View style={sf.screen}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
         <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
       </View>
+      </>
     );
   }
 
   if (!session) {
     return (
-      <View style={sf.screen}>
-        <Text style={[styles.err, isRTL && styles.rtlText]}>{language === "he" ? "האימון לא נמצא." : "Session not found."}</Text>
-      </View>
+      <>
+        <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
+        <View style={sf.screen}>
+          <Text style={[styles.err, isRTL && styles.rtlText]}>{language === "he" ? "האימון לא נמצא." : "Session not found."}</Text>
+        </View>
+      </>
     );
   }
 
   return (
-    <ScrollView style={sf.screen} contentContainerStyle={sf.content} keyboardShouldPersistTaps="handled">
+    <>
+      <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
+      <ScrollView style={sf.screen} contentContainerStyle={sf.content} keyboardShouldPersistTaps="handled">
       <View style={sf.card}>
         <Text style={[sf.cardTitle, isRTL && { textAlign: "right" }]}>{language === "he" ? "עריכה" : "Edit"}</Text>
         <View style={[sf.row, compact && sf.rowStack]}>
@@ -406,6 +417,7 @@ export default function CoachSessionManageScreen() {
         </View>
       </Modal>
     </ScrollView>
+    </>
   );
 }
 

@@ -2,6 +2,24 @@ import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 
+/** Aligns with mobile app naming (English-only admin surface). */
+const TAB_LABELS = {
+  sessions: "Sessions",
+  approve: "Approve athletes",
+  history: "Registration history",
+  cancellations: "Cancellations",
+} as const;
+
+const chrome = {
+  bg: "#0a0a0b",
+  surface: "#121214",
+  border: "#25252c",
+  text: "#f4f4f5",
+  muted: "#a1a1aa",
+  cta: "#f4f4f5",
+  ctaText: "#0a0a0b",
+};
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState("");
@@ -35,38 +53,155 @@ export default function App() {
 
   if (!session)
     return (
-      <div style={{ maxWidth: 360, margin: "80px auto", padding: 24 }}>
-        <h1>Shira Fit Admin</h1>
-        <form onSubmit={login}>
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: "100%", marginBottom: 8, padding: 8 }} />
-          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: "100%", marginBottom: 8, padding: 8 }} />
-          <button type="submit">Sign in</button>
-        </form>
-        <p style={{ color: "#666", marginTop: 16 }}>Managers & coaches only.</p>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: chrome.bg,
+          color: chrome.text,
+          fontFamily: "system-ui, sans-serif",
+          padding: 24,
+        }}
+      >
+        <div style={{ maxWidth: 400, margin: "64px auto" }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 8px", letterSpacing: 0.2 }}>Shira Fit</h1>
+          <p style={{ color: chrome.muted, margin: "0 0 24px", fontSize: 14 }}>Staff web console</p>
+          <form
+            onSubmit={login}
+            style={{
+              background: chrome.surface,
+              border: `1px solid ${chrome.border}`,
+              borderRadius: 14,
+              padding: 20,
+            }}
+          >
+            <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: chrome.muted, marginBottom: 6 }}>Email</label>
+            <input
+              type="email"
+              placeholder="you@studio.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{
+                width: "100%",
+                marginBottom: 14,
+                padding: "12px 14px",
+                borderRadius: 10,
+                border: `1px solid ${chrome.border}`,
+                background: chrome.bg,
+                color: chrome.text,
+                boxSizing: "border-box",
+              }}
+            />
+            <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: chrome.muted, marginBottom: 6 }}>Password</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{
+                width: "100%",
+                marginBottom: 18,
+                padding: "12px 14px",
+                borderRadius: 10,
+                border: `1px solid ${chrome.border}`,
+                background: chrome.bg,
+                color: chrome.text,
+                boxSizing: "border-box",
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                borderRadius: 10,
+                border: "none",
+                background: chrome.cta,
+                color: chrome.ctaText,
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              Sign in
+            </button>
+          </form>
+          <p style={{ color: chrome.muted, marginTop: 20, fontSize: 13, lineHeight: 1.5 }}>Managers and coaches only. Athletes use the mobile app.</p>
+        </div>
       </div>
     );
 
   if (profile?.role === "athlete")
-    return <div style={{ padding: 24 }}>Athletes use the mobile app.</div>;
+    return (
+      <div style={{ minHeight: "100vh", background: chrome.bg, color: chrome.text, padding: 24, fontFamily: "system-ui, sans-serif" }}>
+        <p style={{ maxWidth: 480, lineHeight: 1.5 }}>Athletes use the Shira Fit mobile app.</p>
+      </div>
+    );
 
   return (
-    <div style={{ padding: 24, fontFamily: "system-ui" }}>
-      <header style={{ display: "flex", justifyContent: "space-between", marginBottom: 24 }}>
-        <strong>Shira Fit</strong>
-        <button type="button" onClick={() => supabase.auth.signOut()}>Sign out</button>
+    <div style={{ minHeight: "100vh", background: chrome.bg, color: chrome.text, fontFamily: "system-ui, sans-serif" }}>
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "16px 24px",
+          borderBottom: `1px solid ${chrome.border}`,
+          background: chrome.surface,
+        }}
+      >
+        <strong style={{ fontSize: 16, letterSpacing: 0.2 }}>Shira Fit</strong>
+        <button
+          type="button"
+          onClick={() => supabase.auth.signOut()}
+          style={{
+            padding: "8px 14px",
+            borderRadius: 999,
+            border: `1px solid ${chrome.border}`,
+            background: "transparent",
+            color: chrome.muted,
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          Sign out
+        </button>
       </header>
-      <nav style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+      <nav
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          padding: "12px 24px",
+          borderBottom: `1px solid ${chrome.border}`,
+          background: chrome.bg,
+        }}
+        aria-label="Main"
+      >
         {(["sessions", "approve", "history", "cancellations"] as const).map((t) => (
-          <button key={t} type="button" onClick={() => setTab(t)} style={{ fontWeight: tab === t ? 700 : 400 }}>
-            {t}
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            style={{
+              fontWeight: tab === t ? 800 : 600,
+              color: tab === t ? chrome.text : chrome.muted,
+              background: tab === t ? chrome.surface : "transparent",
+              border: `1px solid ${tab === t ? chrome.border : "transparent"}`,
+              borderRadius: 999,
+              padding: "8px 14px",
+              cursor: "pointer",
+            }}
+          >
+            {TAB_LABELS[t]}
           </button>
         ))}
       </nav>
-      {tab === "sessions" && <SessionsPanel isManager={profile?.role === "manager"} />}
-      {tab === "approve" && profile?.role === "manager" && <ApprovePanel />}
-      {tab === "approve" && profile?.role !== "manager" && <p>Managers only.</p>}
-      {tab === "history" && <HistoryPanel />}
-      {tab === "cancellations" && <CancellationsPanel />}
+      <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+        {tab === "sessions" && <SessionsPanel isManager={profile?.role === "manager"} />}
+        {tab === "approve" && profile?.role === "manager" && <ApprovePanel />}
+        {tab === "approve" && profile?.role !== "manager" && <p style={{ color: chrome.muted }}>This area is for managers only.</p>}
+        {tab === "history" && <HistoryPanel />}
+        {tab === "cancellations" && <CancellationsPanel />}
+      </main>
     </div>
   );
 }
@@ -98,21 +233,77 @@ function SessionsPanel({ isManager }: { isManager: boolean }) {
 
   return (
     <div>
-      <h2>Sessions</h2>
+      <h2 style={{ fontSize: 18, fontWeight: 800, marginTop: 0 }}>Sessions</h2>
       {isManager && (
-        <div style={{ marginBottom: 24, padding: 16, background: "#f0fdf4", borderRadius: 8 }}>
-          <h3>Create</h3>
-          <input placeholder="YYYY-MM-DD" value={date} onChange={(e) => setDate(e.target.value)} />
-          <input placeholder="Coach user UUID" value={coachId} onChange={(e) => setCoachId(e.target.value)} style={{ width: "100%", marginTop: 8 }} />
-          <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ marginTop: 8 }} />
-          <input placeholder="Max" value={max} onChange={(e) => setMax(e.target.value)} style={{ width: 60, marginLeft: 8 }} />
-          <button type="button" onClick={createSession} style={{ marginLeft: 8 }}>Add</button>
+        <div
+          style={{
+            marginBottom: 24,
+            padding: 16,
+            background: chrome.surface,
+            border: `1px solid ${chrome.border}`,
+            borderRadius: 12,
+          }}
+        >
+          <h3 style={{ fontSize: 14, fontWeight: 800, color: chrome.muted, marginTop: 0 }}>Create session</h3>
+          <input
+            placeholder="YYYY-MM-DD"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            style={{
+              padding: 10,
+              borderRadius: 8,
+              border: `1px solid ${chrome.border}`,
+              background: chrome.bg,
+              color: chrome.text,
+            }}
+          />
+          <input
+            placeholder="Coach user UUID"
+            value={coachId}
+            onChange={(e) => setCoachId(e.target.value)}
+            style={{ width: "100%", marginTop: 8, padding: 10, borderRadius: 8, border: `1px solid ${chrome.border}`, background: chrome.bg, color: chrome.text, boxSizing: "border-box" }}
+          />
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            style={{ marginTop: 8, padding: 10, borderRadius: 8, border: `1px solid ${chrome.border}`, background: chrome.bg, color: chrome.text }}
+          />
+          <input
+            placeholder="Max"
+            value={max}
+            onChange={(e) => setMax(e.target.value)}
+            style={{ width: 80, marginLeft: 8, padding: 10, borderRadius: 8, border: `1px solid ${chrome.border}`, background: chrome.bg, color: chrome.text }}
+          />
+          <button
+            type="button"
+            onClick={createSession}
+            style={{
+              marginLeft: 8,
+              padding: "10px 16px",
+              borderRadius: 8,
+              border: "none",
+              background: chrome.cta,
+              color: chrome.ctaText,
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            Add
+          </button>
         </div>
       )}
       <ul style={{ listStyle: "none", padding: 0 }}>
         {rows.map((r) => (
-          <li key={r.id} style={{ padding: 12, borderBottom: "1px solid #eee" }}>
-            {r.session_date} {r.start_time} — max {r.max_participants} — {r.is_open_for_registration ? "OPEN" : "closed"}
+          <li
+            key={r.id}
+            style={{
+              padding: 12,
+              borderBottom: `1px solid ${chrome.border}`,
+              color: chrome.muted,
+            }}
+          >
+            {r.session_date} {r.start_time} — max {r.max_participants} — {r.is_open_for_registration ? "Open" : "Closed"}
           </li>
         ))}
       </ul>
@@ -135,11 +326,36 @@ function ApprovePanel() {
 
   return (
     <div>
-      <h2>Pending athletes</h2>
+      <h2 style={{ fontSize: 18, fontWeight: 800, marginTop: 0 }}>Pending athletes</h2>
       {rows.map((r) => (
-        <div key={r.user_id} style={{ padding: 12, border: "1px solid #fde68a", marginBottom: 8, borderRadius: 8 }}>
-          <div>{r.full_name} ({r.username})</div>
-          <button type="button" onClick={() => approve(r.user_id)}>Approve</button>
+        <div
+          key={r.user_id}
+          style={{
+            padding: 12,
+            border: `1px solid ${chrome.border}`,
+            marginBottom: 8,
+            borderRadius: 10,
+            background: chrome.surface,
+          }}
+        >
+          <div style={{ marginBottom: 8 }}>
+            {r.full_name} ({r.username})
+          </div>
+          <button
+            type="button"
+            onClick={() => approve(r.user_id)}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              border: "none",
+              background: chrome.cta,
+              color: chrome.ctaText,
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            Approve
+          </button>
         </div>
       ))}
     </div>
@@ -153,12 +369,24 @@ function HistoryPanel() {
   }, []);
   return (
     <div>
-      <h2>Registration history</h2>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead><tr><th>When</th><th>Event</th><th>Session</th><th>User</th></tr></thead>
+      <h2 style={{ fontSize: 18, fontWeight: 800, marginTop: 0 }}>Registration history</h2>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, color: chrome.muted }}>
+        <thead>
+          <tr style={{ textAlign: "left", borderBottom: `1px solid ${chrome.border}` }}>
+            <th style={{ padding: "8px 4px" }}>When</th>
+            <th style={{ padding: "8px 4px" }}>Event</th>
+            <th style={{ padding: "8px 4px" }}>Session</th>
+            <th style={{ padding: "8px 4px" }}>User</th>
+          </tr>
+        </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id}><td>{r.event_at}</td><td>{r.event_type}</td><td>{r.session_id?.slice(0, 8)}…</td><td>{r.user_id?.slice(0, 8)}…</td></tr>
+            <tr key={r.id} style={{ borderBottom: `1px solid ${chrome.border}` }}>
+              <td style={{ padding: "8px 4px", verticalAlign: "top" }}>{r.event_at}</td>
+              <td style={{ padding: "8px 4px", verticalAlign: "top" }}>{r.event_type}</td>
+              <td style={{ padding: "8px 4px", verticalAlign: "top" }}>{r.session_id?.slice(0, 8)}…</td>
+              <td style={{ padding: "8px 4px", verticalAlign: "top" }}>{r.user_id?.slice(0, 8)}…</td>
+            </tr>
           ))}
         </tbody>
       </table>
@@ -173,12 +401,22 @@ function CancellationsPanel() {
   }, []);
   return (
     <div>
-      <h2>Cancellations</h2>
-      <table style={{ width: "100%" }}>
-        <thead><tr><th>When</th><th>Charged</th><th>Reason</th></tr></thead>
+      <h2 style={{ fontSize: 18, fontWeight: 800, marginTop: 0 }}>Cancellations</h2>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, color: chrome.muted }}>
+        <thead>
+          <tr style={{ textAlign: "left", borderBottom: `1px solid ${chrome.border}` }}>
+            <th style={{ padding: "8px 4px" }}>When</th>
+            <th style={{ padding: "8px 4px" }}>Charged</th>
+            <th style={{ padding: "8px 4px" }}>Reason</th>
+          </tr>
+        </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id}><td>{r.cancelled_at}</td><td>{r.charged_full_price ? "Yes" : "No"}</td><td>{r.reason}</td></tr>
+            <tr key={r.id} style={{ borderBottom: `1px solid ${chrome.border}` }}>
+              <td style={{ padding: "8px 4px", verticalAlign: "top" }}>{r.cancelled_at}</td>
+              <td style={{ padding: "8px 4px", verticalAlign: "top" }}>{r.charged_full_price ? "Yes" : "No"}</td>
+              <td style={{ padding: "8px 4px", verticalAlign: "top" }}>{r.reason}</td>
+            </tr>
           ))}
         </tbody>
       </table>

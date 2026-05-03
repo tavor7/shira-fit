@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
+import { router, useLocalSearchParams, useFocusEffect, Stack } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
@@ -564,10 +564,18 @@ export default function ManagerSessionDetail() {
     } else Alert.alert(t("common.failed"), data?.error ?? "");
   }
 
-  if (!session) return <Text style={[styles.loading, isRTL && styles.rtlText]}>{t("common.loading")}</Text>;
+  if (!session)
+    return (
+      <View>
+        <Stack.Screen options={{ title: t("screen.managerSession") }} />
+        <Text style={[styles.loading, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
+      </View>
+    );
 
   return (
-    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
+    <>
+      <Stack.Screen options={{ title: t("screen.managerSession") }} />
+      <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
       {!editingSession ? (
         <View style={styles.summaryBlock}>
           <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{language === "he" ? "אימון" : "Session"}</Text>
@@ -1051,6 +1059,7 @@ export default function ManagerSessionDetail() {
         }}
       />
     </ScrollView>
+    </>
   );
 }
 

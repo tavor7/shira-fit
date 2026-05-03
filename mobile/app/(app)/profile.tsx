@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { View, Text, TextInput, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, Stack } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../src/context/AuthContext";
 import { theme } from "../../src/theme";
@@ -98,6 +98,7 @@ export default function ProfileScreen() {
   if (showLoading) {
     return (
       <View style={styles.loadingWrap}>
+        <Stack.Screen options={{ title: t("screen.profile") }} />
         <ActivityIndicator size="large" color={theme.colors.cta} />
         <Text style={[styles.loadingText, isRTL && { textAlign: "right" }]}>{t("common.loading")}</Text>
       </View>
@@ -113,6 +114,7 @@ export default function ProfileScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1, backgroundColor: theme.colors.backgroundAlt }}
     >
+      <Stack.Screen options={{ title: t("screen.profile") }} />
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, rtl && { textAlign: "right" }]}>
           {language === "he" ? "פרופיל" : "Profile"}

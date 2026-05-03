@@ -1,5 +1,13 @@
+import { Stack } from "expo-router";
 import ParticipantHistoryScreen from "../../../src/screens/ParticipantHistoryScreen";
+import { useI18n } from "../../../src/context/I18nContext";
 
-export const options = { title: "Coach history" };
-
-export default ParticipantHistoryScreen;
+export default function CoachParticipantHistoryRoute() {
+  const { t } = useI18n();
+  return (
+    <>
+      <Stack.Screen options={{ title: t("screen.coachParticipantHistory") }} />
+      <ParticipantHistoryScreen />
+    </>
+  );
+}

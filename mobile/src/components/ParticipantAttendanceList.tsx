@@ -305,9 +305,11 @@ export function ParticipantAttendanceList({
                   <Pressable
                     onPress={() => onRemoveAthlete(item.userId)}
                     hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("a11y.removeParticipant")}
                     style={({ pressed }) => [styles.removeBtn, pressed && styles.removeBtnPressed]}
                   >
-                    <Text style={styles.removeIcon} accessibilityLabel={language === "he" ? "הסרה" : "Remove"}>
+                    <Text style={styles.removeIcon} importantForAccessibility="no">
                       {"×"}
                     </Text>
                   </Pressable>
@@ -316,9 +318,11 @@ export function ParticipantAttendanceList({
                   <Pressable
                     onPress={() => onRemoveManualParticipant(item.manualId)}
                     hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("a11y.removeParticipant")}
                     style={({ pressed }) => [styles.removeBtn, pressed && styles.removeBtnPressed]}
                   >
-                    <Text style={styles.removeIcon} accessibilityLabel={language === "he" ? "הסרה" : "Remove"}>
+                    <Text style={styles.removeIcon} importantForAccessibility="no">
                       {"×"}
                     </Text>
                   </Pressable>

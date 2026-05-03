@@ -1,4 +1,4 @@
-import { Redirect, useFocusEffect } from "expo-router";
+import { Redirect, useFocusEffect, Stack } from "expo-router";
 import { useCallback } from "react";
 import { View, Text, StyleSheet, Image } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
@@ -7,7 +7,7 @@ import { useI18n } from "../../src/context/I18nContext";
 
 export default function PendingScreen() {
   const { profile, refreshProfile } = useAuth();
-  const { language, isRTL } = useI18n();
+  const { language, isRTL, t } = useI18n();
 
   useFocusEffect(
     useCallback(() => {
@@ -24,6 +24,7 @@ export default function PendingScreen() {
 
   return (
     <View style={styles.box}>
+      <Stack.Screen options={{ title: t("screen.pending") }} />
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
       </View>

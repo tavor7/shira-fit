@@ -111,7 +111,7 @@ export function GlobalQuickMenu() {
           isActive: (p) => startsWithAny(p, ["/manager/create-session"]),
         },
         {
-          label: language === "he" ? "תצוגת מתאמן" : "Athlete view",
+          label: t("menu.athleteView"),
           onPress: async () => {
             await setEnabled(true);
             router.replace("/(app)/athlete/sessions");
@@ -137,7 +137,7 @@ export function GlobalQuickMenu() {
           isActive: (p) => startsWithAny(p, ["/staff/users", "/staff/profile", "/staff/manual"]),
         },
         {
-          label: language === "he" ? "חיפוש" : "Search",
+          label: t("menu.search"),
           onPress: () => router.push("/(app)/staff/search"),
           isActive: (p) => startsWithAny(p, ["/staff/search"]),
         },
@@ -163,14 +163,14 @@ export function GlobalQuickMenu() {
         isActive: (p) => startsWithAny(p, ["/athlete/sessions"]),
       },
       {
-        label: language === "he" ? "האימונים שלי" : "My sessions",
+        label: t("menu.mySessionsShort"),
         onPress: () => router.push("/(app)/athlete/my-sessions"),
         isActive: (p) => startsWithAny(p, ["/athlete/my-sessions"]),
       },
     ];
     if (profile?.role === "manager") {
       athleteItems.push({
-        label: language === "he" ? "חזרה לניהול" : "Back to staff",
+        label: t("menu.backToStaff"),
         onPress: async () => {
           await setEnabled(false);
           router.replace("/(app)/manager/sessions");
@@ -187,6 +187,8 @@ export function GlobalQuickMenu() {
   return (
     <View style={styles.wrap}>
       <FoldableActionsMenu
+        menuTitle={t("menu.navTitle")}
+        closeAccessibilityLabel={closeMenuA11y}
         items={visible}
         backdropAccessibilityLabel={closeMenuA11y}
         hideHeader
@@ -199,7 +201,7 @@ export function GlobalQuickMenu() {
             accessibilityRole="button"
             accessibilityLabel={openMenuA11y}
           >
-            <Text style={styles.triggerIcon} importantForAccessibility="no">
+            <Text style={styles.triggerIcon} importantForAccessibility="no" maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
               ≡
             </Text>
           </Pressable>

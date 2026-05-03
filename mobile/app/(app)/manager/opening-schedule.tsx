@@ -1,6 +1,13 @@
+import { Stack } from "expo-router";
 import RegistrationOpeningScheduleScreen from "../../../src/screens/RegistrationOpeningScheduleScreen";
+import { useI18n } from "../../../src/context/I18nContext";
 
-export const options = { title: "Registration opening" };
-
-export default RegistrationOpeningScheduleScreen;
-
+export default function ManagerOpeningScheduleRoute() {
+  const { t } = useI18n();
+  return (
+    <>
+      <Stack.Screen options={{ title: t("screen.managerOpeningSchedule") }} />
+      <RegistrationOpeningScheduleScreen />
+    </>
+  );
+}

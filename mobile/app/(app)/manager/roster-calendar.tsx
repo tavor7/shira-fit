@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl, Text, ActivityIndicator, Pressable } from "react-native";
-import { Redirect, router, useFocusEffect } from "expo-router";
+import { Redirect, router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { useAuth } from "../../../src/context/AuthContext";
 import { useI18n } from "../../../src/context/I18nContext";
@@ -227,6 +227,7 @@ export default function ManagerRosterCalendarScreen() {
 
   return (
     <View style={styles.screen}>
+      <Stack.Screen options={{ title: t("screen.managerRosterCalendar") }} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}

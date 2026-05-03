@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
 import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
 import { useI18n } from "../context/I18nContext";
@@ -160,7 +161,9 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress,
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={styles.loadingText}>{t("common.loading")}</Text>
+        <Text style={styles.loadingText} maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}>
+          {t("common.loading")}
+        </Text>
       </View>
     );
   }
@@ -184,7 +187,10 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress,
           {weekLabel}
         </Text>
         <Pressable
-          onPress={() => setWeekOffset((o) => o + 1)}
+          onPress={() => {
+            if (Platform.OS === "ios" || Platform.OS === "android") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setWeekOffset((o) => o + 1);
+          }}
           style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
           accessibilityRole="button"
           accessibilityLabel={language === "he" ? "שבוע הבא" : "Next week"}

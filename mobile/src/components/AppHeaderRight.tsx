@@ -11,10 +11,10 @@ function formatRole(role: string | undefined) {
 }
 
 /**
- * Right side of the app header: compact identity + profile + logout (language & athlete preview live in the menu).
+ * Right side of the app header: compact identity + profile + log out (language & athlete preview live in the menu).
  */
 export function AppHeaderRight() {
-  const { profile, signOut, loading } = useAuth();
+  const { profile, loading, signOut } = useAuth();
   const { t, isRTL, language } = useI18n();
   const { enabled: athletePreview } = useManagerAthletePreview();
 
@@ -31,11 +31,11 @@ export function AppHeaderRight() {
   return (
     <View style={[styles.wrap, isRTL && styles.wrapRTL]}>
       <View style={styles.nameBlock}>
-        <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
+        <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
           {loading ? "…" : name}
         </Text>
         {roleLine ? (
-          <Text style={styles.role} numberOfLines={1} ellipsizeMode="tail">
+          <Text style={styles.role} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
             {roleLine}
           </Text>
         ) : null}
@@ -43,18 +43,22 @@ export function AppHeaderRight() {
       <Pressable
         onPress={() => router.push("/(app)/profile")}
         disabled={loading || pendingAthlete}
+        accessibilityRole="button"
+        accessibilityLabel={t("header.profile")}
         style={({ pressed }) => [styles.chip, (pressed && !loading && !pendingAthlete) && styles.pressed, pendingAthlete && { opacity: 0.45 }]}
       >
-        <Text style={styles.chipTxt} numberOfLines={1}>
+        <Text style={styles.chipTxt} numberOfLines={1} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
           {t("header.profile")}
         </Text>
       </Pressable>
       <Pressable
-        onPress={signOut}
+        onPress={() => void signOut()}
         disabled={loading}
+        accessibilityRole="button"
+        accessibilityLabel={t("header.logout")}
         style={({ pressed }) => [styles.chipMuted, pressed && !loading && styles.pressed]}
       >
-        <Text style={styles.chipMutedTxt} numberOfLines={1}>
+        <Text style={styles.chipMutedTxt} numberOfLines={1} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
           {t("header.logout")}
         </Text>
       </Pressable>
@@ -98,24 +102,28 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.cta,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 44,
+    minWidth: 44,
   },
-  chipTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 10, letterSpacing: 0.15 },
+  chipTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 12, letterSpacing: 0.15 },
   chipMuted: {
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 44,
+    minWidth: 44,
   },
-  chipMutedTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 9, letterSpacing: 0.1 },
+  chipMutedTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 11, letterSpacing: 0.1 },
   pressed: { opacity: 0.88 },
 });

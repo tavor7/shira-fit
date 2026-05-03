@@ -6,6 +6,7 @@ import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
 import { theme } from "../../src/theme";
 import { useAndroidSessionsBackHandler } from "../../src/hooks/useAndroidSessionsBackHandler";
 import { isPendingPathname } from "../../src/lib/sessionsHomeNavigation";
+import { useI18n } from "../../src/context/I18nContext";
 
 const headerStyle: ViewStyle = {
   backgroundColor: theme.colors.backgroundAlt,
@@ -22,6 +23,7 @@ const headerTitleStyle: TextStyle = {
 
 export default function AppLayout() {
   const { session, loading, profile } = useAuth();
+  const { t } = useI18n();
   const pathname = usePathname() ?? "";
   useAndroidSessionsBackHandler(!!session && !loading);
 
@@ -43,11 +45,11 @@ export default function AppLayout() {
     <Stack
       screenOptions={{
         headerShown: true,
-        // Don't show route names like "manager/sessions" in the header.
         headerTitle: "",
         headerLeft: () => <AppHeaderLeft />,
         headerRight: () => <AppHeaderRight />,
         headerShadowVisible: false,
+        headerBackTitle: t("common.back"),
         // expo-router typed routes narrow header styles; runtime accepts full RN styles.
         headerStyle: headerStyle as object,
         headerTintColor: theme.colors.text,

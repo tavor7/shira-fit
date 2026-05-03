@@ -1,4 +1,4 @@
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, ActivityIndicator, ScrollView } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
@@ -194,6 +194,7 @@ export default function AthleteSessionDetail() {
   if (loading)
     return (
       <View style={styles.box}>
+        <Stack.Screen options={{ title: t("screen.athleteSession") }} />
         <ActivityIndicator size="large" color={theme.colors.cta} />
         <Text style={[styles.loadingText, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
       </View>
@@ -201,6 +202,7 @@ export default function AthleteSessionDetail() {
   if (loadError)
     return (
       <View style={styles.box}>
+        <Stack.Screen options={{ title: t("screen.athleteSession") }} />
         <Text style={[styles.loadingText, isRTL && styles.rtlText]}>{loadError}</Text>
         <View style={{ marginTop: theme.spacing.md }}>
           <ActionButton label={language === "he" ? "נסו שוב" : "Retry"} onPress={() => router.replace(`/(app)/athlete/session/${sessionId}`)} />
@@ -210,6 +212,7 @@ export default function AthleteSessionDetail() {
   if (!session)
     return (
       <View style={styles.box}>
+        <Stack.Screen options={{ title: t("screen.athleteSession") }} />
         <Text style={[styles.loadingText, isRTL && styles.rtlText]}>{language === "he" ? "האימון לא נמצא" : "Session not found"}</Text>
       </View>
     );
@@ -218,12 +221,14 @@ export default function AthleteSessionDetail() {
   const regOpen = !!session.is_open_for_registration;
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.box}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
+    <>
+      <Stack.Screen options={{ title: t("screen.athleteSession") }} />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.box}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.card}>
         <Text style={styles.title}>{formatISODateFullWithWeekdayAfter(session.session_date, language)}</Text>
         <Text style={styles.sub}>{formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}</Text>
@@ -333,6 +338,7 @@ export default function AthleteSessionDetail() {
         </View>
       </Modal>
     </ScrollView>
+    </>
   );
 }
 

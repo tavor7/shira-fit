@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl, Text } from "react-native";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, Stack } from "expo-router";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
 import { supabase } from "../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
@@ -18,7 +18,7 @@ import { sessionStartsAt } from "../../../src/lib/sessionTime";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 
 export default function AthleteSessionsScreen() {
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
@@ -123,6 +123,7 @@ export default function AthleteSessionsScreen() {
 
   return (
     <View style={styles.screen}>
+      <Stack.Screen options={{ title: t("screen.athleteSessions") }} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -154,10 +155,6 @@ export default function AthleteSessionsScreen() {
           )}
         </View>
 
-        <View style={styles.topRow}>
-          <ActionButton label={language === "he" ? "האימונים שלי" : "My sessions"} onPress={() => router.push("/(app)/athlete/my-sessions")} />
-        </View>
-
         <SessionsWeekCalendar
           items={items}
           isLoading={loading}
@@ -179,7 +176,6 @@ export default function AthleteSessionsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  topRow: { padding: theme.spacing.md, paddingBottom: theme.spacing.sm },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, flex: 1, justifyContent: "flex-start", paddingHorizontal: theme.spacing.md },
   myUpcomingCard: {
