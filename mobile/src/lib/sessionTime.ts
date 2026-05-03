@@ -56,6 +56,24 @@ export function isSessionInProgress(
   return t >= start && t < end;
 }
 
+/** For week grid / agenda: before start, during, or after the session has ended. */
+export type SessionTemporalPhase = "past" | "live" | "upcoming";
+
+export function getSessionTemporalPhase(
+  sessionDate: string,
+  startTime: string,
+  durationMinutes: number,
+  now: Date = new Date()
+): SessionTemporalPhase {
+  const dur = durationMinutes > 0 ? durationMinutes : 60;
+  const startT = sessionStartsAt(sessionDate, startTime).getTime();
+  const endT = sessionEndsAt(sessionDate, startTime, dur).getTime();
+  const t = now.getTime();
+  if (t < startT) return "upcoming";
+  if (t < endT) return "live";
+  return "past";
+}
+
 /** Add calendar days to YYYY-MM-DD without UTC shift. */
 export function addDaysToISODate(isoDate: string, days: number): string {
   const [y, mo, d] = isoDate.split("-").map((x) => parseInt(x, 10));

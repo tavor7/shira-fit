@@ -53,6 +53,7 @@ export default function CoachSessionsScreen() {
         key: s.id,
         session_date: s.session_date,
         start_time: s.start_time,
+        durationMinutes: s.duration_minutes ?? 60,
         timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
         trainerName: s.trainer?.full_name ?? undefined,
         coachId: s.coach_id,

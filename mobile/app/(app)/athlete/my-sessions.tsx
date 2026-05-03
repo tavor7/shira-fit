@@ -75,6 +75,7 @@ export default function MySessionsScreen() {
           key: ts.id,
           session_date: ts.session_date,
           start_time: ts.start_time,
+          durationMinutes: dm,
           timeLabel: formatSessionTimeRange(ts.start_time, dm),
           subtitle: language === "he" ? "נרשם" : "Registered",
           onPress: () => router.push(`/(app)/athlete/session/${ts.id}`),

@@ -3,15 +3,20 @@ import { theme } from "../theme";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "./StatusChip";
+import { type SessionTemporalPhase, getSessionTemporalPhase } from "../lib/sessionTime";
 
 type Props = {
   item: SessionsWeekItem;
   /** Narrow column (week grid); slightly smaller type */
   compact?: boolean;
+  /** From parent when already computed (week grid); otherwise derived from session times. */
+  temporalPhase?: SessionTemporalPhase;
 };
 
-export function SessionAgendaCardContent({ item, compact }: Props) {
+export function SessionAgendaCardContent({ item, compact, temporalPhase: temporalPhaseProp }: Props) {
   const { language, isRTL } = useI18n();
+  const temporalPhase =
+    temporalPhaseProp ?? getSessionTemporalPhase(item.session_date, item.start_time, item.durationMinutes ?? 60);
   const accent = item.accentColor;
   const showFill = item.signedUpCount !== undefined && item.maxParticipants !== undefined;
   const staffLabels = item.showStaffSessionLabels === true;
@@ -21,6 +26,13 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
   const left = showFill && m > 0 ? Math.max(0, m - c) : null;
   const regOpen = item.isOpenForRegistration !== false;
 
+  const timeStyle =
+    temporalPhase === "past"
+      ? [styles.time, compact && styles.timeCompact, styles.timePast]
+      : temporalPhase === "live"
+        ? [styles.time, compact && styles.timeCompact, styles.timeLive]
+        : [styles.time, compact && styles.timeCompact];
+
   return (
     <View
       style={[
@@ -29,7 +41,16 @@ export function SessionAgendaCardContent({ item, compact }: Props) {
       ]}
     >
       <View style={styles.timeRow}>
-        <Text style={[styles.time, compact && styles.timeCompact]}>{item.timeLabel ?? item.start_time}</Text>
+        <Text style={timeStyle}>{item.timeLabel ?? item.start_time}</Text>
+        {temporalPhase === "live" ? (
+          <View style={styles.livePill}>
+            <Text style={styles.livePillTxt}>{language === "he" ? "עכשיו" : "Live"}</Text>
+          </View>
+        ) : temporalPhase === "past" ? (
+          <View style={styles.endedPill}>
+            <Text style={styles.endedPillTxt}>{language === "he" ? "הסתיים" : "Ended"}</Text>
+          </View>
+        ) : null}
         {item.timeBadgeText ? (
           <View style={[styles.timeBadge, compact && styles.timeBadgeCompact]}>
             <Text style={[styles.timeBadgeTxt, compact && styles.timeBadgeTxtCompact]}>{item.timeBadgeText}</Text>
@@ -100,6 +121,26 @@ const styles = StyleSheet.create({
   timeRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   time: { fontWeight: "800", color: theme.colors.cta, fontSize: 13, letterSpacing: 0.2 },
   timeCompact: { fontSize: 12 },
+  timePast: { color: theme.colors.textSoft, fontWeight: "600" },
+  timeLive: { color: theme.colors.success, fontWeight: "900" },
+  livePill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.successBg,
+    borderWidth: 1,
+    borderColor: theme.colors.success,
+  },
+  livePillTxt: { color: theme.colors.success, fontSize: 9, fontWeight: "900", letterSpacing: 0.4 },
+  endedPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  endedPillTxt: { color: theme.colors.textSoft, fontSize: 9, fontWeight: "800" },
   timeBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,

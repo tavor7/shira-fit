@@ -3,11 +3,14 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, V
 import { theme } from "../theme";
 import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
 import { useI18n } from "../context/I18nContext";
+import { getSessionTemporalPhase } from "../lib/sessionTime";
 
 export type SessionsWeekItem = {
   key: string;
   session_date: string; // YYYY-MM-DD
   start_time: string; // HH:MM
+  /** Duration for live / ended styling; defaults to 60 in consumers if omitted. */
+  durationMinutes?: number;
   /** Shown on the card (e.g. 18:00–19:00). If omitted, only start_time is shown. */
   timeLabel?: string;
   /** Optional small badge shown next to time (e.g. "7/12"). */
@@ -82,6 +85,8 @@ function formatWeekLabel(start: Date, end: Date, locale: string) {
 
 export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress, onWeekChange }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
+  /** Periodic refresh so “live” / “ended” styling updates without navigating away. */
+  const [, setTemporalTick] = useState(0);
   const { language, t, isRTL } = useI18n();
   const locale = language === "he" ? "he-IL" : "en-US";
   const dayNames = language === "he" ? DAY_NAMES_HE : DAY_NAMES_EN;
@@ -109,6 +114,11 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress,
     const endIso = weekDays[6]?.iso;
     if (startIso && endIso) onWeekChange?.(startIso, endIso);
   }, [weekDays, onWeekChange]);
+
+  useEffect(() => {
+    const id = setInterval(() => setTemporalTick((n) => n + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const { byDate, weekItemsCount } = useMemo(() => {
     const map = new Map<string, SessionsWeekItem[]>();
@@ -230,20 +240,29 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress,
                   ) : null}
                 </Pressable>
                 <View style={styles.dayItems}>
-                  {dayList.map((it) => (
-                    <Pressable
-                      key={it.key}
-                      onPress={it.onPress}
-                      disabled={!it.onPress}
-                      style={({ pressed }) => [
-                        styles.card,
-                        it.showStaffSessionLabels && it.isHidden ? { opacity: 0.55 } : null,
-                        pressed && it.onPress && { opacity: 0.9 },
-                      ]}
-                    >
-                      <SessionAgendaCardContent item={it} compact />
-                    </Pressable>
-                  ))}
+                  {dayList.map((it) => {
+                    const phase = getSessionTemporalPhase(
+                      it.session_date,
+                      it.start_time,
+                      it.durationMinutes ?? 60
+                    );
+                    return (
+                      <Pressable
+                        key={it.key}
+                        onPress={it.onPress}
+                        disabled={!it.onPress}
+                        style={({ pressed }) => [
+                          styles.card,
+                          phase === "past" && styles.cardPast,
+                          phase === "live" && styles.cardLive,
+                          it.showStaffSessionLabels && it.isHidden ? { opacity: 0.55 } : null,
+                          pressed && it.onPress && { opacity: 0.9 },
+                        ]}
+                      >
+                        <SessionAgendaCardContent item={it} compact temporalPhase={phase} />
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </View>
             );
@@ -378,6 +397,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     overflow: "hidden",
+  },
+  cardPast: {
+    opacity: 0.52,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border,
+  },
+  cardLive: {
+    opacity: 1,
+    borderWidth: 2,
+    borderColor: theme.colors.success,
+    backgroundColor: theme.colors.successBg,
   },
   empty: { paddingTop: theme.spacing.md, paddingBottom: theme.spacing.lg, alignItems: "center" },
   emptyText: { textAlign: "center", color: theme.colors.textSoft, maxWidth: 320 },
