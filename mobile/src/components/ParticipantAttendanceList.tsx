@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert, Modal } from "react-native";
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert, Modal, TextInput, Keyboard } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -11,6 +11,7 @@ type RegRow = {
   user_id: string;
   attended: boolean | null;
   payment_method?: string | null;
+  amount_paid?: number | string | null;
   profiles:
     | { full_name: string; username: string; phone?: string | null; date_of_birth?: string | null }
     | { full_name: string; username: string; phone?: string | null; date_of_birth?: string | null }[]
@@ -21,6 +22,7 @@ type ManualRow = {
   manual_participant_id: string;
   attended: boolean | null;
   payment_method?: string | null;
+  amount_paid?: number | string | null;
   manual_participants:
     | { full_name: string; phone: string; date_of_birth?: string | null }
     | { full_name: string; phone: string; date_of_birth?: string | null }[]
@@ -35,6 +37,7 @@ type Row =
       phone?: string;
       attended: boolean | null;
       paymentMethod: string | null;
+      amountPaid: number | null;
       userId: string;
       birthdayToday: boolean;
     }
@@ -45,11 +48,18 @@ type Row =
       phone: string;
       attended: boolean | null;
       paymentMethod: string | null;
+      amountPaid: number | null;
       manualId: string;
       birthdayToday: boolean;
     };
 
 type AttendanceStatus = "unset" | "arrived" | "absent";
+
+function coerceAmountPaid(raw: number | string | null | undefined): number | null {
+  if (raw === null || raw === undefined || raw === "") return null;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
 
 /** Unpaid = no stored method; Cash/PayBox = green; anything else = yellow */
 function paymentDisplayTone(payment: string | null | undefined): "unpaid" | "cash_paybox" | "other" {
@@ -88,17 +98,20 @@ export function ParticipantAttendanceList({
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [payFor, setPayFor] = useState<Row | null>(null);
+  const [payPhase, setPayPhase] = useState<"method" | "amount">("method");
+  const [payChosenMethod, setPayChosenMethod] = useState<string | null>(null);
+  const [payAmountDraft, setPayAmountDraft] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("session_registrations")
-      .select("user_id, attended, payment_method, profiles(full_name, username, phone, date_of_birth)")
+      .select("user_id, attended, payment_method, amount_paid, profiles(full_name, username, phone, date_of_birth)")
       .eq("session_id", sessionId)
       .eq("status", "active");
     const { data: mData, error: mErr } = await supabase
       .from("session_manual_participants")
-      .select("manual_participant_id, attended, payment_method, manual_participants(full_name, phone, date_of_birth)")
+      .select("manual_participant_id, attended, payment_method, amount_paid, manual_participants(full_name, phone, date_of_birth)")
       .eq("session_id", sessionId);
 
     if (error && mErr) {
@@ -117,6 +130,7 @@ export function ParticipantAttendanceList({
         phone: (p as any)?.phone ? String((p as any).phone) : "",
         attended: r.attended ?? null,
         paymentMethod: (r as any).payment_method ?? null,
+        amountPaid: coerceAmountPaid((r as any).amount_paid),
         birthdayToday: isBirthdayToday(p?.date_of_birth ?? null),
       };
     });
@@ -131,6 +145,7 @@ export function ParticipantAttendanceList({
         phone: p?.phone ?? "",
         attended: r.attended ?? null,
         paymentMethod: (r as any).payment_method ?? null,
+        amountPaid: coerceAmountPaid((r as any).amount_paid),
         birthdayToday: isBirthdayToday(p?.date_of_birth ?? null),
       };
     });
@@ -150,7 +165,33 @@ export function ParticipantAttendanceList({
     if (refreshNonce > 0) load();
   }, [refreshNonce, load]);
 
-  async function setStatus(row: Row, status: AttendanceStatus, paymentMethod?: string | null) {
+  function openPaymentModal(row: Row) {
+    setPayFor(row);
+    setPayPhase("method");
+    setPayChosenMethod(null);
+    const existing = row.attended === true ? row.amountPaid : null;
+    setPayAmountDraft(existing != null ? String(existing) : "");
+    setPayOpen(true);
+  }
+
+  function closePaymentModal() {
+    Keyboard.dismiss();
+    setPayOpen(false);
+    setPayFor(null);
+    setPayPhase("method");
+    setPayChosenMethod(null);
+    setPayAmountDraft("");
+  }
+
+  function parseOptionalAmountInput(s: string): number | null | "invalid" {
+    const t = s.trim().replace(",", ".");
+    if (t === "") return null;
+    const n = Number(t);
+    if (!Number.isFinite(n) || n < 0) return "invalid";
+    return Math.round(n * 100) / 100;
+  }
+
+  async function setStatus(row: Row, status: AttendanceStatus, paymentMethod?: string | null, amountPaid?: number | null) {
     const key = row.id;
     setBusyKey(key);
     const { data, error } =
@@ -160,12 +201,14 @@ export function ParticipantAttendanceList({
             p_user_id: row.userId,
             p_status: status,
             p_payment_method: paymentMethod ?? null,
+            p_amount_paid: amountPaid ?? null,
           })
         : await supabase.rpc("set_manual_participant_attendance", {
             p_session_id: sessionId,
             p_manual_participant_id: row.manualId,
             p_status: status,
             p_payment_method: paymentMethod ?? null,
+            p_amount_paid: amountPaid ?? null,
           });
     setBusyKey(null);
     if (error) {
@@ -209,12 +252,14 @@ export function ParticipantAttendanceList({
                 p_user_id: row.userId,
                 p_status: "arrived",
                 p_payment_method: null,
+                p_amount_paid: null,
               })
             : await supabase.rpc("set_manual_participant_attendance", {
                 p_session_id: sessionId,
                 p_manual_participant_id: row.manualId,
                 p_status: "arrived",
                 p_payment_method: null,
+                p_amount_paid: null,
               });
         if (error) {
           Alert.alert(t("common.error"), error.message);
@@ -272,8 +317,7 @@ export function ParticipantAttendanceList({
                   <Pressable
                     onPress={() => {
                       if (busy) return;
-                      setPayFor(item);
-                      setPayOpen(true);
+                      openPaymentModal(item);
                     }}
                     disabled={busy}
                     hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
@@ -295,6 +339,11 @@ export function ParticipantAttendanceList({
                           ? "לא שולם"
                           : "Unpaid"
                         : item.paymentMethod}
+                      {item.amountPaid != null
+                        ? language === "he"
+                          ? ` · ${item.amountPaid} ₪`
+                          : ` · ${item.amountPaid}`
+                        : ""}
                     </Text>
                   </Pressable>
                 ) : null}
@@ -338,11 +387,10 @@ export function ParticipantAttendanceList({
                   onPress={() => {
                     if (st === "arrived") {
                       // When marking arrived, prompt for payment method immediately (slick flow).
-                      setPayFor(item);
-                      setPayOpen(true);
+                      openPaymentModal(item);
                       return;
                     }
-                    void setStatus(item, st, null);
+                    void setStatus(item, st, null, null);
                   }}
                   style={({ pressed }) => [
                     styles.segBtn,
@@ -369,56 +417,104 @@ export function ParticipantAttendanceList({
           </View>
         );
       })}
-      <Modal visible={payOpen} transparent animationType="fade" onRequestClose={() => setPayOpen(false)}>
+      <Modal visible={payOpen} transparent animationType="fade" onRequestClose={closePaymentModal}>
         <View style={styles.payBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={closePaymentModal} accessibilityRole="button" />
           <View style={styles.payCard}>
-            <Text style={[styles.payTitle, isRTL && styles.rtlText]}>
-              {language === "he" ? "אופן תשלום" : "Payment method"}
-            </Text>
-            {(["cash", "PayBox", "other"] as const).map((pm) => (
-              <Pressable
-                key={pm}
-                style={({ pressed }) => [styles.payBtn, pressed && { opacity: 0.9 }]}
-                onPress={() => {
-                  const row = payFor;
-                  setPayOpen(false);
-                  setPayFor(null);
-                  if (!row) return;
-                  void setStatus(
-                    row,
-                    "arrived",
-                    pm === "cash" ? (language === "he" ? "מזומן" : "Cash") : pm === "PayBox" ? "PayBox" : language === "he" ? "אחר" : "Other"
-                  );
-                }}
-              >
-                <Text style={styles.payBtnTxt}>
-                  {pm === "cash" ? (language === "he" ? "מזומן" : "Cash") : pm === "PayBox" ? "PayBox" : language === "he" ? "אחר" : "Other"}
+            {payPhase === "method" ? (
+              <>
+                <Text style={[styles.payTitle, isRTL && styles.rtlText]}>
+                  {language === "he" ? "אופן תשלום" : "Payment method"}
                 </Text>
-              </Pressable>
-            ))}
-            <Pressable
-              style={({ pressed }) => [styles.payBtn, styles.payBtnUnpaid, pressed && { opacity: 0.9 }]}
-              onPress={() => {
-                const row = payFor;
-                setPayOpen(false);
-                setPayFor(null);
-                if (!row) return;
-                void setStatus(row, "arrived", null);
-              }}
-            >
-              <Text style={[styles.payBtnTxt, styles.payBtnTxtUnpaid]}>
-                {language === "he" ? "לא שולם" : "Unpaid"}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setPayOpen(false);
-                setPayFor(null);
-              }}
-              style={({ pressed }) => pressed && { opacity: 0.8 }}
-            >
-              <Text style={styles.payCancel}>{t("common.cancel")}</Text>
-            </Pressable>
+                {(["cash", "PayBox", "other"] as const).map((pm) => (
+                  <Pressable
+                    key={pm}
+                    style={({ pressed }) => [styles.payBtn, pressed && { opacity: 0.9 }]}
+                    onPress={() => {
+                      const method =
+                        pm === "cash"
+                          ? language === "he"
+                            ? "מזומן"
+                            : "Cash"
+                          : pm === "PayBox"
+                            ? "PayBox"
+                            : language === "he"
+                              ? "אחר"
+                              : "Other";
+                      setPayChosenMethod(method);
+                      setPayPhase("amount");
+                    }}
+                  >
+                    <Text style={styles.payBtnTxt}>
+                      {pm === "cash" ? (language === "he" ? "מזומן" : "Cash") : pm === "PayBox" ? "PayBox" : language === "he" ? "אחר" : "Other"}
+                    </Text>
+                  </Pressable>
+                ))}
+                <Pressable
+                  style={({ pressed }) => [styles.payBtn, styles.payBtnUnpaid, pressed && { opacity: 0.9 }]}
+                  onPress={() => {
+                    const row = payFor;
+                    if (!row) return;
+                    closePaymentModal();
+                    void setStatus(row, "arrived", null, null);
+                  }}
+                >
+                  <Text style={[styles.payBtnTxt, styles.payBtnTxtUnpaid]}>
+                    {language === "he" ? "לא שולם" : "Unpaid"}
+                  </Text>
+                </Pressable>
+                <Pressable onPress={closePaymentModal} style={({ pressed }) => pressed && { opacity: 0.8 }}>
+                  <Text style={styles.payCancel}>{t("common.cancel")}</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.payTitle, isRTL && styles.rtlText]}>
+                  {language === "he" ? "סכום ששולם" : "Amount paid"}
+                </Text>
+                <Text style={[styles.payHint, isRTL && styles.rtlText]}>
+                  {language === "he" ? "אופציונלי — השאירו ריק אם לא רלוונטי." : "Optional — leave blank if not needed."}
+                </Text>
+                <TextInput
+                  style={[styles.payAmountInput, isRTL && styles.payAmountInputRtl]}
+                  value={payAmountDraft}
+                  onChangeText={setPayAmountDraft}
+                  placeholder={language === "he" ? "למשל 120" : "e.g. 120"}
+                  placeholderTextColor={theme.colors.placeholderOnLight}
+                  keyboardType="decimal-pad"
+                  autoFocus
+                />
+                <Pressable
+                  style={({ pressed }) => [styles.payBtn, styles.payBtnPrimary, pressed && { opacity: 0.9 }]}
+                  onPress={() => {
+                    const row = payFor;
+                    const method = payChosenMethod;
+                    if (!row || !method) return;
+                    const parsed = parseOptionalAmountInput(payAmountDraft);
+                    if (parsed === "invalid") {
+                      Alert.alert(
+                        t("common.error"),
+                        language === "he" ? "הזינו מספר חיובי או השאירו ריק." : "Enter a valid positive number or leave blank."
+                      );
+                      return;
+                    }
+                    closePaymentModal();
+                    void setStatus(row, "arrived", method, parsed);
+                  }}
+                >
+                  <Text style={styles.payBtnTxtPrimary}>{language === "he" ? "אישור" : "Confirm"}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setPayPhase("method");
+                    setPayChosenMethod(null);
+                  }}
+                  style={({ pressed }) => pressed && { opacity: 0.8 }}
+                >
+                  <Text style={styles.payCancel}>{language === "he" ? "חזרה" : "Back"}</Text>
+                </Pressable>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -498,8 +594,23 @@ const styles = StyleSheet.create({
     padding: 18,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
+    zIndex: 1,
   },
   payTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text },
+  payHint: { marginTop: 6, fontSize: 13, color: theme.colors.textMuted, fontWeight: "600" },
+  payAmountInput: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    fontWeight: "700",
+    color: theme.colors.text,
+    backgroundColor: theme.colors.surface,
+  },
+  payAmountInputRtl: { textAlign: "right" },
   payBtn: {
     paddingVertical: 12,
     paddingHorizontal: 12,
@@ -510,6 +621,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   payBtnTxt: { color: theme.colors.text, fontWeight: "800" },
+  payBtnPrimary: { marginTop: 12, backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  payBtnTxtPrimary: { color: theme.colors.ctaText, fontWeight: "900", textAlign: "center" },
   payBtnUnpaid: { borderColor: theme.colors.error, backgroundColor: theme.colors.errorBg },
   payBtnTxtUnpaid: { color: theme.colors.error },
   payCancel: { marginTop: 6, textAlign: "center", color: theme.colors.textMuted, fontWeight: "800" },

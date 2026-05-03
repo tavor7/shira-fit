@@ -307,16 +307,27 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
           const attTxtStyle =
             att === true ? styles.badgeAttTxtYes : att === false ? styles.badgeAttTxtNo : styles.badgeAttTxtUnset;
           const pay = (item.payment_method ?? "").trim();
+          const amtRaw = item.amount_paid;
+          const amt =
+            amtRaw !== null && amtRaw !== undefined && String(amtRaw).trim() !== ""
+              ? Number(amtRaw)
+              : null;
+          const amtOk = amt !== null && Number.isFinite(amt);
           const reason = (item.cancellation_reason ?? "").trim();
+          const raw12 = item.cancellation_within_12h;
+          const within12 =
+            raw12 === true || (raw12 == null && item.cancellation_within_24h === true);
+          const within12ExplicitFalse =
+            raw12 === false || (raw12 == null && item.cancellation_within_24h === false);
           const late =
-            item.cancellation_within_24h === true
+            within12
               ? language === "he"
-                ? "ביטול פחות מ־24 ש׳ לפני האימון"
-                : "Cancelled <24h before session"
-              : item.cancellation_within_24h === false
+                ? "ביטול בתוך 12 ש׳ לפני האימון"
+                : "Cancelled within 12h of session start"
+              : within12ExplicitFalse
                 ? language === "he"
-                  ? "ביטול מעל 24 ש׳ מראש"
-                  : "Cancelled >24h before session"
+                  ? "ביטול מעל 12 ש׳ מראש"
+                  : "Cancelled more than 12h before session"
                 : null;
           return (
             <View style={styles.row}>
@@ -354,6 +365,12 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                 <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
                   {language === "he" ? "תשלום: " : "Payment: "}
                   {pay}
+                  {amtOk ? (language === "he" ? ` · ${amt} ₪` : ` · ${amt}`) : ""}
+                </Text>
+              ) : amtOk ? (
+                <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
+                  {language === "he" ? "סכום: " : "Amount: "}
+                  {language === "he" ? `${amt} ₪` : `${amt}`}
                 </Text>
               ) : null}
               {item.reg_status === "cancelled" ? (
@@ -365,12 +382,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                     </Text>
                   ) : null}
                   {late ? (
-                    <View style={[styles.badge, item.cancellation_within_24h ? styles.badgeLate : styles.badgeLateOk]}>
-                      <Text
-                        style={[styles.badgeTxt, item.cancellation_within_24h ? styles.badgeLateTxt : styles.badgeLateOkTxt]}
-                      >
-                        {late}
-                      </Text>
+                    <View style={[styles.badge, within12 ? styles.badgeLate : styles.badgeLateOk]}>
+                      <Text style={[styles.badgeTxt, within12 ? styles.badgeLateTxt : styles.badgeLateOkTxt]}>{late}</Text>
                     </View>
                   ) : null}
                 </>

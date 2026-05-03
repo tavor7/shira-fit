@@ -27,6 +27,7 @@ import { isMissingColumnError } from "../../../../src/lib/dbColumnErrors";
 import { isValidISODateString } from "../../../../src/lib/isoDate";
 import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay, formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateFormat";
+import { isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
 import { useAuth } from "../../../../src/context/AuthContext";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../src/context/ToastContext";
@@ -112,6 +113,8 @@ export default function ManagerSessionDetail() {
   const [noteDraft, setNoteDraft] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
   const [noteComposerOpen, setNoteComposerOpen] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteEditDraft, setNoteEditDraft] = useState("");
   const [waitlistQuickUserId, setWaitlistQuickUserId] = useState<string | null>(null);
 
   async function quickAddWaitlistedAthlete(userId: string) {
@@ -275,6 +278,25 @@ export default function ManagerSessionDetail() {
     }
     setNoteDraft("");
     setNoteComposerOpen(false);
+    await loadNotes();
+  }
+
+  async function updateNote(noteId: string) {
+    const body = noteEditDraft.trim();
+    if (!body) return;
+    setNoteBusy(true);
+    const { data, error } = await supabase.rpc("update_session_note", { p_note_id: noteId, p_body: body });
+    setNoteBusy(false);
+    if (error) {
+      Alert.alert(t("common.error"), error.message);
+      return;
+    }
+    if (!data?.ok) {
+      Alert.alert(t("common.failed"), String(data?.error ?? ""));
+      return;
+    }
+    setEditingNoteId(null);
+    setNoteEditDraft("");
     await loadNotes();
   }
 
@@ -879,14 +901,23 @@ export default function ManagerSessionDetail() {
         cancellations.map((c) => {
           const p = c.profiles ? (Array.isArray(c.profiles) ? c.profiles[0] : c.profiles) : null;
           const name = p?.full_name ?? c.user_id;
+          const sched = session
+            ? isCancellationWithinHoursBeforeSession(session.session_date, session.start_time, c.cancelled_at, 12)
+            : false;
           return (
             <View key={`${c.user_id}-${c.cancelled_at}`} style={styles.cancelCard}>
               <Text style={styles.cancelName}>{name}</Text>
               <Text style={styles.cancelMeta}>{formatDateTimeForDisplay(c.cancelled_at, language)}</Text>
               <Text style={styles.cancelReason}>{language === "he" ? "סיבה: " : "Reason: "}{c.reason}</Text>
-              {c.charged_full_price ? (
+              {sched ? (
                 <Text style={styles.chargeWarn}>
-                  {language === "he" ? "ביטול מאוחר (<24ש׳) — חיוב" : "Late cancellation (<24h) — charged"}
+                  {language === "he" ? "ביטול מאוחר (<12ש׳ לפני האימון)" : "Late cancellation (<12h before session)"}
+                </Text>
+              ) : c.charged_full_price ? (
+                <Text style={styles.chargeInfo}>
+                  {language === "he"
+                    ? "ביטול בטווח חיוב (<24ש׳ לפני האימון) — ייתכן חיוב"
+                    : "Within charge window (<24h before start) — may be charged"}
                 </Text>
               ) : null}
             </View>
@@ -899,7 +930,11 @@ export default function ManagerSessionDetail() {
       <View style={styles.notesCard}>
         {!noteComposerOpen ? (
           <Pressable
-            onPress={() => setNoteComposerOpen(true)}
+            onPress={() => {
+              setEditingNoteId(null);
+              setNoteEditDraft("");
+              setNoteComposerOpen(true);
+            }}
             style={({ pressed }) => [styles.noteCollapsedTrigger, pressed && { opacity: 0.88 }]}
             accessibilityRole="button"
           >
@@ -958,24 +993,90 @@ export default function ManagerSessionDetail() {
               const p = n.profiles ? (Array.isArray(n.profiles) ? n.profiles[0] : n.profiles) : null;
               const name = p?.full_name ?? n.author_id;
               const canDelete = (profile?.role === "manager") || (!!user?.id && user.id === n.author_id);
+              const isEditing = editingNoteId === n.id;
               return (
                 <View key={n.id} style={styles.noteRow}>
                   <Text style={[styles.noteMeta, isRTL && styles.rtlText]}>
                     {name} · {formatDateTimeForDisplay(n.created_at, language)}
                   </Text>
-                  <Text style={[styles.noteBody, isRTL && styles.rtlText]}>{n.body}</Text>
-                  {canDelete ? (
-                    <TouchableOpacity
-                      activeOpacity={0.75}
-                      delayPressIn={0}
-                      onPress={() => void deleteNote(n.id)}
-                      // Extra fallback for iOS Safari / RN web edge cases.
-                      {...(Platform.OS === "web" ? ({ onClick: () => void deleteNote(n.id) } as any) : null)}
-                      style={[styles.noteDelete, Platform.OS === "web" && styles.noteDeleteWeb]}
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.noteDeleteTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
-                    </TouchableOpacity>
+                  {isEditing ? (
+                    <>
+                      <TextInput
+                        style={[styles.noteInput, isRTL && styles.noteInputRtl, styles.noteEditInput]}
+                        value={noteEditDraft}
+                        onChangeText={setNoteEditDraft}
+                        placeholderTextColor={theme.colors.placeholderOnLight}
+                        multiline
+                        autoFocus
+                      />
+                      <View style={[styles.noteEditActions, isRTL && styles.noteEditActionsRtl]}>
+                        <Pressable
+                          onPress={() => {
+                            setEditingNoteId(null);
+                            setNoteEditDraft("");
+                          }}
+                          style={({ pressed }) => [styles.noteCancelBtn, pressed && { opacity: 0.85 }]}
+                        >
+                          <Text style={styles.noteCancelBtnTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                        </Pressable>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.noteBtn,
+                            styles.noteBtnInline,
+                            pressed && { opacity: 0.9 },
+                            (noteBusy || !noteEditDraft.trim()) && { opacity: 0.5 },
+                          ]}
+                          onPress={() => void updateNote(n.id)}
+                          disabled={noteBusy || !noteEditDraft.trim()}
+                        >
+                          {noteBusy ? (
+                            <ActivityIndicator color={theme.colors.ctaText} />
+                          ) : (
+                            <Text style={styles.noteBtnTxt}>{language === "he" ? "שמירה" : "Save"}</Text>
+                          )}
+                        </Pressable>
+                      </View>
+                    </>
+                  ) : (
+                    <Text style={[styles.noteBody, isRTL && styles.rtlText]}>{n.body}</Text>
+                  )}
+                  {!isEditing && canDelete ? (
+                    <View style={[styles.noteRowActions, isRTL && styles.noteRowActionsRtl]}>
+                      <TouchableOpacity
+                        activeOpacity={0.75}
+                        delayPressIn={0}
+                        onPress={() => {
+                          setNoteComposerOpen(false);
+                          setNoteDraft("");
+                          setEditingNoteId(n.id);
+                          setNoteEditDraft(n.body);
+                        }}
+                        {...(Platform.OS === "web"
+                          ? ({
+                              onClick: () => {
+                                setNoteComposerOpen(false);
+                                setNoteDraft("");
+                                setEditingNoteId(n.id);
+                                setNoteEditDraft(n.body);
+                              },
+                            } as any)
+                          : null)}
+                        style={[styles.noteEditBtn, Platform.OS === "web" && styles.noteDeleteWeb]}
+                        accessibilityRole="button"
+                      >
+                        <Text style={styles.noteEditBtnTxt}>{language === "he" ? "עריכה" : "Edit"}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        activeOpacity={0.75}
+                        delayPressIn={0}
+                        onPress={() => void deleteNote(n.id)}
+                        {...(Platform.OS === "web" ? ({ onClick: () => void deleteNote(n.id) } as any) : null)}
+                        style={[styles.noteDelete, Platform.OS === "web" && styles.noteDeleteWeb]}
+                        accessibilityRole="button"
+                      >
+                        <Text style={styles.noteDeleteTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
+                      </TouchableOpacity>
+                    </View>
                   ) : null}
                 </View>
               );
@@ -991,6 +1092,8 @@ export default function ManagerSessionDetail() {
             onPress={() => {
               setNoteComposerOpen(false);
               setNoteDraft("");
+              setEditingNoteId(null);
+              setNoteEditDraft("");
               setUndoStack([]);
               setPendingDeleteSession(false);
               setEditingSession(true);
@@ -1222,9 +1325,28 @@ const styles = StyleSheet.create({
   },
   noteMeta: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700" },
   noteBody: { marginTop: 6, color: theme.colors.text, fontWeight: "700", lineHeight: 18 },
-  noteDelete: { marginTop: 10, alignSelf: "flex-start" },
+  noteDelete: { marginTop: 0, alignSelf: "flex-start" },
   noteDeleteWeb: { cursor: "pointer" } as const,
   noteDeleteTxt: { color: theme.colors.error, fontWeight: "900" },
+  noteEditInput: { marginTop: 6 },
+  noteEditActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  noteEditActionsRtl: { flexDirection: "row-reverse" },
+  noteRowActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginTop: 10,
+    alignSelf: "flex-start",
+  },
+  noteRowActionsRtl: { flexDirection: "row-reverse" },
+  noteEditBtn: { alignSelf: "flex-start" },
+  noteEditBtnTxt: { color: theme.colors.cta, fontWeight: "900" },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.borderInput,
@@ -1346,4 +1468,5 @@ const styles = StyleSheet.create({
   cancelMeta: { marginTop: 4, color: theme.colors.textMuted, fontSize: 12 },
   cancelReason: { marginTop: 6, color: theme.colors.text, lineHeight: 18 },
   chargeWarn: { marginTop: 8, color: theme.colors.error, fontWeight: "800" },
+  chargeInfo: { marginTop: 8, color: theme.colors.textMuted, fontWeight: "700" },
 });

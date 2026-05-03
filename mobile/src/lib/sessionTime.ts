@@ -35,6 +35,22 @@ export function sessionEndsAt(sessionDate: string, startTime: string, durationMi
   return new Date(sessionStartsAt(sessionDate, startTime).getTime() + durationMinutes * 60 * 1000);
 }
 
+/**
+ * True if the athlete cancelled at or within `hours` before session start (local calendar),
+ * and cancellation was not after session start.
+ */
+export function isCancellationWithinHoursBeforeSession(
+  sessionDate: string,
+  startTime: string,
+  cancelledAtIso: string,
+  hours: number
+): boolean {
+  const startMs = sessionStartsAt(sessionDate, startTime).getTime();
+  const cancelledMs = new Date(cancelledAtIso).getTime();
+  if (!Number.isFinite(cancelledMs) || cancelledMs > startMs) return false;
+  return startMs - cancelledMs <= hours * 60 * 60 * 1000;
+}
+
 export function hasSessionNotEnded(
   sessionDate: string,
   startTime: string,

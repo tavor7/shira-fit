@@ -73,10 +73,14 @@ export type ParticipantHistoryRow = {
   attended?: boolean | null;
   /** Payment method when marked arrived (staff workflow). */
   payment_method?: string | null;
+  /** Optional amount recorded with payment (same workflow). */
+  amount_paid?: number | string | null;
   /** From `cancellations.reason` when the athlete self-cancelled. */
   cancellation_reason?: string | null;
-  /** True when cancellation was within 24h of session start (`charged_full_price`). */
+  /** True when cancellation was within 24h of session start (charge policy / `charged_full_price`). */
   cancellation_within_24h?: boolean | null;
+  /** True when cancellation was within 12h of session start (UI / report filter). */
+  cancellation_within_12h?: boolean | null;
   cancelled_at?: string | null;
 };
 
