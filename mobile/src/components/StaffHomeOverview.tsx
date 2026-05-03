@@ -64,6 +64,8 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
     Record<string, { body: string; authorName: string; created_at: string } | null>
   >({});
   const [staffBirthdays, setStaffBirthdays] = useState<{ name: string; role: string }[]>([]);
+  const [teachingSignupCounts, setTeachingSignupCounts] = useState<Record<string, number>>({});
+  const [teachingNotePreview, setTeachingNotePreview] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60000);
