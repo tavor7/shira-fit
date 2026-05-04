@@ -69,6 +69,12 @@ export default function RootLayout() {
                 padding: 0;
               }
               input::-webkit-inner-spin-button { height: auto; }
+              /* Remove legacy WebKit scrollbar arrow buttons (can look like stray ▼/◀/▶ on scroll areas). */
+              ::-webkit-scrollbar-button {
+                display: none;
+                width: 0;
+                height: 0;
+              }
             `}</style>
           </Head>
         ) : null}
