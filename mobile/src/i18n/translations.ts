@@ -153,7 +153,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "homeAlerts.lateCancellation": "Late cancellation: {name} · {day} · {time}",
     "homeAlerts.lateCancellationLead": "Late cancellation",
     "homeAlerts.athlete": "Athlete",
-    "homeAlerts.registrationOpens": "Next registration opens {datetime}.",
+    /** Line 1 of registration countdown alert; line 2 is date · weekday · time (see HomePriorityAlerts segments). */
+    "homeAlerts.registrationOpensLead": "Next registration opens",
     "homeAlerts.registrationStillPending": "Some sessions are still closed for registration this week.",
     "homeAlerts.athleteWaitlistSpot": "Waitlist — a spot may be open: {date}",
     "homeAlerts.moreCount": "+{n} more",
@@ -307,7 +308,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "homeAlerts.lateCancellation": "ביטול מאוחר (חיוב): {name} · {day} · {time}",
     "homeAlerts.lateCancellationLead": "ביטול מאוחר (חיוב)",
     "homeAlerts.athlete": "מתאמן",
-    "homeAlerts.registrationOpens": "ההרשמה הבאה נפתחת ב-{datetime}.",
+    "homeAlerts.registrationOpensLead": "ההרשמה הבאה נפתחת",
     "homeAlerts.registrationStillPending": "חלק מהאימונים לשבוע הזה עדיין סגורים להרשמה.",
     "homeAlerts.athleteWaitlistSpot": "רשימת המתנה — ייתכן שיש מקום: {date}",
     "homeAlerts.moreCount": "+{n} נוספים",

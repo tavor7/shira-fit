@@ -229,11 +229,17 @@ export function buildAthleteRegistrationItems(
   const items: HomePriorityAlertItem[] = [];
   if (state.show_registration_countdown && state.eligible_next_week_count > 0 && state.next_open_at_utc) {
     const rid = `reg-cd-${state.next_open_at_utc}`;
+    const detail = formatUtcOpeningLabel(state.next_open_at_utc, language);
+    const lead = tr(language, "homeAlerts.registrationOpensLead");
+    const leadDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
+    const detailDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
     items.push({
       id: rid,
-      label: tr(language, "homeAlerts.registrationOpens", {
-        datetime: formatUtcOpeningLabel(state.next_open_at_utc, language),
-      }),
+      label: `${lead} ${detail}`,
+      labelSegments: [
+        { text: lead, dir: leadDir, role: "subject" },
+        { text: detail, dir: detailDir, role: "body" },
+      ],
       href: "/(app)/athlete/sessions",
     });
   } else if (state.show_registration_still_pending) {
