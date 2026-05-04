@@ -1,5 +1,8 @@
 -- Allow staff to add a participant when the session is already at max_participants,
 -- without changing max_participants (optional third argument).
+--
+-- After applying on Supabase: if the API still returns "Could not find the function ... in the schema cache",
+-- run once in SQL editor:  notify pgrst, 'reload schema';
 
 drop function if exists public.coach_add_athlete(uuid, uuid);
 drop function if exists public.add_manual_participant_to_session(uuid, uuid);
@@ -45,7 +48,7 @@ begin
     return json_build_object('ok', false, 'error', 'invalid_athlete');
   end if;
   v_count := public.active_registration_count(p_session_id);
-  if not p_allow_over_capacity and v_count >= v_sess.max_participants then
+  if not coalesce(p_allow_over_capacity, false) and v_count >= v_sess.max_participants then
     return json_build_object('ok', false, 'error', 'full');
   end if;
 

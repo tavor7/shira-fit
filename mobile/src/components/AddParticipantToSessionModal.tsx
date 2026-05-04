@@ -37,6 +37,23 @@ function escapeIlike(term: string) {
   return term.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
+/** Only include over-capacity when true so PostgREST matches the DB after migration; omitting matches 2-arg legacy. */
+function coachAddAthleteRpcArgs(sid: string, userId: string, allowOverCapacity: boolean) {
+  return allowOverCapacity
+    ? { p_session_id: sid, p_user_id: userId, p_allow_over_capacity: true as const }
+    : { p_session_id: sid, p_user_id: userId };
+}
+
+function addManualParticipantRpcArgs(sid: string, manualId: string, allowOverCapacity: boolean) {
+  return allowOverCapacity
+    ? {
+        p_session_id: sid,
+        p_manual_participant_id: manualId,
+        p_allow_over_capacity: true as const,
+      }
+    : { p_session_id: sid, p_manual_participant_id: manualId };
+}
+
 export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAdded }: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
@@ -78,11 +95,8 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   }, [sid]);
 
   const confirmAddWhenFull = useCallback(async (): Promise<boolean> => {
-    const title = language === "he" ? "הקבוצה מלאה" : "Session full";
-    const msg =
-      language === "he"
-        ? "המקומות תפוסים. להוסיף את המשתתף בכל זאת? מספר המקומות המקסימלי לא ישתנה."
-        : "This session is at capacity. Add this participant anyway? Max participants will not be increased.";
+    const title = language === "he" ? "האימון מלא" : "Session full";
+    const msg = language === "he" ? "להוסיף בכל זאת?" : "Add anyway?";
 
     if (Platform.OS === "web" && typeof window !== "undefined") {
       try {
@@ -207,11 +221,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         );
         return;
       }
-      const { data, error } = await supabase.rpc("coach_add_athlete", {
-        p_session_id: sid,
-        p_user_id: userId,
-        p_allow_over_capacity: allowOverCapacity,
-      });
+      const { data, error } = await supabase.rpc("coach_add_athlete", coachAddAthleteRpcArgs(sid, userId, allowOverCapacity));
       if (error) {
         toastError(t("common.error"), error.message);
         return;
@@ -254,11 +264,10 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         );
         return;
       }
-      const { data, error } = await supabase.rpc("add_manual_participant_to_session", {
-        p_session_id: sid,
-        p_manual_participant_id: manualId,
-        p_allow_over_capacity: allowOverCapacity,
-      });
+      const { data, error } = await supabase.rpc(
+        "add_manual_participant_to_session",
+        addManualParticipantRpcArgs(sid, manualId, allowOverCapacity)
+      );
       if (error) {
         toastError(t("common.error"), error.message);
         return;
@@ -306,11 +315,10 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         toastError(t("common.failed"), up?.error ?? (language === "he" ? "לא ניתן ליצור" : "Could not create"));
         return;
       }
-      const { data, error } = await supabase.rpc("add_manual_participant_to_session", {
-        p_session_id: sid,
-        p_manual_participant_id: mid,
-        p_allow_over_capacity: allowOverCapacity,
-      });
+      const { data, error } = await supabase.rpc(
+        "add_manual_participant_to_session",
+        addManualParticipantRpcArgs(sid, mid, allowOverCapacity)
+      );
       if (error) {
         toastError(t("common.error"), error.message);
         return;
@@ -450,9 +458,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
           {webFullAddPrompt ? (
             <View style={[styles.capBanner, isRTL && styles.capBannerRtl]} accessibilityLiveRegion="polite">
               <Text style={[styles.capBannerTxt, isRTL && styles.rtlText]}>
-                {language === "he"
-                  ? "המקומות תפוסים. להוסיף בכל זאת בלי לשנות את המקסימום?"
-                  : "Session is at capacity. Add anyway without changing max participants?"}
+                {language === "he" ? "האימון מלא. להוסיף בכל זאת?" : "Session is full. Add anyway?"}
               </Text>
               <View style={[styles.capBannerBtns, isRTL && styles.capBannerBtnsRtl]}>
                 <Pressable
