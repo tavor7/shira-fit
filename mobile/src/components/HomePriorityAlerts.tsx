@@ -60,7 +60,10 @@ function AlertLabel({
 
   function segmentRun(run: HomePriorityLabelSegment[], lineNumberOfLines?: number) {
     return (
-      <Text style={{ writingDirection: baseDir }} numberOfLines={lineNumberOfLines}>
+      <Text
+        style={[{ writingDirection: baseDir }, isRTL && styles.segmentLineRtl]}
+        numberOfLines={lineNumberOfLines}
+      >
         {run.map((seg, idx) => {
           const isSubject = seg.role === "subject";
           return (
@@ -89,7 +92,7 @@ function AlertLabel({
 
     if (stacked) {
       return (
-        <View style={styles.labelStack}>
+        <View style={[styles.labelStack, isRTL && styles.labelStackRtl]}>
           {segmentRun(subjectSegs, 1)}
           {segmentRun(bodySegs, numberOfLines)}
         </View>
@@ -185,7 +188,7 @@ export function HomePriorityAlerts({
     const dismissBtn = dismissEnabled ? (
       <Pressable
         onPress={() => void handleDismiss(it.id)}
-        style={({ pressed }) => [styles.dismissHit, pressed && { opacity: 0.75 }]}
+        style={({ pressed }) => [styles.dismissHit, isRTL && styles.dismissHitRtl, pressed && { opacity: 0.75 }]}
         accessibilityRole="button"
         accessibilityLabel={t("homeAlerts.dismissA11y")}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -196,9 +199,9 @@ export function HomePriorityAlerts({
 
     if (variant === "strip") {
       return (
-        <View style={[styles.rowOuter, showBottomBorder && styles.rowBorder]}>
+        <View style={[styles.rowOuter, showBottomBorder && styles.rowBorder, isRTL && styles.rowOuterRtl]}>
           <Pressable
-            style={({ pressed }) => [styles.rowTap, pressed && { opacity: 0.88 }]}
+            style={({ pressed }) => [styles.rowTap, isRTL && styles.rowTapRtl, pressed && { opacity: 0.88 }]}
             onPress={() => router.push(it.href)}
             accessibilityRole="button"
             accessibilityLabel={a11y}
@@ -211,9 +214,9 @@ export function HomePriorityAlerts({
     }
 
     return (
-      <View style={[modalStyles.sheetRowOuter, showBottomBorder && modalStyles.sheetRowBorder]}>
+      <View style={[modalStyles.sheetRowOuter, showBottomBorder && modalStyles.sheetRowBorder, isRTL && modalStyles.sheetRowOuterRtl]}>
         <Pressable
-          style={({ pressed }) => [modalStyles.sheetRowTap, pressed && { opacity: 0.88 }]}
+          style={({ pressed }) => [modalStyles.sheetRowTap, isRTL && modalStyles.sheetRowTapRtl, pressed && { opacity: 0.88 }]}
           onPress={() => openItem(it.href)}
           accessibilityRole="button"
           accessibilityLabel={a11y}
@@ -295,13 +298,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
-    paddingLeft: theme.spacing.sm,
+    paddingStart: theme.spacing.sm,
+    paddingEnd: theme.spacing.xs,
+  },
+  /** Hebrew / RTL: accent bar on the logical end — keep copy off the thick border + ×. */
+  rowOuterRtl: {
+    paddingStart: theme.spacing.md,
+    paddingEnd: theme.spacing.md + 6,
   },
   rowTap: {
     flex: 1,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
+  },
+  rowTapRtl: {
+    paddingEnd: theme.spacing.xs,
   },
   rowContent: {
     flexDirection: "row",
@@ -323,12 +335,23 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 3,
   },
+  labelStackRtl: {
+    alignItems: "flex-end",
+    alignSelf: "stretch",
+  },
+  segmentLineRtl: {
+    textAlign: "right",
+    alignSelf: "stretch",
+  },
   dismissHit: {
     justifyContent: "center",
     alignSelf: "stretch",
-    paddingLeft: 4,
-    paddingRight: theme.spacing.xs,
-    minWidth: 40,
+    paddingHorizontal: theme.spacing.xs,
+    minWidth: 44,
+  },
+  dismissHitRtl: {
+    paddingStart: theme.spacing.sm,
+    paddingEnd: theme.spacing.xs,
   },
   dismissGlyph: {
     color: theme.colors.textMuted,
@@ -437,13 +460,21 @@ const modalStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
-    paddingLeft: theme.spacing.sm,
+    paddingStart: theme.spacing.sm,
+    paddingEnd: theme.spacing.xs,
+  },
+  sheetRowOuterRtl: {
+    paddingStart: theme.spacing.md,
+    paddingEnd: theme.spacing.md + 6,
   },
   sheetRowTap: {
     flex: 1,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
+  },
+  sheetRowTapRtl: {
+    paddingEnd: theme.spacing.xs,
   },
   sheetRowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,

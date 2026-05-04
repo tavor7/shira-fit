@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, ActivityIndicator, ScrollView } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../../src/types/database";
-import { formatSessionTimeRange } from "../../../../src/lib/sessionTime";
+import { formatSessionTimeRange, hasSessionNotEnded } from "../../../../src/lib/sessionTime";
 import { formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateFormat";
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
@@ -98,6 +98,14 @@ export default function AthleteSessionDetail() {
 
   async function register() {
     if (registering || waitlisting || cancelling) return;
+    if (!session || !hasSessionNotEnded(session.session_date, session.start_time, session.duration_minutes ?? 60)) {
+      showToast({
+        message: language === "he" ? "לא ניתן להירשם" : "Could not register",
+        detail: t("athleteSession.sessionEndedNoRegister"),
+        variant: "error",
+      });
+      return;
+    }
     setRegistering(true);
     const { data, error } = await supabase.rpc("register_for_session", { p_session_id: sessionId });
     setRegistering(false);
@@ -122,6 +130,14 @@ export default function AthleteSessionDetail() {
 
   async function waitlist() {
     if (registering || waitlisting || cancelling) return;
+    if (!session || !hasSessionNotEnded(session.session_date, session.start_time, session.duration_minutes ?? 60)) {
+      showToast({
+        message: language === "he" ? "רשימת המתנה" : "Waitlist",
+        detail: t("athleteSession.sessionEndedNoRegister"),
+        variant: "error",
+      });
+      return;
+    }
     setWaitlisting(true);
     const { data, error } = await supabase.rpc("request_waitlist", { p_session_id: sessionId });
     setWaitlisting(false);
@@ -219,6 +235,7 @@ export default function AthleteSessionDetail() {
   const full = count >= session.max_participants;
   const spotsLeft = Math.max(0, session.max_participants - count);
   const regOpen = !!session.is_open_for_registration;
+  const sessionNotEnded = hasSessionNotEnded(session.session_date, session.start_time, session.duration_minutes ?? 60);
 
   return (
     <>
@@ -280,14 +297,19 @@ export default function AthleteSessionDetail() {
           <PrimaryButton
             label={registering ? t("common.loading") : language === "he" ? "הרשמה" : "Register"}
             onPress={register}
-            disabled={full || !regOpen || registering || waitlisting || cancelling}
-            style={full || !regOpen ? styles.disabled : undefined}
+            disabled={full || !regOpen || !sessionNotEnded || registering || waitlisting || cancelling}
+            style={full || !regOpen || !sessionNotEnded ? styles.disabled : undefined}
           />
           {(full || onWaitlist) && (
             <Pressable
               style={styles.btn2}
               onPress={onWaitlist ? leaveWaitlist : waitlist}
-              disabled={waitlisting || registering || cancelling}
+              disabled={
+                waitlisting ||
+                registering ||
+                cancelling ||
+                (!onWaitlist && (!full || !sessionNotEnded))
+              }
             >
               <Text style={styles.btnText2}>
                 {onWaitlist
@@ -300,7 +322,9 @@ export default function AthleteSessionDetail() {
               </Text>
             </Pressable>
           )}
-          {!full && !regOpen ? (
+          {!sessionNotEnded ? (
+            <Text style={[styles.closedHint, isRTL && styles.rtlText]}>{t("athleteSession.sessionEndedNoRegister")}</Text>
+          ) : !full && !regOpen ? (
             <Text style={[styles.closedHint, isRTL && styles.rtlText]}>
               {language === "he" ? "ההרשמה סגורה כרגע." : "Registration is currently closed."}
             </Text>

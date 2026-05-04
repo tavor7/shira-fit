@@ -67,7 +67,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
           {item.trainerName}
         </Text>
       ) : null}
-      {showFill && !staffLabels ? (
+      {showFill && !staffLabels && temporalPhase !== "past" ? (
         <View style={[styles.chips, isRTL && styles.chipsRtl]}>
           {full ? (
             <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" />

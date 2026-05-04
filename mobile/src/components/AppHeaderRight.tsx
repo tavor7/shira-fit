@@ -29,19 +29,29 @@ export function AppHeaderRight() {
       : baseRole;
 
   return (
-    <View style={[styles.wrap, isRTL && styles.wrapRTL]}>
-      <View style={styles.nameBlock}>
-        <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
+    <View style={[styles.wrap, isRTL && styles.wrapRTL, isRTL && styles.wrapRtlSpacing]}>
+      <View style={[styles.nameBlock, isRTL && styles.nameBlockRtl]}>
+        <Text
+          style={[styles.name, isRTL && styles.nameRtl]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}
+        >
           {loading ? "…" : name}
         </Text>
         {roleLine ? (
-          <Text style={styles.role} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
+          <Text
+            style={[styles.role, isRTL && styles.roleRtl]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}
+          >
             {roleLine}
           </Text>
         ) : null}
       </View>
       {/* Keep Profile + Log out on one row — wrapping stacked them and overlapped page content on narrow web / athlete preview. */}
-      <View style={styles.chipsRow}>
+      <View style={[styles.chipsRow, isRTL && styles.chipsRowRtl]}>
         <Pressable
           onPress={() => router.push("/(app)/profile")}
           disabled={loading || pendingAthlete}
@@ -84,6 +94,8 @@ const styles = StyleSheet.create({
     paddingEnd: theme.spacing.sm,
   },
   wrapRTL: { flexDirection: "row-reverse", justifyContent: "flex-start" },
+  /** Slightly more air between name block and chips in Hebrew / RTL headers. */
+  wrapRtlSpacing: { gap: 10 },
   nameBlock: {
     flex: 1,
     alignItems: "flex-end",
@@ -91,18 +103,27 @@ const styles = StyleSheet.create({
     minWidth: 0,
     maxWidth: "100%",
   },
+  /** Align identity lines toward the center gap so RTL labels don’t hug the wrong edge. */
+  nameBlockRtl: {
+    alignItems: "flex-start",
+    marginEnd: 0,
+    marginStart: 6,
+  },
   chipsRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     flexShrink: 0,
   },
+  /** Logout outermost (screen edge); Profile toward name — matches common RTL patterns. */
+  chipsRowRtl: { flexDirection: "row-reverse", gap: 8 },
   name: {
     fontSize: 13,
     fontWeight: "800",
     color: theme.colors.text,
     letterSpacing: 0.15,
   },
+  nameRtl: { textAlign: "right", writingDirection: "rtl", alignSelf: "stretch" },
   role: {
     marginTop: 1,
     fontSize: 9,
@@ -111,6 +132,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
+  roleRtl: { textAlign: "right", writingDirection: "rtl", alignSelf: "stretch" },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
