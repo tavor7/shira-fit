@@ -24,14 +24,9 @@ type Props = {
   onClose: () => void;
   /** After a successful add */
   onAdded: () => void;
-  /**
-   * Manager-only behavior:
-   * When the session is full, prompt to increase capacity and proceed only if they add someone.
-   */
-  allowIncreaseCapacityWhenFull?: boolean;
 };
 
-type WebCapPrompt =
+type WebFullAddPrompt =
   | null
   | { kind: "athlete"; userId: string }
   | { kind: "manual"; manualId: string }
@@ -42,13 +37,7 @@ function escapeIlike(term: string) {
   return term.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
-export function AddParticipantToSessionModal({
-  sessionId,
-  visible,
-  onClose,
-  onAdded,
-  allowIncreaseCapacityWhenFull,
-}: Props) {
+export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAdded }: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
   const { height: windowHeight } = useWindowDimensions();
@@ -68,7 +57,7 @@ export function AddParticipantToSessionModal({
   const [quickPhone, setQuickPhone] = useState("");
   const [adding, setAdding] = useState(false);
   /** Web: `window.confirm` is unreliable inside RN Modal — use inline banner instead. */
-  const [webCapPrompt, setWebCapPrompt] = useState<WebCapPrompt>(null);
+  const [webFullAddPrompt, setWebFullAddPrompt] = useState<WebFullAddPrompt>(null);
 
   const sid = typeof sessionId === "string" ? sessionId : Array.isArray(sessionId) ? sessionId[0] : String(sessionId ?? "");
 
@@ -88,42 +77,33 @@ export function AddParticipantToSessionModal({
     setCurrentCount((c1 ?? 0) + (c2 ?? 0));
   }, [sid]);
 
-  const confirmIncreaseCapacity = useCallback(async (): Promise<boolean> => {
-    const title = language === "he" ? "האימון מלא" : "Session full";
+  const confirmAddWhenFull = useCallback(async (): Promise<boolean> => {
+    const title = language === "he" ? "הקבוצה מלאה" : "Session full";
     const msg =
       language === "he"
-        ? "האימון מלא. להגדיל את הקיבולת כדי להוסיף משתתף?"
-        : "This session is full. Increase max participants to add someone?";
+        ? "המקומות תפוסים. להוסיף את המשתתף בכל זאת? מספר המקומות המקסימלי לא ישתנה."
+        : "This session is at capacity. Add this participant anyway? Max participants will not be increased.";
 
     if (Platform.OS === "web" && typeof window !== "undefined") {
       try {
         // eslint-disable-next-line no-alert
         return window.confirm(`${title}\n\n${msg}`);
       } catch {
-        return true; // fallback: don't block add if confirm is unavailable
+        return false;
       }
     }
 
     return await new Promise<boolean>((resolve) => {
       Alert.alert(title, msg, [
-        { text: language === "he" ? "לא" : "No", style: "cancel", onPress: () => resolve(false) },
-        { text: language === "he" ? "כן" : "Yes", style: "default", onPress: () => resolve(true) },
+        { text: language === "he" ? "ביטול" : "Cancel", style: "cancel", onPress: () => resolve(false) },
+        {
+          text: language === "he" ? "הוסף בכל זאת" : "Add anyway",
+          style: "default",
+          onPress: () => resolve(true),
+        },
       ]);
     });
   }, [language]);
-
-  const increaseCapacityByOne = useCallback(async (): Promise<boolean> => {
-    if (!sid) return false;
-    if (maxCap == null) return false;
-    const next = Math.max(1, Number(maxCap) + 1);
-    const { error } = await supabase.from("training_sessions").update({ max_participants: next }).eq("id", sid);
-    if (error) {
-      showToast({ message: t("common.error"), detail: error.message, variant: "error" });
-      return false;
-    }
-    setMaxCap(next);
-    return true;
-  }, [maxCap, sid, t, showToast]);
 
   const runSearch = useCallback(async (termRaw: string) => {
     const term = termRaw.trim();
@@ -168,7 +148,7 @@ export function AddParticipantToSessionModal({
     setQuickName("");
     setQuickPhone("");
     setAdding(false);
-    setWebCapPrompt(null);
+    setWebFullAddPrompt(null);
     void loadCounts();
     void runSearch("");
   }, [visible, sid, loadCounts, runSearch]);
@@ -179,8 +159,6 @@ export function AddParticipantToSessionModal({
   }
 
   const full = isFull();
-  /** When full, rows stay tappable for managers so they can confirm bump-then-add; coaches stay blocked. */
-  const blockPickWhenFull = full && !allowIncreaseCapacityWhenFull;
 
   function toastSuccess(msg: string) {
     showToast({ message: msg, variant: "success" });
@@ -208,7 +186,7 @@ export function AddParticipantToSessionModal({
     return code;
   }
 
-  async function runAddExistingAthleteCore(userId: string) {
+  async function runAddExistingAthleteCore(userId: string, allowOverCapacity = false) {
     setAdding(true);
     try {
       const { data: already, error: alreadyErr } = await supabase
@@ -229,7 +207,11 @@ export function AddParticipantToSessionModal({
         );
         return;
       }
-      const { data, error } = await supabase.rpc("coach_add_athlete", { p_session_id: sid, p_user_id: userId });
+      const { data, error } = await supabase.rpc("coach_add_athlete", {
+        p_session_id: sid,
+        p_user_id: userId,
+        p_allow_over_capacity: allowOverCapacity,
+      });
       if (error) {
         toastError(t("common.error"), error.message);
         return;
@@ -252,7 +234,7 @@ export function AddParticipantToSessionModal({
     }
   }
 
-  async function runAddExistingManualCore(manualId: string) {
+  async function runAddExistingManualCore(manualId: string, allowOverCapacity = false) {
     setAdding(true);
     try {
       const { data: already, error: alreadyErr } = await supabase
@@ -275,6 +257,7 @@ export function AddParticipantToSessionModal({
       const { data, error } = await supabase.rpc("add_manual_participant_to_session", {
         p_session_id: sid,
         p_manual_participant_id: manualId,
+        p_allow_over_capacity: allowOverCapacity,
       });
       if (error) {
         toastError(t("common.error"), error.message);
@@ -305,7 +288,7 @@ export function AddParticipantToSessionModal({
     }
   }
 
-  async function runQuickAddCore() {
+  async function runQuickAddCore(allowOverCapacity = false) {
     const name = quickName.trim();
     const phone = quickPhone.trim();
     setAdding(true);
@@ -326,6 +309,7 @@ export function AddParticipantToSessionModal({
       const { data, error } = await supabase.rpc("add_manual_participant_to_session", {
         p_session_id: sid,
         p_manual_participant_id: mid,
+        p_allow_over_capacity: allowOverCapacity,
       });
       if (error) {
         toastError(t("common.error"), error.message);
@@ -348,18 +332,13 @@ export function AddParticipantToSessionModal({
     }
   }
 
-  async function confirmWebCapacityAndProceed() {
-    if (!webCapPrompt || !allowIncreaseCapacityWhenFull) return;
-    const bumped = await increaseCapacityByOne();
-    if (!bumped) {
-      setWebCapPrompt(null);
-      return;
-    }
-    const p = webCapPrompt;
-    setWebCapPrompt(null);
-    if (p.kind === "athlete") await runAddExistingAthleteCore(p.userId);
-    else if (p.kind === "manual") await runAddExistingManualCore(p.manualId);
-    else await runQuickAddCore();
+  async function confirmWebFullAddProceed() {
+    if (!webFullAddPrompt) return;
+    const p = webFullAddPrompt;
+    setWebFullAddPrompt(null);
+    if (p.kind === "athlete") await runAddExistingAthleteCore(p.userId, true);
+    else if (p.kind === "manual") await runAddExistingManualCore(p.manualId, true);
+    else await runQuickAddCore(true);
   }
 
   async function addExistingAthlete(userId: string) {
@@ -369,20 +348,16 @@ export function AddParticipantToSessionModal({
       return;
     }
     if (full) {
-      if (!allowIncreaseCapacityWhenFull) {
-        toastInfo(language === "he" ? "האימון מלא" : "Session full");
-        return;
-      }
       if (Platform.OS === "web") {
-        setWebCapPrompt({ kind: "athlete", userId });
+        setWebFullAddPrompt({ kind: "athlete", userId });
         return;
       }
-      const ok = await confirmIncreaseCapacity();
+      const ok = await confirmAddWhenFull();
       if (!ok) return;
-      const bumped = await increaseCapacityByOne();
-      if (!bumped) return;
+      await runAddExistingAthleteCore(userId, true);
+      return;
     }
-    await runAddExistingAthleteCore(userId);
+    await runAddExistingAthleteCore(userId, false);
   }
 
   async function addExistingManual(manualId: string) {
@@ -392,20 +367,16 @@ export function AddParticipantToSessionModal({
       return;
     }
     if (full) {
-      if (!allowIncreaseCapacityWhenFull) {
-        toastInfo(language === "he" ? "האימון מלא" : "Session full");
-        return;
-      }
       if (Platform.OS === "web") {
-        setWebCapPrompt({ kind: "manual", manualId });
+        setWebFullAddPrompt({ kind: "manual", manualId });
         return;
       }
-      const ok = await confirmIncreaseCapacity();
+      const ok = await confirmAddWhenFull();
       if (!ok) return;
-      const bumped = await increaseCapacityByOne();
-      if (!bumped) return;
+      await runAddExistingManualCore(manualId, true);
+      return;
     }
-    await runAddExistingManualCore(manualId);
+    await runAddExistingManualCore(manualId, false);
   }
 
   async function quickAdd() {
@@ -423,26 +394,23 @@ export function AddParticipantToSessionModal({
       return;
     }
     if (full) {
-      if (!allowIncreaseCapacityWhenFull) {
-        toastInfo(language === "he" ? "האימון מלא" : "Session full");
-        return;
-      }
       if (Platform.OS === "web") {
-        setWebCapPrompt({ kind: "quick" });
+        setWebFullAddPrompt({ kind: "quick" });
         return;
       }
-      const ok = await confirmIncreaseCapacity();
+      const ok = await confirmAddWhenFull();
       if (!ok) return;
-      const bumped = await increaseCapacityByOne();
-      if (!bumped) return;
+      if (adding) return;
+      await runQuickAddCore(true);
+      return;
     }
     if (adding) return;
-    await runQuickAddCore();
+    await runQuickAddCore(false);
   }
 
   function handleClose() {
     if (adding) return;
-    setWebCapPrompt(null);
+    setWebFullAddPrompt(null);
     onClose();
   }
 
@@ -479,17 +447,17 @@ export function AddParticipantToSessionModal({
             </Text>
           </View>
 
-          {webCapPrompt && allowIncreaseCapacityWhenFull ? (
+          {webFullAddPrompt ? (
             <View style={[styles.capBanner, isRTL && styles.capBannerRtl]} accessibilityLiveRegion="polite">
               <Text style={[styles.capBannerTxt, isRTL && styles.rtlText]}>
                 {language === "he"
-                  ? "האימון מלא. להגדיל את המקסימום ב־1 ולהמשיך?"
-                  : "Session is full. Increase max participants by 1 and continue?"}
+                  ? "המקומות תפוסים. להוסיף בכל זאת בלי לשנות את המקסימום?"
+                  : "Session is at capacity. Add anyway without changing max participants?"}
               </Text>
               <View style={[styles.capBannerBtns, isRTL && styles.capBannerBtnsRtl]}>
                 <Pressable
                   style={({ pressed }) => [styles.capBtnGhost, pressed && { opacity: 0.88 }]}
-                  onPress={() => setWebCapPrompt(null)}
+                  onPress={() => setWebFullAddPrompt(null)}
                   disabled={adding}
                   accessibilityRole="button"
                 >
@@ -497,11 +465,11 @@ export function AddParticipantToSessionModal({
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.capBtnCta, pressed && { opacity: 0.9 }]}
-                  onPress={() => void confirmWebCapacityAndProceed()}
+                  onPress={() => void confirmWebFullAddProceed()}
                   disabled={adding}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.capBtnCtaTxt}>{language === "he" ? "כן, המשך" : "Yes, continue"}</Text>
+                  <Text style={styles.capBtnCtaTxt}>{language === "he" ? "כן, הוסף" : "Yes, add"}</Text>
                 </Pressable>
               </View>
             </View>
@@ -550,12 +518,11 @@ export function AddParticipantToSessionModal({
                 results.map((item) => (
                   <Pressable
                     key={item.user_id}
-                    disabled={blockPickWhenFull || adding}
+                    disabled={adding}
                     style={({ pressed }) => [
                       styles.pickRow,
-                      blockPickWhenFull && styles.pickRowDisabled,
                       Platform.OS === "web" && styles.pickRowWeb,
-                      pressed && !blockPickWhenFull && !adding && { opacity: 0.88 },
+                      pressed && !adding && { opacity: 0.88 },
                     ]}
                     onPress={() => void addExistingAthlete(item.user_id)}
                     accessibilityRole="button"
@@ -587,12 +554,11 @@ export function AddParticipantToSessionModal({
                 manualResults.map((item) => (
                   <Pressable
                     key={item.id}
-                    disabled={blockPickWhenFull || adding}
+                    disabled={adding}
                     style={({ pressed }) => [
                       styles.pickRow,
-                      blockPickWhenFull && styles.pickRowDisabled,
                       Platform.OS === "web" && styles.pickRowWeb,
-                      pressed && !blockPickWhenFull && !adding && { opacity: 0.88 },
+                      pressed && !adding && { opacity: 0.88 },
                     ]}
                     onPress={() => void addExistingManual(item.id)}
                     accessibilityRole="button"
@@ -627,10 +593,9 @@ export function AddParticipantToSessionModal({
             <PrimaryButton
               label={language === "he" ? "הוספה מהירה" : "Quick add"}
               onPress={() => void quickAdd()}
-              disabled={blockPickWhenFull || adding}
+              disabled={adding}
               loading={adding}
               loadingLabel={t("common.loading")}
-              style={blockPickWhenFull ? { opacity: 0.5 } : undefined}
             />
             <Pressable onPress={handleClose} disabled={adding} style={({ pressed }) => [pressed && { opacity: 0.8 }]}>
               <Text style={[styles.cancel, isRTL && styles.rtlText]}>{t("common.cancel")}</Text>

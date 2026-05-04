@@ -1162,7 +1162,6 @@ export default function ManagerSessionDetail() {
         sessionId={id}
         visible={addOpen}
         onClose={() => setAddOpen(false)}
-        allowIncreaseCapacityWhenFull
         onAdded={() => {
           void load();
           setParticipantsRev((n) => n + 1);
