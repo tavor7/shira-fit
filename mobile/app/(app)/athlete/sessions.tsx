@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl, Text } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
@@ -18,8 +18,10 @@ import { sessionStartsAt } from "../../../src/lib/sessionTime";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 import { fetchAthleteHomeAlertItems, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
+import { useAuth } from "../../../src/context/AuthContext";
 
 export default function AthleteSessionsScreen() {
+  const { profile, session } = useAuth();
   const { language, t } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
@@ -29,6 +31,16 @@ export default function AthleteSessionsScreen() {
   const [myUpcoming, setMyUpcoming] = useState<TrainingSessionWithTrainer[]>([]);
   const [calendarWeekEndIso, setCalendarWeekEndIso] = useState<string | null>(null);
   const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
+  const [priorityAlertsVisibleCount, setPriorityAlertsVisibleCount] = useState<number | null>(null);
+  const homeAlertsSig = useMemo(() => homeAlerts.map((x) => x.id).sort().join("|"), [homeAlerts]);
+
+  useEffect(() => {
+    setPriorityAlertsVisibleCount(null);
+  }, [homeAlertsSig]);
+
+  const dismissStorageUserId = profile?.user_id ?? session?.user?.id ?? null;
+  const showPriorityAlerts =
+    homeAlerts.length > 0 && (priorityAlertsVisibleCount === null || priorityAlertsVisibleCount > 0);
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
@@ -146,15 +158,19 @@ export default function AthleteSessionsScreen() {
           />
         }
       >
-        {homeAlerts.length > 0 ? (
+        {showPriorityAlerts ? (
           <View style={styles.alertsTop}>
-            <HomePriorityAlerts items={homeAlerts} />
+            <HomePriorityAlerts
+              items={homeAlerts}
+              dismissStorageUserId={dismissStorageUserId}
+              onVisibleCountChange={setPriorityAlertsVisibleCount}
+            />
           </View>
         ) : null}
         <View
           style={[
             styles.myUpcomingCard,
-            { marginTop: homeAlerts.length > 0 ? theme.spacing.sm : theme.spacing.md },
+            { marginTop: showPriorityAlerts ? theme.spacing.sm : theme.spacing.md },
           ]}
         >
           <Text style={styles.myUpcomingTitle}>{language === "he" ? "הסימונים שלך (מתוכנן)" : "Your upcoming sessions"}</Text>

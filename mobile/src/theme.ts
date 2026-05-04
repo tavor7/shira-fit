@@ -22,6 +22,8 @@ export const theme = {
     /** Soft paper for form fields (readable, not harsh white) */
     white: "#f0f0f3",
     text: "#f4f4f5",
+    /** Alert strip subject / lead (not full white; still high contrast on surface) */
+    alertSubject: "#b9b9c4",
     textMuted: "#a1a1aa",
     textSoft: "#71717a",
     border: "#2e2e36",

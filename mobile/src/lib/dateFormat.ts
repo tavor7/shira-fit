@@ -20,6 +20,17 @@ export function formatISODateFull(iso: string, language?: LanguageCode): string 
   });
 }
 
+/** YYYY-MM-DD → "4 May" / Hebrew equivalent — no weekday, no year (compact alerts). */
+export function formatISODateDayMonth(iso: string, language?: LanguageCode): string {
+  const d = parseISODateLocal(iso);
+  if (!d) return iso;
+  const lang = langOrEn(language);
+  return d.toLocaleDateString(appLocale(lang), {
+    day: "numeric",
+    month: "long",
+  });
+}
+
 /** YYYY-MM-DD → "15 March 2026 · Friday" / Hebrew equivalent */
 export function formatISODateFullWithWeekdayAfter(iso: string, language?: LanguageCode): string {
   const d = parseISODateLocal(iso);

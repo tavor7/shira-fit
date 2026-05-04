@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
@@ -27,6 +27,16 @@ export default function CoachSessionsScreen() {
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [refreshSeq, setRefreshSeq] = useState(0);
   const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
+  const [priorityAlertsVisibleCount, setPriorityAlertsVisibleCount] = useState<number | null>(null);
+  const homeAlertsSig = useMemo(() => homeAlerts.map((x) => x.id).sort().join("|"), [homeAlerts]);
+
+  useEffect(() => {
+    setPriorityAlertsVisibleCount(null);
+  }, [homeAlertsSig]);
+
+  const dismissStorageUserId = profile?.user_id ?? null;
+  const showPriorityAlerts =
+    homeAlerts.length > 0 && (priorityAlertsVisibleCount === null || priorityAlertsVisibleCount > 0);
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
@@ -85,9 +95,13 @@ export default function CoachSessionsScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
-        {homeAlerts.length > 0 ? (
+        {showPriorityAlerts ? (
           <View style={{ paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md }}>
-            <HomePriorityAlerts items={homeAlerts} />
+            <HomePriorityAlerts
+              items={homeAlerts}
+              dismissStorageUserId={dismissStorageUserId}
+              onVisibleCountChange={setPriorityAlertsVisibleCount}
+            />
           </View>
         ) : null}
         <StaffHomeOverview userId={profile?.user_id} sessions={rows} variant="coach" refreshSeq={refreshSeq} />

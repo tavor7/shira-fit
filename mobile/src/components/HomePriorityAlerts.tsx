@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -11,12 +11,16 @@ import {
 import { router } from "expo-router";
 import { theme } from "../theme";
 import type { HomePriorityAlertItem } from "../lib/homePriorityAlerts";
+import { dismissHomeAlert, filterUndismissedAlerts, loadDismissedHomeAlertIds } from "../lib/dismissedHomeAlerts";
 import { useI18n } from "../context/I18nContext";
 
 type Props = {
   items: HomePriorityAlertItem[];
-  /** First N tappable rows; rest summarized with a sheet for the full list. */
   maxVisible?: number;
+  /** Store dismissals per auth user (SecureStore / localStorage on web). */
+  dismissStorageUserId?: string | null;
+  /** Fires when visible count changes after load/dismiss (optional layout for parents). */
+  onVisibleCountChange?: (visibleCount: number) => void;
 };
 
 const wrapBase: ViewStyle = {
@@ -55,11 +59,21 @@ function AlertLabel({
   if (item.labelSegments?.length) {
     return (
       <Text style={[textStyle, { writingDirection: baseDir }]} numberOfLines={numberOfLines}>
-        {item.labelSegments.map((seg, idx) => (
-          <Text key={idx} style={{ writingDirection: seg.dir === "rtl" ? "rtl" : "ltr" }}>
-            {seg.text}
-          </Text>
-        ))}
+        {item.labelSegments.map((seg, idx) => {
+          const isSubject = seg.role === "subject";
+          const subjectStyle = variant === "strip" ? styles.segSubject : modalStyles.segSubject;
+          return (
+            <Text
+              key={idx}
+              style={[
+                isSubject ? subjectStyle : textStyle,
+                { writingDirection: seg.dir === "rtl" ? "rtl" : "ltr" },
+              ]}
+            >
+              {seg.text}
+            </Text>
+          );
+        })}
       </Text>
     );
   }
@@ -70,37 +84,136 @@ function AlertLabel({
   );
 }
 
-export function HomePriorityAlerts({ items, maxVisible = 2 }: Props) {
+export function HomePriorityAlerts({
+  items,
+  maxVisible = 2,
+  dismissStorageUserId,
+  onVisibleCountChange,
+}: Props) {
   const { isRTL, t } = useI18n();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
-  if (items.length === 0) return null;
+  useEffect(() => {
+    if (!dismissStorageUserId) {
+      setDismissed(new Set());
+      return;
+    }
+    let cancelled = false;
+    loadDismissedHomeAlertIds(dismissStorageUserId).then((s) => {
+      if (!cancelled) setDismissed(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dismissStorageUserId]);
 
-  const visible = items.slice(0, maxVisible);
-  const rest = items.length - visible.length;
+  const activeItems = useMemo(() => {
+    if (!dismissStorageUserId) return items;
+    return filterUndismissedAlerts(items, dismissed);
+  }, [items, dismissed, dismissStorageUserId]);
+
+  useEffect(() => {
+    onVisibleCountChange?.(activeItems.length);
+  }, [activeItems.length, onVisibleCountChange]);
+
+  const dismissEnabled = !!dismissStorageUserId;
+
+  const handleDismiss = useCallback(
+    async (id: string) => {
+      if (!dismissStorageUserId) return;
+      await dismissHomeAlert(dismissStorageUserId, id);
+      setDismissed((prev) => new Set([...prev, id]));
+    },
+    [dismissStorageUserId]
+  );
+
+  if (activeItems.length === 0) return null;
+
+  const visible = activeItems.slice(0, maxVisible);
+  const rest = activeItems.length - visible.length;
 
   function openItem(href: HomePriorityAlertItem["href"]) {
     setSheetOpen(false);
     router.push(href);
   }
 
+  function RowChrome({
+    it,
+    variant,
+    showBottomBorder,
+  }: {
+    it: HomePriorityAlertItem;
+    variant: "strip" | "sheet";
+    showBottomBorder: boolean;
+  }) {
+    const a11y = `${it.isNew ? `${t("homeAlerts.newBadge")}. ` : ""}${it.label}`;
+    const body = (
+      <View style={[styles.rowContent, isRTL && styles.rowContentRtl]}>
+        {it.isNew ? (
+          <View style={styles.newBadge}>
+            <Text style={styles.newBadgeTxt}>{t("homeAlerts.newBadge")}</Text>
+          </View>
+        ) : null}
+        <View style={styles.rowLabelFlex}>
+          <AlertLabel item={it} variant={variant} numberOfLines={variant === "strip" ? 2 : 3} />
+        </View>
+      </View>
+    );
+
+    const dismissBtn = dismissEnabled ? (
+      <Pressable
+        onPress={() => void handleDismiss(it.id)}
+        style={({ pressed }) => [styles.dismissHit, pressed && { opacity: 0.75 }]}
+        accessibilityRole="button"
+        accessibilityLabel={t("homeAlerts.dismissA11y")}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      >
+        <Text style={styles.dismissGlyph}>×</Text>
+      </Pressable>
+    ) : null;
+
+    if (variant === "strip") {
+      return (
+        <View style={[styles.rowOuter, showBottomBorder && styles.rowBorder]}>
+          <Pressable
+            style={({ pressed }) => [styles.rowTap, pressed && { opacity: 0.88 }]}
+            onPress={() => router.push(it.href)}
+            accessibilityRole="button"
+            accessibilityLabel={a11y}
+          >
+            {body}
+          </Pressable>
+          {dismissBtn}
+        </View>
+      );
+    }
+
+    return (
+      <View style={[modalStyles.sheetRowOuter, showBottomBorder && modalStyles.sheetRowBorder]}>
+        <Pressable
+          style={({ pressed }) => [modalStyles.sheetRowTap, pressed && { opacity: 0.88 }]}
+          onPress={() => openItem(it.href)}
+          accessibilityRole="button"
+          accessibilityLabel={a11y}
+        >
+          {body}
+        </Pressable>
+        {dismissBtn}
+      </View>
+    );
+  }
+
   return (
     <>
       <View style={[wrapBase, isRTL && { borderLeftWidth: 0, borderRightWidth: 4, borderRightColor: theme.colors.cta }]}>
         {visible.map((it, i) => (
-          <Pressable
+          <RowChrome
             key={it.id}
-            onPress={() => router.push(it.href)}
-            style={({ pressed }) => [
-              styles.row,
-              (i < visible.length - 1 || rest > 0) && styles.rowBorder,
-              pressed && { opacity: 0.88 },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={it.label}
-          >
-            <AlertLabel item={it} variant="strip" numberOfLines={2} />
-          </Pressable>
+            it={it}
+            variant="strip"
+            showBottomBorder={i < visible.length - 1 || rest > 0}
+          />
         ))}
         {rest > 0 ? (
           <Pressable
@@ -127,26 +240,20 @@ export function HomePriorityAlerts({ items, maxVisible = 2 }: Props) {
             <View style={modalStyles.handle} />
             <Text style={[modalStyles.title, isRTL && styles.rtl]}>{t("homeAlerts.sheetTitle")}</Text>
             <Text style={[modalStyles.sub, isRTL && styles.rtl]}>
-              {interpolate(t("homeAlerts.sheetSubtitle"), { n: items.length })}
+              {interpolate(t("homeAlerts.sheetSubtitle"), { n: activeItems.length })}
             </Text>
             <ScrollView
               style={modalStyles.scroll}
               contentContainerStyle={modalStyles.scrollContent}
               keyboardShouldPersistTaps="handled"
             >
-              {items.map((it, i) => (
-                <Pressable
+              {activeItems.map((it, i) => (
+                <RowChrome
                   key={it.id}
-                  onPress={() => openItem(it.href)}
-                  style={({ pressed }) => [
-                    modalStyles.sheetRow,
-                    i < items.length - 1 && modalStyles.sheetRowBorder,
-                    pressed && { opacity: 0.88 },
-                  ]}
-                  accessibilityLabel={it.label}
-                >
-                  <AlertLabel item={it} variant="sheet" numberOfLines={3} />
-                </Pressable>
+                  it={it}
+                  variant="sheet"
+                  showBottomBorder={i < activeItems.length - 1}
+                />
               ))}
             </ScrollView>
             <Pressable
@@ -163,9 +270,59 @@ export function HomePriorityAlerts({ items, maxVisible = 2 }: Props) {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
+  rowOuter: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: theme.spacing.xs,
+    paddingLeft: theme.spacing.sm,
+  },
+  rowTap: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  rowContent: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
+  },
+  rowContentRtl: {
+    flexDirection: "row-reverse",
+  },
+  rowLabelFlex: {
+    flex: 1,
+    minWidth: 0,
+  },
+  dismissHit: {
+    justifyContent: "flex-start",
+    paddingLeft: 2,
+    paddingRight: theme.spacing.sm,
+    paddingVertical: 2,
+    marginTop: 0,
+  },
+  dismissGlyph: {
+    color: theme.colors.textSoft,
+    fontSize: 22,
+    fontWeight: "300",
+    lineHeight: 24,
+  },
+  newBadge: {
+    marginTop: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.successBg,
+    borderWidth: 1,
+    borderColor: theme.colors.success,
+  },
+  newBadgeTxt: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: theme.colors.success,
+    letterSpacing: 0.4,
   },
   rowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -177,11 +334,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  segSubject: {
+    color: theme.colors.alertSubject,
+    fontWeight: "800",
+    fontSize: 14,
+    lineHeight: 20,
+    letterSpacing: 0.12,
+  },
   rtl: { writingDirection: "rtl", textAlign: "right" },
   moreRow: {
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    paddingBottom: theme.spacing.xs,
   },
   moreText: {
     fontWeight: "700",
@@ -242,9 +406,17 @@ const modalStyles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingBottom: theme.spacing.sm,
   },
-  sheetRow: {
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.sm,
+  sheetRowOuter: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: theme.spacing.xs,
+    paddingLeft: theme.spacing.sm,
+  },
+  sheetRowTap: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "flex-start",
   },
   sheetRowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -255,6 +427,13 @@ const modalStyles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
     lineHeight: 20,
+  },
+  segSubject: {
+    color: theme.colors.alertSubject,
+    fontWeight: "800",
+    fontSize: 14,
+    lineHeight: 20,
+    letterSpacing: 0.12,
   },
   rtlSheet: { writingDirection: "rtl", textAlign: "right" },
   doneBtn: {
