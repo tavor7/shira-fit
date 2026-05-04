@@ -5,7 +5,7 @@ import { hasSessionNotEnded, sessionStartsAt, formatSessionTimeRange, formatSess
 import { fetchActiveSignupCountsBySession } from "./sessionSignupCounts";
 import type { LanguageCode } from "../i18n/translations";
 import { translations } from "../i18n/translations";
-import { formatISODateDayMonth, formatISODateFull, formatISODateFullWithWeekdayAfter } from "./dateFormat";
+import { formatISODateDayMonth, formatISODateDayMonthWithWeekday, formatISODateFull } from "./dateFormat";
 import { isRtlScript } from "./bidiEmbed";
 
 function tr(lang: LanguageCode, key: string, params?: Record<string, string | number>): string {
@@ -211,14 +211,14 @@ function formatUtcOpeningLabel(isoZ: string, language: LanguageCode): string {
   const d = new Date(isoZ);
   if (!Number.isFinite(d.getTime())) return isoZ;
   const datePart = isoZ.slice(0, 10);
-  const dateFormatted = formatISODateFullWithWeekdayAfter(datePart, language);
+  const dateFormatted = formatISODateDayMonthWithWeekday(datePart, language);
   const timeUtc = d.toLocaleTimeString(language === "he" ? "he-IL" : "en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
     timeZone: "UTC",
   });
-  return `${dateFormatted} · ${timeUtc} UTC`;
+  return `${dateFormatted} · ${timeUtc}`;
 }
 
 export function buildAthleteRegistrationItems(

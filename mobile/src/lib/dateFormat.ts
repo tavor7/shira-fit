@@ -31,6 +31,16 @@ export function formatISODateDayMonth(iso: string, language?: LanguageCode): str
   });
 }
 
+/** YYYY-MM-DD → "4 May · Monday" / Hebrew — day + month + weekday, no year (registration banner, etc.). */
+export function formatISODateDayMonthWithWeekday(iso: string, language?: LanguageCode): string {
+  const d = parseISODateLocal(iso);
+  if (!d) return iso;
+  const lang = langOrEn(language);
+  const dm = d.toLocaleDateString(appLocale(lang), { day: "numeric", month: "long" });
+  const weekday = d.toLocaleDateString(appLocale(lang), { weekday: "long" });
+  return `${dm} · ${weekday}`;
+}
+
 /** YYYY-MM-DD → "15 March 2026 · Friday" / Hebrew equivalent */
 export function formatISODateFullWithWeekdayAfter(iso: string, language?: LanguageCode): string {
   const d = parseISODateLocal(iso);

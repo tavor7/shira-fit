@@ -40,28 +40,31 @@ export function AppHeaderRight() {
           </Text>
         ) : null}
       </View>
-      <Pressable
-        onPress={() => router.push("/(app)/profile")}
-        disabled={loading || pendingAthlete}
-        accessibilityRole="button"
-        accessibilityLabel={t("header.profile")}
-        style={({ pressed }) => [styles.chip, (pressed && !loading && !pendingAthlete) && styles.pressed, pendingAthlete && { opacity: 0.45 }]}
-      >
-        <Text style={styles.chipTxt} numberOfLines={1} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
-          {t("header.profile")}
-        </Text>
-      </Pressable>
-      <Pressable
-        onPress={() => void signOut()}
-        disabled={loading}
-        accessibilityRole="button"
-        accessibilityLabel={t("header.logout")}
-        style={({ pressed }) => [styles.chipMuted, pressed && !loading && styles.pressed]}
-      >
-        <Text style={styles.chipMutedTxt} numberOfLines={1} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
-          {t("header.logout")}
-        </Text>
-      </Pressable>
+      {/* Keep Profile + Log out on one row — wrapping stacked them and overlapped page content on narrow web / athlete preview. */}
+      <View style={styles.chipsRow}>
+        <Pressable
+          onPress={() => router.push("/(app)/profile")}
+          disabled={loading || pendingAthlete}
+          accessibilityRole="button"
+          accessibilityLabel={t("header.profile")}
+          style={({ pressed }) => [styles.chip, (pressed && !loading && !pendingAthlete) && styles.pressed, pendingAthlete && { opacity: 0.45 }]}
+        >
+          <Text style={styles.chipTxt} numberOfLines={1} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
+            {t("header.profile")}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => void signOut()}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel={t("header.logout")}
+          style={({ pressed }) => [styles.chipMuted, pressed && !loading && styles.pressed]}
+        >
+          <Text style={styles.chipMutedTxt} numberOfLines={1} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
+            {t("header.logout")}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -70,22 +73,29 @@ const styles = StyleSheet.create({
   wrap: {
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     justifyContent: "flex-end",
-    maxWidth: 300,
-    gap: 6,
+    gap: 8,
     paddingVertical: 2,
     minWidth: 0,
+    flex: 1,
     /** Match left cluster: logical horizontal inset on both sides (fixes RTL / web `dir=rtl`). */
-    paddingStart: theme.spacing.md,
-    paddingEnd: theme.spacing.md,
+    paddingStart: theme.spacing.sm,
+    paddingEnd: theme.spacing.sm,
   },
   wrapRTL: { flexDirection: "row-reverse", justifyContent: "flex-start" },
   nameBlock: {
+    flex: 1,
     alignItems: "flex-end",
     marginEnd: 4,
-    maxWidth: 140,
     minWidth: 0,
+    maxWidth: "100%",
+  },
+  chipsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 0,
   },
   name: {
     fontSize: 13,
@@ -102,18 +112,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   chip: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.cta,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 44,
-    minWidth: 44,
+    minHeight: 40,
+    minWidth: 40,
   },
   chipTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 12, letterSpacing: 0.15 },
   chipMuted: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.surfaceElevated,
@@ -121,8 +131,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 44,
-    minWidth: 44,
+    minHeight: 40,
+    minWidth: 40,
   },
   chipMutedTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 11, letterSpacing: 0.1 },
   pressed: { opacity: 0.88 },
