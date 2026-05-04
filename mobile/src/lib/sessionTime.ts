@@ -13,6 +13,11 @@ function minutesToHHMM(total: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+/** Start time only, 24h (e.g. 18:00), from a Postgres time string. */
+export function formatSessionStartTime(startTime: string): string {
+  return minutesToHHMM(parseTimeToMinutes(startTime));
+}
+
 /** e.g. 18:00–19:00, or start + "(90 min)" if end crosses midnight. */
 export function formatSessionTimeRange(startTime: string, durationMinutes: number): string {
   const startM = parseTimeToMinutes(startTime);

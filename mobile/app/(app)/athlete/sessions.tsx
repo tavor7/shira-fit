@@ -16,6 +16,8 @@ import { checkWaitlistSpotsAndNotify } from "../../../src/lib/waitlistSpotNotifi
 import { syncExpoPushTokenIfNeeded } from "../../../src/lib/pushTokenSync";
 import { sessionStartsAt } from "../../../src/lib/sessionTime";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
+import { fetchAthleteHomeAlertItems, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
+import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
 
 export default function AthleteSessionsScreen() {
   const { language, t } = useI18n();
@@ -26,18 +28,24 @@ export default function AthleteSessionsScreen() {
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [myUpcoming, setMyUpcoming] = useState<TrainingSessionWithTrainer[]>([]);
   const [calendarWeekEndIso, setCalendarWeekEndIso] = useState<string | null>(null);
+  const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     await touchWeeklyRegistrationOpenIfDue();
-    const { data, error } = await fetchAthleteOpenSessionsForCalendar();
+    const [calendarRes, alertItems] = await Promise.all([
+      fetchAthleteOpenSessionsForCalendar(),
+      fetchAthleteHomeAlertItems(language),
+    ]);
+    setHomeAlerts(alertItems);
+    const { data, error } = calendarRes;
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);
     setSignupBySession(await fetchActiveSignupCountsBySession(list.map((s) => s.id)));
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
-  }, []);
+  }, [language]);
 
   const loadMyUpcoming = useCallback(async () => {
     const { data: authUser } = await supabase.auth.getUser();
@@ -138,7 +146,17 @@ export default function AthleteSessionsScreen() {
           />
         }
       >
-        <View style={styles.myUpcomingCard}>
+        {homeAlerts.length > 0 ? (
+          <View style={styles.alertsTop}>
+            <HomePriorityAlerts items={homeAlerts} />
+          </View>
+        ) : null}
+        <View
+          style={[
+            styles.myUpcomingCard,
+            { marginTop: homeAlerts.length > 0 ? theme.spacing.sm : theme.spacing.md },
+          ]}
+        >
           <Text style={styles.myUpcomingTitle}>{language === "he" ? "הסימונים שלך (מתוכנן)" : "Your upcoming sessions"}</Text>
           {myUpcomingAfterCalendar.length === 0 ? (
             <Text style={styles.myUpcomingEmpty}>{language === "he" ? "אין עוד אימונים שלך." : "No upcoming sessions."}</Text>
@@ -178,8 +196,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, flex: 1, justifyContent: "flex-start", paddingHorizontal: theme.spacing.md },
+  alertsTop: { marginTop: theme.spacing.md },
   myUpcomingCard: {
-    marginTop: theme.spacing.md,
     padding: theme.spacing.md,
     borderRadius: theme.radius.lg,
     borderWidth: 1,

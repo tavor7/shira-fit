@@ -13,6 +13,8 @@ import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { StaffHomeOverview } from "../../../src/components/StaffHomeOverview";
 import { useAuth } from "../../../src/context/AuthContext";
 import { useI18n } from "../../../src/context/I18nContext";
+import { mergeStaffHomeAlerts, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
+import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
 
 export default function CoachSessionsScreen() {
   const { profile } = useAuth();
@@ -24,6 +26,7 @@ export default function CoachSessionsScreen() {
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [refreshSeq, setRefreshSeq] = useState(0);
+  const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
@@ -33,13 +36,16 @@ export default function CoachSessionsScreen() {
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);
     const ids = list.map((s) => s.id);
-    setSignupBySession(await fetchActiveSignupCountsBySession(ids));
-    setWaitlistBySession(await fetchWaitlistCountsBySession(ids));
+    const signup = await fetchActiveSignupCountsBySession(ids);
+    const waitlist = await fetchWaitlistCountsBySession(ids);
+    setSignupBySession(signup);
+    setWaitlistBySession(waitlist);
+    setHomeAlerts(await mergeStaffHomeAlerts("coach", list, signup, waitlist, language));
     setRefreshSeq((n) => n + 1);
 
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
-  }, []);
+  }, [language]);
 
   useFocusEffect(
     useCallback(() => {
@@ -79,6 +85,11 @@ export default function CoachSessionsScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
+        {homeAlerts.length > 0 ? (
+          <View style={{ paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md }}>
+            <HomePriorityAlerts items={homeAlerts} />
+          </View>
+        ) : null}
         <StaffHomeOverview userId={profile?.user_id} sessions={rows} variant="coach" refreshSeq={refreshSeq} />
         <SessionsWeekCalendar
           items={items}

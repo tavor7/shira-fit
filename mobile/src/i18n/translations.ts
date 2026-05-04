@@ -148,6 +148,15 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "activityLog.pageSummary": "{from}–{to} of {total}",
     "activityLog.pagePrev": "Previous",
     "activityLog.pageNext": "Next",
+
+    "homeAlerts.staffWaitlistFreeSpot": "Waitlist + free spot: {date} · {time}",
+    "homeAlerts.lateCancellation": "Late cancellation: {name} · {day} · {time}",
+    "homeAlerts.lateCancellationLead": "Late cancellation: ",
+    "homeAlerts.athlete": "Athlete",
+    "homeAlerts.registrationOpens": "Next registration opens {datetime}.",
+    "homeAlerts.registrationStillPending": "Some sessions are still closed for registration this week.",
+    "homeAlerts.athleteWaitlistSpot": "Waitlist — a spot may be open: {date}",
+    "homeAlerts.moreCount": "+{n} more",
   },
   he: {
     "lang.english": "English",
@@ -288,6 +297,18 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "activityLog.pageSummary": "{from}–{to} מתוך {total}",
     "activityLog.pagePrev": "הקודם",
     "activityLog.pageNext": "הבא",
+
+    "homeAlerts.staffWaitlistFreeSpot": "רשימת המתנה + מקום פנוי: {date} · {time}",
+    "homeAlerts.lateCancellation": "ביטול מאוחר (חיוב): {name} · {day} · {time}",
+    "homeAlerts.lateCancellationLead": "ביטול מאוחר (חיוב): ",
+    "homeAlerts.athlete": "מתאמן",
+    "homeAlerts.registrationOpens": "ההרשמה הבאה נפתחת ב-{datetime}.",
+    "homeAlerts.registrationStillPending": "חלק מהאימונים לשבוע הזה עדיין סגורים להרשמה.",
+    "homeAlerts.athleteWaitlistSpot": "רשימת המתנה — ייתכן שיש מקום: {date}",
+    "homeAlerts.moreCount": "+{n} נוספים",
+    "homeAlerts.sheetTitle": "התראות חשובות",
+    "homeAlerts.sheetSubtitle": "{n} התראות",
+    "homeAlerts.viewAllHint": "צפייה בכל ההתראות",
   },
 };
 
