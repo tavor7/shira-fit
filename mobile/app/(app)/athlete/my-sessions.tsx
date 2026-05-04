@@ -22,6 +22,7 @@ export default function MySessionsScreen() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
+  const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -94,6 +95,8 @@ export default function MySessionsScreen() {
         isLoading={loading}
         emptyLabel={language === "he" ? "אין הרשמות פעילות." : "No active registrations."}
         onDayPress={(iso) => setSheetDay(iso)}
+        weekOffset={calendarWeekOffset}
+        onWeekOffsetChange={setCalendarWeekOffset}
       />
       <DaySessionsSheet
         visible={sheetDay !== null}

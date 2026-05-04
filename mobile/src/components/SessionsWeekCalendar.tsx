@@ -46,6 +46,13 @@ type Props = {
   onDayPress?: (isoDate: string) => void;
   /** Reports the currently displayed week range (Sun–Sat), in ISO dates. */
   onWeekChange?: (weekStartIso: string, weekEndIso: string) => void;
+  /**
+   * When both are provided, week navigation is controlled by the parent so the visible week
+   * survives returning from session detail / remounts. Offset is in steps of 7 days from the
+   * Sunday-start week that contains “today” (same base as internal state).
+   */
+  weekOffset?: number;
+  onWeekOffsetChange?: (next: number) => void;
 };
 
 const DAY_NAMES_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -84,8 +91,27 @@ function formatWeekLabel(start: Date, end: Date, locale: string) {
   return `${fmtA(start)} - ${fmtA(end)}`;
 }
 
-export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress, onWeekChange }: Props) {
-  const [weekOffset, setWeekOffset] = useState(0);
+export function SessionsWeekCalendar({
+  items,
+  isLoading,
+  emptyLabel,
+  onDayPress,
+  onWeekChange,
+  weekOffset: weekOffsetProp,
+  onWeekOffsetChange,
+}: Props) {
+  const [internalWeekOffset, setInternalWeekOffset] = useState(0);
+  const controlled = onWeekOffsetChange != null;
+  const weekOffset = controlled ? (weekOffsetProp ?? 0) : internalWeekOffset;
+
+  function bumpWeek(delta: number) {
+    if (controlled) {
+      onWeekOffsetChange?.((weekOffsetProp ?? 0) + delta);
+    } else {
+      setInternalWeekOffset((o) => o + delta);
+    }
+  }
+
   /** Periodic refresh so “live” / “ended” styling updates without navigating away. */
   const [, setTemporalTick] = useState(0);
   const { language, t, isRTL } = useI18n();
@@ -176,7 +202,7 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress,
       */}
       <View style={styles.header}>
         <Pressable
-          onPress={() => setWeekOffset((o) => o - 1)}
+          onPress={() => bumpWeek(-1)}
           style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
           accessibilityRole="button"
           accessibilityLabel={language === "he" ? "שבוע קודם" : "Previous week"}
@@ -189,7 +215,7 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress,
         <Pressable
           onPress={() => {
             if (Platform.OS === "ios" || Platform.OS === "android") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setWeekOffset((o) => o + 1);
+            bumpWeek(1);
           }}
           style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
           accessibilityRole="button"
@@ -279,10 +305,10 @@ export function SessionsWeekCalendar({ items, isLoading, emptyLabel, onDayPress,
           <View style={styles.empty}>
             <Text style={styles.emptyText}>{emptyLabel ?? (language === "he" ? "אין אימונים בשבוע זה." : "No sessions this week.")}</Text>
             <View style={styles.emptyActions}>
-              <Pressable style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.9 }]} onPress={() => setWeekOffset((o) => o - 1)}>
+              <Pressable style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.9 }]} onPress={() => bumpWeek(-1)}>
                 <Text style={styles.emptyBtnTxt}>{language === "he" ? "שבוע קודם" : "Prev week"}</Text>
               </Pressable>
-              <Pressable style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.9 }]} onPress={() => setWeekOffset((o) => o + 1)}>
+              <Pressable style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.9 }]} onPress={() => bumpWeek(1)}>
                 <Text style={styles.emptyBtnTxt}>{language === "he" ? "שבוע הבא" : "Next week"}</Text>
               </Pressable>
             </View>

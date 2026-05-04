@@ -26,6 +26,7 @@ export default function CoachSessionsScreen() {
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [refreshSeq, setRefreshSeq] = useState(0);
+  const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
   const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
   const [priorityAlertsVisibleCount, setPriorityAlertsVisibleCount] = useState<number | null>(null);
   const homeAlertsSig = useMemo(() => homeAlerts.map((x) => x.id).sort().join("|"), [homeAlerts]);
@@ -110,6 +111,8 @@ export default function CoachSessionsScreen() {
           isLoading={loading}
           emptyLabel={language === "he" ? "לא נמצאו אימונים." : "No sessions found."}
           onDayPress={(iso) => setSheetDay(iso)}
+          weekOffset={calendarWeekOffset}
+          onWeekOffsetChange={setCalendarWeekOffset}
         />
       </ScrollView>
       <DaySessionsSheet

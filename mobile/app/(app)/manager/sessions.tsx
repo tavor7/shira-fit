@@ -27,6 +27,8 @@ export default function ManagerSessionsScreen() {
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [refreshSeq, setRefreshSeq] = useState(0);
+  /** Keeps the calendar week when navigating to session detail and back. */
+  const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
   const [weekStartIso, setWeekStartIso] = useState<string>("");
   const [openWeekBusy, setOpenWeekBusy] = useState(false);
   const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
@@ -154,6 +156,8 @@ export default function ManagerSessionsScreen() {
           isLoading={loading}
           emptyLabel={language === "he" ? "לא נמצאו אימונים." : "No sessions found."}
           onDayPress={(iso) => setSheetDay(iso)}
+          weekOffset={calendarWeekOffset}
+          onWeekOffsetChange={setCalendarWeekOffset}
           onWeekChange={(startIso) => setWeekStartIso(startIso)}
         />
         {weekStartIso ? (

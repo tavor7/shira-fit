@@ -34,6 +34,7 @@ export default function ManagerRosterCalendarScreen() {
   const [namesLoading, setNamesLoading] = useState(false);
   const [weekStartIso, setWeekStartIso] = useState<string>("");
   const [weekEndIso, setWeekEndIso] = useState<string>("");
+  const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
   const [groupMode, setGroupMode] = useState(false);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [notesBySession, setNotesBySession] = useState<Record<string, string>>({});
@@ -272,6 +273,8 @@ export default function ManagerRosterCalendarScreen() {
           isLoading={loading}
           emptyLabel={language === "he" ? "לא נמצאו אימונים." : "No sessions found."}
           onDayPress={(iso) => setSheetDay(iso)}
+          weekOffset={calendarWeekOffset}
+          onWeekOffsetChange={setCalendarWeekOffset}
           onWeekChange={(startIso, endIso) => {
             setWeekStartIso(startIso);
             setWeekEndIso(endIso);

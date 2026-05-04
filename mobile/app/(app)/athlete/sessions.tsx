@@ -28,6 +28,7 @@ export default function AthleteSessionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
+  const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
   const [myUpcoming, setMyUpcoming] = useState<TrainingSessionWithTrainer[]>([]);
   const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
   const [priorityAlertsVisibleCount, setPriorityAlertsVisibleCount] = useState<number | null>(null);
@@ -188,6 +189,8 @@ export default function AthleteSessionsScreen() {
           isLoading={loading}
           emptyLabel={language === "he" ? "אין אימונים פתוחים עדיין (חמישי 08:00 פותח את שבוע הבא)." : "No sessions open yet (Thu 08:00 opens next week)."}
           onDayPress={(iso) => setSheetDay(iso)}
+          weekOffset={calendarWeekOffset}
+          onWeekOffsetChange={setCalendarWeekOffset}
         />
       </ScrollView>
       <DaySessionsSheet
