@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
-import type { HomePriorityAlertItem } from "../lib/homePriorityAlerts";
+import type { HomePriorityAlertItem, HomePriorityLabelSegment } from "../lib/homePriorityAlerts";
 import { dismissHomeAlert, filterUndismissedAlerts, loadDismissedHomeAlertIds } from "../lib/dismissedHomeAlerts";
 import { useI18n } from "../context/I18nContext";
 
@@ -53,15 +53,16 @@ function AlertLabel({
 }) {
   const { isRTL } = useI18n();
   const textStyle = variant === "strip" ? styles.text : modalStyles.sheetRowText;
+  const subjectStyle = variant === "strip" ? styles.segSubject : modalStyles.segSubject;
   const rtlAlign = variant === "strip" ? styles.rtl : modalStyles.rtlSheet;
 
   const baseDir: "ltr" | "rtl" = isRTL ? "rtl" : "ltr";
-  if (item.labelSegments?.length) {
+
+  function segmentRun(run: HomePriorityLabelSegment[], lineNumberOfLines?: number) {
     return (
-      <Text style={[textStyle, { writingDirection: baseDir }]} numberOfLines={numberOfLines}>
-        {item.labelSegments.map((seg, idx) => {
+      <Text style={{ writingDirection: baseDir }} numberOfLines={lineNumberOfLines}>
+        {run.map((seg, idx) => {
           const isSubject = seg.role === "subject";
-          const subjectStyle = variant === "strip" ? styles.segSubject : modalStyles.segSubject;
           return (
             <Text
               key={idx}
@@ -76,6 +77,26 @@ function AlertLabel({
         })}
       </Text>
     );
+  }
+
+  if (item.labelSegments?.length) {
+    const segs = item.labelSegments;
+    let splitAt = 0;
+    while (splitAt < segs.length && segs[splitAt].role === "subject") splitAt++;
+    const subjectSegs = segs.slice(0, splitAt);
+    const bodySegs = segs.slice(splitAt);
+    const stacked = subjectSegs.length > 0 && bodySegs.length > 0;
+
+    if (stacked) {
+      return (
+        <View style={styles.labelStack}>
+          {segmentRun(subjectSegs, 1)}
+          {segmentRun(bodySegs, numberOfLines)}
+        </View>
+      );
+    }
+
+    return segmentRun(segs, numberOfLines);
   }
   return (
     <Text style={[textStyle, isRTL && rtlAlign]} numberOfLines={numberOfLines}>
@@ -295,6 +316,12 @@ const styles = StyleSheet.create({
   rowLabelFlex: {
     flex: 1,
     minWidth: 0,
+  },
+  /** Subject line above body (late cancellation, etc.) */
+  labelStack: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
   },
   dismissHit: {
     justifyContent: "center",
