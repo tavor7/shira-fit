@@ -32,6 +32,7 @@ import { useAuth } from "../../../../src/context/AuthContext";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../src/context/ToastContext";
 import { copySessionParticipantsToNewSession } from "../../../../src/lib/copySessionParticipants";
+import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
 
@@ -109,6 +110,11 @@ export default function ManagerSessionDetail() {
     });
     return () => cancelAnimationFrame(id);
   }, [editingSession]);
+
+  useEffect(() => {
+    const t = requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
+    return () => cancelAnimationFrame(t);
+  }, [id]);
   const [notes, setNotes] = useState<NoteRow[]>([]);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
@@ -597,7 +603,8 @@ export default function ManagerSessionDetail() {
   return (
     <>
       <Stack.Screen options={{ title: t("screen.managerSession") }} />
-      <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
+      <View style={styles.root}>
+        <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
       {!editingSession ? (
         <View style={styles.summaryBlock}>
           <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{language === "he" ? "אימון" : "Session"}</Text>
@@ -1162,11 +1169,14 @@ export default function ManagerSessionDetail() {
         }}
       />
     </ScrollView>
+        {!editingSession ? <SessionAdjacentNav variant="manager" sessionId={String(id ?? "")} /> : null}
+      </View>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
   loading: { padding: theme.spacing.lg, color: theme.colors.textMuted },

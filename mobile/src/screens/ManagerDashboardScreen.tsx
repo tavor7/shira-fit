@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Platform } from "react-native";
+import { router, type Href } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { formatISODateFull } from "../lib/dateFormat";
@@ -7,6 +8,7 @@ import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "../components/StatusChip";
 import { ManagerOverviewTabs } from "../components/ManagerOverviewTabs";
+import { normalizePaymentMethodKey, paymentMethodDashboardLabel } from "../lib/paymentMethod";
 
 /** Local-calendar Sunday (matches server `public._week_start_sunday`). */
 function startOfWeekSunday(d: Date): string {
@@ -60,12 +62,26 @@ export default function ManagerDashboardScreen() {
     }
   }, [data?.ok, data?.week_start, weekStart]);
 
+  function openWeeklyDetail(kind: string) {
+    const ws = data?.week_start ?? weekStart;
+    const we = data?.week_end;
+    if (!ws || !we) return;
+    router.push({
+      pathname: "/(app)/manager/weekly-detail",
+      params: { weekStart: ws, weekEnd: we, kind },
+    } as Href);
+  }
+
   const paymentRows = useMemo(() => {
     const p = data?.payments_by_method ?? {};
-    return Object.entries(p)
-      .map(([k, v]) => [k, typeof v === "number" ? v : Number(v)] as [string, number])
-      .filter(([, n]) => Number.isFinite(n))
-      .sort((a, b) => b[1] - a[1]);
+    const merged = new Map<string, number>();
+    for (const [k, v] of Object.entries(p)) {
+      const canon = normalizePaymentMethodKey(k);
+      const n = typeof v === "number" ? v : Number(v);
+      if (!Number.isFinite(n)) continue;
+      merged.set(canon, (merged.get(canon) ?? 0) + n);
+    }
+    return [...merged.entries()].sort((a, b) => b[1] - a[1]);
   }, [data]);
 
   return (
@@ -95,34 +111,64 @@ export default function ManagerDashboardScreen() {
       {!loading && data?.ok ? (
         <View style={styles.statsGrid}>
           <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
-            <View style={styles.tile}>
+            <Pressable
+              onPress={() => openWeeklyDetail("avg_fill")}
+              style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+              accessibilityRole="button"
+              accessibilityLabel={language === "he" ? "פרטי מילוי ממוצע" : "Avg fill details"}
+            >
               <Text style={styles.tileL}>{language === "he" ? "מילוי ממוצע" : "Avg fill"}</Text>
               <Text style={styles.tileV}>{pct(data.utilization_avg_pct)}%</Text>
-            </View>
-            <View style={styles.tile}>
+            </Pressable>
+            <Pressable
+              onPress={() => openWeeklyDetail("cancellations")}
+              style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+              accessibilityRole="button"
+              accessibilityLabel={language === "he" ? "פרטי ביטולים" : "Cancellations details"}
+            >
               <Text style={styles.tileL}>{language === "he" ? "ביטולים" : "Cancellations"}</Text>
               <Text style={styles.tileV}>{data.cancellations ?? 0}</Text>
-            </View>
+            </Pressable>
           </View>
           <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
-            <View style={styles.tile}>
+            <Pressable
+              onPress={() => openWeeklyDetail("no_shows")}
+              style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+              accessibilityRole="button"
+              accessibilityLabel={language === "he" ? "פרטי אי־הגעות" : "No-shows details"}
+            >
               <Text style={styles.tileL}>{language === "he" ? "אי־הגעות" : "No-shows"}</Text>
               <Text style={styles.tileV}>{data.no_shows ?? 0}</Text>
-            </View>
-            <View style={styles.tile}>
+            </Pressable>
+            <Pressable
+              onPress={() => openWeeklyDetail("sessions")}
+              style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+              accessibilityRole="button"
+              accessibilityLabel={language === "he" ? "רשימת אימונים" : "Sessions list"}
+            >
               <Text style={styles.tileL}>{language === "he" ? "אימונים" : "Sessions"}</Text>
               <Text style={styles.tileV}>{data.session_count ?? 0}</Text>
-            </View>
+            </Pressable>
           </View>
           <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
-            <View style={styles.tile}>
+            <Pressable
+              onPress={() => openWeeklyDetail("waitlist")}
+              style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+              accessibilityRole="button"
+              accessibilityLabel={language === "he" ? "פרטי רשימת המתנה" : "Waitlist details"}
+            >
               <Text style={styles.tileL}>{t("dashboard.waitlist")}</Text>
               <Text style={styles.tileV}>{data.waitlist_count ?? 0}</Text>
-            </View>
-            <View style={styles.tile}>
+            </Pressable>
+            <Pressable
+              onPress={() => openWeeklyDetail("checked_in")}
+              style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+              accessibilityRole="button"
+              accessibilityLabel={language === "he" ? "מי סומן כהגיע" : "Checked-in details"}
+            >
               <Text style={styles.tileL}>{t("dashboard.checkedIn")}</Text>
               <Text style={styles.tileV}>{data.checked_in_count ?? 0}</Text>
-            </View>
+            </Pressable>
           </View>
         </View>
       ) : null}
@@ -141,7 +187,7 @@ export default function ManagerDashboardScreen() {
             <View style={[styles.payList, isRTL && styles.payListRtl]}>
               {paymentRows.map(([method, n]) => (
                 <View key={method} style={[styles.payRow, isRTL && styles.payRowRtl]}>
-                  <StatusChip label={method === "(none)" ? (language === "he" ? "לא צוין" : "Unspecified") : method} tone="neutral" />
+                  <StatusChip label={paymentMethodDashboardLabel(method, language)} tone="neutral" />
                   <Text style={styles.payN}>{n}</Text>
                 </View>
               ))}
@@ -212,6 +258,7 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
     textAlign: "center",
   },
+  tilePressed: { opacity: Platform.OS === "web" ? 0.9 : 0.88 },
   subh: { fontWeight: "800", color: theme.colors.text, marginBottom: 6 },
   hintLine: { fontSize: 12, color: theme.colors.textMuted, marginBottom: 10, lineHeight: 17 },
   emptyWeek: { marginTop: 12, fontSize: 14, fontWeight: "700", color: theme.colors.textSoft },

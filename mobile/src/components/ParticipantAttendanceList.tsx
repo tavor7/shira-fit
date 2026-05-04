@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { isBirthdayToday } from "../lib/birthday";
+import { normalizePaymentMethodKey, paymentMethodAttendanceLabel } from "../lib/paymentMethod";
 
 type RegRow = {
   user_id: string;
@@ -63,11 +64,9 @@ function coerceAmountPaid(raw: number | string | null | undefined): number | nul
 
 /** Unpaid = no stored method; Cash/PayBox = green; anything else = yellow */
 function paymentDisplayTone(payment: string | null | undefined): "unpaid" | "cash_paybox" | "other" {
-  const s = String(payment ?? "")
-    .trim()
-    .toLowerCase();
-  if (!s) return "unpaid";
-  if (s === "cash" || s === "paybox" || s === "מזומן") return "cash_paybox";
+  const k = normalizePaymentMethodKey(payment);
+  if (k === "(none)") return "unpaid";
+  if (k === "cash" || k === "paybox") return "cash_paybox";
   return "other";
 }
 
@@ -338,7 +337,7 @@ export function ParticipantAttendanceList({
                         ? language === "he"
                           ? "לא שולם"
                           : "Unpaid"
-                        : item.paymentMethod}
+                        : paymentMethodAttendanceLabel(item.paymentMethod, language)}
                       {item.amountPaid != null
                         ? language === "he"
                           ? ` · ${item.amountPaid} ₪`
@@ -431,16 +430,7 @@ export function ParticipantAttendanceList({
                     key={pm}
                     style={({ pressed }) => [styles.payBtn, pressed && { opacity: 0.9 }]}
                     onPress={() => {
-                      const method =
-                        pm === "cash"
-                          ? language === "he"
-                            ? "מזומן"
-                            : "Cash"
-                          : pm === "PayBox"
-                            ? "PayBox"
-                            : language === "he"
-                              ? "אחר"
-                              : "Other";
+                      const method = pm === "cash" ? "cash" : pm === "PayBox" ? "paybox" : "other";
                       setPayChosenMethod(method);
                       setPayPhase("amount");
                     }}

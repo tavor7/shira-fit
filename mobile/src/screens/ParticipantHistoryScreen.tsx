@@ -11,6 +11,7 @@ import { toISODateLocal, isValidISODateString, parseISODateLocal } from "../lib/
 import { formatISODateFull } from "../lib/dateFormat";
 import type { ParticipantHistoryRow } from "../types/database";
 import { useI18n } from "../context/I18nContext";
+import { normalizePaymentMethodKey, paymentMethodHistoryLabel } from "../lib/paymentMethod";
 
 function defaultEndISO() {
   return toISODateLocal(new Date());
@@ -306,7 +307,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             att === true ? styles.badgeAttYes : att === false ? styles.badgeAttNo : styles.badgeAttUnset;
           const attTxtStyle =
             att === true ? styles.badgeAttTxtYes : att === false ? styles.badgeAttTxtNo : styles.badgeAttTxtUnset;
-          const pay = (item.payment_method ?? "").trim();
+          const hasPaymentMethod = normalizePaymentMethodKey(item.payment_method) !== "(none)";
           const amtRaw = item.amount_paid;
           const amt =
             amtRaw !== null && amtRaw !== undefined && String(amtRaw).trim() !== ""
@@ -361,10 +362,10 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   {item.max_participants}
                 </Text>
               ) : null}
-              {pay.length > 0 ? (
+              {hasPaymentMethod ? (
                 <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
                   {language === "he" ? "תשלום: " : "Payment: "}
-                  {pay}
+                  {paymentMethodHistoryLabel(item.payment_method, language)}
                   {amtOk ? (language === "he" ? ` · ${amt} ₪` : ` · ${amt}`) : ""}
                 </Text>
               ) : amtOk ? (

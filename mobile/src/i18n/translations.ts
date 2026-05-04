@@ -36,6 +36,14 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "dashboard.checkedIn": "Checked in",
     "dashboard.paymentsHint": "Payment method from registrations (and manual participants when recorded).",
     "dashboard.noSessionsThisWeek": "No sessions scheduled in this week.",
+    "dashboard.detailTitleAvgFill": "Avg fill — sessions",
+    "dashboard.detailTitleCancellations": "Cancellations",
+    "dashboard.detailTitleNoShows": "No-shows",
+    "dashboard.detailTitleSessions": "Sessions",
+    "dashboard.detailTitleWaitlist": "Waitlist",
+    "dashboard.detailTitleCheckedIn": "Checked in",
+    "dashboard.detailEmpty": "Nothing to show for this week.",
+    "dashboard.detailHintAvgFill": "Sessions sorted by fill (lowest first). Tap a row to open the session.",
 
     "header.profile": "Profile",
     "header.logout": "Log out",
@@ -119,6 +127,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "screen.staffProfile": "User profile",
     "screen.staffManualParticipant": "Manual participant",
 
+    "sessionNav.prevA11y": "Earlier session",
+    "sessionNav.nextA11y": "Later session",
+
     "health.required": "Health declaration (required)",
     "health.openForm": "Open health declaration form",
     "health.confirmDone": "I completed the health declaration",
@@ -153,6 +164,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "homeAlerts.staffWaitlistFreeSpot": "Waitlist + free spot: {date} · {time}",
     "homeAlerts.lateCancellation": "Late cancellation: {name} · {day} · {time}",
     "homeAlerts.lateCancellationLead": "Late cancellation",
+    "homeAlerts.cancellationLead": "Cancellation",
     "homeAlerts.athlete": "Athlete",
     /** Line 1 of registration countdown alert; line 2 is date · weekday · time (see HomePriorityAlerts segments). */
     "homeAlerts.registrationOpensLead": "Next registration opens",
@@ -192,6 +204,14 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "dashboard.checkedIn": "סומנו כהגיעו",
     "dashboard.paymentsHint": "אמצעי תשלום מהרשמות (ומשתתפים ידניים כשנרשם).",
     "dashboard.noSessionsThisWeek": "אין אימונים מתוכננים לשבוע הזה.",
+    "dashboard.detailTitleAvgFill": "מילוי ממוצע — אימונים",
+    "dashboard.detailTitleCancellations": "ביטולים",
+    "dashboard.detailTitleNoShows": "אי־הגעות",
+    "dashboard.detailTitleSessions": "אימונים",
+    "dashboard.detailTitleWaitlist": "רשימת המתנה",
+    "dashboard.detailTitleCheckedIn": "סומנו כהגיעו",
+    "dashboard.detailEmpty": "אין רשומות להצגה לשבוע הזה.",
+    "dashboard.detailHintAvgFill": "אימונים ממוינים לפי מילוי (הנמוך ראשון). הקישו על שורה לפתיחת האימון.",
 
     "header.profile": "פרופיל",
     "header.logout": "התנתקות",
@@ -275,6 +295,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "screen.staffProfile": "פרופיל משתמש",
     "screen.staffManualParticipant": "משתתף ידני",
 
+    "sessionNav.prevA11y": "אימון מוקדם יותר",
+    "sessionNav.nextA11y": "אימון מאוחר יותר",
+
     "health.required": "הצהרת בריאות (חובה)",
     "health.openForm": "פתיחת טופס הצהרת בריאות",
     "health.confirmDone": "מילאתי את הצהרת הבריאות",
@@ -309,6 +332,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "homeAlerts.staffWaitlistFreeSpot": "רשימת המתנה + מקום פנוי: {date} · {time}",
     "homeAlerts.lateCancellation": "ביטול מאוחר (חיוב): {name} · {day} · {time}",
     "homeAlerts.lateCancellationLead": "ביטול מאוחר (חיוב)",
+    "homeAlerts.cancellationLead": "ביטול הרשמה",
     "homeAlerts.athlete": "מתאמן",
     "homeAlerts.registrationOpensLead": "ההרשמה הבאה נפתחת",
     "homeAlerts.registrationStillPending": "חלק מהאימונים לשבוע הזה עדיין סגורים להרשמה.",

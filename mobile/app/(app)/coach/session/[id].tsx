@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router, Stack } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Alert, TextInput, Pressable, ActivityIndicator, Platform, TouchableOpacity } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import { theme } from "../../../../src/theme";
@@ -10,6 +10,7 @@ import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay } from "../../../../src/lib/dateFormat";
 import { isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
 import { useToast } from "../../../../src/context/ToastContext";
+import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 
 type W = {
   user_id: string;
@@ -50,6 +51,12 @@ export default function CoachSessionDetail() {
   const [sessionSchedule, setSessionSchedule] = useState<{ session_date: string; start_time: string } | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
   const [waitlistQuickUserId, setWaitlistQuickUserId] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const t = requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
+    return () => cancelAnimationFrame(t);
+  }, [id]);
 
   async function loadWaitlist() {
     const { data: w, error } = await supabase
@@ -252,7 +259,8 @@ export default function CoachSessionDetail() {
   return (
     <>
       <Stack.Screen options={{ title: t("screen.coachSession") }} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <View style={styles.root}>
+        <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משתתפים ונוכחות" : "Participants & attendance"}</Text>
       <ParticipantAttendanceList
         sessionId={id}
@@ -526,11 +534,14 @@ export default function CoachSessionDetail() {
         }}
       />
     </ScrollView>
+        <SessionAdjacentNav variant="coach" sessionId={String(id ?? "")} />
+      </View>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: 4 },
   h: { fontWeight: "700", marginTop: theme.spacing.md, marginBottom: 8, color: theme.colors.text },

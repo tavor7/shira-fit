@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router, Stack } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, ActivityIndicator, ScrollView } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../../src/types/database";
@@ -15,6 +15,7 @@ import { StatusChip } from "../../../../src/components/StatusChip";
 import { scheduleSessionReminders, cancelSessionReminders } from "../../../../src/lib/sessionReminders";
 import { clearWaitlistSpotFlag } from "../../../../src/lib/waitlistSpotNotifier";
 import { fetchActiveSignupCountsBySession } from "../../../../src/lib/sessionSignupCounts";
+import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 
 export default function AthleteSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,6 +34,12 @@ export default function AthleteSessionDetail() {
   const [registering, setRegistering] = useState(false);
   const [waitlisting, setWaitlisting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const t = requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
+    return () => cancelAnimationFrame(t);
+  }, [sessionId]);
 
   async function refreshCount() {
     const m = await fetchActiveSignupCountsBySession([sessionId]);
@@ -240,12 +247,14 @@ export default function AthleteSessionDetail() {
   return (
     <>
       <Stack.Screen options={{ title: t("screen.athleteSession") }} />
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.box}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.root}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scroll}
+          contentContainerStyle={styles.box}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
       <View style={styles.card}>
         <Text style={styles.title}>{formatISODateFullWithWeekdayAfter(session.session_date, language)}</Text>
         <Text style={styles.sub}>{formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}</Text>
@@ -335,6 +344,9 @@ export default function AthleteSessionDetail() {
           <Text style={styles.btnText}>{language === "he" ? "ביטול הרשמה" : "Cancel registration"}</Text>
         </Pressable>
       )}
+    </ScrollView>
+        <SessionAdjacentNav variant="athlete" sessionId={sessionId} />
+      </View>
       <Modal visible={cancelOpen} transparent animationType="slide">
         <View style={styles.modal}>
           <View style={styles.modalCard}>
@@ -361,12 +373,12 @@ export default function AthleteSessionDetail() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   box: { flexGrow: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.backgroundAlt },
   loadingText: { marginTop: 12, color: theme.colors.textMuted },

@@ -26,7 +26,7 @@ export function ManagerOverviewTabs() {
         id: "overview",
         label: t("menu.overview"),
         href: "/(app)/manager/dashboard",
-        isActive: (p) => startsWithAny(p, ["/manager/dashboard"]),
+        isActive: (p) => startsWithAny(p, ["/manager/dashboard", "/manager/weekly-detail"]),
       },
       {
         id: "users",

@@ -91,7 +91,7 @@ export function buildStaffWaitlistFreeSpotItems(
   }));
 }
 
-/** Staff home: waitlist + free spot first; then late cancellations newest → oldest (cancelled_at). */
+/** Staff home: waitlist + free spot first; then all self-cancellations newest → oldest (cancelled_at). */
 export async function mergeStaffHomeAlerts(
   variant: "coach" | "manager",
   sessions: TrainingSessionWithTrainer[],
@@ -122,9 +122,8 @@ export async function fetchStaffLateCancellationItems(
     .select(
       "id, cancelled_at, charged_full_price, user_id, training_sessions!inner ( id, session_date, start_time, duration_minutes )"
     )
-    .eq("charged_full_price", true)
     .order("cancelled_at", { ascending: false })
-    .limit(40);
+    .limit(60);
 
   if (error || !data?.length) return [];
 
@@ -136,6 +135,7 @@ export async function fetchStaffLateCancellationItems(
   for (const row of data as {
     id: string;
     cancelled_at: string;
+    charged_full_price: boolean | null;
     user_id: string;
     training_sessions:
       | { id: string; session_date: string; start_time: string; duration_minutes: number | null }
@@ -152,7 +152,11 @@ export async function fetchStaffLateCancellationItems(
     const timeStr = formatSessionStartTime(sess.start_time);
     const cancelMs = new Date(row.cancelled_at).getTime();
     const isNew = Number.isFinite(cancelMs) && now.getTime() - cancelMs <= MS_1H && now.getTime() >= cancelMs;
-    const lead = tr(language, "homeAlerts.lateCancellationLead");
+    const charged = row.charged_full_price === true;
+    const lead = tr(
+      language,
+      charged ? "homeAlerts.lateCancellationLead" : "homeAlerts.cancellationLead"
+    );
     const dayTime = `${dayStr} · ${timeStr}`;
     const beforeName = " · ";
     const leadDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
