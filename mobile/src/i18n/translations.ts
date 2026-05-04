@@ -175,6 +175,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "homeAlerts.sheetSubtitle": "{n} notifications",
     "homeAlerts.viewAllHint": "View all notifications",
     "homeAlerts.dismissA11y": "Dismiss notification",
+    "homeAlerts.removeAll": "Remove all",
+    "homeAlerts.removeAllTitle": "Remove all alerts?",
+    "homeAlerts.removeAllMessage":
+      "These notifications will be dismissed from this list. New alerts will still appear when relevant.",
+    "homeAlerts.removeAllConfirm": "Remove all",
     "homeAlerts.newBadge": "New",
   },
   he: {
@@ -342,6 +347,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "homeAlerts.sheetSubtitle": "{n} התראות",
     "homeAlerts.viewAllHint": "צפייה בכל ההתראות",
     "homeAlerts.dismissA11y": "הסרת התראה",
+    "homeAlerts.removeAll": "הסר הכל",
+    "homeAlerts.removeAllTitle": "להסיר את כל ההתראות?",
+    "homeAlerts.removeAllMessage":
+      "ההתראות יוסרו מהרשימה. התראות חדשות יופיעו כשיהיו רלוונטיות.",
+    "homeAlerts.removeAllConfirm": "הסר הכל",
     "homeAlerts.newBadge": "חדש",
   },
 };

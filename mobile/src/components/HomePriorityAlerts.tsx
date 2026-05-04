@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +13,12 @@ import {
 import { router } from "expo-router";
 import { theme } from "../theme";
 import type { HomePriorityAlertItem, HomePriorityLabelSegment } from "../lib/homePriorityAlerts";
-import { dismissHomeAlert, filterUndismissedAlerts, loadDismissedHomeAlertIds } from "../lib/dismissedHomeAlerts";
+import {
+  dismissHomeAlert,
+  dismissHomeAlerts,
+  filterUndismissedAlerts,
+  loadDismissedHomeAlertIds,
+} from "../lib/dismissedHomeAlerts";
 import { useI18n } from "../context/I18nContext";
 
 type Props = {
@@ -152,6 +159,33 @@ export function HomePriorityAlerts({
     [dismissStorageUserId]
   );
 
+  const runDismissAll = useCallback(async () => {
+    if (!dismissStorageUserId || activeItems.length === 0) return;
+    const ids = activeItems.map((x) => x.id);
+    await dismissHomeAlerts(dismissStorageUserId, ids);
+    setDismissed((prev) => new Set([...prev, ...ids]));
+    setSheetOpen(false);
+  }, [dismissStorageUserId, activeItems]);
+
+  const handleRemoveAllPress = useCallback(() => {
+    if (!dismissEnabled || activeItems.length === 0) return;
+    const title = t("homeAlerts.removeAllTitle");
+    const message = t("homeAlerts.removeAllMessage");
+    const cancel = t("common.cancel");
+    const confirm = t("homeAlerts.removeAllConfirm");
+    if (Platform.OS === "web") {
+      const ok =
+        typeof window !== "undefined" &&
+        window.confirm(`${title}\n\n${message}`);
+      if (ok) void runDismissAll();
+      return;
+    }
+    Alert.alert(title, message, [
+      { text: cancel, style: "cancel" },
+      { text: confirm, style: "destructive", onPress: () => void runDismissAll() },
+    ]);
+  }, [activeItems.length, dismissEnabled, runDismissAll, t]);
+
   if (activeItems.length === 0) return null;
 
   const visible = activeItems.slice(0, maxVisible);
@@ -266,6 +300,16 @@ export function HomePriorityAlerts({
             <Text style={[modalStyles.sub, isRTL && styles.rtl]}>
               {interpolate(t("homeAlerts.sheetSubtitle"), { n: activeItems.length })}
             </Text>
+            {dismissEnabled && activeItems.length > 0 ? (
+              <Pressable
+                onPress={handleRemoveAllPress}
+                style={({ pressed }) => [modalStyles.removeAllBtn, pressed && { opacity: 0.85 }]}
+                accessibilityRole="button"
+                accessibilityLabel={t("homeAlerts.removeAll")}
+              >
+                <Text style={[modalStyles.removeAllTxt, isRTL && styles.rtl]}>{t("homeAlerts.removeAll")}</Text>
+              </Pressable>
+            ) : null}
             <ScrollView
               style={modalStyles.scroll}
               contentContainerStyle={modalStyles.scrollContent}
@@ -447,7 +491,19 @@ const modalStyles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontWeight: "600",
     paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.xs,
+  },
+  removeAllBtn: {
+    alignSelf: "center",
+    paddingVertical: 8,
+    paddingHorizontal: theme.spacing.lg,
     marginBottom: theme.spacing.sm,
+  },
+  removeAllTxt: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: theme.colors.error,
+    textDecorationLine: "underline",
   },
   scroll: {
     maxHeight: 360,

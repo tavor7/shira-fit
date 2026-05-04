@@ -37,10 +37,15 @@ export async function loadDismissedHomeAlertIds(userId: string): Promise<Set<str
   }
 }
 
-export async function dismissHomeAlert(userId: string, alertId: string): Promise<void> {
+export async function dismissHomeAlerts(userId: string, alertIds: readonly string[]): Promise<void> {
+  if (alertIds.length === 0) return;
   const existing = await loadDismissedHomeAlertIds(userId);
-  existing.add(alertId);
+  for (const id of alertIds) existing.add(id);
   await storageSet(userId, JSON.stringify([...existing]));
+}
+
+export async function dismissHomeAlert(userId: string, alertId: string): Promise<void> {
+  await dismissHomeAlerts(userId, [alertId]);
 }
 
 export function filterUndismissedAlerts<T extends { id: string }>(items: T[], dismissed: Set<string>): T[] {

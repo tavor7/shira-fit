@@ -96,14 +96,14 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
           ) : null}
         </View>
       ) : null}
-      {staffLabels ? (
+      {staffLabels && temporalPhase !== "past" ? (
         <View
           style={[
             styles.stateBar,
             item.isOpenForRegistration ? styles.stateBarOpen : styles.stateBarClosed,
           ]}
         />
-      ) : item.subtitle ? (
+      ) : !staffLabels && item.subtitle ? (
         item.subtitleUnclamped ? (
           <Text style={[styles.subtitle, compact && styles.subtitleCompact]}>{item.subtitle}</Text>
         ) : (
