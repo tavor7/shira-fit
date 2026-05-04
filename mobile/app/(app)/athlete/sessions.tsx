@@ -29,7 +29,6 @@ export default function AthleteSessionsScreen() {
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [myUpcoming, setMyUpcoming] = useState<TrainingSessionWithTrainer[]>([]);
-  const [calendarWeekEndIso, setCalendarWeekEndIso] = useState<string | null>(null);
   const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
   const [priorityAlertsVisibleCount, setPriorityAlertsVisibleCount] = useState<number | null>(null);
   const homeAlertsSig = useMemo(() => homeAlerts.map((x) => x.id).sort().join("|"), [homeAlerts]);
@@ -134,11 +133,6 @@ export default function AthleteSessionsScreen() {
     [rows, signupBySession]
   );
 
-  const myUpcomingAfterCalendar = useMemo(() => {
-    if (!calendarWeekEndIso) return myUpcoming;
-    return myUpcoming.filter((s) => s.session_date > calendarWeekEndIso);
-  }, [myUpcoming, calendarWeekEndIso]);
-
   const sheetItems = useMemo(() => (sheetDay ? items.filter((i) => i.session_date === sheetDay) : []), [items, sheetDay]);
 
   return (
@@ -174,11 +168,11 @@ export default function AthleteSessionsScreen() {
           ]}
         >
           <Text style={styles.myUpcomingTitle}>{language === "he" ? "הסימונים שלך (מתוכנן)" : "Your upcoming sessions"}</Text>
-          {myUpcomingAfterCalendar.length === 0 ? (
+          {myUpcoming.length === 0 ? (
             <Text style={styles.myUpcomingEmpty}>{language === "he" ? "אין עוד אימונים שלך." : "No upcoming sessions."}</Text>
           ) : (
             <View style={styles.myUpcomingList}>
-              {myUpcomingAfterCalendar.map((s) => (
+              {myUpcoming.map((s) => (
                 <ActionButton
                   key={s.id}
                   label={`${formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60)} · ${s.session_date}`}
@@ -194,7 +188,6 @@ export default function AthleteSessionsScreen() {
           isLoading={loading}
           emptyLabel={language === "he" ? "אין אימונים פתוחים עדיין (חמישי 08:00 פותח את שבוע הבא)." : "No sessions open yet (Thu 08:00 opens next week)."}
           onDayPress={(iso) => setSheetDay(iso)}
-          onWeekChange={(_weekStartIso, weekEndIso) => setCalendarWeekEndIso(weekEndIso)}
         />
       </ScrollView>
       <DaySessionsSheet
