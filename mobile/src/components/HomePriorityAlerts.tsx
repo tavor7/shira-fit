@@ -24,7 +24,7 @@ type Props = {
 };
 
 const wrapBase: ViewStyle = {
-  marginBottom: theme.spacing.md,
+  marginBottom: theme.spacing.sm,
   borderLeftWidth: 4,
   borderLeftColor: theme.colors.cta,
   backgroundColor: theme.colors.surface,
@@ -272,20 +272,20 @@ export function HomePriorityAlerts({
 const styles = StyleSheet.create({
   rowOuter: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: theme.spacing.xs,
+    alignItems: "center",
+    paddingVertical: 10,
     paddingLeft: theme.spacing.sm,
   },
   rowTap: {
     flex: 1,
     minWidth: 0,
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
   },
   rowContent: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
+    alignItems: "center",
+    gap: 8,
     flex: 1,
     minWidth: 0,
   },
@@ -297,17 +297,17 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   dismissHit: {
-    justifyContent: "flex-start",
-    paddingLeft: 2,
-    paddingRight: theme.spacing.sm,
-    paddingVertical: 2,
-    marginTop: 0,
+    justifyContent: "center",
+    alignSelf: "stretch",
+    paddingLeft: 4,
+    paddingRight: theme.spacing.xs,
+    minWidth: 40,
   },
   dismissGlyph: {
-    color: theme.colors.textSoft,
-    fontSize: 22,
-    fontWeight: "300",
-    lineHeight: 24,
+    color: theme.colors.textMuted,
+    fontSize: 24,
+    fontWeight: "400",
+    lineHeight: 28,
   },
   newBadge: {
     marginTop: 1,
@@ -331,15 +331,15 @@ const styles = StyleSheet.create({
   text: {
     color: theme.colors.text,
     fontWeight: "700",
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
   },
   segSubject: {
     color: theme.colors.alertSubject,
     fontWeight: "800",
-    fontSize: 14,
-    lineHeight: 20,
-    letterSpacing: 0.12,
+    fontSize: 15,
+    lineHeight: 22,
+    letterSpacing: 0.08,
   },
   rtl: { writingDirection: "rtl", textAlign: "right" },
   moreRow: {
@@ -403,20 +403,20 @@ const modalStyles = StyleSheet.create({
     maxHeight: 360,
   },
   scrollContent: {
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
   },
   sheetRowOuter: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: theme.spacing.xs,
+    alignItems: "center",
+    paddingVertical: 10,
     paddingLeft: theme.spacing.sm,
   },
   sheetRowTap: {
     flex: 1,
     minWidth: 0,
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
   },
   sheetRowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -425,15 +425,15 @@ const modalStyles = StyleSheet.create({
   sheetRowText: {
     color: theme.colors.text,
     fontWeight: "700",
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
   },
   segSubject: {
     color: theme.colors.alertSubject,
     fontWeight: "800",
-    fontSize: 14,
-    lineHeight: 20,
-    letterSpacing: 0.12,
+    fontSize: 15,
+    lineHeight: 22,
+    letterSpacing: 0.08,
   },
   rtlSheet: { writingDirection: "rtl", textAlign: "right" },
   doneBtn: {

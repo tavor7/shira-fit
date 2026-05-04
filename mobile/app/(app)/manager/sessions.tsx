@@ -140,7 +140,7 @@ export default function ManagerSessionsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
         {showPriorityAlerts ? (
-          <View style={{ paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md }}>
+          <View style={{ paddingHorizontal: theme.spacing.xs, paddingTop: theme.spacing.sm }}>
             <HomePriorityAlerts
               items={homeAlerts}
               dismissStorageUserId={dismissStorageUserId}
