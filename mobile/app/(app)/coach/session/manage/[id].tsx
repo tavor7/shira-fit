@@ -164,7 +164,7 @@ export default function CoachSessionManageScreen() {
       coach_id: session.coach_id,
       max_participants: parseInt(maxP, 10) || 1,
       duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
-      is_open_for_registration: open,
+      is_open_for_registration: false,
       is_hidden: hidden,
     };
     let res = await supabase.from("training_sessions").insert(payload).select("id").maybeSingle();
@@ -448,7 +448,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     padding: theme.spacing.md,
   },
-  dupTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text, marginBottom: 10 },
+  dupTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text, marginBottom: 6 },
+  dupHint: { fontSize: 12, color: theme.colors.textSoft, lineHeight: 17, marginBottom: 10 },
   dupSectionLabel: {
     marginTop: 4,
     marginBottom: 8,

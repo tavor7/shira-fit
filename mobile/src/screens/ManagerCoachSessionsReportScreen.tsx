@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { supabase } from "../lib/supabase";
 import { formatSessionTimeRange } from "../lib/sessionTime";
-import { toISODateLocal, isValidISODateString, parseISODateLocal } from "../lib/isoDate";
+import { toISODateLocal, isValidISODateString, parseISODateLocal, firstDayOfMonthISOLocal } from "../lib/isoDate";
 import { formatISODateFull } from "../lib/dateFormat";
 import type { ManagerCoachSessionReportRow } from "../types/database";
 import { DatePickerField } from "../components/DatePickerField";
@@ -36,7 +36,7 @@ type Trainer = { user_id: string; full_name: string; username: string; role: str
 
 export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: { hideTitle?: boolean } = {}) {
   const { language, t, isRTL } = useI18n();
-  const [start, setStart] = useState(defaultStartISO);
+  const [start, setStart] = useState(() => firstDayOfMonthISOLocal());
   const [end, setEnd] = useState(defaultEndISO);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [coachId, setCoachId] = useState("");
@@ -47,6 +47,15 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<ManagerCoachSessionReportRow[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+
+  const payoutTotal = useMemo(
+    () => rows.reduce((sum, r) => sum + Number(r.coach_earnings_ils ?? 0), 0),
+    [rows]
+  );
+  const missingRateSessions = useMemo(
+    () => rows.filter((r) => r.coach_rate_missing === true).length,
+    [rows]
+  );
 
   const loadTrainers = useCallback(async () => {
     setTrainersLoading(true);
@@ -118,8 +127,8 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
         </Pressable>
         <Text style={[styles.hint, isRTL && styles.rtlText]}>
           {language === "he"
-            ? "מציג את כל האימונים של אותו מאמן בטווח. נרשמו = הרשמות פעילות; הגיעו = סומנו כנוכחים; ביטולים &lt;24ש׳ = ביטול עצמי בטווח 24 שעות לפני האימון."
-            : "Lists each session for that trainer in the range. Registered = active sign-ups; arrived = marked attended; late cancels = self-cancellations inside 24h before start."}
+            ? "מציג את כל האימונים של אותו מאמן בטווח. נרשמו = הרשמות פעילות + quick-add; הגיעו = נוכחות (כולל quick-add); ביטולים תוך 24 ש׳ = ביטול עצמי בטווח 24 שעות לפני האימון. סכום לתשלום = סכום קבוע מהרמה שמתאימה למספר הנרשמים (לא תלוי במקס׳ משתתפים או בהגעות)."
+            : "Lists each session for that trainer in the range. Registered = active sign-ups plus quick-add; arrived = marked attended (including quick-add); late cancels = self-cancellations within 24h before start. Due = flat tier amount for that registered headcount (not session max size or arrivals)."}
         </Text>
         <PrimaryButton
           label={language === "he" ? "טעינת דוח" : "Load report"}
@@ -128,6 +137,20 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
           loadingLabel={t("common.loading")}
         />
       </View>
+
+      {hasSearched && coachId ? (
+        <View style={styles.payoutCard}>
+          <Text style={[styles.payoutTitle, isRTL && styles.rtlText]}>{t("coachReport.payoutTitle")}</Text>
+          <Text style={[styles.payoutSub, isRTL && styles.rtlText]}>{t("coachReport.payoutTotal")}</Text>
+          <Text style={[styles.payoutBig, isRTL && styles.rtlText]}>{`${Math.round(payoutTotal * 100) / 100} ₪`}</Text>
+          <Text style={[styles.payoutHint, isRTL && styles.rtlText]}>{t("coachReport.payoutHint")}</Text>
+          {missingRateSessions > 0 ? (
+            <Text style={[styles.payoutWarn, isRTL && styles.rtlText]}>
+              {t("coachReport.sessionsMissingRate").replace("{n}", String(missingRateSessions))}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
       <Modal visible={pickerOpen} transparent animationType="slide">
         <View style={styles.modalBackdrop}>
@@ -207,6 +230,13 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
               {language === "he" ? "ביטולים בטווח 24 ש׳" : "Late cancels (<24h)"}:{" "}
               {typeof item.late_cancellations_within_24h === "number" ? item.late_cancellations_within_24h : 0}
             </Text>
+            <Text style={[styles.rowPayout, isRTL && styles.rtlText]}>
+              {language === "he" ? "מקס׳ משתתפים" : "Group size"}: {item.max_participants ?? "—"} · {t("coachReport.dueThisSession")}:{" "}
+              {Math.round(Number(item.coach_earnings_ils ?? 0) * 100) / 100} ₪
+            </Text>
+            {item.coach_rate_missing === true ? (
+              <Text style={[styles.rowPayoutWarn, isRTL && styles.rtlText]}>{t("coachReport.noRateForSize")}</Text>
+            ) : null}
           </Pressable>
         )}
         ListEmptyComponent={
@@ -304,4 +334,27 @@ const styles = StyleSheet.create({
   rowTime: { marginTop: 4, fontSize: 14, color: theme.colors.cta, fontWeight: "600" },
   rowStats: { marginTop: 8, fontSize: 14, color: theme.colors.textMuted, fontWeight: "600" },
   empty: { textAlign: "center", color: theme.colors.textSoft, padding: theme.spacing.xl, fontSize: 14 },
+  payoutCard: {
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    gap: 6,
+  },
+  payoutTitle: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: theme.colors.textMuted,
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+  },
+  payoutSub: { fontSize: 13, fontWeight: "700", color: theme.colors.text, marginTop: 2 },
+  payoutBig: { fontSize: 22, fontWeight: "900", color: theme.colors.cta },
+  payoutHint: { fontSize: 12, color: theme.colors.textMuted, lineHeight: 17 },
+  payoutWarn: { fontSize: 12, color: theme.colors.textSoft, lineHeight: 17 },
+  rowPayout: { marginTop: 8, fontSize: 13, color: theme.colors.text, fontWeight: "700" },
+  rowPayoutWarn: { marginTop: 6, fontSize: 12, fontWeight: "800", color: theme.colors.error },
 });

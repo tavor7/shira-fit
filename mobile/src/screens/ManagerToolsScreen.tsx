@@ -69,7 +69,7 @@ export default function ManagerToolsScreen() {
                         ? "חיפוש מתאמן וצפייה בהרשמות"
                         : tool.subtitle === "Sessions + registered/arrived counts"
                           ? "אימונים + מספר נרשמו/הגיעו"
-                          : tool.subtitle === "Configure the weekly opening day/time"
+                            : tool.subtitle === "Configure the weekly opening day/time"
                             ? "קביעת יום/שעה לפתיחת הרשמה שבועית"
                             : tool.subtitle
                 : tool.subtitle}

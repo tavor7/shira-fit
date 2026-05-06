@@ -147,6 +147,11 @@ export function GlobalQuickMenu() {
           isActive: (p) => startsWithAny(p, ["/coach/participant-history"]),
         },
         {
+          label: t("menu.pricingHub"),
+          onPress: () => router.push("/(app)/coach/pricing" as never),
+          isActive: (p) => startsWithAny(p, ["/coach/pricing"]),
+        },
+        {
           label: t("menu.createSession"),
           onPress: () => router.push("/(app)/coach/create-session"),
           isActive: (p) => startsWithAny(p, ["/coach/create-session"]),

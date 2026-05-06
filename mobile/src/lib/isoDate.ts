@@ -10,6 +10,11 @@ export function toISODateLocal(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
+/** First day of the month containing `ref` (default: today), local calendar. */
+export function firstDayOfMonthISOLocal(ref: Date = new Date()): string {
+  return toISODateLocal(new Date(ref.getFullYear(), ref.getMonth(), 1));
+}
+
 export function parseISODateLocal(s: string): Date | null {
   const t = s.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return null;

@@ -94,4 +94,37 @@ export type ManagerCoachSessionReportRow = {
   arrived_count: number;
   /** Self-cancels recorded with full charge (within 24h of session start). */
   late_cancellations_within_24h?: number;
+  max_participants: number;
+  /** arrived_count × coach rate for this group size (₪). */
+  coach_earnings_ils: number | string;
+  /** True when arrivals > 0 but no coach rate row for max_participants. */
+  coach_rate_missing: boolean;
+};
+
+/** Global price when a session’s max_participants equals this capacity. */
+export type SessionCapacityPricingRow = {
+  max_participants: number;
+  price_ils: number | string;
+  updated_at?: string;
+};
+
+/** Per-coach payment per arrived athlete for sessions with this max_participants. */
+export type CoachCapacityPricingRow = {
+  coach_id: string;
+  max_participants: number;
+  price_ils: number | string;
+  updated_at?: string;
+};
+
+/** Staff-recorded payment not tied to a session (athlete or manual participant). */
+export type AthleteAccountPayment = {
+  id: string;
+  payee_id: string;
+  payee_is_manual: boolean;
+  amount_ils: number | string;
+  payment_method: string;
+  note: string | null;
+  paid_at: string;
+  created_at: string;
+  created_by: string | null;
 };

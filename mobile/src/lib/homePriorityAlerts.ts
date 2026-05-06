@@ -91,7 +91,140 @@ export function buildStaffWaitlistFreeSpotItems(
   }));
 }
 
-/** Staff home: waitlist + free spot first; then all self-cancellations newest → oldest (cancelled_at). */
+type StaffAthleteOcc = {
+  athleteKey: string;
+  date: string;
+  sessionId: string;
+  startMs: number;
+};
+
+/**
+ * Staff home: an athlete (profile or quick-add) has 2+ active roster spots on the same calendar day among
+ * the sessions shown on this calendar; sessions must not have ended yet.
+ */
+export async function fetchStaffAthleteMultipleSessionsPerDayItems(
+  variant: "coach" | "manager",
+  sessions: TrainingSessionWithTrainer[],
+  language: LanguageCode,
+  now = new Date()
+): Promise<HomePriorityAlertItem[]> {
+  const sessionById = new Map(sessions.map((s) => [s.id, s]));
+  const upcomingIds = sessions
+    .filter((s) => hasSessionNotEnded(s.session_date, s.start_time, s.duration_minutes ?? 60, now))
+    .map((s) => s.id);
+  if (upcomingIds.length === 0) return [];
+
+  const [{ data: regs }, { data: mans }] = await Promise.all([
+    supabase.from("session_registrations").select("session_id, user_id").in("session_id", upcomingIds).eq("status", "active"),
+    supabase.from("session_manual_participants").select("session_id, manual_participant_id").in("session_id", upcomingIds),
+  ]);
+
+  const occs: StaffAthleteOcc[] = [];
+
+  for (const r of (regs ?? []) as { session_id: string; user_id: string }[]) {
+    const s = sessionById.get(r.session_id);
+    if (!s) continue;
+    const dur = s.duration_minutes ?? 60;
+    if (!hasSessionNotEnded(s.session_date, s.start_time, dur, now)) continue;
+    occs.push({
+      athleteKey: `u:${r.user_id}`,
+      date: s.session_date,
+      sessionId: s.id,
+      startMs: sessionStartsAt(s.session_date, s.start_time).getTime(),
+    });
+  }
+  for (const m of (mans ?? []) as { session_id: string; manual_participant_id: string }[]) {
+    const s = sessionById.get(m.session_id);
+    if (!s) continue;
+    const dur = s.duration_minutes ?? 60;
+    if (!hasSessionNotEnded(s.session_date, s.start_time, dur, now)) continue;
+    occs.push({
+      athleteKey: `m:${m.manual_participant_id}`,
+      date: s.session_date,
+      sessionId: s.id,
+      startMs: sessionStartsAt(s.session_date, s.start_time).getTime(),
+    });
+  }
+
+  const byAthleteDate = new Map<string, StaffAthleteOcc[]>();
+  for (const o of occs) {
+    const k = `${o.athleteKey}|${o.date}`;
+    const arr = byAthleteDate.get(k) ?? [];
+    arr.push(o);
+    byAthleteDate.set(k, arr);
+  }
+
+  const groups: StaffAthleteOcc[][] = [];
+  for (const list of byAthleteDate.values()) {
+    if (list.length < 2) continue;
+    const seenSession = new Set<string>();
+    const deduped: StaffAthleteOcc[] = [];
+    for (const o of list.sort((a, b) => a.startMs - b.startMs)) {
+      if (seenSession.has(o.sessionId)) continue;
+      seenSession.add(o.sessionId);
+      deduped.push(o);
+    }
+    if (deduped.length >= 2) groups.push(deduped);
+  }
+
+  groups.sort((a, b) => {
+    const da = a[0]!.date.localeCompare(b[0]!.date);
+    if (da !== 0) return da;
+    return a[0]!.athleteKey.localeCompare(b[0]!.athleteKey);
+  });
+
+  const userIds = [...new Set(groups.map((g) => g[0]!.athleteKey).filter((k) => k.startsWith("u:")).map((k) => k.slice(2)))];
+  const manualIds = [...new Set(groups.map((g) => g[0]!.athleteKey).filter((k) => k.startsWith("m:")).map((k) => k.slice(2)))];
+
+  const nameByUser: Record<string, string> = {};
+  if (userIds.length > 0) {
+    const { data: profs } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
+    for (const p of (profs ?? []) as { user_id: string; full_name: string | null }[]) {
+      nameByUser[p.user_id] = p.full_name?.trim() ?? "";
+    }
+  }
+  const nameByManual: Record<string, string> = {};
+  if (manualIds.length > 0) {
+    const { data: mp } = await supabase.from("manual_participants").select("id, full_name").in("id", manualIds);
+    for (const row of (mp ?? []) as { id: string; full_name: string | null }[]) {
+      nameByManual[row.id] = row.full_name?.trim() ?? "";
+    }
+  }
+
+  function resolveAthleteName(athleteKey: string): string {
+    if (athleteKey.startsWith("u:")) {
+      const id = athleteKey.slice(2);
+      return nameByUser[id]?.trim() || tr(language, "homeAlerts.athlete");
+    }
+    const id = athleteKey.slice(2);
+    return nameByManual[id]?.trim() || tr(language, "homeAlerts.athlete");
+  }
+
+  return groups.map((list) => {
+    const first = list[0]!;
+    const athleteName = resolveAthleteName(first.athleteKey);
+    const dateStr = formatISODateFull(first.date, language);
+    const n = list.length;
+    const lead = tr(language, "homeAlerts.trainerMultipleSessionsLead");
+    const detail = tr(language, "homeAlerts.staffAthleteMultipleSessionsDay", { name: athleteName, n, date: dateStr });
+    const leadDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
+    const bodyDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
+    const sep = " · ";
+    const flatLabel = `${lead}${sep}${detail}`;
+
+    return {
+      id: `dbl-ath-${first.athleteKey}-${first.date}`,
+      label: flatLabel,
+      labelSegments: [
+        { text: lead, dir: leadDir, role: "subject" },
+        { text: sep + detail, dir: bodyDir, role: "body" },
+      ],
+      href: staffSessionPath(variant, first.sessionId),
+    };
+  });
+}
+
+/** Staff home: waitlist + free spot first; then same-day athlete double-booking; then self-cancellations newest → oldest (cancelled_at). */
 export async function mergeStaffHomeAlerts(
   variant: "coach" | "manager",
   sessions: TrainingSessionWithTrainer[],
@@ -101,10 +234,11 @@ export async function mergeStaffHomeAlerts(
   now = new Date()
 ): Promise<HomePriorityAlertItem[]> {
   const a = buildStaffWaitlistFreeSpotItems(sessions, signupBySession, waitlistBySession, variant, language, now);
+  const d = await fetchStaffAthleteMultipleSessionsPerDayItems(variant, sessions, language, now);
   const b = await fetchStaffLateCancellationItems(variant, language, now);
   const seen = new Set<string>();
   const out: HomePriorityAlertItem[] = [];
-  for (const x of [...a, ...b]) {
+  for (const x of [...a, ...d, ...b]) {
     if (seen.has(x.id)) continue;
     seen.add(x.id);
     out.push(x);
@@ -199,16 +333,100 @@ export async function fetchRegistrationBannerState(): Promise<RegistrationBanner
   };
 }
 
+/**
+ * Athlete home: user has 2+ active registrations on the same calendar day and those sessions have not ended yet.
+ */
+export async function fetchAthleteMultipleSessionsPerDayItems(
+  language: LanguageCode,
+  now = new Date()
+): Promise<HomePriorityAlertItem[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("session_registrations")
+    .select(
+      `training_sessions!inner(
+        id,
+        session_date,
+        start_time,
+        duration_minutes,
+        coach_id,
+        trainer:profiles!coach_id(full_name, calendar_color)
+      )`
+    )
+    .eq("user_id", user.id)
+    .eq("status", "active");
+
+  if (error || !data?.length) return [];
+
+  const sessions: TrainingSessionWithTrainer[] = [];
+  for (const r of data as { training_sessions: unknown }[]) {
+    const raw = r.training_sessions;
+    const s = Array.isArray(raw) ? raw[0] : raw;
+    if (!s || typeof s !== "object" || !("id" in s)) continue;
+    const row = s as TrainingSessionWithTrainer;
+    if (!row.id) continue;
+    const dur = row.duration_minutes ?? 60;
+    if (!hasSessionNotEnded(row.session_date, row.start_time, dur, now)) continue;
+    sessions.push(row);
+  }
+
+  const byDate = new Map<string, TrainingSessionWithTrainer[]>();
+  for (const s of sessions) {
+    const arr = byDate.get(s.session_date) ?? [];
+    arr.push(s);
+    byDate.set(s.session_date, arr);
+  }
+
+  const groups: TrainingSessionWithTrainer[][] = [];
+  for (const list of byDate.values()) {
+    if (list.length >= 2) groups.push(list);
+  }
+  groups.sort((a, b) => a[0]!.session_date.localeCompare(b[0]!.session_date));
+  for (const list of groups) {
+    list.sort(
+      (a, b) =>
+        sessionStartsAt(a.session_date, a.start_time).getTime() -
+        sessionStartsAt(b.session_date, b.start_time).getTime()
+    );
+  }
+
+  return groups.map((list) => {
+    const first = list[0]!;
+    const dateStr = formatISODateFull(first.session_date, language);
+    const n = list.length;
+    const lead = tr(language, "homeAlerts.trainerMultipleSessionsLead");
+    const detail = tr(language, "homeAlerts.athleteMultipleSessionsDay", { n, date: dateStr });
+    const leadDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
+    const bodyDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
+    const sep = " · ";
+    const flatLabel = `${lead}${sep}${detail}`;
+    return {
+      id: `ath-dbl-${first.session_date}`,
+      label: flatLabel,
+      labelSegments: [
+        { text: lead, dir: leadDir, role: "subject" },
+        { text: sep + detail, dir: bodyDir, role: "body" },
+      ],
+      href: `/(app)/athlete/session/${first.id}` as Href,
+    };
+  });
+}
+
 export async function fetchAthleteHomeAlertItems(
   language: LanguageCode,
   now = new Date()
 ): Promise<HomePriorityAlertItem[]> {
-  const [state, waitItems] = await Promise.all([
+  const [state, waitItems, multiDayItems] = await Promise.all([
     fetchRegistrationBannerState(),
     fetchAthleteWaitlistOpenSpotItems(language, now),
+    fetchAthleteMultipleSessionsPerDayItems(language, now),
   ]);
   const regItems = buildAthleteRegistrationItems(state, language);
-  return [...regItems, ...waitItems];
+  return [...regItems, ...multiDayItems, ...waitItems];
 }
 
 function formatUtcOpeningLabel(isoZ: string, language: LanguageCode): string {
