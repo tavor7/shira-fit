@@ -13,6 +13,7 @@ import { AppErrorBoundary } from "../src/components/AppErrorBoundary";
 import { initNotificationHandler } from "../src/lib/notificationsInit";
 import { useEffect } from "react";
 import * as Updates from "expo-updates";
+import { useAuth } from "../src/context/AuthContext";
 
 initNotificationHandler();
 
@@ -28,6 +29,14 @@ const rootHeaderTitleStyle: TextStyle = {
   color: theme.colors.text,
   letterSpacing: 0.2,
 };
+
+function StudioContactFooterGate() {
+  const { profile } = useAuth();
+  const role = profile?.role;
+  const isStaff = role === "coach" || role === "manager";
+  if (isStaff) return null;
+  return <StudioContactFooter />;
+}
 
 export default function RootLayout() {
   useEffect(() => {
@@ -98,7 +107,7 @@ export default function RootLayout() {
                       }}
                     />
                   </View>
-                  <StudioContactFooter />
+                  <StudioContactFooterGate />
                 </ToastProvider>
               </AppErrorBoundary>
             </ManagerAthletePreviewProvider>
