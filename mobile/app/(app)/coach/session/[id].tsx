@@ -533,7 +533,7 @@ export default function CoachSessionDetail() {
           setParticipantsRev((n) => n + 1);
         }}
       />
-    </ScrollView>
+        </ScrollView>
         <SessionAdjacentNav variant="coach" sessionId={String(id ?? "")} />
       </View>
     </>
