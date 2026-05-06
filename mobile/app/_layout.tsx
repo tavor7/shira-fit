@@ -59,9 +59,23 @@ export default function RootLayout() {
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         {Platform.OS === "web" ? (
           <Head>
+            <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
             <meta name="color-scheme" content="dark light" />
             <style>{`
               :root { color-scheme: dark; }
+              /*
+                iOS Safari auto-zooms form controls when their computed font-size is < 16px.
+                This is especially noticeable for temporal inputs (date/time) and makes the UI
+                feel like it "randomly zooms" while typing/selecting values.
+              */
+              @supports (-webkit-touch-callout: none) {
+                input,
+                select,
+                textarea,
+                button {
+                  font-size: 16px !important;
+                }
+              }
               input[type="date"], input[type="time"] {
                 color-scheme: dark;
               }
