@@ -16,6 +16,7 @@ import { useI18n } from "../../../src/context/I18nContext";
 import { supabase } from "../../../src/lib/supabase";
 import { mergeStaffHomeAlerts, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
+import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
@@ -47,6 +48,7 @@ export default function ManagerSessionsScreen() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
+    await touchWeeklyRegistrationOpenIfDue();
     const { data, error } = await fetchStaffTrainingSessionsForCalendar();
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);

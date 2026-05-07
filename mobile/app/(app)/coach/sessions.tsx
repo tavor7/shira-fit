@@ -15,6 +15,7 @@ import { useAuth } from "../../../src/context/AuthContext";
 import { useI18n } from "../../../src/context/I18nContext";
 import { mergeStaffHomeAlerts, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
+import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 
 export default function CoachSessionsScreen() {
   const { profile } = useAuth();
@@ -43,6 +44,7 @@ export default function CoachSessionsScreen() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
+    await touchWeeklyRegistrationOpenIfDue();
     const { data, error } = await fetchStaffTrainingSessionsForCalendar();
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);

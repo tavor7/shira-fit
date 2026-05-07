@@ -14,6 +14,7 @@ import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/compon
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { formatISODateLong } from "../../../src/lib/dateFormat";
 import { supabase } from "../../../src/lib/supabase";
+import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
@@ -50,6 +51,7 @@ export default function ManagerRosterCalendarScreen() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
+    await touchWeeklyRegistrationOpenIfDue();
     const { data, error } = await fetchStaffTrainingSessionsForCalendar();
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);
