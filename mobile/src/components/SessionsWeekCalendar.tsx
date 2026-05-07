@@ -31,6 +31,10 @@ export type SessionsWeekItem = {
   showStaffSessionLabels?: boolean;
   isHidden?: boolean;
   isOpenForRegistration?: boolean;
+  /** When true, don't dim past/hidden sessions in the grid. */
+  hideTemporalDimming?: boolean;
+  /** When true, hide open/closed indicators (chips / state bar). */
+  hideRegistrationState?: boolean;
   /** Staff-only: waitlist count for the session (shown when full). */
   waitlistCount?: number;
   /** For staff: assigned coach (edit/delete only when matches current user for coaches). */
@@ -278,6 +282,7 @@ export function SessionsWeekCalendar({
                       it.start_time,
                       it.durationMinutes ?? 60
                     );
+                    const dimTemporal = it.hideTemporalDimming !== true;
                     return (
                       <Pressable
                         key={it.key}
@@ -285,9 +290,9 @@ export function SessionsWeekCalendar({
                         disabled={!it.onPress}
                         style={({ pressed }) => [
                           styles.card,
-                          phase === "past" && styles.cardPast,
-                          phase === "live" && styles.cardLive,
-                          it.showStaffSessionLabels && it.isHidden ? { opacity: 0.55 } : null,
+                          dimTemporal && phase === "past" && styles.cardPast,
+                          dimTemporal && phase === "live" && styles.cardLive,
+                          dimTemporal && it.showStaffSessionLabels && it.isHidden ? { opacity: 0.55 } : null,
                           pressed && it.onPress && { opacity: 0.9 },
                         ]}
                       >

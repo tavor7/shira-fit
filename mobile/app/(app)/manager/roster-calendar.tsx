@@ -35,12 +35,16 @@ export default function ManagerRosterCalendarScreen() {
   const [weekStartIso, setWeekStartIso] = useState<string>("");
   const [weekEndIso, setWeekEndIso] = useState<string>("");
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
-  const [groupMode, setGroupMode] = useState(false);
+  const [showSmall, setShowSmall] = useState(false);
+  const [showBig, setShowBig] = useState(false);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [notesBySession, setNotesBySession] = useState<Record<string, string>>({});
 
   const isManager = profile?.role === "manager";
   if (!isManager) return <Redirect href="/(app)/manager/sessions" />;
+
+  const groupMode = showBig && !showSmall;
+  const filtersOn = showSmall || showBig;
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
@@ -63,10 +67,22 @@ export default function ManagerRosterCalendarScreen() {
     }, [load])
   );
 
-  const filteredRows = useMemo(
-    () => (groupMode ? rows.filter((s) => (s.max_participants ?? 0) > 6) : rows),
-    [rows, groupMode]
-  );
+  const filteredRows = useMemo(() => {
+    if (!showSmall && !showBig) return rows; // regular calendar
+    if (showSmall && showBig) return rows; // both toggles on
+    if (showBig) return rows.filter((s) => (s.max_participants ?? 0) > 6);
+    return rows.filter((s) => (s.max_participants ?? 0) <= 6);
+  }, [rows, showSmall, showBig]);
+
+  const weekSessionsAll = useMemo(() => {
+    const filtered = rows.filter((s) => inWeek(s.session_date, weekStartIso, weekEndIso));
+    filtered.sort(
+      (a, b) =>
+        sessionStartsAt(a.session_date, a.start_time).getTime() -
+        sessionStartsAt(b.session_date, b.start_time).getTime()
+    );
+    return filtered;
+  }, [rows, weekStartIso, weekEndIso]);
 
   const weekSessions = useMemo(() => {
     const filtered = filteredRows.filter((s) => inWeek(s.session_date, weekStartIso, weekEndIso));
@@ -78,11 +94,18 @@ export default function ManagerRosterCalendarScreen() {
     return filtered;
   }, [filteredRows, weekStartIso, weekEndIso]);
 
+  const smallWeekSessions = useMemo(
+    () => weekSessionsAll.filter((s) => (s.max_participants ?? 0) <= 6),
+    [weekSessionsAll]
+  );
+
   const items = useMemo<SessionsWeekItem[]>(
     () =>
       filteredRows.map((s) => {
         const accentColor = resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id);
-        if (groupMode) {
+        const isBig = (s.max_participants ?? 0) > 6;
+        // When a filter is enabled, show roster names on the calendar cards for that group size.
+        if ((showBig && isBig) || (showSmall && !isBig)) {
           const roster = rosterBySession[s.id] ?? [];
           const c = signupBySession[s.id] ?? 0;
           const m = s.max_participants ?? 0;
@@ -103,9 +126,12 @@ export default function ManagerRosterCalendarScreen() {
             timeBadgeText: badge,
             timeBadgeText2: m > 0 && c >= m && wl > 0 ? String(wl) : undefined,
             waitlistCount: wl,
+            trainerName: s.trainer?.full_name ?? undefined,
             subtitle,
             subtitleUnclamped: true,
             accentColor,
+            hideTemporalDimming: filtersOn,
+            hideRegistrationState: filtersOn,
             onPress: () => router.push(`/(app)/manager/session/${s.id}`),
           } satisfies SessionsWeekItem;
         }
@@ -124,10 +150,36 @@ export default function ManagerRosterCalendarScreen() {
           showStaffSessionLabels: true,
           isHidden: !!s.is_hidden,
           isOpenForRegistration: s.is_open_for_registration,
+          hideTemporalDimming: filtersOn,
+          hideRegistrationState: filtersOn,
           onPress: () => router.push(`/(app)/manager/session/${s.id}`),
         } satisfies SessionsWeekItem;
       }),
-    [filteredRows, signupBySession, waitlistBySession, groupMode, rosterBySession, language]
+    [filteredRows, signupBySession, waitlistBySession, showBig, showSmall, rosterBySession, language, filtersOn]
+  );
+
+  const itemsAll = useMemo<SessionsWeekItem[]>(
+    () =>
+      rows.map((s) => ({
+        key: s.id,
+        session_date: s.session_date,
+        start_time: s.start_time,
+        durationMinutes: s.duration_minutes ?? 60,
+        timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
+        trainerName: s.trainer?.full_name ?? undefined,
+        coachId: s.coach_id,
+        signedUpCount: signupBySession[s.id] ?? 0,
+        maxParticipants: s.max_participants,
+        waitlistCount: waitlistBySession[s.id] ?? 0,
+        accentColor: resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id),
+        showStaffSessionLabels: true,
+        isHidden: !!s.is_hidden,
+        isOpenForRegistration: s.is_open_for_registration,
+        hideTemporalDimming: filtersOn,
+        hideRegistrationState: filtersOn,
+        onPress: () => router.push(`/(app)/manager/session/${s.id}`),
+      })),
+    [rows, signupBySession, waitlistBySession, filtersOn]
   );
 
   const grouped = useMemo(() => {
@@ -145,12 +197,30 @@ export default function ManagerRosterCalendarScreen() {
     }));
   }, [weekSessions, language]);
 
-  const sheetItems = useMemo(() => (sheetDay ? items.filter((i) => i.session_date === sheetDay) : []), [items, sheetDay]);
+  const smallGrouped = useMemo(() => {
+    const byDate: Record<string, TrainingSessionWithTrainer[]> = {};
+    for (const s of smallWeekSessions) (byDate[s.session_date] ??= []).push(s);
+    const dates = Object.keys(byDate).sort();
+    return dates.map((d) => ({
+      date: d,
+      title: formatISODateLong(d, language),
+      items: byDate[d].sort(
+        (a, b) =>
+          sessionStartsAt(a.session_date, a.start_time).getTime() -
+          sessionStartsAt(b.session_date, b.start_time).getTime()
+      ),
+    }));
+  }, [smallWeekSessions, language]);
+
+  const sheetItems = useMemo(
+    () => (sheetDay ? (groupMode ? itemsAll : items).filter((i) => i.session_date === sheetDay) : []),
+    [items, itemsAll, sheetDay, groupMode]
+  );
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const ids = weekSessions.map((s) => s.id);
+      const ids = weekSessionsAll.map((s) => s.id);
       if (ids.length === 0) {
         setRosterBySession({});
         setNotesBySession({});
@@ -224,7 +294,7 @@ export default function ManagerRosterCalendarScreen() {
     return () => {
       cancelled = true;
     };
-  }, [weekSessions]);
+  }, [weekSessionsAll]);
 
   return (
     <View style={styles.screen}>
@@ -249,23 +319,47 @@ export default function ManagerRosterCalendarScreen() {
               ? "בחרו שבוע כדי לראות את רשימות המשתתפים לכל אימון."
               : "Pick a week to see the participant roster for each session."}
           </Text>
-          <Pressable
-            onPress={() => setGroupMode((v) => !v)}
-            style={({ pressed }) => [
-              styles.toggleRow,
-              pressed && { opacity: 0.92 },
-              groupMode && styles.toggleRowOn,
-            ]}
-          >
-            <Text style={[styles.toggleTxt, groupMode && styles.toggleTxtOn]} numberOfLines={1}>
-              {language === "he" ? "מצב קבוצות (מעל 6)" : "Groups mode (max > 6)"}
-            </Text>
-            <View style={[styles.togglePill, groupMode && styles.togglePillOn]}>
-              <Text style={[styles.togglePillTxt, groupMode && styles.togglePillTxtOn]}>
-                {groupMode ? t("common.on") : t("common.off")}
+          <View style={[styles.modeWrap, isRTL && styles.modeWrapRtl]}>
+            <Pressable
+              onPress={() => setShowSmall((v) => !v)}
+              style={({ pressed }) => [
+                styles.filterBtn,
+                showSmall && styles.filterBtnOn,
+                pressed && !showSmall && { opacity: 0.92 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={language === "he" ? "סינון: קבוצות קטנות" : "Filter: small groups"}
+            >
+              <Text style={[styles.filterTxt, showSmall && styles.filterTxtOn]} numberOfLines={1}>
+                {language === "he" ? "קטנים (≤6)" : "Small (≤6)"}
               </Text>
-            </View>
-          </Pressable>
+              <View style={[styles.filterPill, showSmall && styles.filterPillOn]}>
+                <Text style={[styles.filterPillTxt, showSmall && styles.filterPillTxtOn]}>
+                  {showSmall ? t("common.on") : t("common.off")}
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setShowBig((v) => !v)}
+              style={({ pressed }) => [
+                styles.filterBtn,
+                showBig && styles.filterBtnOn,
+                pressed && !showBig && { opacity: 0.92 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={language === "he" ? "סינון: קבוצות גדולות" : "Filter: big groups"}
+            >
+              <Text style={[styles.filterTxt, showBig && styles.filterTxtOn]} numberOfLines={1}>
+                {language === "he" ? "גדולים (≥7)" : "Big (≥7)"}
+              </Text>
+              <View style={[styles.filterPill, showBig && styles.filterPillOn]}>
+                <Text style={[styles.filterPillTxt, showBig && styles.filterPillTxtOn]}>
+                  {showBig ? t("common.on") : t("common.off")}
+                </Text>
+              </View>
+            </Pressable>
+          </View>
         </View>
 
         <SessionsWeekCalendar
@@ -399,23 +493,37 @@ const styles = StyleSheet.create({
   headerRow: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md, gap: 6 },
   h1: { color: theme.colors.text, fontWeight: "900", fontSize: 18 },
   hint: { color: theme.colors.textMuted, fontWeight: "700" },
-  toggleRow: {
-    marginTop: 6,
+  modeWrap: {
+    marginTop: 10,
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: theme.radius.lg,
+    gap: 6,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.full,
+    padding: 6,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surfaceElevated,
+    alignSelf: "stretch",
   },
-  toggleRowOn: { borderColor: theme.colors.cta, backgroundColor: theme.colors.surface },
-  toggleTxt: { flex: 1, minWidth: 0, color: theme.colors.text, fontWeight: "900" },
-  toggleTxtOn: { color: theme.colors.cta },
-  togglePill: {
+  modeWrapRtl: { flexDirection: "row-reverse" },
+  filterBtn: {
+    flexGrow: 1,
+    flexBasis: 160,
+    minWidth: 140,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.full,
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexDirection: "row",
+    gap: 10,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  filterBtnOn: { backgroundColor: theme.colors.surface, borderColor: theme.colors.cta },
+  filterTxt: { flex: 1, minWidth: 0, fontWeight: "900", fontSize: 12, color: theme.colors.textMuted, letterSpacing: 0.2 },
+  filterTxtOn: { color: theme.colors.cta },
+  filterPill: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: theme.radius.full,
@@ -423,9 +531,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  togglePillOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  togglePillTxt: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 12, letterSpacing: 0.2 },
-  togglePillTxtOn: { color: theme.colors.ctaText },
+  filterPillOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  filterPillTxt: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 12, letterSpacing: 0.2 },
+  filterPillTxtOn: { color: theme.colors.ctaText },
 
   rosterHeader: {
     paddingHorizontal: theme.spacing.md,

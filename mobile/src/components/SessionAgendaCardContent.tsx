@@ -20,6 +20,8 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
   const accent = item.accentColor;
   const showFill = item.signedUpCount !== undefined && item.maxParticipants !== undefined;
   const staffLabels = item.showStaffSessionLabels === true;
+  const showRegState = item.hideRegistrationState !== true;
+  const showTemporalPills = item.hideTemporalDimming !== true;
   const c = item.signedUpCount ?? 0;
   const m = item.maxParticipants ?? 0;
   const full = showFill && m > 0 && c >= m;
@@ -42,14 +44,16 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
     >
       <View style={styles.timeRow}>
         <Text style={timeStyle}>{item.timeLabel ?? item.start_time}</Text>
-        {temporalPhase === "live" ? (
-          <View style={styles.livePill}>
-            <Text style={styles.livePillTxt}>{language === "he" ? "עכשיו" : "Live"}</Text>
-          </View>
-        ) : temporalPhase === "past" ? (
-          <View style={styles.endedPill}>
-            <Text style={styles.endedPillTxt}>{language === "he" ? "הסתיים" : "Ended"}</Text>
-          </View>
+        {showTemporalPills ? (
+          temporalPhase === "live" ? (
+            <View style={styles.livePill}>
+              <Text style={styles.livePillTxt}>{language === "he" ? "עכשיו" : "Live"}</Text>
+            </View>
+          ) : temporalPhase === "past" ? (
+            <View style={styles.endedPill}>
+              <Text style={styles.endedPillTxt}>{language === "he" ? "הסתיים" : "Ended"}</Text>
+            </View>
+          ) : null
         ) : null}
         {item.timeBadgeText ? (
           <View style={[styles.timeBadge, compact && styles.timeBadgeCompact]}>
@@ -67,7 +71,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
           {item.trainerName}
         </Text>
       ) : null}
-      {showFill && !staffLabels && temporalPhase !== "past" ? (
+      {showRegState && showFill && !staffLabels && temporalPhase !== "past" ? (
         <View style={[styles.chips, isRTL && styles.chipsRtl]}>
           {full ? (
             <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" />
@@ -96,7 +100,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
           ) : null}
         </View>
       ) : null}
-      {staffLabels && temporalPhase !== "past" ? (
+      {showRegState && staffLabels && temporalPhase !== "past" ? (
         <View
           style={[
             styles.stateBar,
