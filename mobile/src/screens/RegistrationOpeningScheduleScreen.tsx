@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useI18n } from "../context/I18nContext";
-import { ManagerOverviewTabs } from "../components/ManagerOverviewTabs";
+import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 
 const WEEKDAYS: { id: number; label: string }[] = [
   { id: 0, label: "Sunday" },
@@ -83,7 +83,7 @@ export default function RegistrationOpeningScheduleScreen() {
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
     >
-      <ManagerOverviewTabs />
+      <ManagerStudioSetupTabs />
       <Text style={[styles.title, isRTL && styles.rtlText]}>
         {language === "he" ? "פתיחת הרשמה" : "Registration opening"}
       </Text>

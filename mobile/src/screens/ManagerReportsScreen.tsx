@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
-import { ManagerOverviewTabs } from "../components/ManagerOverviewTabs";
+import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import ParticipantHistoryScreen from "./ParticipantHistoryScreen";
 import ManagerCoachSessionsReportScreen from "./ManagerCoachSessionsReportScreen";
 
@@ -26,7 +26,7 @@ export default function ManagerReportsScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <ManagerOverviewTabs />
+      <ManagerOverviewHubTabs />
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.reports")}</Text>
 
       <View style={[styles.track, isRTL && styles.trackRtl]}>

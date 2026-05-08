@@ -4,7 +4,7 @@ import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
-import { ManagerOverviewTabs } from "../components/ManagerOverviewTabs";
+import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { DatePickerField } from "../components/DatePickerField";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
@@ -697,7 +697,7 @@ export default function ManagerActivityLogScreen() {
 
   const listHeader = (
     <View style={styles.listHeaderPad}>
-      <ManagerOverviewTabs />
+      <ManagerOverviewHubTabs />
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.activityLog")}</Text>
       <Text style={[styles.hint, isRTL && styles.rtl]}>{t("activityLog.hint")}</Text>
       {filtersSection}

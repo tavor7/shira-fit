@@ -83,12 +83,26 @@ export function GlobalQuickMenu() {
           isActive: (p) =>
             startsWithAny(p, [
               "/manager/dashboard",
-              "/manager/trainer-colors",
-              "/manager/roles",
-              "/manager/opening-schedule",
+              "/manager/weekly-detail",
+              "/manager/activity-log",
+              "/manager/reports",
+              "/manager/participant-history",
+              "/manager/coach-sessions-report",
+            ]),
+        },
+        {
+          label: t("menu.managerSetup"),
+          onPress: () => router.push("/(app)/staff/users"),
+          isActive: (p) =>
+            startsWithAny(p, [
               "/staff/users",
               "/staff/profile",
               "/staff/manual",
+              "/manager/trainer-colors",
+              "/manager/roles",
+              "/manager/pricing",
+              "/manager/coach-capacity-pricing",
+              "/manager/opening-schedule",
             ]),
         },
         {

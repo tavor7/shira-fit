@@ -15,6 +15,14 @@ export function firstDayOfMonthISOLocal(ref: Date = new Date()): string {
   return toISODateLocal(new Date(ref.getFullYear(), ref.getMonth(), 1));
 }
 
+/** Move to the first day of the month offset by `deltaMonths` from the month containing `iso` (YYYY-MM-DD). */
+export function shiftMonthAnchorISOLocal(iso: string, deltaMonths: number): string {
+  const d = parseISODateLocal(iso);
+  const ref = d ?? new Date();
+  const nd = new Date(ref.getFullYear(), ref.getMonth() + deltaMonths, 1);
+  return toISODateLocal(nd);
+}
+
 export function parseISODateLocal(s: string): Date | null {
   const t = s.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return null;

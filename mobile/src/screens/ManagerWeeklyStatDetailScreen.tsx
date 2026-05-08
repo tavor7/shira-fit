@@ -21,7 +21,7 @@ import {
 } from "../lib/dateFormat";
 import { formatSessionTimeRange, sessionStartsAt } from "../lib/sessionTime";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
-import { ManagerOverviewTabs } from "../components/ManagerOverviewTabs";
+import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 
 export type WeeklyDetailKind =
   | "avg_fill"
@@ -446,7 +446,7 @@ export default function ManagerWeeklyStatDetailScreen() {
     <>
       <Stack.Screen options={{ title }} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <ManagerOverviewTabs />
+        <ManagerOverviewHubTabs />
         {rangeLabel ? (
           <Text style={[styles.range, isRTL && styles.rtl]}>{rangeLabel}</Text>
         ) : null}

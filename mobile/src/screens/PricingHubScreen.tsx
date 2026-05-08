@@ -4,7 +4,7 @@ import { useLocalSearchParams } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
-import { ManagerOverviewTabs } from "../components/ManagerOverviewTabs";
+import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import SessionPricingScreen from "./SessionPricingScreen";
 import CoachCapacityPricingScreen from "./CoachCapacityPricingScreen";
 
@@ -35,7 +35,7 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {variant === "manager" ? <ManagerOverviewTabs /> : null}
+      {variant === "manager" ? <ManagerStudioSetupTabs /> : null}
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.pricingHub")}</Text>
 
       <View style={[styles.track, isRTL && styles.trackRtl]}>
