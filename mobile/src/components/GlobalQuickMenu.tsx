@@ -111,19 +111,9 @@ export function GlobalQuickMenu() {
           isActive: (p) => startsWithAny(p, ["/manager/approve"]),
           badgeCount: pendingApproveCount > 0 ? pendingApproveCount : undefined,
         },
-        {
-          label: t("menu.activityLog"),
-          onPress: () => router.push("/(app)/manager/activity-log"),
-          isActive: (p) => startsWithAny(p, ["/manager/activity-log"]),
-        },
       ];
 
       managerItems.push(
-        {
-          label: t("menu.create"),
-          onPress: () => router.push("/(app)/manager/create-session"),
-          isActive: (p) => startsWithAny(p, ["/manager/create-session"]),
-        },
         {
           label: t("menu.athleteView"),
           onPress: async () => {

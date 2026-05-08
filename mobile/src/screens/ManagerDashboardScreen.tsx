@@ -361,52 +361,52 @@ export default function ManagerDashboardScreen() {
           </Pressable>
         </View>
       </View>
-      <View style={styles.weekNavCard}>
-        <View style={[styles.weekNav, isRTL && styles.weekNavRtl]}>
-          <Pressable
-            style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
-            onPress={() =>
-              setAnchorDate((a) =>
-                periodMode === "week" ? shiftWeek(a, -7) : shiftMonthAnchorISOLocal(a, -1)
-              )
-            }
-            accessibilityRole="button"
-            accessibilityLabel={
-              periodMode === "week"
-                ? language === "he"
-                  ? "שבוע קודם"
-                  : "Previous week"
-                : t("dashboard.a11yPrevMonth")
-            }
-          >
-            <Text style={styles.navBtnTxt}>{"‹"}</Text>
-          </Pressable>
-          <View style={styles.weekLblWrap}>
-            <Text style={styles.weekLbl} numberOfLines={2}>
-              {formatISODateFull(rangeLabelStart, language)}
-              {" → "}
-              {rangeLabelEnd ? formatISODateFull(rangeLabelEnd, language) : "…"}
-            </Text>
-          </View>
-          <Pressable
-            style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
-            onPress={() =>
-              setAnchorDate((a) =>
-                periodMode === "week" ? shiftWeek(a, 7) : shiftMonthAnchorISOLocal(a, 1)
-              )
-            }
-            accessibilityRole="button"
-            accessibilityLabel={
-              periodMode === "week"
-                ? language === "he"
-                  ? "שבוע הבא"
-                  : "Next week"
-                : t("dashboard.a11yNextMonth")
-            }
-          >
-            <Text style={styles.navBtnTxt}>{"›"}</Text>
-          </Pressable>
+      <View style={[styles.rangeRow, isRTL && styles.rangeRowRtl]}>
+        <Pressable
+          style={({ pressed }) => [styles.rangeNavHit, pressed && styles.rangeNavPressed]}
+          onPress={() =>
+            setAnchorDate((a) =>
+              periodMode === "week" ? shiftWeek(a, -7) : shiftMonthAnchorISOLocal(a, -1)
+            )
+          }
+          accessibilityRole="button"
+          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+          accessibilityLabel={
+            periodMode === "week"
+              ? language === "he"
+                ? "שבוע קודם"
+                : "Previous week"
+              : t("dashboard.a11yPrevMonth")
+          }
+        >
+          <Text style={styles.rangeChevron}>{"‹"}</Text>
+        </Pressable>
+        <View style={styles.rangeCenter}>
+          <Text style={[styles.rangeDates, isRTL && styles.rtl]} numberOfLines={2}>
+            {formatISODateFull(rangeLabelStart, language)}
+            <Text style={styles.rangeDash}>{" — "}</Text>
+            {rangeLabelEnd ? formatISODateFull(rangeLabelEnd, language) : "…"}
+          </Text>
         </View>
+        <Pressable
+          style={({ pressed }) => [styles.rangeNavHit, pressed && styles.rangeNavPressed]}
+          onPress={() =>
+            setAnchorDate((a) =>
+              periodMode === "week" ? shiftWeek(a, 7) : shiftMonthAnchorISOLocal(a, 1)
+            )
+          }
+          accessibilityRole="button"
+          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+          accessibilityLabel={
+            periodMode === "week"
+              ? language === "he"
+                ? "שבוע הבא"
+                : "Next week"
+              : t("dashboard.a11yNextMonth")
+          }
+        >
+          <Text style={styles.rangeChevron}>{"›"}</Text>
+        </Pressable>
       </View>
 
       {loading ? (
@@ -777,39 +777,43 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   financeEyebrow: { marginTop: theme.spacing.md, marginBottom: 10 },
-  weekNavCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.xl,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-    marginBottom: theme.spacing.md,
-  },
-  weekNav: {
+  rangeRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 4,
+    marginBottom: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.borderMuted,
   },
-  weekNavRtl: { flexDirection: "row-reverse" },
-  navBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
+  rangeRowRtl: { flexDirection: "row-reverse" },
+  rangeNavHit: {
+    minWidth: 40,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  navBtnPressed: { opacity: 0.88 },
-  navBtnTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 18, lineHeight: 20 },
-  weekLblWrap: { flex: 1, paddingHorizontal: 10 },
-  weekLbl: {
-    textAlign: "center",
+  rangeNavPressed: { opacity: 0.45 },
+  rangeChevron: {
+    fontSize: 26,
+    fontWeight: "200",
     color: theme.colors.textMuted,
+    lineHeight: 28,
+    marginTop: -2,
+  },
+  rangeCenter: { flex: 1, paddingHorizontal: theme.spacing.sm },
+  rangeDates: {
+    textAlign: "center",
+    fontSize: 14,
     fontWeight: "700",
-    fontSize: 13,
-    lineHeight: 18,
+    color: theme.colors.text,
+    letterSpacing: -0.15,
+    lineHeight: 20,
+  },
+  rangeDash: {
+    fontWeight: "600",
+    color: theme.colors.textSoft,
   },
   err: { color: theme.colors.error, fontWeight: "700", marginTop: 8 },
   statsCard: {

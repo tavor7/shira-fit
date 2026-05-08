@@ -15,51 +15,28 @@ function startsWithAny(pathname: string, prefixes: string[]) {
   return prefixes.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname.startsWith(p));
 }
 
-const pillStyles = StyleSheet.create({
-  trackWrap: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    padding: 6,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    marginBottom: theme.spacing.md,
-    overflow: "hidden",
-    alignSelf: "stretch",
-    width: "100%",
-  },
-  trackRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, rowGap: 6 },
-  trackRowRtl: { flexDirection: "row-reverse" },
-  slot: {
-    flexGrow: 1,
-    flexBasis: 140,
-    minWidth: 120,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: theme.radius.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-  },
-  slotActive: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  slotPressed: { opacity: 0.9 },
-  txt: { fontWeight: "800", fontSize: 12, color: theme.colors.textMuted, letterSpacing: 0.2 },
-  txtActive: { color: theme.colors.ctaText },
-});
+type TabDensity = "comfortable" | "compact";
 
 /**
- * Shared pill tab bar (manager overview hub vs studio setup). Same visuals for both.
+ * Minimal underline tabs — text + thin accent bar (no pill boxes).
+ * Overview uses comfortable spacing; setup uses compact for more labels per row.
  */
-export function ManagerPillTabBar({ tabs }: { tabs: ManagerPillTabItem[] }) {
+export function ManagerPillTabBar({
+  tabs,
+  density = "comfortable",
+}: {
+  tabs: ManagerPillTabItem[];
+  density?: TabDensity;
+}) {
   const pathname = usePathname() ?? "";
   const { language, isRTL } = useI18n();
 
   const activeId = tabs.find((x) => x.isActive(pathname))?.id ?? tabs[0]?.id ?? "";
+  const compact = density === "compact";
 
   return (
-    <View style={pillStyles.trackWrap}>
-      <View style={[pillStyles.trackRow, isRTL && pillStyles.trackRowRtl]}>
+    <View style={styles.strip}>
+      <View style={[styles.row, isRTL && styles.rowRtl]}>
         {tabs.map((x) => {
           const active = x.id === activeId;
           return (
@@ -67,16 +44,21 @@ export function ManagerPillTabBar({ tabs }: { tabs: ManagerPillTabItem[] }) {
               key={x.id}
               onPress={() => router.replace(x.href)}
               style={({ pressed }) => [
-                pillStyles.slot,
-                active && pillStyles.slotActive,
-                pressed && !active && pillStyles.slotPressed,
+                compact ? styles.tabCompact : styles.tab,
+                pressed && !active && styles.tabPressed,
               ]}
-              accessibilityRole="button"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
               accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
             >
-              <Text style={[pillStyles.txt, active && pillStyles.txtActive]} numberOfLines={1} ellipsizeMode="tail">
+              <Text
+                style={[compact ? styles.labelCompact : styles.label, active && styles.labelActive]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {x.label}
               </Text>
+              <View style={[compact ? styles.indicatorCompact : styles.indicator, active && styles.indicatorActive]} />
             </Pressable>
           );
         })}
@@ -85,7 +67,70 @@ export function ManagerPillTabBar({ tabs }: { tabs: ManagerPillTabItem[] }) {
   );
 }
 
-/** Main overview: weekly dashboard, activity log, reports — plus entry to studio setup. */
+const styles = StyleSheet.create({
+  strip: {
+    alignSelf: "stretch",
+    marginBottom: theme.spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.borderMuted,
+  },
+  row: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "flex-end",
+    gap: 2,
+    rowGap: 0,
+  },
+  rowRtl: { flexDirection: "row-reverse" },
+  tab: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minHeight: 44,
+    justifyContent: "flex-end",
+  },
+  tabCompact: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    minHeight: 42,
+    justifyContent: "flex-end",
+  },
+  tabPressed: { opacity: 0.55 },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.colors.textMuted,
+    letterSpacing: 0.1,
+  },
+  labelCompact: {
+    fontSize: 12.5,
+    fontWeight: "600",
+    color: theme.colors.textMuted,
+    letterSpacing: 0.12,
+  },
+  labelActive: {
+    fontWeight: "800",
+    color: theme.colors.text,
+  },
+  indicator: {
+    marginTop: 8,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: "transparent",
+    alignSelf: "stretch",
+  },
+  indicatorCompact: {
+    marginTop: 6,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: "transparent",
+    alignSelf: "stretch",
+  },
+  indicatorActive: {
+    backgroundColor: theme.colors.cta,
+  },
+});
+
+/** Main overview: dashboard, activity log, reports (no link to setup — use the menu). */
 export function ManagerOverviewHubTabs() {
   const { t } = useI18n();
 
@@ -110,41 +155,19 @@ export function ManagerOverviewHubTabs() {
         isActive: (p) =>
           startsWithAny(p, ["/manager/reports", "/manager/participant-history", "/manager/coach-sessions-report"]),
       },
-      {
-        id: "setup",
-        label: t("menu.managerSetup"),
-        href: "/(app)/staff/users",
-        isActive: (p) =>
-          startsWithAny(p, [
-            "/staff/users",
-            "/staff/profile",
-            "/staff/manual",
-            "/manager/trainer-colors",
-            "/manager/roles",
-            "/manager/pricing",
-            "/manager/coach-capacity-pricing",
-            "/manager/opening-schedule",
-          ]),
-      },
     ],
     [t]
   );
 
-  return <ManagerPillTabBar tabs={tabs} />;
+  return <ManagerPillTabBar tabs={tabs} density="comfortable" />;
 }
 
-/** Studio / admin setup: users, colors, roles, pricing, opening — plus return to main overview. */
+/** Studio setup: edit users, colors, roles, pricing, opening (no link back to overview — use the menu). */
 export function ManagerStudioSetupTabs() {
   const { t } = useI18n();
 
   const tabs = useMemo<ManagerPillTabItem[]>(
     () => [
-      {
-        id: "overview",
-        label: t("menu.overview"),
-        href: "/(app)/manager/dashboard",
-        isActive: (p) => startsWithAny(p, ["/manager/dashboard", "/manager/weekly-detail"]),
-      },
       {
         id: "users",
         label: t("menu.editUsers"),
@@ -179,5 +202,5 @@ export function ManagerStudioSetupTabs() {
     [t]
   );
 
-  return <ManagerPillTabBar tabs={tabs} />;
+  return <ManagerPillTabBar tabs={tabs} density="compact" />;
 }

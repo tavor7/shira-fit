@@ -27,7 +27,7 @@ import { isMissingColumnError } from "../../../../src/lib/dbColumnErrors";
 import { isValidISODateString } from "../../../../src/lib/isoDate";
 import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay, formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateFormat";
-import { isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
+import { formatSessionStartTime, hasSessionNotEnded, isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
 import { useAuth } from "../../../../src/context/AuthContext";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../src/context/ToastContext";
@@ -600,18 +600,26 @@ export default function ManagerSessionDetail() {
       </View>
     );
 
+  const durationMinutesForEnded = Math.max(1, parseInt(durationMin, 10) || 60);
+  const sessionHasEnded = !hasSessionNotEnded(date, time, durationMinutesForEnded);
+
   return (
     <>
       <Stack.Screen options={{ title: t("screen.managerSession") }} />
       <View style={styles.root}>
         <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
       {!editingSession ? (
-        <View style={styles.summaryBlock}>
+        <View style={styles.summaryCard}>
           <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{language === "he" ? "אימון" : "Session"}</Text>
           <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>
-            {formatISODateFullWithWeekdayAfter(date, language)} · {time} · {durationMin} {language === "he" ? "דק׳" : "min"} ·{" "}
-            {language === "he" ? "עד" : "max"} {maxP}
+            {formatISODateFullWithWeekdayAfter(date, language)} · {formatSessionStartTime(time)} · {durationMin}{" "}
+            {language === "he" ? "דק׳" : "min"} · {language === "he" ? "עד" : "max"} {maxP}
           </Text>
+          {sessionHasEnded ? (
+            <View style={styles.summaryEndedRow} accessibilityLiveRegion="polite">
+              <Text style={[styles.summaryEndedText, isRTL && styles.rtlText]}>{t("managerSession.sessionEnded")}</Text>
+            </View>
+          ) : null}
           <Text style={[styles.summaryMeta, isRTL && styles.rtlText]}>
             {language === "he" ? "פתוח להרשמה: " : "Open: "}
             {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
@@ -742,7 +750,7 @@ export default function ManagerSessionDetail() {
                 {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
               </Text>
             </Pressable>
-            <View style={{ height: 10 }} />
+            <View style={styles.editSpacer} />
             <Pressable
               style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
               onPress={() => {
@@ -770,7 +778,7 @@ export default function ManagerSessionDetail() {
               <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
             </Pressable>
             <PrimaryButton label={t("common.save")} onPress={saveSession} />
-            <View style={{ height: 10 }} />
+            <View style={styles.editSpacer} />
             <Pressable
               onPress={() => {
                 void load();
@@ -830,7 +838,7 @@ export default function ManagerSessionDetail() {
                 </Text>
               </Pressable>
             </View>
-            <View style={{ height: 12 }} />
+            <View style={styles.editSpacer} />
             <PrimaryButton
               label={language === "he" ? "צור עותק" : "Create copy"}
               onPress={() => void duplicateSession()}
@@ -1180,13 +1188,55 @@ const styles = StyleSheet.create({
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
   loading: { padding: theme.spacing.lg, color: theme.colors.textMuted },
   rtlText: { textAlign: "right" },
-  summaryBlock: { marginBottom: theme.spacing.sm },
+  /** Session hero: tonal surface + border (DESIGN § cards). */
+  summaryCard: {
+    marginBottom: theme.spacing.sm,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+  },
   /** Uniform vertical rhythm between Edit / Duplicate / Delete (`PrimaryButton` defaults to marginTop: 8 — zero it here and use gap only). */
   sessionFooterActions: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
   sessionFooterGhostBtn: { marginTop: 0 },
-  summaryTitle: { fontSize: 17, fontWeight: "800", color: theme.colors.text, marginBottom: 8 },
-  summaryLine: { fontSize: 15, fontWeight: "600", color: theme.colors.text, lineHeight: 22 },
-  summaryMeta: { marginTop: 6, fontSize: 13, color: theme.colors.textMuted },
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    lineHeight: 22,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  summaryLine: {
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: 0.15,
+    color: theme.colors.text,
+    lineHeight: 23,
+  },
+  summaryEndedRow: {
+    marginTop: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.successBg,
+  },
+  summaryEndedText: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.15,
+    color: theme.colors.success,
+    lineHeight: 18,
+  },
+  summaryMeta: {
+    marginTop: theme.spacing.sm,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+    lineHeight: 16,
+    color: theme.colors.textMuted,
+  },
   /** Same size/radius as ghost `PrimaryButton`; light red fill + border so it reads as destructive but matches pill layout. */
   sessionDangerBtnGhost: {
     marginTop: 0,
@@ -1239,7 +1289,16 @@ const styles = StyleSheet.create({
   },
   sessionDeleteOkTxt: { color: theme.colors.white, fontWeight: "900", fontSize: 14 },
   editBlock: { marginBottom: theme.spacing.md },
-  h: { fontWeight: "700", marginTop: theme.spacing.md, marginBottom: 8, color: theme.colors.text },
+  editSpacer: { height: theme.spacing.sm },
+  h: {
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    lineHeight: 22,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    color: theme.colors.text,
+  },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   muted: { color: theme.colors.textSoft },
   waitCard: {

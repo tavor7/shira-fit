@@ -370,18 +370,9 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         <Text style={sf.cardTitle}>{language === "he" ? "מאמן" : "Trainer"}</Text>
         {fixedCoachId ? (
           <View style={[sf.control, { justifyContent: "center" }]}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View style={styles.coachRow}>
               {coachColor ? (
-                <View
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 999,
-                    backgroundColor: coachColor,
-                    borderWidth: 1,
-                    borderColor: theme.colors.borderMuted,
-                  }}
-                />
+                <View style={[styles.coachColorDot, { backgroundColor: coachColor }]} />
               ) : null}
               <Text style={[sf.controlText, { flex: 1 }]} numberOfLines={1} ellipsizeMode="tail">
                 {coachLabel || (language === "he" ? "את/ה" : "You")}
@@ -395,18 +386,9 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
               onPress={() => setShowCoachPicker(true)}
               accessibilityRole="button"
             >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View style={styles.coachRow}>
                 {coachLabel && coachColor ? (
-                  <View
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 999,
-                      backgroundColor: coachColor,
-                      borderWidth: 1,
-                      borderColor: theme.colors.borderMuted,
-                    }}
-                  />
+                  <View style={[styles.coachColorDot, { backgroundColor: coachColor }]} />
                 ) : null}
                 <Text
                   style={[coachLabel ? sf.controlText : sf.controlPlaceholder, { flex: 1 }]}
@@ -417,13 +399,17 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                 </Text>
               </View>
             </Pressable>
-            <Modal visible={showCoachPicker} transparent animationType="slide">
+            <Modal visible={showCoachPicker} transparent animationType="slide" onRequestClose={() => setShowCoachPicker(false)}>
               <View style={styles.modalBackdrop}>
-                <Pressable style={styles.modalBackdropTouch} onPress={() => setShowCoachPicker(false)} />
+                <Pressable
+                  style={styles.modalBackdropTouch}
+                  onPress={() => setShowCoachPicker(false)}
+                  accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+                />
                 <View style={styles.modalBox}>
                   <View style={styles.modalHeader}>
                     <Text style={styles.modalTitle}>{language === "he" ? "כל המאמנים" : "All trainers"}</Text>
-                    <Pressable onPress={() => setShowCoachPicker(false)}>
+                    <Pressable onPress={() => setShowCoachPicker(false)} hitSlop={12}>
                       <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
                     </Pressable>
                   </View>
@@ -438,26 +424,17 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                           style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
                           onPress={() => selectCoach(item)}
                         >
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                          <View style={styles.pickerItemLeading}>
                             {item.calendar_color ? (
-                              <View
-                                style={{
-                                  width: 10,
-                                  height: 10,
-                                  borderRadius: 999,
-                                  backgroundColor: item.calendar_color,
-                                  borderWidth: 1,
-                                  borderColor: theme.colors.borderMuted,
-                                }}
-                              />
+                              <View style={[styles.coachColorDot, { backgroundColor: item.calendar_color }]} />
                             ) : null}
                             <View style={styles.pickerItemTextCol}>
-                            <Text style={styles.pickerItemName} numberOfLines={1} ellipsizeMode="tail">
-                              {item.full_name}
-                            </Text>
-                            <Text style={styles.pickerItemRole} numberOfLines={1} ellipsizeMode="tail">
-                              @{item.username} · {item.role}
-                            </Text>
+                              <Text style={styles.pickerItemName} numberOfLines={1} ellipsizeMode="tail">
+                                {item.full_name}
+                              </Text>
+                              <Text style={styles.pickerItemRole} numberOfLines={1} ellipsizeMode="tail">
+                                @{item.username} · {item.role}
+                              </Text>
                             </View>
                           </View>
                         </Pressable>
@@ -580,130 +557,137 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
       <Modal visible={traineesOpen} transparent animationType="slide" onRequestClose={() => setTraineesOpen(false)}>
         <View style={styles.modalBackdrop}>
-          <Pressable style={styles.modalBackdropTouch} onPress={() => setTraineesOpen(false)} />
+          <Pressable
+            style={styles.modalBackdropTouch}
+            onPress={() => setTraineesOpen(false)}
+            accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+          />
           <View style={styles.modalBox}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{language === "he" ? "מתאמנים" : "Trainees"}</Text>
-              <Pressable onPress={() => setTraineesOpen(false)}>
+              <Pressable onPress={() => setTraineesOpen(false)} hitSlop={12}>
                 <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
               </Pressable>
             </View>
 
-            <ScrollView keyboardShouldPersistTaps="handled">
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.traineesScrollContent}
+            >
               <View style={styles.traineeSearchRow}>
-              <TextInput
-                value={traineesQ}
-                onChangeText={setTraineesQ}
-                placeholder={language === "he" ? "חיפוש שם / טלפון…" : "Search name / phone…"}
-                placeholderTextColor={theme.colors.placeholderOnLight}
-                style={styles.traineeSearchInput}
-                autoCapitalize="none"
-                onSubmitEditing={() => void runTraineeSearch(traineesQ)}
-              />
-              <Pressable
-                style={({ pressed }) => [styles.traineeSearchBtn, pressed && { opacity: 0.9 }]}
-                onPress={() => void runTraineeSearch(traineesQ)}
-                disabled={traineesSearching}
-              >
-                <Text style={styles.traineeSearchBtnTxt}>{traineesSearching ? "…" : t("common.search")}</Text>
-              </Pressable>
+                <TextInput
+                  value={traineesQ}
+                  onChangeText={setTraineesQ}
+                  placeholder={language === "he" ? "חיפוש שם / טלפון…" : "Search name / phone…"}
+                  placeholderTextColor={theme.colors.placeholderOnLight}
+                  style={styles.traineeSearchInput}
+                  autoCapitalize="none"
+                  onSubmitEditing={() => void runTraineeSearch(traineesQ)}
+                />
+                <Pressable
+                  style={({ pressed }) => [styles.traineeSearchBtn, pressed && { opacity: 0.9 }]}
+                  onPress={() => void runTraineeSearch(traineesQ)}
+                  disabled={traineesSearching}
+                >
+                  <Text style={styles.traineeSearchBtnTxt}>{traineesSearching ? "…" : t("common.search")}</Text>
+                </Pressable>
               </View>
 
-            <View style={{ height: 10 }} />
+              <View style={styles.sectionSpacer} />
 
-            <Text style={styles.modalSubTitle}>{language === "he" ? "מתאמנים עם חשבון" : "Athletes (with account)"}</Text>
-            <View style={styles.traineeList}>
-              {athleteResults.length === 0 ? (
-                <Text style={styles.pickerEmpty}>{language === "he" ? "אין תוצאות." : "No results."}</Text>
-              ) : (
-                athleteResults.map((a) => {
-                  const already = selectedAthletes.some((x) => x.user_id === a.user_id);
-                  return (
-                    <Pressable
-                      key={a.user_id}
-                      style={({ pressed }) => [
-                        styles.pickerRowSlim,
-                        pressed && { opacity: 0.9 },
-                        already && { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.cta },
-                      ]}
-                      onPress={() => {
-                        if (!already) addAthletePick(a);
-                      }}
-                      accessibilityRole="button"
-                      disabled={already}
-                    >
-                      <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
-                        {a.full_name}
-                      </Text>
-                      <Text style={styles.pickerRowMeta} numberOfLines={1} ellipsizeMode="tail">
-                        @{a.username} · {a.phone}
-                      </Text>
-                    </Pressable>
-                  );
-                })
-              )}
-            </View>
+              <Text style={styles.modalSubTitle}>{language === "he" ? "מתאמנים עם חשבון" : "Athletes (with account)"}</Text>
+              <View style={styles.traineeList}>
+                {athleteResults.length === 0 ? (
+                  <Text style={styles.pickerEmpty}>{language === "he" ? "אין תוצאות." : "No results."}</Text>
+                ) : (
+                  athleteResults.map((a) => {
+                    const already = selectedAthletes.some((x) => x.user_id === a.user_id);
+                    return (
+                      <Pressable
+                        key={a.user_id}
+                        style={({ pressed }) => [
+                          styles.pickerRowSlim,
+                          pressed && { opacity: 0.9 },
+                          already && { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.cta },
+                        ]}
+                        onPress={() => {
+                          if (!already) addAthletePick(a);
+                        }}
+                        accessibilityRole="button"
+                        disabled={already}
+                      >
+                        <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
+                          {a.full_name}
+                        </Text>
+                        <Text style={styles.pickerRowMeta} numberOfLines={1} ellipsizeMode="tail">
+                          @{a.username} · {a.phone}
+                        </Text>
+                      </Pressable>
+                    );
+                  })
+                )}
+              </View>
 
-            <Text style={[styles.modalSubTitle, { marginTop: 14 }]}>{language === "he" ? "Quick Add" : "Quick Add"}</Text>
-            <View style={styles.traineeList}>
-              {manualResults.length === 0 ? (
-                <Text style={styles.pickerEmpty}>{language === "he" ? "אין תוצאות." : "No results."}</Text>
-              ) : (
-                manualResults.map((m) => {
-                  const already = selectedManual.some((x) => x.manual_participant_id === m.id);
-                  return (
-                    <Pressable
-                      key={m.id}
-                      style={({ pressed }) => [
-                        styles.pickerRowSlim,
-                        pressed && { opacity: 0.9 },
-                        already && { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.cta },
-                      ]}
-                      onPress={() => {
-                        if (!already) addManualPick(m);
-                      }}
-                      accessibilityRole="button"
-                      disabled={already}
-                    >
-                      <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
-                        {m.full_name}
-                      </Text>
-                      <Text style={styles.pickerRowMeta} numberOfLines={1} ellipsizeMode="tail">
-                        {m.phone}
-                      </Text>
-                    </Pressable>
-                  );
-                })
-              )}
-            </View>
+              <Text style={[styles.modalSubTitle, styles.modalSubTitleSpacing]}>{language === "he" ? "משתתפים ידניים" : "Manual participants"}</Text>
+              <View style={styles.traineeList}>
+                {manualResults.length === 0 ? (
+                  <Text style={styles.pickerEmpty}>{language === "he" ? "אין תוצאות." : "No results."}</Text>
+                ) : (
+                  manualResults.map((m) => {
+                    const already = selectedManual.some((x) => x.manual_participant_id === m.id);
+                    return (
+                      <Pressable
+                        key={m.id}
+                        style={({ pressed }) => [
+                          styles.pickerRowSlim,
+                          pressed && { opacity: 0.9 },
+                          already && { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.cta },
+                        ]}
+                        onPress={() => {
+                          if (!already) addManualPick(m);
+                        }}
+                        accessibilityRole="button"
+                        disabled={already}
+                      >
+                        <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
+                          {m.full_name}
+                        </Text>
+                        <Text style={styles.pickerRowMeta} numberOfLines={1} ellipsizeMode="tail">
+                          {m.phone}
+                        </Text>
+                      </Pressable>
+                    );
+                  })
+                )}
+              </View>
 
-            <View style={{ height: 12 }} />
-            <Text style={styles.modalSubTitle}>{language === "he" ? "הוספה מהירה (לא חובה חשבון)" : "Quick add (no account required)"}</Text>
-            <View style={styles.quickAddRow}>
-              <TextInput
-                value={quickName}
-                onChangeText={setQuickName}
-                placeholder={t("profile.fullName")}
-                placeholderTextColor={theme.colors.placeholderOnLight}
-                style={styles.quickAddInput}
+              <View style={styles.sectionSpacer} />
+              <Text style={styles.modalSubTitle}>{language === "he" ? "הוספה מהירה (לא חובה חשבון)" : "Quick add (no account required)"}</Text>
+              <View style={styles.quickAddRow}>
+                <TextInput
+                  value={quickName}
+                  onChangeText={setQuickName}
+                  placeholder={t("profile.fullName")}
+                  placeholderTextColor={theme.colors.placeholderOnLight}
+                  style={styles.quickAddInput}
+                />
+                <TextInput
+                  value={quickPhone}
+                  onChangeText={setQuickPhone}
+                  placeholder={t("profile.phone")}
+                  placeholderTextColor={theme.colors.placeholderOnLight}
+                  style={styles.quickAddInput}
+                  keyboardType="phone-pad"
+                />
+              </View>
+              <PrimaryButton
+                label={language === "he" ? "הוסף למתאמנים" : "Add to trainees"}
+                onPress={() => void quickAddManual()}
+                loading={traineesBusy}
+                loadingLabel={t("common.loading")}
               />
-              <TextInput
-                value={quickPhone}
-                onChangeText={setQuickPhone}
-                placeholder={t("profile.phone")}
-                placeholderTextColor={theme.colors.placeholderOnLight}
-                style={styles.quickAddInput}
-                keyboardType="phone-pad"
-              />
-            </View>
-            <PrimaryButton
-              label={language === "he" ? "הוסף לטרעיינים" : "Add to trainees"}
-              onPress={() => void quickAddManual()}
-              loading={traineesBusy}
-              loadingLabel={t("common.loading")}
-            />
-              </ScrollView>
-            </View>
+            </ScrollView>
+          </View>
         </View>
       </Modal>
 
@@ -715,14 +699,14 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
             {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
           </Text>
         </Pressable>
-        <View style={{ height: 10 }} />
+        <View style={styles.sectionSpacer} />
         <Pressable style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }]} onPress={() => setHidden(!hidden)}>
           <Text style={[sf.toggleText, isRTL && { textAlign: "right" }]}>
             {language === "he" ? "מוסתר (צוות בלבד): " : "Hidden (staff-only): "}
             {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
           </Text>
         </Pressable>
-        <View style={{ height: 10 }} />
+        <View style={styles.sectionSpacer} />
         <Pressable style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }]} onPress={() => setRepeatWeekly(!repeatWeekly)}>
           <Text style={[sf.toggleText, isRTL && { textAlign: "right" }]}>
             {language === "he" ? "חזרה שבועית: " : "Repeat weekly: "}
@@ -730,7 +714,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
           </Text>
         </Pressable>
         {repeatWeekly ? (
-          <View style={{ marginTop: 10 }}>
+          <View style={styles.occurrencesBlock}>
             <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "מספר שבועות" : "Occurrences"}</Text>
             <TextInput
               style={[sf.control, sf.controlInput]}
@@ -762,6 +746,27 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 }
 
 const styles = StyleSheet.create({
+  coachRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm },
+  coachColorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  pickerItemLeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    flex: 1,
+    minWidth: 0,
+  },
+  sectionSpacer: { height: theme.spacing.sm },
+  occurrencesBlock: { marginTop: theme.spacing.sm },
+  traineesScrollContent: {
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+  },
   modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
   modalBackdropTouch: { ...StyleSheet.absoluteFillObject },
   modalBox: {
@@ -781,20 +786,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderMuted,
   },
-  modalTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text },
-  modalClose: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "900" },
+  modalTitle: { fontSize: 17, fontWeight: "800", letterSpacing: 0.2, color: theme.colors.text },
+  modalClose: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "800" },
   modalLoader: { paddingVertical: theme.spacing.xl },
   pickerItem: { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.borderMuted },
   pickerItemTextCol: { flex: 1 },
   pickerItemName: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
-  pickerItemRole: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4, textTransform: "none", fontWeight: "700" },
+  pickerItemRole: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    marginTop: theme.spacing.xs,
+    textTransform: "none",
+    fontWeight: "700",
+  },
   pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoft, textAlign: "center", fontWeight: "700" },
-  secondaryAction: { marginTop: 12, paddingVertical: 10, alignItems: "center" },
-  secondaryActionTxt: { color: theme.colors.textMuted, fontWeight: "900" },
-  quickCapsRow: { flexDirection: "row", gap: 8, marginTop: 10, flexWrap: "wrap" },
+  secondaryAction: { marginTop: theme.spacing.sm, paddingVertical: theme.spacing.sm, alignItems: "center" },
+  secondaryActionTxt: { color: theme.colors.textMuted, fontWeight: "800" },
+  quickCapsRow: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+    flexWrap: "wrap",
+  },
   quickCapBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
@@ -803,38 +819,80 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   quickCapBtnActive: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  quickCapTxt: { color: theme.colors.text, fontWeight: "900" },
+  quickCapTxt: { color: theme.colors.text, fontWeight: "800" },
   quickCapTxtActive: { color: theme.colors.ctaText },
-  noteInput: { minHeight: 110, paddingVertical: 12 },
+  noteInput: { minHeight: 110, paddingVertical: theme.spacing.sm },
 
-  selectedList: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  selectedList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
   selectedChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  selectedChipTxt: { color: theme.colors.text, fontWeight: "900", maxWidth: 140 },
+  selectedChipTxt: { color: theme.colors.text, fontWeight: "800", maxWidth: 140 },
   chipX: { width: 26, height: 26, borderRadius: theme.radius.full, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderMuted, alignItems: "center", justifyContent: "center" },
   chipXTxt: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 12, lineHeight: 14 },
 
-  traineeSearchRow: { flexDirection: "row", gap: 10, alignItems: "center" },
-  traineeSearchInput: { flex: 1, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderInput, borderRadius: theme.radius.md, padding: 10, color: theme.colors.text },
-  traineeSearchBtn: { paddingVertical: 12, paddingHorizontal: 14, backgroundColor: theme.colors.cta, borderRadius: theme.radius.md },
-  traineeSearchBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", letterSpacing: 0.2 },
+  traineeSearchRow: { flexDirection: "row", gap: theme.spacing.sm, alignItems: "center" },
+  traineeSearchInput: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderInput,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.sm,
+    color: theme.colors.text,
+  },
+  traineeSearchBtn: {
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: 14,
+    backgroundColor: theme.colors.cta,
+    borderRadius: theme.radius.md,
+  },
+  traineeSearchBtnTxt: { color: theme.colors.ctaText, fontWeight: "800", letterSpacing: 0.2 },
 
-  modalSubTitle: { marginTop: 4, fontWeight: "900", color: theme.colors.textMuted, letterSpacing: 0.2, fontSize: 12, textTransform: "uppercase" },
+  modalSubTitle: {
+    marginTop: theme.spacing.xs,
+    fontWeight: "800",
+    color: theme.colors.textMuted,
+    letterSpacing: 0.3,
+    fontSize: 12,
+    textTransform: "uppercase",
+  },
+  modalSubTitleSpacing: { marginTop: theme.spacing.md },
 
-  traineeList: { marginTop: 8 },
-  pickerRowSlim: { borderWidth: 1, borderColor: theme.colors.borderMuted, borderRadius: theme.radius.md, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: theme.colors.surface, marginBottom: 8 },
-  pickerRowName: { fontWeight: "900", color: theme.colors.text },
+  traineeList: { marginTop: theme.spacing.sm },
+  pickerRowSlim: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    borderRadius: theme.radius.md,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm,
+    backgroundColor: theme.colors.surface,
+    marginBottom: theme.spacing.sm,
+  },
+  pickerRowName: { fontWeight: "800", color: theme.colors.text },
   pickerRowMeta: { marginTop: 2, color: theme.colors.textMuted, fontWeight: "700", fontSize: 12 },
 
-  quickAddRow: { gap: 10 },
-  quickAddInput: { borderWidth: 1, borderColor: theme.colors.borderInput, borderRadius: theme.radius.md, backgroundColor: theme.colors.surface, padding: 12, color: theme.colors.text, marginBottom: 10 },
+  quickAddRow: { gap: theme.spacing.sm },
+  quickAddInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderInput,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.sm,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
 });
