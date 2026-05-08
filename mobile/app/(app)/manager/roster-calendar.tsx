@@ -308,6 +308,7 @@ export default function ManagerRosterCalendarScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => load(true)}
+            tintColor={theme.colors.cta}
             colors={[theme.colors.cta]}
           />
         }
@@ -327,9 +328,10 @@ export default function ManagerRosterCalendarScreen() {
               style={({ pressed }) => [
                 styles.filterBtn,
                 showSmall && styles.filterBtnOn,
-                pressed && !showSmall && { opacity: 0.92 },
+                pressed && !showSmall && styles.filterBtnPressed,
               ]}
               accessibilityRole="button"
+              accessibilityState={{ selected: showSmall }}
               accessibilityLabel={language === "he" ? "סינון: קבוצות קטנות" : "Filter: small groups"}
             >
               <Text style={[styles.filterTxt, showSmall && styles.filterTxtOn]} numberOfLines={1}>
@@ -347,9 +349,10 @@ export default function ManagerRosterCalendarScreen() {
               style={({ pressed }) => [
                 styles.filterBtn,
                 showBig && styles.filterBtnOn,
-                pressed && !showBig && { opacity: 0.92 },
+                pressed && !showBig && styles.filterBtnPressed,
               ]}
               accessibilityRole="button"
+              accessibilityState={{ selected: showBig }}
               accessibilityLabel={language === "he" ? "סינון: קבוצות גדולות" : "Filter: big groups"}
             >
               <Text style={[styles.filterTxt, showBig && styles.filterTxtOn]} numberOfLines={1}>
@@ -409,7 +412,7 @@ export default function ManagerRosterCalendarScreen() {
                     <Pressable
                       key={s.id}
                       onPress={() => router.push(`/(app)/manager/session/${s.id}`)}
-                      style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
+                      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
                     >
                       <View style={[styles.accent, accent ? { backgroundColor: accent } : null]} />
                       <View style={styles.cardBody}>
@@ -459,12 +462,12 @@ export default function ManagerRosterCalendarScreen() {
           ))
         ) : null}
 
-        <View style={{ height: theme.spacing.xl }} />
+        <View style={styles.scrollBottomSpacer} />
       </ScrollView>
 
       <Pressable
         onPress={() => router.push("/(app)/manager/sessions")}
-        style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.9 }]}
+        style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
       >
         <Text style={styles.backBtnTxt}>{language === "he" ? "חזרה ליומן" : "Back to calendar"}</Text>
       </Pressable>
@@ -489,19 +492,36 @@ export default function ManagerRosterCalendarScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingBottom: 90 },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: theme.spacing.lg * 3 + theme.spacing.sm + theme.spacing.xs,
+  },
+  scrollBottomSpacer: { height: theme.spacing.xl },
   rtlText: { textAlign: "right" },
 
-  headerRow: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md, gap: 6 },
-  h1: { color: theme.colors.text, fontWeight: "900", fontSize: 18 },
-  hint: { color: theme.colors.textMuted, fontWeight: "700" },
+  headerRow: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md, gap: theme.spacing.xs },
+  h1: {
+    color: theme.colors.text,
+    fontWeight: "800",
+    fontSize: 22,
+    letterSpacing: 0.2,
+    lineHeight: 26,
+  },
+  hint: {
+    marginTop: theme.spacing.sm,
+    color: theme.colors.textMuted,
+    fontWeight: "500",
+    fontSize: 15,
+    lineHeight: 22,
+    letterSpacing: 0.15,
+  },
   modeWrap: {
-    marginTop: 10,
+    marginTop: theme.spacing.sm,
     flexDirection: "row",
-    gap: 6,
+    gap: theme.spacing.xs,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.full,
-    padding: 6,
+    padding: theme.spacing.xs,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     alignSelf: "stretch",
@@ -511,30 +531,39 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: 160,
     minWidth: 140,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm,
     borderRadius: theme.radius.full,
     alignItems: "center",
     justifyContent: "space-between",
     flexDirection: "row",
-    gap: 10,
+    gap: theme.spacing.sm,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
   filterBtnOn: { backgroundColor: theme.colors.surface, borderColor: theme.colors.cta },
-  filterTxt: { flex: 1, minWidth: 0, fontWeight: "900", fontSize: 12, color: theme.colors.textMuted, letterSpacing: 0.2 },
+  filterBtnPressed: { opacity: 0.92 },
+  filterTxt: {
+    flex: 1,
+    minWidth: 0,
+    fontWeight: "800",
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    letterSpacing: 0.15,
+    lineHeight: 16,
+  },
   filterTxtOn: { color: theme.colors.cta },
   filterPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.backgroundAlt,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
   filterPillOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  filterPillTxt: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 12, letterSpacing: 0.2 },
+  filterPillTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 12, letterSpacing: 0.15 },
   filterPillTxtOn: { color: theme.colors.ctaText },
 
   rosterHeader: {
@@ -544,12 +573,32 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: theme.spacing.sm,
   },
-  rosterTitle: { color: theme.colors.text, fontWeight: "900", fontSize: 16 },
-  muted: { paddingHorizontal: theme.spacing.md, color: theme.colors.textMuted, fontWeight: "700" },
+  rosterTitle: {
+    color: theme.colors.text,
+    fontWeight: "800",
+    fontSize: 16,
+    letterSpacing: 0.15,
+    lineHeight: 22,
+    flexShrink: 1,
+  },
+  muted: {
+    paddingHorizontal: theme.spacing.md,
+    color: theme.colors.textMuted,
+    fontWeight: "600",
+    fontSize: 15,
+    lineHeight: 22,
+  },
 
   dayGroup: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.md },
-  dayTitle: { color: theme.colors.textSoft, fontWeight: "900", fontSize: 12, letterSpacing: 0.4, textTransform: "uppercase" },
+  dayTitle: {
+    color: theme.colors.textSoft,
+    fontWeight: "700",
+    fontSize: 12,
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+  },
   dayCards: { marginTop: theme.spacing.sm, gap: theme.spacing.sm },
 
   card: {
@@ -560,25 +609,37 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
     overflow: "hidden",
   },
-  accent: { width: 6, backgroundColor: theme.colors.borderMuted },
-  cardBody: { flex: 1, padding: theme.spacing.md, gap: 6, minWidth: 0 },
-  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  cardPressed: { opacity: 0.92 },
+  accent: { width: theme.spacing.xs, backgroundColor: theme.colors.borderMuted },
+  cardBody: { flex: 1, padding: theme.spacing.md, gap: theme.spacing.xs, minWidth: 0 },
+  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: theme.spacing.sm },
   cardTopRtl: { flexDirection: "row-reverse" },
-  time: { color: theme.colors.text, fontWeight: "900", fontSize: 15 },
-  count: { color: theme.colors.textMuted, fontWeight: "900", letterSpacing: 0.3 },
-  trainer: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 13 },
+  time: {
+    color: theme.colors.text,
+    fontWeight: "800",
+    fontSize: 15,
+    letterSpacing: 0.15,
+    lineHeight: 20,
+  },
+  count: { color: theme.colors.textMuted, fontWeight: "800", letterSpacing: 0.15 },
+  trainer: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13, letterSpacing: 0.1 },
 
-  namesEmpty: { color: theme.colors.textSoft, fontWeight: "700", marginTop: 6 },
-  namesList: { marginTop: 2, gap: 4 },
-  name: { color: theme.colors.text, fontWeight: "700" },
-  notesBlock: { marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.borderMuted },
+  namesEmpty: { color: theme.colors.textSoft, fontWeight: "600", marginTop: theme.spacing.xs, fontSize: 14 },
+  namesList: { marginTop: theme.spacing.xs, gap: theme.spacing.xs },
+  name: { color: theme.colors.text, fontWeight: "700", fontSize: 14, lineHeight: 20 },
+  notesBlock: {
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+  },
   notesLabel: {
     color: theme.colors.textSoft,
     fontWeight: "800",
     fontSize: 11,
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
     textTransform: "uppercase",
-    marginBottom: 4,
+    marginBottom: theme.spacing.xs,
   },
   notesBody: { color: theme.colors.textMuted, fontWeight: "600", fontSize: 13, lineHeight: 18 },
 
@@ -589,11 +650,12 @@ const styles = StyleSheet.create({
     bottom: theme.spacing.md,
     backgroundColor: theme.colors.cta,
     borderRadius: theme.radius.full,
-    paddingVertical: 14,
+    paddingVertical: theme.spacing.md,
     alignItems: "center",
     borderWidth: 1,
     borderColor: theme.colors.cta,
   },
-  backBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", letterSpacing: 0.2 },
+  backBtnPressed: { opacity: 0.9 },
+  backBtnTxt: { color: theme.colors.ctaText, fontWeight: "800", letterSpacing: 0.15, fontSize: 15 },
 });
 

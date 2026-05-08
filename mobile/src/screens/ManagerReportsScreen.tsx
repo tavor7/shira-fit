@@ -39,9 +39,10 @@ export default function ManagerReportsScreen() {
               style={({ pressed }) => [
                 styles.slot,
                 on && styles.slotOn,
-                pressed && !on && { opacity: 0.9 },
+                pressed && !on && styles.slotPressed,
               ]}
               accessibilityRole="button"
+              accessibilityState={{ selected: on }}
               accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
             >
               <Text style={[styles.slotTxt, on && styles.slotTxtOn]} numberOfLines={1}>
@@ -61,17 +62,27 @@ export default function ManagerReportsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  content: { padding: theme.spacing.md, paddingBottom: 40 },
+  content: {
+    padding: theme.spacing.md,
+    paddingBottom: theme.spacing.lg + theme.spacing.md,
+  },
   rtl: { textAlign: "right", alignSelf: "stretch" },
-  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: 10 },
+  title: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: theme.colors.text,
+    letterSpacing: 0.2,
+    lineHeight: 26,
+    marginBottom: theme.spacing.sm,
+  },
 
   track: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
+    gap: theme.spacing.xs,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
-    padding: 6,
+    padding: theme.spacing.xs,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     marginBottom: theme.spacing.md,
@@ -81,8 +92,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: 140,
     minWidth: 120,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm,
     borderRadius: theme.radius.full,
     alignItems: "center",
     justifyContent: "center",
@@ -91,9 +102,16 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   slotOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  slotTxt: { fontWeight: "900", fontSize: 12, color: theme.colors.textMuted, letterSpacing: 0.2 },
+  slotPressed: { opacity: 0.92 },
+  slotTxt: {
+    fontWeight: "800",
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    letterSpacing: 0.15,
+    lineHeight: 16,
+  },
   slotTxtOn: { color: theme.colors.ctaText },
 
-  body: { marginTop: 6 },
+  body: { marginTop: theme.spacing.xs },
 });
 

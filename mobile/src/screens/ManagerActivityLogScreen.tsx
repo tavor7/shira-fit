@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { useAppAlert } from "../context/AppAlertContext";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { DatePickerField } from "../components/DatePickerField";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -415,6 +416,7 @@ function eventLabel(eventType: string, language: string): string {
 
 export default function ManagerActivityLogScreen() {
   const { language, isRTL, t } = useI18n();
+  const { showOk } = useAppAlert();
   const initRange = computePresetRange("14", 14);
   const [dateFrom, setDateFrom] = useState(initRange.from);
   const [dateTo, setDateTo] = useState(initRange.to);
@@ -546,7 +548,7 @@ export default function ManagerActivityLogScreen() {
       if (error) throw error;
       const parsed = data as { ok?: boolean; deleted?: number; retention_days?: number };
       if (parsed && parsed.ok === false) {
-        Alert.alert(t("common.error"), t("activityLog.purgeFailed"));
+        showOk(t("common.error"), t("activityLog.purgeFailed"));
         return;
       }
       const d = parsed?.retention_days ?? retentionDraft;
@@ -554,7 +556,7 @@ export default function ManagerActivityLogScreen() {
       setRetentionDays(d);
       setRetentionDraft(d);
       const msg = t("activityLog.purgeDone").replace(/\{d\}/g, String(d)).replace(/\{n\}/g, String(n));
-      Alert.alert(t("common.saved"), msg);
+      showOk(t("common.saved"), msg);
       if (datePreset === "all") {
         const r = computePresetRange("all", d);
         setDateFrom(r.from);
@@ -562,7 +564,7 @@ export default function ManagerActivityLogScreen() {
       }
       await reload(0);
     } catch (e) {
-      Alert.alert(t("common.error"), e instanceof Error ? e.message : t("activityLog.purgeFailed"));
+      showOk(t("common.error"), e instanceof Error ? e.message : t("activityLog.purgeFailed"));
     } finally {
       setSavingRetention(false);
     }
@@ -606,11 +608,11 @@ export default function ManagerActivityLogScreen() {
               <DatePickerField
                 label={t("common.from")}
                 value={dateFrom}
-              onChange={(v) => {
-                setPageIndex(0);
-                setDateFrom(v);
-                setDatePreset("custom");
-              }}
+                onChange={(v) => {
+                  setPageIndex(0);
+                  setDateFrom(v);
+                  setDatePreset("custom");
+                }}
                 maximumDate={parseISODateLocal(dateTo) ?? undefined}
               />
             </View>
@@ -618,11 +620,11 @@ export default function ManagerActivityLogScreen() {
               <DatePickerField
                 label={t("common.to")}
                 value={dateTo}
-              onChange={(v) => {
-                setPageIndex(0);
-                setDateTo(v);
-                setDatePreset("custom");
-              }}
+                onChange={(v) => {
+                  setPageIndex(0);
+                  setDateTo(v);
+                  setDatePreset("custom");
+                }}
                 minimumDate={parseISODateLocal(dateFrom) ?? undefined}
               />
             </View>
@@ -716,7 +718,7 @@ export default function ManagerActivityLogScreen() {
   const listFooter = (
     <View style={styles.listFooterWrap}>
       {loading && rows.length > 0 ? (
-        <ActivityIndicator style={{ marginVertical: 12 }} color={theme.colors.cta} />
+        <ActivityIndicator style={styles.footerLoading} color={theme.colors.cta} />
       ) : null}
       {totalCount !== null && totalCount > 0 ? (
         <View style={[styles.paginationBar, isRTL && styles.paginationBarRtl]}>
@@ -781,7 +783,7 @@ export default function ManagerActivityLogScreen() {
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator style={{ marginTop: 32 }} color={theme.colors.cta} />
+            <ActivityIndicator style={styles.listLoading} color={theme.colors.cta} />
           ) : (
             <Text style={styles.empty}>{language === "he" ? "אין רשומות" : "No events yet"}</Text>
           )
@@ -827,13 +829,21 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   listFlex: { flex: 1 },
   listHeaderPad: { paddingTop: theme.spacing.md, paddingBottom: theme.spacing.xs },
-  title: { fontSize: 20, fontWeight: "900", color: theme.colors.text, letterSpacing: -0.3 },
+  title: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: theme.colors.text,
+    letterSpacing: 0.2,
+    lineHeight: 26,
+  },
   hint: {
-    marginTop: 8,
+    marginTop: theme.spacing.sm,
     color: theme.colors.textMuted,
-    lineHeight: 20,
+    lineHeight: 22,
     marginBottom: theme.spacing.md,
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: "500",
+    letterSpacing: 0.15,
   },
   headerBlock: { marginBottom: theme.spacing.md },
   filterCard: {
@@ -844,23 +854,23 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   sectionLabel: {
-    fontSize: 10,
-    fontWeight: "800",
+    fontSize: 12,
+    fontWeight: "700",
     color: theme.colors.textSoft,
     textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 8,
+    letterSpacing: 0.3,
+    marginBottom: theme.spacing.sm,
   },
   sectionLabelSpaced: { marginTop: theme.spacing.md },
   chipWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    rowGap: 8,
+    gap: theme.spacing.sm,
+    rowGap: theme.spacing.sm,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
@@ -871,8 +881,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.cta,
   },
   chipPressed: { opacity: 0.88 },
-  chipCompact: { paddingHorizontal: 12, paddingVertical: 7 },
-  chipLabel: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
+  chipCompact: { paddingHorizontal: theme.spacing.sm, paddingVertical: 7 },
+  chipLabel: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted, letterSpacing: 0.15 },
   chipLabelCompact: { fontSize: 12 },
   chipLabelActive: { color: theme.colors.ctaText },
   customDates: {
@@ -909,13 +919,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   retentionHeaderSummary: {
-    marginTop: 6,
+    marginTop: theme.spacing.xs,
     fontSize: 15,
     fontWeight: "800",
     color: theme.colors.text,
+    letterSpacing: 0.15,
   },
   retentionHeaderHint: {
-    marginTop: 4,
+    marginTop: theme.spacing.xs,
     fontSize: 12,
     color: theme.colors.textMuted,
     lineHeight: 17,
@@ -923,7 +934,7 @@ const styles = StyleSheet.create({
   retentionChevron: {
     fontSize: 12,
     color: theme.colors.textSoft,
-    marginTop: 2,
+    marginTop: theme.spacing.xs,
   },
   retentionBody: {
     paddingHorizontal: theme.spacing.md,
@@ -945,6 +956,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingBottom: theme.spacing.xl,
   },
+  listLoading: { marginTop: theme.spacing.xl },
+  footerLoading: { marginVertical: theme.spacing.sm },
   card: {
     marginBottom: theme.spacing.sm,
     padding: theme.spacing.md,
@@ -953,21 +966,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  when: { fontSize: 12, fontWeight: "800", color: theme.colors.textSoft },
-  event: { marginTop: 4, fontSize: 16, fontWeight: "900", color: theme.colors.text },
-  meta: { marginTop: 6, fontSize: 12, color: theme.colors.textMuted },
+  when: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: theme.colors.textSoft,
+    letterSpacing: 0.2,
+  },
+  event: {
+    marginTop: theme.spacing.xs,
+    fontSize: 16,
+    fontWeight: "800",
+    color: theme.colors.text,
+    letterSpacing: 0.15,
+    lineHeight: 22,
+  },
+  meta: { marginTop: theme.spacing.xs, fontSize: 12, fontWeight: "600", color: theme.colors.textMuted, letterSpacing: 0.15 },
   detailsBox: {
-    marginTop: 10,
-    padding: 10,
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.sm,
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  detailsTitle: { fontSize: 11, fontWeight: "900", color: theme.colors.textSoft, marginBottom: 6, textTransform: "uppercase" },
-  detailLine: { fontSize: 13, color: theme.colors.text, lineHeight: 20, marginBottom: 4 },
-  json: { marginTop: 8, fontSize: 11, color: theme.colors.textMuted, fontFamily: undefined },
-  empty: { textAlign: "center", marginTop: 40, color: theme.colors.textSoft },
+  detailsTitle: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: theme.colors.textSoft,
+    marginBottom: theme.spacing.xs,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  detailLine: {
+    fontSize: 13,
+    color: theme.colors.text,
+    lineHeight: 20,
+    marginBottom: theme.spacing.xs,
+    fontWeight: "500",
+  },
+  json: { marginTop: theme.spacing.sm, fontSize: 11, color: theme.colors.textMuted, fontFamily: undefined },
+  empty: { textAlign: "center", marginTop: theme.spacing.xl, color: theme.colors.textSoft, fontWeight: "600", fontSize: 15 },
   listFooterWrap: { marginTop: theme.spacing.sm },
   paginationBar: {
     flexDirection: "row",
@@ -985,7 +1023,7 @@ const styles = StyleSheet.create({
   },
   paginationBarRtl: { flexDirection: "row-reverse" },
   paginationBtn: {
-    paddingVertical: 10,
+    paddingVertical: theme.spacing.sm,
     paddingHorizontal: 14,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.surfaceElevated,
