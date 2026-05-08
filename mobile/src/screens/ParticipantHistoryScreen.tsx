@@ -147,6 +147,10 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   /** True after a successful Load for the current athlete/date range (hides billing card on fetch error). */
   const [reportReady, setReportReady] = useState(false);
   const [emptyHint, setEmptyHint] = useState<string>(language === "he" ? "אין רשומות לתאריכים שנבחרו." : "No records for those dates.");
+  const [editAmountOpen, setEditAmountOpen] = useState(false);
+  const [editAmountBusy, setEditAmountBusy] = useState(false);
+  const [editAmountStr, setEditAmountStr] = useState("");
+  const [editReg, setEditReg] = useState<ParticipantHistoryRow | null>(null);
 
   function showError(msg: string) {
     if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -180,6 +184,59 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       { text: t("common.cancel"), style: "cancel" },
       { text: t("billing.deletePayment"), style: "destructive", onPress: runDelete },
     ]);
+  }
+
+  function openEditAmount(reg: ParticipantHistoryRow) {
+    setEditReg(reg);
+    const raw = reg.amount_paid;
+    const s = raw !== null && raw !== undefined && String(raw).trim() !== "" ? String(raw) : "";
+    setEditAmountStr(s);
+    setEditAmountOpen(true);
+  }
+
+  async function saveEditAmount() {
+    if (!editReg) return;
+    if (!athleteId) return;
+    const amtTrim = editAmountStr.replace(",", ".").trim();
+    const amt = amtTrim.length === 0 ? null : Number.parseFloat(amtTrim);
+    if (amt !== null && (!Number.isFinite(amt) || amt < 0)) {
+      showError(language === "he" ? "הזינו סכום תקין (≥ 0)." : "Enter a valid amount (≥ 0).");
+      return;
+    }
+
+    // Preserve current attendance + payment method; only allowed when attended=true.
+    const status = "arrived";
+    const method = (editReg.payment_method ?? null) as string | null;
+
+    setEditAmountBusy(true);
+    const res = payeeIsManual
+      ? await supabase.rpc("set_manual_participant_attendance", {
+          p_session_id: editReg.session_id,
+          p_manual_participant_id: athleteId,
+          p_status: status,
+          p_payment_method: method,
+          p_amount_paid: amt,
+        })
+      : await supabase.rpc("set_registration_attendance", {
+          p_session_id: editReg.session_id,
+          p_user_id: athleteId,
+          p_status: status,
+          p_payment_method: method,
+          p_amount_paid: amt,
+        });
+    setEditAmountBusy(false);
+
+    if (res.error) {
+      showError(res.error.message);
+      return;
+    }
+    if (res.data?.ok !== true) {
+      showError(String(res.data?.error ?? "failed"));
+      return;
+    }
+    setEditAmountOpen(false);
+    setEditReg(null);
+    await load();
   }
 
   const sections = useMemo(() => {
@@ -587,6 +644,63 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         </View>
       </AppModal>
 
+      <AppModal
+        visible={editAmountOpen}
+        onClose={() => {
+          if (editAmountBusy) return;
+          setEditAmountOpen(false);
+          setEditReg(null);
+        }}
+        variant="sheet"
+        backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+        cardStyle={styles.modalBox}
+      >
+        <View style={styles.modalHeader}>
+          <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+            {language === "he" ? "עדכון סכום לאימון" : "Edit session amount"}
+          </Text>
+          <Pressable
+            onPress={() => {
+              if (editAmountBusy) return;
+              setEditAmountOpen(false);
+              setEditReg(null);
+            }}
+          >
+            <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
+          </Pressable>
+        </View>
+        <View style={styles.addPayBody}>
+          {editReg ? (
+            <>
+              <Text style={[styles.hint, isRTL && styles.rtlText]}>
+                {formatISODateFull(editReg.session_date, language)} ·{" "}
+                {formatSessionTimeRange(editReg.start_time, editReg.duration_minutes ?? 60)}
+              </Text>
+              <Text style={[styles.hint, isRTL && styles.rtlText]}>
+                {language === "he" ? "אמצעי תשלום: " : "Payment method: "}
+                {paymentMethodHistoryLabel(editReg.payment_method, language)}
+              </Text>
+            </>
+          ) : null}
+          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "סכום ששולם (₪)" : "Amount paid (₪)"}</Text>
+          <TextInput
+            value={editAmountStr}
+            onChangeText={setEditAmountStr}
+            keyboardType="decimal-pad"
+            placeholder={language === "he" ? "למשל 90" : "e.g. 90"}
+            placeholderTextColor={theme.colors.placeholderOnLight}
+            style={styles.inputLight}
+            editable={!editAmountBusy}
+          />
+          <PrimaryButton
+            label={t("common.save")}
+            onPress={() => void saveEditAmount()}
+            loading={editAmountBusy}
+            loadingLabel={t("common.loading")}
+          />
+        </View>
+      </AppModal>
+
       <SectionList
         style={styles.list}
         sections={sections}
@@ -703,6 +817,16 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   </View>
                 ) : null}
               </View>
+              {reg.reg_status === "active" && reg.attended === true ? (
+                <Pressable
+                  onPress={() => openEditAmount(reg)}
+                  style={({ pressed }) => [styles.inlineAction, pressed && { opacity: 0.88 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={language === "he" ? "עריכת סכום" : "Edit amount"}
+                >
+                  <Text style={styles.inlineActionTxt}>{language === "he" ? "עריכת סכום" : "Edit amount"}</Text>
+                </Pressable>
+              ) : null}
               {typeof reg.max_participants === "number" && reg.max_participants > 0 ? (
                 <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
                   {language === "he" ? "גודל קבוצה (מקס׳ משתתפים): " : "Group size (max spots): "}
@@ -941,4 +1065,6 @@ const styles = StyleSheet.create({
   paymentRowDate: { flex: 1, minWidth: 0 },
   paymentDeleteBtn: { paddingVertical: 6, paddingHorizontal: 8 },
   paymentDeleteTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.error },
+  inlineAction: { alignSelf: "flex-start", marginTop: 10, paddingVertical: 6, paddingHorizontal: 10 },
+  inlineActionTxt: { color: theme.colors.cta, fontWeight: "900" },
 });
