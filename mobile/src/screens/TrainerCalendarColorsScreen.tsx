@@ -6,14 +6,13 @@ import {
   FlatList,
   Pressable,
   ActivityIndicator,
-  Alert,
-  Platform,
 } from "react-native";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { TRAINER_COLOR_PRESETS, resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { useI18n } from "../context/I18nContext";
+import { useAppAlert } from "../context/AppAlertContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 
 type Row = {
@@ -26,6 +25,7 @@ type Row = {
 
 export default function TrainerCalendarColorsScreen() {
   const { language, t, isRTL } = useI18n();
+  const { showOk } = useAppAlert();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -50,14 +50,13 @@ export default function TrainerCalendarColorsScreen() {
     }
     if (error) {
       setRows([]);
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-      else Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
     } else {
       const list = ((data ?? []) as Row[]).map((r) => ({ ...r, calendar_color: r.calendar_color ?? null }));
       setRows(list);
     }
     setLoading(false);
-  }, []);
+  }, [showOk, t]);
 
   useEffect(() => {
     load();
@@ -68,8 +67,7 @@ export default function TrainerCalendarColorsScreen() {
     const { error } = await supabase.from("profiles").update({ calendar_color: value }).eq("user_id", userId);
     setSavingId(null);
     if (error) {
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-      else Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     setRows((prev) => prev.map((r) => (r.user_id === userId ? { ...r, calendar_color: value } : r)));

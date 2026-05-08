@@ -9,6 +9,7 @@ import { StudioContactFooter } from "../src/components/StudioContactFooter";
 import { I18nProvider } from "../src/context/I18nContext";
 import { ManagerAthletePreviewProvider } from "../src/context/ManagerAthletePreviewContext";
 import { ToastProvider } from "../src/context/ToastContext";
+import { AppAlertProvider } from "../src/context/AppAlertContext";
 import { AppErrorBoundary } from "../src/components/AppErrorBoundary";
 import { initNotificationHandler } from "../src/lib/notificationsInit";
 import { useEffect } from "react";
@@ -103,6 +104,7 @@ export default function RootLayout() {
         ) : null}
         <AuthProvider>
           <I18nProvider>
+            <AppAlertProvider>
             <ManagerAthletePreviewProvider>
               <AppErrorBoundary>
                 <ToastProvider>
@@ -125,6 +127,7 @@ export default function RootLayout() {
                 </ToastProvider>
               </AppErrorBoundary>
             </ManagerAthletePreviewProvider>
+            </AppAlertProvider>
           </I18nProvider>
         </AuthProvider>
       </View>

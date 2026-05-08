@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router, Stack } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Alert, TextInput, Pressable, ActivityIndicator, Platform, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, StyleSheet, TextInput, Pressable, ActivityIndicator, Platform, TouchableOpacity } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
@@ -11,6 +11,7 @@ import { formatDateTimeForDisplay } from "../../../../src/lib/dateFormat";
 import { isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
 import { useToast } from "../../../../src/context/ToastContext";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
+import { useAppAlert } from "../../../../src/context/AppAlertContext";
 
 type W = {
   user_id: string;
@@ -36,6 +37,7 @@ type NoteRow = {
 export default function CoachSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
+  const { showOk, showConfirm } = useAppAlert();
   const { showToast } = useToast();
   const [participantsRev, setParticipantsRev] = useState(0);
   const [waitlist, setWaitlist] = useState<W[]>([]);
@@ -126,11 +128,11 @@ export default function CoachSessionDetail() {
     const { data, error } = await supabase.rpc("add_session_note", { p_session_id: id, p_body: body });
     setNoteBusy(false);
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     if (!data?.ok) {
-      Alert.alert(t("common.failed"), data?.error ?? "");
+      showOk(t("common.failed"), data?.error ?? "");
       return;
     }
     setNoteDraft("");
@@ -145,11 +147,11 @@ export default function CoachSessionDetail() {
     const { data, error } = await supabase.rpc("update_session_note", { p_note_id: noteId, p_body: body });
     setNoteBusy(false);
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     if (!data?.ok) {
-      Alert.alert(t("common.failed"), data?.error ?? "");
+      showOk(t("common.failed"), data?.error ?? "");
       return;
     }
     setEditingNoteId(null);
@@ -164,41 +166,32 @@ export default function CoachSessionDetail() {
       const { data, error } = await supabase.rpc("delete_session_note", { p_note_id: noteId });
       setNoteBusy(false);
       if (error) {
-        Alert.alert(t("common.error"), error.message);
+        showOk(t("common.error"), error.message);
         return;
       }
       if (!data?.ok) {
-        Alert.alert(t("common.failed"), String(data?.error ?? ""));
+        showOk(t("common.failed"), String(data?.error ?? ""));
         return;
       }
       await loadNotes();
       showToast({ message: language === "he" ? "הערה נמחקה" : "Note removed", variant: "success" });
     };
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      try {
-        const ok = typeof window.confirm === "function"
-          ? window.confirm(`${language === "he" ? "מחיקת הערה" : "Delete note"}\n\n${msg}`)
-          : true;
-        if (!ok) return;
-        await run();
-      } catch {
-        // Some embedded webviews block confirm dialogs. Fall back to running the delete.
-        await run();
-      }
-      return;
-    }
-    Alert.alert(language === "he" ? "מחיקת הערה" : "Delete note", msg, [
-      { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
-      { text: language === "he" ? "מחיקה" : "Delete", style: "destructive", onPress: () => void run() },
-    ]);
+    showConfirm({
+      title: language === "he" ? "מחיקת הערה" : "Delete note",
+      message: msg,
+      cancelLabel: language === "he" ? "ביטול" : "Cancel",
+      confirmLabel: language === "he" ? "מחיקה" : "Delete",
+      confirmVariant: "danger",
+      onConfirm: () => void run(),
+    });
   }
 
   async function removeAthlete(userId: string) {
     const { data, error } = await supabase.rpc("coach_remove_athlete", { p_session_id: id, p_user_id: userId });
-    if (error) Alert.alert(t("common.error"), error.message);
+    if (error) showOk(t("common.error"), error.message);
     else if (data?.ok) {
       setParticipantsRev((n) => n + 1);
-    } else Alert.alert(t("common.failed"), data?.error ?? "");
+    } else showOk(t("common.failed"), data?.error ?? "");
   }
 
   async function removeManual(manualId: string) {
@@ -206,10 +199,10 @@ export default function CoachSessionDetail() {
       p_session_id: id,
       p_manual_participant_id: manualId,
     });
-    if (error) Alert.alert(t("common.error"), error.message);
+    if (error) showOk(t("common.error"), error.message);
     else if (data?.ok) {
       setParticipantsRev((n) => n + 1);
-    } else Alert.alert(t("common.failed"), data?.error ?? "");
+    } else showOk(t("common.failed"), data?.error ?? "");
   }
 
   const canEditSession = !!(myId && coachId && myId === coachId);
@@ -244,7 +237,7 @@ export default function CoachSessionDetail() {
         });
         return;
       }
-      Alert.alert(t("common.failed"), code || t("common.failed"));
+      showOk(t("common.failed"), code || t("common.failed"));
     } finally {
       setWaitlistQuickUserId(null);
     }

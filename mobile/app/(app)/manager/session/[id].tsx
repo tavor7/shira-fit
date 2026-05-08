@@ -8,7 +8,6 @@ import {
   Pressable,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Platform,
   ScrollView,
   Modal,
@@ -34,6 +33,7 @@ import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../src/c
 import { useToast } from "../../../../src/context/ToastContext";
 import { copySessionParticipantsToNewSession } from "../../../../src/lib/copySessionParticipants";
 import { useDiscardChangesPrompt } from "../../../../src/hooks/useDiscardChangesPrompt";
+import { useAppAlert } from "../../../../src/context/AppAlertContext";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
@@ -76,6 +76,7 @@ export default function ManagerSessionDetail() {
   const navigation = useNavigation();
   const { language, t, isRTL } = useI18n();
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
+  const { showOk, showConfirm } = useAppAlert();
   const { user, profile } = useAuth();
   const { showToast } = useToast();
   const { width } = useWindowDimensions();
@@ -105,7 +106,6 @@ export default function ManagerSessionDetail() {
   const [dupTime, setDupTime] = useState("");
   const [dupBusy, setDupBusy] = useState(false);
   const [dupIncludeParticipants, setDupIncludeParticipants] = useState(false);
-  const [pendingDeleteSession, setPendingDeleteSession] = useState(false);
   const [deleteSessionBusy, setDeleteSessionBusy] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -248,32 +248,24 @@ export default function ManagerSessionDetail() {
               });
               await afterOk();
             } else {
-              Alert.alert(t("common.failed"), String(r2.data?.error ?? ""));
+              showOk(t("common.failed"), String(r2.data?.error ?? ""));
             }
           } finally {
             setWaitlistQuickUserId(null);
           }
         };
 
-        if (Platform.OS === "web" && typeof window !== "undefined") {
-          try {
-            // eslint-disable-next-line no-alert
-            if (window.confirm(`${title}\n\n${msg}`)) void bumpAndRetry();
-          } catch {
-            Alert.alert(title, msg, [
-              { text: cancelLbl, style: "cancel" },
-              { text: okLbl, onPress: () => void bumpAndRetry() },
-            ]);
-          }
-        } else {
-          Alert.alert(title, msg, [
-            { text: cancelLbl, style: "cancel" },
-            { text: okLbl, onPress: () => void bumpAndRetry() },
-          ]);
-        }
+        showConfirm({
+          title,
+          message: msg,
+          cancelLabel: cancelLbl,
+          confirmLabel: okLbl,
+          confirmVariant: "primary",
+          onConfirm: () => void bumpAndRetry(),
+        });
         return;
       }
-      Alert.alert(t("common.failed"), code || t("common.failed"));
+      showOk(t("common.failed"), code || t("common.failed"));
     } finally {
       setWaitlistQuickUserId(null);
     }
@@ -342,11 +334,11 @@ export default function ManagerSessionDetail() {
     const { data, error } = await supabase.rpc("add_session_note", { p_session_id: id, p_body: body });
     setNoteBusy(false);
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     if (!data?.ok) {
-      Alert.alert(t("common.failed"), data?.error ?? "");
+      showOk(t("common.failed"), data?.error ?? "");
       return;
     }
     setNoteDraft("");
@@ -361,11 +353,11 @@ export default function ManagerSessionDetail() {
     const { data, error } = await supabase.rpc("update_session_note", { p_note_id: noteId, p_body: body });
     setNoteBusy(false);
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     if (!data?.ok) {
-      Alert.alert(t("common.failed"), String(data?.error ?? ""));
+      showOk(t("common.failed"), String(data?.error ?? ""));
       return;
     }
     setEditingNoteId(null);
@@ -381,34 +373,24 @@ export default function ManagerSessionDetail() {
       const { data, error } = await supabase.rpc("delete_session_note", { p_note_id: noteId });
       setNoteBusy(false);
       if (error) {
-        Alert.alert(t("common.error"), error.message);
+        showOk(t("common.error"), error.message);
         return;
       }
       if (!data?.ok) {
-        Alert.alert(t("common.failed"), String(data?.error ?? ""));
+        showOk(t("common.failed"), String(data?.error ?? ""));
         return;
       }
       await loadNotes();
       showToast({ message: language === "he" ? "הערה נמחקה" : "Note removed", variant: "success" });
     };
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      // RN Web often doesn't surface Alert reliably. Use a native confirm dialog.
-      try {
-        const ok = typeof window.confirm === "function"
-          ? window.confirm(`${language === "he" ? "מחיקת הערה" : "Delete note"}\n\n${msg}`)
-          : true;
-        if (!ok) return;
-        await run();
-      } catch {
-        // Some embedded webviews block confirm dialogs. Fall back to running the delete.
-        await run();
-      }
-      return;
-    }
-    Alert.alert(language === "he" ? "מחיקת הערה" : "Delete note", msg, [
-      { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
-      { text: language === "he" ? "מחיקה" : "Delete", style: "destructive", onPress: () => void run() },
-    ]);
+    showConfirm({
+      title: language === "he" ? "מחיקת הערה" : "Delete note",
+      message: msg,
+      cancelLabel: language === "he" ? "ביטול" : "Cancel",
+      confirmLabel: language === "he" ? "מחיקה" : "Delete",
+      confirmVariant: "danger",
+      onConfirm: () => void run(),
+    });
   }
 
   const loadCoaches = useCallback(async () => {
@@ -499,14 +481,17 @@ export default function ManagerSessionDetail() {
 
   async function saveSession() {
     if (!isValidISODateString(date.trim())) {
-      Alert.alert(
+      showOk(
         language === "he" ? "תאריך לא תקין" : "Invalid date",
         language === "he" ? "בחרו תאריך אימון תקין." : "Please choose a valid session date."
       );
       return;
     }
     if (!coachId) {
-      Alert.alert(language === "he" ? "חסר מאמן" : "Missing trainer", language === "he" ? "בחרו מאמן/ת." : "Please choose a trainer.");
+      showOk(
+        language === "he" ? "חסר מאמן" : "Missing trainer",
+        language === "he" ? "בחרו מאמן/ת." : "Please choose a trainer."
+      );
       return;
     }
     const payload = {
@@ -527,14 +512,14 @@ export default function ManagerSessionDetail() {
       if (!error) savedWithoutHidden = true;
     }
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     await load();
     setEditingSession(false);
     setEditBaseline(null);
     if (savedWithoutHidden) {
-      Alert.alert(
+      showOk(
         language === "he" ? "הערה" : "Note",
         language === "he"
           ? "העמודה לאימון מוסתר עדיין לא קיימת במסד הנתונים; שאר השדות נשמרו."
@@ -546,14 +531,17 @@ export default function ManagerSessionDetail() {
   async function duplicateSession() {
     const d = dupDate.trim();
     if (!isValidISODateString(d)) {
-      Alert.alert(
+      showOk(
         language === "he" ? "תאריך לא תקין" : "Invalid date",
         language === "he" ? "בחרו תאריך אימון תקין." : "Please choose a valid session date."
       );
       return;
     }
     if (!coachId) {
-      Alert.alert(language === "he" ? "חסר מאמן" : "Missing trainer", language === "he" ? "בחרו מאמן/ת." : "Please choose a trainer.");
+      showOk(
+        language === "he" ? "חסר מאמן" : "Missing trainer",
+        language === "he" ? "בחרו מאמן/ת." : "Please choose a trainer."
+      );
       return;
     }
     setDupBusy(true);
@@ -575,8 +563,7 @@ export default function ManagerSessionDetail() {
     }
     if (error) {
       setDupBusy(false);
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-      else Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     const newId = (res.data as { id?: string } | null)?.id;
@@ -608,10 +595,8 @@ export default function ManagerSessionDetail() {
     setDeleteSessionBusy(true);
     const { error } = await supabase.from("training_sessions").delete().eq("id", sid);
     setDeleteSessionBusy(false);
-    setPendingDeleteSession(false);
     if (error) {
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-      else Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     router.replace("/(app)/manager/sessions");
@@ -622,18 +607,14 @@ export default function ManagerSessionDetail() {
       language === "he"
         ? "למחוק את האימון? גם ההרשמות אליו יימחקו."
         : "Delete this session? Registrations for it will be removed too.";
-    if (Platform.OS === "web") {
-      setPendingDeleteSession(true);
-      return;
-    }
-    Alert.alert(language === "he" ? "מחיקת אימון?" : "Delete session?", msg, [
-      { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
-      {
-        text: language === "he" ? "מחק" : "Delete",
-        style: "destructive",
-        onPress: () => void runDeleteSession(),
-      },
-    ]);
+    showConfirm({
+      title: language === "he" ? "מחיקת אימון?" : "Delete session?",
+      message: msg,
+      cancelLabel: language === "he" ? "ביטול" : "Cancel",
+      confirmLabel: language === "he" ? "מחק" : "Delete",
+      confirmVariant: "danger",
+      onConfirm: () => void runDeleteSession(),
+    });
   }
 
   async function removeAthlete(userId: string) {
@@ -641,11 +622,11 @@ export default function ManagerSessionDetail() {
       p_session_id: id,
       p_user_id: userId,
     });
-    if (error) Alert.alert(t("common.error"), error.message);
+    if (error) showOk(t("common.error"), error.message);
     else if (data?.ok) {
       load();
       setParticipantsRev((n) => n + 1);
-    } else Alert.alert(t("common.failed"), data?.error ?? "");
+    } else showOk(t("common.failed"), data?.error ?? "");
   }
 
   async function removeManual(manualId: string) {
@@ -653,11 +634,11 @@ export default function ManagerSessionDetail() {
       p_session_id: id,
       p_manual_participant_id: manualId,
     });
-    if (error) Alert.alert(t("common.error"), error.message);
+    if (error) showOk(t("common.error"), error.message);
     else if (data?.ok) {
       load();
       setParticipantsRev((n) => n + 1);
-    } else Alert.alert(t("common.failed"), data?.error ?? "");
+    } else showOk(t("common.failed"), data?.error ?? "");
   }
 
   if (!session)
@@ -1172,7 +1153,6 @@ export default function ManagerSessionDetail() {
               setEditingNoteId(null);
               setNoteEditDraft("");
               setUndoStack([]);
-              setPendingDeleteSession(false);
               setEditBaseline(
                 JSON.stringify({
                   date,
@@ -1190,53 +1170,23 @@ export default function ManagerSessionDetail() {
             variant="ghost"
             style={styles.sessionFooterGhostBtn}
           />
-          {Platform.OS === "web" && pendingDeleteSession ? (
-            <View style={styles.sessionDeleteConfirm}>
-              <Text style={[styles.sessionDeleteConfirmTxt, isRTL && styles.rtlText]}>
-                {language === "he"
-                  ? "למחוק את האימון? ההרשמות יימחקו."
-                  : "Delete this session? Registrations will be removed."}
-              </Text>
-              <View style={[styles.sessionDeleteConfirmRow, isRTL && styles.sessionDeleteConfirmRowRtl]}>
-                <Pressable
-                  style={({ pressed }) => [styles.sessionDeleteCancelBtn, pressed && { opacity: 0.88 }]}
-                  onPress={() => !deleteSessionBusy && setPendingDeleteSession(false)}
-                  disabled={deleteSessionBusy}
-                >
-                  <Text style={styles.sessionDeleteCancelTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.sessionDeleteOkBtn, pressed && { opacity: 0.9 }]}
-                  onPress={() => void runDeleteSession()}
-                  disabled={deleteSessionBusy}
-                >
-                  {deleteSessionBusy ? (
-                    <ActivityIndicator color={theme.colors.white} size="small" />
-                  ) : (
-                    <Text style={styles.sessionDeleteOkTxt}>{language === "he" ? "מחק" : "Delete"}</Text>
-                  )}
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <>
-              <PrimaryButton
-                label={language === "he" ? "שכפול אימון" : "Duplicate session"}
-                onPress={openDuplicateModal}
-                variant="ghost"
-                style={styles.sessionFooterGhostBtn}
-              />
-              <Pressable
-                style={({ pressed }) => [styles.sessionDangerBtnGhost, pressed && styles.sessionDangerBtnPressed]}
-                onPress={requestDeleteSession}
-                disabled={deleteSessionBusy}
-                accessibilityRole="button"
-                accessibilityLabel={language === "he" ? "מחיקת אימון" : "Delete session"}
-              >
-                <Text style={[styles.sessionDangerBtnGhostTxt, isRTL && styles.rtlText]}>{language === "he" ? "מחיקת אימון" : "Delete session"}</Text>
-              </Pressable>
-            </>
-          )}
+          <>
+            <PrimaryButton
+              label={language === "he" ? "שכפול אימון" : "Duplicate session"}
+              onPress={openDuplicateModal}
+              variant="ghost"
+              style={styles.sessionFooterGhostBtn}
+            />
+            <Pressable
+              style={({ pressed }) => [styles.sessionDangerBtnGhost, pressed && styles.sessionDangerBtnPressed]}
+              onPress={requestDeleteSession}
+              disabled={deleteSessionBusy}
+              accessibilityRole="button"
+              accessibilityLabel={language === "he" ? "מחיקת אימון" : "Delete session"}
+            >
+              <Text style={[styles.sessionDangerBtnGhostTxt, isRTL && styles.rtlText]}>{language === "he" ? "מחיקת אימון" : "Delete session"}</Text>
+            </Pressable>
+          </>
         </View>
       ) : null}
 
@@ -1332,37 +1282,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     letterSpacing: 0.2,
   },
-  sessionDeleteConfirm: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.errorBorder,
-    backgroundColor: theme.colors.errorBg,
-    padding: theme.spacing.md,
-    gap: theme.spacing.sm,
-  },
-  sessionDeleteConfirmTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 14, lineHeight: 20 },
-  sessionDeleteConfirmRow: { flexDirection: "row", gap: 10 },
-  sessionDeleteConfirmRowRtl: { flexDirection: "row-reverse" },
-  sessionDeleteCancelBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surface,
-    alignItems: "center",
-  },
-  sessionDeleteCancelTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
-  sessionDeleteOkBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.error,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 44,
-  },
-  sessionDeleteOkTxt: { color: theme.colors.white, fontWeight: "900", fontSize: 14 },
   editBlock: { marginBottom: theme.spacing.md },
   editSpacer: { height: theme.spacing.sm },
   h: {

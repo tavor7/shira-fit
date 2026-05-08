@@ -1,24 +1,8 @@
-import { Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "../theme";
 import { STUDIO_CONTACT } from "../constants/studioContact";
-
-async function openUrl(url: string) {
-  try {
-    const ok = await Linking.canOpenURL(url);
-    if (ok) {
-      await Linking.openURL(url);
-      return;
-    }
-  } catch {
-    /* fall through */
-  }
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    window.open(url, "_blank", "noopener,noreferrer");
-    return;
-  }
-  Alert.alert("Cannot open link", "Try again from your phone browser.");
-}
+import { useAppAlert } from "../context/AppAlertContext";
 
 type CellProps = {
   title: string;
@@ -45,6 +29,24 @@ function Cell({ title, subtitle, onPress }: CellProps) {
 export function StudioContactFooter() {
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, 10);
+  const { showOk } = useAppAlert();
+
+  async function openUrl(url: string) {
+    try {
+      const ok = await Linking.canOpenURL(url);
+      if (ok) {
+        await Linking.openURL(url);
+        return;
+      }
+    } catch {
+      /* fall through */
+    }
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    showOk("Cannot open link", "Try again from your phone browser.");
+  }
 
   return (
     <View style={[styles.wrap, { paddingBottom: bottom }]}>

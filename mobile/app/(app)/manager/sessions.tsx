@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Alert, Pressable, ActivityIndicator, Text, Platform } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl, Pressable, ActivityIndicator, Text } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
@@ -14,6 +14,7 @@ import { StaffHomeOverview } from "../../../src/components/StaffHomeOverview";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { useAuth } from "../../../src/context/AuthContext";
 import { useI18n } from "../../../src/context/I18nContext";
+import { useAppAlert } from "../../../src/context/AppAlertContext";
 import { supabase } from "../../../src/lib/supabase";
 import { mergeStaffHomeAlerts, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
@@ -22,6 +23,7 @@ import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRe
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
   const { language, t } = useI18n();
+  const { showOk, showConfirm } = useAppAlert();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
   const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
@@ -108,32 +110,27 @@ export default function ManagerSessionsScreen() {
       const { data, error } = await supabase.rpc("open_sessions_for_week", { p_week_start: weekStartIso });
       setOpenWeekBusy(false);
       if (error) {
-        if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-        else Alert.alert(language === "he" ? "שגיאה" : "Error", error.message);
+        showOk(language === "he" ? "שגיאה" : "Error", error.message);
         return;
       }
       if (!data?.ok) {
         const m = data?.error ?? "";
-        if (Platform.OS === "web" && typeof window !== "undefined") window.alert(m);
-        else Alert.alert(language === "he" ? "נכשל" : "Failed", m);
+        showOk(language === "he" ? "נכשל" : "Failed", m);
         return;
       }
       const doneMsg = language === "he" ? `נפתחו ${data.opened ?? 0} אימונים.` : `Opened ${data.opened ?? 0} sessions.`;
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(doneMsg);
-      else Alert.alert(language === "he" ? "נפתח" : "Opened", doneMsg);
+      showOk(language === "he" ? "נפתח" : "Opened", doneMsg);
       load(true);
     };
 
-    // RN Web: multi-button Alert often does not show — use native confirm.
-    if (Platform.OS === "web") {
-      if (typeof window !== "undefined" && window.confirm(`${title}\n\n${msg}`)) void run();
-      return;
-    }
-
-    Alert.alert(title, msg, [
-      { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
-      { text: language === "he" ? "פתיחה" : "Open", onPress: () => void run() },
-    ]);
+    showConfirm({
+      title,
+      message: msg,
+      cancelLabel: language === "he" ? "ביטול" : "Cancel",
+      confirmLabel: language === "he" ? "פתיחה" : "Open",
+      confirmVariant: "primary",
+      onConfirm: () => void run(),
+    });
   }
 
   return (
