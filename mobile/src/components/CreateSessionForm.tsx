@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Modal, FlatList, ActivityIndicator, useWindowDimensions } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, FlatList, ActivityIndicator, useWindowDimensions } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
@@ -12,6 +13,7 @@ import { TimePickerField } from "./TimePickerField";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { appendNetworkHint } from "../lib/networkErrors";
+import { useDiscardChangesPrompt } from "../hooks/useDiscardChangesPrompt";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "./sessionFormStyles";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
@@ -33,7 +35,9 @@ function escapeIlike(term: string) {
 
 export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }: Props) {
   const { language, t, isRTL } = useI18n();
+  const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showToast } = useToast();
+  const navigation = useNavigation();
   const { width } = useWindowDimensions();
   const compact = sessionFormIsCompact(width);
   const [date, setDate] = useState(() => initialDate?.trim() || toISODateLocal(new Date()));
@@ -68,6 +72,94 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /** Serialized baseline once coach list is ready (manager) or immediately (fixed coach). */
+  const [createBaseline, setCreateBaseline] = useState<string | null>(null);
+  const createBaselineRef = useRef<string | null>(null);
+  createBaselineRef.current = createBaseline;
+  const allowLeaveCreateRef = useRef(false);
+  const formSerializedRef = useRef("");
+
+  const formSerialized = useMemo(
+    () =>
+      JSON.stringify({
+        date,
+        time,
+        coachId,
+        coachLabel,
+        max,
+        durationMinutes,
+        repeatWeekly,
+        weeklyOccurrences,
+        open,
+        hidden,
+        note,
+        ath: selectedAthletes.map((a) => a.user_id).slice().sort(),
+        man: selectedManual.map((m) => m.manual_participant_id).slice().sort(),
+      }),
+    [
+      date,
+      time,
+      coachId,
+      coachLabel,
+      max,
+      durationMinutes,
+      repeatWeekly,
+      weeklyOccurrences,
+      open,
+      hidden,
+      note,
+      selectedAthletes,
+      selectedManual,
+    ]
+  );
+  formSerializedRef.current = formSerialized;
+
+  useEffect(() => {
+    setCreateBaseline(null);
+  }, [initialDate]);
+
+  useEffect(() => {
+    if (createBaseline !== null) return;
+    if (!fixedCoachId && coachOptionsLoading) return;
+    setCreateBaseline(formSerialized);
+  }, [createBaseline, coachOptionsLoading, fixedCoachId, formSerialized]);
+
+  useEffect(() => {
+    return navigation.addListener("beforeRemove", (e) => {
+      if (allowLeaveCreateRef.current) return;
+      const baseline = createBaselineRef.current;
+      if (baseline === null || formSerializedRef.current === baseline) return;
+      e.preventDefault();
+      promptDiscardChanges(
+        t("sessionForm.unsavedTitle"),
+        t("sessionForm.unsavedCreateBody"),
+        { cancel: t("common.cancel"), discard: t("sessionForm.discard") },
+        () => {
+          allowLeaveCreateRef.current = true;
+          navigation.dispatch(e.data.action);
+        }
+      );
+    });
+  }, [navigation, t]);
+
+  function confirmLeaveCreateThen(go: () => void) {
+    const baseline = createBaselineRef.current;
+    if (baseline === null || formSerializedRef.current === baseline) {
+      allowLeaveCreateRef.current = true;
+      go();
+      return;
+    }
+    promptDiscardChanges(
+      t("sessionForm.unsavedTitle"),
+      t("sessionForm.unsavedCreateBody"),
+      { cancel: t("common.cancel"), discard: t("sessionForm.discard") },
+      () => {
+        allowLeaveCreateRef.current = true;
+        go();
+      }
+    );
+  }
 
   useEffect(() => {
     if (initialDate?.trim()) setDate(initialDate.trim());
@@ -349,10 +441,12 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         showToast({ message: t("common.saved"), variant: "success" });
       }
     }
+    allowLeaveCreateRef.current = true;
     router.back();
   }
 
   return (
+    <>
     <ScrollView contentContainerStyle={sf.content} style={sf.screen} keyboardShouldPersistTaps="handled">
       <View style={sf.card}>
         <Text style={sf.cardTitle}>{language === "he" ? "מתי" : "When"}</Text>
@@ -611,10 +705,11 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                           already && { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.cta },
                         ]}
                         onPress={() => {
-                          if (!already) addAthletePick(a);
+                          if (already) removeAthletePick(a.user_id);
+                          else addAthletePick(a);
                         }}
                         accessibilityRole="button"
-                        disabled={already}
+                        accessibilityState={{ selected: already }}
                       >
                         <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
                           {a.full_name}
@@ -644,10 +739,11 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                           already && { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.cta },
                         ]}
                         onPress={() => {
-                          if (!already) addManualPick(m);
+                          if (already) removeManualPick(m.id);
+                          else addManualPick(m);
                         }}
                         accessibilityRole="button"
-                        disabled={already}
+                        accessibilityState={{ selected: already }}
                       >
                         <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
                           {m.full_name}
@@ -737,11 +833,13 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
           loading={saving}
           loadingLabel={t("common.loading")}
         />
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.secondaryAction, pressed && { opacity: 0.85 }]}>
+        <Pressable onPress={() => confirmLeaveCreateThen(() => router.back())} style={({ pressed }) => [styles.secondaryAction, pressed && { opacity: 0.85 }]}>
           <Text style={styles.secondaryActionTxt}>{t("common.cancel")}</Text>
         </Pressable>
       </View>
     </ScrollView>
+    {discardDialog}
+    </>
   );
 }
 

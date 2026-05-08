@@ -1,5 +1,6 @@
+import { useNavigation } from "@react-navigation/native";
 import { router, useLocalSearchParams, useFocusEffect, Stack } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -32,6 +33,7 @@ import { useAuth } from "../../../../src/context/AuthContext";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../src/context/ToastContext";
 import { copySessionParticipantsToNewSession } from "../../../../src/lib/copySessionParticipants";
+import { useDiscardChangesPrompt } from "../../../../src/hooks/useDiscardChangesPrompt";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
@@ -71,7 +73,9 @@ type WaitlistRow = {
 
 export default function ManagerSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const navigation = useNavigation();
   const { language, t, isRTL } = useI18n();
+  const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { user, profile } = useAuth();
   const { showToast } = useToast();
   const { width } = useWindowDimensions();
@@ -81,6 +85,8 @@ export default function ManagerSessionDetail() {
   const [waitlist, setWaitlist] = useState<WaitlistRow[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
   const [editingSession, setEditingSession] = useState(false);
+  /** Snapshot when entering edit mode; used to detect unsaved changes. */
+  const [editBaseline, setEditBaseline] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -122,6 +128,67 @@ export default function ManagerSessionDetail() {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteEditDraft, setNoteEditDraft] = useState("");
   const [waitlistQuickUserId, setWaitlistQuickUserId] = useState<string | null>(null);
+
+  const editSerialized = useMemo(
+    () =>
+      JSON.stringify({
+        date,
+        time,
+        coachId,
+        coachLabel,
+        maxP,
+        durationMin,
+        open,
+        hidden,
+      }),
+    [date, time, coachId, coachLabel, maxP, durationMin, open, hidden]
+  );
+
+  const hasEditDirty = editingSession && editBaseline !== null && editSerialized !== editBaseline;
+  const hasEditDirtyRef = useRef(false);
+  hasEditDirtyRef.current = hasEditDirty;
+  const allowLeaveEditRef = useRef(false);
+
+  useEffect(() => {
+    if (!editingSession) allowLeaveEditRef.current = false;
+  }, [editingSession]);
+
+  useEffect(() => {
+    return navigation.addListener("beforeRemove", (e) => {
+      if (allowLeaveEditRef.current) return;
+      if (!hasEditDirtyRef.current) return;
+      e.preventDefault();
+      promptDiscardChanges(
+        t("sessionForm.unsavedTitle"),
+        t("sessionForm.unsavedEditBody"),
+        { cancel: t("common.cancel"), discard: t("sessionForm.discard") },
+        () => {
+          allowLeaveEditRef.current = true;
+          setEditBaseline(null);
+          setEditingSession(false);
+          navigation.dispatch(e.data.action);
+        }
+      );
+    });
+  }, [navigation, t]);
+
+  function requestCancelEdit() {
+    if (!hasEditDirty) {
+      setEditingSession(false);
+      setEditBaseline(null);
+      return;
+    }
+    promptDiscardChanges(
+      t("sessionForm.unsavedTitle"),
+      t("sessionForm.unsavedEditBody"),
+      { cancel: t("common.cancel"), discard: t("sessionForm.discard") },
+      () => {
+        void load();
+        setEditingSession(false);
+        setEditBaseline(null);
+      }
+    );
+  }
 
   async function quickAddWaitlistedAthlete(userId: string) {
     const sid = String(id ?? "").trim();
@@ -465,6 +532,7 @@ export default function ManagerSessionDetail() {
     }
     await load();
     setEditingSession(false);
+    setEditBaseline(null);
     if (savedWithoutHidden) {
       Alert.alert(
         language === "he" ? "הערה" : "Note",
@@ -779,13 +847,7 @@ export default function ManagerSessionDetail() {
             </Pressable>
             <PrimaryButton label={t("common.save")} onPress={saveSession} />
             <View style={styles.editSpacer} />
-            <Pressable
-              onPress={() => {
-                void load();
-                setEditingSession(false);
-              }}
-              style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}
-            >
+            <Pressable onPress={requestCancelEdit} style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}>
               <Text style={styles.cancelEditTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
             </Pressable>
           </View>
@@ -1111,6 +1173,18 @@ export default function ManagerSessionDetail() {
               setNoteEditDraft("");
               setUndoStack([]);
               setPendingDeleteSession(false);
+              setEditBaseline(
+                JSON.stringify({
+                  date,
+                  time,
+                  coachId,
+                  coachLabel,
+                  maxP,
+                  durationMin,
+                  open,
+                  hidden,
+                })
+              );
               setEditingSession(true);
             }}
             variant="ghost"
@@ -1178,6 +1252,7 @@ export default function ManagerSessionDetail() {
     </ScrollView>
         {!editingSession ? <SessionAdjacentNav variant="manager" sessionId={String(id ?? "")} /> : null}
       </View>
+      {discardDialog}
     </>
   );
 }
