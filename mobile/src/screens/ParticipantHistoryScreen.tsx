@@ -150,6 +150,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [editAmountOpen, setEditAmountOpen] = useState(false);
   const [editAmountBusy, setEditAmountBusy] = useState(false);
   const [editAmountStr, setEditAmountStr] = useState("");
+  const [editMethod, setEditMethod] = useState<"cash" | "paybox" | "other" | "">("");
   const [editReg, setEditReg] = useState<ParticipantHistoryRow | null>(null);
 
   function showError(msg: string) {
@@ -191,22 +192,28 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     const raw = reg.amount_paid;
     const s = raw !== null && raw !== undefined && String(raw).trim() !== "" ? String(raw) : "";
     setEditAmountStr(s);
+    const k = normalizePaymentMethodKey(reg.payment_method);
+    setEditMethod(k === "cash" || k === "paybox" || k === "other" ? k : "");
     setEditAmountOpen(true);
   }
 
   async function saveEditAmount() {
     if (!editReg) return;
     if (!athleteId) return;
+    const method = editMethod.length > 0 ? editMethod : null;
     const amtTrim = editAmountStr.replace(",", ".").trim();
     const amt = amtTrim.length === 0 ? null : Number.parseFloat(amtTrim);
     if (amt !== null && (!Number.isFinite(amt) || amt < 0)) {
       showError(language === "he" ? "הזינו סכום תקין (≥ 0)." : "Enter a valid amount (≥ 0).");
       return;
     }
+    if (method === null && amt !== null) {
+      showError(language === "he" ? "כדי להזין סכום, בחרו אמצעי תשלום." : "Choose a payment method to set an amount.");
+      return;
+    }
 
     // Preserve current attendance + payment method; only allowed when attended=true.
     const status = "arrived";
-    const method = (editReg.payment_method ?? null) as string | null;
 
     setEditAmountBusy(true);
     const res = payeeIsManual
@@ -676,12 +683,31 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                 {formatISODateFull(editReg.session_date, language)} ·{" "}
                 {formatSessionTimeRange(editReg.start_time, editReg.duration_minutes ?? 60)}
               </Text>
-              <Text style={[styles.hint, isRTL && styles.rtlText]}>
-                {language === "he" ? "אמצעי תשלום: " : "Payment method: "}
-                {paymentMethodHistoryLabel(editReg.payment_method, language)}
-              </Text>
             </>
           ) : null}
+          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "אמצעי תשלום" : "Payment method"}</Text>
+          <View style={styles.methodRow}>
+            {(["", "cash", "paybox", "other"] as const).map((m) => {
+              const on = editMethod === m;
+              const label = m === "" ? (language === "he" ? "ללא" : "None") : paymentMethodHistoryLabel(m, language);
+              return (
+                <Pressable
+                  key={`editm:${m}`}
+                  onPress={() => setEditMethod(m)}
+                  disabled={editAmountBusy}
+                  style={({ pressed }) => [
+                    styles.methodChip,
+                    on && styles.methodChipOn,
+                    pressed && !on && { opacity: 0.9 },
+                    editAmountBusy && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text style={[styles.methodChipTxt, on && styles.methodChipTxtOn]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
           <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "סכום ששולם (₪)" : "Amount paid (₪)"}</Text>
           <TextInput
             value={editAmountStr}
@@ -690,7 +716,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             placeholder={language === "he" ? "למשל 90" : "e.g. 90"}
             placeholderTextColor={theme.colors.placeholderOnLight}
             style={styles.inputLight}
-            editable={!editAmountBusy}
+            editable={!editAmountBusy && editMethod !== ""}
           />
           <PrimaryButton
             label={t("common.save")}
@@ -1065,6 +1091,15 @@ const styles = StyleSheet.create({
   paymentRowDate: { flex: 1, minWidth: 0 },
   paymentDeleteBtn: { paddingVertical: 6, paddingHorizontal: 8 },
   paymentDeleteTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.error },
-  inlineAction: { alignSelf: "flex-start", marginTop: 10, paddingVertical: 6, paddingHorizontal: 10 },
-  inlineActionTxt: { color: theme.colors.cta, fontWeight: "900" },
+  inlineAction: {
+    alignSelf: "flex-start",
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  inlineActionTxt: { color: theme.colors.cta, fontWeight: "900", letterSpacing: 0.1 },
 });
