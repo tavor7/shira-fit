@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-08T19:21:00+03:00",
+  "title": "Design System: Shira Fit",
+  "extensions": {
+    "colorMeta": {
+      "obsidian-canvas": {
+        "role": "neutral",
+        "displayName": "Obsidian Canvas",
+        "canonical": "#0a0a0b",
+        "tonalRamp": [
+          "oklch(18% 0.01 270)",
+          "oklch(24% 0.01 270)",
+          "oklch(30% 0.01 270)",
+          "oklch(40% 0.01 270)",
+          "oklch(52% 0.01 270)",
+          "oklch(68% 0.01 270)",
+          "oklch(84% 0.01 270)",
+          "oklch(95% 0.01 270)"
+        ]
+      },
+      "graphite-surface": {
+        "role": "neutral",
+        "displayName": "Graphite Surface",
+        "canonical": "#18181c",
+        "tonalRamp": [
+          "oklch(20% 0.01 270)",
+          "oklch(26% 0.01 270)",
+          "oklch(32% 0.01 270)",
+          "oklch(42% 0.01 270)",
+          "oklch(54% 0.01 270)",
+          "oklch(70% 0.01 270)",
+          "oklch(86% 0.01 270)",
+          "oklch(95% 0.01 270)"
+        ]
+      },
+      "cta": {
+        "role": "primary",
+        "displayName": "Crisp CTA",
+        "canonical": "#f4f4f5",
+        "tonalRamp": [
+          "oklch(20% 0.01 270)",
+          "oklch(28% 0.01 270)",
+          "oklch(38% 0.01 270)",
+          "oklch(52% 0.01 270)",
+          "oklch(68% 0.01 270)",
+          "oklch(80% 0.01 270)",
+          "oklch(90% 0.01 270)",
+          "oklch(97% 0.01 270)"
+        ]
+      },
+      "success": {
+        "role": "secondary",
+        "displayName": "Success",
+        "canonical": "#22c55e",
+        "tonalRamp": [
+          "oklch(25% 0.08 145)",
+          "oklch(32% 0.10 145)",
+          "oklch(40% 0.12 145)",
+          "oklch(52% 0.16 145)",
+          "oklch(64% 0.18 145)",
+          "oklch(74% 0.16 145)",
+          "oklch(84% 0.12 145)",
+          "oklch(92% 0.07 145)"
+        ]
+      },
+      "error": {
+        "role": "tertiary",
+        "displayName": "Error",
+        "canonical": "#ef4444",
+        "tonalRamp": [
+          "oklch(25% 0.10 25)",
+          "oklch(32% 0.12 25)",
+          "oklch(40% 0.14 25)",
+          "oklch(52% 0.18 25)",
+          "oklch(64% 0.20 25)",
+          "oklch(74% 0.18 25)",
+          "oklch(84% 0.13 25)",
+          "oklch(92% 0.08 25)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Screen titles and entry headers." },
+      "headline": { "displayName": "Headline", "purpose": "Section titles and primary grouping." },
+      "title": { "displayName": "Title", "purpose": "Strong row labels and key values." },
+      "body": { "displayName": "Body", "purpose": "Default reading and button text." },
+      "label": { "displayName": "Label", "purpose": "Field labels and compact metadata." }
+    },
+    "shadows": [
+      {
+        "name": "modal-ambient",
+        "value": "shadowOpacity 0.35, shadowRadius 18, shadowOffset 0 10 (native) / elevation 12 (android)",
+        "purpose": "Modals and popovers only. Not for basic cards."
+      },
+      {
+        "name": "button-lift",
+        "value": "shadowOpacity 0.25, shadowRadius 8, shadowOffset 0 4 (native) / elevation 3 (android)",
+        "purpose": "Primary pressables when a stronger affordance is helpful."
+      }
+    ],
+    "motion": [
+      { "name": "state-standard", "value": "160–220ms ease-out", "purpose": "Default state transitions, calm and responsive." },
+      { "name": "sheet-enter", "value": "slide (native)", "purpose": "Sheets slide from bottom; respect reduced motion." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (CTA)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Light filled primary action on dark surfaces.",
+      "html": "<button class=\"ds-btn-primary\">Continue</button>",
+      "css": ".ds-btn-primary{appearance:none;border:none;border-radius:14px;padding:15px 20px;min-height:52px;background:#f4f4f5;color:#0a0a0b;font:600 16px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.2px;cursor:pointer;transition:transform 180ms ease-out,opacity 180ms ease-out,background 180ms ease-out}.ds-btn-primary:hover{opacity:.92}.ds-btn-primary:active{transform:scale(.99)}.ds-btn-primary:focus-visible{outline:2px solid rgba(244,244,245,.75);outline-offset:3px}"
+    },
+    {
+      "name": "Secondary Button (Ghost)",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Quiet secondary action with a subtle border on elevated surfaces.",
+      "html": "<button class=\"ds-btn-ghost\">Edit</button>",
+      "css": ".ds-btn-ghost{appearance:none;border:1px solid #2e2e36;border-radius:14px;padding:15px 20px;min-height:52px;background:#222228;color:#f4f4f5;font:600 16px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.2px;cursor:pointer;transition:transform 180ms ease-out,opacity 180ms ease-out,background 180ms ease-out,border-color 180ms ease-out}.ds-btn-ghost:hover{opacity:.9}.ds-btn-ghost:active{transform:scale(.99)}.ds-btn-ghost:focus-visible{outline:2px solid rgba(244,244,245,.35);outline-offset:3px}"
+    },
+    {
+      "name": "Status Chip (Neutral)",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Compact uppercase chip for status metadata.",
+      "html": "<span class=\"ds-chip\">Waitlist</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;border-radius:9999px;padding:3px 8px;border:1px solid rgba(148,163,184,.35);background:rgba(148,163,184,.14);color:#a1a1aa;font:800 10px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.35px;text-transform:uppercase;white-space:nowrap}"
+    },
+    {
+      "name": "Surface Card",
+      "kind": "card",
+      "refersTo": "graphite-surface",
+      "description": "Default card surface with border separation.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Session</div><div class=\"ds-card-body\">Tue 18:00 · 12 spots</div></div>",
+      "css": ".ds-card{background:#18181c;border:1px solid #25252c;border-radius:14px;padding:16px;color:#f4f4f5;font:500 14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}.ds-card-title{font-weight:800;font-size:16px;letter-spacing:.2px;margin-bottom:6px}.ds-card-body{color:#a1a1aa}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Carbon Club",
+    "overview": "This interface should feel like a well-run studio at peak hour: calm, disciplined, and fast. The UI is deliberately dark, with tonal layering instead of heavy decoration, so athletes can scan quickly and staff can act without friction.\n\nThe personality is modern, slick, and simple, without corporate stiffness. Density is controlled through spacing and hierarchy, not through endless cards.",
+    "keyCharacteristics": [
+      "Tonal dark layers (canvas → chrome → surfaces) with crisp borders for structure",
+      "High-contrast type with clear hierarchy, tuned for quick scanning on phones",
+      "One “crisp CTA” approach (light filled primary action on dark)",
+      "Touch-first ergonomics: big hit targets, pill controls, predictable spacing",
+      "RTL-first correctness: layouts and icons must mirror cleanly"
+    ],
+    "rules": [
+      { "name": "The One Crisp Action Rule", "body": "On any screen, treat {colors.cta} as the primary action signal. If everything is a CTA, nothing is.", "section": "colors" },
+      { "name": "The No-Flash Rule", "body": "Avoid neon accents and flashy colors. Meaning comes from contrast, hierarchy, and tone, not chroma.", "section": "colors" },
+      { "name": "The Readable-by-Default Rule", "body": "Text should remain readable without zooming. Favor clear contrast and minimum 16px body on mobile.", "section": "typography" },
+      { "name": "The Tonal-First Rule", "body": "Prefer surface steps + borders over bigger shadows. If a shadow reads “glam”, it’s wrong.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep screens calm and uncluttered: progressive disclosure beats dense dashboards.",
+      "Do keep touch targets large (pills, buttons, row taps) and spacing consistent with the spacing scale.",
+      "Do design RTL intentionally (mirrored icons, correct start/end spacing, no “hardcoded left” assumptions).",
+      "Do support reduced motion (state transitions only; avoid motion-only meaning).",
+      "Do maintain high contrast and readable typography (aim WCAG AA)."
+    ],
+    "donts": [
+      "Don't let the UI become cluttered or overly “corporate”.",
+      "Don't use childish or gaming-style UI tropes.",
+      "Don't use excessive animations or flashy colors.",
+      "Don't use colored side-stripe borders as accents (border-left/right > 1px).",
+      "Don't use gradient text or glassmorphism as a default style."
+    ]
+  }
+}
+

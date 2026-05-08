@@ -11,6 +11,7 @@ import { theme } from "../../../src/theme";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { StaffHomeOverview } from "../../../src/components/StaffHomeOverview";
+import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { useAuth } from "../../../src/context/AuthContext";
 import { useI18n } from "../../../src/context/I18nContext";
 import { supabase } from "../../../src/lib/supabase";
@@ -144,7 +145,7 @@ export default function ManagerSessionsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
         {showPriorityAlerts ? (
-          <View style={{ paddingHorizontal: theme.spacing.xs, paddingTop: theme.spacing.sm }}>
+          <View style={styles.alertsWrap}>
             <HomePriorityAlerts
               items={homeAlerts}
               dismissStorageUserId={dismissStorageUserId}
@@ -164,23 +165,12 @@ export default function ManagerSessionsScreen() {
         />
         {weekStartIso ? (
           <View style={styles.weekActions}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.openWeekBtn,
-                pressed && { opacity: 0.9 },
-                openWeekBusy && { opacity: 0.6 },
-              ]}
+            <PrimaryButton
+              label={language === "he" ? "פתיחת הרשמה לשבוע המוצג" : "Open registration for shown week"}
               onPress={() => void openSelectedWeek()}
-              disabled={openWeekBusy}
-            >
-              {openWeekBusy ? (
-                <ActivityIndicator color={theme.colors.ctaText} />
-              ) : (
-                <Text style={styles.openWeekBtnTxt}>
-                  {language === "he" ? "פתיחת הרשמה לשבוע המוצג" : "Open registration for shown week"}
-                </Text>
-              )}
-            </Pressable>
+              loading={openWeekBusy}
+              loadingLabel={t("common.loading")}
+            />
           </View>
         ) : null}
       </ScrollView>
@@ -195,7 +185,7 @@ export default function ManagerSessionsScreen() {
           setSheetDay(null);
           if (d) router.push({ pathname: "/(app)/manager/create-session", params: { date: d } });
         }}
-        onChanged={() => load(true)}
+        onChanged={() => void load(true)}
       />
     </View>
   );
@@ -205,16 +195,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: theme.spacing.lg },
+  alertsWrap: { paddingHorizontal: theme.spacing.xs, paddingTop: theme.spacing.sm },
   weekActions: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md },
-  openWeekBtn: {
-    backgroundColor: theme.colors.cta,
-    borderRadius: theme.radius.full,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: theme.colors.cta,
-  },
-  openWeekBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", letterSpacing: 0.2 },
 });

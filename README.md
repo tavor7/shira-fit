@@ -157,24 +157,10 @@ On a phone: open the URL in Safari/Chrome and use **Share → Add to Home Screen
 
 ---
 
-## Admin web
-
-```bash
-cd admin
-cp ../.env.example .env   # fill VITE_*
-npm install
-npm run dev
-```
-
-Sign in as **manager** or **coach**. Screens: athletes, sessions, history (extend as needed).
-
----
-
 ## Repo layout
 
 ```
 mobile/           Expo app (expo-router)
-admin/            Vite React dashboard
 supabase/
   migrations/     PostgreSQL + RLS + RPCs
   functions/      open-weekly-registrations, notify-waitlist

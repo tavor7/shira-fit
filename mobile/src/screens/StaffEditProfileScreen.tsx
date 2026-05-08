@@ -24,7 +24,7 @@ export default function StaffEditProfileScreen() {
   const [gender, setGender] = useState<"male" | "female" | "">("");
   const [dob, setDob] = useState("");
   const [saving, setSaving] = useState(false);
-  const [confirmingEmail, setConfirmingEmail] = useState(false);
+  const [confirmingEmail] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -78,18 +78,11 @@ export default function StaffEditProfileScreen() {
     if (!isManager) return;
     const uid = userId.trim();
     if (!uid) return;
-    setConfirmingEmail(true);
-    const { data, error } = await supabase.functions.invoke("admin-confirm-email", { body: { user_id: uid } });
-    setConfirmingEmail(false);
-    if (error) {
-      showToast({ message: t("common.error"), detail: error.message, variant: "error" });
-      return;
-    }
-    if (!data?.ok) {
-      showToast({ message: t("common.failed"), detail: data?.error ?? "Unknown error", variant: "error" });
-      return;
-    }
-    showToast({ message: language === "he" ? "האימייל אושר" : "Email confirmed", variant: "success" });
+    showToast({
+      message: language === "he" ? "פעולה זו הוסרה" : "This action was removed",
+      detail: language === "he" ? "אישור אימייל ידני אינו נתמך יותר." : "Manual email confirmation is no longer supported.",
+      variant: "info",
+    });
   }
 
   return (

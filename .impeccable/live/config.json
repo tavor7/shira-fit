@@ -1,0 +1,8 @@
+{
+  "files": ["mobile/dist/index.html"],
+  "exclude": ["**/node_modules/**", "**/.expo/**", "**/dist/_expo/**"],
+  "insertBefore": "</body>",
+  "commentSyntax": "html",
+  "cspChecked": true
+}
+

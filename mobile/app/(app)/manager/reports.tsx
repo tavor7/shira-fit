@@ -6,7 +6,7 @@ export default function ManagerReportsRoute() {
   const { t } = useI18n();
   return (
     <>
-      <Stack.Screen options={{ title: t("screen.managerReports") }} />
+      <Stack.Screen options={{ title: t("menu.reports") }} />
       <ManagerReportsScreen />
     </>
   );

@@ -131,7 +131,7 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
             : "Lists each session for that trainer in the range. Registered = active sign-ups plus quick-add; arrived = marked attended (including quick-add); late cancels = self-cancellations within 24h before start. Due = flat tier amount for that registered headcount (not session max size or arrivals)."}
         </Text>
         <PrimaryButton
-          label={language === "he" ? "טעינת דוח" : "Load report"}
+          label={t("common.load")}
           onPress={loadReport}
           loading={loading}
           loadingLabel={t("common.loading")}
@@ -258,9 +258,12 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   filters: {
+    margin: theme.spacing.md,
     padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderMuted,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.lg,
   },
   screenTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
@@ -321,10 +324,10 @@ const styles = StyleSheet.create({
   pickerItemRole: { fontSize: 13, color: theme.colors.textMutedOnLight, marginTop: 4 },
   pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoftOnLight, textAlign: "center" },
   list: { flex: 1 },
-  listContent: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl, flexGrow: 1 },
+  listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, flexGrow: 1 },
   row: {
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
