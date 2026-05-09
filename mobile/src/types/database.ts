@@ -87,6 +87,8 @@ export type ParticipantHistoryRow = {
   /** Cancelled row: manager chose to charge late-cancel fee. */
   cancellation_charged?: boolean | null;
   cancellation_penalty_collected?: number | string | null;
+  /** Populated for cancelled rows; used for manager fee toggle. */
+  cancellation_id?: string | null;
 };
 
 /** Row from RPC `manager_coach_sessions_report`. */
@@ -100,7 +102,7 @@ export type ManagerCoachSessionReportRow = {
   /** Self-cancels recorded with full charge (within 24h of session start). */
   late_cancellations_within_24h?: number;
   max_participants: number;
-  /** arrived_count × coach rate for this group size (₪). */
+  /** Flat tier payout (₪) for this session’s registered headcount. */
   coach_earnings_ils: number | string;
   /** True when arrivals > 0 but no coach rate row for max_participants. */
   coach_rate_missing: boolean;

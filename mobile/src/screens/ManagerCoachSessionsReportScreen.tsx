@@ -233,6 +233,7 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
             <Text style={[styles.rowPayout, isRTL && styles.rtlText]}>
               {language === "he" ? "מקס׳ משתתפים" : "Group size"}: {item.max_participants ?? "—"} · {t("coachReport.dueThisSession")}:{" "}
               {Math.round(Number(item.coach_earnings_ils ?? 0) * 100) / 100} ₪
+              {t("coachReport.rateHeadcountSuffix").replace("{n}", String(item.registered_count ?? 0))}
             </Text>
             {item.coach_rate_missing === true ? (
               <Text style={[styles.rowPayoutWarn, isRTL && styles.rtlText]}>{t("coachReport.noRateForSize")}</Text>

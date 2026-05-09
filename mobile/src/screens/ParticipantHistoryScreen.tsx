@@ -135,6 +135,10 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const { language, t, isRTL } = useI18n();
   const pathname = usePathname();
   const isCoachHistory = pathname?.startsWith("/coach/participant-history") ?? false;
+  /** Dedicated route or Reports hub athlete tab (embedded via ManagerReportsScreen). */
+  const isManagerHistory =
+    (pathname?.startsWith("/manager/participant-history") ?? false) ||
+    (pathname?.startsWith("/manager/reports") ?? false);
   const [start, setStart] = useState(() => firstDayOfMonthISOLocal());
   const [end, setEnd] = useState(defaultEndISO);
   const [athleteId, setAthleteId] = useState<string>("");
@@ -165,6 +169,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [editAmountStr, setEditAmountStr] = useState("");
   const [editMethod, setEditMethod] = useState<"cash" | "paybox" | "other" | "">("");
   const [editReg, setEditReg] = useState<ParticipantHistoryRow | null>(null);
+  const [policyBusyId, setPolicyBusyId] = useState<string | null>(null);
 
   function showError(msg: string) {
     if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -198,6 +203,64 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       { text: t("common.cancel"), style: "cancel" },
       { text: t("billing.deletePayment"), style: "destructive", onPress: runDelete },
     ]);
+  }
+
+  async function applyLateCancellationCharge(cancellationId: string, charge: boolean) {
+    if (policyBusyId) return;
+    setPolicyBusyId(`lc:${cancellationId}`);
+    try {
+      const { data, error } = await supabase.rpc("manager_set_cancellation_charge", {
+        p_cancellation_id: cancellationId,
+        p_charge: charge,
+      });
+      if (error) {
+        showError(error.message);
+        return;
+      }
+      if (data?.ok !== true) {
+        showError(String(data?.error ?? "failed"));
+        return;
+      }
+      await load();
+    } finally {
+      setPolicyBusyId(null);
+    }
+  }
+
+  async function applyNoShowCharge(reg: ParticipantHistoryRow, charge: boolean) {
+    const key = `ns:${reg.registration_id}`;
+    if (policyBusyId) return;
+    setPolicyBusyId(key);
+    try {
+      const res = payeeIsManual
+        ? await supabase.rpc("set_manual_participant_attendance", {
+            p_session_id: reg.session_id,
+            p_manual_participant_id: reg.athlete_user_id,
+            p_status: "absent",
+            p_payment_method: null,
+            p_amount_paid: null,
+            p_charge_no_show: charge,
+          })
+        : await supabase.rpc("set_registration_attendance", {
+            p_session_id: reg.session_id,
+            p_user_id: reg.athlete_user_id,
+            p_status: "absent",
+            p_payment_method: null,
+            p_amount_paid: null,
+            p_charge_no_show: charge,
+          });
+      if (res.error) {
+        showError(res.error.message);
+        return;
+      }
+      if (res.data?.ok !== true) {
+        showError(String(res.data?.error ?? "failed"));
+        return;
+      }
+      await load();
+    } finally {
+      setPolicyBusyId(null);
+    }
   }
 
   function openEditAmount(reg: ParticipantHistoryRow) {
@@ -832,6 +895,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   ? "ביטול מעל 12 ש׳ מראש"
                   : "Cancelled more than 12h before session"
                 : null;
+          const feeCharged = reg.cancellation_charged === true;
+          const chargeNoShow = reg.charge_no_show === true;
           return (
             <View style={styles.row}>
               <View style={styles.rowMain}>
@@ -891,6 +956,43 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   {language === "he" ? `${amt} ₪` : `${amt}`}
                 </Text>
               ) : null}
+              {reg.reg_status === "active" && reg.attended === false && (isManagerHistory || isCoachHistory) ? (
+                <View style={[styles.noShowPolicyBlock, isRTL && styles.noShowPolicyBlockRtl]}>
+                  <Text style={[styles.noShowPolicyLabel, isRTL && styles.rtlText]}>
+                    {t("participantHistory.noShowChargeHeading")}
+                  </Text>
+                  {policyBusyId === `ns:${reg.registration_id}` ? (
+                    <ActivityIndicator color={theme.colors.cta} style={{ marginVertical: 8 }} />
+                  ) : (
+                    <View style={[styles.policySeg, isRTL && styles.policySegRtl]}>
+                      <Pressable
+                        onPress={() => void applyNoShowCharge(reg, false)}
+                        style={({ pressed }) => [
+                          styles.policyBtn,
+                          !chargeNoShow && styles.policyBtnOn,
+                          pressed && { opacity: 0.88 },
+                        ]}
+                      >
+                        <Text style={[styles.policyBtnTxt, !chargeNoShow && styles.policyBtnTxtOn]}>
+                          {t("managerSession.cancelChargeWaive")}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => void applyNoShowCharge(reg, true)}
+                        style={({ pressed }) => [
+                          styles.policyBtn,
+                          chargeNoShow && styles.policyBtnOn,
+                          pressed && { opacity: 0.88 },
+                        ]}
+                      >
+                        <Text style={[styles.policyBtnTxt, chargeNoShow && styles.policyBtnTxtOn]}>
+                          {t("managerSession.cancelChargeApply")}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+              ) : null}
               {reg.reg_status === "cancelled" ? (
                 <>
                   {reason.length > 0 ? (
@@ -903,6 +1005,38 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                     <View style={[styles.badge, within12 ? styles.badgeLate : styles.badgeLateOk]}>
                       <Text style={[styles.badgeTxt, within12 ? styles.badgeLateTxt : styles.badgeLateOkTxt]}>{late}</Text>
                     </View>
+                  ) : null}
+                  {within12 && isManagerHistory && reg.cancellation_id ? (
+                    policyBusyId === `lc:${reg.cancellation_id}` ? (
+                      <ActivityIndicator color={theme.colors.cta} style={{ marginTop: 10 }} />
+                    ) : (
+                      <View style={[styles.policySeg, isRTL && styles.policySegRtl, styles.lateFeeSegMargin]}>
+                        <Pressable
+                          onPress={() => void applyLateCancellationCharge(String(reg.cancellation_id), false)}
+                          style={({ pressed }) => [
+                            styles.policyBtn,
+                            !feeCharged && styles.policyBtnOn,
+                            pressed && { opacity: 0.88 },
+                          ]}
+                        >
+                          <Text style={[styles.policyBtnTxt, !feeCharged && styles.policyBtnTxtOn]}>
+                            {t("managerSession.cancelChargeWaive")}
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => void applyLateCancellationCharge(String(reg.cancellation_id), true)}
+                          style={({ pressed }) => [
+                            styles.policyBtn,
+                            feeCharged && styles.policyBtnOn,
+                            pressed && { opacity: 0.88 },
+                          ]}
+                        >
+                          <Text style={[styles.policyBtnTxt, feeCharged && styles.policyBtnTxtOn]}>
+                            {t("managerSession.cancelChargeApply")}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    )
                   ) : null}
                 </>
               ) : null}
@@ -1042,6 +1176,30 @@ const styles = StyleSheet.create({
   badgeLateTxt: { color: theme.colors.error },
   badgeLateOk: { marginTop: 6, backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.borderMuted },
   badgeLateOkTxt: { color: theme.colors.textMuted },
+  noShowPolicyBlock: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+  },
+  noShowPolicyBlockRtl: { alignItems: "stretch" },
+  noShowPolicyLabel: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted, marginBottom: 8 },
+  policySeg: { flexDirection: "row", gap: 8 },
+  policySegRtl: { flexDirection: "row-reverse" },
+  lateFeeSegMargin: { marginTop: 10 },
+  policyBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    alignItems: "center",
+  },
+  policyBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  policyBtnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
+  policyBtnTxtOn: { color: theme.colors.ctaText },
   empty: { textAlign: "center", color: theme.colors.textSoft, padding: theme.spacing.xl, fontSize: 14 },
   billingCard: {
     marginHorizontal: theme.spacing.md,

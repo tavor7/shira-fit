@@ -44,6 +44,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
       "Each session: due = flat amount for the tier that matches registered count (sign-ups + quick-add). Attendance and session max size do not change it. Sessions with registrations but no matching tier are excluded from the total and counted below.",
     "coachReport.sessionsMissingRate": "{n} session(s) have registrations but no rate tier for that headcount.",
     "coachReport.dueThisSession": "Due this session",
+    "participantHistory.noShowChargeHeading": "No-show session fee",
+    "coachReport.rateHeadcountSuffix": " ({n} people)",
     "coachReport.noRateForSize": "No rate for this registered count",
 
     "billing.summaryTitle": "Payments in period",
@@ -371,6 +373,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
       "בכל אימון: לתשלום = סכום קבוע לרמה שמתאימה למספר הנרשמים (הרשמות + quick-add). הגעות ומקס׳ משתתפים לא משנים. אימונים עם נרשמים בלי רמה מתאימה לא נספרים בסה״כ ומופיעים למטה.",
     "coachReport.sessionsMissingRate": "ב-{n} אימונים יש נרשמים אבל אין תעריף לרמה הזו.",
     "coachReport.dueThisSession": "לתשלום באימון",
+    "participantHistory.noShowChargeHeading": "חיוב על אי-הגעה",
+    "coachReport.rateHeadcountSuffix": " ({n} משתתפים)",
     "coachReport.noRateForSize": "אין תעריף למספר נרשמים זה",
 
     "billing.summaryTitle": "תשלומים בתקופה",
