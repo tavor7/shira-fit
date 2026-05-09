@@ -70,9 +70,24 @@ function paymentDisplayTone(payment: string | null | undefined): "unpaid" | "cas
   return "other";
 }
 
+export type SessionAttendanceStats = {
+  registered: number;
+  arrived: number;
+  absent: number;
+  unset: number;
+  /** Roster rows with a payment method saved (not “none”). */
+  withPaymentMethod: number;
+  /** Sum of recorded amounts on the roster (₪). */
+  totalPaidIls: number;
+};
+
 type Props = {
   sessionId: string;
   onChanged?: () => void;
+  /** Active roster size (app athletes + quick-add rows) after each load. */
+  onParticipantCountChange?: (count: number) => void;
+  /** Breakdown of attendance flags for ended-session summaries. */
+  onAttendanceStatsChange?: (stats: SessionAttendanceStats) => void;
   /** Increment when registrations change (add/remove) so the list reloads without leaving the screen. */
   refreshNonce?: number;
   /** Manager-only: show remove control */
@@ -86,6 +101,8 @@ type Props = {
 export function ParticipantAttendanceList({
   sessionId,
   onChanged,
+  onParticipantCountChange,
+  onAttendanceStatsChange,
   refreshNonce = 0,
   onRemoveAthlete,
   onRemoveManualParticipant,
@@ -116,6 +133,15 @@ export function ParticipantAttendanceList({
     if (error && mErr) {
       setRows([]);
       setLoading(false);
+      onParticipantCountChange?.(0);
+      onAttendanceStatsChange?.({
+        registered: 0,
+        arrived: 0,
+        absent: 0,
+        unset: 0,
+        withPaymentMethod: 0,
+        totalPaidIls: 0,
+      });
       return;
     }
 
@@ -150,9 +176,27 @@ export function ParticipantAttendanceList({
     });
 
     const all = [...regRows, ...manualRows].sort((a, b) => a.name.localeCompare(b.name));
+    const arrived = all.filter((r) => r.attended === true).length;
+    const absent = all.filter((r) => r.attended === false).length;
+    const unset = all.filter((r) => r.attended === null).length;
+    let withPaymentMethod = 0;
+    let totalPaidIls = 0;
+    for (const r of all) {
+      if (normalizePaymentMethodKey(r.paymentMethod) !== "(none)") withPaymentMethod += 1;
+      if (r.amountPaid != null && r.amountPaid > 0) totalPaidIls += r.amountPaid;
+    }
     setRows(all);
+    onParticipantCountChange?.(all.length);
+    onAttendanceStatsChange?.({
+      registered: all.length,
+      arrived,
+      absent,
+      unset,
+      withPaymentMethod,
+      totalPaidIls,
+    });
     setLoading(false);
-  }, [sessionId]);
+  }, [sessionId, onParticipantCountChange, onAttendanceStatsChange]);
 
   useFocusEffect(
     useCallback(() => {

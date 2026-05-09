@@ -19,7 +19,10 @@ import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSession } from "../../../../src/types/database";
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
-import { ParticipantAttendanceList } from "../../../../src/components/ParticipantAttendanceList";
+import {
+  ParticipantAttendanceList,
+  type SessionAttendanceStats,
+} from "../../../../src/components/ParticipantAttendanceList";
 import { AddParticipantToSessionModal } from "../../../../src/components/AddParticipantToSessionModal";
 import { DatePickerField } from "../../../../src/components/DatePickerField";
 import { TimePickerField } from "../../../../src/components/TimePickerField";
@@ -71,6 +74,20 @@ type WaitlistRow = {
   profiles: { full_name: string; phone?: string | null } | { full_name: string; phone?: string | null }[] | null;
 };
 
+/** Picker stores "Full name — role"; read-only session UI shows name only. */
+function coachDisplayNameFromLabel(label: string): string {
+  const raw = label.trim();
+  if (!raw) return "";
+  const sep = " — ";
+  const i = raw.indexOf(sep);
+  return i === -1 ? raw : raw.slice(0, i).trim();
+}
+
+function formatIls(n: number, language: string): string {
+  const r = Math.round(n * 100) / 100;
+  return language === "he" ? `${r.toLocaleString("he-IL")} ₪` : `${r.toLocaleString("en-US")} ₪`;
+}
+
 export default function ManagerSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
@@ -82,6 +99,15 @@ export default function ManagerSessionDetail() {
   const { width } = useWindowDimensions();
   const compact = sessionFormIsCompact(width);
   const [participantsRev, setParticipantsRev] = useState(0);
+  const [participantCount, setParticipantCount] = useState(0);
+  const [attendanceStats, setAttendanceStats] = useState<SessionAttendanceStats>({
+    registered: 0,
+    arrived: 0,
+    absent: 0,
+    unset: 0,
+    withPaymentMethod: 0,
+    totalPaidIls: 0,
+  });
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [waitlist, setWaitlist] = useState<WaitlistRow[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
@@ -629,6 +655,14 @@ export default function ManagerSessionDetail() {
     } else showOk(t("common.failed"), data?.error ?? "");
   }
 
+  const handleParticipantCountChange = useCallback((n: number) => {
+    setParticipantCount(n);
+  }, []);
+
+  const handleAttendanceStatsChange = useCallback((s: SessionAttendanceStats) => {
+    setAttendanceStats(s);
+  }, []);
+
   async function removeManual(manualId: string) {
     const { data, error } = await supabase.rpc("remove_manual_participant_from_session", {
       p_session_id: id,
@@ -651,6 +685,12 @@ export default function ManagerSessionDetail() {
 
   const durationMinutesForEnded = Math.max(1, parseInt(durationMin, 10) || 60);
   const sessionHasEnded = !hasSessionNotEnded(date, time, durationMinutesForEnded);
+  const maxCap = Math.max(1, parseInt(maxP, 10) || session.max_participants || 1);
+  const coachNameOnly = coachDisplayNameFromLabel(coachLabel);
+  const arrivalRatePct =
+    attendanceStats.registered > 0
+      ? Math.round((attendanceStats.arrived / attendanceStats.registered) * 100)
+      : 0;
 
   return (
     <>
@@ -662,7 +702,11 @@ export default function ManagerSessionDetail() {
           <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{language === "he" ? "אימון" : "Session"}</Text>
           <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>
             {formatISODateFullWithWeekdayAfter(date, language)} · {formatSessionStartTime(time)} · {durationMin}{" "}
-            {language === "he" ? "דק׳" : "min"} · {language === "he" ? "עד" : "max"} {maxP}
+            {language === "he" ? "דק׳" : "min"}
+          </Text>
+          <Text style={[styles.summaryCoachLine, isRTL && styles.rtlText]}>
+            {t("managerSession.coachHeading")}:{" "}
+            {coachNameOnly.length > 0 ? coachNameOnly : t("managerSession.noTrainerAssigned")}
           </Text>
           {sessionHasEnded ? (
             <View style={styles.summaryEndedRow} accessibilityLiveRegion="polite">
@@ -676,6 +720,70 @@ export default function ManagerSessionDetail() {
             {language === "he" ? "מוסתר: " : "Hidden: "}
             {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
           </Text>
+          {sessionHasEnded ? (
+            <View style={styles.trainingSummaryBox}>
+              <Text style={[styles.trainingSummaryTitle, isRTL && styles.rtlText]}>
+                {t("managerSession.trainingSummaryTitle")}
+              </Text>
+              {attendanceStats.registered === 0 ? (
+                <Text style={[styles.summaryEmptyNote, isRTL && styles.rtlText]}>
+                  {t("managerSession.summaryNoRegistrations")}
+                </Text>
+              ) : (
+                <View style={[styles.summaryTilesRow, isRTL && styles.summaryTilesRowRtl]}>
+                  <View style={[styles.summaryTile, isRTL && styles.summaryTileRtl]}>
+                    <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
+                      {t("managerSession.summaryTileAttendance")}
+                    </Text>
+                    <Text style={[styles.summaryTileHero, isRTL && styles.rtlText]} accessibilityRole="header">
+                      {t("managerSession.summaryAttendanceFraction")
+                        .replace("{arrived}", String(attendanceStats.arrived))
+                        .replace("{registered}", String(attendanceStats.registered))}
+                    </Text>
+                    <Text style={[styles.summaryTileHint, isRTL && styles.rtlText]}>
+                      {t("managerSession.summaryAttendanceSub")
+                        .replace("{pct}", String(arrivalRatePct))
+                        .replace("{capacity}", String(maxCap))}
+                    </Text>
+                  </View>
+                  <View style={[styles.summaryTile, isRTL && styles.summaryTileRtl]}>
+                    <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
+                      {t("managerSession.summaryTilePayments")}
+                    </Text>
+                    <Text style={[styles.summaryTileHero, isRTL && styles.rtlText]} accessibilityRole="header">
+                      {formatIls(attendanceStats.totalPaidIls, language)}
+                    </Text>
+                    <Text style={[styles.summaryTileHint, isRTL && styles.rtlText]}>
+                      {attendanceStats.totalPaidIls > 0
+                        ? t("managerSession.summaryPaymentsSubRecorded")
+                            .replace("{n}", String(attendanceStats.withPaymentMethod))
+                            .replace("{total}", String(attendanceStats.registered))
+                        : attendanceStats.withPaymentMethod > 0
+                          ? t("managerSession.summaryPaymentsSubMethodsOnly").replace(
+                              "{n}",
+                              String(attendanceStats.withPaymentMethod)
+                            )
+                          : t("managerSession.summaryPaymentsSubNone")}
+                    </Text>
+                  </View>
+                </View>
+              )}
+              {cancellations.length > 0 || waitlist.length > 0 ? (
+                <Text style={[styles.summaryFootnote, isRTL && styles.rtlText]}>
+                  {[
+                    cancellations.length > 0
+                      ? t("managerSession.summaryCancellationsShort").replace("{n}", String(cancellations.length))
+                      : null,
+                    waitlist.length > 0
+                      ? t("managerSession.summaryWaitlistShort").replace("{n}", String(waitlist.length))
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
         </View>
       ) : (
         <View style={styles.editBlock}>
@@ -895,11 +1003,19 @@ export default function ManagerSessionDetail() {
         </View>
       </Modal>
 
-      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משתתפים ונוכחות" : "Participants & attendance"}</Text>
+      <Text style={[styles.h, isRTL && styles.rtlText]}>
+        {language === "he" ? "משתתפים ונוכחות" : "Participants & attendance"}
+        <Text style={styles.hMuted}>
+          {" "}
+          ({participantCount}/{maxCap})
+        </Text>
+      </Text>
       <ParticipantAttendanceList
         sessionId={id}
         refreshNonce={participantsRev}
         onChanged={load}
+        onParticipantCountChange={handleParticipantCountChange}
+        onAttendanceStatsChange={handleAttendanceStatsChange}
         onRemoveAthlete={removeAthlete}
         onRemoveManualParticipant={removeManual}
       />
@@ -1240,6 +1356,77 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     lineHeight: 23,
   },
+  summaryCoachLine: {
+    marginTop: theme.spacing.xs,
+    fontSize: 15,
+    fontWeight: "600",
+    letterSpacing: 0.15,
+    color: theme.colors.textMuted,
+    lineHeight: 22,
+  },
+  trainingSummaryBox: {
+    marginTop: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+  },
+  trainingSummaryTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  summaryEmptyNote: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.colors.textMuted,
+    lineHeight: 20,
+  },
+  summaryTilesRow: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "stretch",
+  },
+  summaryTilesRowRtl: { flexDirection: "row-reverse" },
+  summaryTile: {
+    flex: 1,
+    minWidth: 0,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  summaryTileRtl: { alignItems: "flex-end" },
+  summaryTileLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: theme.colors.textSoft,
+    marginBottom: 6,
+  },
+  summaryTileHero: {
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  summaryTileHint: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: theme.colors.textMuted,
+    lineHeight: 16,
+  },
+  summaryFootnote: {
+    marginTop: theme.spacing.sm,
+    fontSize: 12,
+    fontWeight: "600",
+    color: theme.colors.textSoft,
+    lineHeight: 17,
+  },
   summaryEndedRow: {
     marginTop: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
@@ -1292,6 +1479,12 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.sm,
     color: theme.colors.text,
+  },
+  hMuted: {
+    color: theme.colors.textMuted,
+    fontWeight: "700",
+    fontSize: 17,
+    letterSpacing: 0.15,
   },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   muted: { color: theme.colors.textSoft },

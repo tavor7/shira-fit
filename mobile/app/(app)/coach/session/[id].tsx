@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router, Stack } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, TextInput, Pressable, ActivityIndicator, Platform, TouchableOpacity } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import { theme } from "../../../../src/theme";
@@ -40,6 +40,8 @@ export default function CoachSessionDetail() {
   const { showOk, showConfirm } = useAppAlert();
   const { showToast } = useToast();
   const [participantsRev, setParticipantsRev] = useState(0);
+  const [participantCount, setParticipantCount] = useState(0);
+  const [sessionMaxParticipants, setSessionMaxParticipants] = useState(0);
   const [waitlist, setWaitlist] = useState<W[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
   const [notes, setNotes] = useState<NoteRow[]>([]);
@@ -108,11 +110,17 @@ export default function CoachSessionDetail() {
       setMyId(uid);
       const { data: s } = await supabase
         .from("training_sessions")
-        .select("coach_id, session_date, start_time")
+        .select("coach_id, session_date, start_time, max_participants")
         .eq("id", id)
         .single();
-      const row = s as { coach_id?: string; session_date?: string; start_time?: string } | null;
+      const row = s as {
+        coach_id?: string;
+        session_date?: string;
+        start_time?: string;
+        max_participants?: number;
+      } | null;
       setCoachId(row?.coach_id ?? null);
+      setSessionMaxParticipants(Math.max(0, Number(row?.max_participants) || 0));
       if (row?.session_date && row?.start_time) {
         setSessionSchedule({ session_date: row.session_date, start_time: row.start_time });
       } else {
@@ -249,16 +257,29 @@ export default function CoachSessionDetail() {
     loadNotes();
   }
 
+  const handleParticipantCountChange = useCallback((n: number) => {
+    setParticipantCount(n);
+  }, []);
+
+  const maxCapCoach = Math.max(1, sessionMaxParticipants || 1);
+
   return (
     <>
       <Stack.Screen options={{ title: t("screen.coachSession") }} />
       <View style={styles.root}>
         <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "משתתפים ונוכחות" : "Participants & attendance"}</Text>
+      <Text style={[styles.h, isRTL && styles.rtlText]}>
+        {language === "he" ? "משתתפים ונוכחות" : "Participants & attendance"}
+        <Text style={styles.hMuted}>
+          {" "}
+          ({participantCount}/{maxCapCoach})
+        </Text>
+      </Text>
       <ParticipantAttendanceList
         sessionId={id}
         refreshNonce={participantsRev}
         onChanged={afterParticipantsChange}
+        onParticipantCountChange={handleParticipantCountChange}
         onRemoveAthlete={canEditSession ? removeAthlete : undefined}
         onRemoveManualParticipant={canEditSession ? removeManual : undefined}
       />
@@ -538,6 +559,12 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: 4 },
   h: { fontWeight: "700", marginTop: theme.spacing.md, marginBottom: 8, color: theme.colors.text },
+  hMuted: {
+    color: theme.colors.textMuted,
+    fontWeight: "700",
+    fontSize: 17,
+    letterSpacing: 0.15,
+  },
   rtlText: { textAlign: "right" },
   row: { paddingVertical: 8, borderBottomWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
   muted: { color: theme.colors.textSoft },
