@@ -14,6 +14,8 @@ export default function Index() {
   const didRetry = useRef(false);
   /** Web only: wait until we've tried localStorage resume so we don't flash Redirect → sessions. */
   const [webResumeChecked, setWebResumeChecked] = useState(() => Platform.OS !== "web");
+  /** Resume from storage must run once — deps like managerAthletePreview refresh would otherwise replace() back to stored route on every navigation. */
+  const webResumeRan = useRef(false);
 
   useLayoutEffect(() => {
     if (Platform.OS !== "web") {
@@ -22,6 +24,8 @@ export default function Index() {
     }
     if (loading || !profile) return;
     if (profile.role === "manager" && !athletePreviewStorageReady) return;
+    if (webResumeRan.current) return;
+    webResumeRan.current = true;
 
     const stored = getWebLastRoute();
     if (stored && isWebResumePathAllowed(stored, profile, managerAthletePreview)) {

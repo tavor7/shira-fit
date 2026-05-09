@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { Platform } from "react-native";
 import { usePathname } from "expo-router";
 import { useAuth } from "../context/AuthContext";
@@ -12,8 +12,6 @@ import { saveWebLastRoute } from "../lib/webLastRoute";
 export function WebRoutePersistence() {
   const pathname = usePathname() ?? "";
   const { session } = useAuth();
-  const sessionRef = useRef(session);
-  sessionRef.current = session;
 
   useEffect(() => {
     if (Platform.OS !== "web" || !session) return;
@@ -35,14 +33,12 @@ export function WebRoutePersistence() {
       if (document.visibilityState === "hidden") flush();
     };
 
+    // pagehide + visibility:hidden track tab/app switch. Avoid window "blur" — it can fire during
+    // in-page focus moves and overwrote localStorage with a stale URL while pathname already moved.
     window.addEventListener("pagehide", flush);
-    window.addEventListener("blur", flush);
-    window.addEventListener("beforeunload", flush);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("pagehide", flush);
-      window.removeEventListener("blur", flush);
-      window.removeEventListener("beforeunload", flush);
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
