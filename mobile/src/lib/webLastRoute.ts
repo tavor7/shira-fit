@@ -4,7 +4,20 @@ import type { Profile } from "../types/database";
 /** Used when the browser reloads and lands on `/` — resume last in-app screen (web only). */
 export const WEB_LAST_ROUTE_KEY = "shira_fit_web_last_path";
 
-const AUTH_PATH_PREFIXES = ["/login", "/signup", "/reset-password", "/password-updated", "/signup-success"];
+const AUTH_PATH_PREFIXES = [
+  "/login",
+  "/signup",
+  "/reset-password",
+  "/password-updated",
+  "/signup-success",
+  "/confirm-email",
+  "/forgot-password",
+  "/forgot-sent",
+];
+
+function pathMatchesRoleHome(pathOnly: string, prefix: string): boolean {
+  return pathOnly === prefix || pathOnly.startsWith(`${prefix}/`);
+}
 
 function webStorage(): Storage | null {
   if (Platform.OS !== "web" || typeof window === "undefined") return null;
@@ -74,14 +87,35 @@ export function isWebResumePathAllowed(
   if (AUTH_PATH_PREFIXES.some((p) => pathOnly === p || pathOnly.startsWith(`${p}/`))) return false;
 
   const { role, approval_status } = profile;
+
+  // Shared “account” screens (all signed-in app roles use the same URL prefix).
+  const sharedApp =
+    pathMatchesRoleHome(pathOnly, "/profile") || pathMatchesRoleHome(pathOnly, "/settings");
+
   if (role === "athlete") {
-    if (approval_status === "pending") return pathOnly.startsWith("/pending");
-    return pathOnly.startsWith("/athlete") || pathOnly.startsWith("/pending");
+    if (approval_status === "pending") {
+      return pathMatchesRoleHome(pathOnly, "/pending");
+    }
+    return (
+      pathMatchesRoleHome(pathOnly, "/athlete") ||
+      pathMatchesRoleHome(pathOnly, "/pending") ||
+      sharedApp
+    );
   }
-  if (role === "coach") return pathOnly.startsWith("/coach");
+  if (role === "coach") {
+    return (
+      pathMatchesRoleHome(pathOnly, "/coach") ||
+      pathMatchesRoleHome(pathOnly, "/staff") ||
+      sharedApp
+    );
+  }
   if (role === "manager") {
-    if (pathOnly.startsWith("/manager")) return true;
-    if (pathOnly.startsWith("/athlete") && managerAthletePreview) return true;
+    if (pathMatchesRoleHome(pathOnly, "/manager") || pathMatchesRoleHome(pathOnly, "/staff") || sharedApp) {
+      return true;
+    }
+    if (managerAthletePreview && pathMatchesRoleHome(pathOnly, "/athlete")) {
+      return true;
+    }
     return false;
   }
   return false;
