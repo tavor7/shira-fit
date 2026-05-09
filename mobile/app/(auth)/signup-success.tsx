@@ -25,7 +25,7 @@ export default function SignupSuccessScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
       <LanguageToggleChip />
       <View style={styles.logoWrap}>
       <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
@@ -72,6 +72,7 @@ export default function SignupSuccessScreen() {
 }
 
 const styles = StyleSheet.create({
+  scrollRoot: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flexGrow: 1, padding: theme.spacing.lg, justifyContent: "center", backgroundColor: theme.colors.backgroundAlt },
   logoWrap: { alignItems: "center", marginBottom: theme.spacing.sm },
   logo: { width: 120, height: 120 },

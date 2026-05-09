@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -20,77 +20,119 @@ import { logUserActivity } from "../../src/lib/logUserActivity";
 
 export const options = { headerShown: false };
 
-function getLoginErrorMessage(error: { message: string }): string {
+/** Loose client-side check; server remains authoritative. */
+const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const MAX_EMAIL_LEN = 254;
+const MAX_PASSWORD_LEN = 128;
+
+type ClassifiedLoginError =
+  | "invalid_credentials"
+  | "email_not_confirmed"
+  | "rate_limited"
+  | "network"
+  | "generic";
+
+function classifyLoginError(error: { message: string }): ClassifiedLoginError {
   const msg = (error.message || "").toLowerCase();
   if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials")) {
-    return "Wrong email or password. If you don't have an account, sign up first. Otherwise check your password or use Forgot password.";
+    return "invalid_credentials";
   }
   if (msg.includes("email not confirmed")) {
-    return "Please confirm your email using the link we sent you, then try again.";
+    return "email_not_confirmed";
   }
-  return error.message || "Login failed. Please try again.";
+  if (
+    msg.includes("rate limit") ||
+    msg.includes("too many requests") ||
+    msg.includes("too_many") ||
+    msg.includes("over_request_rate")
+  ) {
+    return "rate_limited";
+  }
+  if (
+    msg.includes("network") ||
+    msg.includes("fetch") ||
+    msg.includes("internet") ||
+    msg.includes("connection") ||
+    msg.includes("timeout") ||
+    msg.includes("econnrefused")
+  ) {
+    return "network";
+  }
+  return "generic";
 }
 
 export default function LoginScreen() {
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const mountedRef = useRef(true);
 
-  function tr(msgEn: string, msgHe: string) {
-    return language === "he" ? msgHe : msgEn;
-  }
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   async function onLogin() {
+    if (busy) return;
     setErrorMessage("");
-    if (!email.trim()) {
-      setErrorMessage(tr("Please enter your email.", "אנא הזינו אימייל."));
+    const emailTrim = email.trim();
+    if (!emailTrim) {
+      setErrorMessage(t("auth.loginErrorEmailRequired"));
+      return;
+    }
+    if (!EMAIL_LIKE.test(emailTrim)) {
+      setErrorMessage(t("auth.loginErrorInvalidEmail"));
       return;
     }
     if (!password) {
-      setErrorMessage(tr("Please enter your password.", "אנא הזינו סיסמה."));
+      setErrorMessage(t("auth.loginErrorPasswordRequired"));
       return;
     }
     setBusy(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    setBusy(false);
-    if (error) {
-      const msg = getLoginErrorMessage(error);
-      // Keep original error mapping but translate the common cases we generate in getLoginErrorMessage().
-      if (msg.startsWith("Wrong email or password")) {
-        setErrorMessage(
-          tr(
-            msg,
-            "אימייל או סיסמה שגויים. אם אין לך חשבון, בצעו הרשמה. אחרת בדקו את הסיסמה או השתמשו ב״שכחתי סיסמה״."
-          )
-        );
-      } else if (msg.startsWith("Please confirm your email")) {
-        setErrorMessage(tr(msg, "אנא אשרו את האימייל דרך הקישור ששלחנו, ואז נסו שוב."));
-      } else if (msg.startsWith("Login failed")) {
-        setErrorMessage(tr(msg, "ההתחברות נכשלה. נסו שוב."));
-      } else {
-        setErrorMessage(msg);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: emailTrim,
+        password,
+      });
+      if (!mountedRef.current) return;
+      if (error) {
+        const kind = classifyLoginError(error);
+        if (kind === "invalid_credentials") {
+          setErrorMessage(t("auth.loginErrorBadCreds"));
+        } else if (kind === "email_not_confirmed") {
+          setErrorMessage(t("auth.loginErrorUnconfirmed"));
+        } else if (kind === "rate_limited") {
+          setErrorMessage(t("auth.loginErrorRateLimited"));
+        } else if (kind === "network") {
+          setErrorMessage(t("auth.loginErrorNetwork"));
+        } else {
+          setErrorMessage(t("auth.loginErrorGeneric"));
+        }
+        return;
       }
-      return;
-    }
-    if (data.session) {
-      void logUserActivity("auth_login");
-      router.replace("/");
-    } else {
-      setErrorMessage(tr("Sign-in didn't complete. Please try again.", "ההתחברות לא הושלמה. נסו שוב."));
+      if (data.session) {
+        void logUserActivity("auth_login");
+        router.replace("/");
+      } else {
+        setErrorMessage(t("auth.loginErrorIncomplete"));
+      }
+    } catch {
+      if (!mountedRef.current) return;
+      setErrorMessage(t("auth.loginErrorNetwork"));
+    } finally {
+      if (mountedRef.current) setBusy(false);
     }
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.outer}
-    >
+    <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView
+        style={styles.scrollRoot}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -98,12 +140,23 @@ export default function LoginScreen() {
       >
         <LanguageToggleChip />
         <View style={styles.logoWrap}>
-          <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
+          <Image
+            source={require("../../assets/logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel={t("a11y.appLogo")}
+            accessibilityRole="image"
+          />
         </View>
-        <Text style={[styles.sub, isRTL && styles.subRtl]}>{tr("Sign in to your account", "התחברות לחשבון")}</Text>
+        <Text style={[styles.sub, isRTL && styles.subRtl]}>{t("auth.loginSubtitle")}</Text>
         {errorMessage ? (
-          <View style={styles.errorBox}>
-            <Text style={[styles.errorText, isRTL && { textAlign: "right" }]}>{errorMessage}</Text>
+          <View
+            style={styles.errorBox}
+            accessibilityRole="alert"
+            accessibilityLabel={t("a11y.loginError")}
+            accessibilityLiveRegion="polite"
+          >
+            <Text style={[styles.errorText, isRTL && styles.rtlText]}>{errorMessage}</Text>
           </View>
         ) : null}
         <TextInput
@@ -112,16 +165,31 @@ export default function LoginScreen() {
           placeholderTextColor={theme.colors.textSoft}
           autoCapitalize="none"
           keyboardType="email-address"
+          autoComplete="email"
+          textContentType="emailAddress"
+          autoCorrect={false}
           value={email}
-          onChangeText={(t) => { setEmail(t); setErrorMessage(""); }}
+          maxLength={MAX_EMAIL_LEN}
+          onChangeText={(txt) => {
+            setEmail(txt);
+            setErrorMessage("");
+          }}
+          accessibilityLabel={t("auth.email")}
         />
         <TextInput
           style={[styles.input, isRTL && styles.inputRtl, errorMessage ? styles.inputError : null]}
           placeholder={t("auth.password")}
           placeholderTextColor={theme.colors.textSoft}
           secureTextEntry
+          autoComplete="password"
+          textContentType="password"
           value={password}
-          onChangeText={(t) => { setPassword(t); setErrorMessage(""); }}
+          maxLength={MAX_PASSWORD_LEN}
+          onChangeText={(txt) => {
+            setPassword(txt);
+            setErrorMessage("");
+          }}
+          accessibilityLabel={t("auth.password")}
         />
         <PrimaryButton
           label={t("auth.signIn")}
@@ -137,27 +205,32 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  outer: {
+  keyboard: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.backgroundAlt,
   },
+  scrollRoot: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
     padding: theme.spacing.lg,
-    paddingBottom: 48,
-    backgroundColor: theme.colors.background,
+    paddingBottom: theme.spacing.xl + theme.spacing.md,
+    backgroundColor: theme.colors.backgroundAlt,
   },
+  rtlText: { textAlign: "right" },
   logoWrap: {
     alignItems: "center",
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   logo: {
     width: 200,
     height: 200,
   },
   sub: {
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: "500",
+    lineHeight: 22,
+    letterSpacing: 0.15,
     color: theme.colors.textMuted,
     textAlign: "center",
     marginBottom: theme.spacing.lg,
@@ -171,14 +244,16 @@ const styles = StyleSheet.create({
     padding: theme.spacing.sm,
     marginBottom: theme.spacing.md,
   },
-  errorText: { color: theme.colors.error, fontSize: 14, lineHeight: 20 },
+  errorText: { color: theme.colors.error, fontSize: 14, lineHeight: 20, fontWeight: "600" },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.borderInput,
     borderRadius: theme.radius.md,
-    padding: 14,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.sm,
     fontSize: 16,
+    lineHeight: 22,
     backgroundColor: theme.colors.backgroundAlt,
     color: theme.colors.text,
   },

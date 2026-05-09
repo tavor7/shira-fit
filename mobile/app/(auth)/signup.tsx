@@ -123,21 +123,18 @@ export default function SignupScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <LanguageToggleChip />
-        <Text style={[styles.title, isRTL && { textAlign: "right" }]}>{t("auth.register")}</Text>
-        <Text style={[styles.hint, isRTL && { textAlign: "right" }]}>
+        <Text style={[styles.title, isRTL && styles.rtlText]}>{t("auth.register")}</Text>
+        <Text style={[styles.hint, isRTL && styles.rtlText]}>
           {language === "he"
             ? "חשבון מתאמן — נדרש אישור לפני הזמנת אימונים."
             : "Athlete account — approval required before booking."}
         </Text>
         {errorMessage ? (
           <View style={styles.errorBox}>
-            <Text style={[styles.errorText, isRTL && { textAlign: "right" }]}>{errorMessage}</Text>
+            <Text style={[styles.errorText, isRTL && styles.rtlText]}>{errorMessage}</Text>
           </View>
         ) : null}
         <TextInput
@@ -187,13 +184,19 @@ export default function SignupScreen() {
           }}
         />
 
-        <Text style={[styles.label, isRTL && { textAlign: "right" }]}>{t("profile.gender")}</Text>
+        <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.gender")}</Text>
         <View style={styles.genderRow}>
           {(["male", "female"] as const).map((g) => (
             <Pressable
               key={g}
-              style={[styles.genderBtn, gender === g && styles.genderBtnOn]}
+              style={({ pressed }) => [
+                styles.genderBtn,
+                gender === g && styles.genderBtnOn,
+                pressed && styles.genderBtnPressed,
+              ]}
               onPress={() => setGender(g)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: gender === g }}
             >
               <Text style={[styles.genderTxt, gender === g && styles.genderTxtOn]}>
                 {g === "male" ? (language === "he" ? "זכר" : "Male") : language === "he" ? "נקבה" : "Female"}
@@ -202,16 +205,16 @@ export default function SignupScreen() {
           ))}
         </View>
 
-        <Text style={[styles.label, isRTL && { textAlign: "right" }]}>{t("health.required")}</Text>
+        <Text style={[styles.label, isRTL && styles.rtlText]}>{t("health.required")}</Text>
         <Pressable
-          style={({ pressed }) => [styles.healthLink, pressed && { opacity: 0.9 }]}
+          style={({ pressed }) => [styles.healthLink, pressed && styles.linkPressed]}
           onPress={openHealthDeclaration}
         >
           <Text style={styles.healthLinkTxt}>{t("health.openForm")}</Text>
           <Text style={styles.healthLinkSub}>{healthUrl}</Text>
         </Pressable>
         <Pressable
-          style={({ pressed }) => [styles.checkRow, pressed && { opacity: 0.9 }]}
+          style={({ pressed }) => [styles.checkRow, pressed && styles.linkPressed]}
           onPress={() => {
             setHealthConfirmed((v) => !v);
             setErrorMessage("");
@@ -222,7 +225,7 @@ export default function SignupScreen() {
           <View style={[styles.checkbox, healthConfirmed && styles.checkboxOn]}>
             {healthConfirmed ? <Text style={styles.checkboxMark}>✓</Text> : null}
           </View>
-          <Text style={[styles.checkTxt, isRTL && { textAlign: "right" }]}>{t("health.confirmDone")}</Text>
+          <Text style={[styles.checkTxt, isRTL && styles.rtlText]}>{t("health.confirmDone")}</Text>
         </Pressable>
 
         <PrimaryButton
@@ -238,57 +241,99 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, paddingBottom: 48, backgroundColor: theme.colors.background },
-  title: { fontSize: 24, fontWeight: "800", marginBottom: 8, color: theme.colors.text },
-  hint: { color: theme.colors.textMuted, marginBottom: 16 },
+  keyboard: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  scrollRoot: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  container: {
+    padding: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl + theme.spacing.md,
+    backgroundColor: theme.colors.backgroundAlt,
+  },
+  rtlText: { textAlign: "right" },
+  title: {
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: theme.spacing.sm,
+    color: theme.colors.text,
+    letterSpacing: 0.2,
+    lineHeight: 26,
+  },
+  hint: {
+    color: theme.colors.textMuted,
+    marginBottom: theme.spacing.md,
+    fontSize: 15,
+    fontWeight: "500",
+    lineHeight: 22,
+    letterSpacing: 0.15,
+  },
   errorBox: {
     backgroundColor: theme.colors.errorBg,
     borderWidth: 1,
     borderColor: theme.colors.errorBorder,
     borderRadius: theme.radius.md,
-    padding: 12,
-    marginBottom: 16,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
   },
-  errorText: { color: theme.colors.error, fontSize: 14, lineHeight: 20 },
-  label: { fontWeight: "600", marginBottom: 6, marginTop: 4, color: theme.colors.text },
+  errorText: { color: theme.colors.error, fontSize: 14, lineHeight: 20, fontWeight: "600" },
+  label: {
+    fontWeight: "700",
+    fontSize: 12,
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+    marginBottom: theme.spacing.xs,
+    marginTop: theme.spacing.sm,
+    color: theme.colors.textSoft,
+  },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.borderInput,
     borderRadius: theme.radius.md,
-    padding: 14,
-    marginBottom: 10,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
     fontSize: 16,
+    lineHeight: 22,
     backgroundColor: theme.colors.backgroundAlt,
     color: theme.colors.text,
   },
   inputRtl: { textAlign: "right", writingDirection: "rtl" },
-  genderRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
+  genderRow: { flexDirection: "row", gap: theme.spacing.sm, marginBottom: theme.spacing.md },
   genderBtn: {
     flex: 1,
-    padding: 14,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.borderInput,
     alignItems: "center",
+    backgroundColor: theme.colors.backgroundAlt,
   },
   genderBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  genderTxt: { fontSize: 16, color: theme.colors.text },
-  genderTxtOn: { color: theme.colors.ctaText, fontWeight: "600" },
+  genderBtnPressed: { opacity: 0.92 },
+  genderTxt: { fontSize: 16, color: theme.colors.text, fontWeight: "600", letterSpacing: 0.15 },
+  genderTxtOn: { color: theme.colors.ctaText, fontWeight: "700" },
   healthLink: {
     borderWidth: 1,
     borderColor: theme.colors.borderInput,
     borderRadius: theme.radius.md,
-    padding: 14,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
     backgroundColor: theme.colors.backgroundAlt,
-    marginBottom: 10,
+    marginBottom: theme.spacing.sm,
   },
-  healthLinkTxt: { color: theme.colors.cta, fontWeight: "800" },
-  healthLinkSub: { marginTop: 6, color: theme.colors.textMuted, fontSize: 12 },
-  checkRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16, marginTop: 2 },
+  linkPressed: { opacity: 0.9 },
+  healthLinkTxt: { color: theme.colors.cta, fontWeight: "800", fontSize: 15, letterSpacing: 0.15 },
+  healthLinkSub: { marginTop: theme.spacing.xs, color: theme.colors.textMuted, fontSize: 12, lineHeight: 16 },
+  checkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    marginTop: theme.spacing.xs,
+  },
   checkbox: {
     width: 22,
     height: 22,
-    borderRadius: 6,
+    borderRadius: theme.radius.sm,
     borderWidth: 1,
     borderColor: theme.colors.borderInput,
     backgroundColor: theme.colors.backgroundAlt,
@@ -296,7 +341,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   checkboxOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  checkboxMark: { color: theme.colors.ctaText, fontWeight: "900" },
-  checkTxt: { flex: 1, color: theme.colors.text, fontWeight: "600" },
-  navBtn: { marginTop: 16, alignSelf: "center", width: "100%" },
+  checkboxMark: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 13 },
+  checkTxt: { flex: 1, color: theme.colors.text, fontWeight: "600", fontSize: 15, lineHeight: 22 },
+  navBtn: { marginTop: theme.spacing.md, alignSelf: "center", width: "100%" },
 });

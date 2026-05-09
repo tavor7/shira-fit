@@ -174,6 +174,17 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "auth.noAccount": "Don't have an account? Register",
     "auth.signIn": "Sign in",
     "auth.signUp": "Sign up",
+    "auth.loginSubtitle": "Sign in to your account",
+    "auth.loginErrorEmailRequired": "Please enter your email.",
+    "auth.loginErrorPasswordRequired": "Please enter your password.",
+    "auth.loginErrorInvalidEmail": "Please enter a valid email address.",
+    "auth.loginErrorBadCreds":
+      "Wrong email or password. If you don't have an account, sign up first. Otherwise check your password or use Forgot password.",
+    "auth.loginErrorUnconfirmed": "Please confirm your email using the link we sent you, then try again.",
+    "auth.loginErrorGeneric": "Login failed. Please try again.",
+    "auth.loginErrorIncomplete": "Sign-in didn't complete. Please try again.",
+    "auth.loginErrorNetwork": "Something went wrong. Check your connection and try again.",
+    "auth.loginErrorRateLimited": "Too many attempts. Wait a moment and try again.",
 
     "profile.editUser": "Edit user",
     "profile.fullName": "Full name",
@@ -193,6 +204,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "a11y.openMenu": "Open navigation menu",
     "a11y.closeMenu": "Close menu",
     "a11y.removeParticipant": "Remove participant",
+    "a11y.appLogo": "Shira Fit logo",
+    "a11y.loginError": "Login error",
 
     "network.offlineHint": "Check your connection and try again.",
 
@@ -457,6 +470,17 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "auth.noAccount": "אין לך חשבון? הרשמה",
     "auth.signIn": "התחברות",
     "auth.signUp": "הרשמה",
+    "auth.loginSubtitle": "התחברות לחשבון",
+    "auth.loginErrorEmailRequired": "אנא הזינו אימייל.",
+    "auth.loginErrorPasswordRequired": "אנא הזינו סיסמה.",
+    "auth.loginErrorInvalidEmail": "אנא הזינו כתובת אימייל תקינה.",
+    "auth.loginErrorBadCreds":
+      "אימייל או סיסמה שגויים. אם אין לך חשבון, בצעו הרשמה. אחרת בדקו את הסיסמה או השתמשו ב״שכחתי סיסמה״.",
+    "auth.loginErrorUnconfirmed": "אנא אשרו את האימייל דרך הקישור ששלחנו, ואז נסו שוב.",
+    "auth.loginErrorGeneric": "ההתחברות נכשלה. נסו שוב.",
+    "auth.loginErrorIncomplete": "ההתחברות לא הושלמה. נסו שוב.",
+    "auth.loginErrorNetwork": "משהו השתבש. בדקו את החיבור ונסו שוב.",
+    "auth.loginErrorRateLimited": "יותר מדי ניסיונות. המתינו רגע ונסו שוב.",
 
     "profile.editUser": "עריכת משתמש",
     "profile.fullName": "שם מלא",
@@ -476,6 +500,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "a11y.openMenu": "פתיחת תפריט ניווט",
     "a11y.closeMenu": "סגירת תפריט",
     "a11y.removeParticipant": "הסרת משתתף",
+    "a11y.appLogo": "לוגו Shira Fit",
+    "a11y.loginError": "שגיאת התחברות",
 
     "network.offlineHint": "בדקו את החיבור לאינטרנט ונסו שוב.",
 

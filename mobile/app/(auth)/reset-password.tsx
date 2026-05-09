@@ -136,7 +136,7 @@ export default function ResetPasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.background },
+  container: { flex: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.backgroundAlt },
   loadingText: { textAlign: "center", marginTop: 12, color: theme.colors.textMuted },
   title: { fontSize: 22, fontWeight: "800", marginBottom: 8, color: theme.colors.text },
   hint: { color: theme.colors.textMuted, marginBottom: 20 },
