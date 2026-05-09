@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
 import { useManagerAthletePreview } from "../src/context/ManagerAthletePreviewContext";
-import { getWebLastRoute, isWebResumePathAllowed } from "../src/lib/webLastRoute";
+import { getWebLastRoute, isWebResumePathAllowed, normalizeWebResumeHref } from "../src/lib/webLastRoute";
 import { theme } from "../src/theme";
 
 export default function Index() {
@@ -109,7 +109,7 @@ export default function Index() {
   if (Platform.OS === "web") {
     const stored = getWebLastRoute();
     if (stored && isWebResumePathAllowed(stored, profile, managerAthletePreview)) {
-      return <Redirect href={stored as Href} />;
+      return <Redirect href={normalizeWebResumeHref(stored) as Href} />;
     }
   }
   if (profile.role === "athlete" && profile.approval_status === "pending")
