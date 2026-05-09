@@ -1,38 +1,15 @@
-import { Redirect, type Href, useRouter } from "expo-router";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
+import { Redirect } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
 import { useManagerAthletePreview } from "../src/context/ManagerAthletePreviewContext";
-import { getWebLastRoute, isWebResumePathAllowed, normalizeWebResumeHref } from "../src/lib/webLastRoute";
 import { theme } from "../src/theme";
 
 export default function Index() {
-  const router = useRouter();
   const { session, profile, loading, refreshProfile, signOut } = useAuth();
   const { enabled: managerAthletePreview, storageReady: athletePreviewStorageReady } = useManagerAthletePreview();
   const [profileRetrying, setProfileRetrying] = useState(false);
   const didRetry = useRef(false);
-  /** Web only: wait until we've tried localStorage resume so we don't flash Redirect → sessions. */
-  const [webResumeChecked, setWebResumeChecked] = useState(() => Platform.OS !== "web");
-  /** Resume from storage must run once — deps like managerAthletePreview refresh would otherwise replace() back to stored route on every navigation. */
-  const webResumeRan = useRef(false);
-
-  useLayoutEffect(() => {
-    if (Platform.OS !== "web") {
-      setWebResumeChecked(true);
-      return;
-    }
-    if (loading || !profile) return;
-    if (profile.role === "manager" && !athletePreviewStorageReady) return;
-    if (webResumeRan.current) return;
-    webResumeRan.current = true;
-
-    const stored = getWebLastRoute();
-    if (stored && isWebResumePathAllowed(stored, profile, managerAthletePreview)) {
-      router.replace(normalizeWebResumeHref(stored) as Href);
-    }
-    setWebResumeChecked(true);
-  }, [loading, profile, athletePreviewStorageReady, managerAthletePreview, router]);
 
   useEffect(() => {
     if (loading) return;
@@ -121,13 +98,6 @@ export default function Index() {
     );
   }
   if (profile.role === "manager" && !athletePreviewStorageReady) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", backgroundColor: theme.colors.background }}>
-        <ActivityIndicator size="large" color={theme.colors.cta} />
-      </View>
-    );
-  }
-  if (Platform.OS === "web" && !webResumeChecked) {
     return (
       <View style={{ flex: 1, justifyContent: "center", backgroundColor: theme.colors.background }}>
         <ActivityIndicator size="large" color={theme.colors.cta} />

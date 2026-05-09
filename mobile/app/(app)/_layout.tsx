@@ -42,8 +42,7 @@ export default function AppLayout() {
   }
 
   return (
-    <>
-      <Stack
+    <Stack
       screenOptions={{
         headerShown: true,
         headerTitle: "",
@@ -57,6 +56,5 @@ export default function AppLayout() {
         headerTitleStyle: headerTitleStyle as object,
       }}
     />
-    </>
   );
 }
