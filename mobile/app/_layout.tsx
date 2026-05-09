@@ -11,6 +11,7 @@ import { ManagerAthletePreviewProvider } from "../src/context/ManagerAthletePrev
 import { ToastProvider } from "../src/context/ToastContext";
 import { AppAlertProvider } from "../src/context/AppAlertContext";
 import { AppErrorBoundary } from "../src/components/AppErrorBoundary";
+import { WebRoutePersistence } from "../src/components/WebRoutePersistence";
 import { initNotificationHandler } from "../src/lib/notificationsInit";
 import { useEffect } from "react";
 import * as Updates from "expo-updates";
@@ -109,6 +110,7 @@ export default function RootLayout() {
               <AppErrorBoundary>
                 <ToastProvider>
                   <StatusBar style="light" />
+                  <WebRoutePersistence />
                   <View style={{ flex: 1 }}>
                     <Stack
                       screenOptions={{

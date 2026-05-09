@@ -19,7 +19,7 @@ function pathMatchesRoleHome(pathOnly: string, prefix: string): boolean {
   return pathOnly === prefix || pathOnly.startsWith(`${prefix}/`);
 }
 
-function webStorage(): Storage | null {
+function webLocalStorage(): Storage | null {
   if (Platform.OS !== "web" || typeof window === "undefined") return null;
   try {
     return window.localStorage;
@@ -28,39 +28,52 @@ function webStorage(): Storage | null {
   }
 }
 
-export function clearWebLastRoute(): void {
-  const s = webStorage();
-  if (!s) return;
+function webSessionStorage(): Storage | null {
+  if (Platform.OS !== "web" || typeof window === "undefined") return null;
   try {
-    s.removeItem(WEB_LAST_ROUTE_KEY);
+    return window.sessionStorage;
   } catch {
-    // ignore (private mode, quota)
+    return null;
+  }
+}
+
+export function clearWebLastRoute(): void {
+  for (const s of [webLocalStorage(), webSessionStorage()]) {
+    if (!s) continue;
+    try {
+      s.removeItem(WEB_LAST_ROUTE_KEY);
+    } catch {
+      // ignore
+    }
   }
 }
 
 export function saveWebLastRoute(fullPath: string): void {
-  const s = webStorage();
-  if (!s) return;
   const trimmed = fullPath.trim();
   if (!trimmed || trimmed === "/") return;
   const pathOnly = trimmed.split("?")[0] ?? "";
   if (AUTH_PATH_PREFIXES.some((p) => pathOnly === p || pathOnly.startsWith(`${p}/`))) return;
-  try {
-    s.setItem(WEB_LAST_ROUTE_KEY, trimmed);
-  } catch {
-    // ignore
+  for (const s of [webLocalStorage(), webSessionStorage()]) {
+    if (!s) continue;
+    try {
+      s.setItem(WEB_LAST_ROUTE_KEY, trimmed);
+    } catch {
+      // ignore
+    }
   }
 }
 
 export function getWebLastRoute(): string | null {
-  const s = webStorage();
-  if (!s) return null;
-  try {
-    const v = s.getItem(WEB_LAST_ROUTE_KEY);
-    return v && v.trim() ? v.trim() : null;
-  } catch {
-    return null;
+  for (const s of [webLocalStorage(), webSessionStorage()]) {
+    if (!s) continue;
+    try {
+      const v = s.getItem(WEB_LAST_ROUTE_KEY);
+      if (v && v.trim()) return v.trim();
+    } catch {
+      // try next
+    }
   }
+  return null;
 }
 
 /**
