@@ -3,6 +3,7 @@ import { ActivityIndicator, View, type TextStyle, type ViewStyle } from "react-n
 import { useAuth } from "../../src/context/AuthContext";
 import { AppHeaderRight } from "../../src/components/AppHeaderRight";
 import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
+import { WebRoutePersistence } from "../../src/components/WebRoutePersistence";
 import { theme } from "../../src/theme";
 import { useAndroidSessionsBackHandler } from "../../src/hooks/useAndroidSessionsBackHandler";
 import { isPendingPathname } from "../../src/lib/sessionsHomeNavigation";
@@ -42,7 +43,9 @@ export default function AppLayout() {
   }
 
   return (
-    <Stack
+    <>
+      <WebRoutePersistence />
+      <Stack
       screenOptions={{
         headerShown: true,
         headerTitle: "",
@@ -56,5 +59,6 @@ export default function AppLayout() {
         headerTitleStyle: headerTitleStyle as object,
       }}
     />
+    </>
   );
 }

@@ -1,8 +1,9 @@
-import { Redirect } from "expo-router";
+import { Redirect, type Href } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
 import { useManagerAthletePreview } from "../src/context/ManagerAthletePreviewContext";
+import { getWebLastRoute, isWebResumePathAllowed } from "../src/lib/webLastRoute";
 import { theme } from "../src/theme";
 
 export default function Index() {
@@ -103,6 +104,13 @@ export default function Index() {
         <ActivityIndicator size="large" color={theme.colors.cta} />
       </View>
     );
+  }
+  // Web: full tab reload often lands on `/` — restore last in-app URL when the browser dropped state.
+  if (Platform.OS === "web") {
+    const stored = getWebLastRoute();
+    if (stored && isWebResumePathAllowed(stored, profile, managerAthletePreview)) {
+      return <Redirect href={stored as Href} />;
+    }
   }
   if (profile.role === "athlete" && profile.approval_status === "pending")
     return <Redirect href="/(app)/pending" />;
