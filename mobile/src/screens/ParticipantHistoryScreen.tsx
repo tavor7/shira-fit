@@ -68,13 +68,26 @@ function computeBillingSummary(
   let missingRuleCount = 0;
   for (const r of regs) {
     const cap = typeof r.max_participants === "number" ? r.max_participants : null;
+    const lateCancelOwes =
+      r.reg_status === "cancelled" &&
+      r.cancellation_within_12h === true &&
+      r.cancellation_charged === true;
     const owes =
       (r.reg_status === "active" && r.attended === true) ||
-      (r.reg_status === "cancelled" && r.cancellation_within_24h === true);
+      (r.reg_status === "active" && r.attended === false && r.charge_no_show === true) ||
+      lateCancelOwes;
     if (!owes || cap === null || cap <= 0) continue;
     const price = pricingByCap[cap];
     if (price === undefined) missingRuleCount += 1;
     else expected += price;
+  }
+
+  for (const r of regs) {
+    const pc = parseMoney(r.cancellation_penalty_collected);
+    if (pc != null && pc > 0) {
+      received += pc;
+      addToMethod("other", pc);
+    }
   }
 
   const byMethod = Array.from(methodTotals.entries())
@@ -223,6 +236,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
           p_status: status,
           p_payment_method: method,
           p_amount_paid: amt,
+          p_charge_no_show: false,
         })
       : await supabase.rpc("set_registration_attendance", {
           p_session_id: editReg.session_id,
@@ -230,6 +244,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
           p_status: status,
           p_payment_method: method,
           p_amount_paid: amt,
+          p_charge_no_show: false,
         });
     setEditAmountBusy(false);
 

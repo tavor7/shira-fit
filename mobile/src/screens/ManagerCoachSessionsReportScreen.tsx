@@ -227,7 +227,7 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
               {language === "he" ? "נרשמו" : "Registered"}: {item.registered_count} · {language === "he" ? "הגיעו" : "Arrived"}:{" "}
               {item.arrived_count}
               {" · "}
-              {language === "he" ? "ביטולים בטווח 24 ש׳" : "Late cancels (<24h)"}:{" "}
+              {language === "he" ? "ביטולים מאוחרים (<12ש׳)" : "Late cancels (<12h)"}:{" "}
               {typeof item.late_cancellations_within_24h === "number" ? item.late_cancellations_within_24h : 0}
             </Text>
             <Text style={[styles.rowPayout, isRTL && styles.rtlText]}>

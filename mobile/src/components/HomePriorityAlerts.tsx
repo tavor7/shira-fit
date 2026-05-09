@@ -20,6 +20,89 @@ import {
   loadDismissedHomeAlertIds,
 } from "../lib/dismissedHomeAlerts";
 import { useI18n } from "../context/I18nContext";
+import { supabase } from "../lib/supabase";
+
+function LateCancelChargeRow({ cancellationId, charged }: { cancellationId: string; charged: boolean }) {
+  const { t, isRTL } = useI18n();
+  const [busy, setBusy] = useState(false);
+  const [localCharged, setLocalCharged] = useState(charged);
+  useEffect(() => {
+    setLocalCharged(charged);
+  }, [charged, cancellationId]);
+
+  async function apply(next: boolean) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.rpc("manager_set_cancellation_charge", {
+        p_cancellation_id: cancellationId,
+        p_charge: next,
+      });
+      if (error || data?.ok !== true) return;
+      setLocalCharged(next);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <View style={[lateCancelStyles.row, isRTL && lateCancelStyles.rowRtl]}>
+      <Pressable
+        disabled={busy}
+        onPress={() => void apply(false)}
+        style={({ pressed }) => [
+          lateCancelStyles.btn,
+          !localCharged && lateCancelStyles.btnOn,
+          pressed && { opacity: 0.88 },
+          busy && { opacity: 0.6 },
+        ]}
+      >
+        <Text style={[lateCancelStyles.btnTxt, !localCharged && lateCancelStyles.btnTxtOn]}>
+          {t("managerSession.cancelChargeWaive")}
+        </Text>
+      </Pressable>
+      <Pressable
+        disabled={busy}
+        onPress={() => void apply(true)}
+        style={({ pressed }) => [
+          lateCancelStyles.btn,
+          localCharged && lateCancelStyles.btnOn,
+          pressed && { opacity: 0.88 },
+          busy && { opacity: 0.6 },
+        ]}
+      >
+        <Text style={[lateCancelStyles.btnTxt, localCharged && lateCancelStyles.btnTxtOn]}>
+          {t("managerSession.cancelChargeApply")}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const lateCancelStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+  },
+  rowRtl: { flexDirection: "row-reverse" },
+  btn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    alignItems: "center",
+  },
+  btnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  btnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
+  btnTxtOn: { color: theme.colors.ctaText },
+});
 
 type Props = {
   items: HomePriorityAlertItem[];
@@ -234,14 +317,22 @@ export function HomePriorityAlerts({
     if (variant === "strip") {
       return (
         <View style={[styles.rowOuter, showBottomBorder && styles.rowBorder, isRTL && styles.rowOuterRtl]}>
-          <Pressable
-            style={({ pressed }) => [styles.rowTap, isRTL && styles.rowTapRtl, pressed && { opacity: 0.88 }]}
-            onPress={() => router.push(it.href)}
-            accessibilityRole="button"
-            accessibilityLabel={a11y}
-          >
-            {body}
-          </Pressable>
+          <View style={styles.rowMain}>
+            <Pressable
+              style={({ pressed }) => [styles.rowTap, isRTL && styles.rowTapRtl, pressed && { opacity: 0.88 }]}
+              onPress={() => router.push(it.href)}
+              accessibilityRole="button"
+              accessibilityLabel={a11y}
+            >
+              {body}
+            </Pressable>
+            {it.lateCancel ? (
+              <LateCancelChargeRow
+                cancellationId={it.lateCancel.cancellationId}
+                charged={it.lateCancel.charged}
+              />
+            ) : null}
+          </View>
           {dismissBtn}
         </View>
       );
@@ -249,14 +340,22 @@ export function HomePriorityAlerts({
 
     return (
       <View style={[modalStyles.sheetRowOuter, showBottomBorder && modalStyles.sheetRowBorder, isRTL && modalStyles.sheetRowOuterRtl]}>
-        <Pressable
-          style={({ pressed }) => [modalStyles.sheetRowTap, isRTL && modalStyles.sheetRowTapRtl, pressed && { opacity: 0.88 }]}
-          onPress={() => openItem(it.href)}
-          accessibilityRole="button"
-          accessibilityLabel={a11y}
-        >
-          {body}
-        </Pressable>
+        <View style={styles.rowMain}>
+          <Pressable
+            style={({ pressed }) => [modalStyles.sheetRowTap, isRTL && modalStyles.sheetRowTapRtl, pressed && { opacity: 0.88 }]}
+            onPress={() => openItem(it.href)}
+            accessibilityRole="button"
+            accessibilityLabel={a11y}
+          >
+            {body}
+          </Pressable>
+          {it.lateCancel ? (
+            <LateCancelChargeRow
+              cancellationId={it.lateCancel.cancellationId}
+              charged={it.lateCancel.charged}
+            />
+          ) : null}
+        </View>
         {dismissBtn}
       </View>
     );
@@ -338,9 +437,10 @@ export function HomePriorityAlerts({
 }
 
 const styles = StyleSheet.create({
+  rowMain: { flex: 1, minWidth: 0, flexDirection: "column" },
   rowOuter: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingVertical: 10,
     paddingStart: theme.spacing.sm,
     paddingEnd: theme.spacing.xs,
@@ -351,7 +451,7 @@ const styles = StyleSheet.create({
     paddingEnd: theme.spacing.md + 6,
   },
   rowTap: {
-    flex: 1,
+    alignSelf: "stretch",
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
@@ -514,7 +614,7 @@ const modalStyles = StyleSheet.create({
   },
   sheetRowOuter: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingVertical: 10,
     paddingStart: theme.spacing.sm,
     paddingEnd: theme.spacing.xs,
@@ -524,7 +624,7 @@ const modalStyles = StyleSheet.create({
     paddingEnd: theme.spacing.md + 6,
   },
   sheetRowTap: {
-    flex: 1,
+    alignSelf: "stretch",
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",

@@ -61,10 +61,12 @@ type NoteRow = {
 };
 
 type CancellationRow = {
+  id: string;
   user_id: string;
   cancelled_at: string;
   reason: string;
   charged_full_price: boolean;
+  penalty_collected_ils?: number | string | null;
   profiles: { full_name: string } | { full_name: string }[] | null;
 };
 
@@ -107,7 +109,10 @@ export default function ManagerSessionDetail() {
     unset: 0,
     withPaymentMethod: 0,
     totalPaidIls: 0,
+    noShowChargedCount: 0,
+    noShowCollectedIls: 0,
   });
+  const [sessionSlotPriceIls, setSessionSlotPriceIls] = useState<number | null>(null);
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [waitlist, setWaitlist] = useState<WaitlistRow[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
@@ -300,7 +305,7 @@ export default function ManagerSessionDetail() {
   async function loadCancellations() {
     const { data, error } = await supabase
       .from("cancellations")
-      .select("user_id, cancelled_at, reason, charged_full_price, profiles(full_name)")
+      .select("id, user_id, cancelled_at, reason, charged_full_price, penalty_collected_ils, profiles(full_name)")
       .eq("session_id", id)
       .order("cancelled_at", { ascending: false });
     if (error) {
@@ -308,6 +313,38 @@ export default function ManagerSessionDetail() {
       return;
     }
     setCancellations((data as unknown as CancellationRow[]) ?? []);
+  }
+
+  async function setCancellationCharge(cancellationId: string, charge: boolean) {
+    const { data, error } = await supabase.rpc("manager_set_cancellation_charge", {
+      p_cancellation_id: cancellationId,
+      p_charge: charge,
+    });
+    if (error) {
+      showOk(t("common.error"), error.message);
+      return;
+    }
+    if (!data?.ok) {
+      showOk(t("common.failed"), String(data?.error ?? ""));
+      return;
+    }
+    await loadCancellations();
+  }
+
+  async function setCancellationPenaltyCollected(cancellationId: string, amount: number) {
+    const { data, error } = await supabase.rpc("manager_set_cancellation_penalty_collected", {
+      p_cancellation_id: cancellationId,
+      p_collected_ils: amount,
+    });
+    if (error) {
+      showOk(t("common.error"), error.message);
+      return;
+    }
+    if (!data?.ok) {
+      showOk(t("common.failed"), String(data?.error ?? ""));
+      return;
+    }
+    await loadCancellations();
   }
 
   async function loadWaitlist() {
@@ -334,6 +371,15 @@ export default function ManagerSessionDetail() {
       setDurationMin(String(s.duration_minutes ?? 60));
       setOpen(s.is_open_for_registration);
       setHidden(!!(s as { is_hidden?: boolean }).is_hidden);
+      const { data: priceRow } = await supabase
+        .from("session_capacity_pricing")
+        .select("price_ils")
+        .eq("max_participants", s.max_participants)
+        .maybeSingle();
+      const p = priceRow?.price_ils;
+      setSessionSlotPriceIls(p != null && Number.isFinite(Number(p)) ? Number(p) : null);
+    } else {
+      setSessionSlotPriceIls(null);
     }
     loadWaitlist();
     loadCancellations();
@@ -675,6 +721,51 @@ export default function ManagerSessionDetail() {
     } else showOk(t("common.failed"), data?.error ?? "");
   }
 
+  const extraFeeSummary = useMemo(() => {
+    if (!session) {
+      return {
+        lateExpected: null as number | null,
+        lateCollected: 0,
+        lateChargedCount: 0,
+        nsExpected: null as number | null,
+        nsCollected: 0,
+        nsCount: 0,
+        hasAny: false,
+      };
+    }
+    const slot = sessionSlotPriceIls;
+    const lateCharged = cancellations.filter(
+      (c) =>
+        c.charged_full_price === true &&
+        isCancellationWithinHoursBeforeSession(session.session_date, session.start_time, c.cancelled_at, 12)
+    );
+    let lateCollected = 0;
+    for (const c of lateCharged) {
+      const p = Number(c.penalty_collected_ils ?? 0);
+      if (Number.isFinite(p)) lateCollected += p;
+    }
+    const lateExpected = slot != null && lateCharged.length > 0 ? lateCharged.length * slot : null;
+    const nsCount = attendanceStats.noShowChargedCount;
+    const nsExpected = slot != null && nsCount > 0 ? nsCount * slot : null;
+    const nsCollected = attendanceStats.noShowCollectedIls;
+    const hasAny = lateCharged.length > 0 || nsCount > 0;
+    return {
+      lateExpected,
+      lateCollected,
+      lateChargedCount: lateCharged.length,
+      nsExpected,
+      nsCollected,
+      nsCount,
+      hasAny,
+    };
+  }, [
+    session,
+    sessionSlotPriceIls,
+    cancellations,
+    attendanceStats.noShowChargedCount,
+    attendanceStats.noShowCollectedIls,
+  ]);
+
   if (!session)
     return (
       <View>
@@ -768,6 +859,38 @@ export default function ManagerSessionDetail() {
                   </View>
                 </View>
               )}
+              {sessionHasEnded && extraFeeSummary.hasAny ? (
+                <View style={[styles.summaryFeesBox, isRTL && styles.summaryTileRtl]}>
+                  <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
+                    {t("managerSession.summaryFeesTitle")}
+                  </Text>
+                  <Text style={[styles.summaryTileHint, isRTL && styles.rtlText]}>
+                    {extraFeeSummary.lateChargedCount > 0
+                      ? t("managerSession.summaryFeesLate")
+                          .replace("{n}", String(extraFeeSummary.lateChargedCount))
+                          .replace(
+                            "{expected}",
+                            extraFeeSummary.lateExpected != null
+                              ? formatIls(extraFeeSummary.lateExpected, language)
+                              : "—"
+                          )
+                          .replace("{collected}", formatIls(extraFeeSummary.lateCollected, language))
+                      : ""}
+                    {extraFeeSummary.lateChargedCount > 0 && extraFeeSummary.nsCount > 0 ? " · " : ""}
+                    {extraFeeSummary.nsCount > 0
+                      ? t("managerSession.summaryFeesNoShow")
+                          .replace("{n}", String(extraFeeSummary.nsCount))
+                          .replace(
+                            "{expected}",
+                            extraFeeSummary.nsExpected != null
+                              ? formatIls(extraFeeSummary.nsExpected, language)
+                              : "—"
+                          )
+                          .replace("{collected}", formatIls(extraFeeSummary.nsCollected, language))
+                      : ""}
+                  </Text>
+                </View>
+              ) : null}
               {cancellations.length > 0 || waitlist.length > 0 ? (
                 <Text style={[styles.summaryFootnote, isRTL && styles.rtlText]}>
                   {[
@@ -1078,21 +1201,63 @@ export default function ManagerSessionDetail() {
           const sched = session
             ? isCancellationWithinHoursBeforeSession(session.session_date, session.start_time, c.cancelled_at, 12)
             : false;
+          const feeCharged = c.charged_full_price === true;
+          const penaltyNum = Number(c.penalty_collected_ils ?? 0);
+          const collected = Number.isFinite(penaltyNum) ? penaltyNum : 0;
           return (
-            <View key={`${c.user_id}-${c.cancelled_at}`} style={styles.cancelCard}>
+            <View key={c.id} style={styles.cancelCard}>
               <Text style={styles.cancelName}>{name}</Text>
               <Text style={styles.cancelMeta}>{formatDateTimeForDisplay(c.cancelled_at, language)}</Text>
               <Text style={styles.cancelReason}>{language === "he" ? "סיבה: " : "Reason: "}{c.reason}</Text>
               {sched ? (
-                <Text style={styles.chargeWarn}>
-                  {language === "he" ? "ביטול מאוחר (<12ש׳ לפני האימון)" : "Late cancellation (<12h before session)"}
-                </Text>
-              ) : c.charged_full_price ? (
-                <Text style={styles.chargeInfo}>
-                  {language === "he"
-                    ? "ביטול בטווח חיוב (<24ש׳ לפני האימון) — ייתכן חיוב"
-                    : "Within charge window (<24h before start) — may be charged"}
-                </Text>
+                <>
+                  <Text style={styles.chargeWarn}>
+                    {t("managerSession.lateCancelBadge")}
+                  </Text>
+                  <View style={[styles.cancelChargeRow, isRTL && styles.cancelChargeRowRtl]}>
+                    <Pressable
+                      onPress={() => void setCancellationCharge(c.id, false)}
+                      style={({ pressed }) => [
+                        styles.cancelChargeBtn,
+                        !feeCharged && styles.cancelChargeBtnOn,
+                        pressed && { opacity: 0.88 },
+                      ]}
+                    >
+                      <Text style={[styles.cancelChargeBtnTxt, !feeCharged && styles.cancelChargeBtnTxtOn]}>
+                        {t("managerSession.cancelChargeWaive")}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => void setCancellationCharge(c.id, true)}
+                      style={({ pressed }) => [
+                        styles.cancelChargeBtn,
+                        feeCharged && styles.cancelChargeBtnOn,
+                        pressed && { opacity: 0.88 },
+                      ]}
+                    >
+                      <Text style={[styles.cancelChargeBtnTxt, feeCharged && styles.cancelChargeBtnTxtOn]}>
+                        {t("managerSession.cancelChargeApply")}
+                      </Text>
+                    </Pressable>
+                  </View>
+                  {feeCharged ? (
+                    <View style={[styles.cancelPenaltyRow, isRTL && styles.cancelPenaltyRowRtl]}>
+                      <Text style={styles.cancelMeta}>
+                        {t("managerSession.penaltyCollected").replace("{amount}", formatIls(collected, language))}
+                      </Text>
+                      {sessionSlotPriceIls != null && sessionSlotPriceIls > 0 ? (
+                        <Pressable
+                          onPress={() =>
+                            void setCancellationPenaltyCollected(c.id, sessionSlotPriceIls as number)
+                          }
+                          style={({ pressed }) => [styles.penaltyMarkBtn, pressed && { opacity: 0.88 }]}
+                        >
+                          <Text style={styles.penaltyMarkBtnTxt}>{t("managerSession.penaltyMarkFull")}</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </>
               ) : null}
             </View>
           );
@@ -1427,6 +1592,51 @@ const styles = StyleSheet.create({
     color: theme.colors.textSoft,
     lineHeight: 17,
   },
+  summaryFeesBox: {
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  cancelChargeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+  },
+  cancelChargeRowRtl: { flexDirection: "row-reverse" },
+  cancelChargeBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    alignItems: "center",
+  },
+  cancelChargeBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  cancelChargeBtnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
+  cancelChargeBtnTxtOn: { color: theme.colors.ctaText },
+  cancelPenaltyRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  cancelPenaltyRowRtl: { flexDirection: "row-reverse" },
+  penaltyMarkBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+  },
+  penaltyMarkBtnTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.cta },
   summaryEndedRow: {
     marginTop: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,

@@ -77,11 +77,16 @@ export type ParticipantHistoryRow = {
   amount_paid?: number | string | null;
   /** From `cancellations.reason` when the athlete self-cancelled. */
   cancellation_reason?: string | null;
-  /** True when cancellation was within 24h of session start (charge policy / `charged_full_price`). */
+  /** True when cancellation was within 24h of session start (time-based). */
   cancellation_within_24h?: boolean | null;
   /** True when cancellation was within 12h of session start (UI / report filter). */
   cancellation_within_12h?: boolean | null;
   cancelled_at?: string | null;
+  /** Active row: bill no-show when absent. */
+  charge_no_show?: boolean | null;
+  /** Cancelled row: manager chose to charge late-cancel fee. */
+  cancellation_charged?: boolean | null;
+  cancellation_penalty_collected?: number | string | null;
 };
 
 /** Row from RPC `manager_coach_sessions_report`. */

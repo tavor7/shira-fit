@@ -1,7 +1,13 @@
 import type { Href } from "expo-router";
 import { supabase } from "./supabase";
 import type { TrainingSessionWithTrainer } from "../types/database";
-import { hasSessionNotEnded, sessionStartsAt, formatSessionTimeRange, formatSessionStartTime } from "./sessionTime";
+import {
+  hasSessionNotEnded,
+  sessionStartsAt,
+  formatSessionTimeRange,
+  formatSessionStartTime,
+  isCancellationWithinHoursBeforeSession,
+} from "./sessionTime";
 import { fetchActiveSignupCountsBySession } from "./sessionSignupCounts";
 import type { LanguageCode } from "../i18n/translations";
 import { translations } from "../i18n/translations";
@@ -34,6 +40,8 @@ export type HomePriorityAlertItem = {
   labelSegments?: HomePriorityLabelSegment[];
   /** Late cancellation: cancelled within the last hour */
   isNew?: boolean;
+  /** Manager: late cancellation — studio charge decision */
+  lateCancel?: { cancellationId: string; charged: boolean };
 };
 
 export type RegistrationBannerState = {
@@ -287,10 +295,13 @@ export async function fetchStaffLateCancellationItems(
     const cancelMs = new Date(row.cancelled_at).getTime();
     const isNew = Number.isFinite(cancelMs) && now.getTime() - cancelMs <= MS_1H && now.getTime() >= cancelMs;
     const charged = row.charged_full_price === true;
-    const lead = tr(
-      language,
-      charged ? "homeAlerts.lateCancellationLead" : "homeAlerts.cancellationLead"
+    const isLate = isCancellationWithinHoursBeforeSession(
+      sess.session_date,
+      sess.start_time,
+      row.cancelled_at,
+      12
     );
+    const lead = tr(language, isLate ? "homeAlerts.lateCancellationLead" : "homeAlerts.cancellationLead");
     const dayTime = `${dayStr} · ${timeStr}`;
     const beforeName = " · ";
     const leadDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
@@ -311,6 +322,10 @@ export async function fetchStaffLateCancellationItems(
         ],
         href: staffSessionPath(variant, sess.id),
         isNew,
+        lateCancel:
+          variant === "manager" && isLate
+            ? { cancellationId: row.id, charged }
+            : undefined,
       },
     });
   }

@@ -19,7 +19,7 @@ import {
   formatISODateFullWithWeekdayAfter,
   formatDateTimeForDisplay,
 } from "../lib/dateFormat";
-import { formatSessionTimeRange, sessionStartsAt } from "../lib/sessionTime";
+import { formatSessionTimeRange, sessionStartsAt, isCancellationWithinHoursBeforeSession } from "../lib/sessionTime";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 
@@ -190,6 +190,9 @@ export default function ManagerWeeklyStatDetailScreen() {
               const p = c.profiles ? oneRelation(c.profiles) : null;
               const sess = oneRelation(c.training_sessions);
               const name = p?.full_name ?? c.user_id;
+              const isLate =
+                !!sess &&
+                isCancellationWithinHoursBeforeSession(sess.session_date, sess.start_time, c.cancelled_at, 12);
               return (
                 <Pressable
                   key={`${c.session_id}-${c.user_id}-${c.cancelled_at}-${idx}`}
@@ -211,7 +214,11 @@ export default function ManagerWeeklyStatDetailScreen() {
                   </Text>
                   <Text style={styles.rowHint}>
                     {formatDateTimeForDisplay(c.cancelled_at, language)}
-                    {c.charged_full_price ? ` · ${language === "he" ? "חיוב מלא" : "Full charge"}` : ""}
+                    {isLate
+                      ? c.charged_full_price
+                        ? ` · ${language === "he" ? "חיוב סטודיו" : "Studio fee on"}`
+                        : ` · ${language === "he" ? "ללא חיוב" : "Fee waived"}`
+                      : ""}
                   </Text>
                 </Pressable>
               );

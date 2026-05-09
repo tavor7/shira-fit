@@ -19,6 +19,7 @@ type W = {
   profiles: { full_name: string; phone?: string | null } | { full_name: string; phone?: string | null }[] | null;
 };
 type CancellationRow = {
+  id: string;
   user_id: string;
   cancelled_at: string;
   reason: string;
@@ -78,7 +79,7 @@ export default function CoachSessionDetail() {
   async function loadCancellations() {
     const { data, error } = await supabase
       .from("cancellations")
-      .select("user_id, cancelled_at, reason, charged_full_price, profiles(full_name)")
+      .select("id, user_id, cancelled_at, reason, charged_full_price, profiles(full_name)")
       .eq("session_id", id)
       .order("cancelled_at", { ascending: false });
     if (error) {
@@ -346,7 +347,7 @@ export default function CoachSessionDetail() {
             ? isCancellationWithinHoursBeforeSession(sessionSchedule.session_date, sessionSchedule.start_time, c.cancelled_at, 12)
             : false;
           return (
-            <View key={`${c.user_id}-${c.cancelled_at}`} style={styles.cancelCard}>
+            <View key={c.id} style={styles.cancelCard}>
               <Text style={styles.cancelName}>{name}</Text>
               <Text style={styles.cancelMeta}>{formatDateTimeForDisplay(c.cancelled_at, language)}</Text>
               <Text style={styles.cancelReason}>
@@ -354,15 +355,16 @@ export default function CoachSessionDetail() {
                 {c.reason}
               </Text>
               {sched ? (
-                <Text style={styles.chargeWarn}>
-                  {language === "he" ? "ביטול מאוחר (<12ש׳ לפני האימון)" : "Late cancellation (<12h before session)"}
-                </Text>
-              ) : c.charged_full_price ? (
-                <Text style={styles.chargeInfo}>
-                  {language === "he"
-                    ? "ביטול בטווח חיוב (<24ש׳ לפני האימון) — ייתכן חיוב"
-                    : "Within charge window (<24h before start) — may be charged"}
-                </Text>
+                <>
+                  <Text style={styles.chargeWarn}>
+                    {t("managerSession.lateCancelBadge")}
+                  </Text>
+                  <Text style={[styles.chargeInfo, isRTL && styles.rtlText]}>
+                    {c.charged_full_price === true
+                      ? t("managerSession.coachLateFeeCharged")
+                      : t("managerSession.coachLateFeeWaived")}
+                  </Text>
+                </>
               ) : null}
             </View>
           );

@@ -199,13 +199,8 @@ export default function AthleteSessionDetail() {
     if (error) showToast({ message: t("common.error"), detail: appendNetworkHint(error, t("network.offlineHint")), variant: "error" });
     else if (data?.ok) {
       await cancelSessionReminders(sessionId);
-      const cancelMsg = data.charged_full_price
-        ? language === "he"
-          ? "בוטל פחות מ-24 שעות לפני האימון — תחויב/י עבור האימון."
-          : "Cancelled less than 24 hours before the workout — you will be charged for the session."
-        : language === "he"
-          ? "ההרשמה בוטלה."
-          : "Registration cancelled.";
+      const cancelMsg =
+        data.late_cancellation === true ? t("athleteSession.cancelledLateNotice") : t("athleteSession.cancelledOk");
       showToast({ message: cancelMsg, variant: "success" });
       setRegistered(false);
       setNames([]);

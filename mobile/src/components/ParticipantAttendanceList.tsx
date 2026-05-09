@@ -11,6 +11,7 @@ import { normalizePaymentMethodKey, paymentMethodAttendanceLabel } from "../lib/
 type RegRow = {
   user_id: string;
   attended: boolean | null;
+  charge_no_show?: boolean | null;
   payment_method?: string | null;
   amount_paid?: number | string | null;
   profiles:
@@ -22,6 +23,7 @@ type RegRow = {
 type ManualRow = {
   manual_participant_id: string;
   attended: boolean | null;
+  charge_no_show?: boolean | null;
   payment_method?: string | null;
   amount_paid?: number | string | null;
   manual_participants:
@@ -37,6 +39,7 @@ type Row =
       name: string;
       phone?: string;
       attended: boolean | null;
+      chargeNoShow: boolean;
       paymentMethod: string | null;
       amountPaid: number | null;
       userId: string;
@@ -48,6 +51,7 @@ type Row =
       name: string;
       phone: string;
       attended: boolean | null;
+      chargeNoShow: boolean;
       paymentMethod: string | null;
       amountPaid: number | null;
       manualId: string;
@@ -79,6 +83,10 @@ export type SessionAttendanceStats = {
   withPaymentMethod: number;
   /** Sum of recorded amounts on the roster (₪). */
   totalPaidIls: number;
+  /** Active roster rows marked absent with “charge no-show” enabled. */
+  noShowChargedCount: number;
+  /** Sum of amount_paid on no-show charged rows (₪). */
+  noShowCollectedIls: number;
 };
 
 type Props = {
@@ -117,17 +125,18 @@ export function ParticipantAttendanceList({
   const [payPhase, setPayPhase] = useState<"method" | "amount">("method");
   const [payChosenMethod, setPayChosenMethod] = useState<string | null>(null);
   const [payAmountDraft, setPayAmountDraft] = useState("");
+  const [payMode, setPayMode] = useState<"arrived" | "absent_penalty">("arrived");
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("session_registrations")
-      .select("user_id, attended, payment_method, amount_paid, profiles(full_name, username, phone, date_of_birth)")
+      .select("user_id, attended, charge_no_show, payment_method, amount_paid, profiles(full_name, username, phone, date_of_birth)")
       .eq("session_id", sessionId)
       .eq("status", "active");
     const { data: mData, error: mErr } = await supabase
       .from("session_manual_participants")
-      .select("manual_participant_id, attended, payment_method, amount_paid, manual_participants(full_name, phone, date_of_birth)")
+      .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone, date_of_birth)")
       .eq("session_id", sessionId);
 
     if (error && mErr) {
@@ -141,6 +150,8 @@ export function ParticipantAttendanceList({
         unset: 0,
         withPaymentMethod: 0,
         totalPaidIls: 0,
+        noShowChargedCount: 0,
+        noShowCollectedIls: 0,
       });
       return;
     }
@@ -154,6 +165,7 @@ export function ParticipantAttendanceList({
         name: p?.full_name ?? "—",
         phone: (p as any)?.phone ? String((p as any).phone) : "",
         attended: r.attended ?? null,
+        chargeNoShow: !!(r as any).charge_no_show,
         paymentMethod: (r as any).payment_method ?? null,
         amountPaid: coerceAmountPaid((r as any).amount_paid),
         birthdayToday: isBirthdayToday(p?.date_of_birth ?? null),
@@ -169,6 +181,7 @@ export function ParticipantAttendanceList({
         name: p?.full_name ?? "—",
         phone: p?.phone ?? "",
         attended: r.attended ?? null,
+        chargeNoShow: !!(r as any).charge_no_show,
         paymentMethod: (r as any).payment_method ?? null,
         amountPaid: coerceAmountPaid((r as any).amount_paid),
         birthdayToday: isBirthdayToday(p?.date_of_birth ?? null),
@@ -181,9 +194,15 @@ export function ParticipantAttendanceList({
     const unset = all.filter((r) => r.attended === null).length;
     let withPaymentMethod = 0;
     let totalPaidIls = 0;
+    let noShowChargedCount = 0;
+    let noShowCollectedIls = 0;
     for (const r of all) {
       if (normalizePaymentMethodKey(r.paymentMethod) !== "(none)") withPaymentMethod += 1;
       if (r.amountPaid != null && r.amountPaid > 0) totalPaidIls += r.amountPaid;
+      if (r.attended === false && r.chargeNoShow) {
+        noShowChargedCount += 1;
+        if (r.amountPaid != null && r.amountPaid > 0) noShowCollectedIls += r.amountPaid;
+      }
     }
     setRows(all);
     onParticipantCountChange?.(all.length);
@@ -194,6 +213,8 @@ export function ParticipantAttendanceList({
       unset,
       withPaymentMethod,
       totalPaidIls,
+      noShowChargedCount,
+      noShowCollectedIls,
     });
     setLoading(false);
   }, [sessionId, onParticipantCountChange, onAttendanceStatsChange]);
@@ -208,11 +229,17 @@ export function ParticipantAttendanceList({
     if (refreshNonce > 0) load();
   }, [refreshNonce, load]);
 
-  function openPaymentModal(row: Row) {
+  function openPaymentModal(row: Row, mode: "arrived" | "absent_penalty" = "arrived") {
+    setPayMode(mode);
     setPayFor(row);
     setPayPhase("method");
     setPayChosenMethod(null);
-    const existing = row.attended === true ? row.amountPaid : null;
+    const existing =
+      mode === "arrived" && row.attended === true
+        ? row.amountPaid
+        : mode === "absent_penalty" && row.attended === false && row.chargeNoShow
+          ? row.amountPaid
+          : null;
     setPayAmountDraft(existing != null ? String(existing) : "");
     setPayOpen(true);
   }
@@ -224,6 +251,7 @@ export function ParticipantAttendanceList({
     setPayPhase("method");
     setPayChosenMethod(null);
     setPayAmountDraft("");
+    setPayMode("arrived");
   }
 
   function parseOptionalAmountInput(s: string): number | null | "invalid" {
@@ -234,9 +262,17 @@ export function ParticipantAttendanceList({
     return Math.round(n * 100) / 100;
   }
 
-  async function setStatus(row: Row, status: AttendanceStatus, paymentMethod?: string | null, amountPaid?: number | null) {
+  async function setStatus(
+    row: Row,
+    status: AttendanceStatus,
+    paymentMethod?: string | null,
+    amountPaid?: number | null,
+    chargeNoShow?: boolean
+  ) {
     const key = row.id;
     setBusyKey(key);
+    const pCharge =
+      status === "absent" ? (chargeNoShow ?? false) : false;
     const { data, error } =
       row.kind === "registered"
         ? await supabase.rpc("set_registration_attendance", {
@@ -245,6 +281,7 @@ export function ParticipantAttendanceList({
             p_status: status,
             p_payment_method: paymentMethod ?? null,
             p_amount_paid: amountPaid ?? null,
+            p_charge_no_show: pCharge,
           })
         : await supabase.rpc("set_manual_participant_attendance", {
             p_session_id: sessionId,
@@ -252,6 +289,7 @@ export function ParticipantAttendanceList({
             p_status: status,
             p_payment_method: paymentMethod ?? null,
             p_amount_paid: amountPaid ?? null,
+            p_charge_no_show: pCharge,
           });
     setBusyKey(null);
     if (error) {
@@ -296,6 +334,7 @@ export function ParticipantAttendanceList({
                 p_status: "arrived",
                 p_payment_method: null,
                 p_amount_paid: null,
+                p_charge_no_show: false,
               })
             : await supabase.rpc("set_manual_participant_attendance", {
                 p_session_id: sessionId,
@@ -303,6 +342,7 @@ export function ParticipantAttendanceList({
                 p_status: "arrived",
                 p_payment_method: null,
                 p_amount_paid: null,
+                p_charge_no_show: false,
               });
         if (error) {
           Alert.alert(t("common.error"), error.message);
@@ -360,7 +400,7 @@ export function ParticipantAttendanceList({
                   <Pressable
                     onPress={() => {
                       if (busy) return;
-                      openPaymentModal(item);
+                      openPaymentModal(item, "arrived");
                     }}
                     disabled={busy}
                     hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
@@ -377,6 +417,39 @@ export function ParticipantAttendanceList({
                       numberOfLines={2}
                     >
                       {language === "he" ? "תשלום: " : "Payment: "}
+                      {paymentDisplayTone(item.paymentMethod) === "unpaid"
+                        ? language === "he"
+                          ? "לא שולם"
+                          : "Unpaid"
+                        : paymentMethodAttendanceLabel(item.paymentMethod, language)}
+                      {item.amountPaid != null
+                        ? language === "he"
+                          ? ` · ${item.amountPaid} ₪`
+                          : ` · ${item.amountPaid}`
+                        : ""}
+                    </Text>
+                  </Pressable>
+                ) : item.attended === false && item.chargeNoShow ? (
+                  <Pressable
+                    onPress={() => {
+                      if (busy) return;
+                      openPaymentModal(item, "absent_penalty");
+                    }}
+                    disabled={busy}
+                    hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                    style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+                  >
+                    <Text
+                      style={[
+                        styles.paymentLine,
+                        isRTL && styles.rtlText,
+                        paymentDisplayTone(item.paymentMethod) === "unpaid" && styles.paymentUnpaid,
+                        paymentDisplayTone(item.paymentMethod) === "cash_paybox" && styles.paymentCash,
+                        paymentDisplayTone(item.paymentMethod) === "other" && styles.paymentOther,
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {language === "he" ? "תשלום (נעדר): " : "No-show payment: "}
                       {paymentDisplayTone(item.paymentMethod) === "unpaid"
                         ? language === "he"
                           ? "לא שולם"
@@ -429,11 +502,10 @@ export function ParticipantAttendanceList({
                   disabled={busy}
                   onPress={() => {
                     if (st === "arrived") {
-                      // When marking arrived, prompt for payment method immediately (slick flow).
-                      openPaymentModal(item);
+                      openPaymentModal(item, "arrived");
                       return;
                     }
-                    void setStatus(item, st, null, null);
+                    void setStatus(item, st, null, null, st === "absent" ? false : undefined);
                   }}
                   style={({ pressed }) => [
                     styles.segBtn,
@@ -457,6 +529,41 @@ export function ParticipantAttendanceList({
                 </Pressable>
               ))}
             </View>
+            {current === "absent" ? (
+              <View style={[styles.noShowFeeRow, isRTL && styles.noShowFeeRowRtl]}>
+                <Text style={[styles.noShowFeeLabel, isRTL && styles.rtlText]}>
+                  {language === "he" ? "חיוב על נעדרות" : "Charge no-show fee"}
+                </Text>
+                <View style={[styles.noShowFeeSeg, isRTL && styles.noShowFeeSegRtl]}>
+                  <Pressable
+                    disabled={busy}
+                    onPress={() => void setStatus(item, "absent", null, null, false)}
+                    style={({ pressed }) => [
+                      styles.noShowFeeBtn,
+                      !item.chargeNoShow && styles.noShowFeeBtnOn,
+                      pressed && styles.segBtnPressed,
+                    ]}
+                  >
+                    <Text style={[styles.noShowFeeBtnTxt, !item.chargeNoShow && styles.noShowFeeBtnTxtOn]}>
+                      {language === "he" ? "לא" : "No"}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    disabled={busy}
+                    onPress={() => void setStatus(item, "absent", null, null, true)}
+                    style={({ pressed }) => [
+                      styles.noShowFeeBtn,
+                      item.chargeNoShow && styles.noShowFeeBtnOn,
+                      pressed && styles.segBtnPressed,
+                    ]}
+                  >
+                    <Text style={[styles.noShowFeeBtnTxt, item.chargeNoShow && styles.noShowFeeBtnTxtOn]}>
+                      {language === "he" ? "כן" : "Yes"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
           </View>
         );
       })}
@@ -467,7 +574,13 @@ export function ParticipantAttendanceList({
             {payPhase === "method" ? (
               <>
                 <Text style={[styles.payTitle, isRTL && styles.rtlText]}>
-                  {language === "he" ? "אופן תשלום" : "Payment method"}
+                  {payMode === "absent_penalty"
+                    ? language === "he"
+                      ? "תשלום — נעדר"
+                      : "Payment — no-show"
+                    : language === "he"
+                      ? "אופן תשלום"
+                      : "Payment method"}
                 </Text>
                 {(["cash", "PayBox", "other"] as const).map((pm) => (
                   <Pressable
@@ -490,7 +603,8 @@ export function ParticipantAttendanceList({
                     const row = payFor;
                     if (!row) return;
                     closePaymentModal();
-                    void setStatus(row, "arrived", null, null);
+                    if (payMode === "absent_penalty") void setStatus(row, "absent", null, null, true);
+                    else void setStatus(row, "arrived", null, null);
                   }}
                 >
                   <Text style={[styles.payBtnTxt, styles.payBtnTxtUnpaid]}>
@@ -504,7 +618,13 @@ export function ParticipantAttendanceList({
             ) : (
               <>
                 <Text style={[styles.payTitle, isRTL && styles.rtlText]}>
-                  {language === "he" ? "סכום ששולם" : "Amount paid"}
+                  {payMode === "absent_penalty"
+                    ? language === "he"
+                      ? "סכום ששולם (נעדר)"
+                      : "Amount paid (no-show)"
+                    : language === "he"
+                      ? "סכום ששולם"
+                      : "Amount paid"}
                 </Text>
                 <Text style={[styles.payHint, isRTL && styles.rtlText]}>
                   {language === "he" ? "אופציונלי — השאירו ריק אם לא רלוונטי." : "Optional — leave blank if not needed."}
@@ -533,7 +653,8 @@ export function ParticipantAttendanceList({
                       return;
                     }
                     closePaymentModal();
-                    void setStatus(row, "arrived", method, parsed);
+                    if (payMode === "absent_penalty") void setStatus(row, "absent", method, parsed, true);
+                    else void setStatus(row, "arrived", method, parsed);
                   }}
                 >
                   <Text style={styles.payBtnTxtPrimary}>{language === "he" ? "אישור" : "Confirm"}</Text>
@@ -621,6 +742,33 @@ const styles = StyleSheet.create({
   segBtnPressed: { opacity: 0.85 },
   segTxt: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
   segTxtOn: { color: theme.colors.ctaText },
+  noShowFeeRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+  },
+  noShowFeeRowRtl: { flexDirection: "row-reverse" },
+  noShowFeeLabel: { flex: 1, fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
+  noShowFeeSeg: { flexDirection: "row", gap: 6 },
+  noShowFeeSegRtl: { flexDirection: "row-reverse" },
+  noShowFeeBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    minWidth: 52,
+    alignItems: "center",
+  },
+  noShowFeeBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  noShowFeeBtnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
+  noShowFeeBtnTxtOn: { color: theme.colors.ctaText },
   payBackdrop: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.45)" },
   payCard: {
     backgroundColor: theme.colors.surfaceElevated,
