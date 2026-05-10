@@ -11,14 +11,20 @@ import {
   isAuthOrExcludedPath,
 } from "../lib/webLastRoute";
 
-const WEB_POLL_MS = 400;
+/**
+ * Low-frequency safety net only. `usePathname` + `popstate` handle most updates; this catches rare
+ * cases where the address bar and React disagree for a few seconds.
+ */
+const WEB_LOCATION_POLL_MS = 2500;
 
 /**
- * Web only: persist last in-app URL (pathname + search) per user for resume/PWA open at `/`.
+ * Web only: remember the last in-app URL (per user) so opening `/` or resuming the PWA can restore
+ * the correct screen (see `readWebLastRoute` in `app/index.tsx`).
  *
- * We read `window.location` (not only `usePathname()` deps) because on web, client navigations
- * can update the address bar without firing a pathname dependency update — so list pages like
- * `/manager/sessions` would otherwise be the last saved path instead of `/manager/session/:id`.
+ * Why this component exists: on web, some client navigations update `window.location` without
+ * triggering a `usePathname` dependency update, so the saved route could stay stuck on a list page
+ * instead of `/manager/session/:id`. We therefore read `window.location` and use `popstate` plus a
+ * slow poll while the tab is visible. Native builds do not mount this behavior (`Platform.OS === "web"` guards).
  */
 export function WebLastRouteTracker() {
   const pathname = usePathname() ?? "";
@@ -45,17 +51,59 @@ export function WebLastRouteTracker() {
     recordRouteRestoreTrackerDebug(full);
   }, [session?.user?.id, profile?.role, loading, managerAthletePreview]);
 
-  /* Fast path when expo-router pathname updates. */
+  /* When expo-router pathname updates, persist immediately (no wait for poll). */
   useEffect(() => {
     tryPersistFromWindow();
   }, [pathname, tryPersistFromWindow]);
 
-  /* Reliable path: SPA pushState may not bump `usePathname` in the same way on web. */
+  /* History back/forward + visible-tab poll (paused while hidden to avoid background timers). */
   useEffect(() => {
     if (Platform.OS !== "web" || typeof window === "undefined") return;
     tryPersistFromWindow();
-    const id = setInterval(tryPersistFromWindow, WEB_POLL_MS);
-    return () => clearInterval(id);
+
+    const onPopState = () => {
+      tryPersistFromWindow();
+    };
+    window.addEventListener("popstate", onPopState);
+
+    let pollId: ReturnType<typeof setInterval> | null = null;
+    const clearPoll = () => {
+      if (pollId != null) {
+        clearInterval(pollId);
+        pollId = null;
+      }
+    };
+
+    const startPollIfVisible = () => {
+      clearPoll();
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      pollId = setInterval(() => {
+        if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+        tryPersistFromWindow();
+      }, WEB_LOCATION_POLL_MS);
+    };
+
+    const onVisibilityChange = () => {
+      tryPersistFromWindow();
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        clearPoll();
+      } else {
+        startPollIfVisible();
+      }
+    };
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibilityChange);
+    }
+    startPollIfVisible();
+
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
+      clearPoll();
+    };
   }, [tryPersistFromWindow]);
 
   return null;

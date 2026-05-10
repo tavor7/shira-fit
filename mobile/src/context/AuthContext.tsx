@@ -22,6 +22,15 @@ const Ctx = createContext<AuthCtx | null>(null);
 
 const BOOTSTRAP_ATTEMPTS = 3;
 
+/**
+ * Auth loading semantics (especially for web/PWA):
+ * - Initial bootstrap still uses `loading` until we know session (+ profile) from `getSession`.
+ * - Later `onAuthStateChange` updates only set `loading` when the **Supabase user id changes**
+ *   (new sign-in or account switch). Same-user token refresh / profile reload does **not** toggle it.
+ * Reason: `(app)/_layout` previously treated any `loading` as “replace the whole Stack with a spinner”.
+ * Unmounting the Stack on refresh dropped client navigation state while `window.location` could still
+ * show a deep route (e.g. manager session detail), so resume looked like a bogus redirect to home.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -126,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setAuthUnavailable(false);
               setAuthUnavailableMessage(null);
               if (refData.session.user?.id) {
-                // Do not toggle global loading: (app)/_layout would unmount the entire Stack and hurt URL/restoration on web.
+                // Same as `onAuthStateChange`: do not set global `loading` here — keep the Stack mounted (web + native).
                 await loadProfile(refData.session.user.id);
               } else {
                 setProfile(null);
@@ -143,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const ev = event as string;
-        /** These events refresh the session/profile in the background; blocking the UI remounts expo-router stacks. */
+        /** Background-only events: never use them to drive global `loading` (would remount the app Stack). */
         const skipFullScreenLoading =
           ev === "INITIAL_SESSION" || ev === "TOKEN_REFRESHED" || ev === "USER_UPDATED";
 
@@ -151,7 +160,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthUnavailable(false);
         setAuthUnavailableMessage(null);
         if (s?.user?.id) {
-          /** Same signed-in user: never flip global `loading` — (app)/_layout would unmount the Stack and break web URL/state on resume. */
           const userChanged = previousUserId !== s.user.id;
           const shouldBlockUi = !skipFullScreenLoading && userChanged;
           if (shouldBlockUi) {

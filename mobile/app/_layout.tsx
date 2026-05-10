@@ -110,8 +110,8 @@ export default function RootLayout() {
             <ManagerAthletePreviewProvider>
               <AppErrorBoundary>
                 <ToastProvider>
-                  <WebLastRouteTracker />
-                  <RouteRestoreDebugPanel />
+                  {Platform.OS === "web" ? <WebLastRouteTracker /> : null}
+                  {Platform.OS === "web" ? <RouteRestoreDebugPanel /> : null}
                   <StatusBar style="light" />
                   <View style={{ flex: 1 }}>
                     <Stack

@@ -29,9 +29,10 @@ export default function AppLayout() {
   useAndroidSessionsBackHandler(!!session && !loading && !authUnavailable);
 
   /**
-   * Only block the whole Stack while we still might be signed out (`!session`).
-   * If `loading` flips during an in-session auth refresh, keeping the Stack mounted preserves web navigation
-   * (e.g. `/manager/session/:id` after PWA resume) instead of resetting to the sessions calendar.
+   * Gate on `!session`, not on `loading` alone: profile/token refresh can set `loading` briefly for a
+   * new user id, but same-user refresh must **not** swap this layout for a spinner — that unmounted
+   * the entire Stack and reset navigation on web while the URL stayed on deep routes. Native benefits
+   * too (no full-screen flash on refresh). `WebLastRouteTracker` is web-only; this layout runs on all platforms.
    */
   if (loading && !session) {
     return (

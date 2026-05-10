@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateA
 import { Platform } from "react-native";
 import { registerWebDraftFlusher } from "../lib/webDraftGlobalFlush";
 
-/** Set true temporarily to trace one screen; no logs when false. */
+/** Local draft persistence logs. Default off; no console noise or extra work when false. */
 export const DEBUG_DRAFTS = false;
 
 const DEFAULT_DEBOUNCE_MS = 400;
@@ -91,7 +91,8 @@ async function storageRemove(key: string): Promise<void> {
 }
 
 /**
- * Hydrate once per storageKey, debounced writes, global web flush on hide.
+ * Hydrate once per `storageKey`, **debounced** writes (default 400ms) to limit localStorage/AsyncStorage churn
+ * while typing, plus a single shared web `pagehide`/`visibilitychange`/`beforeunload` flush via `webDraftGlobalFlush`.
  */
 export function usePersistedState<T>(
   storageKey: string,

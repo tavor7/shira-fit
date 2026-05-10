@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 
-/** Single pagehide/visibility listener for all draft hooks (web only). */
+/** Single pagehide/visibility/beforeunload listener set for all draft hooks (web only). */
 const flushers = new Set<() => void>();
 let listenersAttached = false;
 
@@ -14,24 +14,43 @@ function runAllFlushers() {
   }
 }
 
-function attachGlobalListenersOnce() {
-  if (listenersAttached || Platform.OS !== "web" || typeof document === "undefined") return;
-  listenersAttached = true;
-  const onHide = () => runAllFlushers();
-  const onVis = () => {
-    if (document.visibilityState === "hidden") onHide();
-  };
-  document.addEventListener("pagehide", onHide);
-  document.addEventListener("visibilitychange", onVis);
-  window.addEventListener("beforeunload", onHide);
+function onPageHideOrBeforeUnload() {
+  runAllFlushers();
 }
 
-/** Register a synchronous flush callback; returns unregister. */
+function onVisibilityChange() {
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+    runAllFlushers();
+  }
+}
+
+function attachGlobalListeners() {
+  if (listenersAttached || Platform.OS !== "web" || typeof document === "undefined") return;
+  listenersAttached = true;
+  document.addEventListener("pagehide", onPageHideOrBeforeUnload);
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  if (typeof window !== "undefined") {
+    window.addEventListener("beforeunload", onPageHideOrBeforeUnload);
+  }
+}
+
+function detachGlobalListeners() {
+  if (!listenersAttached || typeof document === "undefined") return;
+  listenersAttached = false;
+  document.removeEventListener("pagehide", onPageHideOrBeforeUnload);
+  document.removeEventListener("visibilitychange", onVisibilityChange);
+  if (typeof window !== "undefined") {
+    window.removeEventListener("beforeunload", onPageHideOrBeforeUnload);
+  }
+}
+
+/** Register a synchronous flush callback; returns unregister (removes listeners when last flusher unregisters). */
 export function registerWebDraftFlusher(fn: () => void): () => void {
   if (Platform.OS !== "web") return () => undefined;
   flushers.add(fn);
-  attachGlobalListenersOnce();
+  attachGlobalListeners();
   return () => {
     flushers.delete(fn);
+    if (flushers.size === 0) detachGlobalListeners();
   };
 }

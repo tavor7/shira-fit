@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 import { router } from "expo-router";
 
-/** Trace `/(app)/manager/sessions` redirects (console + sessionStorage). Keep false in production. */
+/** Trace unexpected jumps to `/(app)/manager/sessions`. Default off; enable locally when investigating navigation. */
 export const DEBUG_MANAGER_SESSIONS_REDIRECT_TRACE = false;
 
 export type ManagerSessionsRedirectSnapshot = {

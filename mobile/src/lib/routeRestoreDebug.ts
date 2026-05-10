@@ -3,7 +3,7 @@ import type { Profile } from "../types/database";
 import { canRoleAccessWebPath, readWebLastRoute, webPublicPathToExpoHref } from "./webLastRoute";
 
 /**
- * Route-restore diagnostics (sessionStorage snapshots + web overlay). Keep false in production.
+ * Route-restore diagnostics (sessionStorage snapshots + web overlay). Default off; flip to `true` locally when debugging `/` restore.
  */
 export const ROUTE_RESTORE_DEBUG = false;
 
