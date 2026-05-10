@@ -12,6 +12,9 @@ import { isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sess
 import { useToast } from "../../../../src/context/ToastContext";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { useAppAlert } from "../../../../src/context/AppAlertContext";
+import { useAuth } from "../../../../src/context/AuthContext";
+import { usePersistedState } from "../../../../src/hooks/usePersistedState";
+import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
 
 type W = {
   user_id: string;
@@ -35,8 +38,33 @@ type NoteRow = {
   profiles: { full_name: string } | { full_name: string }[] | null;
 };
 
+const COACH_SESSION_DRAFT_V = 1 as const;
+
+type CoachSessionUiDraft = {
+  v: typeof COACH_SESSION_DRAFT_V;
+  noteDraft: string;
+  noteComposerOpen: boolean;
+  editingNoteId: string | null;
+  noteEditDraft: string;
+  addOpen: boolean;
+};
+
+const INITIAL_COACH_SESSION_DRAFT: CoachSessionUiDraft = {
+  v: COACH_SESSION_DRAFT_V,
+  noteDraft: "",
+  noteComposerOpen: false,
+  editingNoteId: null,
+  noteEditDraft: "",
+  addOpen: false,
+};
+
 export default function CoachSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth();
+  const coachDraftKey = uiDraftStorageKey(user?.id, `coach-session:${String(id ?? "")}`);
+  const [coachDraft, setCoachDraft, persistCoach] = usePersistedState(coachDraftKey, INITIAL_COACH_SESSION_DRAFT);
+  const coachHydrateGate = useRef<string | null>(null);
+  const canSyncCoachDraft = useRef(false);
   const { language, t, isRTL } = useI18n();
   const { showOk, showConfirm } = useAppAlert();
   const { showToast } = useToast();
@@ -57,6 +85,38 @@ export default function CoachSessionDetail() {
   const [myId, setMyId] = useState<string | null>(null);
   const [waitlistQuickUserId, setWaitlistQuickUserId] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    coachHydrateGate.current = null;
+    canSyncCoachDraft.current = false;
+  }, [coachDraftKey]);
+
+  useEffect(() => {
+    if (!persistCoach.hydrated) return;
+    if (coachHydrateGate.current === coachDraftKey) return;
+    coachHydrateGate.current = coachDraftKey;
+    const d = coachDraft;
+    if (d.v !== COACH_SESSION_DRAFT_V) return;
+    setNoteDraft(d.noteDraft);
+    setNoteComposerOpen(d.noteComposerOpen);
+    setEditingNoteId(d.editingNoteId);
+    setNoteEditDraft(d.noteEditDraft);
+    setAddOpen(d.addOpen);
+    canSyncCoachDraft.current = true;
+  }, [persistCoach.hydrated, coachDraftKey, coachDraft]);
+
+  useEffect(() => {
+    if (!persistCoach.hydrated || !canSyncCoachDraft.current) return;
+    const next: CoachSessionUiDraft = {
+      v: COACH_SESSION_DRAFT_V,
+      noteDraft,
+      noteComposerOpen,
+      editingNoteId,
+      noteEditDraft,
+      addOpen,
+    };
+    setCoachDraft((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+  }, [persistCoach.hydrated, noteDraft, noteComposerOpen, editingNoteId, noteEditDraft, addOpen]);
 
   useEffect(() => {
     const t = requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));

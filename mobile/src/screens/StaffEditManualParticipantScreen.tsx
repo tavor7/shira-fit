@@ -1,15 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useI18n } from "../context/I18nContext";
+import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { usePersistedState } from "../hooks/usePersistedState";
+import { uiDraftStorageKey } from "../lib/uiDraftStorage";
+
+const STAFF_MANUAL_DRAFT_V = 1 as const;
+
+type StaffManualUiDraft = {
+  v: typeof STAFF_MANUAL_DRAFT_V;
+  fullName: string;
+  phone: string;
+  gender: string;
+  dob: string;
+  notes: string;
+};
+
+const INITIAL_STAFF_MANUAL_DRAFT: StaffManualUiDraft = {
+  v: STAFF_MANUAL_DRAFT_V,
+  fullName: "",
+  phone: "",
+  gender: "",
+  dob: "",
+  notes: "",
+};
 
 export default function StaffEditManualParticipantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const manualId = String(id ?? "");
+  const { user } = useAuth();
+  const manualDraftKey = uiDraftStorageKey(user?.id, `staff-manual:${manualId}`);
+  const [manualDraft, setManualDraft, persistManual] = usePersistedState(manualDraftKey, INITIAL_STAFF_MANUAL_DRAFT);
+  const manualHydrateGate = useRef<string | null>(null);
+  const canSyncManualDraft = useRef(false);
   const { t, isRTL, language } = useI18n();
   const { showToast } = useToast();
 
@@ -28,6 +56,11 @@ export default function StaffEditManualParticipantScreen() {
     date_of_birth: string | null;
     notes: string | null;
   } | null>(null);
+
+  useEffect(() => {
+    manualHydrateGate.current = null;
+    canSyncManualDraft.current = false;
+  }, [manualDraftKey]);
 
   useEffect(() => {
     (async () => {
@@ -55,6 +88,43 @@ export default function StaffEditManualParticipantScreen() {
     })();
   }, [manualId]);
 
+  useEffect(() => {
+    if (loading || !baseline || !persistManual.hydrated) return;
+    if (manualHydrateGate.current === manualDraftKey) return;
+    const d = manualDraft;
+    if (d.v !== STAFF_MANUAL_DRAFT_V) return;
+    manualHydrateGate.current = manualDraftKey;
+    const hasMeaningfulDraft =
+      d.fullName.trim().length > 0 ||
+      d.phone.trim().length > 0 ||
+      d.gender.trim().length > 0 ||
+      d.dob.trim().length > 0 ||
+      d.notes.trim().length > 0;
+    if (!hasMeaningfulDraft) {
+      canSyncManualDraft.current = true;
+      return;
+    }
+    setFullName(d.fullName);
+    setPhone(d.phone);
+    setGender(d.gender);
+    setDob(d.dob);
+    setNotes(d.notes);
+    canSyncManualDraft.current = true;
+  }, [loading, baseline, manualDraftKey, manualDraft, persistManual.hydrated]);
+
+  useEffect(() => {
+    if (!persistManual.hydrated || !canSyncManualDraft.current) return;
+    const next: StaffManualUiDraft = {
+      v: STAFF_MANUAL_DRAFT_V,
+      fullName,
+      phone,
+      gender,
+      dob,
+      notes,
+    };
+    setManualDraft((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+  }, [persistManual.hydrated, fullName, phone, gender, dob, notes]);
+
   async function save() {
     if (!baseline) return;
     setSaving(true);
@@ -80,6 +150,7 @@ export default function StaffEditManualParticipantScreen() {
       return;
     }
     showToast({ message: t("common.saved"), variant: "success" });
+    void persistManual.clearPersisted();
     router.back();
   }
 
@@ -111,7 +182,13 @@ export default function StaffEditManualParticipantScreen() {
       />
 
       <PrimaryButton label={t("common.save")} onPress={save} loading={saving} loadingLabel={t("common.loading")} />
-      <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancel, pressed && { opacity: 0.9 }]}>
+      <Pressable
+        onPress={() => {
+          void persistManual.clearPersisted();
+          router.back();
+        }}
+        style={({ pressed }) => [styles.cancel, pressed && { opacity: 0.9 }]}
+      >
         <Text style={styles.cancelTxt}>{t("common.cancel")}</Text>
       </Pressable>
     </View>

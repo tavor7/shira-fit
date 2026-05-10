@@ -1,5 +1,5 @@
 import { Stack, Redirect, usePathname } from "expo-router";
-import { ActivityIndicator, View, type TextStyle, type ViewStyle } from "react-native";
+import { ActivityIndicator, Pressable, Text, View, type TextStyle, type ViewStyle } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
 import { AppHeaderRight } from "../../src/components/AppHeaderRight";
 import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
@@ -22,15 +22,47 @@ const headerTitleStyle: TextStyle = {
 };
 
 export default function AppLayout() {
-  const { session, loading, profile } = useAuth();
+  const { session, loading, profile, authUnavailable, retryAuthBootstrap } = useAuth();
   const { t } = useI18n();
   const pathname = usePathname() ?? "";
-  useAndroidSessionsBackHandler(!!session && !loading);
+  useAndroidSessionsBackHandler(!!session && !loading && !authUnavailable);
 
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", backgroundColor: theme.colors.background }}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
+      </View>
+    );
+  }
+  if (authUnavailable) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          padding: theme.spacing.lg,
+          backgroundColor: theme.colors.background,
+          gap: 16,
+        }}
+      >
+        <Text style={{ color: theme.colors.text, fontWeight: "800", fontSize: 17, textAlign: "center" }}>
+          {t("auth.bootstrapUnavailable")}
+        </Text>
+        <Pressable
+          onPress={() => void retryAuthBootstrap()}
+          style={({ pressed }) => [
+            {
+              paddingVertical: 12,
+              paddingHorizontal: 22,
+              borderRadius: theme.radius.full,
+              backgroundColor: theme.colors.cta,
+            },
+            pressed && { opacity: 0.9 },
+          ]}
+        >
+          <Text style={{ color: theme.colors.ctaText, fontWeight: "900" }}>{t("auth.retryConnection")}</Text>
+        </Pressable>
       </View>
     );
   }

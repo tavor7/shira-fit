@@ -3,10 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
 import { useManagerAthletePreview } from "../src/context/ManagerAthletePreviewContext";
+import { useI18n } from "../src/context/I18nContext";
 import { theme } from "../src/theme";
 
 export default function Index() {
-  const { session, profile, loading, refreshProfile, signOut } = useAuth();
+  const { t } = useI18n();
+  const { session, profile, loading, refreshProfile, signOut, authUnavailable, retryAuthBootstrap } = useAuth();
   const { enabled: managerAthletePreview, storageReady: athletePreviewStorageReady } = useManagerAthletePreview();
   const [profileRetrying, setProfileRetrying] = useState(false);
   const didRetry = useRef(false);
@@ -29,6 +31,38 @@ export default function Index() {
         <ActivityIndicator size="large" color={theme.colors.cta} />
       </View>
     );
+  if (authUnavailable) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          padding: theme.spacing.lg,
+          backgroundColor: theme.colors.background,
+          gap: 16,
+        }}
+      >
+        <Text style={{ color: theme.colors.text, fontWeight: "800", fontSize: 17, textAlign: "center" }}>
+          {t("auth.bootstrapUnavailable")}
+        </Text>
+        <Pressable
+          onPress={() => void retryAuthBootstrap()}
+          style={({ pressed }) => [
+            {
+              paddingVertical: 12,
+              paddingHorizontal: 22,
+              borderRadius: theme.radius.full,
+              backgroundColor: theme.colors.cta,
+            },
+            pressed && { opacity: 0.9 },
+          ]}
+        >
+          <Text style={{ color: theme.colors.ctaText, fontWeight: "900" }}>{t("auth.retryConnection")}</Text>
+        </Pressable>
+      </View>
+    );
+  }
   if (!session) return <Redirect href="/(auth)/login" />;
   if (!profile) {
     // Session exists but profile fetch may be briefly stale after approval changes.

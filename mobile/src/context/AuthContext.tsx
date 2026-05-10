@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { clearSupabaseAuthStorage, supabase } from "../lib/supabase";
+import { clearAllUiDraftsForUser } from "../lib/uiDraftStorage";
 import type { Profile } from "../types/database";
 
 type AuthCtx = {
@@ -8,16 +9,34 @@ type AuthCtx = {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
+  /** True when initial session fetch failed after retries (not the same as signed out). */
+  authUnavailable: boolean;
+  authUnavailableMessage: string | null;
+  retryAuthBootstrap: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
 
+const BOOTSTRAP_ATTEMPTS = 3;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authUnavailable, setAuthUnavailable] = useState(false);
+  const [authUnavailableMessage, setAuthUnavailableMessage] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const sessionRef = useRef<Session | null>(null);
+  sessionRef.current = session;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   async function loadProfile(uid: string) {
     const { data, error } = await supabase
@@ -25,60 +44,143 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .select("*")
       .eq("user_id", uid)
       .single();
+    if (!mountedRef.current) return;
     if (!error && data) setProfile(data as Profile);
     else setProfile(null);
   }
 
-  async function refreshProfile() {
-    if (session?.user?.id) await loadProfile(session.user.id);
-  }
+  const refreshProfile = useCallback(async () => {
+    const uid = sessionRef.current?.user?.id;
+    if (uid) await loadProfile(uid);
+  }, []);
+
+  const bootstrapRef = useRef<() => Promise<void>>(async () => undefined);
 
   useEffect(() => {
-    supabase.auth
-      .getSession()
-      .then(({ data: { session: s } }) => {
-        setSession(s);
-        if (s?.user?.id) {
-          setLoading(true);
-          loadProfile(s.user.id).finally(() => setLoading(false));
-        } else setLoading(false);
-      })
-      .catch((e) => {
-        const msg = String((e as any)?.message ?? e ?? "");
-        if (msg.toLowerCase().includes("refresh token") && msg.toLowerCase().includes("not found")) {
+    let cancelled = false;
+    async function runBootstrapWithRetry() {
+      setAuthUnavailable(false);
+      setAuthUnavailableMessage(null);
+      setLoading(true);
+
+      let lastMessage = "";
+
+      for (let attempt = 0; attempt < BOOTSTRAP_ATTEMPTS; attempt++) {
+        const { data: { session: s }, error } = await supabase.auth.getSession();
+        if (!mountedRef.current) return;
+
+        if (!error) {
+          setSession(s);
+          if (s?.user?.id) {
+            await loadProfile(s.user.id);
+            if (!mountedRef.current) return;
+          } else {
+            setProfile(null);
+          }
+          setLoading(false);
+          return;
+        }
+
+        lastMessage = error.message || "Unknown error";
+        const msg = lastMessage.toLowerCase();
+        if (msg.includes("refresh token") && msg.includes("not found")) {
           clearSupabaseAuthStorage();
           void supabase.auth.signOut({ scope: "local" });
+          setSession(null);
+          setProfile(null);
+          setLoading(false);
+          return;
         }
-        // On web, if Supabase is unreachable (CORS/network/etc), avoid crashing the whole screen.
-        setSession(null);
-        setProfile(null);
-        setLoading(false);
+
+        if (attempt < BOOTSTRAP_ATTEMPTS - 1) {
+          await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+          if (!mountedRef.current) return;
+        }
+      }
+
+      setSession(null);
+      setProfile(null);
+      setAuthUnavailable(true);
+      setAuthUnavailableMessage(lastMessage);
+      setLoading(false);
+    }
+
+    bootstrapRef.current = runBootstrapWithRetry;
+
+    let subUnsub: (() => void) | null = null;
+
+    void (async () => {
+      await runBootstrapWithRetry();
+      if (!mountedRef.current || cancelled) return;
+
+      const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+        if ((event as unknown as string) === "TOKEN_REFRESH_FAILED") {
+          void (async () => {
+            const { data: refData, error: refErr } = await supabase.auth.refreshSession();
+            if (!mountedRef.current) return;
+            if (!refErr && refData.session) {
+              setSession(refData.session);
+              setAuthUnavailable(false);
+              setAuthUnavailableMessage(null);
+              if (refData.session.user?.id) {
+                setLoading(true);
+                await loadProfile(refData.session.user.id);
+                if (!mountedRef.current) return;
+                setLoading(false);
+              } else {
+                setProfile(null);
+                setLoading(false);
+              }
+              return;
+            }
+            clearSupabaseAuthStorage();
+            void supabase.auth.signOut({ scope: "local" });
+            setSession(null);
+            setProfile(null);
+            setLoading(false);
+          })();
+          return;
+        }
+
+        setSession(s);
+        setAuthUnavailable(false);
+        setAuthUnavailableMessage(null);
+        if (s?.user?.id) {
+          setLoading(true);
+          void loadProfile(s.user.id).finally(() => {
+            if (mountedRef.current) setLoading(false);
+          });
+        } else {
+          setProfile(null);
+          setLoading(false);
+        }
       });
-    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
-      // supabase-js types don't always include refresh-failed, but runtime can emit it.
-      if ((event as unknown as string) === "TOKEN_REFRESH_FAILED") {
-        clearSupabaseAuthStorage();
-        void supabase.auth.signOut({ scope: "local" });
-        setSession(null);
-        setProfile(null);
-        setLoading(false);
+      if (cancelled) {
+        sub.subscription.unsubscribe();
         return;
       }
-      setSession(s);
-      if (s?.user?.id) {
-        setLoading(true);
-        loadProfile(s.user.id).finally(() => setLoading(false));
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
-    });
-    return () => sub.subscription.unsubscribe();
+      subUnsub = () => sub.subscription.unsubscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      subUnsub?.();
+    };
+  }, []);
+
+  const retryAuthBootstrap = useCallback(async () => {
+    await bootstrapRef.current();
   }, []);
 
   const signOut = async () => {
+    const uid = sessionRef.current?.user?.id;
+    await clearAllUiDraftsForUser(uid);
     await supabase.auth.signOut();
-    setProfile(null);
+    if (mountedRef.current) {
+      setProfile(null);
+      setAuthUnavailable(false);
+      setAuthUnavailableMessage(null);
+    }
   };
 
   return (
@@ -88,6 +190,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: session?.user ?? null,
         profile,
         loading,
+        authUnavailable,
+        authUnavailableMessage,
+        retryAuthBootstrap,
         refreshProfile,
         signOut,
       }}

@@ -180,6 +180,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "auth.sendResetLink": "Send reset link",
     "auth.backToSignIn": "Back to sign in",
     "auth.loginSubtitle": "Sign in to your account",
+    "auth.bootstrapUnavailable":
+      "We couldn’t reach the server to restore your session. Check your connection and try again.",
+    "auth.retryConnection": "Try again",
     "auth.loginErrorEmailRequired": "Please enter your email.",
     "auth.loginErrorPasswordRequired": "Please enter your password.",
     "auth.loginErrorInvalidEmail": "Please enter a valid email address.",
@@ -506,6 +509,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "auth.sendResetLink": "שליחת קישור איפוס",
     "auth.backToSignIn": "חזרה להתחברות",
     "auth.loginSubtitle": "התחברות לחשבון",
+    "auth.bootstrapUnavailable": "לא הצלחנו להתחבר לשרת כדי לשחזר את ההתחברות. בדקו את החיבור ונסו שוב.",
+    "auth.retryConnection": "נסו שוב",
     "auth.loginErrorEmailRequired": "אנא הזינו אימייל.",
     "auth.loginErrorPasswordRequired": "אנא הזינו סיסמה.",
     "auth.loginErrorInvalidEmail": "אנא הזינו כתובת אימייל תקינה.",

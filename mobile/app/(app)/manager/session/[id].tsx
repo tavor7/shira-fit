@@ -38,6 +38,8 @@ import { copySessionParticipantsToNewSession } from "../../../../src/lib/copySes
 import { useDiscardChangesPrompt } from "../../../../src/hooks/useDiscardChangesPrompt";
 import { useAppAlert } from "../../../../src/context/AppAlertContext";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
+import { usePersistedState } from "../../../../src/hooks/usePersistedState";
+import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
 
@@ -50,6 +52,58 @@ type EditSnapshot = {
   durationMin: string;
   open: boolean;
   hidden: boolean;
+};
+
+const MANAGER_SESSION_DRAFT_VERSION = 1 as const;
+
+type ManagerSessionUiDraft = {
+  v: typeof MANAGER_SESSION_DRAFT_VERSION;
+  editingSession: boolean;
+  editBaseline: string | null;
+  addOpen: boolean;
+  date: string;
+  time: string;
+  coachId: string;
+  coachLabel: string;
+  maxP: string;
+  durationMin: string;
+  open: boolean;
+  hidden: boolean;
+  undoStack: EditSnapshot[];
+  dupOpen: boolean;
+  dupDate: string;
+  dupTime: string;
+  dupIncludeParticipants: boolean;
+  noteDraft: string;
+  noteComposerOpen: boolean;
+  editingNoteId: string | null;
+  noteEditDraft: string;
+  showCoachPicker: boolean;
+};
+
+const INITIAL_MANAGER_SESSION_DRAFT: ManagerSessionUiDraft = {
+  v: MANAGER_SESSION_DRAFT_VERSION,
+  editingSession: false,
+  editBaseline: null,
+  addOpen: false,
+  date: "",
+  time: "",
+  coachId: "",
+  coachLabel: "",
+  maxP: "",
+  durationMin: "",
+  open: false,
+  hidden: false,
+  undoStack: [],
+  dupOpen: false,
+  dupDate: "",
+  dupTime: "",
+  dupIncludeParticipants: false,
+  noteDraft: "",
+  noteComposerOpen: false,
+  editingNoteId: null,
+  noteEditDraft: "",
+  showCoachPicker: false,
 };
 
 type NoteRow = {
@@ -97,6 +151,11 @@ export default function ManagerSessionDetail() {
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showOk, showConfirm } = useAppAlert();
   const { user, profile } = useAuth();
+  const draftStorageKey = uiDraftStorageKey(user?.id, `manager-session:${String(id ?? "")}`);
+  const [uiDraft, setUiDraft, persistDraft] = usePersistedState(draftStorageKey, INITIAL_MANAGER_SESSION_DRAFT);
+  const hydratedDraftApplyRef = useRef<string | null>(null);
+  const consumeEditAfterLoadRef = useRef<ManagerSessionUiDraft | null>(null);
+  const canSyncDraftRef = useRef(false);
   const { showToast } = useToast();
   const { width } = useWindowDimensions();
   const compact = sessionFormIsCompact(width);
@@ -181,6 +240,103 @@ export default function ManagerSessionDetail() {
   const allowLeaveEditRef = useRef(false);
 
   useEffect(() => {
+    hydratedDraftApplyRef.current = null;
+    consumeEditAfterLoadRef.current = null;
+    canSyncDraftRef.current = false;
+  }, [draftStorageKey]);
+
+  useEffect(() => {
+    if (!persistDraft.hydrated) return;
+    if (hydratedDraftApplyRef.current === draftStorageKey) return;
+    hydratedDraftApplyRef.current = draftStorageKey;
+    const d = uiDraft;
+    if (d.v !== MANAGER_SESSION_DRAFT_VERSION) return;
+    setNoteDraft(d.noteDraft);
+    setNoteComposerOpen(d.noteComposerOpen);
+    setEditingNoteId(d.editingNoteId);
+    setNoteEditDraft(d.noteEditDraft);
+    setAddOpen(d.addOpen);
+    setDupOpen(d.dupOpen);
+    setDupDate(d.dupDate);
+    setDupTime(d.dupTime);
+    setDupIncludeParticipants(d.dupIncludeParticipants);
+    setShowCoachPicker(d.showCoachPicker);
+    setUndoStack(d.undoStack);
+    consumeEditAfterLoadRef.current = d.editingSession ? d : null;
+    canSyncDraftRef.current = true;
+  }, [persistDraft.hydrated, draftStorageKey, uiDraft]);
+
+  useEffect(() => {
+    if (!session || String(session.id) !== String(id)) return;
+    if (!persistDraft.hydrated) return;
+    const d = consumeEditAfterLoadRef.current;
+    if (!d) return;
+    consumeEditAfterLoadRef.current = null;
+    setDate(d.date);
+    setTime(d.time);
+    setCoachId(d.coachId);
+    setCoachLabel(d.coachLabel);
+    setMaxP(d.maxP);
+    setDurationMin(d.durationMin);
+    setOpen(d.open);
+    setHidden(d.hidden);
+    setEditingSession(true);
+    setEditBaseline(d.editBaseline);
+  }, [session, id, persistDraft.hydrated]);
+
+  useEffect(() => {
+    if (!persistDraft.hydrated || !canSyncDraftRef.current) return;
+    const next: ManagerSessionUiDraft = {
+      v: MANAGER_SESSION_DRAFT_VERSION,
+      editingSession,
+      editBaseline,
+      addOpen,
+      date,
+      time,
+      coachId,
+      coachLabel,
+      maxP,
+      durationMin,
+      open,
+      hidden,
+      undoStack,
+      dupOpen,
+      dupDate,
+      dupTime,
+      dupIncludeParticipants,
+      noteDraft,
+      noteComposerOpen,
+      editingNoteId,
+      noteEditDraft,
+      showCoachPicker,
+    };
+    setUiDraft((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+  }, [
+    persistDraft.hydrated,
+    editingSession,
+    editBaseline,
+    addOpen,
+    date,
+    time,
+    coachId,
+    coachLabel,
+    maxP,
+    durationMin,
+    open,
+    hidden,
+    undoStack,
+    dupOpen,
+    dupDate,
+    dupTime,
+    dupIncludeParticipants,
+    noteDraft,
+    noteComposerOpen,
+    editingNoteId,
+    noteEditDraft,
+    showCoachPicker,
+  ]);
+
+  useEffect(() => {
     if (!editingSession) allowLeaveEditRef.current = false;
   }, [editingSession]);
 
@@ -197,11 +353,12 @@ export default function ManagerSessionDetail() {
           allowLeaveEditRef.current = true;
           setEditBaseline(null);
           setEditingSession(false);
+          void persistDraft.clearPersisted();
           navigation.dispatch(e.data.action);
         }
       );
     });
-  }, [navigation, t]);
+  }, [navigation, t, persistDraft]);
 
   function requestCancelEdit() {
     if (!hasEditDirty) {
@@ -217,6 +374,7 @@ export default function ManagerSessionDetail() {
         void load();
         setEditingSession(false);
         setEditBaseline(null);
+        void persistDraft.clearPersisted();
       }
     );
   }
@@ -590,6 +748,7 @@ export default function ManagerSessionDetail() {
     await load();
     setEditingSession(false);
     setEditBaseline(null);
+    void persistDraft.clearPersisted();
     if (savedWithoutHidden) {
       showOk(
         language === "he" ? "הערה" : "Note",
@@ -651,6 +810,7 @@ export default function ManagerSessionDetail() {
     }
     setDupBusy(false);
     setDupOpen(false);
+    void persistDraft.clearPersisted();
     if (newId) router.push(`/(app)/manager/session/${newId}`);
   }
 
@@ -671,6 +831,7 @@ export default function ManagerSessionDetail() {
       showOk(t("common.error"), error.message);
       return;
     }
+    void persistDraft.clearPersisted();
     router.replace("/(app)/manager/sessions");
   }
 
