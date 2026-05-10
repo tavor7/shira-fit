@@ -140,6 +140,18 @@ export function readWebLastRoute(userId: string | null | undefined): string | nu
   }
 }
 
+/** Raw localStorage value (debug only; not normalized). */
+export function peekWebLastRouteRaw(userId: string | null | undefined): string | null {
+  if (Platform.OS !== "web" || typeof localStorage === "undefined") return null;
+  const key = webLastRouteStorageKey(userId);
+  if (!key) return null;
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 export function clearWebLastRoute(userId: string | null | undefined): void {
   if (Platform.OS !== "web" || typeof localStorage === "undefined") return;
   const key = webLastRouteStorageKey(userId);

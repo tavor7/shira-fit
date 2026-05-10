@@ -11,6 +11,7 @@ import { ManagerAthletePreviewProvider } from "../src/context/ManagerAthletePrev
 import { ToastProvider } from "../src/context/ToastContext";
 import { AppAlertProvider } from "../src/context/AppAlertContext";
 import { AppErrorBoundary } from "../src/components/AppErrorBoundary";
+import { RouteRestoreDebugPanel } from "../src/components/RouteRestoreDebugPanel";
 import { WebLastRouteTracker } from "../src/components/WebLastRouteTracker";
 import { initNotificationHandler } from "../src/lib/notificationsInit";
 import { useEffect } from "react";
@@ -110,6 +111,7 @@ export default function RootLayout() {
               <AppErrorBoundary>
                 <ToastProvider>
                   <WebLastRouteTracker />
+                  <RouteRestoreDebugPanel />
                   <StatusBar style="light" />
                   <View style={{ flex: 1 }}>
                     <Stack

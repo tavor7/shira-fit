@@ -5,6 +5,7 @@ import { useAuth } from "../src/context/AuthContext";
 import { useManagerAthletePreview } from "../src/context/ManagerAthletePreviewContext";
 import { useI18n } from "../src/context/I18nContext";
 import { theme } from "../src/theme";
+import { recordIndexRouteRestoreDebug } from "../src/lib/routeRestoreDebug";
 import { canRoleAccessWebPath, readWebLastRoute } from "../src/lib/webLastRoute";
 
 /**
@@ -29,6 +30,26 @@ export default function Index() {
       .catch(() => undefined)
       .finally(() => setProfileRetrying(false));
   }, [loading, session, profile, refreshProfile]);
+
+  useEffect(() => {
+    recordIndexRouteRestoreDebug({
+      loading,
+      authUnavailable: !!authUnavailable,
+      sessionUserId: session?.user?.id,
+      profile,
+      athletePreviewStorageReady,
+      managerAthletePreview,
+      profileRetrying,
+    });
+  }, [
+    loading,
+    authUnavailable,
+    session?.user?.id,
+    profile,
+    athletePreviewStorageReady,
+    managerAthletePreview,
+    profileRetrying,
+  ]);
 
   if (loading)
     return (

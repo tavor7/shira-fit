@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import { usePathname } from "expo-router";
 import { useAuth } from "../context/AuthContext";
 import { useManagerAthletePreview } from "../context/ManagerAthletePreviewContext";
+import { recordRouteRestoreTrackerDebug } from "../lib/routeRestoreDebug";
 import {
   canRoleAccessWebPath,
   saveWebLastRoute,
@@ -31,6 +32,7 @@ export function WebLastRouteTracker() {
     const full = path + search;
     if (!canRoleAccessWebPath(profile.role, full, { managerAthletePreview })) return;
     saveWebLastRoute(uid, path, search);
+    recordRouteRestoreTrackerDebug(full);
   }, [pathname, session?.user?.id, profile?.role, loading, managerAthletePreview]);
 
   return null;
