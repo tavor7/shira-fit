@@ -12,6 +12,7 @@ import { fetchActiveSignupCountsBySession } from "./sessionSignupCounts";
 import type { LanguageCode } from "../i18n/translations";
 import { translations } from "../i18n/translations";
 import { formatISODateDayMonth, formatISODateDayMonthWithWeekday, formatISODateFull } from "./dateFormat";
+import { appLocale } from "./appLocale";
 import { isRtlScript } from "./bidiEmbed";
 
 function tr(lang: LanguageCode, key: string, params?: Record<string, string | number>): string {
@@ -22,6 +23,32 @@ function tr(lang: LanguageCode, key: string, params?: Record<string, string | nu
     }
   }
   return s;
+}
+
+/** Local calendar date of an instant as YYYY-MM-DD (for comparing to session_date). */
+function localYyyyMmDd(d: Date): string {
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${mo}-${day}`;
+}
+
+/** Human-readable “when they cancelled” for late-cancellation alerts (local time). */
+function formatLateCancellationTimestamp(
+  cancelledAtIso: string,
+  sessionDateYmd: string,
+  language: LanguageCode
+): string {
+  const d = new Date(cancelledAtIso);
+  if (!Number.isFinite(d.getTime())) return "";
+  const loc = appLocale(language);
+  const localDay = localYyyyMmDd(d);
+  const timeStr = d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit", hour12: false });
+  if (localDay === sessionDateYmd) {
+    return tr(language, "homeAlerts.cancellationCancelledAtTimeOnly", { time: timeStr });
+  }
+  const dayStr = formatISODateDayMonth(localDay, language);
+  return tr(language, "homeAlerts.cancellationCancelledAtDayTime", { day: dayStr, time: timeStr });
 }
 
 /** Explicit BiDi per chunk — nested Text in UI when set (fixes Hebrew names in English sentences). */
@@ -316,18 +343,27 @@ export async function fetchStaffLateCancellationItems(
       isLate && reasonTrim
         ? tr(language, "homeAlerts.lateCancellationReasonInline", { reason: reasonTrim })
         : "";
-    const flatLabel = `${lead}${dayTime}${beforeName}${name}${reasonLine ? ` · ${reasonLine}` : ""}`;
+    const cancelledAtLabel = isLate ? formatLateCancellationTimestamp(row.cancelled_at, sess.session_date, language) : "";
+    const flatLabel = `${lead}${dayTime}${cancelledAtLabel ? ` · ${cancelledAtLabel}` : ""}${beforeName}${name}${
+      reasonLine ? ` · ${reasonLine}` : ""
+    }`;
+    const labelSegments: HomePriorityLabelSegment[] = [
+      { text: lead, dir: leadDir, role: "subject" },
+      { text: dayTime, dir: dayTimeDir, role: "body" },
+    ];
+    if (cancelledAtLabel) {
+      labelSegments.push({ text: ` · ${cancelledAtLabel}`, dir: dayTimeDir, role: "body" });
+    }
+    labelSegments.push(
+      { text: beforeName, dir: beforeNameDir, role: "body" },
+      { text: name, dir: nameDir, role: "body" }
+    );
     rows.push({
       cancelMs: Number.isFinite(cancelMs) ? cancelMs : 0,
       item: {
         id: `lc-${row.id}`,
         label: flatLabel,
-        labelSegments: [
-          { text: lead, dir: leadDir, role: "subject" },
-          { text: dayTime, dir: dayTimeDir, role: "body" },
-          { text: beforeName, dir: beforeNameDir, role: "body" },
-          { text: name, dir: nameDir, role: "body" },
-        ],
+        labelSegments,
         href: staffSessionPath(variant, sess.id),
         isNew,
         lateCancel:

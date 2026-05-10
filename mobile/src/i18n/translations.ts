@@ -331,6 +331,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "homeAlerts.lateCancellationLead": "Late cancellation",
     /** Full phrase for accessibility / plain label when a late cancel includes an athlete note */
     "homeAlerts.lateCancellationReasonInline": "Reason: {reason}",
+    /** Late cancel: when cancellation is on the session’s calendar day, only local time is shown. */
+    "homeAlerts.cancellationCancelledAtTimeOnly": "Cancelled {time}",
+    "homeAlerts.cancellationCancelledAtDayTime": "Cancelled {day} · {time}",
     /** Prefix before the athlete’s note on the second line in Important alerts (late cancel only). */
     "homeAlerts.cancellationReasonPrefix": "Reason: ",
     "homeAlerts.cancellationLead": "Cancellation",
@@ -671,6 +674,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "homeAlerts.lateCancellation": "ביטול מאוחר (חיוב): {name} · {day} · {time}",
     "homeAlerts.lateCancellationLead": "ביטול מאוחר (חיוב)",
     "homeAlerts.lateCancellationReasonInline": "סיבה: {reason}",
+    "homeAlerts.cancellationCancelledAtTimeOnly": "בוטל ב־{time}",
+    "homeAlerts.cancellationCancelledAtDayTime": "בוטל {day} · {time}",
     "homeAlerts.cancellationReasonPrefix": "סיבה: ",
     "homeAlerts.cancellationLead": "ביטול הרשמה",
     "homeAlerts.athlete": "מתאמן",
