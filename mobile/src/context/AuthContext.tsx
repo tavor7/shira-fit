@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { Session, User } from "@supabase/supabase-js";
 import { clearSupabaseAuthStorage, supabase } from "../lib/supabase";
 import { clearAllUiDraftsForUser } from "../lib/uiDraftStorage";
+import { clearWebLastRoute } from "../lib/webLastRoute";
 import type { Profile } from "../types/database";
 
 type AuthCtx = {
@@ -179,6 +180,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     const uid = sessionRef.current?.user?.id;
     await clearAllUiDraftsForUser(uid);
+    clearWebLastRoute(uid);
     await supabase.auth.signOut();
     if (mountedRef.current) {
       setProfile(null);

@@ -1,15 +1,15 @@
-import { Redirect } from "expo-router";
+import { Redirect, type Href } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
 import { useManagerAthletePreview } from "../src/context/ManagerAthletePreviewContext";
 import { useI18n } from "../src/context/I18nContext";
 import { theme } from "../src/theme";
+import { canRoleAccessWebPath, readWebLastRoute } from "../src/lib/webLastRoute";
 
 /**
- * Entry route for `/` only. Any authenticated visit here is redirected to a role default
- * (e.g. manager → sessions calendar). Deep links must use their real path (e.g. `/manager/session/<id>`);
- * if the address bar or PWA start URL is `/`, this screen will always send users to the dashboard.
+ * Entry route for `/` only. After auth + profile are ready, web clients may be sent to the last saved
+ * in-app path (see `webLastRoute` + `WebLastRouteTracker`); otherwise we redirect to the role home.
  */
 export default function Index() {
   const { t } = useI18n();
@@ -145,6 +145,14 @@ export default function Index() {
   }
   if (profile.role === "athlete" && profile.approval_status === "pending")
     return <Redirect href="/(app)/pending" />;
+
+  if (Platform.OS === "web") {
+    const saved = readWebLastRoute(session.user.id);
+    if (saved && canRoleAccessWebPath(profile.role, saved, { managerAthletePreview })) {
+      return <Redirect href={saved as Href} />;
+    }
+  }
+
   if (profile.role === "athlete")
     return <Redirect href="/(app)/athlete/sessions" />;
   if (profile.role === "coach") return <Redirect href="/(app)/coach/sessions" />;

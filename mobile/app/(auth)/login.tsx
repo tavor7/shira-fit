@@ -9,7 +9,7 @@ import {
   Platform,
   Image,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ActionButton } from "../../src/components/ActionButton";
@@ -17,6 +17,7 @@ import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { logUserActivity } from "../../src/lib/logUserActivity";
+import { canRoleAccessWebPath, normalizeWebRedirectTarget } from "../../src/lib/webLastRoute";
 
 export const options = { headerShown: false };
 
@@ -63,6 +64,7 @@ function classifyLoginError(error: { message: string }): ClassifiedLoginError {
 }
 
 export default function LoginScreen() {
+  const params = useLocalSearchParams<{ redirect?: string | string[] }>();
   const { t, isRTL } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -117,7 +119,22 @@ export default function LoginScreen() {
       }
       if (data.session) {
         void logUserActivity("auth_login");
-        router.replace("/");
+        const rawRedirect = Array.isArray(params.redirect) ? params.redirect[0] : params.redirect;
+        const target = Platform.OS === "web" ? normalizeWebRedirectTarget(rawRedirect) : null;
+        let role: string | undefined;
+        if (target && data.session.user?.id) {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("user_id", data.session.user.id)
+            .maybeSingle();
+          role = (prof as { role?: string } | null)?.role;
+        }
+        if (Platform.OS === "web" && target && role && canRoleAccessWebPath(role, target)) {
+          router.replace(target as Href);
+        } else {
+          router.replace("/");
+        }
       } else {
         setErrorMessage(t("auth.loginErrorIncomplete"));
       }

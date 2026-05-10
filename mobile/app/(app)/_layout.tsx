@@ -1,5 +1,5 @@
-import { Stack, Redirect, usePathname } from "expo-router";
-import { ActivityIndicator, Pressable, Text, View, type TextStyle, type ViewStyle } from "react-native";
+import { Stack, Redirect, usePathname, type Href } from "expo-router";
+import { ActivityIndicator, Platform, Pressable, Text, View, type TextStyle, type ViewStyle } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
 import { AppHeaderRight } from "../../src/components/AppHeaderRight";
 import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
@@ -7,6 +7,7 @@ import { theme } from "../../src/theme";
 import { useAndroidSessionsBackHandler } from "../../src/hooks/useAndroidSessionsBackHandler";
 import { isPendingPathname } from "../../src/lib/sessionsHomeNavigation";
 import { useI18n } from "../../src/context/I18nContext";
+import { getLoginHrefWithOptionalRedirectWeb } from "../../src/lib/webLastRoute";
 
 const headerStyle: ViewStyle = {
   backgroundColor: theme.colors.backgroundAlt,
@@ -66,7 +67,10 @@ export default function AppLayout() {
       </View>
     );
   }
-  if (!session) return <Redirect href="/(auth)/login" />;
+  if (!session) {
+    const loginHref: Href = Platform.OS === "web" ? getLoginHrefWithOptionalRedirectWeb() : "/(auth)/login";
+    return <Redirect href={loginHref} />;
+  }
 
   const pendingAthlete = profile?.role === "athlete" && profile?.approval_status === "pending";
   if (pendingAthlete && !isPendingPathname(pathname)) {
