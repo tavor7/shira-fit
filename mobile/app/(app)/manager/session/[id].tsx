@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import { router, useLocalSearchParams, useFocusEffect, Stack } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import {
   View,
   Text,
@@ -40,6 +40,9 @@ import { useAppAlert } from "../../../../src/context/AppAlertContext";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { usePersistedState } from "../../../../src/hooks/usePersistedState";
 import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
+
+/** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
+const MANAGER_SESSION_DRAFT_DIAGNOSTICS = true;
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
 
@@ -154,6 +157,27 @@ export default function ManagerSessionDetail() {
   const managerSessionScreenKey = `manager-session:${String(id ?? "")}`;
   const draftStorageKey = useMemo(() => uiDraftStorageKey(user?.id, managerSessionScreenKey), [user?.id, managerSessionScreenKey]);
   const [uiDraft, setUiDraft, persistDraft] = usePersistedState(draftStorageKey, INITIAL_MANAGER_SESSION_DRAFT);
+  const diagLogRef = useRef<string[]>([]);
+  const [, diagBump] = useState(0);
+  const loadFinishedAtRef = useRef<string | null>(null);
+  const loadCountRef = useRef(0);
+  const pushDiag = useCallback((line: string) => {
+    if (!MANAGER_SESSION_DRAFT_DIAGNOSTICS) return;
+    const ts = new Date().toISOString().slice(11, 23);
+    diagLogRef.current = [`${ts} ${line}`, ...diagLogRef.current].slice(0, 30);
+    diagBump((n) => n + 1);
+  }, []);
+  const [, setDiagPoll] = useState(0);
+  useEffect(() => {
+    if (!MANAGER_SESSION_DRAFT_DIAGNOSTICS) return;
+    const t = setInterval(() => setDiagPoll((n) => n + 1), 400);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (!MANAGER_SESSION_DRAFT_DIAGNOSTICS) return;
+    pushDiag(`persistDraft.hydrated=${String(persistDraft.hydrated)}`);
+  }, [persistDraft.hydrated, pushDiag]);
   const hydratedDraftApplyRef = useRef<string | null>(null);
   const draftMergedIntoLocalRef = useRef(false);
   const uiDraftRef = useRef(uiDraft);
@@ -216,9 +240,35 @@ export default function ManagerSessionDetail() {
     return () => cancelAnimationFrame(t);
   }, [id]);
   const [notes, setNotes] = useState<NoteRow[]>([]);
-  const [noteDraft, setNoteDraft] = useState("");
+  const [noteDraft, setNoteDraftBase] = useState("");
+  const setNoteDraft = useCallback(
+    (action: SetStateAction<string>) => {
+      if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
+        if (typeof action === "function") {
+          pushDiag("setNoteDraft(SetStateAction fn)");
+        } else {
+          const s = String(action);
+          pushDiag(
+            `setNoteDraft literal len=${s.length} hasTEST123=${s.includes("TEST123")} preview=${JSON.stringify(s.slice(0, 48))}`
+          );
+        }
+      }
+      setNoteDraftBase(action);
+    },
+    [pushDiag]
+  );
   const [noteBusy, setNoteBusy] = useState(false);
-  const [noteComposerOpen, setNoteComposerOpen] = useState(false);
+  const [noteComposerOpen, setNoteComposerOpenBase] = useState(false);
+  const setNoteComposerOpen = useCallback(
+    (action: SetStateAction<boolean>) => {
+      if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
+        const desc = typeof action === "function" ? "SetStateAction(fn)" : String(action);
+        pushDiag(`setNoteComposerOpen → ${desc}`);
+      }
+      setNoteComposerOpenBase(action);
+    },
+    [pushDiag]
+  );
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteEditDraft, setNoteEditDraft] = useState("");
   const [waitlistQuickUserId, setWaitlistQuickUserId] = useState<string | null>(null);
@@ -244,17 +294,23 @@ export default function ManagerSessionDetail() {
   const allowLeaveEditRef = useRef(false);
 
   useEffect(() => {
+    pushDiag(`effect: draftStorageKey reset → ${draftStorageKey}`);
     hydratedDraftApplyRef.current = null;
     draftMergedIntoLocalRef.current = false;
     consumeEditAfterLoadRef.current = null;
     setServerFormReady(false);
-  }, [draftStorageKey]);
+  }, [draftStorageKey, pushDiag]);
 
   useEffect(() => {
     if (!persistDraft.hydrated) return;
     if (hydratedDraftApplyRef.current === draftStorageKey) return;
     hydratedDraftApplyRef.current = draftStorageKey;
     const d = uiDraftRef.current;
+    if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
+      pushDiag(
+        `effect: apply storage→form uiDraft.noteDraft=${JSON.stringify(String(d.noteDraft).slice(0, 48))} composerOpen=${String(d.noteComposerOpen)} v=${d.v}`
+      );
+    }
     if (d.v !== MANAGER_SESSION_DRAFT_VERSION) {
       draftMergedIntoLocalRef.current = true;
       return;
@@ -272,13 +328,16 @@ export default function ManagerSessionDetail() {
     setUndoStack(d.undoStack);
     consumeEditAfterLoadRef.current = d.editingSession ? d : null;
     draftMergedIntoLocalRef.current = true;
-  }, [persistDraft.hydrated, draftStorageKey]);
+  }, [persistDraft.hydrated, draftStorageKey, pushDiag, setNoteComposerOpen, setNoteDraft]);
 
   useEffect(() => {
     if (!session || String(session.id) !== String(id)) return;
     if (!persistDraft.hydrated) return;
     const d = consumeEditAfterLoadRef.current;
     if (!d) return;
+    if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
+      pushDiag("effect: consumeEditAfterLoad (draft session overlay → form fields, not note fields)");
+    }
     consumeEditAfterLoadRef.current = null;
     setDate(d.date);
     setTime(d.time);
@@ -290,7 +349,7 @@ export default function ManagerSessionDetail() {
     setHidden(d.hidden);
     setEditingSession(true);
     setEditBaseline(d.editBaseline);
-  }, [session, id, persistDraft.hydrated]);
+  }, [session, id, persistDraft.hydrated, pushDiag]);
 
   useEffect(() => {
     if (!persistDraft.hydrated || !serverFormReady || !draftMergedIntoLocalRef.current) return;
@@ -318,7 +377,15 @@ export default function ManagerSessionDetail() {
       noteEditDraft,
       showCoachPicker,
     };
-    setUiDraft((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+    setUiDraft((prev) => {
+      const changed = JSON.stringify(prev) !== JSON.stringify(next);
+      if (MANAGER_SESSION_DRAFT_DIAGNOSTICS && changed) {
+        pushDiag(
+          `setUiDraft(persist) noteDraft=${JSON.stringify(String(next.noteDraft).slice(0, 48))} composer=${String(next.noteComposerOpen)}`
+        );
+      }
+      return changed ? next : prev;
+    });
   }, [
     persistDraft.hydrated,
     serverFormReady,
@@ -343,6 +410,7 @@ export default function ManagerSessionDetail() {
     editingNoteId,
     noteEditDraft,
     showCoachPicker,
+    pushDiag,
   ]);
 
   useEffect(() => {
@@ -362,12 +430,13 @@ export default function ManagerSessionDetail() {
           allowLeaveEditRef.current = true;
           setEditBaseline(null);
           setEditingSession(false);
+          pushDiag("clearPersisted: beforeRemove discard edit");
           void persistDraft.clearPersisted();
           navigation.dispatch(e.data.action);
         }
       );
     });
-  }, [navigation, t, persistDraft]);
+  }, [navigation, t, persistDraft, pushDiag]);
 
   function requestCancelEdit() {
     if (!hasEditDirty) {
@@ -383,6 +452,7 @@ export default function ManagerSessionDetail() {
         void load();
         setEditingSession(false);
         setEditBaseline(null);
+        pushDiag("clearPersisted: requestCancelEdit discard");
         void persistDraft.clearPersisted();
       }
     );
@@ -528,7 +598,13 @@ export default function ManagerSessionDetail() {
   }
 
   async function load() {
+    if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
+      pushDiag(`load() start id=${String(id)}`);
+    }
     const { data: s } = await supabase.from("training_sessions").select("*").eq("id", id).single();
+    if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
+      pushDiag("load() setSession + form fields from DB row");
+    }
     setSession(s as TrainingSession);
     if (s) {
       setDate(s.session_date);
@@ -552,6 +628,11 @@ export default function ManagerSessionDetail() {
     loadCancellations();
     loadNotes();
     setServerFormReady(true);
+    loadCountRef.current += 1;
+    loadFinishedAtRef.current = new Date().toISOString();
+    if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
+      pushDiag(`load() finished #${loadCountRef.current} serverFormReady=true`);
+    }
   }
 
   async function loadNotes() {
@@ -758,6 +839,7 @@ export default function ManagerSessionDetail() {
     await load();
     setEditingSession(false);
     setEditBaseline(null);
+    pushDiag("clearPersisted: saveSession success");
     void persistDraft.clearPersisted();
     if (savedWithoutHidden) {
       showOk(
@@ -820,6 +902,7 @@ export default function ManagerSessionDetail() {
     }
     setDupBusy(false);
     setDupOpen(false);
+    pushDiag("clearPersisted: duplicateSession success");
     void persistDraft.clearPersisted();
     if (newId) router.push(`/(app)/manager/session/${newId}`);
   }
@@ -841,6 +924,7 @@ export default function ManagerSessionDetail() {
       showOk(t("common.error"), error.message);
       return;
     }
+    pushDiag("clearPersisted: runDeleteSession success");
     void persistDraft.clearPersisted();
     router.replace("/(app)/manager/sessions");
   }
@@ -937,11 +1021,69 @@ export default function ManagerSessionDetail() {
     attendanceStats.noShowCollectedIls,
   ]);
 
+  const draftDiagPanelEl = (() => {
+    if (!MANAGER_SESSION_DRAFT_DIAGNOSTICS) return null;
+    let lsPresent = false;
+    let lsRaw: string | null = null;
+    if (Platform.OS === "web" && typeof localStorage !== "undefined") {
+      try {
+        lsRaw = localStorage.getItem(draftStorageKey);
+        lsPresent = lsRaw != null && lsRaw !== "";
+      } catch {
+        lsRaw = "(localStorage read error)";
+      }
+    }
+    const lsHasTest = (lsRaw ?? "").includes("TEST123");
+    const rawTrunc =
+      lsRaw == null
+        ? Platform.OS === "web"
+          ? "(null)"
+          : "(N/A: not web)"
+        : lsRaw.length > 320
+          ? `${lsRaw.slice(0, 320)}…`
+          : lsRaw;
+    const uiNoteSnippet = JSON.stringify(String(uiDraft.noteDraft ?? "").slice(0, 64));
+    const inputNoteSnippet = JSON.stringify(String(noteDraft ?? "").slice(0, 64));
+    const logText = diagLogRef.current.join("\n");
+
+    return (
+      <View style={styles.draftDiag}>
+        <Text style={styles.draftDiagTitle}>Draft diagnostics (manager session — temporary)</Text>
+        <Text style={styles.draftDiagLine} selectable>
+          1) draftStorageKey: {draftStorageKey}
+        </Text>
+        <Text style={styles.draftDiagLine} selectable>
+          2) localStorage has key: {Platform.OS === "web" ? String(lsPresent) : "N/A (native)"} · raw includes TEST123: {String(lsHasTest)}
+        </Text>
+        <Text style={styles.draftDiagLine} selectable>
+          3) raw localStorage (trunc): {rawTrunc}
+        </Text>
+        <Text style={styles.draftDiagLine} selectable>
+          4) uiDraft (hook state) noteDraft {uiNoteSnippet} · noteComposerOpen={String(uiDraft.noteComposerOpen)} · hydrated=
+          {String(persistDraft.hydrated)}
+        </Text>
+        <Text style={styles.draftDiagLine} selectable>
+          5) Input state noteDraft {inputNoteSnippet} · noteComposerOpen={String(noteComposerOpen)} · match uiDraft.note?{" "}
+          {String(uiDraft.noteDraft === noteDraft)}
+        </Text>
+        <Text style={styles.draftDiagLine} selectable>
+          6) server: serverFormReady={String(serverFormReady)} · load#={loadCountRef.current} · lastLoadAt=
+          {loadFinishedAtRef.current ?? "—"} · draftMergedRef={String(draftMergedIntoLocalRef.current)}
+        </Text>
+        <Text style={styles.draftDiagLine} selectable>
+          7) Event log (newest first):{"\n"}
+          {logText || "—"}
+        </Text>
+      </View>
+    );
+  })();
+
   if (!session)
     return (
-      <View>
+      <View style={{ flex: 1, backgroundColor: theme.colors.backgroundAlt }}>
         <Stack.Screen options={{ title: t("screen.managerSession") }} />
         <Text style={[styles.loading, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
+        {draftDiagPanelEl}
       </View>
     );
 
@@ -1651,6 +1793,7 @@ export default function ManagerSessionDetail() {
           setParticipantsRev((n) => n + 1);
         }}
       />
+      {draftDiagPanelEl}
     </ScrollView>
         {!editingSession ? <SessionAdjacentNav variant="manager" sessionId={String(id ?? "")} /> : null}
       </View>
@@ -1664,6 +1807,22 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
   loading: { padding: theme.spacing.lg, color: theme.colors.textMuted },
+  draftDiag: {
+    marginTop: theme.spacing.md,
+    padding: 10,
+    backgroundColor: "#121212",
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  draftDiagTitle: { color: "#ffcc00", fontWeight: "900", marginBottom: 8, fontSize: 12 },
+  draftDiagLine: {
+    color: "#e8e8e8",
+    fontSize: 10,
+    fontFamily: Platform.OS === "web" ? "monospace" : Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }),
+    marginBottom: 6,
+    lineHeight: 14,
+  },
   rtlText: { textAlign: "right" },
   /** Session hero: tonal surface + border (DESIGN § cards). */
   summaryCard: {
