@@ -410,7 +410,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     setLoading(true);
     setReportReady(false);
     const phoneArg = phone.trim().length > 0 ? phone.trim() : null;
-    const [histRes, priceRes, acctRes] = await Promise.all([
+    const [histRes, priceRes, acctRes, ovRes] = await Promise.all([
       supabase.rpc("participant_registration_history", {
         p_start: s,
         p_end: e,
@@ -426,6 +426,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         .eq("payee_id", athleteId)
         .eq("payee_is_manual", payeeIsManual)
         .order("paid_at", { ascending: false }),
+      payeeIsManual
+        ? Promise.resolve({ data: [] as { max_participants: number; price_ils: number | string }[], error: null })
+        : supabase.from("athlete_session_capacity_pricing").select("max_participants, price_ils").eq("user_id", athleteId),
     ]);
 
     if (histRes.error) {
@@ -455,6 +458,15 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       setHasSearched(true);
       return;
     }
+    if (ovRes.error) {
+      setLoading(false);
+      showError(ovRes.error.message);
+      setRows([]);
+      setAccountPayments([]);
+      setReportReady(false);
+      setHasSearched(true);
+      return;
+    }
 
     const next = (histRes.data as ParticipantHistoryRow[]) ?? [];
     setRows(next);
@@ -462,6 +474,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     const capMap: Record<number, number> = {};
     for (const r of (priceRes.data as { max_participants: number; price_ils: number | string }[]) ?? []) {
       capMap[Number(r.max_participants)] = Number(r.price_ils);
+    }
+    for (const o of (ovRes.data as { max_participants: number; price_ils: number | string }[]) ?? []) {
+      capMap[Number(o.max_participants)] = Number(o.price_ils);
     }
     setPricingByCap(capMap);
 

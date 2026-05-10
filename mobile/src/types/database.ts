@@ -115,6 +115,14 @@ export type SessionCapacityPricingRow = {
   updated_at?: string;
 };
 
+/** Per-athlete override for a capacity tier; falls back to session_capacity_pricing. */
+export type AthleteSessionCapacityPricingRow = {
+  user_id: string;
+  max_participants: number;
+  price_ils: number | string;
+  updated_at?: string;
+};
+
 /** Per-coach payment per arrived athlete for sessions with this max_participants. */
 export type CoachCapacityPricingRow = {
   coach_id: string;

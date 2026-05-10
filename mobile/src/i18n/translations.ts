@@ -78,6 +78,15 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "pricing.delete": "Remove",
     "pricing.invalidCapacity": "Enter a valid capacity (whole number ≥ 1).",
     "pricing.invalidPrice": "Enter a valid price (≥ 0).",
+    "pricing.specialAthleteSection": "Athlete-specific rates",
+    "pricing.specialAthleteHint":
+      "Override the global price for a named athlete at a given group size (same capacity tier as above). If none is set, reports and fees use the global rules.",
+    "pricing.addAthleteRate": "Add athlete rate",
+    "pricing.pickAthlete": "Athlete",
+    "pricing.specialAthleteExisting": "Athlete overrides",
+    "pricing.specialAthleteEmpty": "No athlete-specific rates yet.",
+    "pricing.removeAthleteRateTitle": "Remove rate?",
+    "pricing.removeAthleteRateConfirm": "Remove the special rate for {name}? They will use global pricing again.",
 
     "tab.athleteBrowse": "Browse",
     "tab.athleteMySessions": "My sessions",
@@ -430,6 +439,15 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "pricing.delete": "הסרה",
     "pricing.invalidCapacity": "הזינו קיבולת תקינה (מספר שלם ≥ 1).",
     "pricing.invalidPrice": "הזינו מחיר תקין (≥ 0).",
+    "pricing.specialAthleteSection": "תעריפים לפי מתאמן",
+    "pricing.specialAthleteHint":
+      "דורס את המחיר הגלובלי למתאמן ספציפי ברמת גודל קבוצה (אותה רמת קיבול כללים למעלה). בלי תעריף מיוחד — משתמשים בכללים הגלובליים.",
+    "pricing.addAthleteRate": "הוספת תעריף למתאמן",
+    "pricing.pickAthlete": "מתאמן",
+    "pricing.specialAthleteExisting": "תעריפים מיוחדים",
+    "pricing.specialAthleteEmpty": "אין עדיין תעריפים לפי מתאמן.",
+    "pricing.removeAthleteRateTitle": "להסיר תעריף?",
+    "pricing.removeAthleteRateConfirm": "להסיר את התעריף המיוחד עבור {name}? יחזרו לתמחור הגלובלי.",
 
     "dashboard.management": "ניהול",
     "dashboard.weeklyOverview": "סקירה שבועית",
