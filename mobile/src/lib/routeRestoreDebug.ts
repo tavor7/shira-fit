@@ -2,14 +2,19 @@ import { Platform } from "react-native";
 import type { Profile } from "../types/database";
 import { canRoleAccessWebPath, readWebLastRoute, webPublicPathToExpoHref } from "./webLastRoute";
 
-/** Temporary: route-restore diagnostics overlay on web. Set false to hide. */
-export const ROUTE_RESTORE_DEBUG_PANEL = true;
+/**
+ * Route-restore diagnostics (sessionStorage snapshots + web overlay). Keep false in production.
+ */
+export const ROUTE_RESTORE_DEBUG = false;
+
+/** Alias for the on-screen panel — same switch as `ROUTE_RESTORE_DEBUG`. */
+export const ROUTE_RESTORE_DEBUG_PANEL = ROUTE_RESTORE_DEBUG;
 
 export const ROUTE_RESTORE_DEBUG_KEY_INDEX = "shirafit:routeRestoreDebug:index";
 export const ROUTE_RESTORE_DEBUG_KEY_TRACKER = "shirafit:routeRestoreDebug:tracker";
 
 export function recordRouteRestoreTrackerDebug(savedPath: string) {
-  if (Platform.OS !== "web" || typeof sessionStorage === "undefined") return;
+  if (!ROUTE_RESTORE_DEBUG || Platform.OS !== "web" || typeof sessionStorage === "undefined") return;
   try {
     sessionStorage.setItem(
       ROUTE_RESTORE_DEBUG_KEY_TRACKER,
@@ -29,7 +34,7 @@ export function recordIndexRouteRestoreDebug(args: {
   managerAthletePreview: boolean;
   profileRetrying: boolean;
 }) {
-  if (Platform.OS !== "web" || typeof sessionStorage === "undefined") return;
+  if (!ROUTE_RESTORE_DEBUG || Platform.OS !== "web" || typeof sessionStorage === "undefined") return;
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
   const base = { t: new Date().toISOString(), indexLocationPathname: pathname };
 

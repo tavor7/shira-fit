@@ -1,7 +1,9 @@
 import { Platform } from "react-native";
 import { router } from "expo-router";
 
-/** Temporary: trace unexpected jumps to the manager sessions list (especially PWA resume). Remove when stable. */
+/** Trace `/(app)/manager/sessions` redirects (console + sessionStorage). Keep false in production. */
+export const DEBUG_MANAGER_SESSIONS_REDIRECT_TRACE = false;
+
 export type ManagerSessionsRedirectSnapshot = {
   authLoading?: boolean;
   authUserId?: string | null;
@@ -15,6 +17,7 @@ export function logRedirectToManagerSessions(
   reason: string,
   snapshot?: ManagerSessionsRedirectSnapshot
 ) {
+  if (!DEBUG_MANAGER_SESSIONS_REDIRECT_TRACE) return;
   const windowPathname =
     Platform.OS === "web" && typeof window !== "undefined" ? window.location.pathname : "";
   const payload = {
