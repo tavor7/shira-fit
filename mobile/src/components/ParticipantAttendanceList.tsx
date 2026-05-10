@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { useAppAlert } from "../context/AppAlertContext";
 import { isBirthdayToday } from "../lib/birthday";
 import { normalizePaymentMethodKey, paymentMethodAttendanceLabel } from "../lib/paymentMethod";
 
@@ -117,6 +118,7 @@ export function ParticipantAttendanceList({
   showMarkAllArrived = true,
 }: Props) {
   const { language, t, isRTL } = useI18n();
+  const { showConfirm } = useAppAlert();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -126,6 +128,34 @@ export function ParticipantAttendanceList({
   const [payChosenMethod, setPayChosenMethod] = useState<string | null>(null);
   const [payAmountDraft, setPayAmountDraft] = useState("");
   const [payMode, setPayMode] = useState<"arrived" | "absent_penalty">("arrived");
+
+  function interpolateParticipantName(template: string, name: string) {
+    return template.replace(/\{name\}/g, name);
+  }
+
+  function confirmRemoveRegistered(item: Extract<Row, { kind: "registered" }>) {
+    if (!onRemoveAthlete) return;
+    showConfirm({
+      title: t("managerSession.removeParticipantConfirmTitle"),
+      message: interpolateParticipantName(t("managerSession.removeParticipantConfirmMessage"), item.name),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("managerSession.removeParticipantConfirmRemove"),
+      confirmVariant: "danger",
+      onConfirm: () => void Promise.resolve(onRemoveAthlete(item.userId)),
+    });
+  }
+
+  function confirmRemoveManual(item: Extract<Row, { kind: "manual" }>) {
+    if (!onRemoveManualParticipant) return;
+    showConfirm({
+      title: t("managerSession.removeParticipantConfirmTitle"),
+      message: interpolateParticipantName(t("managerSession.removeParticipantConfirmMessage"), item.name),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("managerSession.removeParticipantConfirmRemove"),
+      confirmVariant: "danger",
+      onConfirm: () => void Promise.resolve(onRemoveManualParticipant(item.manualId)),
+    });
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -468,7 +498,7 @@ export function ParticipantAttendanceList({
                 {busy ? <ActivityIndicator size="small" color={theme.colors.cta} /> : null}
                 {item.kind === "registered" && onRemoveAthlete && !busy ? (
                   <Pressable
-                    onPress={() => onRemoveAthlete(item.userId)}
+                    onPress={() => confirmRemoveRegistered(item)}
                     hitSlop={8}
                     accessibilityRole="button"
                     accessibilityLabel={t("a11y.removeParticipant")}
@@ -481,7 +511,7 @@ export function ParticipantAttendanceList({
                 ) : null}
                 {item.kind === "manual" && onRemoveManualParticipant && !busy ? (
                   <Pressable
-                    onPress={() => onRemoveManualParticipant(item.manualId)}
+                    onPress={() => confirmRemoveManual(item)}
                     hitSlop={8}
                     accessibilityRole="button"
                     accessibilityLabel={t("a11y.removeParticipant")}
