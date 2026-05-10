@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router, Stack } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, TextInput, Pressable, ActivityIndicator, Platform, TouchableOpacity } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import { theme } from "../../../../src/theme";
@@ -14,7 +14,7 @@ import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNa
 import { useAppAlert } from "../../../../src/context/AppAlertContext";
 import { useAuth } from "../../../../src/context/AuthContext";
 import { usePersistedState } from "../../../../src/hooks/usePersistedState";
-import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
+import { uiDraftAnonMigrationKey, uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
 
 type W = {
   user_id: string;
@@ -61,10 +61,13 @@ const INITIAL_COACH_SESSION_DRAFT: CoachSessionUiDraft = {
 export default function CoachSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
-  const coachDraftKey = uiDraftStorageKey(user?.id, `coach-session:${String(id ?? "")}`);
-  const [coachDraft, setCoachDraft, persistCoach] = usePersistedState(coachDraftKey, INITIAL_COACH_SESSION_DRAFT);
+  const coachScope = `coach-session:${String(id ?? "")}`;
+  const coachDraftKey = uiDraftStorageKey(user?.id, coachScope);
+  const anonCoachDraftKey = uiDraftAnonMigrationKey(coachScope);
+  const [coachDraft, setCoachDraft, persistCoach] = usePersistedState(coachDraftKey, INITIAL_COACH_SESSION_DRAFT, {
+    migrateFromKeyIfEmpty: user?.id ? anonCoachDraftKey : undefined,
+  });
   const coachHydrateGate = useRef<string | null>(null);
-  const canSyncCoachDraft = useRef(false);
   const { language, t, isRTL } = useI18n();
   const { showOk, showConfirm } = useAppAlert();
   const { showToast } = useToast();
@@ -88,10 +91,9 @@ export default function CoachSessionDetail() {
 
   useEffect(() => {
     coachHydrateGate.current = null;
-    canSyncCoachDraft.current = false;
   }, [coachDraftKey]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!persistCoach.hydrated) return;
     if (coachHydrateGate.current === coachDraftKey) return;
     coachHydrateGate.current = coachDraftKey;
@@ -102,11 +104,10 @@ export default function CoachSessionDetail() {
     setEditingNoteId(d.editingNoteId);
     setNoteEditDraft(d.noteEditDraft);
     setAddOpen(d.addOpen);
-    canSyncCoachDraft.current = true;
   }, [persistCoach.hydrated, coachDraftKey, coachDraft]);
 
   useEffect(() => {
-    if (!persistCoach.hydrated || !canSyncCoachDraft.current) return;
+    if (!persistCoach.hydrated) return;
     const next: CoachSessionUiDraft = {
       v: COACH_SESSION_DRAFT_V,
       noteDraft,

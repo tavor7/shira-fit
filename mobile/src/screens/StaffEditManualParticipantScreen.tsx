@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -8,7 +8,7 @@ import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { usePersistedState } from "../hooks/usePersistedState";
-import { uiDraftStorageKey } from "../lib/uiDraftStorage";
+import { uiDraftAnonMigrationKey, uiDraftStorageKey } from "../lib/uiDraftStorage";
 
 const STAFF_MANUAL_DRAFT_V = 1 as const;
 
@@ -34,10 +34,13 @@ export default function StaffEditManualParticipantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const manualId = String(id ?? "");
   const { user } = useAuth();
-  const manualDraftKey = uiDraftStorageKey(user?.id, `staff-manual:${manualId}`);
-  const [manualDraft, setManualDraft, persistManual] = usePersistedState(manualDraftKey, INITIAL_STAFF_MANUAL_DRAFT);
+  const staffManualScope = `staff-manual:${manualId}`;
+  const manualDraftKey = uiDraftStorageKey(user?.id, staffManualScope);
+  const anonManualDraftKey = uiDraftAnonMigrationKey(staffManualScope);
+  const [manualDraft, setManualDraft, persistManual] = usePersistedState(manualDraftKey, INITIAL_STAFF_MANUAL_DRAFT, {
+    migrateFromKeyIfEmpty: user?.id ? anonManualDraftKey : undefined,
+  });
   const manualHydrateGate = useRef<string | null>(null);
-  const canSyncManualDraft = useRef(false);
   const { t, isRTL, language } = useI18n();
   const { showToast } = useToast();
 
@@ -59,7 +62,6 @@ export default function StaffEditManualParticipantScreen() {
 
   useEffect(() => {
     manualHydrateGate.current = null;
-    canSyncManualDraft.current = false;
   }, [manualDraftKey]);
 
   useEffect(() => {
@@ -88,32 +90,28 @@ export default function StaffEditManualParticipantScreen() {
     })();
   }, [manualId]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (loading || !baseline || !persistManual.hydrated) return;
     if (manualHydrateGate.current === manualDraftKey) return;
     const d = manualDraft;
     if (d.v !== STAFF_MANUAL_DRAFT_V) return;
-    manualHydrateGate.current = manualDraftKey;
     const hasMeaningfulDraft =
       d.fullName.trim().length > 0 ||
       d.phone.trim().length > 0 ||
       d.gender.trim().length > 0 ||
       d.dob.trim().length > 0 ||
       d.notes.trim().length > 0;
-    if (!hasMeaningfulDraft) {
-      canSyncManualDraft.current = true;
-      return;
-    }
+    manualHydrateGate.current = manualDraftKey;
+    if (!hasMeaningfulDraft) return;
     setFullName(d.fullName);
     setPhone(d.phone);
     setGender(d.gender);
     setDob(d.dob);
     setNotes(d.notes);
-    canSyncManualDraft.current = true;
   }, [loading, baseline, manualDraftKey, manualDraft, persistManual.hydrated]);
 
   useEffect(() => {
-    if (!persistManual.hydrated || !canSyncManualDraft.current) return;
+    if (!persistManual.hydrated || loading || !baseline) return;
     const next: StaffManualUiDraft = {
       v: STAFF_MANUAL_DRAFT_V,
       fullName,
@@ -123,7 +121,7 @@ export default function StaffEditManualParticipantScreen() {
       notes,
     };
     setManualDraft((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
-  }, [persistManual.hydrated, fullName, phone, gender, dob, notes]);
+  }, [persistManual.hydrated, loading, baseline, fullName, phone, gender, dob, notes]);
 
   async function save() {
     if (!baseline) return;

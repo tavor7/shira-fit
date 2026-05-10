@@ -9,6 +9,11 @@ export function uiDraftStorageKey(userId: string | null | undefined, screenKey: 
   return `${UI_DRAFT_PREFIX}${u}:${screenKey}`;
 }
 
+/** Draft key when user id was still resolving; use with usePersistedState migrateFromKeyIfEmpty. */
+export function uiDraftAnonMigrationKey(screenKey: string): string {
+  return uiDraftStorageKey(null, screenKey);
+}
+
 function webRemoveKeysWithPrefix(prefix: string) {
   if (typeof localStorage === "undefined") return;
   try {

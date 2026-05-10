@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import { router, useLocalSearchParams, useFocusEffect, Stack } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -39,7 +39,7 @@ import { useDiscardChangesPrompt } from "../../../../src/hooks/useDiscardChanges
 import { useAppAlert } from "../../../../src/context/AppAlertContext";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { usePersistedState } from "../../../../src/hooks/usePersistedState";
-import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
+import { uiDraftAnonMigrationKey, uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
 
@@ -151,11 +151,15 @@ export default function ManagerSessionDetail() {
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showOk, showConfirm } = useAppAlert();
   const { user, profile } = useAuth();
-  const draftStorageKey = uiDraftStorageKey(user?.id, `manager-session:${String(id ?? "")}`);
-  const [uiDraft, setUiDraft, persistDraft] = usePersistedState(draftStorageKey, INITIAL_MANAGER_SESSION_DRAFT);
+  const managerSessionScreenKey = `manager-session:${String(id ?? "")}`;
+  const draftStorageKey = uiDraftStorageKey(user?.id, managerSessionScreenKey);
+  const anonManagerDraftKey = uiDraftAnonMigrationKey(managerSessionScreenKey);
+  const [uiDraft, setUiDraft, persistDraft] = usePersistedState(draftStorageKey, INITIAL_MANAGER_SESSION_DRAFT, {
+    migrateFromKeyIfEmpty: user?.id ? anonManagerDraftKey : undefined,
+  });
   const hydratedDraftApplyRef = useRef<string | null>(null);
   const consumeEditAfterLoadRef = useRef<ManagerSessionUiDraft | null>(null);
-  const canSyncDraftRef = useRef(false);
+  const [serverFormReady, setServerFormReady] = useState(false);
   const { showToast } = useToast();
   const { width } = useWindowDimensions();
   const compact = sessionFormIsCompact(width);
@@ -242,15 +246,19 @@ export default function ManagerSessionDetail() {
   useEffect(() => {
     hydratedDraftApplyRef.current = null;
     consumeEditAfterLoadRef.current = null;
-    canSyncDraftRef.current = false;
+    setServerFormReady(false);
   }, [draftStorageKey]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!persistDraft.hydrated) return;
     if (hydratedDraftApplyRef.current === draftStorageKey) return;
     hydratedDraftApplyRef.current = draftStorageKey;
     const d = uiDraft;
     if (d.v !== MANAGER_SESSION_DRAFT_VERSION) return;
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.log("[ManagerSessionDetail] apply_draft_to_local", { draftStorageKey, hasNote: !!d.noteDraft?.trim() });
+    }
     setNoteDraft(d.noteDraft);
     setNoteComposerOpen(d.noteComposerOpen);
     setEditingNoteId(d.editingNoteId);
@@ -263,10 +271,9 @@ export default function ManagerSessionDetail() {
     setShowCoachPicker(d.showCoachPicker);
     setUndoStack(d.undoStack);
     consumeEditAfterLoadRef.current = d.editingSession ? d : null;
-    canSyncDraftRef.current = true;
   }, [persistDraft.hydrated, draftStorageKey, uiDraft]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!session || String(session.id) !== String(id)) return;
     if (!persistDraft.hydrated) return;
     const d = consumeEditAfterLoadRef.current;
@@ -285,7 +292,7 @@ export default function ManagerSessionDetail() {
   }, [session, id, persistDraft.hydrated]);
 
   useEffect(() => {
-    if (!persistDraft.hydrated || !canSyncDraftRef.current) return;
+    if (!persistDraft.hydrated || !serverFormReady) return;
     const next: ManagerSessionUiDraft = {
       v: MANAGER_SESSION_DRAFT_VERSION,
       editingSession,
@@ -313,6 +320,7 @@ export default function ManagerSessionDetail() {
     setUiDraft((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
   }, [
     persistDraft.hydrated,
+    serverFormReady,
     editingSession,
     editBaseline,
     addOpen,
@@ -542,6 +550,11 @@ export default function ManagerSessionDetail() {
     loadWaitlist();
     loadCancellations();
     loadNotes();
+    setServerFormReady(true);
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.log("[ManagerSessionDetail] load_complete", { id: String(id) });
+    }
   }
 
   async function loadNotes() {

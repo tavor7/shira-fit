@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, FlatList, ActivityIndicator, useWindowDimensions } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { router, useFocusEffect } from "expo-router";
@@ -16,7 +16,7 @@ import { appendNetworkHint } from "../lib/networkErrors";
 import { useDiscardChangesPrompt } from "../hooks/useDiscardChangesPrompt";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { useAuth } from "../context/AuthContext";
-import { uiDraftStorageKey } from "../lib/uiDraftStorage";
+import { uiDraftAnonMigrationKey, uiDraftStorageKey } from "../lib/uiDraftStorage";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "./sessionFormStyles";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
@@ -85,10 +85,13 @@ function escapeIlike(term: string) {
 export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }: Props) {
   const { language, t, isRTL } = useI18n();
   const { user } = useAuth();
-  const createDraftKey = uiDraftStorageKey(user?.id, fixedCoachId ? "create-session-coach" : "create-session-manager");
-  const [createDraft, setCreateDraft, persistCreate] = usePersistedState(createDraftKey, INITIAL_CREATE_DRAFT);
+  const createScope = fixedCoachId ? "create-session-coach" : "create-session-manager";
+  const createDraftKey = uiDraftStorageKey(user?.id, createScope);
+  const anonCreateDraftKey = uiDraftAnonMigrationKey(createScope);
+  const [createDraft, setCreateDraft, persistCreate] = usePersistedState(createDraftKey, INITIAL_CREATE_DRAFT, {
+    migrateFromKeyIfEmpty: user?.id ? anonCreateDraftKey : undefined,
+  });
   const createHydratedGate = useRef<string | null>(null);
-  const canSyncCreateDraft = useRef(false);
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showToast } = useToast();
   const navigation = useNavigation();
@@ -171,10 +174,9 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
   useEffect(() => {
     createHydratedGate.current = null;
-    canSyncCreateDraft.current = false;
   }, [createDraftKey]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!persistCreate.hydrated) return;
     if (createHydratedGate.current === createDraftKey) return;
     createHydratedGate.current = createDraftKey;
@@ -202,11 +204,10 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     setTraineesOpen(d.traineesOpen);
     setTraineesQ(d.traineesQ);
     setShowCoachPicker(d.showCoachPicker);
-    canSyncCreateDraft.current = true;
   }, [persistCreate.hydrated, createDraftKey, createDraft, initialDate, fixedCoachId]);
 
   useEffect(() => {
-    if (!persistCreate.hydrated || !canSyncCreateDraft.current) return;
+    if (!persistCreate.hydrated || createBaseline === null) return;
     const next: CreateSessionUiDraft = {
       v: CREATE_SESSION_DRAFT_V,
       date,
@@ -231,6 +232,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     setCreateDraft((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
   }, [
     persistCreate.hydrated,
+    createBaseline,
     date,
     time,
     coachId,

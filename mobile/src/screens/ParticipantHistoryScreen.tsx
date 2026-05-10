@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { View, Text, SectionList, TextInput, StyleSheet, Platform, Alert, Pressable, FlatList, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, usePathname } from "expo-router";
 import { theme } from "../theme";
@@ -13,7 +13,7 @@ import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/data
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { usePersistedState } from "../hooks/usePersistedState";
-import { uiDraftStorageKey } from "../lib/uiDraftStorage";
+import { uiDraftAnonMigrationKey, uiDraftStorageKey } from "../lib/uiDraftStorage";
 import { normalizePaymentMethodKey, paymentMethodHistoryLabel } from "../lib/paymentMethod";
 
 type HistorySection = { title: string; data: HistoryListItem[] };
@@ -187,13 +187,17 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const isManagerHistory =
     (pathname?.startsWith("/manager/participant-history") ?? false) ||
     (pathname?.startsWith("/manager/reports") ?? false);
-  const historyDraftKey = uiDraftStorageKey(
-    user?.id,
-    isCoachHistory ? "participant-history-coach" : isManagerHistory ? "participant-history-manager" : "participant-history"
-  );
-  const [histDraft, setHistDraft, persistHistory] = usePersistedState(historyDraftKey, INITIAL_PARTICIPANT_HISTORY_DRAFT);
+  const historyScope = isCoachHistory
+    ? "participant-history-coach"
+    : isManagerHistory
+      ? "participant-history-manager"
+      : "participant-history";
+  const historyDraftKey = uiDraftStorageKey(user?.id, historyScope);
+  const anonHistoryDraftKey = uiDraftAnonMigrationKey(historyScope);
+  const [histDraft, setHistDraft, persistHistory] = usePersistedState(historyDraftKey, INITIAL_PARTICIPANT_HISTORY_DRAFT, {
+    migrateFromKeyIfEmpty: user?.id ? anonHistoryDraftKey : undefined,
+  });
   const histHydrateGate = useRef<string | null>(null);
-  const canSyncHistDraft = useRef(false);
   const [start, setStart] = useState(() => firstDayOfMonthISOLocal());
   const [end, setEnd] = useState(defaultEndISO);
   const [athleteId, setAthleteId] = useState<string>("");
@@ -228,10 +232,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
 
   useEffect(() => {
     histHydrateGate.current = null;
-    canSyncHistDraft.current = false;
   }, [historyDraftKey]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!persistHistory.hydrated) return;
     if (histHydrateGate.current === historyDraftKey) return;
     histHydrateGate.current = historyDraftKey;
@@ -255,11 +258,10 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     setEditAmountOpen(d.editAmountOpen);
     setEditAmountStr(d.editAmountStr);
     setEditMethod(d.editMethod);
-    canSyncHistDraft.current = true;
   }, [persistHistory.hydrated, historyDraftKey, histDraft, presetUid]);
 
   useEffect(() => {
-    if (!persistHistory.hydrated || !canSyncHistDraft.current) return;
+    if (!persistHistory.hydrated) return;
     const next: ParticipantHistoryUiDraft = {
       v: PARTICIPANT_HISTORY_DRAFT_V,
       start,
