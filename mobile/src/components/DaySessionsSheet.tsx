@@ -16,6 +16,7 @@ import { formatISODateLong } from "../lib/dateFormat";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { supabase } from "../lib/supabase";
 import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
+import { AthleteWaitlistInviteStripe, AthleteWaitlistJoinedStripe } from "./AthleteWaitlistInviteStripe";
 import { useI18n } from "../context/I18nContext";
 import { appendNetworkHint } from "../lib/networkErrors";
 import { DatePickerField } from "./DatePickerField";
@@ -357,16 +358,28 @@ export function DaySessionsSheet({
                   </View>
 
                   {variant === "athlete" ? (
-                    <Pressable
-                      style={({ pressed }) => [styles.primaryTap, pressed && { opacity: 0.9 }]}
-                      onPress={() => {
-                        it.onPress?.();
-                        onClose();
-                      }}
-                      disabled={!it.onPress}
-                    >
-                      <Text style={styles.primaryTapTxt}>{language === "he" ? "צפייה באימון" : "View session"}</Text>
-                    </Pressable>
+                    <View style={styles.athleteDayActions}>
+                      {typeof it.onJoinWaitlist === "function" ? (
+                        <AthleteWaitlistInviteStripe
+                          onPress={() => void Promise.resolve(it.onJoinWaitlist?.())}
+                          joining={it.waitlistJoining}
+                        />
+                      ) : it.athleteOnWaitlist === true &&
+                        (it.maxParticipants ?? 0) > 0 &&
+                        (it.signedUpCount ?? 0) >= (it.maxParticipants ?? 0) ? (
+                        <AthleteWaitlistJoinedStripe />
+                      ) : null}
+                      <Pressable
+                        style={({ pressed }) => [styles.primaryTap, pressed && { opacity: 0.9 }]}
+                        onPress={() => {
+                          it.onPress?.();
+                          onClose();
+                        }}
+                        disabled={!it.onPress}
+                      >
+                        <Text style={styles.primaryTapTxt}>{language === "he" ? "צפייה באימון" : "View session"}</Text>
+                      </Pressable>
+                    </View>
                   ) : (
                     <View style={styles.rowBtns}>
                       <Pressable
@@ -627,6 +640,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
   },
   cardTop: { marginBottom: theme.spacing.sm },
+  athleteDayActions: { gap: 10 },
   primaryTap: {
     marginTop: 4,
     backgroundColor: theme.colors.cta,

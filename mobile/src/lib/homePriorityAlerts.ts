@@ -42,6 +42,8 @@ export type HomePriorityAlertItem = {
   isNew?: boolean;
   /** Manager: late cancellation — studio charge decision */
   lateCancel?: { cancellationId: string; charged: boolean };
+  /** Athlete's cancellation note (late cancellations on staff home only). */
+  lateCancellationReason?: string;
 };
 
 export type RegistrationBannerState = {
@@ -262,7 +264,7 @@ export async function fetchStaffLateCancellationItems(
   const { data, error } = await supabase
     .from("cancellations")
     .select(
-      "id, cancelled_at, charged_full_price, user_id, training_sessions!inner ( id, session_date, start_time, duration_minutes )"
+      "id, cancelled_at, charged_full_price, user_id, reason, training_sessions!inner ( id, session_date, start_time, duration_minutes )"
     )
     .order("cancelled_at", { ascending: false })
     .limit(60);
@@ -279,6 +281,7 @@ export async function fetchStaffLateCancellationItems(
     cancelled_at: string;
     charged_full_price: boolean | null;
     user_id: string;
+    reason: string | null;
     training_sessions:
       | { id: string; session_date: string; start_time: string; duration_minutes: number | null }
       | { id: string; session_date: string; start_time: string; duration_minutes: number | null }[];
@@ -301,6 +304,7 @@ export async function fetchStaffLateCancellationItems(
       row.cancelled_at,
       12
     );
+    const reasonTrim = typeof row.reason === "string" ? row.reason.trim() : "";
     const lead = tr(language, isLate ? "homeAlerts.lateCancellationLead" : "homeAlerts.cancellationLead");
     const dayTime = `${dayStr} · ${timeStr}`;
     const beforeName = " · ";
@@ -308,7 +312,11 @@ export async function fetchStaffLateCancellationItems(
     const dayTimeDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
     const beforeNameDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
     const nameDir: "ltr" | "rtl" = isRtlScript(name) ? "rtl" : "ltr";
-    const flatLabel = `${lead}${dayTime}${beforeName}${name}`;
+    const reasonLine =
+      isLate && reasonTrim
+        ? tr(language, "homeAlerts.lateCancellationReasonInline", { reason: reasonTrim })
+        : "";
+    const flatLabel = `${lead}${dayTime}${beforeName}${name}${reasonLine ? ` · ${reasonLine}` : ""}`;
     rows.push({
       cancelMs: Number.isFinite(cancelMs) ? cancelMs : 0,
       item: {
@@ -326,6 +334,7 @@ export async function fetchStaffLateCancellationItems(
           variant === "manager" && isLate
             ? { cancellationId: row.id, charged }
             : undefined,
+        lateCancellationReason: isLate && reasonTrim ? reasonTrim : undefined,
       },
     });
   }

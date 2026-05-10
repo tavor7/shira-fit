@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl, Text } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
-import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
+import { formatSessionTimeRange, hasSessionNotEnded, sessionStartsAt } from "../../../src/lib/sessionTime";
 import { supabase } from "../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { fetchAthleteOpenSessionsForCalendar } from "../../../src/lib/trainingSessionQueries";
@@ -12,19 +12,25 @@ import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/compon
 import { ActionButton } from "../../../src/components/ActionButton";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { useI18n } from "../../../src/context/I18nContext";
+import { useToast } from "../../../src/context/ToastContext";
 import { checkWaitlistSpotsAndNotify } from "../../../src/lib/waitlistSpotNotifier";
 import { syncExpoPushTokenIfNeeded } from "../../../src/lib/pushTokenSync";
-import { sessionStartsAt } from "../../../src/lib/sessionTime";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 import { fetchAthleteHomeAlertItems, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
 import { useAuth } from "../../../src/context/AuthContext";
+import { appendNetworkHint } from "../../../src/lib/networkErrors";
 
 export default function AthleteSessionsScreen() {
   const { profile, session } = useAuth();
   const { language, t } = useI18n();
+  const { showToast } = useToast();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
+  const [myRegSessionIds, setMyRegSessionIds] = useState<string[]>([]);
+  const [myWaitlistSessionIds, setMyWaitlistSessionIds] = useState<string[]>([]);
+  const [waitlistJoiningId, setWaitlistJoiningId] = useState<string | null>(null);
+  const waitlistBusyRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
@@ -55,9 +61,67 @@ export default function AthleteSessionsScreen() {
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);
     setSignupBySession(await fetchActiveSignupCountsBySession(list.map((s) => s.id)));
+
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    if (uid && list.length > 0) {
+      const ids = list.map((s) => s.id);
+      const [regRes, wlRes] = await Promise.all([
+        supabase.from("session_registrations").select("session_id").eq("user_id", uid).eq("status", "active").in("session_id", ids),
+        supabase.from("waitlist_requests").select("session_id").eq("user_id", uid).in("session_id", ids),
+      ]);
+      setMyRegSessionIds((regRes.data ?? []).map((r) => String((r as { session_id: string }).session_id)));
+      setMyWaitlistSessionIds((wlRes.data ?? []).map((r) => String((r as { session_id: string }).session_id)));
+    } else {
+      setMyRegSessionIds([]);
+      setMyWaitlistSessionIds([]);
+    }
+
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
   }, [language]);
+
+  const joinWaitlistForSession = useCallback(
+    async (sessionId: string) => {
+      if (waitlistBusyRef.current) return;
+      const sess = rows.find((x) => x.id === sessionId);
+      if (
+        sess &&
+        !hasSessionNotEnded(sess.session_date, sess.start_time, sess.duration_minutes ?? 60)
+      ) {
+        showToast({
+          message: t("athleteCalendar.waitlistHeading"),
+          detail: t("athleteSession.sessionEndedNoRegister"),
+          variant: "error",
+        });
+        return;
+      }
+      waitlistBusyRef.current = true;
+      setWaitlistJoiningId(sessionId);
+      try {
+        const { data, error } = await supabase.rpc("request_waitlist", { p_session_id: sessionId });
+        if (error) {
+          showToast({
+            message: t("common.error"),
+            detail: appendNetworkHint(error, t("network.offlineHint")),
+            variant: "error",
+          });
+        } else if (data?.ok) {
+          showToast({ message: t("athleteCalendar.waitlistJoinedToast"), variant: "success" });
+          setMyWaitlistSessionIds((prev) => (prev.includes(sessionId) ? prev : [...prev, sessionId]));
+        } else {
+          showToast({
+            message: t("athleteCalendar.waitlistHeading"),
+            detail: typeof data?.error === "string" ? data.error : "",
+            variant: "error",
+          });
+        }
+      } finally {
+        waitlistBusyRef.current = false;
+        setWaitlistJoiningId(null);
+      }
+    },
+    [rows, showToast, t]
+  );
 
   const loadMyUpcoming = useCallback(async () => {
     const { data: authUser } = await supabase.auth.getUser();
@@ -115,23 +179,40 @@ export default function AthleteSessionsScreen() {
     }, [load, loadMyUpcoming, language])
   );
 
+  const regSet = useMemo(() => new Set(myRegSessionIds), [myRegSessionIds.join("|")]);
+  const wlSet = useMemo(() => new Set(myWaitlistSessionIds), [myWaitlistSessionIds.join("|")]);
+
   const items = useMemo<SessionsWeekItem[]>(
     () =>
-      rows.map((s) => ({
-        key: s.id,
-        session_date: s.session_date,
-        start_time: s.start_time,
-        durationMinutes: s.duration_minutes ?? 60,
-        timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
-        trainerName: s.trainer?.full_name ?? undefined,
-        coachId: s.coach_id,
-        signedUpCount: signupBySession[s.id] ?? 0,
-        maxParticipants: s.max_participants,
-        accentColor: resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id),
-        isOpenForRegistration: !!s.is_open_for_registration,
-        onPress: () => router.push(`/(app)/athlete/session/${s.id}`),
-      })),
-    [rows, signupBySession]
+      rows.map((s) => {
+        const c = signupBySession[s.id] ?? 0;
+        const m = s.max_participants;
+        const full = m > 0 && c >= m;
+        const regOpen = !!s.is_open_for_registration;
+        const sessionNotEnded = hasSessionNotEnded(s.session_date, s.start_time, s.duration_minutes ?? 60);
+        const registered = regSet.has(s.id);
+        const waitlisted = wlSet.has(s.id);
+        const showJoinWl = full && regOpen && sessionNotEnded && !registered && !waitlisted;
+
+        return {
+          key: s.id,
+          session_date: s.session_date,
+          start_time: s.start_time,
+          durationMinutes: s.duration_minutes ?? 60,
+          timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
+          trainerName: s.trainer?.full_name ?? undefined,
+          coachId: s.coach_id,
+          signedUpCount: c,
+          maxParticipants: m,
+          accentColor: resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id),
+          isOpenForRegistration: regOpen,
+          athleteOnWaitlist: waitlisted,
+          onJoinWaitlist: showJoinWl ? () => void joinWaitlistForSession(s.id) : undefined,
+          waitlistJoining: waitlistJoiningId === s.id,
+          onPress: () => router.push(`/(app)/athlete/session/${s.id}`),
+        };
+      }),
+    [rows, signupBySession, regSet, wlSet, joinWaitlistForSession, waitlistJoiningId]
   );
 
   const sheetItems = useMemo(() => (sheetDay ? items.filter((i) => i.session_date === sheetDay) : []), [items, sheetDay]);

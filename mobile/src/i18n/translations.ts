@@ -220,6 +220,16 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "screen.profile": "Profile",
     "screen.notifications": "Notifications",
     "screen.pending": "Pending approval",
+    "athleteCalendar.joinWaitlistCta": "Join waitlist",
+    "athleteCalendar.joinWaitlistSub": "Get notified if a spot opens",
+    /** Two-line centered CTA in narrow week columns (avoids horizontal truncation) */
+    "athleteCalendar.joinWaitlistLine1": "Join",
+    "athleteCalendar.joinWaitlistLine2": "waitlist",
+    "athleteCalendar.onWaitlistCompact": "On list",
+    "athleteCalendar.onWaitlistStatus": "You're on the waitlist",
+    "athleteCalendar.waitlistJoinedToast": "You’ll be notified if a spot opens",
+    "athleteCalendar.waitlistHeading": "Waitlist",
+
     "screen.athleteSessions": "Sessions",
     "screen.athleteMySessions": "My sessions",
     "screen.athleteSession": "Session",
@@ -319,6 +329,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "homeAlerts.trainerMultipleSessionsLead": "Same day",
     "homeAlerts.lateCancellation": "Late cancellation: {name} · {day} · {time}",
     "homeAlerts.lateCancellationLead": "Late cancellation",
+    /** Full phrase for accessibility / plain label when a late cancel includes an athlete note */
+    "homeAlerts.lateCancellationReasonInline": "Reason: {reason}",
+    /** Prefix before the athlete’s note on the second line in Important alerts (late cancel only). */
+    "homeAlerts.cancellationReasonPrefix": "Reason: ",
     "homeAlerts.cancellationLead": "Cancellation",
     "homeAlerts.athlete": "Athlete",
     /** Line 1 of registration countdown alert; line 2 is date · weekday · time (see HomePriorityAlerts segments). */
@@ -548,6 +562,15 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "screen.profile": "פרופיל",
     "screen.notifications": "התראות",
     "screen.pending": "ממתין לאישור",
+    "athleteCalendar.joinWaitlistCta": "הצטרפות לרשימת המתנה",
+    "athleteCalendar.joinWaitlistSub": "נעדכן אם יתפנה מקום",
+    "athleteCalendar.joinWaitlistLine1": "רשימת",
+    "athleteCalendar.joinWaitlistLine2": "המתנה",
+    "athleteCalendar.onWaitlistCompact": "ברשימה",
+    "athleteCalendar.onWaitlistStatus": "נרשמת לרשימת ההמתנה",
+    "athleteCalendar.waitlistJoinedToast": "נעדכן אם יתפנה מקום",
+    "athleteCalendar.waitlistHeading": "רשימת המתנה",
+
     "screen.athleteSessions": "אימונים",
     "screen.athleteMySessions": "האימונים שלי",
     "screen.athleteSession": "אימון",
@@ -647,6 +670,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "homeAlerts.trainerMultipleSessionsLead": "אותו יום",
     "homeAlerts.lateCancellation": "ביטול מאוחר (חיוב): {name} · {day} · {time}",
     "homeAlerts.lateCancellationLead": "ביטול מאוחר (חיוב)",
+    "homeAlerts.lateCancellationReasonInline": "סיבה: {reason}",
+    "homeAlerts.cancellationReasonPrefix": "סיבה: ",
     "homeAlerts.cancellationLead": "ביטול הרשמה",
     "homeAlerts.athlete": "מתאמן",
     "homeAlerts.registrationOpensLead": "ההרשמה הבאה נפתחת",

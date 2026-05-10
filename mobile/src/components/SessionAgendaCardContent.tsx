@@ -14,7 +14,7 @@ type Props = {
 };
 
 export function SessionAgendaCardContent({ item, compact, temporalPhase: temporalPhaseProp }: Props) {
-  const { language, isRTL } = useI18n();
+  const { language, isRTL, t } = useI18n();
   const temporalPhase =
     temporalPhaseProp ?? getSessionTemporalPhase(item.session_date, item.start_time, item.durationMinutes ?? 60);
   const accent = item.accentColor;
@@ -27,6 +27,8 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
   const full = showFill && m > 0 && c >= m;
   const left = showFill && m > 0 ? Math.max(0, m - c) : null;
   const regOpen = item.isOpenForRegistration !== false;
+  const waitlistInvite = typeof item.onJoinWaitlist === "function";
+  const onWaitlist = item.athleteOnWaitlist === true;
 
   const timeStyle =
     temporalPhase === "past"
@@ -71,9 +73,14 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
           {item.trainerName}
         </Text>
       ) : null}
-      {showRegState && showFill && !staffLabels && temporalPhase !== "past" ? (
+      {showRegState && showFill && !staffLabels && temporalPhase !== "past" && !(full && waitlistInvite) ? (
         <View style={[styles.chips, isRTL && styles.chipsRtl]}>
-          {full ? (
+          {full && onWaitlist ? (
+            <StatusChip
+              label={compact ? t("athleteCalendar.onWaitlistCompact") : t("athleteCalendar.onWaitlistStatus")}
+              tone="success"
+            />
+          ) : full ? (
             <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" />
           ) : !regOpen ? (
             <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />

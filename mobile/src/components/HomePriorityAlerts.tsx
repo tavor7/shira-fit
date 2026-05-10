@@ -21,6 +21,7 @@ import {
 } from "../lib/dismissedHomeAlerts";
 import { useI18n } from "../context/I18nContext";
 import { supabase } from "../lib/supabase";
+import { isRtlScript } from "../lib/bidiEmbed";
 
 function LateCancelChargeRow({ cancellationId, charged }: { cancellationId: string; charged: boolean }) {
   const { t, isRTL } = useI18n();
@@ -298,6 +299,19 @@ export function HomePriorityAlerts({
         ) : null}
         <View style={styles.rowLabelFlex}>
           <AlertLabel item={it} variant={variant} numberOfLines={variant === "strip" ? 2 : 3} />
+          {it.lateCancellationReason ? (
+            <Text style={styles.lateCancelReasonLine} numberOfLines={variant === "strip" ? 3 : 4}>
+              <Text style={styles.lateCancelReasonPrefix}>{t("homeAlerts.cancellationReasonPrefix")}</Text>
+              <Text
+                style={[
+                  styles.lateCancelReasonBody,
+                  { writingDirection: isRtlScript(it.lateCancellationReason) ? "rtl" : "ltr" },
+                ]}
+              >
+                {it.lateCancellationReason}
+              </Text>
+            </Text>
+          ) : null}
         </View>
       </View>
     );
@@ -472,6 +486,21 @@ const styles = StyleSheet.create({
   rowLabelFlex: {
     flex: 1,
     minWidth: 0,
+  },
+  lateCancelReasonLine: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 18,
+    color: theme.colors.textMuted,
+    fontWeight: "600",
+  },
+  lateCancelReasonPrefix: {
+    fontWeight: "800",
+    color: theme.colors.textMuted,
+  },
+  lateCancelReasonBody: {
+    fontWeight: "600",
+    color: theme.colors.textMuted,
   },
   /** Subject line above body (late cancellation, etc.) */
   labelStack: {

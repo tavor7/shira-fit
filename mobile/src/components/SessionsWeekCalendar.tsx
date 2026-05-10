@@ -3,6 +3,7 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, V
 import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
 import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
+import { AthleteWaitlistInviteStripe, AthleteWaitlistJoinedStripe } from "./AthleteWaitlistInviteStripe";
 import { useI18n } from "../context/I18nContext";
 import { getSessionTemporalPhase } from "../lib/sessionTime";
 
@@ -40,6 +41,11 @@ export type SessionsWeekItem = {
   /** For staff: assigned coach (edit/delete only when matches current user for coaches). */
   coachId?: string;
   onPress?: () => void;
+  /** Athlete: full session — join waitlist without opening detail first. */
+  onJoinWaitlist?: () => void | Promise<void>;
+  waitlistJoining?: boolean;
+  /** Athlete: already on waitlist for this session (shows confirmation strip when full). */
+  athleteOnWaitlist?: boolean;
 };
 
 type Props = {
@@ -283,6 +289,46 @@ export function SessionsWeekCalendar({
                       it.durationMinutes ?? 60
                     );
                     const dimTemporal = it.hideTemporalDimming !== true;
+                    const waitlistCta = typeof it.onJoinWaitlist === "function";
+                    const waitlistJoinedStrip =
+                      it.athleteOnWaitlist === true &&
+                      waitlistCta === false &&
+                      it.signedUpCount !== undefined &&
+                      it.maxParticipants !== undefined &&
+                      it.maxParticipants > 0 &&
+                      (it.signedUpCount ?? 0) >= it.maxParticipants;
+
+                    if (waitlistCta || waitlistJoinedStrip) {
+                      return (
+                        <View
+                          key={it.key}
+                          style={[
+                            styles.card,
+                            dimTemporal && phase === "past" && styles.cardPast,
+                            dimTemporal && phase === "live" && styles.cardLive,
+                            dimTemporal && it.showStaffSessionLabels && it.isHidden ? { opacity: 0.55 } : null,
+                          ]}
+                        >
+                          <Pressable
+                            onPress={it.onPress}
+                            disabled={!it.onPress}
+                            style={({ pressed }) => [pressed && it.onPress && { opacity: 0.9 }]}
+                          >
+                            <SessionAgendaCardContent item={it} compact temporalPhase={phase} />
+                          </Pressable>
+                          {waitlistCta ? (
+                            <AthleteWaitlistInviteStripe
+                              compact
+                              onPress={() => void Promise.resolve(it.onJoinWaitlist?.())}
+                              joining={it.waitlistJoining}
+                            />
+                          ) : waitlistJoinedStrip ? (
+                            <AthleteWaitlistJoinedStripe compact />
+                          ) : null}
+                        </View>
+                      );
+                    }
+
                     return (
                       <Pressable
                         key={it.key}
@@ -373,7 +419,8 @@ const styles = StyleSheet.create({
   },
   scrollerContentRtl: { flexDirection: "row-reverse" },
   dayCol: {
-    width: 112,
+    /** Slightly wider so session + waitlist CTA stay readable without ellipsis */
+    width: 124,
     borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.surfaceElevated,
     paddingHorizontal: theme.spacing.sm,
