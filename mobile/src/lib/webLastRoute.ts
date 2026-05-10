@@ -41,6 +41,10 @@ export function isAuthOrExcludedPath(pathname: string): boolean {
   return false;
 }
 
+/**
+ * In-app paths worth restoring (lists and detail screens).
+ * Includes e.g. `/manager/session/:id`, `/coach/session/:id`, `/staff/profile/:id`, `/athlete/session/:id`.
+ */
 function isLikelyAppContentPath(pathname: string): boolean {
   return (
     pathname.startsWith("/manager/") ||
