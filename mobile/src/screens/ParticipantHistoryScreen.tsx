@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, SectionList, TextInput, StyleSheet, Platform, Alert, Pressable, FlatList, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, usePathname } from "expo-router";
 import { theme } from "../theme";
@@ -11,9 +11,6 @@ import { toISODateLocal, isValidISODateString, parseISODateLocal, firstDayOfMont
 import { formatISODateFull } from "../lib/dateFormat";
 import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/database";
 import { useI18n } from "../context/I18nContext";
-import { useAuth } from "../context/AuthContext";
-import { usePersistedState } from "../hooks/usePersistedState";
-import { uiDraftAnonMigrationKey, uiDraftStorageKey } from "../lib/uiDraftStorage";
 import { normalizePaymentMethodKey, paymentMethodHistoryLabel } from "../lib/paymentMethod";
 
 type HistorySection = { title: string; data: HistoryListItem[] };
@@ -133,53 +130,10 @@ type PickerRow =
   | ({ kind: "athlete" } & Athlete)
   | ({ kind: "quick" } & QuickLinked);
 
-const PARTICIPANT_HISTORY_DRAFT_V = 1 as const;
-
-type ParticipantHistoryUiDraft = {
-  v: typeof PARTICIPANT_HISTORY_DRAFT_V;
-  start: string;
-  end: string;
-  athleteId: string;
-  athleteLabel: string;
-  phone: string;
-  payeeIsManual: boolean;
-  pickerOpen: boolean;
-  pickerQ: string;
-  addPayOpen: boolean;
-  addPayAmount: string;
-  addPayMethod: "cash" | "paybox" | "other";
-  addPayNote: string;
-  addPayDate: string;
-  editAmountOpen: boolean;
-  editAmountStr: string;
-  editMethod: "cash" | "paybox" | "other" | "";
-};
-
-const INITIAL_PARTICIPANT_HISTORY_DRAFT: ParticipantHistoryUiDraft = {
-  v: PARTICIPANT_HISTORY_DRAFT_V,
-  start: firstDayOfMonthISOLocal(),
-  end: defaultEndISO(),
-  athleteId: "",
-  athleteLabel: "",
-  phone: "",
-  payeeIsManual: false,
-  pickerOpen: false,
-  pickerQ: "",
-  addPayOpen: false,
-  addPayAmount: "",
-  addPayMethod: "cash",
-  addPayNote: "",
-  addPayDate: defaultEndISO(),
-  editAmountOpen: false,
-  editAmountStr: "",
-  editMethod: "",
-};
-
 export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTitle?: boolean } = {}) {
   const { presetUserId } = useLocalSearchParams<{ presetUserId?: string }>();
   const presetUid =
     typeof presetUserId === "string" ? presetUserId : Array.isArray(presetUserId) ? presetUserId[0] : undefined;
-  const { user } = useAuth();
   const { language, t, isRTL } = useI18n();
   const pathname = usePathname();
   const isCoachHistory = pathname?.startsWith("/coach/participant-history") ?? false;
@@ -187,17 +141,6 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const isManagerHistory =
     (pathname?.startsWith("/manager/participant-history") ?? false) ||
     (pathname?.startsWith("/manager/reports") ?? false);
-  const historyScope = isCoachHistory
-    ? "participant-history-coach"
-    : isManagerHistory
-      ? "participant-history-manager"
-      : "participant-history";
-  const historyDraftKey = uiDraftStorageKey(user?.id, historyScope);
-  const anonHistoryDraftKey = uiDraftAnonMigrationKey(historyScope);
-  const [histDraft, setHistDraft, persistHistory] = usePersistedState(historyDraftKey, INITIAL_PARTICIPANT_HISTORY_DRAFT, {
-    migrateFromKeyIfEmpty: user?.id ? anonHistoryDraftKey : undefined,
-  });
-  const histHydrateGate = useRef<string | null>(null);
   const [start, setStart] = useState(() => firstDayOfMonthISOLocal());
   const [end, setEnd] = useState(defaultEndISO);
   const [athleteId, setAthleteId] = useState<string>("");
@@ -229,78 +172,6 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [editMethod, setEditMethod] = useState<"cash" | "paybox" | "other" | "">("");
   const [editReg, setEditReg] = useState<ParticipantHistoryRow | null>(null);
   const [policyBusyId, setPolicyBusyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    histHydrateGate.current = null;
-  }, [historyDraftKey]);
-
-  useLayoutEffect(() => {
-    if (!persistHistory.hydrated) return;
-    if (histHydrateGate.current === historyDraftKey) return;
-    histHydrateGate.current = historyDraftKey;
-    const d = histDraft;
-    if (d.v !== PARTICIPANT_HISTORY_DRAFT_V) return;
-    setStart(d.start);
-    setEnd(d.end);
-    if (!presetUid?.trim()) {
-      setAthleteId(d.athleteId);
-      setAthleteLabel(d.athleteLabel);
-      setPhone(d.phone);
-      setPayeeIsManual(d.payeeIsManual);
-    }
-    setPickerOpen(d.pickerOpen);
-    setPickerQ(d.pickerQ);
-    setAddPayOpen(d.addPayOpen);
-    setAddPayAmount(d.addPayAmount);
-    setAddPayMethod(d.addPayMethod);
-    setAddPayNote(d.addPayNote);
-    setAddPayDate(d.addPayDate);
-    setEditAmountOpen(d.editAmountOpen);
-    setEditAmountStr(d.editAmountStr);
-    setEditMethod(d.editMethod);
-  }, [persistHistory.hydrated, historyDraftKey, histDraft, presetUid]);
-
-  useEffect(() => {
-    if (!persistHistory.hydrated) return;
-    const next: ParticipantHistoryUiDraft = {
-      v: PARTICIPANT_HISTORY_DRAFT_V,
-      start,
-      end,
-      athleteId,
-      athleteLabel,
-      phone,
-      payeeIsManual,
-      pickerOpen,
-      pickerQ,
-      addPayOpen,
-      addPayAmount,
-      addPayMethod,
-      addPayNote,
-      addPayDate,
-      editAmountOpen,
-      editAmountStr,
-      editMethod,
-    };
-    setHistDraft((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
-  }, [
-    persistHistory.hydrated,
-    start,
-    end,
-    athleteId,
-    athleteLabel,
-    phone,
-    payeeIsManual,
-    pickerOpen,
-    pickerQ,
-    addPayOpen,
-    addPayAmount,
-    addPayMethod,
-    addPayNote,
-    addPayDate,
-    editAmountOpen,
-    editAmountStr,
-    editMethod,
-  ]);
 
   function showError(msg: string) {
     if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -633,7 +504,6 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
               setAccountPayments([]);
               setReportReady(false);
               setHasSearched(false);
-              void persistHistory.clearPersisted();
             }}
           >
             <Text style={styles.clearSelTxt}>{t("common.clearSelection")}</Text>

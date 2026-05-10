@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, FlatList, ActivityIndicator, useWindowDimensions } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { router, useFocusEffect } from "expo-router";
@@ -14,9 +14,6 @@ import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { appendNetworkHint } from "../lib/networkErrors";
 import { useDiscardChangesPrompt } from "../hooks/useDiscardChangesPrompt";
-import { usePersistedState } from "../hooks/usePersistedState";
-import { useAuth } from "../context/AuthContext";
-import { uiDraftAnonMigrationKey, uiDraftStorageKey } from "../lib/uiDraftStorage";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "./sessionFormStyles";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
@@ -31,52 +28,6 @@ type Props = {
 type AthletePick = { user_id: string; full_name: string; username: string; phone: string };
 type ManualPick = { manual_participant_id: string; full_name: string; phone: string };
 
-const CREATE_SESSION_DRAFT_V = 1 as const;
-
-type CreateSessionUiDraft = {
-  v: typeof CREATE_SESSION_DRAFT_V;
-  date: string;
-  time: string;
-  coachId: string;
-  coachLabel: string;
-  max: string;
-  durationMinutes: string;
-  repeatWeekly: boolean;
-  weeklyOccurrences: string;
-  open: boolean;
-  hidden: boolean;
-  note: string;
-  selectedAthletes: AthletePick[];
-  selectedManual: ManualPick[];
-  quickName: string;
-  quickPhone: string;
-  traineesOpen: boolean;
-  traineesQ: string;
-  showCoachPicker: boolean;
-};
-
-const INITIAL_CREATE_DRAFT: CreateSessionUiDraft = {
-  v: CREATE_SESSION_DRAFT_V,
-  date: "",
-  time: "18:00",
-  coachId: "",
-  coachLabel: "",
-  max: "12",
-  durationMinutes: "55",
-  repeatWeekly: false,
-  weeklyOccurrences: "4",
-  open: false,
-  hidden: true,
-  note: "",
-  selectedAthletes: [],
-  selectedManual: [],
-  quickName: "",
-  quickPhone: "",
-  traineesOpen: false,
-  traineesQ: "",
-  showCoachPicker: false,
-};
-
 /** Escape % and _ so ilike filters stay valid. */
 function escapeIlike(term: string) {
   return term.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
@@ -84,14 +35,6 @@ function escapeIlike(term: string) {
 
 export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }: Props) {
   const { language, t, isRTL } = useI18n();
-  const { user } = useAuth();
-  const createScope = fixedCoachId ? "create-session-coach" : "create-session-manager";
-  const createDraftKey = uiDraftStorageKey(user?.id, createScope);
-  const anonCreateDraftKey = uiDraftAnonMigrationKey(createScope);
-  const [createDraft, setCreateDraft, persistCreate] = usePersistedState(createDraftKey, INITIAL_CREATE_DRAFT, {
-    migrateFromKeyIfEmpty: user?.id ? anonCreateDraftKey : undefined,
-  });
-  const createHydratedGate = useRef<string | null>(null);
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showToast } = useToast();
   const navigation = useNavigation();
@@ -173,87 +116,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   formSerializedRef.current = formSerialized;
 
   useEffect(() => {
-    createHydratedGate.current = null;
-  }, [createDraftKey]);
-
-  useLayoutEffect(() => {
-    if (!persistCreate.hydrated) return;
-    if (createHydratedGate.current === createDraftKey) return;
-    createHydratedGate.current = createDraftKey;
-    const d = createDraft;
-    if (d.v !== CREATE_SESSION_DRAFT_V) return;
-    if (!initialDate?.trim()) {
-      if (d.date.trim()) setDate(d.date);
-    }
-    setTime(d.time);
-    if (!fixedCoachId) {
-      setCoachId(d.coachId);
-      setCoachLabel(d.coachLabel);
-    }
-    setMax(d.max);
-    setDurationMinutes(d.durationMinutes);
-    setRepeatWeekly(d.repeatWeekly);
-    setWeeklyOccurrences(d.weeklyOccurrences);
-    setOpen(d.open);
-    setHidden(d.hidden);
-    setNote(d.note);
-    setSelectedAthletes(d.selectedAthletes);
-    setSelectedManual(d.selectedManual);
-    setQuickName(d.quickName);
-    setQuickPhone(d.quickPhone);
-    setTraineesOpen(d.traineesOpen);
-    setTraineesQ(d.traineesQ);
-    setShowCoachPicker(d.showCoachPicker);
-  }, [persistCreate.hydrated, createDraftKey, createDraft, initialDate, fixedCoachId]);
-
-  useEffect(() => {
-    if (!persistCreate.hydrated || createBaseline === null) return;
-    const next: CreateSessionUiDraft = {
-      v: CREATE_SESSION_DRAFT_V,
-      date,
-      time,
-      coachId,
-      coachLabel,
-      max,
-      durationMinutes,
-      repeatWeekly,
-      weeklyOccurrences,
-      open,
-      hidden,
-      note,
-      selectedAthletes,
-      selectedManual,
-      quickName,
-      quickPhone,
-      traineesOpen,
-      traineesQ,
-      showCoachPicker,
-    };
-    setCreateDraft((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
-  }, [
-    persistCreate.hydrated,
-    createBaseline,
-    date,
-    time,
-    coachId,
-    coachLabel,
-    max,
-    durationMinutes,
-    repeatWeekly,
-    weeklyOccurrences,
-    open,
-    hidden,
-    note,
-    selectedAthletes,
-    selectedManual,
-    quickName,
-    quickPhone,
-    traineesOpen,
-    traineesQ,
-    showCoachPicker,
-  ]);
-
-  useEffect(() => {
     setCreateBaseline(null);
   }, [initialDate]);
 
@@ -275,18 +137,16 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         { cancel: t("common.cancel"), discard: t("sessionForm.discard") },
         () => {
           allowLeaveCreateRef.current = true;
-          void persistCreate.clearPersisted();
           navigation.dispatch(e.data.action);
         }
       );
     });
-  }, [navigation, t, persistCreate]);
+  }, [navigation, t]);
 
   function confirmLeaveCreateThen(go: () => void) {
     const baseline = createBaselineRef.current;
     if (baseline === null || formSerializedRef.current === baseline) {
       allowLeaveCreateRef.current = true;
-      void persistCreate.clearPersisted();
       go();
       return;
     }
@@ -296,7 +156,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       { cancel: t("common.cancel"), discard: t("sessionForm.discard") },
       () => {
         allowLeaveCreateRef.current = true;
-        void persistCreate.clearPersisted();
         go();
       }
     );
@@ -583,7 +442,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       }
     }
     allowLeaveCreateRef.current = true;
-    void persistCreate.clearPersisted();
     router.back();
   }
 

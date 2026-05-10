@@ -1,16 +1,18 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Platform } from "react-native";
+import { registerWebDraftFlusher } from "../lib/webDraftGlobalFlush";
+
+/** Set true temporarily to trace one screen; no logs when false. */
+export const DEBUG_DRAFTS = false;
 
 const DEFAULT_DEBOUNCE_MS = 400;
 
-const DEBUG_PERSIST = __DEV__;
-
-function persistLog(phase: string, payload: Record<string, unknown>) {
-  if (!DEBUG_PERSIST) return;
+function draftLog(phase: string, payload: Record<string, unknown>) {
+  if (!DEBUG_DRAFTS) return;
   try {
     // eslint-disable-next-line no-console
-    console.log(`[usePersistedState] ${phase}`, payload);
+    console.log(`[draft] ${phase}`, payload);
   } catch {
     /* ignore */
   }
@@ -20,10 +22,6 @@ type Options<T> = {
   debounceMs?: number;
   serialize?: (value: T) => string;
   deserialize?: (raw: string) => T;
-  /**
-   * If the primary key has no value, read this key (e.g. anon-scoped) and migrate to primary.
-   */
-  migrateFromKeyIfEmpty?: string;
 };
 
 function defaultSerialize<T>(value: T): string {
@@ -93,8 +91,7 @@ async function storageRemove(key: string): Promise<void> {
 }
 
 /**
- * Persist JSON-serializable state to localStorage (web) or AsyncStorage (native).
- * Skips writes until hydration completes so empty initial state does not clobber storage.
+ * Hydrate once per storageKey, debounced writes, global web flush on hide.
  */
 export function usePersistedState<T>(
   storageKey: string,
@@ -102,15 +99,18 @@ export function usePersistedState<T>(
   options?: Options<T>
 ): [
   T,
-  React.Dispatch<React.SetStateAction<T>>,
+  Dispatch<SetStateAction<T>>,
   { hydrated: boolean; clearPersisted: () => Promise<void>; flush: () => Promise<void> },
 ] {
   const serialize = options?.serialize ?? defaultSerialize;
-  const deserialize = options?.deserialize;
+  const deserializeOpt = options?.deserialize;
   const debounceMs = options?.debounceMs ?? DEFAULT_DEBOUNCE_MS;
-  const migrateFromKeyIfEmpty = options?.migrateFromKeyIfEmpty;
   const initialRef = useRef(initialValue);
   initialRef.current = initialValue;
+  const serializeRef = useRef(serialize);
+  serializeRef.current = serialize;
+  const deserializeRef = useRef(deserializeOpt);
+  deserializeRef.current = deserializeOpt;
 
   const [state, setState] = useState<T>(initialValue);
   const [hydrated, setHydrated] = useState(false);
@@ -120,6 +120,27 @@ export function usePersistedState<T>(
   const skipNextPersistRef = useRef(false);
   const storageKeyRef = useRef(storageKey);
   storageKeyRef.current = storageKey;
+  const lastCommittedSerRef = useRef<string | null>(null);
+  /** After clearPersisted: do not write the initial snapshot back to disk until user edits. */
+  const suppressInitialPersistAfterClearRef = useRef(false);
+
+  const flushSyncWebInstance = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    const pending = pendingSerializedRef.current;
+    if (pending === null) return;
+    const key = storageKeyRef.current;
+    draftLog("flushSync", { key, len: pending.length });
+    storageSetSyncWeb(key, pending);
+    lastCommittedSerRef.current = pending;
+  }, []);
+
+  useEffect(() => {
+    const unregister = registerWebDraftFlusher(flushSyncWebInstance);
+    return unregister;
+  }, [flushSyncWebInstance]);
 
   const flush = useCallback(async () => {
     if (debounceTimerRef.current) {
@@ -129,21 +150,10 @@ export function usePersistedState<T>(
     const pending = pendingSerializedRef.current;
     if (pending !== null) {
       pendingSerializedRef.current = null;
-      persistLog("flush", { key: storageKeyRef.current, len: pending.length });
+      draftLog("flush", { key: storageKeyRef.current, len: pending.length });
       await storageSet(storageKeyRef.current, pending);
+      lastCommittedSerRef.current = pending;
     }
-  }, []);
-
-  const flushSyncWeb = useCallback(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-    const pending = pendingSerializedRef.current;
-    if (pending === null) return;
-    const key = storageKeyRef.current;
-    persistLog("flushSyncWeb", { key, len: pending.length });
-    storageSetSyncWeb(key, pending);
   }, []);
 
   const clearPersisted = useCallback(async () => {
@@ -153,58 +163,32 @@ export function usePersistedState<T>(
     }
     pendingSerializedRef.current = null;
     skipNextPersistRef.current = true;
-    persistLog("clearPersisted", { key: storageKeyRef.current });
+    suppressInitialPersistAfterClearRef.current = true;
+    lastCommittedSerRef.current = null;
+    draftLog("clear", { key: storageKeyRef.current });
     await storageRemove(storageKeyRef.current);
-    const init = initialRef.current;
-    setState(init);
+    setState(initialRef.current);
   }, []);
 
   useEffect(() => {
     hydratedRef.current = false;
     setHydrated(false);
     setState(initialRef.current);
+    lastCommittedSerRef.current = null;
     let cancelled = false;
 
     void (async () => {
-      let raw = await storageGet(storageKey);
-      let usedMigrate = false;
-      if ((!raw || raw === "") && migrateFromKeyIfEmpty && migrateFromKeyIfEmpty !== storageKey) {
-        const alt = await storageGet(migrateFromKeyIfEmpty);
-        if (alt != null && alt !== "") {
-          raw = alt;
-          usedMigrate = true;
-          persistLog("hydrate_migrate_read", { from: migrateFromKeyIfEmpty, to: storageKey });
-        }
-      }
+      const raw = await storageGet(storageKey);
       if (cancelled) return;
       if (raw != null && raw !== "") {
-        const parsed = deserialize ? deserialize(raw) : defaultDeserialize(raw, initialRef.current);
-        persistLog("hydrate_read", {
-          key: storageKey,
-          usedMigrate,
-          preview: raw.length > 220 ? `${raw.slice(0, 220)}…` : raw,
-        });
+        const des = deserializeRef.current;
+        const parsed = des ? des(raw) : defaultDeserialize(raw, initialRef.current);
+        const canon = serializeRef.current(parsed);
+        draftLog("hydrate", { key: storageKey, len: raw.length });
         setState(parsed);
-        if (usedMigrate && migrateFromKeyIfEmpty) {
-          const fromKey = migrateFromKeyIfEmpty;
-          if (Platform.OS === "web") {
-            try {
-              storageSetSyncWeb(storageKey, raw);
-              if (typeof localStorage !== "undefined") localStorage.removeItem(fromKey);
-            } catch {
-              /* ignore */
-            }
-          } else {
-            try {
-              await storageSet(storageKey, raw);
-              await storageRemove(fromKey);
-            } catch {
-              /* ignore */
-            }
-          }
-        }
+        lastCommittedSerRef.current = canon;
       } else {
-        persistLog("hydrate_empty", { key: storageKey });
+        draftLog("hydrate_miss", { key: storageKey });
       }
       hydratedRef.current = true;
       setHydrated(true);
@@ -213,7 +197,7 @@ export function usePersistedState<T>(
     return () => {
       cancelled = true;
     };
-  }, [storageKey, deserialize, migrateFromKeyIfEmpty]);
+  }, [storageKey]);
 
   useEffect(() => {
     if (!hydratedRef.current) return;
@@ -221,15 +205,28 @@ export function usePersistedState<T>(
       skipNextPersistRef.current = false;
       return;
     }
-    const ser = serialize(state);
+    const ser = serializeRef.current(state);
+    if (suppressInitialPersistAfterClearRef.current) {
+      const ini = serializeRef.current(initialRef.current);
+      if (ser === ini) {
+        return;
+      }
+      suppressInitialPersistAfterClearRef.current = false;
+    }
+    if (ser === lastCommittedSerRef.current) {
+      pendingSerializedRef.current = ser;
+      return;
+    }
     pendingSerializedRef.current = ser;
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(() => {
       debounceTimerRef.current = null;
       const p = pendingSerializedRef.current;
-      if (p !== null) {
-        persistLog("debounced_write", { key: storageKey, len: p.length });
-        void storageSet(storageKey, p);
+      if (p !== null && p !== lastCommittedSerRef.current) {
+        draftLog("write", { key: storageKey, len: p.length });
+        void storageSet(storageKey, p).then(() => {
+          lastCommittedSerRef.current = p;
+        });
       }
     }, debounceMs);
     return () => {
@@ -238,29 +235,7 @@ export function usePersistedState<T>(
         debounceTimerRef.current = null;
       }
     };
-  }, [state, storageKey, serialize, debounceMs]);
-
-  useEffect(() => {
-    if (Platform.OS !== "web" || typeof document === "undefined") return;
-
-    const onHide = () => {
-      persistLog("pagehide_or_hidden", { visibilityState: document.visibilityState });
-      flushSyncWeb();
-    };
-
-    const onVis = () => {
-      if (document.visibilityState === "hidden") onHide();
-    };
-    document.addEventListener("pagehide", onHide);
-    document.addEventListener("visibilitychange", onVis);
-    window.addEventListener("beforeunload", onHide);
-
-    return () => {
-      document.removeEventListener("pagehide", onHide);
-      document.removeEventListener("visibilitychange", onVis);
-      window.removeEventListener("beforeunload", onHide);
-    };
-  }, [flushSyncWeb]);
+  }, [state, storageKey, debounceMs]);
 
   return [state, setState, { hydrated, clearPersisted, flush }];
 }

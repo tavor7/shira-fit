@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import { router, useLocalSearchParams, useFocusEffect, Stack } from "expo-router";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -39,7 +39,7 @@ import { useDiscardChangesPrompt } from "../../../../src/hooks/useDiscardChanges
 import { useAppAlert } from "../../../../src/context/AppAlertContext";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { usePersistedState } from "../../../../src/hooks/usePersistedState";
-import { uiDraftAnonMigrationKey, uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
+import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
 
@@ -152,12 +152,12 @@ export default function ManagerSessionDetail() {
   const { showOk, showConfirm } = useAppAlert();
   const { user, profile } = useAuth();
   const managerSessionScreenKey = `manager-session:${String(id ?? "")}`;
-  const draftStorageKey = uiDraftStorageKey(user?.id, managerSessionScreenKey);
-  const anonManagerDraftKey = uiDraftAnonMigrationKey(managerSessionScreenKey);
-  const [uiDraft, setUiDraft, persistDraft] = usePersistedState(draftStorageKey, INITIAL_MANAGER_SESSION_DRAFT, {
-    migrateFromKeyIfEmpty: user?.id ? anonManagerDraftKey : undefined,
-  });
+  const draftStorageKey = useMemo(() => uiDraftStorageKey(user?.id, managerSessionScreenKey), [user?.id, managerSessionScreenKey]);
+  const [uiDraft, setUiDraft, persistDraft] = usePersistedState(draftStorageKey, INITIAL_MANAGER_SESSION_DRAFT);
   const hydratedDraftApplyRef = useRef<string | null>(null);
+  const draftMergedIntoLocalRef = useRef(false);
+  const uiDraftRef = useRef(uiDraft);
+  uiDraftRef.current = uiDraft;
   const consumeEditAfterLoadRef = useRef<ManagerSessionUiDraft | null>(null);
   const [serverFormReady, setServerFormReady] = useState(false);
   const { showToast } = useToast();
@@ -245,19 +245,19 @@ export default function ManagerSessionDetail() {
 
   useEffect(() => {
     hydratedDraftApplyRef.current = null;
+    draftMergedIntoLocalRef.current = false;
     consumeEditAfterLoadRef.current = null;
     setServerFormReady(false);
   }, [draftStorageKey]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!persistDraft.hydrated) return;
     if (hydratedDraftApplyRef.current === draftStorageKey) return;
     hydratedDraftApplyRef.current = draftStorageKey;
-    const d = uiDraft;
-    if (d.v !== MANAGER_SESSION_DRAFT_VERSION) return;
-    if (__DEV__) {
-      // eslint-disable-next-line no-console
-      console.log("[ManagerSessionDetail] apply_draft_to_local", { draftStorageKey, hasNote: !!d.noteDraft?.trim() });
+    const d = uiDraftRef.current;
+    if (d.v !== MANAGER_SESSION_DRAFT_VERSION) {
+      draftMergedIntoLocalRef.current = true;
+      return;
     }
     setNoteDraft(d.noteDraft);
     setNoteComposerOpen(d.noteComposerOpen);
@@ -271,9 +271,10 @@ export default function ManagerSessionDetail() {
     setShowCoachPicker(d.showCoachPicker);
     setUndoStack(d.undoStack);
     consumeEditAfterLoadRef.current = d.editingSession ? d : null;
-  }, [persistDraft.hydrated, draftStorageKey, uiDraft]);
+    draftMergedIntoLocalRef.current = true;
+  }, [persistDraft.hydrated, draftStorageKey]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!session || String(session.id) !== String(id)) return;
     if (!persistDraft.hydrated) return;
     const d = consumeEditAfterLoadRef.current;
@@ -292,7 +293,7 @@ export default function ManagerSessionDetail() {
   }, [session, id, persistDraft.hydrated]);
 
   useEffect(() => {
-    if (!persistDraft.hydrated || !serverFormReady) return;
+    if (!persistDraft.hydrated || !serverFormReady || !draftMergedIntoLocalRef.current) return;
     const next: ManagerSessionUiDraft = {
       v: MANAGER_SESSION_DRAFT_VERSION,
       editingSession,
@@ -551,10 +552,6 @@ export default function ManagerSessionDetail() {
     loadCancellations();
     loadNotes();
     setServerFormReady(true);
-    if (__DEV__) {
-      // eslint-disable-next-line no-console
-      console.log("[ManagerSessionDetail] load_complete", { id: String(id) });
-    }
   }
 
   async function loadNotes() {
