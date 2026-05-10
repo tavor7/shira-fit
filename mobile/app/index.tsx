@@ -1,12 +1,12 @@
-import { Redirect, type Href } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { Redirect } from "expo-router";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
 import { useManagerAthletePreview } from "../src/context/ManagerAthletePreviewContext";
 import { useI18n } from "../src/context/I18nContext";
 import { theme } from "../src/theme";
-import { recordIndexRouteRestoreDebug } from "../src/lib/routeRestoreDebug";
-import { canRoleAccessWebPath, readWebLastRoute } from "../src/lib/webLastRoute";
+import { ROUTE_RESTORE_DEBUG_KEY_INDEX, recordIndexRouteRestoreDebug } from "../src/lib/routeRestoreDebug";
+import { canRoleAccessWebPath, readWebLastRoute, webPublicPathToExpoHref } from "../src/lib/webLastRoute";
 
 /**
  * Entry route for `/` only. After auth + profile are ready, web clients may be sent to the last saved
@@ -18,6 +18,35 @@ export default function Index() {
   const { enabled: managerAthletePreview, storageReady: athletePreviewStorageReady } = useManagerAthletePreview();
   const [profileRetrying, setProfileRetrying] = useState(false);
   const didRetry = useRef(false);
+  /**
+   * Web/PWA: defer role-default redirect until after layout + one frame so `session.user.id` and
+   * `localStorage` are stable after tab resume, then read saved route before choosing default.
+   */
+  const [webIndexRestoreReady, setWebIndexRestoreReady] = useState(() => Platform.OS !== "web");
+
+  useLayoutEffect(() => {
+    if (Platform.OS !== "web") {
+      setWebIndexRestoreReady(true);
+      return;
+    }
+    setWebIndexRestoreReady(false);
+    if (loading || !session?.user?.id || !profile) return;
+    if (profile.role === "manager" && !athletePreviewStorageReady) return;
+    if (profile.role === "athlete" && profile.approval_status === "pending") {
+      setWebIndexRestoreReady(true);
+      return;
+    }
+    let cancelled = false;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!cancelled) setWebIndexRestoreReady(true);
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(id);
+    };
+  }, [loading, session?.user?.id, profile, athletePreviewStorageReady]);
 
   useEffect(() => {
     if (loading) return;
@@ -32,6 +61,23 @@ export default function Index() {
   }, [loading, session, profile, refreshProfile]);
 
   useEffect(() => {
+    if (Platform.OS === "web" && !webIndexRestoreReady) {
+      try {
+        if (typeof sessionStorage !== "undefined") {
+          sessionStorage.setItem(
+            ROUTE_RESTORE_DEBUG_KEY_INDEX,
+            JSON.stringify({
+              t: new Date().toISOString(),
+              decision: "waiting_index_web_restore_gate",
+              indexLocationPathname: typeof window !== "undefined" ? window.location.pathname : "",
+            })
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     recordIndexRouteRestoreDebug({
       loading,
       authUnavailable: !!authUnavailable,
@@ -49,6 +95,7 @@ export default function Index() {
     athletePreviewStorageReady,
     managerAthletePreview,
     profileRetrying,
+    webIndexRestoreReady,
   ]);
 
   if (loading)
@@ -167,10 +214,18 @@ export default function Index() {
   if (profile.role === "athlete" && profile.approval_status === "pending")
     return <Redirect href="/(app)/pending" />;
 
+  if (Platform.OS === "web" && !webIndexRestoreReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.cta} />
+      </View>
+    );
+  }
+
   if (Platform.OS === "web") {
     const saved = readWebLastRoute(session.user.id);
     if (saved && canRoleAccessWebPath(profile.role, saved, { managerAthletePreview })) {
-      return <Redirect href={saved as Href} />;
+      return <Redirect href={webPublicPathToExpoHref(saved)} />;
     }
   }
 

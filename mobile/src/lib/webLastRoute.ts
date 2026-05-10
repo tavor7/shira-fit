@@ -70,6 +70,35 @@ function splitPathAndSearch(full: string): { pathname: string; search: string } 
 }
 
 /**
+ * Browser/localStorage paths are `/manager/...` (no route groups). Expo Router redirects in-app
+ * use the file-system group prefix `/(app)/...`; using the bare URL in `<Redirect href>` can fail
+ * and fall through to role defaults after PWA resume.
+ */
+export function webPublicPathToExpoHref(pathWithSearch: string): Href {
+  const { pathname, search } = splitPathAndSearch(pathWithSearch);
+  if (pathname.startsWith("/(app)/") || pathname.startsWith("/(auth)/")) {
+    return pathWithSearch as Href;
+  }
+  const isApp =
+    pathname.startsWith("/manager/") ||
+    pathname === "/manager" ||
+    pathname.startsWith("/coach/") ||
+    pathname === "/coach" ||
+    pathname.startsWith("/athlete/") ||
+    pathname === "/athlete" ||
+    pathname.startsWith("/staff/") ||
+    pathname === "/staff" ||
+    pathname.startsWith("/settings/") ||
+    pathname === "/settings" ||
+    pathname === "/profile" ||
+    pathname.startsWith("/profile/");
+  if (isApp) {
+    return (`/(app)${pathname}${search}`) as Href;
+  }
+  return pathWithSearch as Href;
+}
+
+/**
  * Sanitize redirect target from query param or storage.
  * Rejects absolute URLs, traversal, and auth-only paths.
  */

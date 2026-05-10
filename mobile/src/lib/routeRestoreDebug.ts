@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 import type { Profile } from "../types/database";
-import { canRoleAccessWebPath, readWebLastRoute } from "./webLastRoute";
+import { canRoleAccessWebPath, readWebLastRoute, webPublicPathToExpoHref } from "./webLastRoute";
 
 /** Temporary: route-restore diagnostics overlay on web. Set false to hide. */
 export const ROUTE_RESTORE_DEBUG_PANEL = true;
@@ -89,6 +89,7 @@ export function recordIndexRouteRestoreDebug(args: {
           ...base,
           decision: "index_chose_saved_route",
           saved,
+          expoRedirectHref: webPublicPathToExpoHref(saved),
           canRoleAccessWebPath: true,
         })
       );
