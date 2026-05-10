@@ -26,8 +26,23 @@ type OverrideRow = AthleteSessionCapacityPricingRow & {
   profiles?: { full_name: string } | { full_name: string }[] | null;
 };
 
+function parseTierCapacity(raw: string): number | null {
+  const cap = Number.parseInt(raw.trim(), 10);
+  return Number.isFinite(cap) && cap >= 1 ? cap : null;
+}
+
+function parseMoneyInput(raw: string): number | null {
+  const price = Number.parseFloat(raw.replace(",", ".").trim());
+  return Number.isFinite(price) && price >= 0 ? price : null;
+}
+
+function alertNative(title: string, message: string) {
+  if (Platform.OS === "web" && typeof window !== "undefined") window.alert(message);
+  else Alert.alert(title, message);
+}
+
 export default function SessionPricingScreen({ hideIntro = false }: Props) {
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   const [capStr, setCapStr] = useState("");
   const [priceStr, setPriceStr] = useState("");
   const [rows, setRows] = useState<SessionCapacityPricingRow[]>([]);
@@ -45,6 +60,13 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   const [athletes, setAthletes] = useState<AthletePick[]>([]);
   const [athletesLoading, setAthletesLoading] = useState(false);
 
+  const notifyErr = useCallback(
+    (message: string) => {
+      alertNative(t("common.error"), message);
+    },
+    [t]
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -53,13 +75,12 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
       .order("max_participants", { ascending: true });
     setLoading(false);
     if (error) {
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-      else Alert.alert(t("common.error"), error.message);
+      notifyErr(error.message);
       setRows([]);
       return;
     }
     setRows((data as SessionCapacityPricingRow[]) ?? []);
-  }, [t]);
+  }, [notifyErr]);
 
   const loadOverrides = useCallback(async () => {
     setOverrideLoading(true);
@@ -69,8 +90,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
       .order("max_participants", { ascending: true });
     setOverrideLoading(false);
     if (error) {
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-      else Alert.alert(t("common.error"), error.message);
+      notifyErr(error.message);
       setOverrideRows([]);
       return;
     }
@@ -81,7 +101,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
       return a.max_participants - b.max_participants;
     });
     setOverrideRows(list);
-  }, [t]);
+  }, [notifyErr]);
 
   const loadAthletes = useCallback(async () => {
     setAthletesLoading(true);
@@ -104,16 +124,14 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   }, [pickerOpen, loadAthletes]);
 
   async function saveRule() {
-    const cap = Number.parseInt(capStr.trim(), 10);
-    if (!Number.isFinite(cap) || cap < 1) {
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(t("pricing.invalidCapacity"));
-      else Alert.alert(t("common.error"), t("pricing.invalidCapacity"));
+    const cap = parseTierCapacity(capStr);
+    if (cap === null) {
+      notifyErr(t("pricing.invalidCapacity"));
       return;
     }
-    const price = Number.parseFloat(priceStr.replace(",", ".").trim());
-    if (!Number.isFinite(price) || price < 0) {
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(t("pricing.invalidPrice"));
-      else Alert.alert(t("common.error"), t("pricing.invalidPrice"));
+    const price = parseMoneyInput(priceStr);
+    if (price === null) {
+      notifyErr(t("pricing.invalidPrice"));
       return;
     }
     setSaving(true);
@@ -123,8 +141,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     );
     setSaving(false);
     if (error) {
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-      else Alert.alert(t("common.error"), error.message);
+      notifyErr(error.message);
       return;
     }
     setCapStr("");
@@ -134,21 +151,17 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
 
   async function saveAthleteRule() {
     if (!pickedAthleteId) {
-      const msg = language === "he" ? "בחרו מתאמן קודם." : "Choose an athlete first.";
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
-      else Alert.alert(t("common.error"), msg);
+      notifyErr(t("pricing.chooseAthleteFirst"));
       return;
     }
-    const cap = Number.parseInt(athCapStr.trim(), 10);
-    if (!Number.isFinite(cap) || cap < 1) {
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(t("pricing.invalidCapacity"));
-      else Alert.alert(t("common.error"), t("pricing.invalidCapacity"));
+    const cap = parseTierCapacity(athCapStr);
+    if (cap === null) {
+      notifyErr(t("pricing.invalidCapacity"));
       return;
     }
-    const price = Number.parseFloat(athPriceStr.replace(",", ".").trim());
-    if (!Number.isFinite(price) || price < 0) {
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(t("pricing.invalidPrice"));
-      else Alert.alert(t("common.error"), t("pricing.invalidPrice"));
+    const price = parseMoneyInput(athPriceStr);
+    if (price === null) {
+      notifyErr(t("pricing.invalidPrice"));
       return;
     }
     setOverrideSaving(true);
@@ -158,8 +171,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     );
     setOverrideSaving(false);
     if (error) {
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-      else Alert.alert(t("common.error"), error.message);
+      notifyErr(error.message);
       return;
     }
     setAthCapStr("");
@@ -168,32 +180,28 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   }
 
   function confirmRemove(cap: number) {
-    const msg = language === "he" ? "להסיר את המחיר לגודל הזה?" : "Remove pricing for this group size?";
+    const msg = t("pricing.confirmRemoveGlobalMessage");
+    const run = async () => {
+      await supabase.from("session_capacity_pricing").delete().eq("max_participants", cap);
+      await load();
+    };
     if (Platform.OS === "web" && typeof window !== "undefined") {
       if (!window.confirm(msg)) return;
-      void (async () => {
-        await supabase.from("session_capacity_pricing").delete().eq("max_participants", cap);
-        await load();
-      })();
+      void run();
       return;
     }
-    Alert.alert(language === "he" ? "אישור" : "Confirm", msg, [
+    Alert.alert(t("pricing.alertConfirmTitle"), msg, [
       { text: t("common.cancel"), style: "cancel" },
       {
-        text: language === "he" ? "הסרה" : "Remove",
+        text: t("pricing.delete"),
         style: "destructive",
-        onPress: () => {
-          void (async () => {
-            await supabase.from("session_capacity_pricing").delete().eq("max_participants", cap);
-            await load();
-          })();
-        },
+        onPress: () => void run(),
       },
     ]);
   }
 
   function confirmRemoveOverride(userId: string, cap: number, athleteLabelText: string) {
-    const msg = t("pricing.removeAthleteRateConfirm").replace("{name}", athleteLabelText);
+    const msg = t("pricing.removeAthleteRateConfirm").replace(/\{name\}/g, athleteLabelText);
     const run = async () => {
       await supabase.from("athlete_session_capacity_pricing").delete().eq("user_id", userId).eq("max_participants", cap);
       await loadOverrides();
@@ -206,12 +214,18 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     Alert.alert(t("pricing.removeAthleteRateTitle"), msg, [
       { text: t("common.cancel"), style: "cancel" },
       {
-        text: language === "he" ? "הסרה" : "Remove",
+        text: t("pricing.delete"),
         style: "destructive",
         onPress: () => void run(),
       },
     ]);
   }
+
+  const tierSummary = useCallback(
+    (n: number, ils: number) =>
+      `${n} ${t("pricing.participantsLabel")} · ${ils} ₪`,
+    [t]
+  );
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -227,6 +241,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
           placeholder="8"
           placeholderTextColor={theme.colors.placeholderOnLight}
           style={styles.input}
+          accessibilityLabel={t("pricing.capacity")}
         />
         <Text style={[styles.label, isRTL && styles.rtl]}>{t("pricing.price")}</Text>
         <TextInput
@@ -236,33 +251,32 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
           placeholder="120"
           placeholderTextColor={theme.colors.placeholderOnLight}
           style={styles.input}
+          accessibilityLabel={t("pricing.price")}
         />
         <PrimaryButton label={t("common.save")} onPress={() => void saveRule()} loading={saving} loadingLabel={t("common.loading")} />
       </View>
 
       <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>{t("pricing.existing")}</Text>
       {loading ? (
-        <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
+        <ActivityIndicator color={theme.colors.cta} style={styles.loader} accessibilityLabel={t("common.loading")} />
       ) : rows.length === 0 ? (
         <Text style={[styles.empty, isRTL && styles.rtl]}>{t("pricing.empty")}</Text>
       ) : (
         <View style={styles.list}>
           {rows.map((r) => {
             const p = Number(r.price_ils);
+            const label = `${r.max_participants} ${t("pricing.participantsLabel")}`;
             return (
               <View key={r.max_participants} style={styles.row}>
                 <View style={styles.rowMain}>
-                  <Text style={[styles.rowCap, isRTL && styles.rtl]}>
-                    {r.max_participants}{" "}
-                    {language === "he" ? "משתתפים" : "participants"}
-                  </Text>
-                  <Text style={[styles.rowPrice, isRTL && styles.rtl]}>
-                    {language === "he" ? `${p} ₪` : `${p} ₪`}
-                  </Text>
+                  <Text style={[styles.rowCap, isRTL && styles.rtl]}>{label}</Text>
+                  <Text style={[styles.rowPrice, isRTL && styles.rtl]}>{`${p} ₪`}</Text>
                 </View>
                 <Pressable
                   onPress={() => confirmRemove(r.max_participants)}
                   style={({ pressed }) => [styles.removeBtn, pressed && { opacity: 0.85 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t("pricing.delete")}: ${label}`}
                 >
                   <Text style={styles.removeTxt}>{t("pricing.delete")}</Text>
                 </Pressable>
@@ -273,14 +287,19 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
       )}
 
       <Text style={[styles.sectionTitle, isRTL && styles.rtl, styles.sectionTitleSpaced]}>{t("pricing.specialAthleteSection")}</Text>
-      <Text style={[styles.hint, isRTL && styles.rtl]}>{t("pricing.specialAthleteHint")}</Text>
+      <Text style={[styles.hint, styles.hintAfterTitle, isRTL && styles.rtl]}>{t("pricing.specialAthleteHint")}</Text>
 
       <View style={styles.card}>
         <Text style={[styles.cardTitle, isRTL && styles.rtl]}>{t("pricing.addAthleteRate")}</Text>
         <Text style={[styles.label, isRTL && styles.rtl]}>{t("pricing.pickAthlete")}</Text>
-        <Pressable style={styles.pickerTouch} onPress={() => setPickerOpen(true)}>
-          <Text style={pickedAthleteLabel ? styles.pickerText : styles.pickerPlaceholder}>
-            {pickedAthleteLabel || (language === "he" ? "בחרו מתאמן…" : "Choose athlete…")}
+        <Pressable
+          style={styles.pickerTouch}
+          onPress={() => setPickerOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t("pricing.pickAthlete")}
+        >
+          <Text style={pickedAthleteLabel ? styles.pickerText : styles.pickerPlaceholder} numberOfLines={2}>
+            {pickedAthleteLabel || t("pricing.chooseAthletePlaceholder")}
           </Text>
         </Pressable>
         <Text style={[styles.label, isRTL && styles.rtl]}>{t("pricing.capacity")}</Text>
@@ -291,6 +310,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
           placeholder="8"
           placeholderTextColor={theme.colors.placeholderOnLight}
           style={styles.input}
+          accessibilityLabel={t("pricing.capacity")}
         />
         <Text style={[styles.label, isRTL && styles.rtl]}>{t("pricing.price")}</Text>
         <TextInput
@@ -300,6 +320,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
           placeholder="120"
           placeholderTextColor={theme.colors.placeholderOnLight}
           style={styles.input}
+          accessibilityLabel={t("pricing.price")}
         />
         <PrimaryButton
           label={t("common.save")}
@@ -311,7 +332,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
 
       <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>{t("pricing.specialAthleteExisting")}</Text>
       {overrideLoading ? (
-        <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
+        <ActivityIndicator color={theme.colors.cta} style={styles.loader} accessibilityLabel={t("common.loading")} />
       ) : overrideRows.length === 0 ? (
         <Text style={[styles.empty, isRTL && styles.rtl]}>{t("pricing.specialAthleteEmpty")}</Text>
       ) : (
@@ -320,21 +341,22 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
             const name = resolveProfileName(r);
             const p = Number(r.price_ils);
             const key = `${r.user_id}-${r.max_participants}`;
+            const sub = tierSummary(r.max_participants, p);
             return (
               <View key={key} style={styles.row}>
                 <View style={styles.rowMain}>
                   <Text style={[styles.rowCap, isRTL && styles.rtl]} numberOfLines={2}>
                     {name}
                   </Text>
-                  <Text style={[styles.overrideSub, isRTL && styles.rtl]}>
-                    {language === "he"
-                      ? `${r.max_participants} משתתפים · ${p} ₪`
-                      : `${r.max_participants} participants · ${p} ₪`}
+                  <Text style={[styles.overrideSub, isRTL && styles.rtl]} numberOfLines={2}>
+                    {sub}
                   </Text>
                 </View>
                 <Pressable
                   onPress={() => confirmRemoveOverride(r.user_id, r.max_participants, name)}
                   style={({ pressed }) => [styles.removeBtn, pressed && { opacity: 0.85 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t("pricing.delete")}: ${name}, ${sub}`}
                 >
                   <Text style={styles.removeTxt}>{t("pricing.delete")}</Text>
                 </Pressable>
@@ -344,22 +366,24 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
         </View>
       )}
 
-      <Modal visible={pickerOpen} transparent animationType="slide">
+      <Modal visible={pickerOpen} transparent animationType="slide" onRequestClose={() => setPickerOpen(false)}>
         <View style={styles.modalBackdrop}>
-          <Pressable style={styles.modalBackdropTouch} onPress={() => setPickerOpen(false)} />
+          <Pressable style={styles.modalBackdropTouch} onPress={() => setPickerOpen(false)} accessibilityLabel={t("common.cancel")} />
           <View style={styles.modalBox}>
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
               <Text style={[styles.modalTitle, isRTL && styles.rtl]}>{t("pricing.pickAthlete")}</Text>
-              <Pressable onPress={() => setPickerOpen(false)}>
-                <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
+              <Pressable onPress={() => setPickerOpen(false)} accessibilityRole="button" accessibilityLabel={t("common.ok")}>
+                <Text style={[styles.modalClose, isRTL && styles.rtl]}>{t("common.ok")}</Text>
               </Pressable>
             </View>
             {athletesLoading ? (
-              <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
+              <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} accessibilityLabel={t("common.loading")} />
             ) : (
               <FlatList
                 data={athletes}
                 keyExtractor={(item) => item.user_id}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
                 renderItem={({ item }) => (
                   <Pressable
                     style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
@@ -368,15 +392,15 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
                       setPickedAthleteLabel(`${item.full_name} (@${item.username})`);
                       setPickerOpen(false);
                     }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.full_name}, @${item.username}`}
                   >
-                    <Text style={styles.pickerItemName}>{item.full_name}</Text>
-                    <Text style={styles.pickerItemRole}>@{item.username}</Text>
+                    <Text style={[styles.pickerItemName, isRTL && styles.rtl]}>{item.full_name}</Text>
+                    <Text style={[styles.pickerItemRole, isRTL && styles.rtl]}>@{item.username}</Text>
                   </Pressable>
                 )}
                 ListEmptyComponent={
-                  <Text style={[styles.pickerEmpty, isRTL && styles.rtl]}>
-                    {language === "he" ? "אין מתאמנים" : "No athletes"}
-                  </Text>
+                  <Text style={[styles.pickerEmpty, isRTL && styles.rtl]}>{t("pricing.noAthletes")}</Text>
                 }
               />
             )}
@@ -398,6 +422,7 @@ const styles = StyleSheet.create({
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
   rtl: { textAlign: "right", alignSelf: "stretch" },
   hint: { color: theme.colors.textMuted, lineHeight: 20, marginBottom: theme.spacing.md },
+  hintAfterTitle: { marginTop: -4 },
   card: {
     padding: theme.spacing.md,
     borderRadius: theme.radius.lg,
@@ -455,8 +480,8 @@ const styles = StyleSheet.create({
   modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
   modalBox: {
     backgroundColor: theme.colors.white,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: theme.radius.xl,
+    borderTopRightRadius: theme.radius.xl,
     maxHeight: "70%",
   },
   modalHeader: {
@@ -467,6 +492,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: theme.colors.border,
   },
+  modalHeaderRtl: { flexDirection: "row-reverse" },
   modalTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textOnLight },
   modalClose: { fontSize: 16, color: theme.colors.textMutedOnLight, fontWeight: "700" },
   modalLoader: { padding: theme.spacing.xl },
