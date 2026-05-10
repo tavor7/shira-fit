@@ -123,13 +123,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setAuthUnavailable(false);
               setAuthUnavailableMessage(null);
               if (refData.session.user?.id) {
-                setLoading(true);
+                // Do not toggle global loading: (app)/_layout would unmount the entire Stack and hurt URL/restoration on web.
                 await loadProfile(refData.session.user.id);
-                if (!mountedRef.current) return;
-                setLoading(false);
               } else {
                 setProfile(null);
-                setLoading(false);
               }
               return;
             }
@@ -142,13 +139,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
+        const ev = event as string;
+        /** These events refresh the session/profile in the background; blocking the UI remounts expo-router stacks. */
+        const skipFullScreenLoading =
+          ev === "INITIAL_SESSION" || ev === "TOKEN_REFRESHED" || ev === "USER_UPDATED";
+
         setSession(s);
         setAuthUnavailable(false);
         setAuthUnavailableMessage(null);
         if (s?.user?.id) {
-          setLoading(true);
+          if (!skipFullScreenLoading) {
+            setLoading(true);
+          }
           void loadProfile(s.user.id).finally(() => {
-            if (mountedRef.current) setLoading(false);
+            if (mountedRef.current && !skipFullScreenLoading) setLoading(false);
           });
         } else {
           setProfile(null);

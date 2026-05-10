@@ -6,6 +6,11 @@ import { useManagerAthletePreview } from "../src/context/ManagerAthletePreviewCo
 import { useI18n } from "../src/context/I18nContext";
 import { theme } from "../src/theme";
 
+/**
+ * Entry route for `/` only. Any authenticated visit here is redirected to a role default
+ * (e.g. manager → sessions calendar). Deep links must use their real path (e.g. `/manager/session/<id>`);
+ * if the address bar or PWA start URL is `/`, this screen will always send users to the dashboard.
+ */
 export default function Index() {
   const { t } = useI18n();
   const { session, profile, loading, refreshProfile, signOut, authUnavailable, retryAuthBootstrap } = useAuth();

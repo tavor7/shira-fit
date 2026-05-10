@@ -42,7 +42,7 @@ import { usePersistedState } from "../../../../src/hooks/usePersistedState";
 import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
-const MANAGER_SESSION_DRAFT_DIAGNOSTICS = true;
+const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string };
 
