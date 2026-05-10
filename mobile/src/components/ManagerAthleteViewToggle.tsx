@@ -4,6 +4,7 @@ import { theme } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { useManagerAthletePreview } from "../context/ManagerAthletePreviewContext";
 import { useI18n } from "../context/I18nContext";
+import { replaceToManagerSessions } from "../lib/managerSessionsRedirectLog";
 
 type ToggleProps = {
   size?: "default" | "toolbar";
@@ -11,7 +12,7 @@ type ToggleProps = {
 
 /** Manager-only: switch between staff navigation and participant-style navigation. */
 export function ManagerAthleteViewToggle({ size = "default" }: ToggleProps) {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading, user } = useAuth();
   const { enabled, setEnabled } = useManagerAthletePreview();
   const { language, t } = useI18n();
 
@@ -21,7 +22,12 @@ export function ManagerAthleteViewToggle({ size = "default" }: ToggleProps) {
     const next = !enabled;
     await setEnabled(next);
     if (next) router.replace("/(app)/athlete/sessions");
-    else router.replace("/(app)/manager/sessions");
+    else
+      replaceToManagerSessions("src/components/ManagerAthleteViewToggle.tsx", "toggle_off_athlete_preview", {
+        authLoading,
+        authUserId: user?.id ?? null,
+        profileRole: profile?.role ?? null,
+      });
   }
 
   const toolbar = size === "toolbar";

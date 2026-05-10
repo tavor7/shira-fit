@@ -40,6 +40,7 @@ import { useAppAlert } from "../../../../src/context/AppAlertContext";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { usePersistedState } from "../../../../src/hooks/usePersistedState";
 import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
+import { replaceToManagerSessions } from "../../../../src/lib/managerSessionsRedirectLog";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
@@ -153,7 +154,7 @@ export default function ManagerSessionDetail() {
   const { language, t, isRTL } = useI18n();
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showOk, showConfirm } = useAppAlert();
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const managerSessionScreenKey = `manager-session:${String(id ?? "")}`;
   const draftStorageKey = useMemo(() => uiDraftStorageKey(user?.id, managerSessionScreenKey), [user?.id, managerSessionScreenKey]);
   const [uiDraft, setUiDraft, persistDraft] = usePersistedState(draftStorageKey, INITIAL_MANAGER_SESSION_DRAFT);
@@ -926,7 +927,12 @@ export default function ManagerSessionDetail() {
     }
     pushDiag("clearPersisted: runDeleteSession success");
     void persistDraft.clearPersisted();
-    router.replace("/(app)/manager/sessions");
+    replaceToManagerSessions("app/(app)/manager/session/[id].tsx", "delete_session_success", {
+      authLoading,
+      authUserId: user?.id ?? null,
+      profileRole: profile?.role ?? null,
+      routeSessionId: sid,
+    });
   }
 
   function requestDeleteSession() {

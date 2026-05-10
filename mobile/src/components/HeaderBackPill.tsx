@@ -15,7 +15,10 @@ import {
   isSessionsCalendarHome,
   MANAGER_OVERVIEW_HREF,
 } from "../lib/sessionsHomeNavigation";
+import { logRedirectToManagerSessions } from "../lib/managerSessionsRedirectLog";
 import { theme } from "../theme";
+
+const MANAGER_SESSIONS_HREF = "/(app)/manager/sessions" satisfies Href;
 
 /**
  * No control on the sessions calendar. Session detail/manage: pop stack.
@@ -25,7 +28,7 @@ import { theme } from "../theme";
 export function HeaderBackPill() {
   const navigation = useNavigation();
   const pathname = usePathname() ?? "";
-  const { profile } = useAuth();
+  const { profile, loading: authLoading, user } = useAuth();
   const { enabled: athletePreview } = useManagerAthletePreview();
   const { isRTL, t } = useI18n();
   const isManager = profile?.role === "manager";
@@ -61,6 +64,17 @@ export function HeaderBackPill() {
 
   if (!visible) return null;
 
+  function replaceHref(href: Href, reason: string) {
+    if (href === MANAGER_SESSIONS_HREF) {
+      logRedirectToManagerSessions("src/components/HeaderBackPill.tsx", reason, {
+        authLoading,
+        authUserId: user?.id ?? null,
+        profileRole: profile?.role ?? null,
+      });
+    }
+    router.replace(href);
+  }
+
   function onPress() {
     if (onPendingGate && navigation.canGoBack()) {
       navigation.goBack();
@@ -71,7 +85,7 @@ export function HeaderBackPill() {
       return;
     }
     if (isManager && isManagerOverviewFlatTool(pathname)) {
-      router.replace(MANAGER_OVERVIEW_HREF);
+      replaceHref(MANAGER_OVERVIEW_HREF, "manager_flat_tool_to_overview");
       return;
     }
     if (isManager && isManagerOverviewStaffDrilldown(pathname)) {
@@ -79,11 +93,11 @@ export function HeaderBackPill() {
         navigation.goBack();
         return;
       }
-      router.replace(MANAGER_OVERVIEW_HREF);
+      replaceHref(MANAGER_OVERVIEW_HREF, "manager_staff_drilldown_fallback_overview");
       return;
     }
     if (isManager && isManagerOverviewHub(pathname)) {
-      if (sessionsHomeHref) router.replace(sessionsHomeHref);
+      if (sessionsHomeHref) replaceHref(sessionsHomeHref, "manager_overview_hub_to_sessions_home");
       return;
     }
     // Default: behave like a normal back button when possible.
@@ -93,7 +107,7 @@ export function HeaderBackPill() {
     }
 
     // Fallback when we don't have stack history (deep links, replace navigations, etc.).
-    if (!onPendingGate && sessionsHomeHref) router.replace(sessionsHomeHref);
+    if (!onPendingGate && sessionsHomeHref) replaceHref(sessionsHomeHref, "header_back_fallback_sessions_home");
   }
 
   return (

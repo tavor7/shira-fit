@@ -10,6 +10,7 @@ import {
   useEffectiveNavRole,
   useManagerAthletePreview,
 } from "../context/ManagerAthletePreviewContext";
+import { replaceToManagerSessions } from "../lib/managerSessionsRedirectLog";
 
 type RouteItem = FoldableActionsMenuItem & {
   /** Match current pathname; when true we hide the item. */
@@ -21,7 +22,7 @@ function startsWithAny(pathname: string, prefixes: string[]) {
 }
 
 export function GlobalQuickMenu() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading, user } = useAuth();
   const { t, language, toggleLanguage } = useI18n();
   const openMenuA11y = t("a11y.openMenu");
   const closeMenuA11y = t("a11y.closeMenu");
@@ -182,14 +183,29 @@ export function GlobalQuickMenu() {
         label: t("menu.backToStaff"),
         onPress: async () => {
           await setEnabled(false);
-          router.replace("/(app)/manager/sessions");
+          replaceToManagerSessions("src/components/GlobalQuickMenu.tsx", "athlete_preview_back_to_staff", {
+            authLoading,
+            authUserId: user?.id ?? null,
+            profileRole: profile?.role ?? null,
+          });
         },
         isActive: () => false,
       });
     }
     athleteItems.push(languageItem);
     return athleteItems;
-  }, [navRole, profile?.role, profile?.approval_status, pendingApproveCount, t, language, toggleLanguage, setEnabled]);
+  }, [
+    navRole,
+    profile?.role,
+    profile?.approval_status,
+    pendingApproveCount,
+    t,
+    language,
+    toggleLanguage,
+    setEnabled,
+    authLoading,
+    user?.id,
+  ]);
 
   const visible = useMemo(() => items.filter((i) => !i.isActive(pathname)), [items, pathname]);
 

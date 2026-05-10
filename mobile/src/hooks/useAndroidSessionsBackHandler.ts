@@ -14,12 +14,13 @@ import {
   isSessionsCalendarHome,
   MANAGER_OVERVIEW_HREF,
 } from "../lib/sessionsHomeNavigation";
+import { logRedirectToManagerSessions } from "../lib/managerSessionsRedirectLog";
 
 /** Android hardware back: same rules as the header back pill (overview hub, manager tools, session drill-down). */
 export function useAndroidSessionsBackHandler(active: boolean) {
   const pathname = usePathname() ?? "";
   const navigation = useNavigation();
-  const { profile } = useAuth();
+  const { profile, loading: authLoading, user } = useAuth();
   const { enabled: athletePreview } = useManagerAthletePreview();
 
   useEffect(() => {
@@ -58,6 +59,13 @@ export function useAndroidSessionsBackHandler(active: boolean) {
       }
       if (isManager && isManagerOverviewHub(pathname)) {
         if (href) {
+          if (href === "/(app)/manager/sessions") {
+            logRedirectToManagerSessions("src/hooks/useAndroidSessionsBackHandler.ts", "android_back_overview_to_sessions", {
+              authLoading,
+              authUserId: user?.id ?? null,
+              profileRole: profile?.role ?? null,
+            });
+          }
           router.replace(href);
           return true;
         }
@@ -68,6 +76,13 @@ export function useAndroidSessionsBackHandler(active: boolean) {
         return false;
       }
       if (href) {
+        if (href === "/(app)/manager/sessions") {
+          logRedirectToManagerSessions("src/hooks/useAndroidSessionsBackHandler.ts", "android_back_fallback_sessions_home", {
+            authLoading,
+            authUserId: user?.id ?? null,
+            profileRole: profile?.role ?? null,
+          });
+        }
         router.replace(href);
         return true;
       }
@@ -79,5 +94,5 @@ export function useAndroidSessionsBackHandler(active: boolean) {
     });
 
     return () => sub.remove();
-  }, [active, pathname, navigation, profile?.role, athletePreview]);
+  }, [active, pathname, navigation, profile?.role, athletePreview, authLoading, user?.id]);
 }

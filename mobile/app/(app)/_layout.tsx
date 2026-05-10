@@ -28,7 +28,12 @@ export default function AppLayout() {
   const pathname = usePathname() ?? "";
   useAndroidSessionsBackHandler(!!session && !loading && !authUnavailable);
 
-  if (loading) {
+  /**
+   * Only block the whole Stack while we still might be signed out (`!session`).
+   * If `loading` flips during an in-session auth refresh, keeping the Stack mounted preserves web navigation
+   * (e.g. `/manager/session/:id` after PWA resume) instead of resetting to the sessions calendar.
+   */
+  if (loading && !session) {
     return (
       <View style={{ flex: 1, justifyContent: "center", backgroundColor: theme.colors.background }}>
         <ActivityIndicator size="large" color={theme.colors.cta} />

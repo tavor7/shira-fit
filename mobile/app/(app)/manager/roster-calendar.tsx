@@ -15,6 +15,7 @@ import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { formatISODateLong } from "../../../src/lib/dateFormat";
 import { supabase } from "../../../src/lib/supabase";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
+import { logRedirectToManagerSessions } from "../../../src/lib/managerSessionsRedirectLog";
 
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
@@ -24,7 +25,7 @@ function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
 type RosterEntry = { name: string; phone: string | null };
 
 export default function ManagerRosterCalendarScreen() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading, user } = useAuth();
   const { language, t, isRTL } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
@@ -41,8 +42,21 @@ export default function ManagerRosterCalendarScreen() {
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [notesBySession, setNotesBySession] = useState<Record<string, string>>({});
 
-  const isManager = profile?.role === "manager";
-  if (!isManager) return <Redirect href="/(app)/manager/sessions" />;
+  if (authLoading || (user && !profile)) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.cta} />
+      </View>
+    );
+  }
+  if (profile && profile.role !== "manager") {
+    logRedirectToManagerSessions("app/(app)/manager/roster-calendar.tsx", "roster_calendar_wrong_role", {
+      authLoading,
+      authUserId: user?.id ?? null,
+      profileRole: profile.role,
+    });
+    return <Redirect href="/(app)/manager/sessions" />;
+  }
 
   const groupMode = showBig && !showSmall;
   const filtersOn = showSmall || showBig;

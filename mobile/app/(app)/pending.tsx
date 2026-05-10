@@ -4,9 +4,10 @@ import { View, Text, StyleSheet, Image } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
+import { logRedirectToManagerSessions } from "../../src/lib/managerSessionsRedirectLog";
 
 export default function PendingScreen() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile, refreshProfile, loading: authLoading, user } = useAuth();
   const { language, isRTL, t } = useI18n();
 
   useFocusEffect(
@@ -20,7 +21,14 @@ export default function PendingScreen() {
     return <Redirect href="/(app)/athlete/sessions" />;
   }
   if (profile?.role === "coach") return <Redirect href="/(app)/coach/sessions" />;
-  if (profile?.role === "manager") return <Redirect href="/(app)/manager/sessions" />;
+  if (profile?.role === "manager") {
+    logRedirectToManagerSessions("app/(app)/pending.tsx", "pending_screen_manager_role_exit", {
+      authLoading,
+      authUserId: user?.id ?? null,
+      profileRole: profile?.role ?? null,
+    });
+    return <Redirect href="/(app)/manager/sessions" />;
+  }
 
   return (
     <View style={styles.box}>

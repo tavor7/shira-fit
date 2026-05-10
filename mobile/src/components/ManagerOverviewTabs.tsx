@@ -3,6 +3,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { logRedirectToManagerSessions } from "../lib/managerSessionsRedirectLog";
+import { useAuth } from "../context/AuthContext";
 
 export type ManagerPillTabItem = {
   id: string;
@@ -30,6 +32,7 @@ export function ManagerPillTabBar({
 }) {
   const pathname = usePathname() ?? "";
   const { language, isRTL } = useI18n();
+  const { loading: authLoading, user, profile } = useAuth();
 
   const activeId = tabs.find((x) => x.isActive(pathname))?.id ?? tabs[0]?.id ?? "";
   const compact = density === "compact";
@@ -42,7 +45,16 @@ export function ManagerPillTabBar({
           return (
             <Pressable
               key={x.id}
-              onPress={() => router.replace(x.href)}
+              onPress={() => {
+                if (x.href === "/(app)/manager/sessions") {
+                  logRedirectToManagerSessions("src/components/ManagerOverviewTabs.tsx", "overview_tab_sessions", {
+                    authLoading,
+                    authUserId: user?.id ?? null,
+                    profileRole: profile?.role ?? null,
+                  });
+                }
+                router.replace(x.href);
+              }}
               style={({ pressed }) => [
                 compact ? styles.tabCompact : styles.tab,
                 pressed && !active && styles.tabPressed,

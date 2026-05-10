@@ -115,6 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!mountedRef.current || cancelled) return;
 
       const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+        const previousUserId = sessionRef.current?.user?.id ?? null;
+
         if ((event as unknown as string) === "TOKEN_REFRESH_FAILED") {
           void (async () => {
             const { data: refData, error: refErr } = await supabase.auth.refreshSession();
@@ -149,11 +151,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthUnavailable(false);
         setAuthUnavailableMessage(null);
         if (s?.user?.id) {
-          if (!skipFullScreenLoading) {
+          /** Same signed-in user: never flip global `loading` — (app)/_layout would unmount the Stack and break web URL/state on resume. */
+          const userChanged = previousUserId !== s.user.id;
+          const shouldBlockUi = !skipFullScreenLoading && userChanged;
+          if (shouldBlockUi) {
             setLoading(true);
           }
           void loadProfile(s.user.id).finally(() => {
-            if (mountedRef.current && !skipFullScreenLoading) setLoading(false);
+            if (mountedRef.current && shouldBlockUi) setLoading(false);
           });
         } else {
           setProfile(null);

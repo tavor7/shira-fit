@@ -7,6 +7,7 @@ import { useI18n } from "../src/context/I18nContext";
 import { theme } from "../src/theme";
 import { ROUTE_RESTORE_DEBUG_KEY_INDEX, recordIndexRouteRestoreDebug } from "../src/lib/routeRestoreDebug";
 import { canRoleAccessWebPath, readWebLastRoute, webPublicPathToExpoHref } from "../src/lib/webLastRoute";
+import { logRedirectToManagerSessions } from "../src/lib/managerSessionsRedirectLog";
 
 /**
  * Entry route for `/` only. After auth + profile are ready, web clients may be sent to the last saved
@@ -18,6 +19,7 @@ export default function Index() {
   const { enabled: managerAthletePreview, storageReady: athletePreviewStorageReady } = useManagerAthletePreview();
   const [profileRetrying, setProfileRetrying] = useState(false);
   const didRetry = useRef(false);
+  const didLogIndexManagerDefault = useRef(false);
   /**
    * Web/PWA: defer role-default redirect until after layout + one frame so `session.user.id` and
    * `localStorage` are stable after tab resume, then read saved route before choosing default.
@@ -233,5 +235,13 @@ export default function Index() {
     return <Redirect href="/(app)/athlete/sessions" />;
   if (profile.role === "coach") return <Redirect href="/(app)/coach/sessions" />;
   if (profile.role === "manager" && managerAthletePreview) return <Redirect href="/(app)/athlete/sessions" />;
+  if (!didLogIndexManagerDefault.current) {
+    didLogIndexManagerDefault.current = true;
+    logRedirectToManagerSessions("app/index.tsx", "index_role_default_manager", {
+      authLoading: loading,
+      authUserId: session?.user?.id ?? null,
+      profileRole: profile.role,
+    });
+  }
   return <Redirect href="/(app)/manager/sessions" />;
 }
