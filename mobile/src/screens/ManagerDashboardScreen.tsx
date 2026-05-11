@@ -372,11 +372,7 @@ export default function ManagerDashboardScreen() {
           accessibilityRole="button"
           hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
           accessibilityLabel={
-            periodMode === "week"
-              ? language === "he"
-                ? "שבוע קודם"
-                : "Previous week"
-              : t("dashboard.a11yPrevMonth")
+            periodMode === "week" ? t("dashboard.a11yPrevWeek") : t("dashboard.a11yPrevMonth")
           }
         >
           <Text style={styles.rangeChevron}>{"‹"}</Text>
@@ -398,11 +394,7 @@ export default function ManagerDashboardScreen() {
           accessibilityRole="button"
           hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
           accessibilityLabel={
-            periodMode === "week"
-              ? language === "he"
-                ? "שבוע הבא"
-                : "Next week"
-              : t("dashboard.a11yNextMonth")
+            periodMode === "week" ? t("dashboard.a11yNextWeek") : t("dashboard.a11yNextMonth")
           }
         >
           <Text style={styles.rangeChevron}>{"›"}</Text>
@@ -645,7 +637,7 @@ export default function ManagerDashboardScreen() {
               accessibilityRole="button"
               accessibilityState={{ expanded: showAthleteList }}
             >
-              <Text style={styles.ghostBtnTxt}>
+              <Text style={[styles.ghostBtnTxt, isRTL && styles.rtl]}>
                 {showAthleteList ? t("dashboard.financeHideBalances") : t("dashboard.financeShowBalances")}
               </Text>
             </Pressable>

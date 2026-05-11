@@ -334,30 +334,18 @@ export async function fetchStaffLateCancellationItems(
     const reasonTrim = typeof row.reason === "string" ? row.reason.trim() : "";
     const lead = tr(language, isLate ? "homeAlerts.lateCancellationLead" : "homeAlerts.cancellationLead");
     const dayTime = `${dayStr} · ${timeStr}`;
-    const beforeName = " · ";
     const leadDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
     const dayTimeDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
-    const beforeNameDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
     const nameDir: "ltr" | "rtl" = isRtlScript(name) ? "rtl" : "ltr";
-    const reasonLine =
-      isLate && reasonTrim
-        ? tr(language, "homeAlerts.lateCancellationReasonInline", { reason: reasonTrim })
-        : "";
     const cancelledAtLabel = isLate ? formatLateCancellationTimestamp(row.cancelled_at, sess.session_date, language) : "";
-    const flatLabel = `${lead}${dayTime}${cancelledAtLabel ? ` · ${cancelledAtLabel}` : ""}${beforeName}${name}${
-      reasonLine ? ` · ${reasonLine}` : ""
-    }`;
+    const cancelledAtSuffix = cancelledAtLabel ? ` (${cancelledAtLabel})` : "";
+    const flatLabel = `${lead} · ${name} · ${dayTime}${cancelledAtSuffix}`;
     const labelSegments: HomePriorityLabelSegment[] = [
       { text: lead, dir: leadDir, role: "subject" },
-      { text: dayTime, dir: dayTimeDir, role: "body" },
+      { text: " · ", dir: leadDir, role: "subject" },
+      { text: name, dir: nameDir, role: "subject" },
+      { text: `${dayTime}${cancelledAtSuffix}`, dir: dayTimeDir, role: "body" },
     ];
-    if (cancelledAtLabel) {
-      labelSegments.push({ text: ` · ${cancelledAtLabel}`, dir: dayTimeDir, role: "body" });
-    }
-    labelSegments.push(
-      { text: beforeName, dir: beforeNameDir, role: "body" },
-      { text: name, dir: nameDir, role: "body" }
-    );
     rows.push({
       cancelMs: Number.isFinite(cancelMs) ? cancelMs : 0,
       item: {
