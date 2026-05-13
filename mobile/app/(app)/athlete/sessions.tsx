@@ -20,6 +20,7 @@ import { fetchAthleteHomeAlertItems, type HomePriorityAlertItem } from "../../..
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
 import { useAuth } from "../../../src/context/AuthContext";
 import { appendNetworkHint } from "../../../src/lib/networkErrors";
+import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
 
 export default function AthleteSessionsScreen() {
   const { profile, session } = useAuth();
@@ -38,6 +39,10 @@ export default function AthleteSessionsScreen() {
   const [myUpcoming, setMyUpcoming] = useState<TrainingSessionWithTrainer[]>([]);
   const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
   const [priorityAlertsVisibleCount, setPriorityAlertsVisibleCount] = useState<number | null>(null);
+  const [weekRange, setWeekRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
+  const [studioNotes, setStudioNotes] = useState<StudioCalendarNote[]>([]);
+  const weekRangeRef = useRef(weekRange);
+  weekRangeRef.current = weekRange;
   const homeAlertsSig = useMemo(() => homeAlerts.map((x) => x.id).sort().join("|"), [homeAlerts]);
 
   useEffect(() => {
@@ -76,9 +81,25 @@ export default function AthleteSessionsScreen() {
       setMyWaitlistSessionIds([]);
     }
 
+    const w = weekRangeRef.current;
+    if (w.start && w.end) {
+      setStudioNotes(await fetchStudioCalendarNotesForRange(w.start, w.end));
+    }
+
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
   }, [language]);
+
+  useEffect(() => {
+    if (!weekRange.start || !weekRange.end) return;
+    let cancelled = false;
+    void fetchStudioCalendarNotesForRange(weekRange.start, weekRange.end).then((n) => {
+      if (!cancelled) setStudioNotes(n);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [weekRange.start, weekRange.end]);
 
   const joinWaitlistForSession = useCallback(
     async (sessionId: string) => {
@@ -272,6 +293,8 @@ export default function AthleteSessionsScreen() {
           onDayPress={(iso) => setSheetDay(iso)}
           weekOffset={calendarWeekOffset}
           onWeekOffsetChange={setCalendarWeekOffset}
+          onWeekChange={(startIso, endIso) => setWeekRange({ start: startIso, end: endIso })}
+          calendarNotes={studioNotes}
         />
       </ScrollView>
       <DaySessionsSheet
@@ -280,6 +303,7 @@ export default function AthleteSessionsScreen() {
         dateIso={sheetDay ?? ""}
         items={sheetItems}
         variant="athlete"
+        calendarNotes={studioNotes}
       />
     </View>
   );

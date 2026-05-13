@@ -39,6 +39,9 @@ export const theme = {
     errorBorder: "#7f1d1d",
     success: "#22c55e",
     successBg: "#142818",
+    /** Studio calendar note kinds — teal/violet so notes never read as “live session” green. */
+    calendarNoteHoliday: "#2dd4bf",
+    calendarNoteInfo: "#c084fc",
   },
   spacing: {
     xs: 6,

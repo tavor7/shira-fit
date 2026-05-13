@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
@@ -16,6 +16,7 @@ import { useI18n } from "../../../src/context/I18nContext";
 import { mergeStaffHomeAlerts, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
+import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
 
 export default function CoachSessionsScreen() {
   const { profile } = useAuth();
@@ -29,6 +30,10 @@ export default function CoachSessionsScreen() {
   const [refreshSeq, setRefreshSeq] = useState(0);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
   const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
+  const [weekRange, setWeekRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
+  const [studioNotes, setStudioNotes] = useState<StudioCalendarNote[]>([]);
+  const weekRangeRef = useRef(weekRange);
+  weekRangeRef.current = weekRange;
   const [priorityAlertsVisibleCount, setPriorityAlertsVisibleCount] = useState<number | null>(null);
   const homeAlertsSig = useMemo(() => homeAlerts.map((x) => x.id).sort().join("|"), [homeAlerts]);
 
@@ -56,9 +61,25 @@ export default function CoachSessionsScreen() {
     setHomeAlerts(await mergeStaffHomeAlerts("coach", list, signup, waitlist, language));
     setRefreshSeq((n) => n + 1);
 
+    const w = weekRangeRef.current;
+    if (w.start && w.end) {
+      setStudioNotes(await fetchStudioCalendarNotesForRange(w.start, w.end));
+    }
+
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
   }, [language]);
+
+  useEffect(() => {
+    if (!weekRange.start || !weekRange.end) return;
+    let cancelled = false;
+    void fetchStudioCalendarNotesForRange(weekRange.start, weekRange.end).then((n) => {
+      if (!cancelled) setStudioNotes(n);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [weekRange.start, weekRange.end]);
 
   useFocusEffect(
     useCallback(() => {
@@ -115,6 +136,8 @@ export default function CoachSessionsScreen() {
           onDayPress={(iso) => setSheetDay(iso)}
           weekOffset={calendarWeekOffset}
           onWeekOffsetChange={setCalendarWeekOffset}
+          onWeekChange={(startIso, endIso) => setWeekRange({ start: startIso, end: endIso })}
+          calendarNotes={studioNotes}
         />
       </ScrollView>
       <DaySessionsSheet
@@ -123,6 +146,7 @@ export default function CoachSessionsScreen() {
         dateIso={sheetDay ?? ""}
         items={sheetItems}
         variant="coach"
+        calendarNotes={studioNotes}
         currentUserId={profile?.user_id ?? null}
         onAddSession={() => {
           const d = sheetDay;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl, Pressable, ActivityIndicator, Text } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
@@ -19,6 +19,7 @@ import { supabase } from "../../../src/lib/supabase";
 import { mergeStaffHomeAlerts, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
+import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
@@ -34,6 +35,10 @@ export default function ManagerSessionsScreen() {
   /** Keeps the calendar week when navigating to session detail and back. */
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
   const [weekStartIso, setWeekStartIso] = useState<string>("");
+  const [weekRange, setWeekRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
+  const [studioNotes, setStudioNotes] = useState<StudioCalendarNote[]>([]);
+  const weekRangeRef = useRef(weekRange);
+  weekRangeRef.current = weekRange;
   const [openWeekBusy, setOpenWeekBusy] = useState(false);
   const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
   const [priorityAlertsVisibleCount, setPriorityAlertsVisibleCount] = useState<number | null>(null);
@@ -63,9 +68,25 @@ export default function ManagerSessionsScreen() {
     setHomeAlerts(await mergeStaffHomeAlerts("manager", list, signup, waitlist, language));
     setRefreshSeq((n) => n + 1);
 
+    const w = weekRangeRef.current;
+    if (w.start && w.end) {
+      setStudioNotes(await fetchStudioCalendarNotesForRange(w.start, w.end));
+    }
+
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
   }, [language]);
+
+  useEffect(() => {
+    if (!weekRange.start || !weekRange.end) return;
+    let cancelled = false;
+    void fetchStudioCalendarNotesForRange(weekRange.start, weekRange.end).then((n) => {
+      if (!cancelled) setStudioNotes(n);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [weekRange.start, weekRange.end]);
 
   useFocusEffect(
     useCallback(() => {
@@ -158,7 +179,11 @@ export default function ManagerSessionsScreen() {
           onDayPress={(iso) => setSheetDay(iso)}
           weekOffset={calendarWeekOffset}
           onWeekOffsetChange={setCalendarWeekOffset}
-          onWeekChange={(startIso) => setWeekStartIso(startIso)}
+          onWeekChange={(startIso, endIso) => {
+            setWeekRange({ start: startIso, end: endIso });
+            setWeekStartIso(startIso);
+          }}
+          calendarNotes={studioNotes}
         />
         {weekStartIso ? (
           <View style={styles.weekActions}>
@@ -177,6 +202,12 @@ export default function ManagerSessionsScreen() {
         dateIso={sheetDay ?? ""}
         items={sheetItems}
         variant="manager"
+        calendarNotes={studioNotes}
+        onCalendarNotesChanged={async () => {
+          if (weekRange.start && weekRange.end) {
+            setStudioNotes(await fetchStudioCalendarNotesForRange(weekRange.start, weekRange.end));
+          }
+        }}
         onAddSession={() => {
           const d = sheetDay;
           setSheetDay(null);

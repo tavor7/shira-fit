@@ -131,6 +131,20 @@ export type CoachCapacityPricingRow = {
   updated_at?: string;
 };
 
+/** Manager-authored note shown on week calendars (holidays, closures, info). */
+export type StudioCalendarNoteRow = {
+  id: string;
+  start_date: string;
+  end_date: string;
+  title: string;
+  detail: string | null;
+  kind: "holiday" | "closure" | "info";
+  audience: "all" | "athletes" | "staff";
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string | null;
+};
+
 /** Staff-recorded payment not tied to a session (athlete or manual participant). */
 export type AthleteAccountPayment = {
   id: string;

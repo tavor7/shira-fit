@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
@@ -6,6 +6,9 @@ import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
 import { AthleteWaitlistInviteStripe, AthleteWaitlistJoinedStripe } from "./AthleteWaitlistInviteStripe";
 import { useI18n } from "../context/I18nContext";
 import { getSessionTemporalPhase } from "../lib/sessionTime";
+import type { StudioCalendarNote } from "../lib/studioCalendarNotes";
+import { studioNoteCoversDate } from "../lib/studioCalendarNotes";
+import { studioCalendarNoteAccent } from "../lib/studioCalendarNoteAccent";
 
 export type SessionsWeekItem = {
   key: string;
@@ -63,6 +66,8 @@ type Props = {
    */
   weekOffset?: number;
   onWeekOffsetChange?: (next: number) => void;
+  /** Studio-wide notes overlapping the visible week (from parent fetch). */
+  calendarNotes?: StudioCalendarNote[];
 };
 
 const DAY_NAMES_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -109,6 +114,7 @@ export function SessionsWeekCalendar({
   onWeekChange,
   weekOffset: weekOffsetProp,
   onWeekOffsetChange,
+  calendarNotes,
 }: Props) {
   const [internalWeekOffset, setInternalWeekOffset] = useState(0);
   const controlled = onWeekOffsetChange != null;
@@ -146,11 +152,21 @@ export function SessionsWeekCalendar({
     });
   }, [weekStart]);
 
+  const weekStartIso = weekDays[0]?.iso ?? "";
+  const weekEndIso = weekDays[6]?.iso ?? "";
+  const onWeekChangeRef = useRef(onWeekChange);
+  onWeekChangeRef.current = onWeekChange;
+  const lastReportedWeekRef = useRef<{ start: string; end: string } | null>(null);
+
   useEffect(() => {
-    const startIso = weekDays[0]?.iso;
-    const endIso = weekDays[6]?.iso;
-    if (startIso && endIso) onWeekChange?.(startIso, endIso);
-  }, [weekDays, onWeekChange]);
+    if (!weekStartIso || !weekEndIso) return;
+    const cb = onWeekChangeRef.current;
+    if (!cb) return;
+    const prev = lastReportedWeekRef.current;
+    if (prev && prev.start === weekStartIso && prev.end === weekEndIso) return;
+    lastReportedWeekRef.current = { start: weekStartIso, end: weekEndIso };
+    cb(weekStartIso, weekEndIso);
+  }, [weekStartIso, weekEndIso]);
 
   useEffect(() => {
     const id = setInterval(() => setTemporalTick((n) => n + 1), 60000);
@@ -193,6 +209,16 @@ export function SessionsWeekCalendar({
     return formatWeekLabel(start, end, locale);
   }, [weekDays, weekStart, locale]);
 
+  const notesByDate = useMemo(() => {
+    const m = new Map<string, StudioCalendarNote[]>();
+    if (!calendarNotes?.length) return m;
+    for (const d of weekDays) {
+      const hits = calendarNotes.filter((n) => studioNoteCoversDate(n, d.iso));
+      if (hits.length) m.set(d.iso, hits);
+    }
+    return m;
+  }, [calendarNotes, weekDays]);
+
   if (isLoading) {
     return (
       <View style={styles.centered}>
@@ -215,7 +241,7 @@ export function SessionsWeekCalendar({
           onPress={() => bumpWeek(-1)}
           style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
           accessibilityRole="button"
-          accessibilityLabel={language === "he" ? "שבוע קודם" : "Previous week"}
+          accessibilityLabel={t("dashboard.a11yPrevWeek")}
         >
           <Text style={styles.navChevron}>{"←"}</Text>
         </Pressable>
@@ -229,7 +255,7 @@ export function SessionsWeekCalendar({
           }}
           style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
           accessibilityRole="button"
-          accessibilityLabel={language === "he" ? "שבוע הבא" : "Next week"}
+          accessibilityLabel={t("dashboard.a11yNextWeek")}
         >
           <Text style={styles.navChevron}>{"→"}</Text>
         </Pressable>
@@ -244,8 +270,8 @@ export function SessionsWeekCalendar({
         >
           {weekDays.map((d) => {
             const dayList = byDate.get(d.iso) ?? [];
-            const count = dayList.length;
             const isToday = d.iso === todayIso;
+            const dayNotes = notesByDate.get(d.iso) ?? [];
             return (
               <View
                 key={d.iso}
@@ -263,11 +289,18 @@ export function SessionsWeekCalendar({
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel={
-                    isToday
-                      ? language === "he"
-                        ? `${dayNames[d.date.getDay()]} ${d.date.getDate()}, היום`
-                        : `Today, ${dayNames[d.date.getDay()]} ${d.date.getDate()}`
-                      : `${dayNames[d.date.getDay()]} ${d.date.getDate()}`
+                    dayNotes.length
+                      ? `${t("calendarNotes.dayHasNoteA11y")}: ${dayNotes.map((n) => n.title).join(", ")}. ` +
+                        (isToday
+                          ? language === "he"
+                            ? `${dayNames[d.date.getDay()]} ${d.date.getDate()}, היום`
+                            : `Today, ${dayNames[d.date.getDay()]} ${d.date.getDate()}`
+                          : `${dayNames[d.date.getDay()]} ${d.date.getDate()}`)
+                      : isToday
+                        ? language === "he"
+                          ? `${dayNames[d.date.getDay()]} ${d.date.getDate()}, היום`
+                          : `Today, ${dayNames[d.date.getDay()]} ${d.date.getDate()}`
+                        : `${dayNames[d.date.getDay()]} ${d.date.getDate()}`
                   }
                 >
                   <Text style={styles.dayName}>{dayNames[d.date.getDay()]}</Text>
@@ -275,12 +308,21 @@ export function SessionsWeekCalendar({
                   <Text style={[styles.dayMonth, isToday && styles.dayMonthToday]}>
                     {d.date.toLocaleDateString(locale, { month: "short" })}
                   </Text>
-                  {count > 0 ? (
-                    <View style={styles.countPill}>
-                      <Text style={styles.countPillTxt}>{count}</Text>
-                    </View>
-                  ) : null}
                 </Pressable>
+                {dayNotes.length > 0 ? (
+                  <View style={styles.dayNoteChips} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                    {dayNotes.map((n) => {
+                      const acc = studioCalendarNoteAccent(n.kind);
+                      return (
+                        <View key={n.id} style={[styles.dayNoteChip, { borderColor: acc.border }]}>
+                          <Text style={styles.dayNoteChipTxt} numberOfLines={3}>
+                            {n.title.trim()}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : null}
                 <View style={styles.dayItems}>
                   {dayList.map((it) => {
                     const phase = getSessionTemporalPhase(
@@ -452,15 +494,6 @@ const styles = StyleSheet.create({
   },
   dayColPressed: { opacity: 0.88 },
   dayHeaderBox: { alignItems: "center", justifyContent: "center", marginBottom: theme.spacing.sm, position: "relative" },
-  countPill: {
-    marginTop: 6,
-    minWidth: 24,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.cta,
-  },
-  countPillTxt: { color: theme.colors.ctaText, fontSize: 11, fontWeight: "800", textAlign: "center" },
   dayName: {
     fontSize: 10,
     fontWeight: "700",
@@ -472,6 +505,24 @@ const styles = StyleSheet.create({
   dayNumToday: { color: theme.colors.cta },
   dayMonth: { fontSize: 11, fontWeight: "600", color: theme.colors.textMuted, marginTop: 2 },
   dayMonthToday: { color: theme.colors.text, fontWeight: "700" },
+  dayNoteChips: { alignSelf: "stretch", gap: 6, marginBottom: 8, width: "100%" },
+  dayNoteChip: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    backgroundColor: theme.colors.backgroundAlt,
+  },
+  dayNoteChipTxt: {
+    width: "100%",
+    textAlign: "center",
+    fontSize: 10,
+    fontWeight: "800",
+    color: theme.colors.text,
+    lineHeight: 13,
+  },
   dayItems: { gap: 8, flex: 1 },
   card: {
     paddingVertical: 8,
