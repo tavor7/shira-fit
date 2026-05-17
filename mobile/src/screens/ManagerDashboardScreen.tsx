@@ -9,6 +9,12 @@ import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "../components/StatusChip";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { normalizePaymentMethodKey, paymentMethodDashboardLabel } from "../lib/paymentMethod";
+import {
+  parseFinance,
+  parseMissingAttendance,
+  type WeeklyFinance,
+  type WeeklyFinanceAthlete,
+} from "../lib/managerWeeklyStats";
 
 /** Local-calendar Sunday (matches server `public._week_start_sunday`). */
 function startOfWeekSunday(d: Date): string {
@@ -32,60 +38,9 @@ type StatsPayload = {
   waitlist_count?: number;
   checked_in_count?: number;
   payments_by_method?: Record<string, number>;
-  finance?: WeeklyFinance;
+  finance?: unknown;
+  missing_attendance?: unknown;
 };
-
-type WeeklyFinanceCoachSession = {
-  session_id: string;
-  session_date: string;
-  start_time: string;
-  duration_minutes: number;
-  registered_count: number;
-  group_capacity: number;
-  tier_registered: number;
-  rate_ils: number | null;
-  payout_ils: number;
-  rate_missing: boolean;
-};
-
-type WeeklyFinanceCoach = {
-  coach_id: string;
-  name: string | null;
-  payout_ils: number;
-  has_rate_gap: boolean;
-  sessions: WeeklyFinanceCoachSession[];
-};
-
-type WeeklyFinanceAthleteTotals = {
-  expected_ils: number;
-  collected_sessions_ils: number;
-  collected_account_ils: number;
-  collected_total_ils: number;
-  outstanding_ils: number;
-};
-
-type WeeklyFinanceAthlete = {
-  kind: "app" | "manual";
-  id: string;
-  name: string | null;
-  expected_ils: number;
-  collected_sessions_ils: number;
-  collected_account_ils: number;
-  collected_total_ils: number;
-  outstanding_ils: number;
-};
-
-type WeeklyFinance = {
-  coaches: WeeklyFinanceCoach[];
-  athlete_totals: WeeklyFinanceAthleteTotals;
-  athletes: WeeklyFinanceAthlete[];
-  amounts_by_method: Record<string, number>;
-};
-
-function num(v: unknown, fallback = 0): number {
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
 
 function formatIls(n: number, language: string): string {
   const r = Math.round(n * 100) / 100;
@@ -106,101 +61,6 @@ function isMissingRpcSignature(err: { message?: string } | null | undefined): bo
     m.includes("does not exist") ||
     m.includes("pgrst202")
   );
-}
-
-function parseFinance(raw: unknown): WeeklyFinance | null {
-  if (!raw || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  const coachesRaw = o.coaches;
-  const coaches: WeeklyFinanceCoach[] = [];
-  if (Array.isArray(coachesRaw)) {
-    for (const c of coachesRaw) {
-      if (!c || typeof c !== "object") continue;
-      const r = c as Record<string, unknown>;
-      const sid = String(r.coach_id ?? "");
-      if (!sid) continue;
-      const sessionsRaw = r.sessions;
-      const sessions: WeeklyFinanceCoachSession[] = [];
-      if (Array.isArray(sessionsRaw)) {
-        for (const s of sessionsRaw) {
-          if (!s || typeof s !== "object") continue;
-          const x = s as Record<string, unknown>;
-          const id = String(x.session_id ?? "");
-          if (!id) continue;
-          sessions.push({
-            session_id: id,
-            session_date: String(x.session_date ?? ""),
-            start_time: String(x.start_time ?? ""),
-            duration_minutes: num(x.duration_minutes, 60),
-            registered_count: num(x.registered_count),
-            group_capacity: num(x.group_capacity),
-            tier_registered: num(x.tier_registered),
-            rate_ils: x.rate_ils === null || x.rate_ils === undefined ? null : num(x.rate_ils),
-            payout_ils: num(x.payout_ils),
-            rate_missing: Boolean(x.rate_missing),
-          });
-        }
-      }
-      coaches.push({
-        coach_id: sid,
-        name: r.name == null ? null : String(r.name),
-        payout_ils: num(r.payout_ils),
-        has_rate_gap: Boolean(r.has_rate_gap),
-        sessions,
-      });
-    }
-  }
-
-  const at = o.athlete_totals;
-  let athlete_totals: WeeklyFinanceAthleteTotals = {
-    expected_ils: 0,
-    collected_sessions_ils: 0,
-    collected_account_ils: 0,
-    collected_total_ils: 0,
-    outstanding_ils: 0,
-  };
-  if (at && typeof at === "object") {
-    const t = at as Record<string, unknown>;
-    athlete_totals = {
-      expected_ils: num(t.expected_ils),
-      collected_sessions_ils: num(t.collected_sessions_ils),
-      collected_account_ils: num(t.collected_account_ils),
-      collected_total_ils: num(t.collected_total_ils),
-      outstanding_ils: num(t.outstanding_ils),
-    };
-  }
-
-  const athletesRaw = o.athletes;
-  const athletes: WeeklyFinanceAthlete[] = [];
-  if (Array.isArray(athletesRaw)) {
-    for (const a of athletesRaw) {
-      if (!a || typeof a !== "object") continue;
-      const r = a as Record<string, unknown>;
-      const kind = r.kind === "manual" ? "manual" : "app";
-      const id = String(r.id ?? "");
-      if (!id) continue;
-      athletes.push({
-        kind,
-        id,
-        name: r.name == null ? null : String(r.name),
-        expected_ils: num(r.expected_ils),
-        collected_sessions_ils: num(r.collected_sessions_ils),
-        collected_account_ils: num(r.collected_account_ils),
-        collected_total_ils: num(r.collected_total_ils),
-        outstanding_ils: num(r.outstanding_ils),
-      });
-    }
-  }
-
-  const amb = o.amounts_by_method;
-  const amounts_by_method: Record<string, number> = {};
-  if (amb && typeof amb === "object" && !Array.isArray(amb)) {
-    for (const [k, v] of Object.entries(amb as Record<string, unknown>)) {
-      amounts_by_method[k] = num(v);
-    }
-  }
-
-  return { coaches, athlete_totals, athletes, amounts_by_method };
 }
 
 export default function ManagerDashboardScreen() {
@@ -276,6 +136,24 @@ export default function ManagerDashboardScreen() {
   }
 
   const finance = useMemo(() => parseFinance(data?.finance), [data?.finance]);
+  const missingAttendance = useMemo(
+    () => parseMissingAttendance(data?.missing_attendance),
+    [data?.missing_attendance]
+  );
+
+  function openFinanceBreakdown() {
+    router.push({
+      pathname: "/(app)/manager/finance-daily",
+      params: { anchor: data?.week_start ?? anchorDate, periodMode },
+    } as Href);
+  }
+
+  function openMissingAttendance() {
+    router.push({
+      pathname: "/(app)/manager/missing-attendance",
+      params: { anchor: data?.week_start ?? anchorDate, periodMode: "week" },
+    } as Href);
+  }
 
   function openWeeklyDetail(kind: string) {
     const ws = data?.week_start ?? anchorDate;
@@ -489,6 +367,27 @@ export default function ManagerDashboardScreen() {
         </Text>
       ) : null}
 
+      {!loading && data?.ok && periodMode === "week" ? (
+        <Pressable
+          onPress={missingAttendance.count > 0 ? openMissingAttendance : undefined}
+          disabled={missingAttendance.count === 0}
+          style={({ pressed }) => [
+            styles.alertTile,
+            missingAttendance.count > 0 ? styles.alertTileActive : styles.alertTileOk,
+            missingAttendance.count > 0 && pressed && styles.tilePressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={t("dashboard.a11yMissingAttendance")}
+          accessibilityState={{ disabled: missingAttendance.count === 0 }}
+        >
+          <Text style={[styles.alertTileL, isRTL && styles.rtl]}>{t("dashboard.missingAttendanceTile")}</Text>
+          <Text style={[styles.alertTileV, isRTL && styles.rtl]}>{missingAttendance.count}</Text>
+          {missingAttendance.count > 0 ? (
+            <Text style={[styles.alertTileHint, isRTL && styles.rtl]}>{t("dashboard.missingAttendanceTileHint")}</Text>
+          ) : null}
+        </Pressable>
+      ) : null}
+
       {!loading && data?.ok && finance ? (
         <View style={styles.financeBlock}>
           <Text style={[styles.sectionEyebrow, styles.financeEyebrow, isRTL && styles.rtl]}>{t("dashboard.financeTitle")}</Text>
@@ -573,30 +472,50 @@ export default function ManagerDashboardScreen() {
             <Text style={[styles.financeHint, isRTL && styles.rtl]}>{t("dashboard.financeHintAthlete")}</Text>
 
             <View style={styles.moneyGrid}>
-              <View style={styles.moneyCell}>
+              <Pressable
+                onPress={openFinanceBreakdown}
+                style={({ pressed }) => [styles.moneyCell, styles.moneyCellTappable, pressed && styles.moneyCellPressed]}
+                accessibilityRole="button"
+                accessibilityLabel={`${t("dashboard.financeExpected")}: ${formatIls(finance.athlete_totals.expected_ils, language)}`}
+                accessibilityHint={t("dashboard.financeBreakdownA11yHint")}
+              >
                 <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeExpected")}</Text>
                 <Text style={[styles.moneyCellVal, isRTL && styles.rtl]}>
                   {formatIls(finance.athlete_totals.expected_ils, language)}
                 </Text>
-              </View>
-              <View style={styles.moneyCell}>
+                <Text style={[styles.moneyCellTap, isRTL && styles.rtl]}>{t("dashboard.financeBreakdownTap")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={openFinanceBreakdown}
+                style={({ pressed }) => [styles.moneyCell, styles.moneyCellTappable, pressed && styles.moneyCellPressed]}
+                accessibilityRole="button"
+                accessibilityLabel={`${t("dashboard.financeCollectedSessions")}: ${formatIls(finance.athlete_totals.collected_sessions_ils, language)}`}
+                accessibilityHint={t("dashboard.financeBreakdownA11yHint")}
+              >
                 <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeCollectedSessions")}</Text>
                 <Text style={[styles.moneyCellVal, isRTL && styles.rtl]}>
                   {formatIls(finance.athlete_totals.collected_sessions_ils, language)}
                 </Text>
-              </View>
-              <View style={styles.moneyCell}>
-                <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeCollectedAccount")}</Text>
-                <Text style={[styles.moneyCellVal, isRTL && styles.rtl]}>
-                  {formatIls(finance.athlete_totals.collected_account_ils, language)}
-                </Text>
-              </View>
-              <View style={styles.moneyCell}>
+                <Text style={[styles.moneyCellTap, isRTL && styles.rtl]}>{t("dashboard.financeBreakdownTap")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={openFinanceBreakdown}
+                style={({ pressed }) => [
+                  styles.moneyCell,
+                  styles.moneyCellTappable,
+                  styles.moneyCellAccentWrap,
+                  pressed && styles.moneyCellPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`${t("dashboard.financeCollectedTotal")}: ${formatIls(finance.athlete_totals.collected_total_ils, language)}`}
+                accessibilityHint={t("dashboard.financeBreakdownA11yHint")}
+              >
                 <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeCollectedTotal")}</Text>
                 <Text style={[styles.moneyCellVal, styles.moneyCellAccent, isRTL && styles.rtl]}>
                   {formatIls(finance.athlete_totals.collected_total_ils, language)}
                 </Text>
-              </View>
+                <Text style={[styles.moneyCellTap, isRTL && styles.rtl]}>{t("dashboard.financeBreakdownTap")}</Text>
+              </Pressable>
             </View>
 
             <View
@@ -947,6 +866,10 @@ const styles = StyleSheet.create({
   moneyCellLbl: { fontSize: 11, fontWeight: "700", color: theme.colors.textSoft, marginBottom: 6 },
   moneyCellVal: { fontSize: 16, fontWeight: "900", color: theme.colors.text, fontVariant: ["tabular-nums"] },
   moneyCellAccent: { color: theme.colors.success },
+  moneyCellTappable: { borderColor: theme.colors.borderInput },
+  moneyCellAccentWrap: { borderColor: theme.colors.success },
+  moneyCellPressed: { opacity: 0.9 },
+  moneyCellTap: { marginTop: 6, fontSize: 10, fontWeight: "700", color: theme.colors.textSoft },
   balanceBanner: {
     marginTop: 12,
     padding: 14,
@@ -962,6 +885,24 @@ const styles = StyleSheet.create({
   subhSm: { fontWeight: "800", color: theme.colors.text, fontSize: 13 },
   hintLine: { fontSize: 12, color: theme.colors.textMuted, marginBottom: 10, lineHeight: 17 },
   emptyWeek: { marginTop: 12, fontSize: 14, fontWeight: "700", color: theme.colors.textSoft },
+  alertTile: {
+    marginTop: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.xl,
+    borderWidth: 1,
+  },
+  alertTileActive: {
+    backgroundColor: theme.colors.errorBg,
+    borderColor: theme.colors.errorBorder,
+  },
+  alertTileOk: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.borderMuted,
+    opacity: 0.85,
+  },
+  alertTileL: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
+  alertTileV: { marginTop: 6, fontSize: 28, fontWeight: "900", color: theme.colors.text, fontVariant: ["tabular-nums"] },
+  alertTileHint: { marginTop: 6, fontSize: 11, fontWeight: "700", color: theme.colors.error },
   muted: { color: theme.colors.textSoft },
   paySectionCard: {
     marginTop: theme.spacing.lg,

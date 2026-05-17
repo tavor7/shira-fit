@@ -85,6 +85,9 @@ export function GlobalQuickMenu() {
             startsWithAny(p, [
               "/manager/dashboard",
               "/manager/weekly-detail",
+              "/manager/finance-daily",
+              "/manager/finance-expected",
+              "/manager/missing-attendance",
               "/manager/activity-log",
               "/manager/reports",
               "/manager/participant-history",

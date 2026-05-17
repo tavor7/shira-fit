@@ -152,7 +152,14 @@ export function ManagerOverviewHubTabs() {
         id: "overview",
         label: t("menu.overview"),
         href: "/(app)/manager/dashboard",
-        isActive: (p) => startsWithAny(p, ["/manager/dashboard", "/manager/weekly-detail"]),
+        isActive: (p) =>
+          startsWithAny(p, [
+            "/manager/dashboard",
+            "/manager/weekly-detail",
+            "/manager/finance-daily",
+            "/manager/finance-expected",
+            "/manager/missing-attendance",
+          ]),
       },
       {
         id: "activity",
