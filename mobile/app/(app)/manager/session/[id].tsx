@@ -41,6 +41,14 @@ import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNa
 import { usePersistedState } from "../../../../src/hooks/usePersistedState";
 import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
 import { replaceToManagerSessions } from "../../../../src/lib/managerSessionsRedirectLog";
+import { SessionSlotRateField } from "../../../../src/components/SessionSlotRateField";
+import { SessionOptionsSection } from "../../../../src/components/SessionOptionsSection";
+import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
+import {
+  fetchSessionBillingPriceIls,
+  parseCustomSlotPriceDraft,
+  sumSessionBillingPrices,
+} from "../../../../src/lib/sessionSlotPrice";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
@@ -56,6 +64,7 @@ type EditSnapshot = {
   durationMin: string;
   open: boolean;
   hidden: boolean;
+  isKickbox: boolean;
 };
 
 const MANAGER_SESSION_DRAFT_VERSION = 1 as const;
@@ -73,6 +82,7 @@ type ManagerSessionUiDraft = {
   durationMin: string;
   open: boolean;
   hidden: boolean;
+  isKickbox: boolean;
   undoStack: EditSnapshot[];
   dupOpen: boolean;
   dupDate: string;
@@ -98,6 +108,7 @@ const INITIAL_MANAGER_SESSION_DRAFT: ManagerSessionUiDraft = {
   durationMin: "",
   open: false,
   hidden: false,
+  isKickbox: false,
   undoStack: [],
   dupOpen: false,
   dupDate: "",
@@ -199,8 +210,12 @@ export default function ManagerSessionDetail() {
     totalPaidIls: 0,
     noShowChargedCount: 0,
     noShowCollectedIls: 0,
+    expectedPaymentsIls: 0,
+    expectedPaymentSlots: 0,
   });
-  const [sessionSlotPriceIls, setSessionSlotPriceIls] = useState<number | null>(null);
+  const [tierSlotPriceIls, setTierSlotPriceIls] = useState<number | null>(null);
+  const [customSlotPriceDraft, setCustomSlotPriceDraft] = useState("");
+  const [customSlotPriceBusy, setCustomSlotPriceBusy] = useState(false);
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [waitlist, setWaitlist] = useState<WaitlistRow[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
@@ -219,6 +234,7 @@ export default function ManagerSessionDetail() {
   const [durationMin, setDurationMin] = useState("");
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [isKickbox, setIsKickbox] = useState(false);
   const [undoStack, setUndoStack] = useState<EditSnapshot[]>([]);
   const [dupOpen, setDupOpen] = useState(false);
   const [dupDate, setDupDate] = useState("");
@@ -285,8 +301,10 @@ export default function ManagerSessionDetail() {
         durationMin,
         open,
         hidden,
+        isKickbox,
+        customSlotPriceDraft,
       }),
-    [date, time, coachId, coachLabel, maxP, durationMin, open, hidden]
+    [date, time, coachId, coachLabel, maxP, durationMin, open, hidden, isKickbox, customSlotPriceDraft]
   );
 
   const hasEditDirty = editingSession && editBaseline !== null && editSerialized !== editBaseline;
@@ -348,6 +366,7 @@ export default function ManagerSessionDetail() {
     setDurationMin(d.durationMin);
     setOpen(d.open);
     setHidden(d.hidden);
+    setIsKickbox(d.isKickbox);
     setEditingSession(true);
     setEditBaseline(d.editBaseline);
   }, [session, id, persistDraft.hydrated, pushDiag]);
@@ -367,6 +386,7 @@ export default function ManagerSessionDetail() {
       durationMin,
       open,
       hidden,
+      isKickbox,
       undoStack,
       dupOpen,
       dupDate,
@@ -401,6 +421,7 @@ export default function ManagerSessionDetail() {
     durationMin,
     open,
     hidden,
+    isKickbox,
     undoStack,
     dupOpen,
     dupDate,
@@ -417,6 +438,26 @@ export default function ManagerSessionDetail() {
   useEffect(() => {
     if (!editingSession) allowLeaveEditRef.current = false;
   }, [editingSession]);
+
+  useEffect(() => {
+    const cap = parseInt(maxP, 10);
+    if (!Number.isFinite(cap) || cap < 1) return;
+    let cancelled = false;
+    (async () => {
+      const { data: priceRow } = await supabase
+        .from("session_capacity_pricing")
+        .select("price_ils")
+        .eq("max_participants", cap)
+        .maybeSingle();
+      if (cancelled) return;
+      const tierP = priceRow?.price_ils;
+      const tierNum = tierP != null && Number.isFinite(Number(tierP)) ? Number(tierP) : null;
+      setTierSlotPriceIls(tierNum);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [maxP, session?.custom_slot_price_ils]);
 
   useEffect(() => {
     return navigation.addListener("beforeRemove", (e) => {
@@ -585,6 +626,12 @@ export default function ManagerSessionDetail() {
     await loadCancellations();
   }
 
+  async function markCancellationPenaltyFull(cancellationId: string, userId: string) {
+    const amount = await fetchSessionBillingPriceIls(supabase, String(id), userId);
+    if (amount <= 0) return;
+    await setCancellationPenaltyCollected(cancellationId, amount);
+  }
+
   async function loadWaitlist() {
     const { data, error } = await supabase
       .from("waitlist_requests")
@@ -615,15 +662,21 @@ export default function ManagerSessionDetail() {
       setDurationMin(String(s.duration_minutes ?? 60));
       setOpen(s.is_open_for_registration);
       setHidden(!!(s as { is_hidden?: boolean }).is_hidden);
+      setIsKickbox(!!(s as TrainingSession).is_kickbox);
       const { data: priceRow } = await supabase
         .from("session_capacity_pricing")
         .select("price_ils")
         .eq("max_participants", s.max_participants)
         .maybeSingle();
-      const p = priceRow?.price_ils;
-      setSessionSlotPriceIls(p != null && Number.isFinite(Number(p)) ? Number(p) : null);
+      const tierP = priceRow?.price_ils;
+      const tierNum = tierP != null && Number.isFinite(Number(tierP)) ? Number(tierP) : null;
+      setTierSlotPriceIls(tierNum);
+      const customRaw = (s as TrainingSession).custom_slot_price_ils;
+      const customNum = customRaw != null && Number.isFinite(Number(customRaw)) ? Number(customRaw) : null;
+      setCustomSlotPriceDraft(customNum != null ? String(customNum) : "");
     } else {
-      setSessionSlotPriceIls(null);
+      setTierSlotPriceIls(null);
+      setCustomSlotPriceDraft("");
     }
     loadWaitlist();
     loadCancellations();
@@ -764,7 +817,7 @@ export default function ManagerSessionDetail() {
 
   function pushUndo() {
     setUndoStack((prev) => {
-      const snap: EditSnapshot = { date, time, coachId, coachLabel, maxP, durationMin, open, hidden };
+      const snap: EditSnapshot = { date, time, coachId, coachLabel, maxP, durationMin, open, hidden, isKickbox };
       const head = prev[prev.length - 1];
       if (
         head &&
@@ -775,7 +828,8 @@ export default function ManagerSessionDetail() {
         head.maxP === snap.maxP &&
         head.durationMin === snap.durationMin &&
         head.open === snap.open &&
-        head.hidden === snap.hidden
+        head.hidden === snap.hidden &&
+        head.isKickbox === snap.isKickbox
       ) {
         return prev;
       }
@@ -797,6 +851,7 @@ export default function ManagerSessionDetail() {
       setDurationMin(snap.durationMin);
       setOpen(snap.open);
       setHidden(snap.hidden);
+      setIsKickbox(snap.isKickbox);
       return prev.slice(0, -1);
     });
   }
@@ -824,31 +879,50 @@ export default function ManagerSessionDetail() {
       duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
       is_open_for_registration: open,
       is_hidden: hidden,
+      is_kickbox: isKickbox,
     };
-    let { error } = await supabase.from("training_sessions").update(payload).eq("id", id);
+    const updateBody: Record<string, unknown> = { ...payload };
+    let { error } = await supabase.from("training_sessions").update(updateBody).eq("id", id);
     let savedWithoutHidden = false;
+    let savedWithoutKickbox = false;
     if (error && isMissingColumnError(error.message, "is_hidden")) {
-      const { is_hidden: _h, ...rest } = payload;
-      const retry = await supabase.from("training_sessions").update(rest).eq("id", id);
-      error = retry.error;
-      if (!error) savedWithoutHidden = true;
+      delete updateBody.is_hidden;
+      savedWithoutHidden = true;
+      ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", id));
+    }
+    if (error && isMissingColumnError(error.message, "is_kickbox")) {
+      delete updateBody.is_kickbox;
+      savedWithoutKickbox = true;
+      ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", id));
     }
     if (error) {
       showOk(t("common.error"), error.message);
       return;
     }
+    const priceOk = await persistCustomSlotPriceFromDraft();
+    if (!priceOk) return;
     await load();
     setEditingSession(false);
     setEditBaseline(null);
     pushDiag("clearPersisted: saveSession success");
     void persistDraft.clearPersisted();
-    if (savedWithoutHidden) {
-      showOk(
-        language === "he" ? "הערה" : "Note",
-        language === "he"
-          ? "העמודה לאימון מוסתר עדיין לא קיימת במסד הנתונים; שאר השדות נשמרו."
-          : "Hidden-session column is not on the database yet; other fields were saved."
-      );
+    if (savedWithoutHidden || savedWithoutKickbox) {
+      const parts: string[] = [];
+      if (savedWithoutHidden) {
+        parts.push(
+          language === "he"
+            ? "סימון מוסתר לא נשמר (עמודה חסרה במסד)"
+            : "Hidden flag was not saved (column missing)"
+        );
+      }
+      if (savedWithoutKickbox) {
+        parts.push(
+          language === "he"
+            ? "סימון קיקבוקס לא נשמר (עמודה חסרה במסד)"
+            : "Kickbox flag was not saved (column missing)"
+        );
+      }
+      showOk(language === "he" ? "הערה" : "Note", parts.join("\n"));
     }
   }
 
@@ -877,11 +951,12 @@ export default function ManagerSessionDetail() {
       duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
       is_open_for_registration: false,
       is_hidden: hidden,
+      is_kickbox: isKickbox,
     };
     let res = await supabase.from("training_sessions").insert(payload).select("id").maybeSingle();
     let error = res.error;
-    if (error && isMissingColumnError(error.message, "is_hidden")) {
-      const { is_hidden: _h, ...rest } = payload as any;
+    if (error && (isMissingColumnError(error.message, "is_hidden") || isMissingColumnError(error.message, "is_kickbox"))) {
+      const { is_hidden: _h, is_kickbox: _k, ...rest } = payload;
       res = await supabase.from("training_sessions").insert(rest).select("id").maybeSingle();
       error = res.error;
     }
@@ -982,19 +1057,72 @@ export default function ManagerSessionDetail() {
     } else showOk(t("common.failed"), data?.error ?? "");
   }
 
-  const extraFeeSummary = useMemo(() => {
-    if (!session) {
-      return {
-        lateExpected: null as number | null,
+  async function persistCustomSlotPriceFromDraft(clearOnly = false): Promise<boolean> {
+    const parsed = clearOnly ? { ok: true as const, price: null } : parseCustomSlotPriceDraft(customSlotPriceDraft);
+    if (!parsed.ok) {
+      showOk(t("common.error"), t("managerSession.customSlotPriceInvalid"));
+      return false;
+    }
+    const { data, error } = await supabase.rpc("staff_set_session_custom_slot_price", {
+      p_session_id: id,
+      p_price_ils: parsed.price,
+    });
+    if (error) {
+      showOk(t("common.error"), error.message);
+      return false;
+    }
+    if (!data?.ok) {
+      showOk(t("common.failed"), String(data?.error ?? ""));
+      return false;
+    }
+    return true;
+  }
+
+  async function saveCustomSlotPrice(clearOnly = false) {
+    if (customSlotPriceBusy) return;
+    setCustomSlotPriceBusy(true);
+    const ok = await persistCustomSlotPriceFromDraft(clearOnly);
+    setCustomSlotPriceBusy(false);
+    if (!ok) return;
+    await load();
+    showToast({
+      message: clearOnly
+        ? language === "he"
+          ? "חזרה לתעריף ברירת מחדל"
+          : "Using default tier rate"
+        : language === "he"
+          ? "תעריף האימון נשמר"
+          : "Session rate saved",
+    });
+  }
+
+  const sessionHasCustomSlotPrice =
+    session?.custom_slot_price_ils != null && Number.isFinite(Number(session.custom_slot_price_ils));
+
+  const [extraFeeSummary, setExtraFeeSummary] = useState({
+    lateExpected: null as number | null,
+    lateCollected: 0,
+    lateChargedCount: 0,
+    nsExpected: null as number | null,
+    nsCollected: 0,
+    nsCount: 0,
+    hasAny: false,
+  });
+
+  useEffect(() => {
+    if (!session || !id) {
+      setExtraFeeSummary({
+        lateExpected: null,
         lateCollected: 0,
         lateChargedCount: 0,
-        nsExpected: null as number | null,
+        nsExpected: null,
         nsCollected: 0,
         nsCount: 0,
         hasAny: false,
-      };
+      });
+      return;
     }
-    const slot = sessionSlotPriceIls;
+    let cancelled = false;
     const lateCharged = cancellations.filter(
       (c) =>
         c.charged_full_price === true &&
@@ -1005,26 +1133,64 @@ export default function ManagerSessionDetail() {
       const p = Number(c.penalty_collected_ils ?? 0);
       if (Number.isFinite(p)) lateCollected += p;
     }
-    const lateExpected = slot != null && lateCharged.length > 0 ? lateCharged.length * slot : null;
     const nsCount = attendanceStats.noShowChargedCount;
-    const nsExpected = slot != null && nsCount > 0 ? nsCount * slot : null;
     const nsCollected = attendanceStats.noShowCollectedIls;
-    const hasAny = lateCharged.length > 0 || nsCount > 0;
-    return {
-      lateExpected,
-      lateCollected,
-      lateChargedCount: lateCharged.length,
-      nsExpected,
-      nsCollected,
-      nsCount,
-      hasAny,
+
+    (async () => {
+      let lateExpected: number | null = null;
+      if (lateCharged.length > 0) {
+        lateExpected = await sumSessionBillingPrices(
+          supabase,
+          String(id),
+          lateCharged.map((c) => c.user_id)
+        );
+      }
+      let nsExpected: number | null = null;
+      if (nsCount > 0) {
+        const [{ data: appNs }, { data: manNs }] = await Promise.all([
+          supabase
+            .from("session_registrations")
+            .select("user_id")
+            .eq("session_id", id)
+            .eq("status", "active")
+            .eq("attended", false)
+            .eq("charge_no_show", true),
+          supabase
+            .from("session_manual_participants")
+            .select("manual_participant_id")
+            .eq("session_id", id)
+            .eq("attended", false)
+            .eq("charge_no_show", true),
+        ]);
+        if (cancelled) return;
+        const userIds = [
+          ...((appNs as { user_id: string }[] | null) ?? []).map((r) => r.user_id),
+          ...((manNs as { manual_participant_id: string }[] | null) ?? []).map(() => null),
+        ];
+        nsExpected = await sumSessionBillingPrices(supabase, String(id), userIds);
+      }
+      if (cancelled) return;
+      setExtraFeeSummary({
+        lateExpected,
+        lateCollected,
+        lateChargedCount: lateCharged.length,
+        nsExpected,
+        nsCollected,
+        nsCount,
+        hasAny: lateCharged.length > 0 || nsCount > 0,
+      });
+    })();
+
+    return () => {
+      cancelled = true;
     };
   }, [
     session,
-    sessionSlotPriceIls,
+    id,
     cancellations,
     attendanceStats.noShowChargedCount,
     attendanceStats.noShowCollectedIls,
+    participantsRev,
   ]);
 
   const draftDiagPanelEl = (() => {
@@ -1110,6 +1276,11 @@ export default function ManagerSessionDetail() {
       {!editingSession ? (
         <View style={styles.summaryCard}>
           <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{language === "he" ? "אימון" : "Session"}</Text>
+          {isKickbox ? (
+            <View style={styles.summaryKickboxBadge}>
+              <KickboxSessionBadge isRTL={isRTL} />
+            </View>
+          ) : null}
           <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>
             {formatISODateFullWithWeekdayAfter(date, language)} · {formatSessionStartTime(time)} · {durationMin}{" "}
             {language === "he" ? "דק׳" : "min"}
@@ -1161,19 +1332,30 @@ export default function ManagerSessionDetail() {
                       {t("managerSession.summaryTilePayments")}
                     </Text>
                     <Text style={[styles.summaryTileHero, isRTL && styles.rtlText]} accessibilityRole="header">
-                      {formatIls(attendanceStats.totalPaidIls, language)}
+                      {attendanceStats.expectedPaymentSlots > 0
+                        ? `${formatIls(attendanceStats.totalPaidIls, language)} / ${formatIls(attendanceStats.expectedPaymentsIls, language)}`
+                        : formatIls(attendanceStats.totalPaidIls, language)}
                     </Text>
                     <Text style={[styles.summaryTileHint, isRTL && styles.rtlText]}>
-                      {attendanceStats.totalPaidIls > 0
-                        ? t("managerSession.summaryPaymentsSubRecorded")
-                            .replace("{n}", String(attendanceStats.withPaymentMethod))
-                            .replace("{total}", String(attendanceStats.registered))
-                        : attendanceStats.withPaymentMethod > 0
-                          ? t("managerSession.summaryPaymentsSubMethodsOnly").replace(
-                              "{n}",
-                              String(attendanceStats.withPaymentMethod)
+                      {attendanceStats.expectedPaymentSlots > 0
+                        ? attendanceStats.totalPaidIls >= attendanceStats.expectedPaymentsIls
+                          ? t("managerSession.summaryPaymentsFullyCollected").replace(
+                              "{expected}",
+                              formatIls(attendanceStats.expectedPaymentsIls, language)
                             )
-                          : t("managerSession.summaryPaymentsSubNone")}
+                          : t("managerSession.summaryPaymentsShouldCollect")
+                              .replace("{expected}", formatIls(attendanceStats.expectedPaymentsIls, language))
+                              .replace("{collected}", formatIls(attendanceStats.totalPaidIls, language))
+                        : attendanceStats.totalPaidIls > 0
+                          ? t("managerSession.summaryPaymentsSubRecorded")
+                              .replace("{n}", String(attendanceStats.withPaymentMethod))
+                              .replace("{total}", String(attendanceStats.registered))
+                          : attendanceStats.withPaymentMethod > 0
+                            ? t("managerSession.summaryPaymentsSubMethodsOnly").replace(
+                                "{n}",
+                                String(attendanceStats.withPaymentMethod)
+                              )
+                            : t("managerSession.summaryPaymentsSubNone")}
                     </Text>
                   </View>
                 </View>
@@ -1229,6 +1411,7 @@ export default function ManagerSessionDetail() {
         </View>
       ) : (
         <View style={styles.editBlock}>
+          <View style={sf.sections}>
           <View style={sf.card}>
             <Text style={sf.cardTitle}>{language === "he" ? "מתי" : "When"}</Text>
             <View style={[sf.row, compact && sf.rowStack]}>
@@ -1336,51 +1519,74 @@ export default function ManagerSessionDetail() {
           </View>
 
           <View style={sf.card}>
-            <Text style={sf.cardTitle}>{language === "he" ? "אפשרויות" : "Options"}</Text>
-            <Pressable
-              style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
-              onPress={() => {
-                pushUndo();
-                setOpen(!open);
-              }}
-            >
-              <Text style={[sf.toggleText, isRTL && styles.toggleTextRtl]}>
-                {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
-                {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-              </Text>
-            </Pressable>
-            <View style={styles.editSpacer} />
-            <Pressable
-              style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
-              onPress={() => {
-                pushUndo();
-                setHidden(!hidden);
-              }}
-            >
-              <Text style={[sf.toggleText, isRTL && styles.toggleTextRtl]}>
-                {language === "he" ? "מוסתר (צוות בלבד): " : "Hidden (staff-only): "}
-                {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-              </Text>
-            </Pressable>
+            <Text style={[sf.cardTitle, isRTL && styles.toggleTextRtl]}>{t("session.optionsTitle")}</Text>
+            <SessionOptionsSection
+            embedded
+            isRTL={isRTL}
+            options={[
+              {
+                key: "open",
+                label: t("session.openRegistration"),
+                value: open,
+                onValueChange: (v) => {
+                  pushUndo();
+                  setOpen(v);
+                },
+                tone: "open",
+              },
+              {
+                key: "hidden",
+                label: t("session.hiddenStaffOnly"),
+                value: hidden,
+                onValueChange: (v) => {
+                  pushUndo();
+                  setHidden(v);
+                },
+                tone: "hidden",
+              },
+              {
+                key: "kickbox",
+                label: t("session.kickboxSession"),
+                value: isKickbox,
+                onValueChange: (v) => {
+                  pushUndo();
+                  setIsKickbox(v);
+                },
+                tone: "kickbox",
+              },
+            ]}
+            />
           </View>
 
-          <View style={[sf.card, { marginBottom: 0 }]}>
-            <Pressable
-              onPress={undoLast}
-              disabled={undoStack.length === 0}
-              style={({ pressed }) => [
-                styles.undoBtn,
-                pressed && undoStack.length > 0 && { opacity: 0.85 },
-                undoStack.length === 0 && { opacity: 0.45 },
-              ]}
-            >
-              <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
-            </Pressable>
-            <PrimaryButton label={t("common.save")} onPress={saveSession} />
-            <View style={styles.editSpacer} />
-            <Pressable onPress={requestCancelEdit} style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}>
-              <Text style={styles.cancelEditTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
-            </Pressable>
+          <SessionSlotRateField
+            layout="form"
+            value={customSlotPriceDraft}
+            onChangeValue={setCustomSlotPriceDraft}
+            tierPriceIls={tierSlotPriceIls}
+            hasCustomOnServer={sessionHasCustomSlotPrice}
+            serverCustomPriceIls={session?.custom_slot_price_ils ?? null}
+            onClear={sessionHasCustomSlotPrice ? () => setCustomSlotPriceDraft("") : undefined}
+          />
+
+          <View style={sf.card}>
+            <View style={sf.toggleStack}>
+              <Pressable
+                onPress={undoLast}
+                disabled={undoStack.length === 0}
+                style={({ pressed }) => [
+                  styles.undoBtn,
+                  pressed && undoStack.length > 0 && { opacity: 0.85 },
+                  undoStack.length === 0 && { opacity: 0.45 },
+                ]}
+              >
+                <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
+              </Pressable>
+              <PrimaryButton label={t("common.save")} onPress={saveSession} />
+              <Pressable onPress={requestCancelEdit} style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}>
+                <Text style={styles.cancelEditTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+              </Pressable>
+            </View>
+          </View>
           </View>
         </View>
       )}
@@ -1564,16 +1770,12 @@ export default function ManagerSessionDetail() {
                       <Text style={styles.cancelMeta}>
                         {t("managerSession.penaltyCollected").replace("{amount}", formatIls(collected, language))}
                       </Text>
-                      {sessionSlotPriceIls != null && sessionSlotPriceIls > 0 ? (
-                        <Pressable
-                          onPress={() =>
-                            void setCancellationPenaltyCollected(c.id, sessionSlotPriceIls as number)
-                          }
-                          style={({ pressed }) => [styles.penaltyMarkBtn, pressed && { opacity: 0.88 }]}
-                        >
-                          <Text style={styles.penaltyMarkBtnTxt}>{t("managerSession.penaltyMarkFull")}</Text>
-                        </Pressable>
-                      ) : null}
+                      <Pressable
+                        onPress={() => void markCancellationPenaltyFull(c.id, c.user_id)}
+                        style={({ pressed }) => [styles.penaltyMarkBtn, pressed && { opacity: 0.88 }]}
+                      >
+                        <Text style={styles.penaltyMarkBtnTxt}>{t("managerSession.penaltyMarkFull")}</Text>
+                      </Pressable>
                     </View>
                   ) : null}
                 </>
@@ -1744,6 +1946,19 @@ export default function ManagerSessionDetail() {
       </View>
 
       {!editingSession ? (
+        <SessionSlotRateField
+          value={customSlotPriceDraft}
+          onChangeValue={setCustomSlotPriceDraft}
+          tierPriceIls={tierSlotPriceIls}
+          hasCustomOnServer={sessionHasCustomSlotPrice}
+          serverCustomPriceIls={session?.custom_slot_price_ils ?? null}
+          onApply={() => void saveCustomSlotPrice(false)}
+          onClear={() => void saveCustomSlotPrice(true)}
+          applyBusy={customSlotPriceBusy}
+        />
+      ) : null}
+
+      {!editingSession ? (
         <View style={styles.sessionFooterActions}>
           <PrimaryButton
             label={language === "he" ? "עריכת אימון" : "Edit session"}
@@ -1763,6 +1978,8 @@ export default function ManagerSessionDetail() {
                   durationMin,
                   open,
                   hidden,
+                  isKickbox,
+                  customSlotPriceDraft,
                 })
               );
               setEditingSession(true);
@@ -1839,6 +2056,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     backgroundColor: theme.colors.surface,
   },
+  summaryKickboxBadge: { marginBottom: theme.spacing.xs },
   /** Uniform vertical rhythm between Edit / Duplicate / Delete (`PrimaryButton` defaults to marginTop: 8 — zero it here and use gap only). */
   sessionFooterActions: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
   sessionFooterGhostBtn: { marginTop: 0 },
@@ -2015,7 +2233,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     letterSpacing: 0.2,
   },
-  editBlock: { marginBottom: theme.spacing.md },
+  editBlock: {},
   editSpacer: { height: theme.spacing.sm },
   h: {
     fontSize: 17,

@@ -16,6 +16,7 @@ import { scheduleSessionReminders, cancelSessionReminders } from "../../../../sr
 import { clearWaitlistSpotFlag } from "../../../../src/lib/waitlistSpotNotifier";
 import { fetchActiveSignupCountsBySession } from "../../../../src/lib/sessionSignupCounts";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
+import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
 
 export default function AthleteSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -251,6 +252,11 @@ export default function AthleteSessionDetail() {
           showsVerticalScrollIndicator={false}
         >
       <View style={styles.card}>
+        {session.is_kickbox ? (
+          <View style={styles.kickboxBadgeWrap}>
+            <KickboxSessionBadge isRTL={isRTL} />
+          </View>
+        ) : null}
         <Text style={styles.title}>{formatISODateFullWithWeekdayAfter(session.session_date, language)}</Text>
         <Text style={styles.sub}>{formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}</Text>
         {session.trainer?.full_name ? (
@@ -386,6 +392,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
+  kickboxBadgeWrap: { marginBottom: 10 },
   title: { fontSize: 22, fontWeight: "700", color: theme.colors.text, letterSpacing: 0.2 },
   sub: { marginTop: 8, color: theme.colors.textMuted },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },

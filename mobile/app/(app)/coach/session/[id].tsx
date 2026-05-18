@@ -11,6 +11,7 @@ import { formatDateTimeForDisplay } from "../../../../src/lib/dateFormat";
 import { isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
 import { useToast } from "../../../../src/context/ToastContext";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
+import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
 import { useAppAlert } from "../../../../src/context/AppAlertContext";
 type W = {
   user_id: string;
@@ -53,6 +54,7 @@ export default function CoachSessionDetail() {
   const [addOpen, setAddOpen] = useState(false);
   const [coachId, setCoachId] = useState<string | null>(null);
   const [sessionSchedule, setSessionSchedule] = useState<{ session_date: string; start_time: string } | null>(null);
+  const [isKickbox, setIsKickbox] = useState(false);
   const [myId, setMyId] = useState<string | null>(null);
   const [waitlistQuickUserId, setWaitlistQuickUserId] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -110,7 +112,7 @@ export default function CoachSessionDetail() {
       setMyId(uid);
       const { data: s } = await supabase
         .from("training_sessions")
-        .select("coach_id, session_date, start_time, max_participants")
+        .select("coach_id, session_date, start_time, max_participants, is_kickbox")
         .eq("id", id)
         .single();
       const row = s as {
@@ -118,9 +120,11 @@ export default function CoachSessionDetail() {
         session_date?: string;
         start_time?: string;
         max_participants?: number;
+        is_kickbox?: boolean;
       } | null;
       setCoachId(row?.coach_id ?? null);
       setSessionMaxParticipants(Math.max(0, Number(row?.max_participants) || 0));
+      setIsKickbox(!!row?.is_kickbox);
       if (row?.session_date && row?.start_time) {
         setSessionSchedule({ session_date: row.session_date, start_time: row.start_time });
       } else {
@@ -268,6 +272,11 @@ export default function CoachSessionDetail() {
       <Stack.Screen options={{ title: t("screen.coachSession") }} />
       <View style={styles.root}>
         <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
+      {isKickbox ? (
+        <View style={styles.kickboxBanner}>
+          <KickboxSessionBadge isRTL={isRTL} />
+        </View>
+      ) : null}
       <Text style={[styles.h, isRTL && styles.rtlText]}>
         {language === "he" ? "משתתפים ונוכחות" : "Participants & attendance"}
         <Text style={styles.hMuted}>
@@ -559,6 +568,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: 4 },
+  kickboxBanner: { marginBottom: theme.spacing.sm },
   h: { fontWeight: "700", marginTop: theme.spacing.md, marginBottom: 8, color: theme.colors.text },
   hMuted: {
     color: theme.colors.textMuted,

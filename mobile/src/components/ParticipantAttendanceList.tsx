@@ -8,6 +8,7 @@ import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { isBirthdayToday } from "../lib/birthday";
 import { normalizePaymentMethodKey, paymentMethodAttendanceLabel } from "../lib/paymentMethod";
+import { fetchSessionBillingPriceIls } from "../lib/sessionSlotPrice";
 
 type RegRow = {
   user_id: string;
@@ -88,6 +89,10 @@ export type SessionAttendanceStats = {
   noShowChargedCount: number;
   /** Sum of amount_paid on no-show charged rows (₪). */
   noShowCollectedIls: number;
+  /** Sum of billing prices for arrived + charged no-show slots (₪). */
+  expectedPaymentsIls: number;
+  /** Count of roster slots included in expectedPaymentsIls. */
+  expectedPaymentSlots: number;
 };
 
 type Props = {
@@ -182,6 +187,8 @@ export function ParticipantAttendanceList({
         totalPaidIls: 0,
         noShowChargedCount: 0,
         noShowCollectedIls: 0,
+        expectedPaymentsIls: 0,
+        expectedPaymentSlots: 0,
       });
       return;
     }
@@ -226,6 +233,8 @@ export function ParticipantAttendanceList({
     let totalPaidIls = 0;
     let noShowChargedCount = 0;
     let noShowCollectedIls = 0;
+    let expectedPaymentsIls = 0;
+    let expectedPaymentSlots = 0;
     for (const r of all) {
       if (normalizePaymentMethodKey(r.paymentMethod) !== "(none)") withPaymentMethod += 1;
       if (r.amountPaid != null && r.amountPaid > 0) totalPaidIls += r.amountPaid;
@@ -233,6 +242,14 @@ export function ParticipantAttendanceList({
         noShowChargedCount += 1;
         if (r.amountPaid != null && r.amountPaid > 0) noShowCollectedIls += r.amountPaid;
       }
+    }
+    for (const r of all) {
+      const owes = r.attended === true || (r.attended === false && r.chargeNoShow);
+      if (!owes) continue;
+      expectedPaymentSlots += 1;
+      const uid = r.kind === "registered" ? r.userId : null;
+      // eslint-disable-next-line no-await-in-loop
+      expectedPaymentsIls += await fetchSessionBillingPriceIls(supabase, sessionId, uid);
     }
     setRows(all);
     onParticipantCountChange?.(all.length);
@@ -245,6 +262,8 @@ export function ParticipantAttendanceList({
       totalPaidIls,
       noShowChargedCount,
       noShowCollectedIls,
+      expectedPaymentsIls,
+      expectedPaymentSlots,
     });
     setLoading(false);
   }, [sessionId, onParticipantCountChange, onAttendanceStatsChange]);
@@ -259,6 +278,28 @@ export function ParticipantAttendanceList({
     if (refreshNonce > 0) load();
   }, [refreshNonce, load]);
 
+  function formatBillingAmountDraft(amount: number): string {
+    const rounded = Math.round(amount * 100) / 100;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+  }
+
+  async function defaultBillingAmountDraft(row: Row): Promise<string> {
+    const uid = row.kind === "registered" ? row.userId : null;
+    const price = await fetchSessionBillingPriceIls(supabase, sessionId, uid);
+    if (price <= 0) return "";
+    return formatBillingAmountDraft(price);
+  }
+
+  async function goToPaymentAmountPhase(method: string) {
+    setPayChosenMethod(method);
+    const row = payFor;
+    if (row && payAmountDraft.trim() === "") {
+      const draft = await defaultBillingAmountDraft(row);
+      if (draft) setPayAmountDraft(draft);
+    }
+    setPayPhase("amount");
+  }
+
   function openPaymentModal(row: Row, mode: "arrived" | "absent_penalty" = "arrived") {
     setPayMode(mode);
     setPayFor(row);
@@ -270,7 +311,7 @@ export function ParticipantAttendanceList({
         : mode === "absent_penalty" && row.attended === false && row.chargeNoShow
           ? row.amountPaid
           : null;
-    setPayAmountDraft(existing != null ? String(existing) : "");
+    setPayAmountDraft(existing != null ? formatBillingAmountDraft(existing) : "");
     setPayOpen(true);
   }
 
@@ -618,8 +659,7 @@ export function ParticipantAttendanceList({
                     style={({ pressed }) => [styles.payBtn, pressed && { opacity: 0.9 }]}
                     onPress={() => {
                       const method = pm === "cash" ? "cash" : pm === "PayBox" ? "paybox" : "other";
-                      setPayChosenMethod(method);
-                      setPayPhase("amount");
+                      void goToPaymentAmountPhase(method);
                     }}
                   >
                     <Text style={styles.payBtnTxt}>

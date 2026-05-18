@@ -148,6 +148,7 @@ export default function ManagerRosterCalendarScreen() {
             accentColor,
             hideTemporalDimming: filtersOn,
             hideRegistrationState: filtersOn,
+            isKickbox: !!s.is_kickbox,
             onPress: () => router.push(`/(app)/manager/session/${s.id}`),
           } satisfies SessionsWeekItem;
         }
@@ -168,6 +169,7 @@ export default function ManagerRosterCalendarScreen() {
           isOpenForRegistration: s.is_open_for_registration,
           hideTemporalDimming: filtersOn,
           hideRegistrationState: filtersOn,
+          isKickbox: !!s.is_kickbox,
           onPress: () => router.push(`/(app)/manager/session/${s.id}`),
         } satisfies SessionsWeekItem;
       }),
@@ -193,6 +195,7 @@ export default function ManagerRosterCalendarScreen() {
         isOpenForRegistration: s.is_open_for_registration,
         hideTemporalDimming: filtersOn,
         hideRegistrationState: filtersOn,
+        isKickbox: !!s.is_kickbox,
         onPress: () => router.push(`/(app)/manager/session/${s.id}`),
       })),
     [rows, signupBySession, waitlistBySession, filtersOn]

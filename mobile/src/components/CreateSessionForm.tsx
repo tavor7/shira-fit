@@ -15,6 +15,9 @@ import { useToast } from "../context/ToastContext";
 import { appendNetworkHint } from "../lib/networkErrors";
 import { useDiscardChangesPrompt } from "../hooks/useDiscardChangesPrompt";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "./sessionFormStyles";
+import { SessionSlotRateField } from "./SessionSlotRateField";
+import { SessionOptionsSection, type SessionOptionItem } from "./SessionOptionsSection";
+import { parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
 
@@ -43,9 +46,8 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const [date, setDate] = useState(() => initialDate?.trim() || toISODateLocal(new Date()));
   const [time, setTime] = useState("18:00");
   const [coachId, setCoachId] = useState(fixedCoachId ?? "");
-  const [coachLabel, setCoachLabel] = useState(
-    fixedCoachLabel ? `${fixedCoachLabel} — ${language === "he" ? "את/ה" : "you"}` : ""
-  );
+  const coachYouLabel = t("sessionForm.coachYou");
+  const [coachLabel, setCoachLabel] = useState(fixedCoachLabel ? `${fixedCoachLabel} — ${coachYouLabel}` : "");
   const [coachColor, setCoachColor] = useState<string | null>(null);
   const [coachOptions, setCoachOptions] = useState<CoachOption[]>([]);
   const [coachOptionsLoading, setCoachOptionsLoading] = useState(!fixedCoachId);
@@ -56,7 +58,10 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const [weeklyOccurrences, setWeeklyOccurrences] = useState("4");
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(true);
+  const [isKickbox, setIsKickbox] = useState(false);
   const [note, setNote] = useState("");
+  const [customSlotPriceDraft, setCustomSlotPriceDraft] = useState("");
+  const [tierSlotPriceIls, setTierSlotPriceIls] = useState<number | null>(null);
 
   // Trainee selection during creation.
   const [traineesOpen, setTraineesOpen] = useState(false);
@@ -93,7 +98,9 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         weeklyOccurrences,
         open,
         hidden,
+        isKickbox,
         note,
+        customSlotPriceDraft,
         ath: selectedAthletes.map((a) => a.user_id).slice().sort(),
         man: selectedManual.map((m) => m.manual_participant_id).slice().sort(),
       }),
@@ -108,11 +115,35 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       weeklyOccurrences,
       open,
       hidden,
+      isKickbox,
       note,
+      customSlotPriceDraft,
       selectedAthletes,
       selectedManual,
     ]
   );
+
+  useEffect(() => {
+    const cap = parseInt(max, 10);
+    if (!Number.isFinite(cap) || cap < 1) {
+      setTierSlotPriceIls(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: priceRow } = await supabase
+        .from("session_capacity_pricing")
+        .select("price_ils")
+        .eq("max_participants", cap)
+        .maybeSingle();
+      if (cancelled) return;
+      const tierP = priceRow?.price_ils;
+      setTierSlotPriceIls(tierP != null && Number.isFinite(Number(tierP)) ? Number(tierP) : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [max]);
   formSerializedRef.current = formSerialized;
 
   useEffect(() => {
@@ -168,10 +199,10 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   useEffect(() => {
     if (fixedCoachId) {
       setCoachId(fixedCoachId);
-      setCoachLabel(fixedCoachLabel ? `${fixedCoachLabel} — ${language === "he" ? "את/ה" : "you"}` : language === "he" ? "את/ה" : "You");
+      setCoachLabel(fixedCoachLabel ? `${fixedCoachLabel} — ${coachYouLabel}` : coachYouLabel);
       setCoachOptionsLoading(false);
     }
-  }, [fixedCoachId, fixedCoachLabel, language]);
+  }, [fixedCoachId, fixedCoachLabel, coachYouLabel]);
 
   useEffect(() => {
     if (!fixedCoachId) return;
@@ -301,29 +332,17 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     setError(null);
     const trimmedDate = date.trim();
     if (!isValidISODateString(trimmedDate)) {
-      setError(language === "he" ? "בחרו תאריך אימון תקין." : "Please choose a valid session date.");
+      setError(t("sessionForm.invalidDate"));
       return;
     }
     if (!coachId) {
-      setError(
-        fixedCoachId
-          ? language === "he"
-            ? "לא ניתן לזהות את החשבון שלך."
-            : "Could not resolve your account."
-          : language === "he"
-            ? "בחרו מאמן או מנהל."
-            : "Please choose a coach or manager."
-      );
+      setError(fixedCoachId ? t("sessionForm.accountResolveFailed") : t("sessionForm.chooseCoach"));
       return;
     }
     const parsedDuration = parseInt(durationMinutes.trim(), 10);
     const duration = Number.isFinite(parsedDuration) ? parsedDuration : 55;
     if (duration < 1 || duration > 24 * 60) {
-      setError(
-        language === "he"
-          ? "משך האימון חייב להיות בין 1 ל-1440 דקות (24 שעות)."
-          : "Session length must be between 1 and 1440 minutes (24 hours)."
-      );
+      setError(t("sessionForm.invalidDuration"));
       return;
     }
     const startT = time.trim() || "18:00";
@@ -335,6 +354,13 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       if (count < 1) count = 1;
       if (count > 52) count = 52;
     }
+    const customParsed = parseCustomSlotPriceDraft(customSlotPriceDraft);
+    if (!customParsed.ok) {
+      setError(t("managerSession.customSlotPriceInvalid"));
+      showToast({ message: t("common.error"), detail: t("managerSession.customSlotPriceInvalid"), variant: "error" });
+      return;
+    }
+
     const rows = Array.from({ length: count }, (_, i) => ({
       session_date: addDaysToISODate(trimmedDate, i * 7),
       start_time: startT,
@@ -342,6 +368,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       max_participants: maxP,
       is_open_for_registration: open,
       is_hidden: hidden,
+      is_kickbox: isKickbox,
       duration_minutes: duration,
     }));
     setSaving(true);
@@ -350,8 +377,8 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     let err = res.error;
     insertedIds = ((res.data as { id: string }[] | null) ?? []).map((r) => r.id);
     let usedLegacyInsert = false;
-    if (err && isMissingColumnError(err.message, "is_hidden")) {
-      const rowsLegacy = rows.map(({ is_hidden: _h, ...rest }) => rest);
+    if (err && (isMissingColumnError(err.message, "is_hidden") || isMissingColumnError(err.message, "is_kickbox"))) {
+      const rowsLegacy = rows.map(({ is_hidden: _h, is_kickbox: _k, ...rest }) => rest);
       const retry = await supabase.from("training_sessions").insert(rowsLegacy).select("id");
       err = retry.error;
       if (!err) usedLegacyInsert = true;
@@ -362,6 +389,23 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       setError(err.message);
       showToast({ message: t("common.error"), detail: err.message, variant: "error" });
       return;
+    }
+
+    if (customParsed.price != null && insertedIds.length > 0) {
+      for (const sid of insertedIds) {
+        // eslint-disable-next-line no-await-in-loop
+        const { data, error: priceErr } = await supabase.rpc("staff_set_session_custom_slot_price", {
+          p_session_id: sid,
+          p_price_ils: customParsed.price,
+        });
+        if (priceErr || !data?.ok) {
+          showToast({
+            message: language === "he" ? "האימון נשמר, אבל התעריף לא נשמר." : "Saved, but the session rate could not be saved.",
+            variant: "info",
+          });
+          break;
+        }
+      }
     }
 
     const noteBody = note.trim();
@@ -445,23 +489,72 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     router.back();
   }
 
+  const sessionOptions = useMemo<SessionOptionItem[]>(
+    () => [
+      {
+        key: "open",
+        label: t("session.openRegistration"),
+        value: open,
+        onValueChange: setOpen,
+        tone: "open",
+      },
+      {
+        key: "hidden",
+        label: t("session.hiddenStaffOnly"),
+        value: hidden,
+        onValueChange: setHidden,
+        tone: "hidden",
+      },
+      {
+        key: "kickbox",
+        label: t("session.kickboxSession"),
+        value: isKickbox,
+        onValueChange: setIsKickbox,
+        tone: "kickbox",
+      },
+      {
+        key: "repeat",
+        label: t("session.repeatWeekly"),
+        value: repeatWeekly,
+        onValueChange: setRepeatWeekly,
+        tone: "repeat",
+        expandedWhenOn: (
+          <View style={styles.expandedField}>
+            <Text style={[sf.label, isRTL && sf.labelRtl]}>{t("session.weeklyOccurrences")}</Text>
+            <TextInput
+              style={[sf.control, sf.controlInput]}
+              value={weeklyOccurrences}
+              onChangeText={setWeeklyOccurrences}
+              keyboardType="number-pad"
+              placeholder="4"
+              placeholderTextColor={theme.colors.textSoft}
+              accessibilityLabel={t("session.weeklyOccurrences")}
+            />
+          </View>
+        ),
+      },
+    ],
+    [t, open, hidden, isKickbox, repeatWeekly, weeklyOccurrences, isRTL]
+  );
+
   return (
     <>
     <ScrollView contentContainerStyle={sf.content} style={sf.screen} keyboardShouldPersistTaps="handled">
+      <View style={sf.sections}>
       <View style={sf.card}>
-        <Text style={sf.cardTitle}>{language === "he" ? "מתי" : "When"}</Text>
+        <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("sessionForm.when")}</Text>
         <View style={[sf.row, compact && sf.rowStack]}>
           <View style={sf.col}>
-            <DatePickerField label={language === "he" ? "תאריך אימון" : "Session date"} value={date} onChange={setDate} />
+            <DatePickerField label={t("sessionForm.sessionDate")} value={date} onChange={setDate} />
           </View>
           <View style={sf.col}>
-            <TimePickerField label={language === "he" ? "שעת התחלה" : "Start time"} value={time} onChange={setTime} />
+            <TimePickerField label={t("sessionForm.startTime")} value={time} onChange={setTime} />
           </View>
         </View>
       </View>
 
       <View style={sf.card}>
-        <Text style={sf.cardTitle}>{language === "he" ? "מאמן" : "Trainer"}</Text>
+        <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("sessionForm.trainer")}</Text>
         {fixedCoachId ? (
           <View style={[sf.control, { justifyContent: "center" }]}>
             <View style={styles.coachRow}>
@@ -469,7 +562,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                 <View style={[styles.coachColorDot, { backgroundColor: coachColor }]} />
               ) : null}
               <Text style={[sf.controlText, { flex: 1 }]} numberOfLines={1} ellipsizeMode="tail">
-                {coachLabel || (language === "he" ? "את/ה" : "You")}
+                {coachLabel || coachYouLabel}
               </Text>
             </View>
           </View>
@@ -479,6 +572,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
               style={({ pressed }) => [sf.control, pressed && { opacity: 0.9 }, { justifyContent: "center" }]}
               onPress={() => setShowCoachPicker(true)}
               accessibilityRole="button"
+              accessibilityLabel={t("sessionForm.chooseTrainer")}
             >
               <View style={styles.coachRow}>
                 {coachLabel && coachColor ? (
@@ -489,7 +583,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
-                  {coachLabel || (language === "he" ? "בחרו מאמן לפי שם…" : "Choose trainer by name…")}
+                  {coachLabel || t("sessionForm.chooseTrainer")}
                 </Text>
               </View>
             </Pressable>
@@ -498,13 +592,13 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                 <Pressable
                   style={styles.modalBackdropTouch}
                   onPress={() => setShowCoachPicker(false)}
-                  accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+                  accessibilityLabel={t("common.cancel")}
                 />
                 <View style={styles.modalBox}>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>{language === "he" ? "כל המאמנים" : "All trainers"}</Text>
-                    <Pressable onPress={() => setShowCoachPicker(false)} hitSlop={12}>
-                      <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
+                  <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
+                    <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{t("sessionForm.allTrainers")}</Text>
+                    <Pressable onPress={() => setShowCoachPicker(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("common.ok")}>
+                      <Text style={styles.modalClose}>{t("common.ok")}</Text>
                     </Pressable>
                   </View>
                   {coachOptionsLoading ? (
@@ -533,11 +627,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                           </View>
                         </Pressable>
                       )}
-                      ListEmptyComponent={
-                        <Text style={styles.pickerEmpty}>
-                          {language === "he" ? "עדיין אין מאמנים או מנהלים" : "No coaches or managers yet"}
-                        </Text>
-                      }
+                      ListEmptyComponent={<Text style={styles.pickerEmpty}>{t("sessionForm.noTrainers")}</Text>}
                     />
                   )}
                 </View>
@@ -548,28 +638,30 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       </View>
 
       <View style={sf.card}>
-        <Text style={sf.cardTitle}>{language === "he" ? "קיבולת" : "Capacity"}</Text>
+        <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("sessionForm.capacity")}</Text>
         <View style={[sf.row, compact && sf.rowStack]}>
           <View style={sf.col}>
-            <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "משך (דקות)" : "Length (min)"}</Text>
+            <Text style={[sf.label, isRTL && sf.labelRtl]}>{t("sessionForm.lengthMin")}</Text>
             <TextInput
               style={[sf.control, sf.controlInput]}
               value={durationMinutes}
               onChangeText={setDurationMinutes}
               keyboardType="number-pad"
-              placeholder={language === "he" ? "55" : "55"}
+              placeholder="55"
               placeholderTextColor={theme.colors.textSoft}
+              accessibilityLabel={t("sessionForm.lengthMin")}
             />
           </View>
           <View style={sf.col}>
-            <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
+            <Text style={[sf.label, isRTL && sf.labelRtl]}>{t("sessionForm.maxParticipants")}</Text>
             <TextInput
               style={[sf.control, sf.controlInput]}
               value={max}
               onChangeText={setMax}
               keyboardType="number-pad"
-              placeholder={language === "he" ? "12" : "12"}
+              placeholder="12"
               placeholderTextColor={theme.colors.textSoft}
+              accessibilityLabel={t("sessionForm.maxParticipants")}
             />
             <View style={styles.quickCapsRow}>
               {[1, 2, 4, 12].map((n) => {
@@ -591,31 +683,39 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       </View>
 
       <View style={sf.card}>
-        <Text style={sf.cardTitle}>{language === "he" ? "הערה" : "Note"}</Text>
-        <Text style={[sf.label, isRTL && sf.labelRtl]}>
-          {language === "he" ? "הערה לצוות (נשמרת יחד עם האימון)" : "Staff note (saved with the session)"}
-        </Text>
+        <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("sessionForm.note")}</Text>
+        <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl]}>{t("sessionForm.noteHint")}</Text>
         <TextInput
-          style={[sf.control, styles.noteInput, isRTL && { textAlign: "right" }]}
+          style={[sf.control, styles.noteInput, isRTL && styles.rtlInput]}
           value={note}
           onChangeText={setNote}
-          placeholder={language === "he" ? "לדוגמה: עבודה על טכניקה…" : "Example: focus on technique…"}
+          placeholder={t("sessionForm.notePlaceholder")}
           placeholderTextColor={theme.colors.textSoft}
           multiline
           textAlignVertical="top"
+          accessibilityLabel={t("sessionForm.note")}
         />
       </View>
 
+      <SessionSlotRateField
+        layout="form"
+        value={customSlotPriceDraft}
+        onChangeValue={setCustomSlotPriceDraft}
+        tierPriceIls={tierSlotPriceIls}
+        hasCustomOnServer={false}
+      />
+
       <View style={sf.card}>
-        <Text style={sf.cardTitle}>{language === "he" ? "מתאמנים" : "Trainees"}</Text>
-        <Text style={[sf.label, isRTL && sf.labelRtl]}>
-          {language === "he"
-            ? "בחרו מתאמנים לאימון (הבחירה תישמר עם שמירת האימון)."
-            : "Select trainees for the session (saved when you save the session)."}
-        </Text>
+        <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("session.optionsTitle")}</Text>
+        <SessionOptionsSection embedded isRTL={isRTL} options={sessionOptions} />
+      </View>
+
+      <View style={sf.card}>
+        <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("sessionForm.trainees")}</Text>
+        <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl]}>{t("sessionForm.traineesHint")}</Text>
 
         <PrimaryButton
-          label={language === "he" ? "בחירת מתאמנים" : "Select trainees"}
+          label={t("sessionForm.selectTrainees")}
           onPress={() => {
             setTraineesOpen(true);
             void runTraineeSearch(traineesQ || "");
@@ -630,7 +730,12 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                 <Text style={styles.selectedChipTxt} numberOfLines={1} ellipsizeMode="tail">
                   {a.full_name}
                 </Text>
-                <Pressable onPress={() => removeAthletePick(a.user_id)} style={styles.chipX} accessibilityRole="button">
+                <Pressable
+                  onPress={() => removeAthletePick(a.user_id)}
+                  style={styles.chipX}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.remove")}
+                >
                   <Text style={styles.chipXTxt}>✕</Text>
                 </Pressable>
               </View>
@@ -640,7 +745,12 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                 <Text style={styles.selectedChipTxt} numberOfLines={1} ellipsizeMode="tail">
                   {m.full_name}
                 </Text>
-                <Pressable onPress={() => removeManualPick(m.manual_participant_id)} style={styles.chipX} accessibilityRole="button">
+                <Pressable
+                  onPress={() => removeManualPick(m.manual_participant_id)}
+                  style={styles.chipX}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.remove")}
+                >
                   <Text style={styles.chipXTxt}>✕</Text>
                 </Pressable>
               </View>
@@ -654,13 +764,13 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
           <Pressable
             style={styles.modalBackdropTouch}
             onPress={() => setTraineesOpen(false)}
-            accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+            accessibilityLabel={t("common.cancel")}
           />
           <View style={styles.modalBox}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{language === "he" ? "מתאמנים" : "Trainees"}</Text>
-              <Pressable onPress={() => setTraineesOpen(false)} hitSlop={12}>
-                <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
+            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
+              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{t("sessionForm.trainees")}</Text>
+              <Pressable onPress={() => setTraineesOpen(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("common.ok")}>
+                <Text style={styles.modalClose}>{t("common.ok")}</Text>
               </Pressable>
             </View>
 
@@ -668,13 +778,14 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.traineesScrollContent}
             >
-              <View style={styles.traineeSearchRow}>
+              <View style={[styles.traineeSearchRow, isRTL && styles.traineeSearchRowRtl]}>
                 <TextInput
                   value={traineesQ}
                   onChangeText={setTraineesQ}
-                  placeholder={language === "he" ? "חיפוש שם / טלפון…" : "Search name / phone…"}
-                  placeholderTextColor={theme.colors.placeholderOnLight}
-                  style={styles.traineeSearchInput}
+                  placeholder={t("sessionForm.searchTrainees")}
+                  placeholderTextColor={theme.colors.textSoft}
+                  style={[sf.control, sf.controlInput, styles.traineeSearchInput]}
+                  accessibilityLabel={t("sessionForm.searchTrainees")}
                   autoCapitalize="none"
                   onSubmitEditing={() => void runTraineeSearch(traineesQ)}
                 />
@@ -689,10 +800,10 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
               <View style={styles.sectionSpacer} />
 
-              <Text style={styles.modalSubTitle}>{language === "he" ? "מתאמנים עם חשבון" : "Athletes (with account)"}</Text>
+              <Text style={[styles.modalSubTitle, isRTL && styles.rtlText]}>{t("sessionForm.athletesAccount")}</Text>
               <View style={styles.traineeList}>
                 {athleteResults.length === 0 ? (
-                  <Text style={styles.pickerEmpty}>{language === "he" ? "אין תוצאות." : "No results."}</Text>
+                  <Text style={styles.pickerEmpty}>{t("sessionForm.noResults")}</Text>
                 ) : (
                   athleteResults.map((a) => {
                     const already = selectedAthletes.some((x) => x.user_id === a.user_id);
@@ -723,10 +834,12 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                 )}
               </View>
 
-              <Text style={[styles.modalSubTitle, styles.modalSubTitleSpacing]}>{language === "he" ? "משתתפים ידניים" : "Manual participants"}</Text>
+              <Text style={[styles.modalSubTitle, styles.modalSubTitleSpacing, isRTL && styles.rtlText]}>
+                {t("sessionForm.manualParticipants")}
+              </Text>
               <View style={styles.traineeList}>
                 {manualResults.length === 0 ? (
-                  <Text style={styles.pickerEmpty}>{language === "he" ? "אין תוצאות." : "No results."}</Text>
+                  <Text style={styles.pickerEmpty}>{t("sessionForm.noResults")}</Text>
                 ) : (
                   manualResults.map((m) => {
                     const already = selectedManual.some((x) => x.manual_participant_id === m.id);
@@ -758,7 +871,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
               </View>
 
               <View style={styles.sectionSpacer} />
-              <Text style={styles.modalSubTitle}>{language === "he" ? "הוספה מהירה (לא חובה חשבון)" : "Quick add (no account required)"}</Text>
+              <Text style={[styles.modalSubTitle, isRTL && styles.rtlText]}>{t("sessionForm.quickAdd")}</Text>
               <View style={styles.quickAddRow}>
                 <TextInput
                   value={quickName}
@@ -777,7 +890,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                 />
               </View>
               <PrimaryButton
-                label={language === "he" ? "הוסף למתאמנים" : "Add to trainees"}
+                label={t("sessionForm.addToTrainees")}
                 onPress={() => void quickAddManual()}
                 loading={traineesBusy}
                 loadingLabel={t("common.loading")}
@@ -788,54 +901,28 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       </Modal>
 
       <View style={sf.card}>
-        <Text style={sf.cardTitle}>{language === "he" ? "אפשרויות" : "Options"}</Text>
-        <Pressable style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }]} onPress={() => setOpen(!open)}>
-          <Text style={[sf.toggleText, isRTL && { textAlign: "right" }]}>
-            {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
-            {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-          </Text>
-        </Pressable>
-        <View style={styles.sectionSpacer} />
-        <Pressable style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }]} onPress={() => setHidden(!hidden)}>
-          <Text style={[sf.toggleText, isRTL && { textAlign: "right" }]}>
-            {language === "he" ? "מוסתר (צוות בלבד): " : "Hidden (staff-only): "}
-            {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-          </Text>
-        </Pressable>
-        <View style={styles.sectionSpacer} />
-        <Pressable style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }]} onPress={() => setRepeatWeekly(!repeatWeekly)}>
-          <Text style={[sf.toggleText, isRTL && { textAlign: "right" }]}>
-            {language === "he" ? "חזרה שבועית: " : "Repeat weekly: "}
-            {repeatWeekly ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-          </Text>
-        </Pressable>
-        {repeatWeekly ? (
-          <View style={styles.occurrencesBlock}>
-            <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "מספר שבועות" : "Occurrences"}</Text>
-            <TextInput
-              style={[sf.control, sf.controlInput]}
-              value={weeklyOccurrences}
-              onChangeText={setWeeklyOccurrences}
-              keyboardType="number-pad"
-              placeholder="4"
-              placeholderTextColor={theme.colors.textSoft}
-            />
-          </View>
-        ) : null}
+        <View style={sf.actionsStack}>
+          {error ? (
+            <Text style={[sf.error, isRTL && styles.rtlText]} accessibilityLiveRegion="polite">
+              {appendNetworkHint(error, t("network.offlineHint"))}
+            </Text>
+          ) : null}
+          <PrimaryButton
+            label={t("sessionForm.saveSession")}
+            onPress={save}
+            loading={saving}
+            loadingLabel={t("common.loading")}
+          />
+          <Pressable
+            onPress={() => confirmLeaveCreateThen(() => router.back())}
+            style={({ pressed }) => [styles.secondaryAction, pressed && { opacity: 0.85 }]}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.cancel")}
+          >
+            <Text style={styles.secondaryActionTxt}>{t("common.cancel")}</Text>
+          </Pressable>
+        </View>
       </View>
-
-      {error ? <Text style={[sf.error, isRTL && { textAlign: "right" }]}>{appendNetworkHint({ message: error } as any, t("network.offlineHint"))}</Text> : null}
-
-      <View style={[sf.card, { marginBottom: 0 }]}>
-        <PrimaryButton
-          label={language === "he" ? "שמירת אימון" : "Save session"}
-          onPress={save}
-          loading={saving}
-          loadingLabel={t("common.loading")}
-        />
-        <Pressable onPress={() => confirmLeaveCreateThen(() => router.back())} style={({ pressed }) => [styles.secondaryAction, pressed && { opacity: 0.85 }]}>
-          <Text style={styles.secondaryActionTxt}>{t("common.cancel")}</Text>
-        </Pressable>
       </View>
     </ScrollView>
     {discardDialog}
@@ -844,6 +931,9 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 }
 
 const styles = StyleSheet.create({
+  rtlText: { textAlign: "right" },
+  rtlInput: { textAlign: "right" },
+  expandedField: { gap: theme.spacing.xs },
   coachRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm },
   coachColorDot: {
     width: 10,
@@ -860,7 +950,6 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   sectionSpacer: { height: theme.spacing.sm },
-  occurrencesBlock: { marginTop: theme.spacing.sm },
   traineesScrollContent: {
     paddingHorizontal: theme.spacing.md,
     paddingBottom: theme.spacing.md,
@@ -884,6 +973,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderMuted,
   },
+  modalHeaderRtl: { flexDirection: "row-reverse" },
   modalTitle: { fontSize: 17, fontWeight: "800", letterSpacing: 0.2, color: theme.colors.text },
   modalClose: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "800" },
   modalLoader: { paddingVertical: theme.spacing.xl },
@@ -898,7 +988,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoft, textAlign: "center", fontWeight: "700" },
-  secondaryAction: { marginTop: theme.spacing.sm, paddingVertical: theme.spacing.sm, alignItems: "center" },
+  secondaryAction: { paddingVertical: theme.spacing.sm, alignItems: "center", minHeight: 44, justifyContent: "center" },
   secondaryActionTxt: { color: theme.colors.textMuted, fontWeight: "800" },
   quickCapsRow: {
     flexDirection: "row",
@@ -943,15 +1033,8 @@ const styles = StyleSheet.create({
   chipXTxt: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 12, lineHeight: 14 },
 
   traineeSearchRow: { flexDirection: "row", gap: theme.spacing.sm, alignItems: "center" },
-  traineeSearchInput: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: theme.spacing.sm,
-    color: theme.colors.text,
-  },
+  traineeSearchRowRtl: { flexDirection: "row-reverse" },
+  traineeSearchInput: { flex: 1 },
   traineeSearchBtn: {
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: 14,
@@ -985,12 +1068,8 @@ const styles = StyleSheet.create({
 
   quickAddRow: { gap: theme.spacing.sm },
   quickAddInput: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.sm,
-    color: theme.colors.text,
+    ...sf.control,
+    ...sf.controlInput,
     marginBottom: theme.spacing.sm,
   },
 });

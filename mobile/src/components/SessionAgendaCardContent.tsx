@@ -3,6 +3,7 @@ import { theme } from "../theme";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "./StatusChip";
+import { KickboxSessionBadge } from "./KickboxSessionBadge";
 import { type SessionTemporalPhase, getSessionTemporalPhase } from "../lib/sessionTime";
 
 type Props = {
@@ -67,6 +68,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
             <Text style={[styles.timeBadgeTxt, compact && styles.timeBadgeTxtCompact]}>{item.timeBadgeText2}</Text>
           </View>
         ) : null}
+        {item.isKickbox ? <KickboxSessionBadge compact isRTL={isRTL} /> : null}
       </View>
       {item.trainerName ? (
         <Text style={[styles.trainer, compact && styles.trainerCompact]} numberOfLines={2}>

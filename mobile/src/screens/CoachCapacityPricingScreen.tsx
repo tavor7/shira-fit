@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   ScrollView,
   Pressable,
   Platform,
@@ -16,6 +15,12 @@ import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { PricingTierRow } from "../components/PricingTierRow";
+import { CollapsiblePricingForm } from "../components/CollapsiblePricingForm";
+import { PricingSection } from "../components/PricingSection";
+import { PricingTierFormFields } from "../components/PricingTierFormFields";
+import { PricingPickerField } from "../components/PricingPickerField";
+import { pricingScreenStyles as ps } from "../components/pricingScreenStyles";
 import type { CoachCapacityPricingRow } from "../types/database";
 
 type Trainer = { user_id: string; full_name: string; username: string; role: string };
@@ -44,6 +49,8 @@ export default function CoachCapacityPricingScreen({
   const [rows, setRows] = useState<CoachCapacityPricingRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editCap, setEditCap] = useState<number | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const coachId = lockedCoachId ?? pickedCoachId;
 
@@ -112,6 +119,9 @@ export default function CoachCapacityPricingScreen({
       return;
     }
     setSaving(true);
+    if (editCap !== null && editCap !== cap) {
+      await supabase.from("coach_capacity_pricing").delete().eq("coach_id", coachId).eq("max_participants", editCap);
+    }
     const { error } = await supabase.from("coach_capacity_pricing").upsert(
       { coach_id: coachId, max_participants: cap, price_ils: price },
       { onConflict: "coach_id,max_participants" }
@@ -124,8 +134,34 @@ export default function CoachCapacityPricingScreen({
     }
     setCapStr("");
     setPriceStr("");
+    setEditCap(null);
+    setFormOpen(false);
     await load();
   }
+
+  function startEdit(cap: number, price: number) {
+    setEditCap(cap);
+    setCapStr(String(cap));
+    setPriceStr(String(price));
+    setFormOpen(true);
+  }
+
+  function cancelEdit() {
+    setEditCap(null);
+    setCapStr("");
+    setPriceStr("");
+    setFormOpen(false);
+  }
+
+  const formTitle = editCap !== null ? t("pricing.editRule") : t("pricing.addRule");
+  const formSummary = (() => {
+    const parts: string[] = [];
+    const cap = capStr.trim();
+    const price = priceStr.trim();
+    if (cap) parts.push(`${cap} ${t("pricing.participantsLabel")}`);
+    if (price) parts.push(`${price} ₪`);
+    return parts.length > 0 ? parts.join(" · ") : undefined;
+  })();
 
   function showPickCoach() {
     const msg = language === "he" ? "בחרו מאמן קודם." : "Choose a coach first.";
@@ -143,6 +179,7 @@ export default function CoachCapacityPricingScreen({
       if (!window.confirm(msg)) return;
       void (async () => {
         await supabase.from("coach_capacity_pricing").delete().eq("coach_id", coachId).eq("max_participants", cap);
+        if (editCap === cap) cancelEdit();
         await load();
       })();
       return;
@@ -155,6 +192,7 @@ export default function CoachCapacityPricingScreen({
         onPress: () => {
           void (async () => {
             await supabase.from("coach_capacity_pricing").delete().eq("coach_id", coachId).eq("max_participants", cap);
+            if (editCap === cap) cancelEdit();
             await load();
           })();
         },
@@ -162,145 +200,161 @@ export default function CoachCapacityPricingScreen({
     ]);
   }
 
-  return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+  const pickCoachLabel = language === "he" ? "מאמן" : "Coach";
+  const pickCoachPlaceholder = language === "he" ? "בחרו מאמן או מנהל…" : "Choose coach or manager…";
+
+  const body = (
+    <>
       {allowCoachPicker && !lockedCoachId ? (
-        <>
-          <Text style={[styles.label, isRTL && styles.rtl]}>{language === "he" ? "מאמן" : "Coach"}</Text>
-          <Pressable style={styles.pickerTouch} onPress={() => setPickerOpen(true)}>
-            <Text style={coachLabel ? styles.pickerText : styles.pickerPlaceholder}>
-              {coachLabel || (language === "he" ? "בחרו מאמן או מנהל…" : "Choose coach or manager…")}
-            </Text>
-          </Pressable>
-          <Modal visible={pickerOpen} transparent animationType="slide">
-            <View style={styles.modalBackdrop}>
-              <Pressable style={styles.modalBackdropTouch} onPress={() => setPickerOpen(false)} />
-              <View style={styles.modalBox}>
-                <View style={styles.modalHeader}>
-                  <Text style={[styles.modalTitle, isRTL && styles.rtl]}>{language === "he" ? "מאמנים" : "Trainers"}</Text>
-                  <Pressable onPress={() => setPickerOpen(false)}>
-                    <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
-                  </Pressable>
-                </View>
-                {trainersLoading ? (
-                  <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
-                ) : (
-                  <FlatList
-                    data={trainers}
-                    keyExtractor={(item) => item.user_id}
-                    renderItem={({ item }) => (
-                      <Pressable
-                        style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
-                        onPress={() => {
-                          setPickedCoachId(item.user_id);
-                          setCoachLabel(`${item.full_name} (@${item.username})`);
-                          setPickerOpen(false);
-                        }}
-                      >
-                        <Text style={styles.pickerItemName}>{item.full_name}</Text>
-                        <Text style={styles.pickerItemRole}>
-                          @{item.username} · {item.role}
-                        </Text>
-                      </Pressable>
-                    )}
-                    ListEmptyComponent={
-                      <Text style={[styles.pickerEmpty, isRTL && styles.rtl]}>
-                        {language === "he" ? "אין מאמנים" : "No trainers"}
-                      </Text>
-                    }
-                  />
-                )}
-              </View>
-            </View>
-          </Modal>
-        </>
+        <View style={styles.coachPickCard}>
+          <PricingPickerField
+            label={pickCoachLabel}
+            value={coachLabel}
+            placeholder={pickCoachPlaceholder}
+            onPress={() => setPickerOpen(true)}
+            isRTL={isRTL}
+            accessibilityLabel={pickCoachLabel}
+          />
+        </View>
       ) : null}
 
-      {!hideIntro ? <Text style={[styles.hint, isRTL && styles.rtl]}>{t("coachPricing.titleHint")}</Text> : null}
-
-      <View style={[styles.card, !coachId && { opacity: 0.55 }]}>
-        <Text style={[styles.cardTitle, isRTL && styles.rtl]}>{t("pricing.addRule")}</Text>
-        <Text style={[styles.label, isRTL && styles.rtl]}>{t("coachPricing.tierFieldLabel")}</Text>
-        <TextInput
-          value={capStr}
-          onChangeText={setCapStr}
-          keyboardType="number-pad"
-          placeholder="8"
-          editable={!!coachId}
-          placeholderTextColor={theme.colors.placeholderOnLight}
-          style={styles.input}
-        />
-        <Text style={[styles.label, isRTL && styles.rtl]}>{t("coachPricing.sessionPayout")}</Text>
-        <TextInput
-          value={priceStr}
-          onChangeText={setPriceStr}
-          keyboardType="decimal-pad"
-          placeholder="40"
-          editable={!!coachId}
-          placeholderTextColor={theme.colors.placeholderOnLight}
-          style={styles.input}
-        />
-        <PrimaryButton
-          label={t("common.save")}
-          onPress={() => void saveRule()}
-          loading={saving}
-          loadingLabel={t("common.loading")}
-          disabled={!coachId}
-        />
-      </View>
-
-      <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>{t("pricing.existing")}</Text>
-      {!coachId ? (
-        <Text style={[styles.empty, isRTL && styles.rtl]}>{language === "he" ? "בחרו מאמן כדי לערוך תעריפים." : "Pick a coach to edit rates."}</Text>
-      ) : loading ? (
-        <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
-      ) : rows.length === 0 ? (
-        <Text style={[styles.empty, isRTL && styles.rtl]}>{t("pricing.empty")}</Text>
-      ) : (
-        <View style={styles.list}>
+      <View style={!coachId ? styles.disabledWrap : undefined}>
+        <PricingSection
+          title={t("coachPricing.ratesSection")}
+          hint={hideIntro ? t("coachPricing.titleHint") : undefined}
+          isRTL={isRTL}
+          loading={!!coachId && loading}
+          emptyMessage={
+            !coachId
+              ? language === "he"
+                ? "בחרו מאמן כדי לערוך תעריפים."
+                : "Pick a coach to edit rates."
+              : !loading && rows.length === 0
+                ? t("pricing.empty")
+                : undefined
+          }
+          count={coachId ? rows.length : undefined}
+          footer={
+            <CollapsiblePricingForm
+              variant="inline"
+              title={formTitle}
+              expanded={formOpen}
+              onToggle={() => (coachId ? setFormOpen((o) => !o) : showPickCoach())}
+              summary={formSummary}
+              isRTL={isRTL}
+            >
+              <PricingTierFormFields
+                capacityLabel={t("coachPricing.tierFieldLabel")}
+                priceLabel={t("coachPricing.sessionPayout")}
+                capValue={capStr}
+                priceValue={priceStr}
+                onCapChange={setCapStr}
+                onPriceChange={setPriceStr}
+                capPlaceholder="8"
+                pricePlaceholder="40"
+                editable={!!coachId}
+                isRTL={isRTL}
+              />
+              <View style={ps.formActions}>
+                <PrimaryButton
+                  label={t("common.save")}
+                  onPress={() => void saveRule()}
+                  loading={saving}
+                  loadingLabel={t("common.loading")}
+                  disabled={!coachId}
+                />
+                {editCap !== null ? (
+                  <Pressable onPress={cancelEdit} style={ps.cancelEdit}>
+                    <Text style={ps.cancelEditTxt}>{t("pricing.cancelEdit")}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </CollapsiblePricingForm>
+          }
+        >
           {rows.map((r) => {
             const p = Number(r.price_ils);
+            const title = t("coachPricing.tierListCaption").replace("{n}", String(r.max_participants));
             return (
-              <View key={r.max_participants} style={styles.row}>
-                <View style={styles.rowMain}>
-                  <Text style={[styles.rowCap, isRTL && styles.rtl]}>
-                    {t("coachPricing.tierListCaption").replace("{n}", String(r.max_participants))}
-                  </Text>
-                  <Text style={[styles.rowPrice, isRTL && styles.rtl]}>{`${p} ₪`}</Text>
-                </View>
-                <Pressable
-                  onPress={() => confirmRemove(r.max_participants)}
-                  style={({ pressed }) => [styles.removeBtn, pressed && { opacity: 0.85 }]}
-                >
-                  <Text style={styles.removeTxt}>{t("pricing.delete")}</Text>
-                </Pressable>
-              </View>
+              <PricingTierRow
+                key={r.max_participants}
+                title={title}
+                priceLabel={`${p} ₪`}
+                isRTL={isRTL}
+                onEdit={() => startEdit(r.max_participants, p)}
+                onRemove={() => confirmRemove(r.max_participants)}
+              />
             );
           })}
+        </PricingSection>
+      </View>
+
+      <Modal visible={pickerOpen} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <Pressable style={styles.modalBackdropTouch} onPress={() => setPickerOpen(false)} />
+          <View style={styles.modalBox}>
+            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
+              <Text style={[styles.modalTitle, isRTL && ps.rtl]}>{language === "he" ? "מאמנים" : "Trainers"}</Text>
+              <Pressable onPress={() => setPickerOpen(false)}>
+                <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
+              </Pressable>
+            </View>
+            {trainersLoading ? (
+              <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
+            ) : (
+              <FlatList
+                data={trainers}
+                keyExtractor={(item) => item.user_id}
+                renderItem={({ item }) => (
+                  <Pressable
+                    style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
+                    onPress={() => {
+                      setPickedCoachId(item.user_id);
+                      setCoachLabel(`${item.full_name} (@${item.username})`);
+                      setPickerOpen(false);
+                    }}
+                  >
+                    <Text style={styles.pickerItemName}>{item.full_name}</Text>
+                    <Text style={styles.pickerItemRole}>
+                      @{item.username} · {item.role}
+                    </Text>
+                  </Pressable>
+                )}
+                ListEmptyComponent={
+                  <Text style={[styles.pickerEmpty, isRTL && ps.rtl]}>
+                    {language === "he" ? "אין מאמנים" : "No trainers"}
+                  </Text>
+                }
+              />
+            )}
+          </View>
         </View>
-      )}
+      </Modal>
+    </>
+  );
+
+  if (hideIntro) {
+    return <View style={ps.embedded}>{body}</View>;
+  }
+
+  return (
+    <ScrollView style={ps.screen} contentContainerStyle={ps.content} keyboardShouldPersistTaps="handled">
+      <Text style={[ps.intro, isRTL && ps.rtl]}>{t("coachPricing.titleHint")}</Text>
+      {body}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
-  rtl: { textAlign: "right", alignSelf: "stretch" },
-  hint: { color: theme.colors.textMuted, lineHeight: 20, marginBottom: theme.spacing.md },
-  label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
-  pickerTouch: {
+  coachPickCard: {
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    marginTop: 6,
-    backgroundColor: theme.colors.white,
-    minHeight: 48,
-    justifyContent: "center",
+    borderColor: theme.colors.borderMuted,
+    marginBottom: theme.spacing.sm,
   },
-  pickerText: { fontSize: 16, color: theme.colors.textOnLight },
-  pickerPlaceholder: { fontSize: 16, color: theme.colors.textSoftOnLight },
+  disabledWrap: { opacity: 0.55 },
   modalBackdrop: { flex: 1, justifyContent: "flex-end" },
   modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
   modalBox: {
@@ -317,6 +371,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: theme.colors.border,
   },
+  modalHeaderRtl: { flexDirection: "row-reverse" },
   modalTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textOnLight },
   modalClose: { fontSize: 16, color: theme.colors.textMutedOnLight, fontWeight: "700" },
   modalLoader: { padding: theme.spacing.xl },
@@ -324,42 +379,4 @@ const styles = StyleSheet.create({
   pickerItemName: { fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
   pickerItemRole: { fontSize: 13, color: theme.colors.textMutedOnLight, marginTop: 4 },
   pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoftOnLight, textAlign: "center" },
-  card: {
-    padding: theme.spacing.md,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    gap: 8,
-  },
-  cardTitle: { fontWeight: "900", fontSize: 15, color: theme.colors.text, marginBottom: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
-  },
-  sectionTitle: { marginTop: theme.spacing.lg, fontWeight: "900", fontSize: 16, color: theme.colors.text },
-  loader: { marginTop: theme.spacing.md },
-  empty: { marginTop: theme.spacing.sm, color: theme.colors.textSoft },
-  list: { marginTop: theme.spacing.sm, gap: theme.spacing.sm },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: theme.spacing.md,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    gap: 12,
-  },
-  rowMain: { flex: 1, minWidth: 0 },
-  rowCap: { fontWeight: "800", fontSize: 15, color: theme.colors.text },
-  rowPrice: { marginTop: 4, fontSize: 14, fontWeight: "700", color: theme.colors.cta },
-  removeBtn: { paddingVertical: 8, paddingHorizontal: 10 },
-  removeTxt: { color: theme.colors.error, fontWeight: "800", fontSize: 13 },
 });

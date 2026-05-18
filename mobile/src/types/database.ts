@@ -38,6 +38,10 @@ export interface TrainingSession {
   is_open_for_registration: boolean;
   /** Staff-only listing; athletes browse only non-hidden open sessions (RLS). */
   is_hidden?: boolean;
+  /** One-time price (₪) for every billing slot on this session; overrides tier/athlete pricing. */
+  custom_slot_price_ils?: number | null;
+  /** Uses global kickbox tier rates when billing (session_capacity_pricing.is_kickbox). */
+  is_kickbox?: boolean;
 }
 
 /** Row from `training_sessions` with embedded coach profile (see `trainer:profiles!coach_id`). */
@@ -112,6 +116,7 @@ export type ManagerCoachSessionReportRow = {
 export type SessionCapacityPricingRow = {
   max_participants: number;
   price_ils: number | string;
+  is_kickbox?: boolean;
   updated_at?: string;
 };
 

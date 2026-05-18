@@ -13,6 +13,9 @@ import { useI18n } from "../../../../../src/context/I18nContext";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../../src/context/ToastContext";
 import { copySessionParticipantsToNewSession } from "../../../../../src/lib/copySessionParticipants";
+import { SessionSlotRateField } from "../../../../../src/components/SessionSlotRateField";
+import { SessionOptionsSection } from "../../../../../src/components/SessionOptionsSection";
+import { parseCustomSlotPriceDraft } from "../../../../../src/lib/sessionSlotPrice";
 
 type EditSnapshot = {
   date: string;
@@ -21,6 +24,7 @@ type EditSnapshot = {
   durationMin: string;
   open: boolean;
   hidden: boolean;
+  isKickbox: boolean;
 };
 
 export default function CoachSessionManageScreen() {
@@ -38,16 +42,19 @@ export default function CoachSessionManageScreen() {
   const [durationMin, setDurationMin] = useState("");
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [isKickbox, setIsKickbox] = useState(false);
   const [undoStack, setUndoStack] = useState<EditSnapshot[]>([]);
   const [dupOpen, setDupOpen] = useState(false);
   const [dupDate, setDupDate] = useState("");
   const [dupTime, setDupTime] = useState("");
   const [dupBusy, setDupBusy] = useState(false);
   const [dupIncludeParticipants, setDupIncludeParticipants] = useState(false);
+  const [customSlotPriceDraft, setCustomSlotPriceDraft] = useState("");
+  const [tierSlotPriceIls, setTierSlotPriceIls] = useState<number | null>(null);
 
   function pushUndo() {
     setUndoStack((prev) => {
-      const snap: EditSnapshot = { date, time, maxP, durationMin, open, hidden };
+      const snap: EditSnapshot = { date, time, maxP, durationMin, open, hidden, isKickbox };
       const head = prev[prev.length - 1];
       if (
         head &&
@@ -56,7 +63,8 @@ export default function CoachSessionManageScreen() {
         head.maxP === snap.maxP &&
         head.durationMin === snap.durationMin &&
         head.open === snap.open &&
-        head.hidden === snap.hidden
+        head.hidden === snap.hidden &&
+        head.isKickbox === snap.isKickbox
       ) {
         return prev;
       }
@@ -75,6 +83,7 @@ export default function CoachSessionManageScreen() {
       setDurationMin(snap.durationMin);
       setOpen(snap.open);
       setHidden(snap.hidden);
+      setIsKickbox(snap.isKickbox);
       return prev.slice(0, -1);
     });
   }
@@ -102,11 +111,41 @@ export default function CoachSessionManageScreen() {
       setDurationMin(String(s.duration_minutes ?? 60));
       setOpen(s.is_open_for_registration);
       setHidden(!!(s as { is_hidden?: boolean }).is_hidden);
+      setIsKickbox(!!(s as TrainingSession).is_kickbox);
+      const customRaw = (s as TrainingSession).custom_slot_price_ils;
+      const customNum = customRaw != null && Number.isFinite(Number(customRaw)) ? Number(customRaw) : null;
+      setCustomSlotPriceDraft(customNum != null ? String(customNum) : "");
+      const { data: priceRow } = await supabase
+        .from("session_capacity_pricing")
+        .select("price_ils")
+        .eq("max_participants", s.max_participants)
+        .maybeSingle();
+      const tierP = priceRow?.price_ils;
+      setTierSlotPriceIls(tierP != null && Number.isFinite(Number(tierP)) ? Number(tierP) : null);
       setUndoStack([]);
       setForbidden(false);
       setReady(true);
     })();
   }, [id]);
+
+  useEffect(() => {
+    const cap = parseInt(maxP, 10);
+    if (!Number.isFinite(cap) || cap < 1) return;
+    let cancelled = false;
+    (async () => {
+      const { data: priceRow } = await supabase
+        .from("session_capacity_pricing")
+        .select("price_ils")
+        .eq("max_participants", cap)
+        .maybeSingle();
+      if (cancelled) return;
+      const tierP = priceRow?.price_ils;
+      setTierSlotPriceIls(tierP != null && Number.isFinite(Number(tierP)) ? Number(tierP) : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [maxP]);
 
   async function saveSession() {
     if (!isValidISODateString(date.trim())) {
@@ -123,27 +162,60 @@ export default function CoachSessionManageScreen() {
       duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
       is_open_for_registration: open,
       is_hidden: hidden,
+      is_kickbox: isKickbox,
     };
-    let { error } = await supabase.from("training_sessions").update(payload).eq("id", id);
+    const updateBody: Record<string, unknown> = { ...payload };
+    let { error } = await supabase.from("training_sessions").update(updateBody).eq("id", id);
     let savedWithoutHidden = false;
+    let savedWithoutKickbox = false;
     if (error && isMissingColumnError(error.message, "is_hidden")) {
-      const { is_hidden: _h, ...rest } = payload;
-      const retry = await supabase.from("training_sessions").update(rest).eq("id", id);
-      error = retry.error;
-      if (!error) savedWithoutHidden = true;
+      delete updateBody.is_hidden;
+      savedWithoutHidden = true;
+      ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", id));
+    }
+    if (error && isMissingColumnError(error.message, "is_kickbox")) {
+      delete updateBody.is_kickbox;
+      savedWithoutKickbox = true;
+      ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", id));
     }
     if (error) {
       Alert.alert(t("common.error"), error.message);
       return;
     }
-    router.replace("/(app)/coach/sessions");
-    if (savedWithoutHidden) {
+    const customParsed = parseCustomSlotPriceDraft(customSlotPriceDraft);
+    if (!customParsed.ok) {
+      Alert.alert(t("common.error"), t("managerSession.customSlotPriceInvalid"));
+      return;
+    }
+    const { data: priceData, error: priceErr } = await supabase.rpc("staff_set_session_custom_slot_price", {
+      p_session_id: id,
+      p_price_ils: customParsed.price,
+    });
+    if (priceErr || !priceData?.ok) {
       Alert.alert(
-        language === "he" ? "הערה" : "Note",
-        language === "he"
-          ? "העמודה לאימון מוסתר עדיין לא קיימת במסד הנתונים; שאר השדות נשמרו."
-          : "Hidden-session column is not on the database yet; other fields were saved."
+        t("common.error"),
+        priceErr?.message ?? String(priceData?.error ?? t("common.failed"))
       );
+      return;
+    }
+    router.replace("/(app)/coach/sessions");
+    if (savedWithoutHidden || savedWithoutKickbox) {
+      const parts: string[] = [];
+      if (savedWithoutHidden) {
+        parts.push(
+          language === "he"
+            ? "סימון מוסתר לא נשמר (עמודה חסרה במסד)"
+            : "Hidden flag was not saved (column missing)"
+        );
+      }
+      if (savedWithoutKickbox) {
+        parts.push(
+          language === "he"
+            ? "סימון קיקבוקס לא נשמר (עמודה חסרה במסד)"
+            : "Kickbox flag was not saved (column missing)"
+        );
+      }
+      Alert.alert(language === "he" ? "הערה" : "Note", parts.join("\n"));
     }
   }
 
@@ -166,11 +238,12 @@ export default function CoachSessionManageScreen() {
       duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
       is_open_for_registration: false,
       is_hidden: hidden,
+      is_kickbox: isKickbox,
     };
     let res = await supabase.from("training_sessions").insert(payload).select("id").maybeSingle();
     let error = res.error;
-    if (error && isMissingColumnError(error.message, "is_hidden")) {
-      const { is_hidden: _h, ...rest } = payload as any;
+    if (error && (isMissingColumnError(error.message, "is_hidden") || isMissingColumnError(error.message, "is_kickbox"))) {
+      const { is_hidden: _h, is_kickbox: _k, ...rest } = payload;
       res = await supabase.from("training_sessions").insert(rest).select("id").maybeSingle();
       error = res.error;
     }
@@ -239,6 +312,7 @@ export default function CoachSessionManageScreen() {
     <>
       <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
       <ScrollView style={sf.screen} contentContainerStyle={sf.content} keyboardShouldPersistTaps="handled">
+      <View style={sf.sections}>
       <View style={sf.card}>
         <Text style={[sf.cardTitle, isRTL && { textAlign: "right" }]}>{language === "he" ? "עריכה" : "Edit"}</Text>
         <View style={[sf.row, compact && sf.rowStack]}>
@@ -298,63 +372,86 @@ export default function CoachSessionManageScreen() {
       </View>
 
       <View style={sf.card}>
-        <Text style={sf.cardTitle}>{language === "he" ? "אפשרויות" : "Options"}</Text>
-        <Pressable
-          style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
-          onPress={() => {
-            pushUndo();
-            setOpen(!open);
-          }}
-        >
-          <Text style={[sf.toggleText, isRTL && styles.toggleTextRtl]}>
-            {language === "he" ? "פתוח להרשמה: " : "Open for registration: "}
-            {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-          </Text>
-        </Pressable>
-        <View style={{ height: 10 }} />
-        <Pressable
-          style={({ pressed }) => [sf.toggle, pressed && { opacity: 0.9 }, isRTL && styles.toggleRtl]}
-          onPress={() => {
-            pushUndo();
-            setHidden(!hidden);
-          }}
-        >
-          <Text style={[sf.toggleText, isRTL && styles.toggleTextRtl]}>
-            {language === "he"
-              ? "מוסתר (צוות בלבד, ללא הרשמה עצמית): "
-              : "Hidden (staff-only, no athlete self-register): "}
-            {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
-          </Text>
-        </Pressable>
+        <Text style={[sf.cardTitle, isRTL && styles.toggleTextRtl]}>{t("session.optionsTitle")}</Text>
+        <SessionOptionsSection
+        embedded
+        isRTL={isRTL}
+        options={[
+          {
+            key: "open",
+            label: t("session.openRegistration"),
+            value: open,
+            onValueChange: (v) => {
+              pushUndo();
+              setOpen(v);
+            },
+            tone: "open",
+          },
+          {
+            key: "hidden",
+            label: t("session.hiddenStaffOnly"),
+            value: hidden,
+            onValueChange: (v) => {
+              pushUndo();
+              setHidden(v);
+            },
+            tone: "hidden",
+          },
+          {
+            key: "kickbox",
+            label: t("session.kickboxSession"),
+            value: isKickbox,
+            onValueChange: (v) => {
+              pushUndo();
+              setIsKickbox(v);
+            },
+            tone: "kickbox",
+          },
+        ]}
+        />
       </View>
 
-      <View style={[sf.card, { marginBottom: 0 }]}>
-        <Pressable
-          onPress={undoLast}
-          disabled={undoStack.length === 0}
-          style={({ pressed }) => [
-            styles.undoBtn,
-            pressed && undoStack.length > 0 && { opacity: 0.85 },
-            undoStack.length === 0 && { opacity: 0.45 },
-          ]}
-        >
-          <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
-        </Pressable>
-        <PrimaryButton label={t("common.save")} onPress={saveSession} />
-        <View style={{ height: 10 }} />
-        <PrimaryButton
-          label={language === "he" ? "שכפול אימון…" : "Duplicate session…"}
-          onPress={() => {
-            setDupDate(date);
-            setDupTime(time);
-            setDupIncludeParticipants(false);
-            setDupOpen(true);
-          }}
-          variant="ghost"
-        />
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}>
-          <Text style={styles.cancelEditTxt}>{t("common.cancel")}</Text>
-        </Pressable>
+      <SessionSlotRateField
+        layout="form"
+        value={customSlotPriceDraft}
+        onChangeValue={setCustomSlotPriceDraft}
+        tierPriceIls={tierSlotPriceIls}
+        hasCustomOnServer={
+          session?.custom_slot_price_ils != null && Number.isFinite(Number(session.custom_slot_price_ils))
+        }
+        serverCustomPriceIls={session?.custom_slot_price_ils ?? null}
+        onClear={session?.custom_slot_price_ils != null ? () => setCustomSlotPriceDraft("") : undefined}
+      />
+
+      <View style={sf.card}>
+        <View style={sf.toggleStack}>
+          <Pressable
+            onPress={undoLast}
+            disabled={undoStack.length === 0}
+            style={({ pressed }) => [
+              styles.undoBtn,
+              pressed && undoStack.length > 0 && { opacity: 0.85 },
+              undoStack.length === 0 && { opacity: 0.45 },
+            ]}
+          >
+            <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
+          </Pressable>
+          <PrimaryButton label={t("common.save")} onPress={() => void saveSession()} />
+          <PrimaryButton
+            label={language === "he" ? "שכפול אימון…" : "Duplicate session…"}
+            onPress={() => {
+              setDupDate(date);
+              setDupTime(time);
+              setDupIncludeParticipants(false);
+              setDupOpen(true);
+            }}
+            variant="ghost"
+          />
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}>
+            <Text style={styles.cancelEditTxt}>{t("common.cancel")}</Text>
+          </Pressable>
+        </View>
+      </View>
       </View>
 
       <Modal visible={dupOpen} transparent animationType="fade" onRequestClose={() => (dupBusy ? null : setDupOpen(false))}>

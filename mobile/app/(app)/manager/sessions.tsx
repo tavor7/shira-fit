@@ -111,6 +111,7 @@ export default function ManagerSessionsScreen() {
         showStaffSessionLabels: true,
         isHidden: !!s.is_hidden,
         isOpenForRegistration: s.is_open_for_registration,
+        isKickbox: !!s.is_kickbox,
         onPress: () => router.push(`/(app)/manager/session/${s.id}`),
       })),
     [rows, signupBySession, waitlistBySession]

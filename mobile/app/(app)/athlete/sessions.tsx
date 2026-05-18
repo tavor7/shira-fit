@@ -226,6 +226,7 @@ export default function AthleteSessionsScreen() {
           signedUpCount: c,
           maxParticipants: m,
           accentColor: resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id),
+          isKickbox: !!s.is_kickbox,
           isOpenForRegistration: regOpen,
           athleteOnWaitlist: waitlisted,
           onJoinWaitlist: showJoinWl ? () => void joinWaitlistForSession(s.id) : undefined,

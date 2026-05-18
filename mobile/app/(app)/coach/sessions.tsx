@@ -104,6 +104,7 @@ export default function CoachSessionsScreen() {
         showStaffSessionLabels: true,
         isHidden: !!s.is_hidden,
         isOpenForRegistration: s.is_open_for_registration,
+        isKickbox: !!s.is_kickbox,
         onPress: () => router.push(`/(app)/coach/session/${s.id}`),
       })),
     [rows, signupBySession, waitlistBySession]

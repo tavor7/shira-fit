@@ -29,8 +29,9 @@ export type SessionsWeekItem = {
   subtitleUnclamped?: boolean;
   signedUpCount?: number;
   maxParticipants?: number;
-  /** Left accent (#RRGGBB). */
+  /** Left accent (#RRGGBB) — trainer calendar color. */
   accentColor?: string;
+  isKickbox?: boolean;
   /** Show Listed/Hidden + Open/Closed tags (staff). */
   showStaffSessionLabels?: boolean;
   isHidden?: boolean;
@@ -339,7 +340,6 @@ export function SessionsWeekCalendar({
                       it.maxParticipants !== undefined &&
                       it.maxParticipants > 0 &&
                       (it.signedUpCount ?? 0) >= it.maxParticipants;
-
                     if (waitlistCta || waitlistJoinedStrip) {
                       return (
                         <View

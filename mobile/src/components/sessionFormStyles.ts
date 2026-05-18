@@ -9,13 +9,25 @@ export const sessionFormStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { flexGrow: 1, padding: theme.spacing.lg, paddingBottom: theme.spacing.xl },
 
+  /** Even vertical gap between form section cards (use on a column wrapper). */
+  sections: {
+    gap: theme.spacing.md,
+  },
+
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+  },
+
+  toggleStack: {
+    gap: 10,
+  },
+  /** Primary actions at the bottom of session forms (save / cancel). */
+  actionsStack: {
+    gap: theme.spacing.sm,
   },
   cardTitle: {
     fontSize: 13,
@@ -25,6 +37,23 @@ export const sessionFormStyles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 10,
   },
+  /** Softer section label (create/edit forms). */
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: theme.colors.textMuted,
+    letterSpacing: 0.2,
+    marginBottom: theme.spacing.sm,
+  },
+  sectionHint: {
+    marginTop: -4,
+    marginBottom: theme.spacing.sm,
+    fontSize: 12,
+    fontWeight: "600",
+    color: theme.colors.textSoft,
+    lineHeight: 17,
+  },
+  sectionHintRtl: { textAlign: "right" },
 
   row: { flexDirection: "row", gap: 10, alignItems: "stretch" },
   rowStack: { flexDirection: "column" },

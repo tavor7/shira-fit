@@ -13,6 +13,7 @@ type TsNested = {
   session_date: string;
   start_time: string;
   duration_minutes?: number | null;
+  is_kickbox?: boolean | null;
 };
 
 type Row = { session_id: string; training_sessions: TsNested };
@@ -49,7 +50,7 @@ export default function MySessionsScreen() {
     // even if the foreign-table join is affected by RLS filtering.
     const { data: sessData } = await supabase
       .from("training_sessions")
-      .select("id, session_date, start_time, duration_minutes")
+      .select("id, session_date, start_time, duration_minutes, is_kickbox")
       .in("id", sessionIds);
     const sessions = ((sessData as TsNested[]) ?? []).filter((x) => !!x?.id);
     const byId = new Map(sessions.map((s) => [s.id, s]));
@@ -79,6 +80,7 @@ export default function MySessionsScreen() {
           durationMinutes: dm,
           timeLabel: formatSessionTimeRange(ts.start_time, dm),
           subtitle: language === "he" ? "נרשם" : "Registered",
+          isKickbox: !!ts.is_kickbox,
           onPress: () => router.push(`/(app)/athlete/session/${ts.id}`),
         };
       }),

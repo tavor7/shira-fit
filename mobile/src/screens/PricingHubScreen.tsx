@@ -109,5 +109,5 @@ const styles = StyleSheet.create({
   slotTxt: { fontWeight: "900", fontSize: 12, color: theme.colors.textMuted, letterSpacing: 0.2 },
   slotTxtOn: { color: theme.colors.ctaText },
 
-  body: { marginTop: 6 },
+  body: { marginTop: 4, gap: 0 },
 });

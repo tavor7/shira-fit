@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   ScrollView,
   Pressable,
   Platform,
@@ -16,6 +15,12 @@ import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { PricingTierRow } from "../components/PricingTierRow";
+import { CollapsiblePricingForm } from "../components/CollapsiblePricingForm";
+import { PricingSection } from "../components/PricingSection";
+import { PricingTierFormFields } from "../components/PricingTierFormFields";
+import { PricingPickerField } from "../components/PricingPickerField";
+import { pricingScreenStyles as ps } from "../components/pricingScreenStyles";
 import type { AthleteSessionCapacityPricingRow, SessionCapacityPricingRow } from "../types/database";
 
 type Props = { hideIntro?: boolean };
@@ -60,6 +65,16 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   const [athletes, setAthletes] = useState<AthletePick[]>([]);
   const [athletesLoading, setAthletesLoading] = useState(false);
 
+  const [kickboxCapStr, setKickboxCapStr] = useState("");
+  const [kickboxPriceStr, setKickboxPriceStr] = useState("");
+  const [kickboxRows, setKickboxRows] = useState<SessionCapacityPricingRow[]>([]);
+  const [kickboxSaving, setKickboxSaving] = useState(false);
+  const [editGlobal, setEditGlobal] = useState<{ cap: number; isKickbox: boolean } | null>(null);
+  const [editAthlete, setEditAthlete] = useState<{ userId: string; cap: number } | null>(null);
+  const [globalFormOpen, setGlobalFormOpen] = useState(false);
+  const [athleteFormOpen, setAthleteFormOpen] = useState(false);
+  const [kickboxFormOpen, setKickboxFormOpen] = useState(false);
+
   const notifyErr = useCallback(
     (message: string) => {
       alertNative(t("common.error"), message);
@@ -71,15 +86,18 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     setLoading(true);
     const { data, error } = await supabase
       .from("session_capacity_pricing")
-      .select("max_participants, price_ils, updated_at")
+      .select("max_participants, price_ils, is_kickbox, updated_at")
       .order("max_participants", { ascending: true });
     setLoading(false);
     if (error) {
       notifyErr(error.message);
       setRows([]);
+      setKickboxRows([]);
       return;
     }
-    setRows((data as SessionCapacityPricingRow[]) ?? []);
+    const list = (data as SessionCapacityPricingRow[]) ?? [];
+    setRows(list.filter((r) => !r.is_kickbox));
+    setKickboxRows(list.filter((r) => !!r.is_kickbox));
   }, [notifyErr]);
 
   const loadOverrides = useCallback(async () => {
@@ -123,30 +141,81 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     if (pickerOpen) void loadAthletes();
   }, [pickerOpen, loadAthletes]);
 
-  async function saveRule() {
-    const cap = parseTierCapacity(capStr);
+  async function saveGlobalRule(isKickbox: boolean) {
+    const capRaw = isKickbox ? kickboxCapStr : capStr;
+    const priceRaw = isKickbox ? kickboxPriceStr : priceStr;
+    const cap = parseTierCapacity(capRaw);
     if (cap === null) {
       notifyErr(t("pricing.invalidCapacity"));
       return;
     }
-    const price = parseMoneyInput(priceStr);
+    const price = parseMoneyInput(priceRaw);
     if (price === null) {
       notifyErr(t("pricing.invalidPrice"));
       return;
     }
-    setSaving(true);
+    const editing = editGlobal?.isKickbox === isKickbox ? editGlobal : null;
+    const setBusy = isKickbox ? setKickboxSaving : setSaving;
+    setBusy(true);
+    if (editing && editing.cap !== cap) {
+      await supabase
+        .from("session_capacity_pricing")
+        .delete()
+        .eq("max_participants", editing.cap)
+        .eq("is_kickbox", isKickbox);
+    }
     const { error } = await supabase.from("session_capacity_pricing").upsert(
-      { max_participants: cap, price_ils: price },
-      { onConflict: "max_participants" }
+      { max_participants: cap, price_ils: price, is_kickbox: isKickbox },
+      { onConflict: "max_participants,is_kickbox" }
     );
-    setSaving(false);
+    setBusy(false);
     if (error) {
       notifyErr(error.message);
       return;
     }
-    setCapStr("");
-    setPriceStr("");
+    if (isKickbox) {
+      setKickboxCapStr("");
+      setKickboxPriceStr("");
+    } else {
+      setCapStr("");
+      setPriceStr("");
+    }
+    setEditGlobal(null);
+    if (isKickbox) setKickboxFormOpen(false);
+    else setGlobalFormOpen(false);
     await load();
+  }
+
+  function startEditGlobal(cap: number, price: number, isKickbox: boolean) {
+    setEditGlobal({ cap, isKickbox });
+    setAthleteFormOpen(false);
+    if (isKickbox) {
+      setKickboxFormOpen(true);
+      setGlobalFormOpen(false);
+    } else {
+      setGlobalFormOpen(true);
+      setKickboxFormOpen(false);
+    }
+    if (isKickbox) {
+      setKickboxCapStr(String(cap));
+      setKickboxPriceStr(String(price));
+    } else {
+      setCapStr(String(cap));
+      setPriceStr(String(price));
+    }
+  }
+
+  function cancelEditGlobal(isKickbox: boolean) {
+    if (editGlobal?.isKickbox === isKickbox) setEditGlobal(null);
+    if (isKickbox) {
+      setKickboxCapStr("");
+      setKickboxPriceStr("");
+      setKickboxFormOpen(false);
+    } else {
+      setCapStr("");
+      setPriceStr("");
+      setGlobalFormOpen(false);
+    }
   }
 
   async function saveAthleteRule() {
@@ -165,6 +234,13 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
       return;
     }
     setOverrideSaving(true);
+    if (editAthlete && (editAthlete.userId !== pickedAthleteId || editAthlete.cap !== cap)) {
+      await supabase
+        .from("athlete_session_capacity_pricing")
+        .delete()
+        .eq("user_id", editAthlete.userId)
+        .eq("max_participants", editAthlete.cap);
+    }
     const { error } = await supabase.from("athlete_session_capacity_pricing").upsert(
       { user_id: pickedAthleteId, max_participants: cap, price_ils: price },
       { onConflict: "user_id,max_participants" }
@@ -176,13 +252,39 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     }
     setAthCapStr("");
     setAthPriceStr("");
+    setPickedAthleteId("");
+    setPickedAthleteLabel("");
+    setEditAthlete(null);
+    setAthleteFormOpen(false);
     await loadOverrides();
   }
 
-  function confirmRemove(cap: number) {
+  function startEditAthlete(row: OverrideRow) {
+    const name = resolveProfileName(row);
+    setGlobalFormOpen(false);
+    setKickboxFormOpen(false);
+    setAthleteFormOpen(true);
+    setEditAthlete({ userId: row.user_id, cap: row.max_participants });
+    setPickedAthleteId(row.user_id);
+    setPickedAthleteLabel(name);
+    setAthCapStr(String(row.max_participants));
+    setAthPriceStr(String(row.price_ils));
+  }
+
+  function cancelEditAthlete() {
+    setEditAthlete(null);
+    setPickedAthleteId("");
+    setPickedAthleteLabel("");
+    setAthCapStr("");
+    setAthPriceStr("");
+    setAthleteFormOpen(false);
+  }
+
+  function confirmRemoveGlobal(cap: number, isKickbox: boolean) {
     const msg = t("pricing.confirmRemoveGlobalMessage");
     const run = async () => {
-      await supabase.from("session_capacity_pricing").delete().eq("max_participants", cap);
+      await supabase.from("session_capacity_pricing").delete().eq("max_participants", cap).eq("is_kickbox", isKickbox);
+      if (editGlobal?.cap === cap && editGlobal.isKickbox === isKickbox) cancelEditGlobal(isKickbox);
       await load();
     };
     if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -203,7 +305,12 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   function confirmRemoveOverride(userId: string, cap: number, athleteLabelText: string) {
     const msg = t("pricing.removeAthleteRateConfirm").replace(/\{name\}/g, athleteLabelText);
     const run = async () => {
-      await supabase.from("athlete_session_capacity_pricing").delete().eq("user_id", userId).eq("max_participants", cap);
+      await supabase
+        .from("athlete_session_capacity_pricing")
+        .delete()
+        .eq("user_id", userId)
+        .eq("max_participants", cap);
+      if (editAthlete?.userId === userId && editAthlete.cap === cap) cancelEditAthlete();
       await loadOverrides();
     };
     if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -227,153 +334,218 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     [t]
   );
 
-  return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {!hideIntro ? <Text style={[styles.hint, isRTL && styles.rtl]}>{t("pricing.titleHint")}</Text> : null}
+  const tierDraftSummary = useCallback(
+    (capRaw: string, priceRaw: string) => {
+      const parts: string[] = [];
+      const cap = capRaw.trim();
+      const price = priceRaw.trim();
+      if (cap) parts.push(`${cap} ${t("pricing.participantsLabel")}`);
+      if (price) parts.push(`${price} ₪`);
+      return parts.length > 0 ? parts.join(" · ") : undefined;
+    },
+    [t]
+  );
 
-      <View style={styles.card}>
-        <Text style={[styles.cardTitle, isRTL && styles.rtl]}>{t("pricing.addRule")}</Text>
-        <Text style={[styles.label, isRTL && styles.rtl]}>{t("pricing.capacity")}</Text>
-        <TextInput
-          value={capStr}
-          onChangeText={setCapStr}
-          keyboardType="number-pad"
-          placeholder="8"
-          placeholderTextColor={theme.colors.placeholderOnLight}
-          style={styles.input}
-          accessibilityLabel={t("pricing.capacity")}
-        />
-        <Text style={[styles.label, isRTL && styles.rtl]}>{t("pricing.price")}</Text>
-        <TextInput
-          value={priceStr}
-          onChangeText={setPriceStr}
-          keyboardType="decimal-pad"
-          placeholder="120"
-          placeholderTextColor={theme.colors.placeholderOnLight}
-          style={styles.input}
-          accessibilityLabel={t("pricing.price")}
-        />
-        <PrimaryButton label={t("common.save")} onPress={() => void saveRule()} loading={saving} loadingLabel={t("common.loading")} />
-      </View>
+  const globalFormTitle =
+    editGlobal && !editGlobal.isKickbox ? t("pricing.editRule") : t("pricing.addRule");
+  const athleteFormTitle = editAthlete ? t("pricing.editRule") : t("pricing.addAthleteRate");
+  const kickboxFormTitle = editGlobal?.isKickbox ? t("pricing.editRule") : t("pricing.addRule");
 
-      <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>{t("pricing.existing")}</Text>
-      {loading ? (
-        <ActivityIndicator color={theme.colors.cta} style={styles.loader} accessibilityLabel={t("common.loading")} />
-      ) : rows.length === 0 ? (
-        <Text style={[styles.empty, isRTL && styles.rtl]}>{t("pricing.empty")}</Text>
-      ) : (
-        <View style={styles.list}>
-          {rows.map((r) => {
-            const p = Number(r.price_ils);
-            const label = `${r.max_participants} ${t("pricing.participantsLabel")}`;
-            return (
-              <View key={r.max_participants} style={styles.row}>
-                <View style={styles.rowMain}>
-                  <Text style={[styles.rowCap, isRTL && styles.rtl]}>{label}</Text>
-                  <Text style={[styles.rowPrice, isRTL && styles.rtl]}>{`${p} ₪`}</Text>
-                </View>
-                <Pressable
-                  onPress={() => confirmRemove(r.max_participants)}
-                  style={({ pressed }) => [styles.removeBtn, pressed && { opacity: 0.85 }]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t("pricing.delete")}: ${label}`}
-                >
-                  <Text style={styles.removeTxt}>{t("pricing.delete")}</Text>
+  const body = (
+    <>
+      <PricingSection
+        title={t("pricing.standardSection")}
+        hint={hideIntro ? undefined : t("pricing.titleHint")}
+        isRTL={isRTL}
+        loading={loading}
+        emptyMessage={!loading && rows.length === 0 ? t("pricing.empty") : undefined}
+        count={rows.length}
+        footer={
+          <CollapsiblePricingForm
+            variant="inline"
+            title={globalFormTitle}
+            expanded={globalFormOpen}
+            onToggle={() => setGlobalFormOpen((o) => !o)}
+            summary={tierDraftSummary(capStr, priceStr)}
+            isRTL={isRTL}
+          >
+            <PricingTierFormFields
+              capacityLabel={t("pricing.capacity")}
+              priceLabel={t("pricing.price")}
+              capValue={capStr}
+              priceValue={priceStr}
+              onCapChange={setCapStr}
+              onPriceChange={setPriceStr}
+              isRTL={isRTL}
+            />
+            <View style={ps.formActions}>
+              <PrimaryButton
+                label={t("common.save")}
+                onPress={() => void saveGlobalRule(false)}
+                loading={saving}
+                loadingLabel={t("common.loading")}
+              />
+              {editGlobal && !editGlobal.isKickbox ? (
+                <Pressable onPress={() => cancelEditGlobal(false)} style={ps.cancelEdit}>
+                  <Text style={ps.cancelEditTxt}>{t("pricing.cancelEdit")}</Text>
                 </Pressable>
-              </View>
-            );
-          })}
-        </View>
-      )}
+              ) : null}
+            </View>
+          </CollapsiblePricingForm>
+        }
+      >
+        {rows.map((r) => {
+          const p = Number(r.price_ils);
+          const label = `${r.max_participants} ${t("pricing.participantsLabel")}`;
+          return (
+            <PricingTierRow
+              key={r.max_participants}
+              title={label}
+              priceLabel={`${p} ₪`}
+              isRTL={isRTL}
+              onEdit={() => startEditGlobal(r.max_participants, p, false)}
+              onRemove={() => confirmRemoveGlobal(r.max_participants, false)}
+            />
+          );
+        })}
+      </PricingSection>
 
-      <Text style={[styles.sectionTitle, isRTL && styles.rtl, styles.sectionTitleSpaced]}>{t("pricing.specialAthleteSection")}</Text>
-      <Text style={[styles.hint, styles.hintAfterTitle, isRTL && styles.rtl]}>{t("pricing.specialAthleteHint")}</Text>
-
-      <View style={styles.card}>
-        <Text style={[styles.cardTitle, isRTL && styles.rtl]}>{t("pricing.addAthleteRate")}</Text>
-        <Text style={[styles.label, isRTL && styles.rtl]}>{t("pricing.pickAthlete")}</Text>
-        <Pressable
-          style={styles.pickerTouch}
-          onPress={() => setPickerOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel={t("pricing.pickAthlete")}
-        >
-          <Text style={pickedAthleteLabel ? styles.pickerText : styles.pickerPlaceholder} numberOfLines={2}>
-            {pickedAthleteLabel || t("pricing.chooseAthletePlaceholder")}
-          </Text>
-        </Pressable>
-        <Text style={[styles.label, isRTL && styles.rtl]}>{t("pricing.capacity")}</Text>
-        <TextInput
-          value={athCapStr}
-          onChangeText={setAthCapStr}
-          keyboardType="number-pad"
-          placeholder="8"
-          placeholderTextColor={theme.colors.placeholderOnLight}
-          style={styles.input}
-          accessibilityLabel={t("pricing.capacity")}
-        />
-        <Text style={[styles.label, isRTL && styles.rtl]}>{t("pricing.price")}</Text>
-        <TextInput
-          value={athPriceStr}
-          onChangeText={setAthPriceStr}
-          keyboardType="decimal-pad"
-          placeholder="120"
-          placeholderTextColor={theme.colors.placeholderOnLight}
-          style={styles.input}
-          accessibilityLabel={t("pricing.price")}
-        />
-        <PrimaryButton
-          label={t("common.save")}
-          onPress={() => void saveAthleteRule()}
-          loading={overrideSaving}
-          loadingLabel={t("common.loading")}
-        />
-      </View>
-
-      <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>{t("pricing.specialAthleteExisting")}</Text>
-      {overrideLoading ? (
-        <ActivityIndicator color={theme.colors.cta} style={styles.loader} accessibilityLabel={t("common.loading")} />
-      ) : overrideRows.length === 0 ? (
-        <Text style={[styles.empty, isRTL && styles.rtl]}>{t("pricing.specialAthleteEmpty")}</Text>
-      ) : (
-        <View style={styles.list}>
-          {overrideRows.map((r) => {
-            const name = resolveProfileName(r);
-            const p = Number(r.price_ils);
-            const key = `${r.user_id}-${r.max_participants}`;
-            const sub = tierSummary(r.max_participants, p);
-            return (
-              <View key={key} style={styles.row}>
-                <View style={styles.rowMain}>
-                  <Text style={[styles.rowCap, isRTL && styles.rtl]} numberOfLines={2}>
-                    {name}
-                  </Text>
-                  <Text style={[styles.overrideSub, isRTL && styles.rtl]} numberOfLines={2}>
-                    {sub}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => confirmRemoveOverride(r.user_id, r.max_participants, name)}
-                  style={({ pressed }) => [styles.removeBtn, pressed && { opacity: 0.85 }]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t("pricing.delete")}: ${name}, ${sub}`}
-                >
-                  <Text style={styles.removeTxt}>{t("pricing.delete")}</Text>
+      <PricingSection
+        title={t("pricing.specialAthleteSection")}
+        hint={t("pricing.specialAthleteHint")}
+        isRTL={isRTL}
+        loading={overrideLoading}
+        emptyMessage={!overrideLoading && overrideRows.length === 0 ? t("pricing.specialAthleteEmpty") : undefined}
+        count={overrideRows.length}
+        footer={
+          <CollapsiblePricingForm
+            variant="inline"
+            title={athleteFormTitle}
+            expanded={athleteFormOpen}
+            onToggle={() => setAthleteFormOpen((o) => !o)}
+            summary={
+              pickedAthleteLabel
+                ? tierDraftSummary(athCapStr, athPriceStr) ?? pickedAthleteLabel
+                : tierDraftSummary(athCapStr, athPriceStr)
+            }
+            isRTL={isRTL}
+          >
+            <PricingPickerField
+              label={t("pricing.pickAthlete")}
+              value={pickedAthleteLabel}
+              placeholder={t("pricing.chooseAthletePlaceholder")}
+              onPress={() => setPickerOpen(true)}
+              isRTL={isRTL}
+              accessibilityLabel={t("pricing.pickAthlete")}
+            />
+            <PricingTierFormFields
+              capacityLabel={t("pricing.capacity")}
+              priceLabel={t("pricing.price")}
+              capValue={athCapStr}
+              priceValue={athPriceStr}
+              onCapChange={setAthCapStr}
+              onPriceChange={setAthPriceStr}
+              isRTL={isRTL}
+            />
+            <View style={ps.formActions}>
+              <PrimaryButton
+                label={t("common.save")}
+                onPress={() => void saveAthleteRule()}
+                loading={overrideSaving}
+                loadingLabel={t("common.loading")}
+              />
+              {editAthlete ? (
+                <Pressable onPress={cancelEditAthlete} style={ps.cancelEdit}>
+                  <Text style={ps.cancelEditTxt}>{t("pricing.cancelEdit")}</Text>
                 </Pressable>
-              </View>
-            );
-          })}
-        </View>
-      )}
+              ) : null}
+            </View>
+          </CollapsiblePricingForm>
+        }
+      >
+        {overrideRows.map((r) => {
+          const name = resolveProfileName(r);
+          const p = Number(r.price_ils);
+          const key = `${r.user_id}-${r.max_participants}`;
+          const sub = tierSummary(r.max_participants, p);
+          return (
+            <PricingTierRow
+              key={key}
+              title={name}
+              priceLabel={sub}
+              isRTL={isRTL}
+              onEdit={() => startEditAthlete(r)}
+              onRemove={() => confirmRemoveOverride(r.user_id, r.max_participants, name)}
+            />
+          );
+        })}
+      </PricingSection>
+
+      <PricingSection
+        title={t("pricing.kickboxGlobalSection")}
+        hint={t("pricing.kickboxGlobalHint")}
+        isRTL={isRTL}
+        loading={loading}
+        emptyMessage={!loading && kickboxRows.length === 0 ? t("pricing.kickboxGlobalEmpty") : undefined}
+        count={kickboxRows.length}
+        footer={
+          <CollapsiblePricingForm
+            variant="inline"
+            title={kickboxFormTitle}
+            expanded={kickboxFormOpen}
+            onToggle={() => setKickboxFormOpen((o) => !o)}
+            summary={tierDraftSummary(kickboxCapStr, kickboxPriceStr)}
+            isRTL={isRTL}
+          >
+            <PricingTierFormFields
+              capacityLabel={t("pricing.capacity")}
+              priceLabel={t("pricing.price")}
+              capValue={kickboxCapStr}
+              priceValue={kickboxPriceStr}
+              onCapChange={setKickboxCapStr}
+              onPriceChange={setKickboxPriceStr}
+              isRTL={isRTL}
+            />
+            <View style={ps.formActions}>
+              <PrimaryButton
+                label={t("common.save")}
+                onPress={() => void saveGlobalRule(true)}
+                loading={kickboxSaving}
+                loadingLabel={t("common.loading")}
+              />
+              {editGlobal?.isKickbox ? (
+                <Pressable onPress={() => cancelEditGlobal(true)} style={ps.cancelEdit}>
+                  <Text style={ps.cancelEditTxt}>{t("pricing.cancelEdit")}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </CollapsiblePricingForm>
+        }
+      >
+        {kickboxRows.map((r) => {
+          const p = Number(r.price_ils);
+          const label = `${r.max_participants} ${t("pricing.participantsLabel")}`;
+          return (
+            <PricingTierRow
+              key={`kick-${r.max_participants}`}
+              title={label}
+              priceLabel={`${p} ₪`}
+              isRTL={isRTL}
+              onEdit={() => startEditGlobal(r.max_participants, p, true)}
+              onRemove={() => confirmRemoveGlobal(r.max_participants, true)}
+            />
+          );
+        })}
+      </PricingSection>
 
       <Modal visible={pickerOpen} transparent animationType="slide" onRequestClose={() => setPickerOpen(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={styles.modalBackdropTouch} onPress={() => setPickerOpen(false)} accessibilityLabel={t("common.cancel")} />
           <View style={styles.modalBox}>
             <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
-              <Text style={[styles.modalTitle, isRTL && styles.rtl]}>{t("pricing.pickAthlete")}</Text>
+              <Text style={[styles.modalTitle, isRTL && ps.rtl]}>{t("pricing.pickAthlete")}</Text>
               <Pressable onPress={() => setPickerOpen(false)} accessibilityRole="button" accessibilityLabel={t("common.ok")}>
-                <Text style={[styles.modalClose, isRTL && styles.rtl]}>{t("common.ok")}</Text>
+                <Text style={[styles.modalClose, isRTL && ps.rtl]}>{t("common.ok")}</Text>
               </Pressable>
             </View>
             {athletesLoading ? (
@@ -395,18 +567,29 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
                     accessibilityRole="button"
                     accessibilityLabel={`${item.full_name}, @${item.username}`}
                   >
-                    <Text style={[styles.pickerItemName, isRTL && styles.rtl]}>{item.full_name}</Text>
-                    <Text style={[styles.pickerItemRole, isRTL && styles.rtl]}>@{item.username}</Text>
+                    <Text style={[styles.pickerItemName, isRTL && ps.rtl]}>{item.full_name}</Text>
+                    <Text style={[styles.pickerItemRole, isRTL && ps.rtl]}>@{item.username}</Text>
                   </Pressable>
                 )}
                 ListEmptyComponent={
-                  <Text style={[styles.pickerEmpty, isRTL && styles.rtl]}>{t("pricing.noAthletes")}</Text>
+                  <Text style={[styles.pickerEmpty, isRTL && ps.rtl]}>{t("pricing.noAthletes")}</Text>
                 }
               />
             )}
           </View>
         </View>
       </Modal>
+    </>
+  );
+
+  if (hideIntro) {
+    return <View style={ps.embedded}>{body}</View>;
+  }
+
+  return (
+    <ScrollView style={ps.screen} contentContainerStyle={ps.content} keyboardShouldPersistTaps="handled">
+      <Text style={[ps.intro, isRTL && ps.rtl]}>{t("pricing.titleHint")}</Text>
+      {body}
     </ScrollView>
   );
 }
@@ -418,64 +601,6 @@ function resolveProfileName(r: OverrideRow): string {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
-  rtl: { textAlign: "right", alignSelf: "stretch" },
-  hint: { color: theme.colors.textMuted, lineHeight: 20, marginBottom: theme.spacing.md },
-  hintAfterTitle: { marginTop: -4 },
-  card: {
-    padding: theme.spacing.md,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    gap: 8,
-  },
-  cardTitle: { fontWeight: "900", fontSize: 15, color: theme.colors.text, marginBottom: 4 },
-  label: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, marginTop: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
-  },
-  sectionTitle: { marginTop: theme.spacing.lg, fontWeight: "900", fontSize: 16, color: theme.colors.text },
-  sectionTitleSpaced: { marginTop: theme.spacing.xl },
-  loader: { marginTop: theme.spacing.md },
-  empty: { marginTop: theme.spacing.sm, color: theme.colors.textSoft },
-  list: { marginTop: theme.spacing.sm, gap: theme.spacing.sm },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: theme.spacing.md,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    gap: 12,
-  },
-  rowMain: { flex: 1, minWidth: 0 },
-  rowCap: { fontWeight: "800", fontSize: 15, color: theme.colors.text },
-  rowPrice: { marginTop: 4, fontSize: 14, fontWeight: "700", color: theme.colors.cta },
-  overrideSub: { marginTop: 4, fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
-  removeBtn: { paddingVertical: 8, paddingHorizontal: 10 },
-  removeTxt: { color: theme.colors.error, fontWeight: "800", fontSize: 13 },
-  pickerTouch: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    marginTop: 6,
-    backgroundColor: theme.colors.white,
-    minHeight: 48,
-    justifyContent: "center",
-  },
-  pickerText: { fontSize: 16, color: theme.colors.textOnLight },
-  pickerPlaceholder: { fontSize: 16, color: theme.colors.textSoftOnLight },
   modalBackdrop: { flex: 1, justifyContent: "flex-end" },
   modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
   modalBox: {
