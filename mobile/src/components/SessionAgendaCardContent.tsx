@@ -4,7 +4,8 @@ import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "./StatusChip";
 import { KickboxSessionBadge } from "./KickboxSessionBadge";
-import { type SessionTemporalPhase, getSessionTemporalPhase } from "../lib/sessionTime";
+import { type SessionTemporalPhase, formatSessionStartTime, getSessionTemporalPhase } from "../lib/sessionTime";
+import { firstWordOfDisplayName } from "../lib/displayName";
 
 type Props = {
   item: SessionsWeekItem;
@@ -46,7 +47,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
       ]}
     >
       <View style={styles.timeRow}>
-        <Text style={timeStyle}>{item.timeLabel ?? item.start_time}</Text>
+        <Text style={timeStyle}>{formatSessionStartTime(item.start_time)}</Text>
         {showTemporalPills ? (
           temporalPhase === "live" ? (
             <View style={styles.livePill}>
@@ -71,8 +72,8 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
         {item.isKickbox ? <KickboxSessionBadge compact isRTL={isRTL} /> : null}
       </View>
       {item.trainerName ? (
-        <Text style={[styles.trainer, compact && styles.trainerCompact]} numberOfLines={2}>
-          {item.trainerName}
+        <Text style={[styles.trainer, compact && styles.trainerCompact]} numberOfLines={1}>
+          {firstWordOfDisplayName(item.trainerName)}
         </Text>
       ) : null}
       {showRegState && showFill && !staffLabels && temporalPhase !== "past" && !(full && waitlistInvite) ? (
@@ -132,8 +133,8 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
 const styles = StyleSheet.create({
   inner: { paddingVertical: 2 },
   timeRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
-  time: { fontWeight: "800", color: theme.colors.cta, fontSize: 13, letterSpacing: 0.2 },
-  timeCompact: { fontSize: 12 },
+  time: { fontWeight: "800", color: theme.colors.cta, fontSize: 15, letterSpacing: 0.2, lineHeight: 18 },
+  timeCompact: { fontSize: 14, lineHeight: 17 },
   timePast: { color: theme.colors.textSoft, fontWeight: "600" },
   timeLive: { color: theme.colors.success, fontWeight: "900" },
   livePill: {
