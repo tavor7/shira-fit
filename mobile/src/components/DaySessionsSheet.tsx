@@ -17,7 +17,7 @@ import { theme } from "../theme";
 import { formatISODateLong, formatISODateDayMonth } from "../lib/dateFormat";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { supabase } from "../lib/supabase";
-import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
+import { DaySessionSheetRow } from "./DaySessionSheetRow";
 import { AthleteWaitlistInviteStripe, AthleteWaitlistJoinedStripe } from "./AthleteWaitlistInviteStripe";
 import { useI18n } from "../context/I18nContext";
 import { appendNetworkHint } from "../lib/networkErrors";
@@ -94,7 +94,6 @@ export function DaySessionsSheet({
   const [nfKind, setNfKind] = useState<"holiday" | "closure" | "info">("holiday");
   const [nfAudience, setNfAudience] = useState<"all" | "athletes" | "staff">("all");
   const [noteBusy, setNoteBusy] = useState(false);
-
   const isManager = variant === "manager";
   const offlineHint = useMemo(() => t("network.offlineHint"), [t]);
 
@@ -390,18 +389,50 @@ export function DaySessionsSheet({
             style={{ maxHeight: Math.min(winH * 0.88, winH - 16) }}
             contentContainerStyle={styles.sheetBodyContent}
           >
-            <View style={styles.handle} />
-            <Text style={styles.sheetTitle}>{title}</Text>
-            {items.length === 0 ? (
-              <Text style={styles.sheetSub}>
-                {isStaff
-                  ? language === "he"
-                    ? "אין אימונים מתוכננים."
-                    : "No sessions scheduled."
-                  : language === "he"
-                    ? "אין אימונים פתוחים ביום זה."
-                    : "No open sessions this day."}
-              </Text>
+            <View style={styles.sheetHeader}>
+              <View style={styles.handle} />
+              <View style={[styles.titleRow, isRTL && styles.titleRowRtl]}>
+                <View style={styles.titleBlock}>
+                  <Text style={[styles.sheetTitle, isRTL && styles.rtlText]}>{title}</Text>
+                  {items.length > 0 ? (
+                    <Text style={[styles.sessionCount, isRTL && styles.rtlText]}>
+                      {language === "he"
+                        ? `${items.length} אימונים`
+                        : `${items.length} session${items.length === 1 ? "" : "s"}`}
+                    </Text>
+                  ) : (
+                    <Text style={[styles.sessionCount, isRTL && styles.rtlText]}>
+                      {isStaff
+                        ? language === "he"
+                          ? "אין אימונים"
+                          : "No sessions"
+                        : language === "he"
+                          ? "אין אימונים פתוחים"
+                          : "No open sessions"}
+                    </Text>
+                  )}
+                </View>
+                <Pressable
+                  onPress={onClose}
+                  style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.75 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={language === "he" ? "סגור" : "Close"}
+                  hitSlop={12}
+                >
+                  <Text style={styles.closeBtnTxt}>✕</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {isStaff && onAddSession ? (
+              <Pressable
+                style={({ pressed }) => [styles.addSessionCta, pressed && { opacity: 0.92 }]}
+                onPress={onAddSession}
+              >
+                <Text style={styles.addSessionCtaTxt}>
+                  {language === "he" ? "הוספת אימון" : "Add session"}
+                </Text>
+              </Pressable>
             ) : null}
 
             {dayStudioNotes.length > 0 ? (
@@ -480,17 +511,47 @@ export function DaySessionsSheet({
               </View>
             ) : null}
 
-            {isManager && onCalendarNotesChanged ? (
-              <View style={styles.studioNoteManagerBar}>
-                <Pressable
-                  style={({ pressed }) => [styles.studioNoteAddBtn, pressed && { opacity: 0.9 }]}
-                  onPress={() => (noteFormOpen ? setNoteFormOpen(false) : openAddStudioNote())}
-                  disabled={noteBusy}
-                >
-                  <Text style={styles.studioNoteAddBtnTxt}>
-                    {noteFormOpen ? t("calendarNotes.cancelForm") : t("calendarNotes.addNote")}
-                  </Text>
-                </Pressable>
+            {items.length > 0 ? (
+              <View style={styles.sessionList}>
+                {items.map((it) => {
+                  const ownAsCoach = variant === "coach" && it.coachId && currentUserId && it.coachId === currentUserId;
+                  const canDelete = !!(variant === "manager" || ownAsCoach);
+
+                  return (
+                    <View key={it.key}>
+                      {variant === "athlete" && typeof it.onJoinWaitlist === "function" ? (
+                        <View style={styles.waitlistBlock}>
+                          <AthleteWaitlistInviteStripe
+                            onPress={() => void Promise.resolve(it.onJoinWaitlist?.())}
+                            joining={it.waitlistJoining}
+                          />
+                        </View>
+                      ) : variant === "athlete" &&
+                        it.athleteOnWaitlist === true &&
+                        (it.maxParticipants ?? 0) > 0 &&
+                        (it.signedUpCount ?? 0) >= (it.maxParticipants ?? 0) ? (
+                        <View style={styles.waitlistBlock}>
+                          <AthleteWaitlistJoinedStripe />
+                        </View>
+                      ) : null}
+                      <DaySessionSheetRow
+                        item={it}
+                        isRTL={isRTL}
+                        canDelete={canDelete}
+                        deleting={busyId === it.key}
+                        onDelete={canDelete ? () => confirmDelete(it.key) : undefined}
+                        onPress={() => {
+                          if (variant === "athlete") {
+                            it.onPress?.();
+                            onClose();
+                          } else {
+                            goEdit(it.key, it.coachId);
+                          }
+                        }}
+                      />
+                    </View>
+                  );
+                })}
               </View>
             ) : null}
 
@@ -564,12 +625,6 @@ export function DaySessionsSheet({
               </View>
             ) : null}
 
-            {isStaff && onAddSession ? (
-              <Pressable style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.9 }]} onPress={onAddSession}>
-                <Text style={styles.addBtnTxt}>{language === "he" ? "+ הוספת אימון" : "+ Add session"}</Text>
-              </Pressable>
-            ) : null}
-
             {isManager && undo ? (
               <View style={styles.undoBar}>
                 <Text style={styles.undoBarTxt} numberOfLines={1} ellipsizeMode="tail">
@@ -615,131 +670,69 @@ export function DaySessionsSheet({
               </View>
             ) : null}
 
-            {isManager ? (
-              <View style={styles.dayActions}>
-                <Pressable
-                  style={({ pressed }) => [styles.dayActionBtn, styles.dayActionDanger, pressed && { opacity: 0.9 }]}
-                  onPress={confirmClearDay}
-                  disabled={bulkBusy || pendingClearDay}
-                >
-                  {bulkBusy ? (
-                    <ActivityIndicator color={theme.colors.white} size="small" />
-                  ) : (
-                    <Text style={styles.dayActionDangerTxt}>{language === "he" ? "ניקוי יום" : "Clear day"}</Text>
-                  )}
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.dayActionBtn, styles.dayActionNeutral, pressed && { opacity: 0.9 }]}
-                  onPress={() => setDupOpen(true)}
-                  disabled={bulkBusy}
-                >
-                  <Text style={styles.dayActionNeutralTxt}>{language === "he" ? "שכפול יום…" : "Duplicate day…"}</Text>
-                </Pressable>
+            {Platform.OS === "web" && pendingDeleteId ? (
+              <View style={styles.deleteBanner}>
+                <Text style={[styles.deleteBannerTxt, isRTL && styles.rtlText]}>
+                  {language === "he" ? "למחוק את האימון?" : "Delete this session?"}
+                </Text>
+                <View style={[styles.deleteBannerRow, isRTL && styles.deleteBannerRowRtl]}>
+                  <Pressable onPress={() => setPendingDeleteId(null)} disabled={!!busyId}>
+                    <Text style={styles.deleteBannerCancel}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => void executeSessionDelete(pendingDeleteId)} disabled={!!busyId}>
+                    {busyId ? (
+                      <ActivityIndicator color={theme.colors.error} size="small" />
+                    ) : (
+                      <Text style={styles.deleteBannerOk}>{language === "he" ? "מחק" : "Delete"}</Text>
+                    )}
+                  </Pressable>
+                </View>
               </View>
             ) : null}
 
-            <View style={styles.sessionList}>
-              {items.map((it) => {
-                const ownAsCoach = variant === "coach" && it.coachId && currentUserId && it.coachId === currentUserId;
-                const canEditMeta = variant === "manager" || ownAsCoach;
-                const canDelete = variant === "manager" || ownAsCoach;
-
-                return (
-                  <View key={it.key} style={styles.card}>
-                    <View style={styles.cardTop}>
-                      <SessionAgendaCardContent item={it} />
-                    </View>
-
-                    {variant === "athlete" ? (
-                      <View style={styles.athleteDayActions}>
-                        {typeof it.onJoinWaitlist === "function" ? (
-                          <AthleteWaitlistInviteStripe
-                            onPress={() => void Promise.resolve(it.onJoinWaitlist?.())}
-                            joining={it.waitlistJoining}
-                          />
-                        ) : it.athleteOnWaitlist === true &&
-                          (it.maxParticipants ?? 0) > 0 &&
-                          (it.signedUpCount ?? 0) >= (it.maxParticipants ?? 0) ? (
-                          <AthleteWaitlistJoinedStripe />
-                        ) : null}
-                        <Pressable
-                          style={({ pressed }) => [styles.primaryTap, pressed && { opacity: 0.9 }]}
-                          onPress={() => {
-                            it.onPress?.();
-                            onClose();
-                          }}
-                          disabled={!it.onPress}
-                        >
-                          <Text style={styles.primaryTapTxt}>{language === "he" ? "צפייה באימון" : "View session"}</Text>
-                        </Pressable>
-                      </View>
-                    ) : (
-                      <View style={styles.rowBtns}>
-                        <Pressable
-                          style={({ pressed }) => [styles.ghostBtn, pressed && { opacity: 0.85 }]}
-                          onPress={() => goEdit(it.key, it.coachId)}
-                        >
-                          <Text style={styles.ghostBtnTxt}>
-                            {canEditMeta
-                              ? language === "he"
-                                ? "עריכת אימון"
-                                : "Edit session"
-                              : language === "he"
-                                ? "רשימה"
-                                : "Roster"}
-                          </Text>
-                        </Pressable>
-                        {canDelete ? (
-                          Platform.OS === "web" && pendingDeleteId === it.key ? (
-                            <View style={styles.webDeleteConfirm}>
-                              <Text style={[styles.webDeleteConfirmTxt, isRTL && styles.rtlText]}>
-                                {language === "he" ? "למחוק את האימון?" : "Delete this session?"}
-                              </Text>
-                              <View style={[styles.webDeleteConfirmRow, isRTL && styles.rowBtnsRtl]}>
-                                <Pressable
-                                  style={({ pressed }) => [styles.webDeleteCancel, pressed && { opacity: 0.88 }]}
-                                  onPress={() => setPendingDeleteId(null)}
-                                  disabled={busyId === it.key}
-                                >
-                                  <Text style={styles.webDeleteCancelTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
-                                </Pressable>
-                                <Pressable
-                                  style={({ pressed }) => [styles.webDeleteOk, pressed && { opacity: 0.9 }]}
-                                  onPress={() => void executeSessionDelete(it.key)}
-                                  disabled={busyId === it.key}
-                                >
-                                  {busyId === it.key ? (
-                                    <ActivityIndicator color={theme.colors.white} size="small" />
-                                  ) : (
-                                    <Text style={styles.webDeleteOkTxt}>{language === "he" ? "מחק" : "Delete"}</Text>
-                                  )}
-                                </Pressable>
-                              </View>
-                            </View>
-                          ) : (
-                            <Pressable
-                              style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.85 }]}
-                              onPress={() => confirmDelete(it.key)}
-                              disabled={busyId === it.key}
-                            >
-                              {busyId === it.key ? (
-                                <ActivityIndicator color={theme.colors.white} size="small" />
-                              ) : (
-                                <Text style={styles.dangerBtnTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
-                              )}
-                            </Pressable>
-                          )
-                        ) : null}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-
-            <Pressable style={({ pressed }) => [styles.closeFooter, pressed && { opacity: 0.85 }]} onPress={onClose}>
-              <Text style={styles.closeFooterTxt}>{language === "he" ? "סגור" : "Close"}</Text>
-            </Pressable>
+            {isManager ? (
+              <View style={styles.dayToolsBlock}>
+                <View style={[styles.dayToolsRow, isRTL && styles.dayToolsRowRtl]}>
+                  <Pressable
+                    onPress={() => setDupOpen(true)}
+                    disabled={bulkBusy}
+                    style={({ pressed }) => [
+                      styles.dayToolChip,
+                      onCalendarNotesChanged ? styles.dayToolChipHalf : styles.dayToolChipFull,
+                      pressed && styles.dayToolChipPressed,
+                    ]}
+                  >
+                    <Text style={styles.dayToolChipTxt} numberOfLines={1}>
+                      {language === "he" ? "שכפול יום" : "Duplicate day"}
+                    </Text>
+                  </Pressable>
+                  {onCalendarNotesChanged ? (
+                    <Pressable
+                      onPress={() => (noteFormOpen ? setNoteFormOpen(false) : openAddStudioNote())}
+                      disabled={noteBusy}
+                      style={({ pressed }) => [styles.dayToolChip, styles.dayToolChipHalf, pressed && styles.dayToolChipPressed]}
+                    >
+                      <Text style={styles.dayToolChipTxt} numberOfLines={1}>
+                        {noteFormOpen ? t("calendarNotes.cancelForm") : t("calendarNotes.addNote")}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                <Pressable
+                  onPress={confirmClearDay}
+                  disabled={bulkBusy || pendingClearDay}
+                  style={({ pressed }) => [
+                    styles.dayToolChip,
+                    styles.dayToolChipDanger,
+                    pressed && styles.dayToolChipPressed,
+                  ]}
+                >
+                  <Text style={styles.dayToolChipDangerTxt} numberOfLines={1}>
+                    {language === "he" ? "ניקוי כל האימונים ביום" : "Clear all sessions this day"}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
           </ScrollView>
 
           <Modal visible={dupOpen} transparent animationType="fade" onRequestClose={() => setDupOpen(false)}>
@@ -800,7 +793,7 @@ const styles = StyleSheet.create({
   sheet: {
     zIndex: 2,
     position: "relative",
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.backgroundAlt,
     borderTopLeftRadius: theme.radius.xl,
     borderTopRightRadius: theme.radius.xl,
     borderWidth: 1,
@@ -809,10 +802,104 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   sheetBodyContent: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.xl + 8,
   },
-  sessionList: { gap: 12 },
+  sheetHeader: {
+    marginBottom: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.borderMuted,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingTop: 4,
+  },
+  titleRowRtl: { flexDirection: "row-reverse" },
+  titleBlock: { flex: 1, minWidth: 0 },
+  sessionCount: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: "600",
+    color: theme.colors.textSoft,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  closeBtnTxt: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.colors.textMuted,
+    lineHeight: 16,
+  },
+  addSessionCta: {
+    marginBottom: theme.spacing.md,
+    backgroundColor: theme.colors.cta,
+    paddingVertical: 14,
+    borderRadius: theme.radius.full,
+    alignItems: "center",
+  },
+  addSessionCtaTxt: {
+    color: theme.colors.ctaText,
+    fontWeight: "800",
+    fontSize: 15,
+    letterSpacing: 0.2,
+  },
+  dayToolsBlock: {
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+    gap: 8,
+  },
+  dayToolsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  dayToolsRowRtl: { flexDirection: "row-reverse" },
+  dayToolChip: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+  },
+  dayToolChipHalf: { flex: 1, minWidth: 0 },
+  dayToolChipFull: { alignSelf: "stretch" },
+  dayToolChipDanger: {
+    backgroundColor: theme.colors.errorBg,
+    borderColor: theme.colors.errorBorder,
+  },
+  dayToolChipPressed: { opacity: 0.88 },
+  dayToolChipTxt: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: theme.colors.text,
+    textAlign: "center",
+  },
+  dayToolChipDangerTxt: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: theme.colors.error,
+    textAlign: "center",
+  },
+  sessionList: { gap: 8, marginBottom: theme.spacing.xs },
+  waitlistBlock: { marginBottom: 6 },
   rtlText: { textAlign: "right" },
   webConfirmBanner: {
     marginBottom: theme.spacing.md,
@@ -843,71 +930,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   webConfirmDangerTxt: { color: theme.colors.white, fontWeight: "800", fontSize: 14 },
-  webDeleteConfirm: { marginTop: 8, gap: 8 },
-  webDeleteConfirmTxt: { color: theme.colors.text, fontSize: 13, fontWeight: "700" },
-  webDeleteConfirmRow: { flexDirection: "row", gap: 8 },
-  webDeleteCancel: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    alignItems: "center",
-    backgroundColor: theme.colors.surface,
-  },
-  webDeleteCancelTxt: { color: theme.colors.text, fontWeight: "800" },
-  webDeleteOk: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.error,
-    alignItems: "center",
-  },
-  webDeleteOkTxt: { color: theme.colors.white, fontWeight: "800" },
   handle: {
     alignSelf: "center",
-    width: 36,
-    height: 4,
-    borderRadius: 2,
+    width: 40,
+    height: 5,
+    borderRadius: 3,
     backgroundColor: theme.colors.borderInput,
-    marginTop: 10,
-    marginBottom: theme.spacing.sm,
+    marginTop: 8,
+    marginBottom: theme.spacing.md,
   },
   sheetTitle: {
-    fontSize: 19,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "800",
     color: theme.colors.text,
-    textAlign: "center",
-    letterSpacing: 0.2,
+    letterSpacing: -0.3,
   },
-  sheetSub: {
-    marginTop: 6,
-    fontSize: 14,
-    color: theme.colors.textMuted,
-    textAlign: "center",
+  deleteBanner: {
     marginBottom: theme.spacing.sm,
-  },
-  addBtn: {
-    marginBottom: theme.spacing.md,
-    backgroundColor: theme.colors.cta,
-    paddingVertical: 15,
+    padding: 12,
     borderRadius: theme.radius.md,
-    alignItems: "center",
+    backgroundColor: theme.colors.errorBg,
+    borderWidth: 1,
+    borderColor: theme.colors.errorBorder,
+    gap: 8,
   },
-  addBtnTxt: { color: theme.colors.ctaText, fontWeight: "700", fontSize: 16, letterSpacing: 0.2 },
-  dayActions: { marginBottom: theme.spacing.md, flexDirection: "row", gap: 10 },
-  dayActionBtn: {
-    flex: 1,
-    borderRadius: theme.radius.md,
-    paddingVertical: 13,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 44,
-  },
-  dayActionDanger: { backgroundColor: theme.colors.error },
-  dayActionDangerTxt: { color: theme.colors.white, fontWeight: "800", fontSize: 14, letterSpacing: 0.2 },
-  dayActionNeutral: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderMuted },
-  dayActionNeutralTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14, letterSpacing: 0.2 },
+  deleteBannerTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.text, textAlign: "center" },
+  deleteBannerRow: { flexDirection: "row", justifyContent: "center", gap: 20 },
+  deleteBannerRowRtl: { flexDirection: "row-reverse" },
+  deleteBannerCancel: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 14 },
+  deleteBannerOk: { color: theme.colors.error, fontWeight: "800", fontSize: 14 },
   undoBar: {
     marginBottom: theme.spacing.md,
     paddingVertical: 10,
@@ -924,45 +975,6 @@ const styles = StyleSheet.create({
   undoBarTxt: { flex: 1, minWidth: 0, color: theme.colors.text, fontWeight: "700" },
   undoBarBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.cta },
   undoBarBtnTxt: { color: theme.colors.ctaText, fontWeight: "900" },
-  card: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surfaceElevated,
-    padding: theme.spacing.md,
-  },
-  cardTop: { marginBottom: theme.spacing.sm },
-  athleteDayActions: { gap: 10 },
-  primaryTap: {
-    marginTop: 4,
-    backgroundColor: theme.colors.cta,
-    paddingVertical: 13,
-    borderRadius: theme.radius.md,
-    alignItems: "center",
-  },
-  primaryTapTxt: { color: theme.colors.ctaText, fontWeight: "700", fontSize: 15, letterSpacing: 0.2 },
-  rowBtns: { flexDirection: "row", gap: 10, marginTop: 4 },
-  rowBtnsRtl: { flexDirection: "row-reverse" },
-  ghostBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    paddingVertical: 12,
-    borderRadius: theme.radius.md,
-    alignItems: "center",
-    backgroundColor: theme.colors.surface,
-  },
-  ghostBtnTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 14 },
-  dangerBtn: {
-    flex: 1,
-    backgroundColor: theme.colors.error,
-    paddingVertical: 12,
-    borderRadius: theme.radius.md,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 42,
-  },
-  dangerBtnTxt: { color: theme.colors.white, fontWeight: "700", fontSize: 14 },
   studioNotesWrap: {
     marginBottom: theme.spacing.sm,
     gap: 8,
@@ -1047,12 +1059,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   studioNoteSaveBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 14 },
-  closeFooter: {
-    marginTop: theme.spacing.sm,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  closeFooterTxt: { color: theme.colors.textSoft, fontWeight: "600", fontSize: 15 },
 
   dupModalRoot: { flex: 1, justifyContent: "center", padding: theme.spacing.lg },
   dupBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.55)" },

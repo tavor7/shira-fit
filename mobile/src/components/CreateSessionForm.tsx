@@ -17,6 +17,7 @@ import { useDiscardChangesPrompt } from "../hooks/useDiscardChangesPrompt";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "./sessionFormStyles";
 import { SessionSlotRateField } from "./SessionSlotRateField";
 import { SessionOptionsSection, type SessionOptionItem } from "./SessionOptionsSection";
+import { CollapsiblePricingForm } from "./CollapsiblePricingForm";
 import { parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
@@ -60,6 +61,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const [hidden, setHidden] = useState(true);
   const [isKickbox, setIsKickbox] = useState(false);
   const [note, setNote] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
   const [customSlotPriceDraft, setCustomSlotPriceDraft] = useState("");
   const [tierSlotPriceIls, setTierSlotPriceIls] = useState<number | null>(null);
 
@@ -77,6 +79,16 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const noteSummary = useMemo(() => {
+    const trimmed = note.trim();
+    if (!trimmed) return undefined;
+    return trimmed.length > 48 ? `${trimmed.slice(0, 48)}…` : trimmed;
+  }, [note]);
+
+  useEffect(() => {
+    if (note.trim()) setNoteOpen(true);
+  }, [note]);
 
   /** Serialized baseline once coach list is ready (manager) or immediately (fixed coach). */
   const [createBaseline, setCreateBaseline] = useState<string | null>(null);
@@ -683,18 +695,26 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       </View>
 
       <View style={sf.card}>
-        <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("sessionForm.note")}</Text>
-        <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl]}>{t("sessionForm.noteHint")}</Text>
-        <TextInput
-          style={[sf.control, styles.noteInput, isRTL && styles.rtlInput]}
-          value={note}
-          onChangeText={setNote}
-          placeholder={t("sessionForm.notePlaceholder")}
-          placeholderTextColor={theme.colors.textSoft}
-          multiline
-          textAlignVertical="top"
-          accessibilityLabel={t("sessionForm.note")}
-        />
+        <CollapsiblePricingForm
+          variant="inline"
+          title={t("sessionForm.note")}
+          expanded={noteOpen}
+          onToggle={() => setNoteOpen((open) => !open)}
+          summary={noteSummary}
+          isRTL={isRTL}
+        >
+          <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl]}>{t("sessionForm.noteHint")}</Text>
+          <TextInput
+            style={[sf.control, styles.noteInput, isRTL && styles.rtlInput]}
+            value={note}
+            onChangeText={setNote}
+            placeholder={t("sessionForm.notePlaceholder")}
+            placeholderTextColor={theme.colors.textSoft}
+            multiline
+            textAlignVertical="top"
+            accessibilityLabel={t("sessionForm.note")}
+          />
+        </CollapsiblePricingForm>
       </View>
 
       <SessionSlotRateField
