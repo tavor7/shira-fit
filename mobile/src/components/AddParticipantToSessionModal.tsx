@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   View,
@@ -25,6 +25,8 @@ type Props = {
   /** After a successful add */
   onAdded: () => void;
 };
+
+type FullAddChoice = "cancel" | "increase" | "over";
 
 type WebFullAddPrompt =
   | null
@@ -94,30 +96,53 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     setCurrentCount((c1 ?? 0) + (c2 ?? 0));
   }, [sid]);
 
-  const confirmAddWhenFull = useCallback(async (): Promise<boolean> => {
-    const title = language === "he" ? "האימון מלא" : "Session full";
-    const msg = language === "he" ? "להוסיף בכל זאת?" : "Add anyway?";
+  const fullAddCopy = useMemo(
+    () => ({
+      title: language === "he" ? "האימון מלא" : "Session full",
+      message:
+        language === "he"
+          ? "האימון הגיע למקסימום. איך להוסיף את המשתתף?"
+          : "This session is at capacity. How would you like to add this participant?",
+      increase: language === "he" ? "להגדיל את הקיבולת" : "Increase capacity",
+      over: language === "he" ? "לשמור על הקיבולת ולהוסיף" : "Keep capacity, add anyway",
+      cancel: language === "he" ? "ביטול" : "Cancel",
+    }),
+    [language]
+  );
 
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      try {
-        // eslint-disable-next-line no-alert
-        return window.confirm(`${title}\n\n${msg}`);
-      } catch {
-        return false;
-      }
-    }
-
-    return await new Promise<boolean>((resolve) => {
-      Alert.alert(title, msg, [
-        { text: language === "he" ? "ביטול" : "Cancel", style: "cancel", onPress: () => resolve(false) },
-        {
-          text: language === "he" ? "הוסף בכל זאת" : "Add anyway",
-          style: "default",
-          onPress: () => resolve(true),
-        },
+  const promptFullAddChoiceNative = useCallback(async (): Promise<FullAddChoice> => {
+    return await new Promise<FullAddChoice>((resolve) => {
+      Alert.alert(fullAddCopy.title, fullAddCopy.message, [
+        { text: fullAddCopy.cancel, style: "cancel", onPress: () => resolve("cancel") },
+        { text: fullAddCopy.over, onPress: () => resolve("over") },
+        { text: fullAddCopy.increase, onPress: () => resolve("increase") },
       ]);
     });
-  }, [language]);
+  }, [fullAddCopy]);
+
+  async function increaseSessionCapacity(): Promise<boolean> {
+    if (!sid) return false;
+    const base = maxCap != null ? Math.max(maxCap, currentCount) : currentCount;
+    const newMax = base + 1;
+    const { error } = await supabase.from("training_sessions").update({ max_participants: newMax }).eq("id", sid);
+    if (error) {
+      toastError(t("common.error"), error.message);
+      return false;
+    }
+    setMaxCap(newMax);
+    return true;
+  }
+
+  async function executePendingFullAdd(prompt: NonNullable<WebFullAddPrompt>, choice: FullAddChoice) {
+    if (choice === "cancel") return;
+    const allowOver = choice === "over";
+    if (choice === "increase") {
+      if (!(await increaseSessionCapacity())) return;
+    }
+    if (prompt.kind === "athlete") await runAddExistingAthleteCore(prompt.userId, allowOver);
+    else if (prompt.kind === "manual") await runAddExistingManualCore(prompt.manualId, allowOver);
+    else await runQuickAddCore(allowOver);
+  }
 
   const runSearch = useCallback(async (termRaw: string) => {
     const term = termRaw.trim();
@@ -340,13 +365,20 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     }
   }
 
-  async function confirmWebFullAddProceed() {
+  async function confirmWebFullAddChoice(choice: FullAddChoice) {
     if (!webFullAddPrompt) return;
     const p = webFullAddPrompt;
     setWebFullAddPrompt(null);
-    if (p.kind === "athlete") await runAddExistingAthleteCore(p.userId, true);
-    else if (p.kind === "manual") await runAddExistingManualCore(p.manualId, true);
-    else await runQuickAddCore(true);
+    await executePendingFullAdd(p, choice);
+  }
+
+  async function resolveFullAdd(prompt: NonNullable<WebFullAddPrompt>): Promise<void> {
+    if (Platform.OS === "web") {
+      setWebFullAddPrompt(prompt);
+      return;
+    }
+    const choice = await promptFullAddChoiceNative();
+    await executePendingFullAdd(prompt, choice);
   }
 
   async function addExistingAthlete(userId: string) {
@@ -356,13 +388,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       return;
     }
     if (full) {
-      if (Platform.OS === "web") {
-        setWebFullAddPrompt({ kind: "athlete", userId });
-        return;
-      }
-      const ok = await confirmAddWhenFull();
-      if (!ok) return;
-      await runAddExistingAthleteCore(userId, true);
+      await resolveFullAdd({ kind: "athlete", userId });
       return;
     }
     await runAddExistingAthleteCore(userId, false);
@@ -375,13 +401,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       return;
     }
     if (full) {
-      if (Platform.OS === "web") {
-        setWebFullAddPrompt({ kind: "manual", manualId });
-        return;
-      }
-      const ok = await confirmAddWhenFull();
-      if (!ok) return;
-      await runAddExistingManualCore(manualId, true);
+      await resolveFullAdd({ kind: "manual", manualId });
       return;
     }
     await runAddExistingManualCore(manualId, false);
@@ -402,14 +422,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       return;
     }
     if (full) {
-      if (Platform.OS === "web") {
-        setWebFullAddPrompt({ kind: "quick" });
-        return;
-      }
-      const ok = await confirmAddWhenFull();
-      if (!ok) return;
-      if (adding) return;
-      await runQuickAddCore(true);
+      await resolveFullAdd({ kind: "quick" });
       return;
     }
     if (adding) return;
@@ -457,27 +470,32 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
 
           {webFullAddPrompt ? (
             <View style={[styles.capBanner, isRTL && styles.capBannerRtl]} accessibilityLiveRegion="polite">
-              <Text style={[styles.capBannerTxt, isRTL && styles.rtlText]}>
-                {language === "he" ? "האימון מלא. להוסיף בכל זאת?" : "Session is full. Add anyway?"}
-              </Text>
-              <View style={[styles.capBannerBtns, isRTL && styles.capBannerBtnsRtl]}>
-                <Pressable
-                  style={({ pressed }) => [styles.capBtnGhost, pressed && { opacity: 0.88 }]}
-                  onPress={() => setWebFullAddPrompt(null)}
-                  disabled={adding}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.capBtnGhostTxt}>{language === "he" ? "לא" : "No"}</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.capBtnCta, pressed && { opacity: 0.9 }]}
-                  onPress={() => void confirmWebFullAddProceed()}
-                  disabled={adding}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.capBtnCtaTxt}>{language === "he" ? "כן, הוסף" : "Yes, add"}</Text>
-                </Pressable>
-              </View>
+              <Text style={[styles.capBannerTitle, isRTL && styles.rtlText]}>{fullAddCopy.title}</Text>
+              <Text style={[styles.capBannerTxt, isRTL && styles.rtlText]}>{fullAddCopy.message}</Text>
+              <Pressable
+                style={({ pressed }) => [styles.capBtnCta, pressed && { opacity: 0.9 }]}
+                onPress={() => void confirmWebFullAddChoice("increase")}
+                disabled={adding}
+                accessibilityRole="button"
+              >
+                <Text style={styles.capBtnCtaTxt}>{fullAddCopy.increase}</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.capBtnSecondary, pressed && { opacity: 0.9 }]}
+                onPress={() => void confirmWebFullAddChoice("over")}
+                disabled={adding}
+                accessibilityRole="button"
+              >
+                <Text style={styles.capBtnSecondaryTxt}>{fullAddCopy.over}</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.capBtnGhost, pressed && { opacity: 0.88 }]}
+                onPress={() => setWebFullAddPrompt(null)}
+                disabled={adding}
+                accessibilityRole="button"
+              >
+                <Text style={styles.capBtnGhostTxt}>{fullAddCopy.cancel}</Text>
+              </Pressable>
             </View>
           ) : null}
 
@@ -630,12 +648,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.cta,
     backgroundColor: theme.colors.surface,
-    gap: 10,
+    gap: 8,
   },
   capBannerRtl: { alignItems: "stretch" },
-  capBannerTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 14, lineHeight: 20 },
-  capBannerBtns: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
-  capBannerBtnsRtl: { flexDirection: "row-reverse", justifyContent: "flex-start" },
+  capBannerTitle: { color: theme.colors.text, fontWeight: "800", fontSize: 15 },
+  capBannerTxt: { color: theme.colors.textMuted, fontWeight: "600", fontSize: 13, lineHeight: 18 },
+  capBtnSecondary: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: "center",
+  },
+  capBtnSecondaryTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
   capBtnGhost: {
     paddingVertical: 10,
     paddingHorizontal: 14,

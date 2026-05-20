@@ -43,6 +43,11 @@ import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
 import { replaceToManagerSessions } from "../../../../src/lib/managerSessionsRedirectLog";
 import { SessionSlotRateField } from "../../../../src/components/SessionSlotRateField";
 import { SessionOptionsSection } from "../../../../src/components/SessionOptionsSection";
+import {
+  SessionCoachPickerField,
+  formatCoachOptionLabel,
+  type CoachOption as SessionCoachOption,
+} from "../../../../src/components/SessionCoachPickerField";
 import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
 import {
   fetchSessionBillingPriceIls,
@@ -241,6 +246,8 @@ export default function ManagerSessionDetail() {
   const [dupTime, setDupTime] = useState("");
   const [dupBusy, setDupBusy] = useState(false);
   const [dupIncludeParticipants, setDupIncludeParticipants] = useState(false);
+  const [dupCoachId, setDupCoachId] = useState("");
+  const [dupCoachLabel, setDupCoachLabel] = useState("");
   const [deleteSessionBusy, setDeleteSessionBusy] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -935,7 +942,7 @@ export default function ManagerSessionDetail() {
       );
       return;
     }
-    if (!coachId) {
+    if (!dupCoachId) {
       showOk(
         language === "he" ? "חסר מאמן" : "Missing trainer",
         language === "he" ? "בחרו מאמן/ת." : "Please choose a trainer."
@@ -946,7 +953,7 @@ export default function ManagerSessionDetail() {
     const payload = {
       session_date: d,
       start_time: dupTime || time,
-      coach_id: coachId,
+      coach_id: dupCoachId,
       max_participants: parseInt(maxP, 10) || 1,
       duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
       is_open_for_registration: false,
@@ -987,7 +994,14 @@ export default function ManagerSessionDetail() {
     setDupDate(date);
     setDupTime(time);
     setDupIncludeParticipants(false);
+    setDupCoachId(coachId);
+    setDupCoachLabel(coachLabel);
     setDupOpen(true);
+  }
+
+  function selectDupCoach(opt: SessionCoachOption) {
+    setDupCoachId(opt.user_id);
+    setDupCoachLabel(formatCoachOptionLabel(opt));
   }
 
   async function runDeleteSession() {
@@ -1604,6 +1618,12 @@ export default function ManagerSessionDetail() {
                 <TimePickerField label={language === "he" ? "שעה חדשה" : "New time"} value={dupTime} onChange={setDupTime} />
               </View>
             </View>
+            <SessionCoachPickerField
+              coachId={dupCoachId}
+              coachLabel={dupCoachLabel}
+              onSelect={selectDupCoach}
+              disabled={dupBusy}
+            />
             <Text style={[styles.dupSectionLabel, isRTL && styles.rtlText]}>
               {language === "he" ? "משתתפים" : "Participants"}
             </Text>

@@ -27,7 +27,14 @@ export function AppAlertDialog({ visible, title, message, actions, onRequestClos
   const maxCard = Math.min(400, width - theme.spacing.lg * 2);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose} statusBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onRequestClose}
+      statusBarTranslucent
+      style={styles.modalLayer}
+    >
       <Pressable
         style={styles.backdrop}
         onPress={onRequestClose}
@@ -91,6 +98,14 @@ export function AppAlertDialog({ visible, title, message, actions, onRequestClos
 }
 
 const styles = StyleSheet.create({
+  /** Above RN Modal sheets (e.g. home alerts list) on web; below toast layer. */
+  modalLayer: {
+    flex: 1,
+    elevation: 100,
+    ...(Platform.OS === "web"
+      ? { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 999_950 }
+      : {}),
+  },
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(8, 8, 10, 0.72)",

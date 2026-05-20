@@ -1,15 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  type ViewStyle,
-} from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
 import type { HomePriorityAlertItem, HomePriorityLabelSegment } from "../lib/homePriorityAlerts";
@@ -20,6 +10,7 @@ import {
   loadDismissedHomeAlertIds,
 } from "../lib/dismissedHomeAlerts";
 import { useI18n } from "../context/I18nContext";
+import { useAppAlert } from "../context/AppAlertContext";
 import { supabase } from "../lib/supabase";
 import { isRtlScript } from "../lib/bidiEmbed";
 
@@ -206,6 +197,7 @@ export function HomePriorityAlerts({
   onVisibleCountChange,
 }: Props) {
   const { isRTL, t } = useI18n();
+  const { showConfirm } = useAppAlert();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
@@ -253,22 +245,16 @@ export function HomePriorityAlerts({
 
   const handleRemoveAllPress = useCallback(() => {
     if (!dismissEnabled || activeItems.length === 0) return;
-    const title = t("homeAlerts.removeAllTitle");
-    const message = t("homeAlerts.removeAllMessage");
-    const cancel = t("common.cancel");
-    const confirm = t("homeAlerts.removeAllConfirm");
-    if (Platform.OS === "web") {
-      const ok =
-        typeof window !== "undefined" &&
-        window.confirm(`${title}\n\n${message}`);
-      if (ok) void runDismissAll();
-      return;
-    }
-    Alert.alert(title, message, [
-      { text: cancel, style: "cancel" },
-      { text: confirm, style: "destructive", onPress: () => void runDismissAll() },
-    ]);
-  }, [activeItems.length, dismissEnabled, runDismissAll, t]);
+    setSheetOpen(false);
+    showConfirm({
+      title: t("homeAlerts.removeAllTitle"),
+      message: t("homeAlerts.removeAllMessage"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("homeAlerts.removeAllConfirm"),
+      confirmVariant: "danger",
+      onConfirm: () => void runDismissAll(),
+    });
+  }, [activeItems.length, dismissEnabled, runDismissAll, showConfirm, t]);
 
   if (activeItems.length === 0) return null;
 

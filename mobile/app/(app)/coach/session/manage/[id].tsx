@@ -15,6 +15,11 @@ import { useToast } from "../../../../../src/context/ToastContext";
 import { copySessionParticipantsToNewSession } from "../../../../../src/lib/copySessionParticipants";
 import { SessionSlotRateField } from "../../../../../src/components/SessionSlotRateField";
 import { SessionOptionsSection } from "../../../../../src/components/SessionOptionsSection";
+import {
+  SessionCoachPickerField,
+  formatCoachOptionLabel,
+  type CoachOption,
+} from "../../../../../src/components/SessionCoachPickerField";
 import { parseCustomSlotPriceDraft } from "../../../../../src/lib/sessionSlotPrice";
 
 type EditSnapshot = {
@@ -49,6 +54,8 @@ export default function CoachSessionManageScreen() {
   const [dupTime, setDupTime] = useState("");
   const [dupBusy, setDupBusy] = useState(false);
   const [dupIncludeParticipants, setDupIncludeParticipants] = useState(false);
+  const [dupCoachId, setDupCoachId] = useState("");
+  const [dupCoachLabel, setDupCoachLabel] = useState("");
   const [customSlotPriceDraft, setCustomSlotPriceDraft] = useState("");
   const [tierSlotPriceIls, setTierSlotPriceIls] = useState<number | null>(null);
 
@@ -219,6 +226,27 @@ export default function CoachSessionManageScreen() {
     }
   }
 
+  async function openDuplicateModal() {
+    if (!session) return;
+    setDupDate(date);
+    setDupTime(time);
+    setDupIncludeParticipants(false);
+    setDupCoachId(session.coach_id);
+    const { data } = await supabase
+      .from("profiles")
+      .select("user_id, full_name, role, username, calendar_color")
+      .eq("user_id", session.coach_id)
+      .maybeSingle();
+    if (data) setDupCoachLabel(formatCoachOptionLabel(data as CoachOption));
+    else setDupCoachLabel("");
+    setDupOpen(true);
+  }
+
+  function selectDupCoach(opt: CoachOption) {
+    setDupCoachId(opt.user_id);
+    setDupCoachLabel(formatCoachOptionLabel(opt));
+  }
+
   async function duplicateSession() {
     if (!session) return;
     const d = dupDate.trim();
@@ -229,11 +257,18 @@ export default function CoachSessionManageScreen() {
       );
       return;
     }
+    if (!dupCoachId) {
+      Alert.alert(
+        language === "he" ? "חסר מאמן" : "Missing trainer",
+        language === "he" ? "בחרו מאמן/ת." : "Please choose a trainer."
+      );
+      return;
+    }
     setDupBusy(true);
     const payload = {
       session_date: d,
       start_time: dupTime || time,
-      coach_id: session.coach_id,
+      coach_id: dupCoachId,
       max_participants: parseInt(maxP, 10) || 1,
       duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
       is_open_for_registration: false,
@@ -439,12 +474,7 @@ export default function CoachSessionManageScreen() {
           <PrimaryButton label={t("common.save")} onPress={() => void saveSession()} />
           <PrimaryButton
             label={language === "he" ? "שכפול אימון…" : "Duplicate session…"}
-            onPress={() => {
-              setDupDate(date);
-              setDupTime(time);
-              setDupIncludeParticipants(false);
-              setDupOpen(true);
-            }}
+            onPress={() => void openDuplicateModal()}
             variant="ghost"
           />
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}>
@@ -467,6 +497,12 @@ export default function CoachSessionManageScreen() {
                 <TimePickerField label={language === "he" ? "שעה חדשה" : "New time"} value={dupTime} onChange={setDupTime} />
               </View>
             </View>
+            <SessionCoachPickerField
+              coachId={dupCoachId}
+              coachLabel={dupCoachLabel}
+              onSelect={selectDupCoach}
+              disabled={dupBusy}
+            />
             <Text style={[styles.dupSectionLabel, isRTL && styles.rtlText]}>
               {language === "he" ? "משתתפים" : "Participants"}
             </Text>
