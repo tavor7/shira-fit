@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, ActivityIndicator, ScrollView } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../../src/types/database";
-import { formatSessionTimeRange, hasSessionNotEnded } from "../../../../src/lib/sessionTime";
+import { formatSessionTimeRange, hasSessionNotEnded, hasSessionNotStarted } from "../../../../src/lib/sessionTime";
 import { formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateFormat";
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
@@ -185,6 +185,17 @@ export default function AthleteSessionDetail() {
 
   async function cancel() {
     if (registering || waitlisting || cancelling) return;
+    if (
+      !session ||
+      !hasSessionNotStarted(session.session_date, session.start_time)
+    ) {
+      showToast({
+        message: language === "he" ? "לא ניתן לבטל" : "Could not cancel",
+        detail: t("athleteSession.sessionStartedNoCancel"),
+        variant: "error",
+      });
+      return;
+    }
     if (!reason.trim()) {
       Alert.alert(language === "he" ? "נדרשת סיבה" : "Reason required");
       return;
@@ -207,7 +218,14 @@ export default function AthleteSessionDetail() {
       setNames([]);
       await refreshCount();
       /* Notify waitlist: configure Supabase Cron or webhook to POST notify-waitlist with CRON_SECRET */
-    } else showToast({ message: t("common.error"), detail: data?.error ?? "", variant: "error" });
+    } else {
+      const err = String(data?.error ?? "");
+      const detail =
+        err === "session_started"
+          ? t("athleteSession.sessionStartedNoCancel")
+          : err || t("common.error");
+      showToast({ message: language === "he" ? "לא ניתן לבטל" : "Could not cancel", detail, variant: "error" });
+    }
   }
 
   if (loading)
@@ -239,6 +257,8 @@ export default function AthleteSessionDetail() {
   const spotsLeft = Math.max(0, session.max_participants - count);
   const regOpen = !!session.is_open_for_registration;
   const sessionNotEnded = hasSessionNotEnded(session.session_date, session.start_time, session.duration_minutes ?? 60);
+  const sessionNotStarted = hasSessionNotStarted(session.session_date, session.start_time);
+  const canCancelRegistration = sessionNotStarted;
 
   return (
     <>
@@ -344,11 +364,13 @@ export default function AthleteSessionDetail() {
             </Text>
           ) : null}
         </>
-      ) : (
+      ) : canCancelRegistration ? (
         <Pressable style={styles.btnDanger} onPress={() => setCancelOpen(true)} disabled={registering || waitlisting || cancelling}>
           <Text style={styles.btnText}>{language === "he" ? "ביטול הרשמה" : "Cancel registration"}</Text>
         </Pressable>
-      )}
+      ) : sessionNotEnded ? (
+        <Text style={[styles.closedHint, isRTL && styles.rtlText]}>{t("athleteSession.sessionStartedNoCancel")}</Text>
+      ) : null}
     </ScrollView>
         <SessionAdjacentNav variant="athlete" sessionId={sessionId} />
       </View>

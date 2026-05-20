@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, Modal, TextInput } from "react-native";
 import { router } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../types/database";
-import { formatSessionTimeRange } from "../lib/sessionTime";
+import { formatSessionTimeRange, hasSessionNotStarted } from "../lib/sessionTime";
 import { formatISODateFull } from "../lib/dateFormat";
 import { theme } from "../theme";
 import { surface } from "../theme/surfaces";
@@ -129,6 +129,14 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
       Alert.alert(language === "he" ? "נדרשת סיבה" : "Reason required");
       return;
     }
+    if (!hasSessionNotStarted(next.session_date, next.start_time)) {
+      showToast({
+        message: language === "he" ? "לא ניתן לבטל" : "Could not cancel",
+        detail: t("athleteSession.sessionStartedNoCancel"),
+        variant: "error",
+      });
+      return;
+    }
     setBusy(true);
     const { data, error } = await supabase.rpc("cancel_registration", {
       p_session_id: next.id,
@@ -146,7 +154,14 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
         message: language === "he" ? "ההרשמה בוטלה" : "Registration cancelled",
         variant: "success",
       });
-    } else Alert.alert(t("common.error"), data?.error ?? "");
+    } else {
+      const err = String(data?.error ?? "");
+      const msg =
+        err === "session_started"
+          ? t("athleteSession.sessionStartedNoCancel")
+          : err || t("common.error");
+      Alert.alert(language === "he" ? "לא ניתן לבטל" : "Could not cancel", msg);
+    }
   }
 
   if (!next) {

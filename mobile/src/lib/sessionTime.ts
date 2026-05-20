@@ -65,6 +65,15 @@ export function hasSessionNotEnded(
   return now.getTime() < sessionEndsAt(sessionDate, startTime, durationMinutes).getTime();
 }
 
+/** True before the session start instant (local calendar date + time). */
+export function hasSessionNotStarted(
+  sessionDate: string,
+  startTime: string,
+  now = new Date()
+): boolean {
+  return now.getTime() < sessionStartsAt(sessionDate, startTime).getTime();
+}
+
 export function isSessionInProgress(
   sessionDate: string,
   startTime: string,
