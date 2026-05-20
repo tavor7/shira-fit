@@ -266,17 +266,23 @@ export default function AthleteSessionDetail() {
           </Text>
         ) : null}
         <View style={[styles.chips, isRTL && styles.chipsRtl]}>
-          {full ? (
-            <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" />
-          ) : !regOpen ? (
-            <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
+          {!sessionNotEnded ? (
+            <StatusChip label={t("athleteSession.sessionEnded")} tone="neutral" />
           ) : (
-            <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
+            <>
+              {full ? (
+                <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" />
+              ) : !regOpen ? (
+                <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
+              ) : (
+                <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
+              )}
+              <StatusChip
+                label={language === "he" ? `${spotsLeft} פנוי` : `${spotsLeft} left`}
+                tone={spotsLeft === 0 ? "danger" : "neutral"}
+              />
+            </>
           )}
-          <StatusChip
-            label={language === "he" ? `${spotsLeft} פנוי` : `${spotsLeft} left`}
-            tone={spotsLeft === 0 ? "danger" : "neutral"}
-          />
         </View>
       </View>
 
@@ -332,9 +338,7 @@ export default function AthleteSessionDetail() {
               </Text>
             </Pressable>
           )}
-          {!sessionNotEnded ? (
-            <Text style={[styles.closedHint, isRTL && styles.rtlText]}>{t("athleteSession.sessionEndedNoRegister")}</Text>
-          ) : !full && !regOpen ? (
+          {!sessionNotEnded ? null : !full && !regOpen ? (
             <Text style={[styles.closedHint, isRTL && styles.rtlText]}>
               {language === "he" ? "ההרשמה סגורה כרגע." : "Registration is currently closed."}
             </Text>
