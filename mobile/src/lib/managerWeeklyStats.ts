@@ -121,6 +121,23 @@ export type MissingAttendancePayload = {
   sessions: MissingAttendanceSession[];
 };
 
+export type CapacityMismatchSession = {
+  session_id: string;
+  session_date: string;
+  start_time: string;
+  duration_minutes: number;
+  coach_name: string | null;
+  max_participants: number;
+  registered_count: number;
+  /** Latest session note body, when present. */
+  note?: string | null;
+};
+
+export type CapacityMismatchPayload = {
+  count: number;
+  sessions: CapacityMismatchSession[];
+};
+
 function num(v: unknown, fallback = 0): number {
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : fallback;
@@ -265,6 +282,36 @@ export function parseMissingAttendance(raw: unknown): MissingAttendancePayload {
       });
     }
   }
+  return { count: num(o.count, sessions.length), sessions };
+}
+
+export function parseCapacityMismatch(raw: unknown): CapacityMismatchPayload {
+  if (!raw || typeof raw !== "object") return { count: 0, sessions: [] };
+  const o = raw as Record<string, unknown>;
+  const sessionsRaw = o.sessions;
+  const sessions: CapacityMismatchSession[] = [];
+  if (Array.isArray(sessionsRaw)) {
+    for (const s of sessionsRaw) {
+      if (!s || typeof s !== "object") continue;
+      const x = s as Record<string, unknown>;
+      const session_id = String(x.session_id ?? "");
+      if (!session_id) continue;
+      sessions.push({
+        session_id,
+        session_date: String(x.session_date ?? ""),
+        start_time: String(x.start_time ?? ""),
+        duration_minutes: num(x.duration_minutes, 60),
+        coach_name: x.coach_name == null ? null : String(x.coach_name),
+        max_participants: num(x.max_participants),
+        registered_count: num(x.registered_count),
+      });
+    }
+  }
+  sessions.sort((a, b) => {
+    const d = a.session_date.localeCompare(b.session_date);
+    if (d !== 0) return d;
+    return a.start_time.localeCompare(b.start_time);
+  });
   return { count: num(o.count, sessions.length), sessions };
 }
 

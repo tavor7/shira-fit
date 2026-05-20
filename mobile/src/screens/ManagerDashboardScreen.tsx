@@ -10,6 +10,7 @@ import { StatusChip } from "../components/StatusChip";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { normalizePaymentMethodKey, paymentMethodDashboardLabel } from "../lib/paymentMethod";
 import {
+  parseCapacityMismatch,
   parseFinance,
   parseMissingAttendance,
   type WeeklyFinance,
@@ -73,6 +74,7 @@ export default function ManagerDashboardScreen() {
   const [periodMode, setPeriodMode] = useState<PeriodMode>("week");
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<StatsPayload | null>(null);
+  const [capacityMismatchCount, setCapacityMismatchCount] = useState(0);
   const [expandedCoachId, setExpandedCoachId] = useState<string | null>(null);
   const [showAthleteList, setShowAthleteList] = useState(false);
 
@@ -82,12 +84,29 @@ export default function ManagerDashboardScreen() {
     let raw: unknown = null;
     let error: { message: string } | null = null;
 
-    const primary = await supabase.rpc("manager_weekly_stats", {
-      p_anchor: anchorDate,
-      p_mode: periodMode,
-    });
+    const [primary, capacityRpc] = await Promise.all([
+      supabase.rpc("manager_weekly_stats", {
+        p_anchor: anchorDate,
+        p_mode: periodMode,
+      }),
+      supabase.rpc("manager_capacity_mismatch", {
+        p_anchor: anchorDate,
+        p_mode: periodMode,
+      }),
+    ]);
     raw = primary.data;
     error = primary.error;
+
+    if (!capacityRpc.error && capacityRpc.data && typeof capacityRpc.data === "object") {
+      const capRaw = capacityRpc.data as Record<string, unknown>;
+      if (capRaw.ok) {
+        setCapacityMismatchCount(parseCapacityMismatch(capRaw).count);
+      } else {
+        setCapacityMismatchCount(0);
+      }
+    } else {
+      setCapacityMismatchCount(0);
+    }
 
     if (error && periodMode === "week" && isMissingRpcSignature(error)) {
       const legacy = await supabase.rpc("manager_weekly_stats", {
@@ -152,6 +171,13 @@ export default function ManagerDashboardScreen() {
     router.push({
       pathname: "/(app)/manager/missing-attendance",
       params: { anchor: data?.week_start ?? anchorDate, periodMode: "week" },
+    } as Href);
+  }
+
+  function openCapacityMismatch() {
+    router.push({
+      pathname: "/(app)/manager/capacity-mismatch",
+      params: { anchor: data?.week_start ?? anchorDate, periodMode },
     } as Href);
   }
 
@@ -367,25 +393,49 @@ export default function ManagerDashboardScreen() {
         </Text>
       ) : null}
 
-      {!loading && data?.ok && periodMode === "week" ? (
-        <Pressable
-          onPress={missingAttendance.count > 0 ? openMissingAttendance : undefined}
-          disabled={missingAttendance.count === 0}
-          style={({ pressed }) => [
-            styles.alertTile,
-            missingAttendance.count > 0 ? styles.alertTileActive : styles.alertTileOk,
-            missingAttendance.count > 0 && pressed && styles.tilePressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={t("dashboard.a11yMissingAttendance")}
-          accessibilityState={{ disabled: missingAttendance.count === 0 }}
-        >
-          <Text style={[styles.alertTileL, isRTL && styles.rtl]}>{t("dashboard.missingAttendanceTile")}</Text>
-          <Text style={[styles.alertTileV, isRTL && styles.rtl]}>{missingAttendance.count}</Text>
-          {missingAttendance.count > 0 ? (
-            <Text style={[styles.alertTileHint, isRTL && styles.rtl]}>{t("dashboard.missingAttendanceTileHint")}</Text>
+      {!loading && data?.ok && (periodMode === "week" || capacityMismatchCount > 0) ? (
+        <View style={[styles.alertRow, isRTL && styles.alertRowRtl]}>
+          {periodMode === "week" ? (
+            <Pressable
+              onPress={missingAttendance.count > 0 ? openMissingAttendance : undefined}
+              disabled={missingAttendance.count === 0}
+              style={({ pressed }) => [
+                styles.alertTile,
+                styles.alertTileHalf,
+                missingAttendance.count > 0 ? styles.alertTileActive : styles.alertTileOk,
+                missingAttendance.count > 0 && pressed && styles.tilePressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t("dashboard.a11yMissingAttendance")}
+              accessibilityState={{ disabled: missingAttendance.count === 0 }}
+            >
+              <Text style={[styles.alertTileL, isRTL && styles.rtl]}>{t("dashboard.missingAttendanceTile")}</Text>
+              <Text style={[styles.alertTileV, isRTL && styles.rtl]}>{missingAttendance.count}</Text>
+              {missingAttendance.count > 0 ? (
+                <Text style={[styles.alertTileHint, isRTL && styles.rtl]}>{t("dashboard.missingAttendanceTileHint")}</Text>
+              ) : null}
+            </Pressable>
           ) : null}
-        </Pressable>
+          <Pressable
+            onPress={capacityMismatchCount > 0 ? openCapacityMismatch : undefined}
+            disabled={capacityMismatchCount === 0}
+            style={({ pressed }) => [
+              styles.alertTile,
+              periodMode === "week" ? styles.alertTileHalf : null,
+              capacityMismatchCount > 0 ? styles.alertTileWarn : styles.alertTileOk,
+              capacityMismatchCount > 0 && pressed && styles.tilePressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={t("dashboard.a11yCapacityMismatch")}
+            accessibilityState={{ disabled: capacityMismatchCount === 0 }}
+          >
+            <Text style={[styles.alertTileL, isRTL && styles.rtl]}>{t("dashboard.capacityMismatchTile")}</Text>
+            <Text style={[styles.alertTileV, isRTL && styles.rtl]}>{capacityMismatchCount}</Text>
+            {capacityMismatchCount > 0 ? (
+              <Text style={[styles.alertTileHintWarn, isRTL && styles.rtl]}>{t("dashboard.capacityMismatchTileHint")}</Text>
+            ) : null}
+          </Pressable>
+        </View>
       ) : null}
 
       {!loading && data?.ok && finance ? (
@@ -885,15 +935,22 @@ const styles = StyleSheet.create({
   subhSm: { fontWeight: "800", color: theme.colors.text, fontSize: 13 },
   hintLine: { fontSize: 12, color: theme.colors.textMuted, marginBottom: 10, lineHeight: 17 },
   emptyWeek: { marginTop: 12, fontSize: 14, fontWeight: "700", color: theme.colors.textSoft },
+  alertRow: { flexDirection: "row", gap: 8, marginTop: theme.spacing.md },
+  alertRowRtl: { flexDirection: "row-reverse" },
   alertTile: {
-    marginTop: theme.spacing.md,
+    marginTop: 0,
     padding: theme.spacing.md,
     borderRadius: theme.radius.xl,
     borderWidth: 1,
   },
+  alertTileHalf: { flex: 1, minWidth: 0 },
   alertTileActive: {
     backgroundColor: theme.colors.errorBg,
     borderColor: theme.colors.errorBorder,
+  },
+  alertTileWarn: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderInput,
   },
   alertTileOk: {
     backgroundColor: theme.colors.surface,
@@ -903,6 +960,7 @@ const styles = StyleSheet.create({
   alertTileL: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
   alertTileV: { marginTop: 6, fontSize: 28, fontWeight: "900", color: theme.colors.text, fontVariant: ["tabular-nums"] },
   alertTileHint: { marginTop: 6, fontSize: 11, fontWeight: "700", color: theme.colors.error },
+  alertTileHintWarn: { marginTop: 6, fontSize: 11, fontWeight: "700", color: theme.colors.alertSubject },
   muted: { color: theme.colors.textSoft },
   paySectionCard: {
     marginTop: theme.spacing.lg,
