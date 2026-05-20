@@ -11,6 +11,7 @@ import { Stack, useLocalSearchParams, router, type Href } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
+import { useAppAlert } from "../context/AppAlertContext";
 import { formatISODateFull } from "../lib/dateFormat";
 import { formatSessionTimeRange } from "../lib/sessionTime";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
@@ -27,6 +28,7 @@ function formatSessionTimeShort(isoTime: string): string {
 
 export default function ManagerMissingAttendanceScreen() {
   const { language, isRTL, t } = useI18n();
+  const { showOk } = useAppAlert();
   const params = useLocalSearchParams<{ anchor?: string; periodMode?: string }>();
   const anchor = String(params.anchor ?? "").trim();
   const periodMode = params.periodMode === "month" ? "month" : "week";
@@ -85,6 +87,32 @@ export default function ManagerMissingAttendanceScreen() {
     setRefreshNonce((n) => n + 1);
   }
 
+  const removeAthlete = useCallback(
+    async (sessionId: string, userId: string) => {
+      const { data, error } = await supabase.rpc("manager_remove_athlete", {
+        p_session_id: sessionId,
+        p_user_id: userId,
+      });
+      if (error) showOk(t("common.error"), error.message);
+      else if (data?.ok) onAttendanceChanged();
+      else showOk(t("common.failed"), String(data?.error ?? ""));
+    },
+    [showOk, t]
+  );
+
+  const removeManual = useCallback(
+    async (sessionId: string, manualId: string) => {
+      const { data, error } = await supabase.rpc("remove_manual_participant_from_session", {
+        p_session_id: sessionId,
+        p_manual_participant_id: manualId,
+      });
+      if (error) showOk(t("common.error"), error.message);
+      else if (data?.ok) onAttendanceChanged();
+      else showOk(t("common.failed"), String(data?.error ?? ""));
+    },
+    [showOk, t]
+  );
+
   return (
     <>
       <Stack.Screen options={{ title: t("dashboard.missingAttendanceTitle") }} />
@@ -138,6 +166,8 @@ export default function ManagerMissingAttendanceScreen() {
                       refreshNonce={refreshNonce}
                       onChanged={onAttendanceChanged}
                       showMarkAllArrived
+                      onRemoveAthlete={(userId) => removeAthlete(s.session_id, userId)}
+                      onRemoveManualParticipant={(manualId) => removeManual(s.session_id, manualId)}
                     />
                   </View>
                 ) : null}
