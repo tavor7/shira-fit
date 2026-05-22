@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, StyleSheet, FlatList, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
 import { surface } from "../theme/surfaces";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
+import { AppSearchField } from "../components/AppSearchField";
 
 type AthleteRow = { kind: "athlete"; id: string; title: string; subtitle: string };
 type ManualRow = { kind: "manual"; id: string; title: string; subtitle: string };
@@ -20,8 +21,8 @@ export default function StaffSearchScreen() {
   const historyPath =
     profile?.role === "manager" ? "/(app)/manager/participant-history" : "/(app)/coach/participant-history";
 
-  const runSearch = useCallback(async () => {
-    const term = q.trim();
+  const runSearch = useCallback(async (termRaw: string) => {
+    const term = termRaw.trim();
     setLoading(true);
     const next: (AthleteRow | ManualRow)[] = [];
     if (term.length >= 1) {
@@ -57,25 +58,20 @@ export default function StaffSearchScreen() {
     }
     setRows(next);
     setLoading(false);
-  }, [q]);
+  }, []);
 
   return (
     <View style={styles.screen}>
       <Text style={[styles.h, isRTL && styles.rtl]}>{language === "he" ? "חיפוש מהיר" : "Staff search"}</Text>
-      <View style={[styles.searchRow, isRTL && styles.searchRowRtl]}>
-        <TextInput
-          style={[styles.input, { flex: 1 }]}
-          placeholder={language === "he" ? "שם / טלפון / משתמש…" : "Name / phone / username…"}
-          placeholderTextColor={theme.colors.placeholderOnLight}
-          value={q}
-          onChangeText={setQ}
-          onSubmitEditing={() => void runSearch()}
-          autoCapitalize="none"
-        />
-        <Pressable style={({ pressed }) => [styles.btn, pressed && { opacity: 0.9 }]} onPress={() => void runSearch()}>
-          <Text style={styles.btnTxt}>{t("common.search")}</Text>
-        </Pressable>
-      </View>
+      <AppSearchField
+        value={q}
+        onChangeText={setQ}
+        onSearch={(term) => void runSearch(term)}
+        placeholder={language === "he" ? "שם / טלפון / משתמש…" : "Name / phone / username…"}
+        isRTL={isRTL}
+        loading={loading}
+        style={styles.searchField}
+      />
 
       {loading ? <ActivityIndicator color={theme.colors.cta} style={{ marginTop: 16 }} /> : null}
 
@@ -133,25 +129,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt, padding: theme.spacing.md },
   h: { fontSize: 20, fontWeight: "900", color: theme.colors.text, marginBottom: 12 },
   rtl: { textAlign: "right", alignSelf: "stretch" },
-  searchRow: { flexDirection: "row", gap: 10, alignItems: "center" },
-  searchRowRtl: { flexDirection: "row-reverse" },
-  input: {
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: theme.colors.textOnLight,
-    fontSize: 16,
-  },
-  btn: {
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.cta,
-  },
-  btnTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 13 },
+  searchField: { marginBottom: theme.spacing.sm },
   list: { paddingTop: 12, paddingBottom: 32, gap: 10 },
   card: { marginBottom: 4 },
   name: { fontSize: 16, fontWeight: "800", color: theme.colors.text },

@@ -21,6 +21,7 @@ import { formatISODateFull } from "../lib/dateFormat";
 import type { ManagerCoachSessionReportRow } from "../types/database";
 import { DatePickerField } from "../components/DatePickerField";
 import { useI18n } from "../context/I18nContext";
+import { AppSearchField } from "../components/AppSearchField";
 
 function defaultEndISO() {
   return toISODateLocal(new Date());
@@ -162,16 +163,14 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
                 <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
               </Pressable>
             </View>
-            <View style={styles.modalSearchRow}>
-              <TextInput
-                value={pickerQ}
-                onChangeText={setPickerQ}
-                placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
-                placeholderTextColor={theme.colors.placeholderOnLight}
-                style={styles.modalSearch}
-                autoCapitalize="none"
-              />
-            </View>
+            <AppSearchField
+              value={pickerQ}
+              onChangeText={setPickerQ}
+              onSearch={() => {}}
+              placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
+              isRTL={isRTL}
+              style={styles.modalSearchField}
+            />
             {trainersLoading ? (
               <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
             ) : (
@@ -295,9 +294,11 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, justifyContent: "flex-end" },
   modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
   modalBox: {
-    backgroundColor: theme.colors.white,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: theme.radius.xl,
+    borderTopRightRadius: theme.radius.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
     maxHeight: "70%",
   },
   modalHeader: {
@@ -305,25 +306,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderColor: theme.colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.borderMuted,
   },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textOnLight },
-  modalClose: { fontSize: 16, color: theme.colors.textMutedOnLight, fontWeight: "700" },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
+  modalClose: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "800" },
   modalLoader: { padding: theme.spacing.xl },
-  modalSearchRow: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.sm },
-  modalSearch: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+  modalSearchField: { marginHorizontal: theme.spacing.md, marginBottom: theme.spacing.sm },
+  pickerItem: {
+    paddingVertical: 14,
+    paddingHorizontal: theme.spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.borderMuted,
   },
-  pickerItem: { paddingVertical: 14, paddingHorizontal: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.border },
-  pickerItemName: { fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
-  pickerItemRole: { fontSize: 13, color: theme.colors.textMutedOnLight, marginTop: 4 },
-  pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoftOnLight, textAlign: "center" },
+  pickerItemName: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  pickerItemRole: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4 },
+  pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoft, textAlign: "center" },
   list: { flex: 1 },
   listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, flexGrow: 1 },
   row: {

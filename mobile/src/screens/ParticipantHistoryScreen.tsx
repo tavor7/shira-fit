@@ -5,6 +5,7 @@ import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { DatePickerField } from "../components/DatePickerField";
 import { AppModal } from "../components/AppModal";
+import { AppSearchField } from "../components/AppSearchField";
 import { supabase } from "../lib/supabase";
 import { formatSessionTimeRange } from "../lib/sessionTime";
 import { toISODateLocal, isValidISODateString, parseISODateLocal, firstDayOfMonthISOLocal } from "../lib/isoDate";
@@ -387,8 +388,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     })();
   }, [presetUid]);
 
-  const loadAthletes = useCallback(async () => {
-    const q = pickerQ.trim();
+  const loadAthletes = useCallback(async (termRaw: string) => {
+    const q = termRaw.trim();
     setAthletesLoading(true);
     let query = supabase
       .from("profiles")
@@ -424,7 +425,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     // Unlinked quick adds (linked_user_id = null) should always show.
     const quickDedup = quick.filter((m) => (m.linked_user_id ? !seen.has(m.linked_user_id) : true));
     setAthletes([...quickDedup, ...base]);
-  }, [pickerQ]);
+  }, []);
 
   const load = useCallback(async () => {
     const s = start.trim();
@@ -570,7 +571,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         <Text style={[styles.label, isRTL && styles.rtlText]}>
           {language === "he" ? "מתאמן (חיפוש לפי שם, משתמש או טלפון)" : "Athlete (search by name, username, or phone)"}
         </Text>
-        <Pressable style={styles.pickerTouch} onPress={() => { setPickerOpen(true); loadAthletes(); }}>
+        <Pressable style={styles.pickerTouch} onPress={() => { setPickerQ(""); setPickerOpen(true); }}>
           <Text style={athleteLabel ? styles.pickerText : styles.pickerPlaceholder}>
             {athleteLabel || (language === "he" ? "בחרו מתאמן…" : "Choose an athlete…")}
           </Text>
@@ -664,22 +665,17 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
           </Pressable>
         </View>
-        <View style={styles.modalSearchRow}>
-          <TextInput
-            value={pickerQ}
-            onChangeText={setPickerQ}
-            placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
-            placeholderTextColor={theme.colors.placeholderOnLight}
-            style={styles.modalSearch}
-            autoCapitalize="none"
-            onSubmitEditing={loadAthletes}
-          />
-          <Pressable style={({ pressed }) => [styles.modalSearchBtn, pressed && { opacity: 0.9 }]} onPress={loadAthletes}>
-            <Text style={styles.modalSearchBtnTxt}>{t("common.search")}</Text>
-          </Pressable>
-        </View>
+        <AppSearchField
+          value={pickerQ}
+          onChangeText={setPickerQ}
+          onSearch={(term) => void loadAthletes(term)}
+          placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
+          isRTL={isRTL}
+          loading={athletesLoading}
+          style={styles.modalSearchField}
+        />
         {athletesLoading ? (
-          <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
+          <ActivityIndicator size="large" color={theme.colors.cta} style={styles.modalLoader} />
         ) : (
           <FlatList
             data={athletes}
@@ -1194,27 +1190,35 @@ const styles = StyleSheet.create({
   clearSelTxt: { color: theme.colors.textMuted, fontWeight: "700" },
   modalBackdrop: { flex: 1, justifyContent: "flex-end" },
   modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
-  modalBox: { backgroundColor: theme.colors.white, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: "75%" },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.border },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textOnLight },
-  modalClose: { fontSize: 16, color: theme.colors.textMutedOnLight, fontWeight: "700" },
-  modalSearchRow: { flexDirection: "row", gap: 10, padding: theme.spacing.md, paddingTop: theme.spacing.sm },
-  modalSearch: {
-    flex: 1,
+  modalBox: {
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: theme.radius.xl,
+    borderTopRightRadius: theme.radius.xl,
     borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+    borderColor: theme.colors.borderMuted,
+    maxHeight: "75%",
   },
-  modalSearchBtn: { paddingHorizontal: 14, borderRadius: theme.radius.md, backgroundColor: theme.colors.cta, alignItems: "center", justifyContent: "center" },
-  modalSearchBtnTxt: { color: theme.colors.ctaText, fontWeight: "800" },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: theme.spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.borderMuted,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
+  modalClose: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "800" },
+  modalSearchField: { marginHorizontal: theme.spacing.md, marginBottom: theme.spacing.sm },
   modalLoader: { padding: theme.spacing.xl },
-  pickerItem: { paddingVertical: 14, paddingHorizontal: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.border },
-  pickerItemName: { fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
-  pickerItemRole: { fontSize: 13, color: theme.colors.textMutedOnLight, marginTop: 4 },
-  pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoftOnLight, textAlign: "center" },
+  pickerItem: {
+    paddingVertical: 14,
+    paddingHorizontal: theme.spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.borderMuted,
+  },
+  pickerItemName: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  pickerItemRole: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4 },
+  pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoft, textAlign: "center" },
   list: { flex: 1 },
   listContent: { paddingBottom: theme.spacing.xl, flexGrow: 1 },
   sectionHead: {

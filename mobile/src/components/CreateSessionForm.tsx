@@ -32,6 +32,8 @@ import { SessionOptionsSection, type SessionOptionItem } from "./SessionOptionsS
 import { SessionSeriesOptionsExpand } from "./SessionSeriesOptionsExpand";
 import { CollapsiblePricingForm } from "./CollapsiblePricingForm";
 import { parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
+import { AppSearchField } from "./AppSearchField";
+import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
 
@@ -276,7 +278,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     setShowCoachPicker(false);
   }
 
-  async function runTraineeSearch(termRaw: string) {
+  const runTraineeSearch = useCallback(async (termRaw: string) => {
     const term = termRaw.trim();
     const safe = escapeIlike(term);
     setTraineesSearching(true);
@@ -307,7 +309,36 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     } finally {
       setTraineesSearching(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!traineesOpen) return;
+    void runTraineeSearch("");
+  }, [traineesOpen, runTraineeSearch]);
+
+  const traineeSearchRows = useMemo(() => {
+    type Row =
+      | { kind: "athlete"; key: string; full_name: string; meta: string; athlete: AthletePick }
+      | { kind: "manual"; key: string; full_name: string; meta: string; manual: { id: string; full_name: string; phone: string } };
+    const rows: Row[] = [
+      ...manualResults.map((m) => ({
+        kind: "manual" as const,
+        key: m.id,
+        full_name: m.full_name,
+        meta: m.phone,
+        manual: m,
+      })),
+      ...athleteResults.map((a) => ({
+        kind: "athlete" as const,
+        key: a.user_id,
+        full_name: a.full_name,
+        meta: `@${a.username} · ${a.phone}`,
+        athlete: a,
+      })),
+    ];
+    rows.sort((a, b) => a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" }));
+    return rows;
+  }, [athleteResults, manualResults]);
 
   function addAthletePick(p: AthletePick) {
     setSelectedAthletes((prev) => (prev.some((x) => x.user_id === p.user_id) ? prev : [...prev, p]));
@@ -851,91 +882,62 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.traineesScrollContent}
             >
-              <View style={[styles.traineeSearchRow, isRTL && styles.traineeSearchRowRtl]}>
-                <TextInput
-                  value={traineesQ}
-                  onChangeText={setTraineesQ}
-                  placeholder={t("sessionForm.searchTrainees")}
-                  placeholderTextColor={theme.colors.textSoft}
-                  style={[sf.control, sf.controlInput, styles.traineeSearchInput]}
-                  accessibilityLabel={t("sessionForm.searchTrainees")}
-                  autoCapitalize="none"
-                  onSubmitEditing={() => void runTraineeSearch(traineesQ)}
-                />
-                <Pressable
-                  style={({ pressed }) => [styles.traineeSearchBtn, pressed && { opacity: 0.9 }]}
-                  onPress={() => void runTraineeSearch(traineesQ)}
-                  disabled={traineesSearching}
-                >
-                  <Text style={styles.traineeSearchBtnTxt}>{traineesSearching ? "…" : t("common.search")}</Text>
-                </Pressable>
-              </View>
-
-              <View style={styles.sectionSpacer} />
-
-              <Text style={[styles.modalSubTitle, isRTL && styles.rtlText]}>{t("sessionForm.athletesAccount")}</Text>
-              <View style={styles.traineeList}>
-                {athleteResults.length === 0 ? (
-                  <Text style={styles.pickerEmpty}>{t("sessionForm.noResults")}</Text>
-                ) : (
-                  athleteResults.map((a) => {
-                    const already = selectedAthletes.some((x) => x.user_id === a.user_id);
-                    return (
-                      <Pressable
-                        key={a.user_id}
-                        style={({ pressed }) => [
-                          styles.pickerRowSlim,
-                          pressed && { opacity: 0.9 },
-                          already && { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.cta },
-                        ]}
-                        onPress={() => {
-                          if (already) removeAthletePick(a.user_id);
-                          else addAthletePick(a);
-                        }}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: already }}
-                      >
-                        <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
-                          {a.full_name}
-                        </Text>
-                        <Text style={styles.pickerRowMeta} numberOfLines={1} ellipsizeMode="tail">
-                          @{a.username} · {a.phone}
-                        </Text>
-                      </Pressable>
-                    );
-                  })
-                )}
-              </View>
+              <ParticipantQuickAddPanel
+                name={quickName}
+                phone={quickPhone}
+                onNameChange={setQuickName}
+                onPhoneChange={setQuickPhone}
+                onSubmit={() => void quickAddManual()}
+                busy={traineesBusy}
+              />
 
               <Text style={[styles.modalSubTitle, styles.modalSubTitleSpacing, isRTL && styles.rtlText]}>
-                {t("sessionForm.manualParticipants")}
+                {t("sessionForm.searchTrainees")}
               </Text>
+              <AppSearchField
+                value={traineesQ}
+                onChangeText={setTraineesQ}
+                onSearch={(term) => void runTraineeSearch(term)}
+                placeholder={t("sessionForm.searchTrainees")}
+                isRTL={isRTL}
+                loading={traineesSearching}
+                accessibilityLabel={t("sessionForm.searchTrainees")}
+              />
+
               <View style={styles.traineeList}>
-                {manualResults.length === 0 ? (
+                {traineeSearchRows.length === 0 ? (
                   <Text style={styles.pickerEmpty}>{t("sessionForm.noResults")}</Text>
                 ) : (
-                  manualResults.map((m) => {
-                    const already = selectedManual.some((x) => x.manual_participant_id === m.id);
+                  traineeSearchRows.map((row) => {
+                    const already =
+                      row.kind === "athlete"
+                        ? selectedAthletes.some((x) => x.user_id === row.athlete.user_id)
+                        : selectedManual.some((x) => x.manual_participant_id === row.manual.id);
                     return (
                       <Pressable
-                        key={m.id}
+                        key={row.key}
                         style={({ pressed }) => [
                           styles.pickerRowSlim,
                           pressed && { opacity: 0.9 },
                           already && { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.cta },
                         ]}
                         onPress={() => {
-                          if (already) removeManualPick(m.id);
-                          else addManualPick(m);
+                          if (row.kind === "athlete") {
+                            if (already) removeAthletePick(row.athlete.user_id);
+                            else addAthletePick(row.athlete);
+                          } else {
+                            if (already) removeManualPick(row.manual.id);
+                            else addManualPick(row.manual);
+                          }
                         }}
                         accessibilityRole="button"
                         accessibilityState={{ selected: already }}
                       >
                         <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
-                          {m.full_name}
+                          {row.full_name}
                         </Text>
                         <Text style={styles.pickerRowMeta} numberOfLines={1} ellipsizeMode="tail">
-                          {m.phone}
+                          {row.meta}
                         </Text>
                       </Pressable>
                     );
@@ -943,31 +945,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                 )}
               </View>
 
-              <View style={styles.sectionSpacer} />
-              <Text style={[styles.modalSubTitle, isRTL && styles.rtlText]}>{t("sessionForm.quickAdd")}</Text>
-              <View style={styles.quickAddRow}>
-                <TextInput
-                  value={quickName}
-                  onChangeText={setQuickName}
-                  placeholder={t("profile.fullName")}
-                  placeholderTextColor={theme.colors.placeholderOnLight}
-                  style={styles.quickAddInput}
-                />
-                <TextInput
-                  value={quickPhone}
-                  onChangeText={setQuickPhone}
-                  placeholder={t("profile.phone")}
-                  placeholderTextColor={theme.colors.placeholderOnLight}
-                  style={styles.quickAddInput}
-                  keyboardType="phone-pad"
-                />
-              </View>
-              <PrimaryButton
-                label={t("sessionForm.addToTrainees")}
-                onPress={() => void quickAddManual()}
-                loading={traineesBusy}
-                loadingLabel={t("common.loading")}
-              />
             </ScrollView>
           </View>
         </View>
@@ -1025,7 +1002,9 @@ const styles = StyleSheet.create({
   sectionSpacer: { height: theme.spacing.sm },
   traineesScrollContent: {
     paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
   modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
   modalBackdropTouch: { ...StyleSheet.absoluteFillObject },

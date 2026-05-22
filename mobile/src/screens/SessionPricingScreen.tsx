@@ -21,6 +21,7 @@ import { CollapsiblePricingForm } from "../components/CollapsiblePricingForm";
 import { PricingSection } from "../components/PricingSection";
 import { PricingTierFormFields } from "../components/PricingTierFormFields";
 import { PricingPickerField } from "../components/PricingPickerField";
+import { AppSearchField } from "../components/AppSearchField";
 import { pricingScreenStyles as ps } from "../components/pricingScreenStyles";
 import type { AthleteSessionCapacityPricingRow, SessionCapacityPricingRow } from "../types/database";
 
@@ -125,8 +126,8 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     setOverrideRows(list);
   }, [notifyErr]);
 
-  const loadAthletes = useCallback(async () => {
-    const q = pickerQ.trim();
+  const loadAthletes = useCallback(async (termRaw: string) => {
+    const q = termRaw.trim();
     setAthletesLoading(true);
     let query = supabase
       .from("profiles")
@@ -168,18 +169,12 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     );
     const quickDedup = quick.filter((m) => (m.linked_user_id ? !seen.has(m.linked_user_id) : true));
     setAthletes([...quickDedup, ...base]);
-  }, [pickerQ]);
+  }, []);
 
   useEffect(() => {
     void load();
     void loadOverrides();
   }, [load, loadOverrides]);
-
-  useEffect(() => {
-    if (!pickerOpen) return;
-    const timer = setTimeout(() => void loadAthletes(), pickerQ.trim() ? 280 : 0);
-    return () => clearTimeout(timer);
-  }, [pickerOpen, pickerQ, loadAthletes]);
 
   function selectAthletePick(item: AthletePick) {
     if (item.kind === "athlete") {
@@ -490,7 +485,10 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
               label={t("pricing.pickAthlete")}
               value={pickedAthleteLabel}
               placeholder={t("pricing.chooseAthletePlaceholder")}
-              onPress={() => setPickerOpen(true)}
+              onPress={() => {
+                setPickerQ("");
+                setPickerOpen(true);
+              }}
               isRTL={isRTL}
               accessibilityLabel={t("pricing.pickAthlete")}
             />
@@ -611,25 +609,18 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
                 <Text style={[styles.modalClose, isRTL && ps.rtl]}>{t("common.ok")}</Text>
               </Pressable>
             </View>
-            <View style={[styles.modalSearchRow, isRTL && styles.modalSearchRowRtl]}>
-              <TextInput
-                value={pickerQ}
-                onChangeText={setPickerQ}
-                placeholder={t("pricing.searchAthletesPlaceholder")}
-                placeholderTextColor={theme.colors.placeholderOnLight}
-                style={[styles.modalSearch, isRTL && ps.rtl]}
-                autoCapitalize="none"
-                onSubmitEditing={() => void loadAthletes()}
-              />
-              <Pressable
-                style={({ pressed }) => [styles.modalSearchBtn, pressed && { opacity: 0.9 }]}
-                onPress={() => void loadAthletes()}
-              >
-                <Text style={styles.modalSearchBtnTxt}>{t("common.search")}</Text>
-              </Pressable>
-            </View>
+            <AppSearchField
+              value={pickerQ}
+              onChangeText={setPickerQ}
+              onSearch={(term) => void loadAthletes(term)}
+              placeholder={t("pricing.searchAthletesPlaceholder")}
+              isRTL={isRTL}
+              loading={athletesLoading}
+              accessibilityLabel={t("pricing.searchAthletesPlaceholder")}
+              style={styles.modalSearchField}
+            />
             {athletesLoading ? (
-              <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} accessibilityLabel={t("common.loading")} />
+              <ActivityIndicator size="large" color={theme.colors.cta} style={styles.modalLoader} accessibilityLabel={t("common.loading")} />
             ) : (
               <FlatList
                 data={athletes}
@@ -684,11 +675,13 @@ function resolveProfileName(r: OverrideRow): string {
 
 const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, justifyContent: "flex-end" },
-  modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
+  modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
   modalBox: {
-    backgroundColor: theme.colors.white,
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,
     borderTopRightRadius: theme.radius.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
     maxHeight: "70%",
   },
   modalHeader: {
@@ -696,41 +689,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderColor: theme.colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.borderMuted,
   },
   modalHeaderRtl: { flexDirection: "row-reverse" },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textOnLight },
-  modalClose: { fontSize: 16, color: theme.colors.textMutedOnLight, fontWeight: "700" },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
+  modalClose: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "800" },
   modalLoader: { padding: theme.spacing.xl },
-  modalSearchRow: {
-    flexDirection: "row",
-    gap: 10,
+  modalSearchField: { marginHorizontal: theme.spacing.md, marginBottom: theme.spacing.sm },
+  pickerItem: {
+    paddingVertical: 14,
     paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.borderMuted,
   },
-  modalSearchRowRtl: { flexDirection: "row-reverse" },
-  modalSearch: {
-    flex: 1,
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    color: theme.colors.textOnLight,
-    backgroundColor: theme.colors.white,
-  },
-  modalSearchBtn: {
-    paddingHorizontal: 14,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.cta,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalSearchBtnTxt: { color: theme.colors.ctaText, fontWeight: "800" },
-  pickerItem: { paddingVertical: 14, paddingHorizontal: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.border },
-  pickerItemName: { fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
-  pickerItemRole: { fontSize: 13, color: theme.colors.textMutedOnLight, marginTop: 4 },
-  pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoftOnLight, textAlign: "center" },
+  pickerItemName: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  pickerItemRole: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4 },
+  pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoft, textAlign: "center" },
 });

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
+import { AppSearchField } from "../components/AppSearchField";
 
 type ProfileRow = {
   kind: "profile";
@@ -38,9 +39,8 @@ export default function StaffUsersScreen() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const qTrim = q.trim();
-
-  const load = useCallback(async () => {
+  const load = useCallback(async (termRaw?: string) => {
+    const qTrim = (termRaw ?? q).trim();
     setLoading(true);
     let query = supabase
       .from("profiles")
@@ -101,11 +101,11 @@ export default function StaffUsersScreen() {
     combined.sort((a, b) => String(a.full_name).localeCompare(String(b.full_name)));
     setRows(combined);
     setLoading(false);
-  }, [isManager, qTrim, t]);
+  }, [isManager, q, t]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    void load(q);
+  }, [isManager]);
 
   const subtitle = useMemo(() => {
     if (isManager) return language === "he" ? "חיפוש מתאמנים ומאמנים (מנהלים מוסתרים). לחצו על משתמש לעריכה." : "Search athletes and coaches (managers hidden). Tap a user to edit.";
@@ -124,20 +124,14 @@ export default function StaffUsersScreen() {
             {isManager ? <ManagerStudioSetupTabs /> : null}
             <Text style={[styles.title, isRTL && styles.rtlText]}>{language === "he" ? "משתמשים" : "Users"}</Text>
             <Text style={[styles.hint, isRTL && styles.rtlText]}>{subtitle}</Text>
-            <TextInput
+            <AppSearchField
               value={q}
               onChangeText={setQ}
+              onSearch={(term) => void load(term)}
               placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
-              placeholderTextColor={theme.colors.placeholderOnLight}
-              style={styles.input}
-              autoCapitalize="none"
-              onSubmitEditing={load}
+              isRTL={isRTL}
+              loading={loading}
             />
-            <Pressable style={({ pressed }) => [styles.searchBtn, pressed && { opacity: 0.9 }]} onPress={load}>
-              <Text style={styles.searchBtnTxt}>
-                {loading ? t("common.loading") : language === "he" ? "חיפוש" : "Search"}
-              </Text>
-            </Pressable>
           </View>
         }
         ListEmptyComponent={
@@ -189,24 +183,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
   hint: { marginTop: 6, color: theme.colors.textMuted, lineHeight: 18, fontSize: 12 },
   rtlText: { textAlign: "right" },
-  input: {
-    marginTop: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
-  },
-  searchBtn: {
-    marginTop: theme.spacing.sm,
-    alignSelf: "flex-start",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.cta,
-  },
-  searchBtnTxt: { color: theme.colors.ctaText, fontWeight: "900" },
   list: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
   empty: { textAlign: "center", marginTop: 32, color: theme.colors.textSoft },
   card: {

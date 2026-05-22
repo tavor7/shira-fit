@@ -14,7 +14,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
-import { PrimaryButton } from "./PrimaryButton";
+import { AppSearchField } from "./AppSearchField";
+import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 
@@ -191,6 +192,30 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     void loadCounts();
     void runSearch("");
   }, [visible, sid, loadCounts, runSearch]);
+
+  const combinedPicks = useMemo(() => {
+    type Row =
+      | { kind: "athlete"; key: string; full_name: string; meta: string; user_id: string }
+      | { kind: "manual"; key: string; full_name: string; meta: string; manual_id: string };
+    const rows: Row[] = [
+      ...manualResults.map((m) => ({
+        kind: "manual" as const,
+        key: `m:${m.id}`,
+        full_name: m.full_name,
+        meta: m.phone,
+        manual_id: m.id,
+      })),
+      ...results.map((a) => ({
+        kind: "athlete" as const,
+        key: `a:${a.user_id}`,
+        full_name: a.full_name,
+        meta: `@${a.username} · ${a.phone}`,
+        user_id: a.user_id,
+      })),
+    ];
+    rows.sort((a, b) => a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" }));
+    return rows;
+  }, [results, manualResults]);
 
   function isFull() {
     if (maxCap == null) return false;
@@ -507,120 +532,61 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
             contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPad }]}
             bounces
           >
-            <Text style={[styles.modalSub, isRTL && styles.rtlText]}>{language === "he" ? "חיפוש קיים" : "Search existing"}</Text>
-            <View style={[styles.searchRow, isRTL && styles.searchRowRtl]}>
-              <TextInput
-                style={[styles.input, styles.inputFlex, isRTL && styles.inputRtl]}
-                placeholder={language === "he" ? "חיפוש שם / טלפון / משתמש…" : "Search name / phone / username…"}
-                placeholderTextColor={theme.colors.textSoft}
-                value={q}
-                onChangeText={setQ}
-                autoCapitalize="none"
-                editable={!adding}
-              />
-              <Pressable
-                style={({ pressed }) => [styles.searchBtn, pressed && { opacity: 0.9 }, adding && { opacity: 0.5 }]}
-                onPress={() => void runSearch(q)}
-                disabled={adding}
-              >
-                <Text style={styles.searchBtnTxt}>{searching ? "…" : t("common.search")}</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.listSection}>
-              {results.length === 0 ? (
-                <Text style={[styles.muted, isRTL && styles.rtlText]}>
-                  {q.trim()
-                    ? language === "he"
-                      ? "אין התאמות באתלטים."
-                      : "No matching athletes."
-                    : language === "he"
-                      ? "מוצגים עד 50 מתאמנים — חפשו לצמצום."
-                      : "Showing up to 50 athletes — search to narrow."}
-                </Text>
-              ) : (
-                results.map((item) => (
-                  <Pressable
-                    key={item.user_id}
-                    disabled={adding}
-                    style={({ pressed }) => [
-                      styles.pickRow,
-                      Platform.OS === "web" && styles.pickRowWeb,
-                      pressed && !adding && { opacity: 0.88 },
-                    ]}
-                    onPress={() => void addExistingAthlete(item.user_id)}
-                    accessibilityRole="button"
-                  >
-                    <Text style={[styles.pickName, isRTL && styles.rtlText]}>{item.full_name}</Text>
-                    <Text style={[styles.pickMeta, isRTL && styles.rtlText]}>
-                      @{item.username} · {item.phone}
-                    </Text>
-                  </Pressable>
-                ))
-              )}
-            </View>
-
-            <Text style={[styles.modalSub, styles.modalSubSpaced, isRTL && styles.rtlText]}>
-              {language === "he" ? "משתתפים ידניים (ללא חשבון)" : "Manual participants (no account)"}
-            </Text>
-            <View style={styles.listSection}>
-              {manualResults.length === 0 ? (
-                <Text style={[styles.muted, isRTL && styles.rtlText]}>
-                  {q.trim()
-                    ? language === "he"
-                      ? "אין התאמות ברשימה הידנית."
-                      : "No matching manual participants."
-                    : language === "he"
-                      ? "מוצגים עד 50 רשומות — חפשו לצמצום."
-                      : "Showing up to 50 entries — search to narrow."}
-                </Text>
-              ) : (
-                manualResults.map((item) => (
-                  <Pressable
-                    key={item.id}
-                    disabled={adding}
-                    style={({ pressed }) => [
-                      styles.pickRow,
-                      Platform.OS === "web" && styles.pickRowWeb,
-                      pressed && !adding && { opacity: 0.88 },
-                    ]}
-                    onPress={() => void addExistingManual(item.id)}
-                    accessibilityRole="button"
-                  >
-                    <Text style={[styles.pickName, isRTL && styles.rtlText]}>{item.full_name}</Text>
-                    <Text style={[styles.pickMeta, isRTL && styles.rtlText]}>{item.phone}</Text>
-                  </Pressable>
-                ))
-              )}
-            </View>
-
-            <Text style={[styles.modalSub, styles.modalSubSpaced, isRTL && styles.rtlText]}>
-              {language === "he" ? "הוספה מהירה (ללא חשבון)" : "Quick add (no account)"}
-            </Text>
-            <TextInput
-              style={[styles.input, isRTL && styles.inputRtl]}
-              placeholder={t("profile.fullName")}
-              placeholderTextColor={theme.colors.textSoft}
-              value={quickName}
-              onChangeText={setQuickName}
-              editable={!adding}
-            />
-            <TextInput
-              style={[styles.input, isRTL && styles.inputRtl]}
-              placeholder={t("profile.phone")}
-              placeholderTextColor={theme.colors.textSoft}
-              value={quickPhone}
-              onChangeText={setQuickPhone}
-              keyboardType="phone-pad"
-              editable={!adding}
-            />
-            <PrimaryButton
-              label={language === "he" ? "הוספה מהירה" : "Quick add"}
-              onPress={() => void quickAdd()}
+            <ParticipantQuickAddPanel
+              name={quickName}
+              phone={quickPhone}
+              onNameChange={setQuickName}
+              onPhoneChange={setQuickPhone}
+              onSubmit={() => void quickAdd()}
+              busy={adding}
               disabled={adding}
-              loading={adding}
-              loadingLabel={t("common.loading")}
             />
+
+            <AppSearchField
+              value={q}
+              onChangeText={setQ}
+              onSearch={(term) => void runSearch(term)}
+              placeholder={language === "he" ? "חיפוש שם / טלפון / משתמש…" : "Search name / phone / username…"}
+              isRTL={isRTL}
+              loading={searching}
+              editable={!adding}
+            />
+
+            <View style={styles.listSection}>
+              {combinedPicks.length === 0 ? (
+                <Text style={[styles.muted, isRTL && styles.rtlText]}>
+                  {q.trim()
+                    ? language === "he"
+                      ? "אין התאמות."
+                      : "No matches."
+                    : language === "he"
+                      ? "מוצגים עד 50 — חפשו לצמצום."
+                      : "Showing up to 50 — search to narrow."}
+                </Text>
+              ) : (
+                combinedPicks.map((item) => (
+                  <Pressable
+                    key={item.key}
+                    disabled={adding}
+                    style={({ pressed }) => [
+                      styles.pickRow,
+                      Platform.OS === "web" && styles.pickRowWeb,
+                      pressed && !adding && { opacity: 0.88 },
+                    ]}
+                    onPress={() =>
+                      void (item.kind === "athlete"
+                        ? addExistingAthlete(item.user_id)
+                        : addExistingManual(item.manual_id))
+                    }
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.pickName, isRTL && styles.rtlText]}>{item.full_name}</Text>
+                    <Text style={[styles.pickMeta, isRTL && styles.rtlText]}>{item.meta}</Text>
+                  </Pressable>
+                ))
+              )}
+            </View>
+
             <Pressable onPress={handleClose} disabled={adding} style={({ pressed }) => [pressed && { opacity: 0.8 }]}>
               <Text style={[styles.cancel, isRTL && styles.rtlText]}>{t("common.cancel")}</Text>
             </Pressable>
@@ -730,14 +696,10 @@ const styles = StyleSheet.create({
     width: "100%",
     ...(Platform.OS === "web" ? { overflowY: "scroll" as const } : {}),
   },
-  scrollContent: {},
+  scrollContent: { gap: 12, paddingTop: theme.spacing.sm },
   modalSub: { fontWeight: "800", color: theme.colors.text, marginTop: 4, marginBottom: 8 },
   modalSubSpaced: { marginTop: 14 },
-  searchRow: { flexDirection: "row", gap: 10, alignItems: "center" },
-  searchRowRtl: { flexDirection: "row-reverse" },
-  searchBtn: { paddingHorizontal: 12, height: 44, borderRadius: theme.radius.md, backgroundColor: theme.colors.cta, alignItems: "center", justifyContent: "center" },
-  searchBtnTxt: { color: theme.colors.ctaText, fontWeight: "900" },
-  listSection: { marginBottom: 4 },
+  listSection: { marginBottom: 4, marginTop: 4 },
   pickRow: {
     paddingVertical: 12,
     paddingHorizontal: 10,
