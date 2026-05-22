@@ -316,7 +316,14 @@ export async function fetchStaffLateCancellationItems(
     const sess = Array.isArray(row.training_sessions) ? row.training_sessions[0] : row.training_sessions;
     if (!sess?.id) continue;
     const dur = sess.duration_minutes ?? 60;
-    if (!hasSessionNotEnded(sess.session_date, sess.start_time, dur, now)) continue;
+    const isLate = isCancellationWithinHoursBeforeSession(
+      sess.session_date,
+      sess.start_time,
+      row.cancelled_at,
+      12
+    );
+    // Late cancellations (<12h before start) stay visible after the session ends.
+    if (!isLate && !hasSessionNotEnded(sess.session_date, sess.start_time, dur, now)) continue;
     if (now.getTime() - new Date(row.cancelled_at).getTime() > MS_7D) continue;
 
     const name = nameByUser[row.user_id] || tr(language, "homeAlerts.athlete");
@@ -325,12 +332,6 @@ export async function fetchStaffLateCancellationItems(
     const cancelMs = new Date(row.cancelled_at).getTime();
     const isNew = Number.isFinite(cancelMs) && now.getTime() - cancelMs <= MS_1H && now.getTime() >= cancelMs;
     const charged = row.charged_full_price === true;
-    const isLate = isCancellationWithinHoursBeforeSession(
-      sess.session_date,
-      sess.start_time,
-      row.cancelled_at,
-      12
-    );
     const reasonTrim = typeof row.reason === "string" ? row.reason.trim() : "";
     const lead = tr(language, isLate ? "homeAlerts.lateCancellationLead" : "homeAlerts.cancellationLead");
     const dayTime = `${dayStr} · ${timeStr}`;

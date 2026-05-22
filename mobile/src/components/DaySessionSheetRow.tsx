@@ -3,6 +3,7 @@ import { theme } from "../theme";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { formatSessionStartTime, getSessionTemporalPhase } from "../lib/sessionTime";
 import { KickboxSessionBadge } from "./KickboxSessionBadge";
+import { SessionSeriesIndicator } from "./SessionSeriesIndicator";
 import { StatusChip } from "./StatusChip";
 import { useI18n } from "../context/I18nContext";
 
@@ -62,6 +63,7 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
               <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
             ) : null}
             {item.isKickbox ? <KickboxSessionBadge compact isRTL={isRTL} /> : null}
+            {item.isRecurringSeries ? <SessionSeriesIndicator compact /> : null}
           </View>
         </View>
         {!canDelete ? <Text style={styles.chevron}>{isRTL ? "‹" : "›"}</Text> : null}

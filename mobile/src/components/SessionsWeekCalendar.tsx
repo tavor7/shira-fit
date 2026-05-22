@@ -32,6 +32,8 @@ export type SessionsWeekItem = {
   /** Left accent (#RRGGBB) — trainer calendar color. */
   accentColor?: string;
   isKickbox?: boolean;
+  /** Staff only: session is part of an active weekly series (not detached). */
+  isRecurringSeries?: boolean;
   /** Show Listed/Hidden + Open/Closed tags (staff). */
   showStaffSessionLabels?: boolean;
   isHidden?: boolean;

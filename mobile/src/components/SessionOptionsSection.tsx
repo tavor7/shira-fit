@@ -3,6 +3,7 @@ import { View, Text, Switch, Pressable, StyleSheet, type ViewStyle } from "react
 import { theme } from "../theme";
 import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { KICKBOX_SESSION_ACCENT, KICKBOX_SESSION_BG, KICKBOX_SESSION_BORDER } from "../lib/kickboxSessionStyle";
+import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
 /** Visual cue when the toggle is on (off rows share the same neutral look). */
 export type SessionOptionTone = "open" | "hidden" | "kickbox" | "repeat";
@@ -78,7 +79,11 @@ function OptionList({ options, isRTL }: Pick<Props, "options" | "isRTL">) {
             {opt.value && opt.detailWhenOn ? (
               <Text style={[styles.detail, isRTL && styles.rtl]}>{opt.detailWhenOn}</Text>
             ) : null}
-            {opt.value && opt.expandedWhenOn ? <View style={styles.expanded}>{opt.expandedWhenOn}</View> : null}
+            {opt.expandedWhenOn ? (
+              <View style={styles.expandWrap}>
+                <AnimatedOptionExpand open={opt.value}>{opt.expandedWhenOn}</AnimatedOptionExpand>
+              </View>
+            ) : null}
           </View>
         );
         })}
@@ -124,6 +129,12 @@ const styles = StyleSheet.create({
     ...rowAccent,
     backgroundColor: theme.colors.surfaceElevated,
     borderStartColor: theme.colors.cta,
+    borderWidth: 0,
+    borderStartWidth: 3,
+  },
+  expandWrap: {
+    marginBottom: 4,
+    paddingHorizontal: 2,
   },
   row: {
     flexDirection: "row",
@@ -164,10 +175,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: theme.colors.textMuted,
     lineHeight: 17,
-  },
-  expanded: {
-    marginTop: -2,
-    marginBottom: 12,
   },
   divider: {
     height: StyleSheet.hairlineWidth,

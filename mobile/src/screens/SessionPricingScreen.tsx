@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  TextInput,
 } from "react-native";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
@@ -25,7 +26,9 @@ import type { AthleteSessionCapacityPricingRow, SessionCapacityPricingRow } from
 
 type Props = { hideIntro?: boolean };
 
-type AthletePick = { user_id: string; full_name: string; username: string };
+type AthletePick =
+  | { kind: "athlete"; user_id: string; full_name: string; username: string; phone?: string | null }
+  | { kind: "quick"; id: string; full_name: string; phone: string; linked_user_id: string | null };
 
 type OverrideRow = AthleteSessionCapacityPricingRow & {
   profiles?: { full_name: string } | { full_name: string }[] | null;
@@ -62,6 +65,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   const [overrideLoading, setOverrideLoading] = useState(false);
   const [overrideSaving, setOverrideSaving] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQ, setPickerQ] = useState("");
   const [athletes, setAthletes] = useState<AthletePick[]>([]);
   const [athletesLoading, setAthletesLoading] = useState(false);
 
@@ -122,15 +126,49 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   }, [notifyErr]);
 
   const loadAthletes = useCallback(async () => {
+    const q = pickerQ.trim();
     setAthletesLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("profiles")
-      .select("user_id, full_name, username")
+      .select("user_id, full_name, username, phone")
       .eq("role", "athlete")
-      .order("full_name");
-    setAthletes((data as AthletePick[]) ?? []);
+      .order("full_name", { ascending: true })
+      .limit(200);
+    if (q.length > 0) {
+      query = query.or(`full_name.ilike.%${q}%,username.ilike.%${q}%,phone.ilike.%${q}%`);
+    }
+    const { data, error } = await query;
+
+    let mQuery = supabase
+      .from("manual_participants")
+      .select("id, full_name, phone, linked_user_id")
+      .order("full_name", { ascending: true })
+      .limit(200);
+    if (q.length > 0) {
+      mQuery = mQuery.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`);
+    }
+    const { data: mData, error: mErr } = await mQuery;
+
     setAthletesLoading(false);
-  }, []);
+    if (error) {
+      setAthletes([]);
+      return;
+    }
+    const base = ((data as { user_id: string; full_name: string; username: string; phone?: string | null }[]) ?? []).map(
+      (a) => ({ kind: "athlete" as const, ...a })
+    );
+    const quick = mErr
+      ? []
+      : ((mData as { id: string; full_name: string; phone: string; linked_user_id: string | null }[]) ?? []).map((m) => ({
+          kind: "quick" as const,
+          ...m,
+        }));
+    const seen = new Set(
+      ((data as { user_id: string }[] | null) ?? []).map((a) => a.user_id)
+    );
+    const quickDedup = quick.filter((m) => (m.linked_user_id ? !seen.has(m.linked_user_id) : true));
+    setAthletes([...quickDedup, ...base]);
+  }, [pickerQ]);
 
   useEffect(() => {
     void load();
@@ -138,8 +176,26 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   }, [load, loadOverrides]);
 
   useEffect(() => {
-    if (pickerOpen) void loadAthletes();
-  }, [pickerOpen, loadAthletes]);
+    if (!pickerOpen) return;
+    const timer = setTimeout(() => void loadAthletes(), pickerQ.trim() ? 280 : 0);
+    return () => clearTimeout(timer);
+  }, [pickerOpen, pickerQ, loadAthletes]);
+
+  function selectAthletePick(item: AthletePick) {
+    if (item.kind === "athlete") {
+      setPickedAthleteId(item.user_id);
+      setPickedAthleteLabel(`${item.full_name} (@${item.username})`);
+      setPickerOpen(false);
+      return;
+    }
+    if (!item.linked_user_id) {
+      notifyErr(t("pricing.quickAddRatesNeedAccount"));
+      return;
+    }
+    setPickedAthleteId(item.linked_user_id);
+    setPickedAthleteLabel(`${item.full_name} · ${item.phone}`);
+    setPickerOpen(false);
+  }
 
   async function saveGlobalRule(isKickbox: boolean) {
     const capRaw = isKickbox ? kickboxCapStr : capStr;
@@ -544,8 +600,32 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
           <View style={styles.modalBox}>
             <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
               <Text style={[styles.modalTitle, isRTL && ps.rtl]}>{t("pricing.pickAthlete")}</Text>
-              <Pressable onPress={() => setPickerOpen(false)} accessibilityRole="button" accessibilityLabel={t("common.ok")}>
+              <Pressable
+                onPress={() => {
+                  setPickerOpen(false);
+                  setPickerQ("");
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t("common.ok")}
+              >
                 <Text style={[styles.modalClose, isRTL && ps.rtl]}>{t("common.ok")}</Text>
+              </Pressable>
+            </View>
+            <View style={[styles.modalSearchRow, isRTL && styles.modalSearchRowRtl]}>
+              <TextInput
+                value={pickerQ}
+                onChangeText={setPickerQ}
+                placeholder={t("pricing.searchAthletesPlaceholder")}
+                placeholderTextColor={theme.colors.placeholderOnLight}
+                style={[styles.modalSearch, isRTL && ps.rtl]}
+                autoCapitalize="none"
+                onSubmitEditing={() => void loadAthletes()}
+              />
+              <Pressable
+                style={({ pressed }) => [styles.modalSearchBtn, pressed && { opacity: 0.9 }]}
+                onPress={() => void loadAthletes()}
+              >
+                <Text style={styles.modalSearchBtnTxt}>{t("common.search")}</Text>
               </Pressable>
             </View>
             {athletesLoading ? (
@@ -553,22 +633,24 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
             ) : (
               <FlatList
                 data={athletes}
-                keyExtractor={(item) => item.user_id}
+                keyExtractor={(item) => (item.kind === "athlete" ? item.user_id : `quick:${item.id}`)}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="on-drag"
                 renderItem={({ item }) => (
                   <Pressable
                     style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
-                    onPress={() => {
-                      setPickedAthleteId(item.user_id);
-                      setPickedAthleteLabel(`${item.full_name} (@${item.username})`);
-                      setPickerOpen(false);
-                    }}
+                    onPress={() => selectAthletePick(item)}
                     accessibilityRole="button"
-                    accessibilityLabel={`${item.full_name}, @${item.username}`}
+                    accessibilityLabel={item.full_name}
                   >
                     <Text style={[styles.pickerItemName, isRTL && ps.rtl]}>{item.full_name}</Text>
-                    <Text style={[styles.pickerItemRole, isRTL && ps.rtl]}>@{item.username}</Text>
+                    <Text style={[styles.pickerItemRole, isRTL && ps.rtl]}>
+                      {item.kind === "athlete"
+                        ? `@${item.username}${item.phone ? ` · ${item.phone}` : ""}`
+                        : `${item.phone} · ${t("pricing.quickAddLabel")}${
+                            item.linked_user_id ? "" : ` · ${t("pricing.quickAddNoAccount")}`
+                          }`}
+                    </Text>
                   </Pressable>
                 )}
                 ListEmptyComponent={
@@ -621,6 +703,32 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.textOnLight },
   modalClose: { fontSize: 16, color: theme.colors.textMutedOnLight, fontWeight: "700" },
   modalLoader: { padding: theme.spacing.xl },
+  modalSearchRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+  },
+  modalSearchRowRtl: { flexDirection: "row-reverse" },
+  modalSearch: {
+    flex: 1,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    color: theme.colors.textOnLight,
+    backgroundColor: theme.colors.white,
+  },
+  modalSearchBtn: {
+    paddingHorizontal: 14,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.cta,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalSearchBtnTxt: { color: theme.colors.ctaText, fontWeight: "800" },
   pickerItem: { paddingVertical: 14, paddingHorizontal: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.border },
   pickerItemName: { fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
   pickerItemRole: { fontSize: 13, color: theme.colors.textMutedOnLight, marginTop: 4 },

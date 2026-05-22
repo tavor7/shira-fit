@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  findNodeHandle,
 } from "react-native";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
@@ -31,12 +32,15 @@ type Props = {
   /** Coach (or manager editing self): fixed coach user id. */
   lockedCoachId?: string | null;
   hideIntro?: boolean;
+  /** Parent hub scroll — scrolls the add/edit form into view when editing a tier. */
+  parentScrollRef?: RefObject<ScrollView | null>;
 };
 
 export default function CoachCapacityPricingScreen({
   allowCoachPicker = false,
   lockedCoachId = null,
   hideIntro = false,
+  parentScrollRef,
 }: Props) {
   const { language, t, isRTL } = useI18n();
   const [pickedCoachId, setPickedCoachId] = useState("");
@@ -51,8 +55,28 @@ export default function CoachCapacityPricingScreen({
   const [saving, setSaving] = useState(false);
   const [editCap, setEditCap] = useState<number | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const formFooterRef = useRef<View>(null);
 
   const coachId = lockedCoachId ?? pickedCoachId;
+
+  const scrollFormIntoView = useCallback(() => {
+    const anchor = formFooterRef.current;
+    if (!anchor) return;
+    if (Platform.OS === "web") {
+      const el = anchor as unknown as { scrollIntoView?: (opts?: ScrollIntoViewOptions) => void };
+      el.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+      return;
+    }
+    const scroll = parentScrollRef?.current;
+    if (!scroll) return;
+    const scrollNode = findNodeHandle(scroll);
+    if (!scrollNode) return;
+    anchor.measureLayout(
+      scrollNode,
+      (_x, y) => scroll.scrollTo({ y: Math.max(0, y - 16), animated: true }),
+      () => {}
+    );
+  }, [parentScrollRef]);
 
   const loadTrainers = useCallback(async () => {
     setTrainersLoading(true);
@@ -98,6 +122,13 @@ export default function CoachCapacityPricingScreen({
   }, [load]);
 
   useEffect(() => {
+    setEditCap(null);
+    setCapStr("");
+    setPriceStr("");
+    setFormOpen(false);
+  }, [coachId]);
+
+  useEffect(() => {
     if (allowCoachPicker && pickerOpen) void loadTrainers();
   }, [allowCoachPicker, pickerOpen, loadTrainers]);
 
@@ -120,7 +151,17 @@ export default function CoachCapacityPricingScreen({
     }
     setSaving(true);
     if (editCap !== null && editCap !== cap) {
-      await supabase.from("coach_capacity_pricing").delete().eq("coach_id", coachId).eq("max_participants", editCap);
+      const { error: delErr } = await supabase
+        .from("coach_capacity_pricing")
+        .delete()
+        .eq("coach_id", coachId)
+        .eq("max_participants", editCap);
+      if (delErr) {
+        setSaving(false);
+        if (Platform.OS === "web" && typeof window !== "undefined") window.alert(delErr.message);
+        else Alert.alert(t("common.error"), delErr.message);
+        return;
+      }
     }
     const { error } = await supabase.from("coach_capacity_pricing").upsert(
       { coach_id: coachId, max_participants: cap, price_ils: price },
@@ -144,6 +185,20 @@ export default function CoachCapacityPricingScreen({
     setCapStr(String(cap));
     setPriceStr(String(price));
     setFormOpen(true);
+    requestAnimationFrame(() => scrollFormIntoView());
+  }
+
+  function toggleForm() {
+    if (!coachId) {
+      showPickCoach();
+      return;
+    }
+    if (formOpen) {
+      if (editCap !== null) cancelEdit();
+      else setFormOpen(false);
+    } else {
+      setFormOpen(true);
+    }
   }
 
   function cancelEdit() {
@@ -235,14 +290,15 @@ export default function CoachCapacityPricingScreen({
           }
           count={coachId ? rows.length : undefined}
           footer={
-            <CollapsiblePricingForm
-              variant="inline"
-              title={formTitle}
-              expanded={formOpen}
-              onToggle={() => (coachId ? setFormOpen((o) => !o) : showPickCoach())}
-              summary={formSummary}
-              isRTL={isRTL}
-            >
+            <View ref={formFooterRef} collapsable={false}>
+              <CollapsiblePricingForm
+                variant="inline"
+                title={formTitle}
+                expanded={formOpen}
+                onToggle={toggleForm}
+                summary={formSummary}
+                isRTL={isRTL}
+              >
               <PricingTierFormFields
                 capacityLabel={t("coachPricing.tierFieldLabel")}
                 priceLabel={t("coachPricing.sessionPayout")}
@@ -269,7 +325,8 @@ export default function CoachCapacityPricingScreen({
                   </Pressable>
                 ) : null}
               </View>
-            </CollapsiblePricingForm>
+              </CollapsiblePricingForm>
+            </View>
           }
         >
           {rows.map((r) => {
@@ -311,6 +368,7 @@ export default function CoachCapacityPricingScreen({
                     onPress={() => {
                       setPickedCoachId(item.user_id);
                       setCoachLabel(`${item.full_name} (@${item.username})`);
+                      cancelEdit();
                       setPickerOpen(false);
                     }}
                   >

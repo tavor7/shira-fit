@@ -21,6 +21,16 @@ import {
   type CoachOption,
 } from "../../../../../src/components/SessionCoachPickerField";
 import { parseCustomSlotPriceDraft } from "../../../../../src/lib/sessionSlotPrice";
+import {
+  formatSessionSeriesError,
+  isMissingSessionSeriesRpc,
+  updateSessionWithSeriesScope,
+  type SeriesScope,
+} from "../../../../../src/lib/sessionSeries";
+import {
+  SessionSeriesScopeSheet,
+  type SeriesScopeChoice,
+} from "../../../../../src/components/SessionSeriesScopeSheet";
 
 type EditSnapshot = {
   date: string;
@@ -58,6 +68,7 @@ export default function CoachSessionManageScreen() {
   const [dupCoachLabel, setDupCoachLabel] = useState("");
   const [customSlotPriceDraft, setCustomSlotPriceDraft] = useState("");
   const [tierSlotPriceIls, setTierSlotPriceIls] = useState<number | null>(null);
+  const [seriesScopeOpen, setSeriesScopeOpen] = useState(false);
 
   function pushUndo() {
     setUndoStack((prev) => {
@@ -154,7 +165,7 @@ export default function CoachSessionManageScreen() {
     };
   }, [maxP]);
 
-  async function saveSession() {
+  async function executeSaveWithScope(scope?: SeriesScope) {
     if (!isValidISODateString(date.trim())) {
       Alert.alert(
         language === "he" ? "תאריך לא תקין" : "Invalid date",
@@ -162,68 +173,111 @@ export default function CoachSessionManageScreen() {
       );
       return;
     }
-    const payload = {
-      session_date: date.trim(),
-      start_time: time,
-      max_participants: parseInt(maxP, 10) || 1,
-      duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
-      is_open_for_registration: open,
-      is_hidden: hidden,
-      is_kickbox: isKickbox,
-    };
-    const updateBody: Record<string, unknown> = { ...payload };
-    let { error } = await supabase.from("training_sessions").update(updateBody).eq("id", id);
-    let savedWithoutHidden = false;
-    let savedWithoutKickbox = false;
-    if (error && isMissingColumnError(error.message, "is_hidden")) {
-      delete updateBody.is_hidden;
-      savedWithoutHidden = true;
-      ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", id));
-    }
-    if (error && isMissingColumnError(error.message, "is_kickbox")) {
-      delete updateBody.is_kickbox;
-      savedWithoutKickbox = true;
-      ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", id));
-    }
-    if (error) {
-      Alert.alert(t("common.error"), error.message);
-      return;
-    }
     const customParsed = parseCustomSlotPriceDraft(customSlotPriceDraft);
     if (!customParsed.ok) {
       Alert.alert(t("common.error"), t("managerSession.customSlotPriceInvalid"));
       return;
     }
-    const { data: priceData, error: priceErr } = await supabase.rpc("staff_set_session_custom_slot_price", {
-      p_session_id: id,
-      p_price_ils: customParsed.price,
-    });
-    if (priceErr || !priceData?.ok) {
-      Alert.alert(
-        t("common.error"),
-        priceErr?.message ?? String(priceData?.error ?? t("common.failed"))
-      );
-      return;
+
+    const sid = String(id ?? "").trim();
+    const duration = Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60));
+    const useSeriesRpc = Boolean(session?.series_id && !session?.series_detached && scope);
+
+    if (useSeriesRpc) {
+      const res = await updateSessionWithSeriesScope({
+        sessionId: sid,
+        scope,
+        sessionDate: date.trim(),
+        startTime: time,
+        coachId: session!.coach_id,
+        maxParticipants: parseInt(maxP, 10) || 1,
+        durationMinutes: duration,
+        isOpen: open,
+        isHidden: hidden,
+        isKickbox,
+        customSlotPriceIls: customParsed.price,
+      });
+      if (!res.ok) {
+        Alert.alert(
+          t("common.error"),
+          isMissingSessionSeriesRpc({ message: res.error })
+            ? t("session.seriesNeedsDb")
+            : formatSessionSeriesError(res.error, t)
+        );
+        return;
+      }
+    } else {
+      const payload = {
+        session_date: date.trim(),
+        start_time: time,
+        max_participants: parseInt(maxP, 10) || 1,
+        duration_minutes: duration,
+        is_open_for_registration: open,
+        is_hidden: hidden,
+        is_kickbox: isKickbox,
+      };
+      const updateBody: Record<string, unknown> = { ...payload };
+      let { error } = await supabase.from("training_sessions").update(updateBody).eq("id", sid);
+      let savedWithoutHidden = false;
+      let savedWithoutKickbox = false;
+      if (error && isMissingColumnError(error.message, "is_hidden")) {
+        delete updateBody.is_hidden;
+        savedWithoutHidden = true;
+        ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", sid));
+      }
+      if (error && isMissingColumnError(error.message, "is_kickbox")) {
+        delete updateBody.is_kickbox;
+        savedWithoutKickbox = true;
+        ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", sid));
+      }
+      if (error) {
+        Alert.alert(t("common.error"), error.message);
+        return;
+      }
+      const { data: priceData, error: priceErr } = await supabase.rpc("staff_set_session_custom_slot_price", {
+        p_session_id: sid,
+        p_price_ils: customParsed.price,
+      });
+      if (priceErr || !priceData?.ok) {
+        Alert.alert(
+          t("common.error"),
+          priceErr?.message ?? String(priceData?.error ?? t("common.failed"))
+        );
+        return;
+      }
+      if (savedWithoutHidden || savedWithoutKickbox) {
+        const parts: string[] = [];
+        if (savedWithoutHidden) {
+          parts.push(
+            language === "he"
+              ? "סימון מוסתר לא נשמר (עמודה חסרה במסד)"
+              : "Hidden flag was not saved (column missing)"
+          );
+        }
+        if (savedWithoutKickbox) {
+          parts.push(
+            language === "he"
+              ? "סימון קיקבוקס לא נשמר (עמודה חסרה במסד)"
+              : "Kickbox flag was not saved (column missing)"
+          );
+        }
+        Alert.alert(language === "he" ? "הערה" : "Note", parts.join("\n"));
+      }
     }
     router.replace("/(app)/coach/sessions");
-    if (savedWithoutHidden || savedWithoutKickbox) {
-      const parts: string[] = [];
-      if (savedWithoutHidden) {
-        parts.push(
-          language === "he"
-            ? "סימון מוסתר לא נשמר (עמודה חסרה במסד)"
-            : "Hidden flag was not saved (column missing)"
-        );
-      }
-      if (savedWithoutKickbox) {
-        parts.push(
-          language === "he"
-            ? "סימון קיקבוקס לא נשמר (עמודה חסרה במסד)"
-            : "Kickbox flag was not saved (column missing)"
-        );
-      }
-      Alert.alert(language === "he" ? "הערה" : "Note", parts.join("\n"));
+  }
+
+  function saveSession() {
+    if (session?.series_id && !session.series_detached) {
+      setSeriesScopeOpen(true);
+      return;
     }
+    void executeSaveWithScope();
+  }
+
+  function onSeriesScopeChosen(scope: SeriesScopeChoice) {
+    setSeriesScopeOpen(false);
+    void executeSaveWithScope(scope);
   }
 
   async function openDuplicateModal() {
@@ -550,6 +604,12 @@ export default function CoachSessionManageScreen() {
         </View>
       </Modal>
     </ScrollView>
+      <SessionSeriesScopeSheet
+        visible={seriesScopeOpen}
+        mode="edit"
+        onClose={() => setSeriesScopeOpen(false)}
+        onChoose={onSeriesScopeChosen}
+      />
     </>
   );
 }

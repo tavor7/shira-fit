@@ -41,6 +41,17 @@ import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNa
 import { usePersistedState } from "../../../../src/hooks/usePersistedState";
 import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
 import { replaceToManagerSessions } from "../../../../src/lib/managerSessionsRedirectLog";
+import {
+  deleteSessionWithSeriesScope,
+  formatSessionSeriesError,
+  isMissingSessionSeriesRpc,
+  updateSessionWithSeriesScope,
+  type SeriesScope,
+} from "../../../../src/lib/sessionSeries";
+import {
+  SessionSeriesScopeSheet,
+  type SeriesScopeChoice,
+} from "../../../../src/components/SessionSeriesScopeSheet";
 import { SessionSlotRateField } from "../../../../src/components/SessionSlotRateField";
 import { SessionOptionsSection } from "../../../../src/components/SessionOptionsSection";
 import {
@@ -249,6 +260,8 @@ export default function ManagerSessionDetail() {
   const [dupCoachId, setDupCoachId] = useState("");
   const [dupCoachLabel, setDupCoachLabel] = useState("");
   const [deleteSessionBusy, setDeleteSessionBusy] = useState(false);
+  const [seriesScopeOpen, setSeriesScopeOpen] = useState(false);
+  const [seriesScopeMode, setSeriesScopeMode] = useState<"edit" | "delete">("edit");
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -863,7 +876,7 @@ export default function ManagerSessionDetail() {
     });
   }
 
-  async function saveSession() {
+  async function executeSaveWithScope(scope?: SeriesScope) {
     if (!isValidISODateString(date.trim())) {
       showOk(
         language === "he" ? "תאריך לא תקין" : "Invalid date",
@@ -878,59 +891,110 @@ export default function ManagerSessionDetail() {
       );
       return;
     }
-    const payload = {
-      session_date: date.trim(),
-      start_time: time,
-      coach_id: coachId,
-      max_participants: parseInt(maxP, 10) || 1,
-      duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
-      is_open_for_registration: open,
-      is_hidden: hidden,
-      is_kickbox: isKickbox,
-    };
-    const updateBody: Record<string, unknown> = { ...payload };
-    let { error } = await supabase.from("training_sessions").update(updateBody).eq("id", id);
-    let savedWithoutHidden = false;
-    let savedWithoutKickbox = false;
-    if (error && isMissingColumnError(error.message, "is_hidden")) {
-      delete updateBody.is_hidden;
-      savedWithoutHidden = true;
-      ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", id));
-    }
-    if (error && isMissingColumnError(error.message, "is_kickbox")) {
-      delete updateBody.is_kickbox;
-      savedWithoutKickbox = true;
-      ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", id));
-    }
-    if (error) {
-      showOk(t("common.error"), error.message);
+    const parsedPrice = parseCustomSlotPriceDraft(customSlotPriceDraft);
+    if (!parsedPrice.ok) {
+      showOk(t("common.error"), t("managerSession.customSlotPriceInvalid"));
       return;
     }
-    const priceOk = await persistCustomSlotPriceFromDraft();
-    if (!priceOk) return;
+
+    const sid = String(id ?? "").trim();
+    const duration = Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60));
+    if (session?.series_id && !session?.series_detached && scope) {
+      const res = await updateSessionWithSeriesScope({
+        sessionId: sid,
+        scope,
+        sessionDate: date.trim(),
+        startTime: time,
+        coachId,
+        maxParticipants: parseInt(maxP, 10) || 1,
+        durationMinutes: duration,
+        isOpen: open,
+        isHidden: hidden,
+        isKickbox,
+        customSlotPriceIls: parsedPrice.price,
+      });
+      if (!res.ok) {
+        if (isMissingSessionSeriesRpc({ message: res.error })) {
+          showOk(t("common.error"), t("session.seriesNeedsDb"));
+        } else {
+          showOk(t("common.error"), formatSessionSeriesError(res.error, t));
+        }
+        return;
+      }
+    } else {
+      const payload = {
+        session_date: date.trim(),
+        start_time: time,
+        coach_id: coachId,
+        max_participants: parseInt(maxP, 10) || 1,
+        duration_minutes: duration,
+        is_open_for_registration: open,
+        is_hidden: hidden,
+        is_kickbox: isKickbox,
+      };
+      const updateBody: Record<string, unknown> = { ...payload };
+      let { error } = await supabase.from("training_sessions").update(updateBody).eq("id", sid);
+      let savedWithoutHidden = false;
+      let savedWithoutKickbox = false;
+      if (error && isMissingColumnError(error.message, "is_hidden")) {
+        delete updateBody.is_hidden;
+        savedWithoutHidden = true;
+        ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", sid));
+      }
+      if (error && isMissingColumnError(error.message, "is_kickbox")) {
+        delete updateBody.is_kickbox;
+        savedWithoutKickbox = true;
+        ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", sid));
+      }
+      if (error) {
+        showOk(t("common.error"), error.message);
+        return;
+      }
+      const priceOk = await persistCustomSlotPriceFromDraft();
+      if (!priceOk) return;
+      if (savedWithoutHidden || savedWithoutKickbox) {
+        const parts: string[] = [];
+        if (savedWithoutHidden) {
+          parts.push(
+            language === "he"
+              ? "סימון מוסתר לא נשמר (עמודה חסרה במסד)"
+              : "Hidden flag was not saved (column missing)"
+          );
+        }
+        if (savedWithoutKickbox) {
+          parts.push(
+            language === "he"
+              ? "סימון קיקבוקס לא נשמר (עמודה חסרה במסד)"
+              : "Kickbox flag was not saved (column missing)"
+          );
+        }
+        showOk(language === "he" ? "הערה" : "Note", parts.join("\n"));
+      }
+    }
+
     await load();
     setEditingSession(false);
     setEditBaseline(null);
     pushDiag("clearPersisted: saveSession success");
     void persistDraft.clearPersisted();
-    if (savedWithoutHidden || savedWithoutKickbox) {
-      const parts: string[] = [];
-      if (savedWithoutHidden) {
-        parts.push(
-          language === "he"
-            ? "סימון מוסתר לא נשמר (עמודה חסרה במסד)"
-            : "Hidden flag was not saved (column missing)"
-        );
-      }
-      if (savedWithoutKickbox) {
-        parts.push(
-          language === "he"
-            ? "סימון קיקבוקס לא נשמר (עמודה חסרה במסד)"
-            : "Kickbox flag was not saved (column missing)"
-        );
-      }
-      showOk(language === "he" ? "הערה" : "Note", parts.join("\n"));
+  }
+
+  function saveSession() {
+    if (session?.series_id && !session.series_detached) {
+      setSeriesScopeMode("edit");
+      setSeriesScopeOpen(true);
+      return;
     }
+    void executeSaveWithScope();
+  }
+
+  function onSeriesScopeChosen(scope: SeriesScopeChoice) {
+    setSeriesScopeOpen(false);
+    if (seriesScopeMode === "delete") {
+      void runDeleteWithScope(scope);
+      return;
+    }
+    void executeSaveWithScope(scope);
   }
 
   async function duplicateSession() {
@@ -1004,16 +1068,31 @@ export default function ManagerSessionDetail() {
     setDupCoachLabel(formatCoachOptionLabel(opt));
   }
 
-  async function runDeleteSession() {
+  async function runDeleteWithScope(scope?: SeriesScope) {
     const sid = String(id ?? "").trim();
     if (!sid) return;
     setDeleteSessionBusy(true);
-    const { error } = await supabase.from("training_sessions").delete().eq("id", sid);
-    setDeleteSessionBusy(false);
-    if (error) {
-      showOk(t("common.error"), error.message);
-      return;
+
+    if (session?.series_id && !session.series_detached && scope) {
+      const res = await deleteSessionWithSeriesScope(sid, scope);
+      setDeleteSessionBusy(false);
+      if (!res.ok) {
+        if (isMissingSessionSeriesRpc({ message: res.error })) {
+          showOk(t("common.error"), t("session.seriesNeedsDb"));
+        } else {
+          showOk(t("common.error"), res.error ?? "");
+        }
+        return;
+      }
+    } else {
+      const { error } = await supabase.from("training_sessions").delete().eq("id", sid);
+      setDeleteSessionBusy(false);
+      if (error) {
+        showOk(t("common.error"), error.message);
+        return;
+      }
     }
+
     pushDiag("clearPersisted: runDeleteSession success");
     void persistDraft.clearPersisted();
     replaceToManagerSessions("app/(app)/manager/session/[id].tsx", "delete_session_success", {
@@ -1025,6 +1104,11 @@ export default function ManagerSessionDetail() {
   }
 
   function requestDeleteSession() {
+    if (session?.series_id && !session.series_detached) {
+      setSeriesScopeMode("delete");
+      setSeriesScopeOpen(true);
+      return;
+    }
     const msg =
       language === "he"
         ? "למחוק את האימון? גם ההרשמות אליו יימחקו."
@@ -1035,7 +1119,7 @@ export default function ManagerSessionDetail() {
       cancelLabel: language === "he" ? "ביטול" : "Cancel",
       confirmLabel: language === "he" ? "מחק" : "Delete",
       confirmVariant: "danger",
-      onConfirm: () => void runDeleteSession(),
+      onConfirm: () => void runDeleteWithScope(),
     });
   }
 
@@ -1289,7 +1373,14 @@ export default function ManagerSessionDetail() {
         <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
       {!editingSession ? (
         <View style={styles.summaryCard}>
-          <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{language === "he" ? "אימון" : "Session"}</Text>
+          <View style={[styles.summaryTitleRow, isRTL && styles.summaryTitleRowRtl]}>
+            <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{language === "he" ? "אימון" : "Session"}</Text>
+            {session.series_id && !session.series_detached ? (
+              <View style={styles.seriesBadge}>
+                <Text style={styles.seriesBadgeTxt}>{t("session.seriesBadge")}</Text>
+              </View>
+            ) : null}
+          </View>
           {isKickbox ? (
             <View style={styles.summaryKickboxBadge}>
               <KickboxSessionBadge isRTL={isRTL} />
@@ -2040,6 +2131,12 @@ export default function ManagerSessionDetail() {
     </ScrollView>
         {!editingSession ? <SessionAdjacentNav variant="manager" sessionId={String(id ?? "")} /> : null}
       </View>
+      <SessionSeriesScopeSheet
+        visible={seriesScopeOpen}
+        mode={seriesScopeMode}
+        onClose={() => setSeriesScopeOpen(false)}
+        onChoose={onSeriesScopeChosen}
+      />
       {discardDialog}
     </>
   );
@@ -2080,13 +2177,34 @@ const styles = StyleSheet.create({
   /** Uniform vertical rhythm between Edit / Duplicate / Delete (`PrimaryButton` defaults to marginTop: 8 — zero it here and use gap only). */
   sessionFooterActions: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
   sessionFooterGhostBtn: { marginTop: 0 },
+  summaryTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: theme.spacing.xs,
+  },
+  summaryTitleRowRtl: { flexDirection: "row-reverse" },
   summaryTitle: {
     fontSize: 18,
     fontWeight: "800",
     letterSpacing: 0.2,
     lineHeight: 22,
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+  },
+  seriesBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  seriesBadgeTxt: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: theme.colors.cta,
+    letterSpacing: 0.2,
   },
   summaryLine: {
     fontSize: 16,

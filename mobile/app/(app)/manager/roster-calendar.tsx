@@ -16,6 +16,7 @@ import { formatISODateLong } from "../../../src/lib/dateFormat";
 import { supabase } from "../../../src/lib/supabase";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 import { logRedirectToManagerSessions } from "../../../src/lib/managerSessionsRedirectLog";
+import { isSessionInActiveSeries } from "../../../src/lib/sessionSeries";
 
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
@@ -149,6 +150,7 @@ export default function ManagerRosterCalendarScreen() {
             hideTemporalDimming: filtersOn,
             hideRegistrationState: filtersOn,
             isKickbox: !!s.is_kickbox,
+            isRecurringSeries: isSessionInActiveSeries(s),
             onPress: () => router.push(`/(app)/manager/session/${s.id}`),
           } satisfies SessionsWeekItem;
         }
@@ -170,6 +172,7 @@ export default function ManagerRosterCalendarScreen() {
           hideTemporalDimming: filtersOn,
           hideRegistrationState: filtersOn,
           isKickbox: !!s.is_kickbox,
+          isRecurringSeries: isSessionInActiveSeries(s),
           onPress: () => router.push(`/(app)/manager/session/${s.id}`),
         } satisfies SessionsWeekItem;
       }),
@@ -196,6 +199,7 @@ export default function ManagerRosterCalendarScreen() {
         hideTemporalDimming: filtersOn,
         hideRegistrationState: filtersOn,
         isKickbox: !!s.is_kickbox,
+        isRecurringSeries: isSessionInActiveSeries(s),
         onPress: () => router.push(`/(app)/manager/session/${s.id}`),
       })),
     [rows, signupBySession, waitlistBySession, filtersOn]

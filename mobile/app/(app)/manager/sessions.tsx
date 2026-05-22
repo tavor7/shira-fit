@@ -19,6 +19,7 @@ import { supabase } from "../../../src/lib/supabase";
 import { mergeStaffHomeAlerts, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
+import { isSessionInActiveSeries, maintainSessionSeriesHorizon } from "../../../src/lib/sessionSeries";
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
 
 export default function ManagerSessionsScreen() {
@@ -57,6 +58,7 @@ export default function ManagerSessionsScreen() {
     else setLoading(true);
 
     await touchWeeklyRegistrationOpenIfDue();
+    void maintainSessionSeriesHorizon();
     const { data, error } = await fetchStaffTrainingSessionsForCalendar();
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);
@@ -112,6 +114,7 @@ export default function ManagerSessionsScreen() {
         isHidden: !!s.is_hidden,
         isOpenForRegistration: s.is_open_for_registration,
         isKickbox: !!s.is_kickbox,
+        isRecurringSeries: isSessionInActiveSeries(s),
         onPress: () => router.push(`/(app)/manager/session/${s.id}`),
       })),
     [rows, signupBySession, waitlistBySession]

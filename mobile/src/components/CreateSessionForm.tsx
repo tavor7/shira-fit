@@ -1,11 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, FlatList, ActivityIndicator, useWindowDimensions } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+  Modal,
+  FlatList,
+  ActivityIndicator,
+  useWindowDimensions,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
 import { addDaysToISODate } from "../lib/sessionTime";
+import { isMissingSessionSeriesRpc, staffCreateSessionSeries } from "../lib/sessionSeries";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { toISODateLocal, isValidISODateString } from "../lib/isoDate";
 import { DatePickerField } from "./DatePickerField";
@@ -17,6 +29,7 @@ import { useDiscardChangesPrompt } from "../hooks/useDiscardChangesPrompt";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "./sessionFormStyles";
 import { SessionSlotRateField } from "./SessionSlotRateField";
 import { SessionOptionsSection, type SessionOptionItem } from "./SessionOptionsSection";
+import { SessionSeriesOptionsExpand } from "./SessionSeriesOptionsExpand";
 import { CollapsiblePricingForm } from "./CollapsiblePricingForm";
 import { parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
 
@@ -56,6 +69,8 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const [max, setMax] = useState("12");
   const [durationMinutes, setDurationMinutes] = useState("55");
   const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [repeatOngoing, setRepeatOngoing] = useState(true);
+  const [repeatCopyRoster, setRepeatCopyRoster] = useState(false);
   const [weeklyOccurrences, setWeeklyOccurrences] = useState("4");
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(true);
@@ -107,6 +122,8 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         max,
         durationMinutes,
         repeatWeekly,
+        repeatOngoing,
+        repeatCopyRoster,
         weeklyOccurrences,
         open,
         hidden,
@@ -124,6 +141,8 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       max,
       durationMinutes,
       repeatWeekly,
+      repeatOngoing,
+      repeatCopyRoster,
       weeklyOccurrences,
       open,
       hidden,
@@ -359,13 +378,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     }
     const startT = time.trim() || "18:00";
     const maxP = parseInt(max, 10) || 1;
-    let count = 1;
-    if (repeatWeekly) {
-      const n = parseInt(weeklyOccurrences.trim(), 10);
-      count = Number.isFinite(n) ? n : 4;
-      if (count < 1) count = 1;
-      if (count > 52) count = 52;
-    }
     const customParsed = parseCustomSlotPriceDraft(customSlotPriceDraft);
     if (!customParsed.ok) {
       setError(t("managerSession.customSlotPriceInvalid"));
@@ -373,52 +385,132 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       return;
     }
 
-    const rows = Array.from({ length: count }, (_, i) => ({
-      session_date: addDaysToISODate(trimmedDate, i * 7),
-      start_time: startT,
-      coach_id: coachId,
-      max_participants: maxP,
-      is_open_for_registration: open,
-      is_hidden: hidden,
-      is_kickbox: isKickbox,
-      duration_minutes: duration,
-    }));
-    setSaving(true);
+    const athleteIds = selectedAthletes.map((a) => a.user_id);
+    const manualIds = selectedManual.map((m) => m.manual_participant_id);
+    const useSeriesRpc = repeatWeekly;
+    let count = 1;
     let insertedIds: string[] = [];
-    let res = await supabase.from("training_sessions").insert(rows).select("id");
-    let err = res.error;
-    insertedIds = ((res.data as { id: string }[] | null) ?? []).map((r) => r.id);
     let usedLegacyInsert = false;
-    if (err && (isMissingColumnError(err.message, "is_hidden") || isMissingColumnError(err.message, "is_kickbox"))) {
-      const rowsLegacy = rows.map(({ is_hidden: _h, is_kickbox: _k, ...rest }) => rest);
-      const retry = await supabase.from("training_sessions").insert(rowsLegacy).select("id");
-      err = retry.error;
-      if (!err) usedLegacyInsert = true;
-      insertedIds = ((retry.data as { id: string }[] | null) ?? []).map((r) => r.id);
-    }
-    setSaving(false);
-    if (err) {
-      setError(err.message);
-      showToast({ message: t("common.error"), detail: err.message, variant: "error" });
-      return;
-    }
 
-    if (customParsed.price != null && insertedIds.length > 0) {
-      for (const sid of insertedIds) {
-        // eslint-disable-next-line no-await-in-loop
-        const { data, error: priceErr } = await supabase.rpc("staff_set_session_custom_slot_price", {
-          p_session_id: sid,
-          p_price_ils: customParsed.price,
-        });
-        if (priceErr || !data?.ok) {
-          showToast({
-            message: language === "he" ? "האימון נשמר, אבל התעריף לא נשמר." : "Saved, but the session rate could not be saved.",
-            variant: "info",
+    setSaving(true);
+
+    if (useSeriesRpc) {
+      let fixedWeeks = 4;
+      if (!repeatOngoing) {
+        const n = parseInt(weeklyOccurrences.trim(), 10);
+        fixedWeeks = Number.isFinite(n) ? n : 4;
+        if (fixedWeeks < 1) fixedWeeks = 1;
+        if (fixedWeeks > 52) fixedWeeks = 52;
+      }
+      const seriesRes = await staffCreateSessionSeries({
+        anchorDate: trimmedDate,
+        startTime: startT,
+        coachId,
+        maxParticipants: maxP,
+        durationMinutes: duration,
+        isOpen: open,
+        isHidden: hidden,
+        isKickbox,
+        customSlotPriceIls: customParsed.price,
+        repeatMode: repeatOngoing ? "ongoing" : "fixed_weeks",
+        fixedWeeks: repeatOngoing ? undefined : fixedWeeks,
+        copyRoster: repeatCopyRoster,
+        athleteIds,
+        manualIds,
+      });
+      if (!seriesRes.ok && isMissingSessionSeriesRpc({ message: seriesRes.error })) {
+        showToast({ message: t("common.error"), detail: t("session.seriesNeedsDb"), variant: "error" });
+        setSaving(false);
+        return;
+      }
+      if (!seriesRes.ok) {
+        setError(seriesRes.error ?? t("common.error"));
+        showToast({ message: t("common.error"), detail: seriesRes.error ?? "", variant: "error" });
+        setSaving(false);
+        return;
+      }
+      insertedIds = seriesRes.session_ids ?? [];
+      count = seriesRes.count ?? insertedIds.length;
+    } else {
+      const rows = [
+        {
+          session_date: trimmedDate,
+          start_time: startT,
+          coach_id: coachId,
+          max_participants: maxP,
+          is_open_for_registration: open,
+          is_hidden: hidden,
+          is_kickbox: isKickbox,
+          duration_minutes: duration,
+          custom_slot_price_ils: customParsed.price,
+        },
+      ];
+      let res = await supabase.from("training_sessions").insert(rows).select("id");
+      let err = res.error;
+      insertedIds = ((res.data as { id: string }[] | null) ?? []).map((r) => r.id);
+      if (err && (isMissingColumnError(err.message, "is_hidden") || isMissingColumnError(err.message, "is_kickbox"))) {
+        const rowsLegacy = rows.map(({ is_hidden: _h, is_kickbox: _k, custom_slot_price_ils: _p, ...rest }) => rest);
+        const retry = await supabase.from("training_sessions").insert(rowsLegacy).select("id");
+        err = retry.error;
+        if (!err) usedLegacyInsert = true;
+        insertedIds = ((retry.data as { id: string }[] | null) ?? []).map((r) => r.id);
+      }
+      if (err) {
+        setSaving(false);
+        setError(err.message);
+        showToast({ message: t("common.error"), detail: err.message, variant: "error" });
+        return;
+      }
+
+      if (customParsed.price != null && insertedIds.length > 0 && !rows[0].custom_slot_price_ils) {
+        for (const sid of insertedIds) {
+          const { data, error: priceErr } = await supabase.rpc("staff_set_session_custom_slot_price", {
+            p_session_id: sid,
+            p_price_ils: customParsed.price,
           });
-          break;
+          if (priceErr || !data?.ok) {
+            showToast({
+              message: language === "he" ? "האימון נשמר, אבל התעריף לא נשמר." : "Saved, but the session rate could not be saved.",
+              variant: "info",
+            });
+            break;
+          }
+        }
+      }
+
+      const isBenignDuplicate = (code: string) => code === "already_registered" || code === "already_in_session";
+      if (insertedIds.length > 0 && (athleteIds.length > 0 || manualIds.length > 0)) {
+        for (const sid of insertedIds) {
+          for (const uid of athleteIds) {
+            const { data, error } = await supabase.rpc("coach_add_athlete", { p_session_id: sid, p_user_id: uid });
+            if (error) {
+              showToast({ message: language === "he" ? "שגיאה הוספת מתאמן" : "Error adding trainee", detail: error.message, variant: "error" });
+              continue;
+            }
+            const e = String(data?.error ?? "");
+            if (!data?.ok && e && !isBenignDuplicate(e)) {
+              showToast({ message: t("common.failed"), detail: e, variant: "error" });
+            }
+          }
+          for (const mid of manualIds) {
+            const { data, error } = await supabase.rpc("add_manual_participant_to_session", {
+              p_session_id: sid,
+              p_manual_participant_id: mid,
+            });
+            if (error) {
+              showToast({ message: language === "he" ? "שגיאה הוספת משתתף ידני" : "Error adding manual participant", detail: error.message, variant: "error" });
+              continue;
+            }
+            const e = String(data?.error ?? "");
+            if (!data?.ok && e && !isBenignDuplicate(e)) {
+              showToast({ message: t("common.failed"), detail: e, variant: "error" });
+            }
+          }
         }
       }
     }
+
+    setSaving(false);
 
     const noteBody = note.trim();
     if (noteBody && insertedIds.length > 0) {
@@ -427,7 +519,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         const m = String(batch.error.message || "");
         if (m.includes("add_session_note_many")) {
           for (const sid of insertedIds) {
-            // eslint-disable-next-line no-await-in-loop
             await supabase.rpc("add_session_note", { p_session_id: sid, p_body: noteBody });
           }
         } else {
@@ -435,44 +526,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
             message: language === "he" ? "האימון נשמר, אבל ההערה לא נשמרה." : "Saved, but the note could not be saved.",
             variant: "info",
           });
-        }
-      }
-    }
-
-    // Add selected trainees to the newly created sessions.
-    if (insertedIds.length > 0 && (selectedAthletes.length > 0 || selectedManual.length > 0)) {
-      const athleteIds = selectedAthletes.map((a) => a.user_id);
-      const manualIds = selectedManual.map((m) => m.manual_participant_id);
-
-      const isBenignDuplicate = (code: string) => code === "already_registered" || code === "already_in_session";
-
-      for (const sid of insertedIds) {
-        for (const uid of athleteIds) {
-          // eslint-disable-next-line no-await-in-loop
-          const { data, error } = await supabase.rpc("coach_add_athlete", { p_session_id: sid, p_user_id: uid });
-          if (error) {
-            showToast({ message: language === "he" ? "שגיאה הוספת מתאמן" : "Error adding trainee", detail: error.message, variant: "error" });
-            continue;
-          }
-          const e = String(data?.error ?? "");
-          if (!data?.ok && e && !isBenignDuplicate(e)) {
-            showToast({ message: t("common.failed"), detail: e, variant: "error" });
-          }
-        }
-        for (const mid of manualIds) {
-          // eslint-disable-next-line no-await-in-loop
-          const { data, error } = await supabase.rpc("add_manual_participant_to_session", {
-            p_session_id: sid,
-            p_manual_participant_id: mid,
-          });
-          if (error) {
-            showToast({ message: language === "he" ? "שגיאה הוספת משתתף ידני" : "Error adding manual participant", detail: error.message, variant: "error" });
-            continue;
-          }
-          const e = String(data?.error ?? "");
-          if (!data?.ok && e && !isBenignDuplicate(e)) {
-            showToast({ message: t("common.failed"), detail: e, variant: "error" });
-          }
         }
       }
     }
@@ -486,16 +539,20 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
             : "Your project is missing the `is_hidden` column (migration not applied).",
         variant: "info",
       });
-    }
-    if (!(usedLegacyInsert && hidden)) {
-      if (count > 1) {
-        showToast({
-          message: language === "he" ? `נוצרו ${count} אימונים שבועיים.` : `Created ${count} weekly sessions.`,
-          variant: "success",
-        });
-      } else {
-        showToast({ message: t("common.saved"), variant: "success" });
-      }
+    } else if (useSeriesRpc && count > 0) {
+      showToast({
+        message: repeatOngoing
+          ? t("session.seriesCreatedOngoing").replace("{n}", String(count))
+          : t("session.seriesCreated").replace("{n}", String(count)),
+        variant: "success",
+      });
+    } else if (count > 1) {
+      showToast({
+        message: language === "he" ? `נוצרו ${count} אימונים שבועיים.` : `Created ${count} weekly sessions.`,
+        variant: "success",
+      });
+    } else {
+      showToast({ message: t("common.saved"), variant: "success" });
     }
     allowLeaveCreateRef.current = true;
     router.back();
@@ -531,22 +588,18 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         onValueChange: setRepeatWeekly,
         tone: "repeat",
         expandedWhenOn: (
-          <View style={styles.expandedField}>
-            <Text style={[sf.label, isRTL && sf.labelRtl]}>{t("session.weeklyOccurrences")}</Text>
-            <TextInput
-              style={[sf.control, sf.controlInput]}
-              value={weeklyOccurrences}
-              onChangeText={setWeeklyOccurrences}
-              keyboardType="number-pad"
-              placeholder="4"
-              placeholderTextColor={theme.colors.textSoft}
-              accessibilityLabel={t("session.weeklyOccurrences")}
-            />
-          </View>
+          <SessionSeriesOptionsExpand
+            repeatOngoing={repeatOngoing}
+            onRepeatOngoingChange={setRepeatOngoing}
+            weeklyOccurrences={weeklyOccurrences}
+            onWeeklyOccurrencesChange={setWeeklyOccurrences}
+            repeatCopyRoster={repeatCopyRoster}
+            onRepeatCopyRosterChange={setRepeatCopyRoster}
+          />
         ),
       },
     ],
-    [t, open, hidden, isKickbox, repeatWeekly, weeklyOccurrences, isRTL]
+    [t, open, hidden, isKickbox, repeatWeekly, repeatOngoing, repeatCopyRoster, weeklyOccurrences, isRTL]
   );
 
   return (

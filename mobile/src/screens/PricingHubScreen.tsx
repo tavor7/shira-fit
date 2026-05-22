@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { theme } from "../theme";
@@ -16,6 +16,7 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const initial = (tab === "coach" ? "coach" : "session") as Tab;
   const [active, setActive] = useState<Tab>(initial);
+  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     setActive((tab === "coach" ? "coach" : "session") as Tab);
@@ -34,7 +35,7 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
   );
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       {variant === "manager" ? <ManagerStudioSetupTabs /> : null}
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.pricingHub")}</Text>
 
@@ -65,9 +66,9 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
         {active === "session" ? (
           <SessionPricingScreen hideIntro />
         ) : variant === "manager" ? (
-          <CoachCapacityPricingScreen allowCoachPicker hideIntro />
+          <CoachCapacityPricingScreen allowCoachPicker hideIntro parentScrollRef={scrollRef} />
         ) : (
-          <CoachCapacityPricingScreen lockedCoachId={profile?.user_id ?? null} hideIntro />
+          <CoachCapacityPricingScreen lockedCoachId={profile?.user_id ?? null} hideIntro parentScrollRef={scrollRef} />
         )}
       </View>
     </ScrollView>

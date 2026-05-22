@@ -42,6 +42,10 @@ export interface TrainingSession {
   custom_slot_price_ils?: number | null;
   /** Uses global kickbox tier rates when billing (session_capacity_pricing.is_kickbox). */
   is_kickbox?: boolean;
+  /** Weekly series template id when generated from session_series. */
+  series_id?: string | null;
+  /** One-off edit breaks future bulk updates from the series template. */
+  series_detached?: boolean;
 }
 
 /** Row from `training_sessions` with embedded coach profile (see `trainer:profiles!coach_id`). */

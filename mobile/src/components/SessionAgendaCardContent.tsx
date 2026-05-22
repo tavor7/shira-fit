@@ -4,6 +4,7 @@ import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "./StatusChip";
 import { KickboxSessionBadge } from "./KickboxSessionBadge";
+import { SessionSeriesIndicator } from "./SessionSeriesIndicator";
 import { type SessionTemporalPhase, formatSessionStartTime, getSessionTemporalPhase } from "../lib/sessionTime";
 import { firstWordOfDisplayName } from "../lib/displayName";
 
@@ -70,6 +71,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
           </View>
         ) : null}
         {item.isKickbox ? <KickboxSessionBadge compact isRTL={isRTL} /> : null}
+        {item.isRecurringSeries ? <SessionSeriesIndicator compact /> : null}
       </View>
       {item.trainerName ? (
         <Text style={[styles.trainer, compact && styles.trainerCompact]} numberOfLines={1}>
