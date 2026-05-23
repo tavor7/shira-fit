@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
+import { AppSearchField } from "../components/AppSearchField";
 
 type Role = "athlete" | "coach" | "manager";
 type Row = {
@@ -21,11 +22,9 @@ export default function RoleManagementScreen() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const qTrim = q.trim();
-
-  const load = useCallback(async () => {
+  const load = useCallback(async (termRaw?: string) => {
+    const qTrim = (termRaw ?? q).trim();
     setLoading(true);
-    // Manager policy allows reading all profiles; keep search simple.
     let query = supabase
       .from("profiles")
       .select("user_id, username, full_name, phone, role, approval_status")
@@ -33,9 +32,7 @@ export default function RoleManagementScreen() {
       .limit(200);
 
     if (qTrim.length > 0) {
-      // Search across multiple fields.
-      const esc = qTrim.replace(/,/g, " ");
-      query = query.or(`full_name.ilike.%${esc}%,username.ilike.%${esc}%,phone.ilike.%${esc}%`);
+      query = query.or(`full_name.ilike.%${qTrim}%,username.ilike.%${qTrim}%,phone.ilike.%${qTrim}%`);
     }
 
     const { data, error } = await query;
@@ -46,9 +43,7 @@ export default function RoleManagementScreen() {
       return;
     }
     setRows((data as Row[]) ?? []);
-  }, [qTrim, t]);
-
-  const filtered = useMemo(() => rows, [rows]);
+  }, [q, t]);
 
   async function setRole(userId: string, role: Role) {
     const { data, error } = await supabase.rpc("set_user_role", { p_user_id: userId, p_role: role });
@@ -60,7 +55,7 @@ export default function RoleManagementScreen() {
       Alert.alert(t("common.failed"), data?.error ?? "Unknown error");
       return;
     }
-    load();
+    void load(q);
   }
 
   function RoleChip({ label, onPress, active }: { label: string; onPress: () => void; active: boolean }) {
@@ -78,7 +73,7 @@ export default function RoleManagementScreen() {
   return (
     <View style={styles.screen}>
       <FlatList
-        data={filtered}
+        data={rows}
         keyExtractor={(i) => i.user_id}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
@@ -91,17 +86,14 @@ export default function RoleManagementScreen() {
                 ? "חיפוש לפי שם, משתמש או טלפון. מנהלים יכולים לשנות תפקידים."
                 : "Search by name, username, or phone. Managers can promote/demote roles."}
             </Text>
-            <TextInput
+            <AppSearchField
               value={q}
               onChangeText={setQ}
-              placeholder={language === "he" ? "חיפוש…" : "Search…"}
-              placeholderTextColor={theme.colors.placeholderOnLight}
-              style={styles.input}
-              autoCapitalize="none"
+              onSearch={(term) => void load(term)}
+              placeholder={t("pricing.searchAthletesPlaceholder")}
+              isRTL={isRTL}
+              loading={loading}
             />
-            <Pressable onPress={load} style={({ pressed }) => [styles.loadBtn, pressed && { opacity: 0.9 }]}>
-              <Text style={styles.loadTxt}>{loading ? t("common.loading") : t("common.load")}</Text>
-            </Pressable>
           </View>
         }
         ListEmptyComponent={
@@ -151,24 +143,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
   hint: { marginTop: 6, fontSize: 12, lineHeight: 18, color: theme.colors.textMuted },
   rtlText: { textAlign: "right" },
-  input: {
-    marginTop: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
-  },
-  loadBtn: {
-    marginTop: theme.spacing.sm,
-    alignSelf: "flex-start",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.cta,
-  },
-  loadTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 13 },
   list: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,

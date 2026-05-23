@@ -126,7 +126,8 @@ export type SessionCapacityPricingRow = {
 
 /** Per-athlete override for a capacity tier; falls back to session_capacity_pricing. */
 export type AthleteSessionCapacityPricingRow = {
-  user_id: string;
+  user_id: string | null;
+  manual_participant_id?: string | null;
   max_participants: number;
   price_ils: number | string;
   updated_at?: string;

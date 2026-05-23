@@ -6,6 +6,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { DatePickerField } from "../components/DatePickerField";
 import { AppModal } from "../components/AppModal";
 import { AppSearchField } from "../components/AppSearchField";
+import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
 import { formatSessionTimeRange } from "../lib/sessionTime";
 import { toISODateLocal, isValidISODateString, parseISODateLocal, firstDayOfMonthISOLocal } from "../lib/isoDate";
@@ -462,7 +463,10 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         .eq("payee_is_manual", payeeIsManual)
         .order("paid_at", { ascending: false }),
       payeeIsManual
-        ? Promise.resolve({ data: [] as { max_participants: number; price_ils: number | string }[], error: null })
+        ? supabase
+            .from("athlete_session_capacity_pricing")
+            .select("max_participants, price_ils")
+            .eq("manual_participant_id", athleteId)
         : supabase
             .from("athlete_session_capacity_pricing")
             .select("max_participants, price_ils")
@@ -652,75 +656,64 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         </View>
       ) : null}
 
-      <AppModal
+      <AppSearchSheet
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        variant="sheet"
+        title={language === "he" ? "מתאמנים" : "Athletes"}
+        dismissLabel={language === "he" ? t("common.ok") : "Done"}
+        isRTL={isRTL}
         backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
-        cardStyle={styles.modalBox}
-      >
-        <View style={styles.modalHeader}>
-          <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{language === "he" ? "מתאמנים" : "Athletes"}</Text>
-          <Pressable onPress={() => setPickerOpen(false)}>
-            <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
-          </Pressable>
-        </View>
-        <AppSearchField
-          value={pickerQ}
-          onChangeText={setPickerQ}
-          onSearch={(term) => void loadAthletes(term)}
-          placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
-          isRTL={isRTL}
-          loading={athletesLoading}
-          style={styles.modalSearchField}
-        />
-        {athletesLoading ? (
-          <ActivityIndicator size="large" color={theme.colors.cta} style={styles.modalLoader} />
-        ) : (
-          <FlatList
-            data={athletes}
-            keyExtractor={(item) => (item.kind === "athlete" ? item.user_id : `quick:${item.id}`)}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
-              <Pressable
-                style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
-                onPress={() => {
-                  if (item.kind === "athlete") {
-                    setAthleteId(item.user_id);
-                    setPayeeIsManual(false);
-                    setAthleteLabel(`${item.full_name} (@${item.username}) · ${item.phone}`);
-                    setPhone(item.phone);
-                  } else {
-                    setAthleteId(item.linked_user_id ?? item.id);
-                    setPayeeIsManual(!item.linked_user_id);
-                    setAthleteLabel(
-                      `${item.full_name} · ${item.phone} · ${
-                        item.linked_user_id
-                          ? language === "he"
-                            ? "קישור מרשימת מהיר"
-                            : "Quick Add link"
-                          : language === "he"
-                            ? "ללא חשבון"
-                            : "No account"
-                      }`
-                    );
-                    setPhone(item.phone);
-                  }
-                  setPickerOpen(false);
-                }}
-              >
-                <Text style={styles.pickerItemName}>{item.full_name}</Text>
-                <Text style={styles.pickerItemRole}>
-                  {item.kind === "athlete" ? `@${item.username} · ${item.phone}` : `${item.phone} · ${language === "he" ? "מהיר" : "Quick Add"}`}
-                </Text>
-              </Pressable>
-            )}
-            ListEmptyComponent={
-              <Text style={[styles.pickerEmpty, isRTL && styles.rtlText]}>{language === "he" ? "אין מתאמנים" : "No athletes"}</Text>
-            }
+        search={
+          <AppSearchField
+            value={pickerQ}
+            onChangeText={setPickerQ}
+            onSearch={(term) => void loadAthletes(term)}
+            placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
+            isRTL={isRTL}
+            loading={athletesLoading}
           />
+        }
+        loading={athletesLoading}
+        data={athletes}
+        keyExtractor={(item) => (item.kind === "athlete" ? item.user_id : `quick:${item.id}`)}
+        renderItem={({ item }) => (
+          <Pressable
+            style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
+            onPress={() => {
+              if (item.kind === "athlete") {
+                setAthleteId(item.user_id);
+                setPayeeIsManual(false);
+                setAthleteLabel(`${item.full_name} (@${item.username}) · ${item.phone}`);
+                setPhone(item.phone);
+              } else {
+                setAthleteId(item.linked_user_id ?? item.id);
+                setPayeeIsManual(!item.linked_user_id);
+                setAthleteLabel(
+                  `${item.full_name} · ${item.phone} · ${
+                    item.linked_user_id
+                      ? language === "he"
+                        ? "קישור מרשימת מהיר"
+                        : "Quick Add link"
+                      : language === "he"
+                        ? "ללא חשבון"
+                        : "No account"
+                  }`
+                );
+                setPhone(item.phone);
+              }
+              setPickerOpen(false);
+            }}
+          >
+            <Text style={styles.pickerItemName}>{item.full_name}</Text>
+            <Text style={styles.pickerItemRole}>
+              {item.kind === "athlete" ? `@${item.username} · ${item.phone}` : `${item.phone} · ${language === "he" ? "מהיר" : "Quick Add"}`}
+            </Text>
+          </Pressable>
         )}
-      </AppModal>
+        ListEmptyComponent={
+          <Text style={[styles.pickerEmpty, isRTL && styles.rtlText]}>{language === "he" ? "אין מתאמנים" : "No athletes"}</Text>
+        }
+      />
 
       <AppModal
         visible={addPayOpen}

@@ -41,15 +41,22 @@ export function resolveSessionBillingPriceLocal(args: {
   return null;
 }
 
+export type SessionBillingPayee = {
+  userId: string | null;
+  manualParticipantId?: string | null;
+};
+
 /** DB `session_billing_price_ils` — authoritative hierarchy. */
 export async function fetchSessionBillingPriceIls(
   supabase: SupabaseClient,
   sessionId: string,
-  userId: string | null
+  userId: string | null,
+  manualParticipantId?: string | null
 ): Promise<number> {
   const { data, error } = await supabase.rpc("session_billing_price_ils", {
     p_session_id: sessionId,
     p_user_id: userId,
+    p_manual_participant_id: manualParticipantId ?? null,
   });
   if (error) return 0;
   const n = Number(data);
@@ -59,12 +66,17 @@ export async function fetchSessionBillingPriceIls(
 export async function sumSessionBillingPrices(
   supabase: SupabaseClient,
   sessionId: string,
-  userIds: (string | null)[]
+  payees: SessionBillingPayee[]
 ): Promise<number> {
   let total = 0;
-  for (const uid of userIds) {
+  for (const payee of payees) {
     // eslint-disable-next-line no-await-in-loop
-    total += await fetchSessionBillingPriceIls(supabase, sessionId, uid);
+    total += await fetchSessionBillingPriceIls(
+      supabase,
+      sessionId,
+      payee.userId,
+      payee.manualParticipantId
+    );
   }
   return total;
 }

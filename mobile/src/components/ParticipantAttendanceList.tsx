@@ -247,9 +247,15 @@ export function ParticipantAttendanceList({
       const owes = r.attended === true || (r.attended === false && r.chargeNoShow);
       if (!owes) continue;
       expectedPaymentSlots += 1;
-      const uid = r.kind === "registered" ? r.userId : null;
+      const userId = r.kind === "registered" ? r.userId : null;
+      const manualParticipantId = r.kind === "manual" ? r.manualId : null;
       // eslint-disable-next-line no-await-in-loop
-      expectedPaymentsIls += await fetchSessionBillingPriceIls(supabase, sessionId, uid);
+      expectedPaymentsIls += await fetchSessionBillingPriceIls(
+        supabase,
+        sessionId,
+        userId,
+        manualParticipantId
+      );
     }
     setRows(all);
     onParticipantCountChange?.(all.length);
@@ -284,8 +290,9 @@ export function ParticipantAttendanceList({
   }
 
   async function defaultBillingAmountDraft(row: Row): Promise<string> {
-    const uid = row.kind === "registered" ? row.userId : null;
-    const price = await fetchSessionBillingPriceIls(supabase, sessionId, uid);
+    const userId = row.kind === "registered" ? row.userId : null;
+    const manualParticipantId = row.kind === "manual" ? row.manualId : null;
+    const price = await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
     if (price <= 0) return "";
     return formatBillingAmountDraft(price);
   }

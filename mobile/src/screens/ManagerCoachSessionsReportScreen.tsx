@@ -6,8 +6,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Modal,
-  ActivityIndicator,
   Platform,
   Alert,
 } from "react-native";
@@ -22,6 +20,7 @@ import type { ManagerCoachSessionReportRow } from "../types/database";
 import { DatePickerField } from "../components/DatePickerField";
 import { useI18n } from "../context/I18nContext";
 import { AppSearchField } from "../components/AppSearchField";
+import { AppSearchSheet } from "../components/AppSearchSheet";
 
 function defaultEndISO() {
   return toISODateLocal(new Date());
@@ -153,62 +152,52 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
         </View>
       ) : null}
 
-      <Modal visible={pickerOpen} transparent animationType="slide">
-        <View style={styles.modalBackdrop}>
-          <Pressable style={styles.modalBackdropTouch} onPress={() => setPickerOpen(false)} />
-          <View style={styles.modalBox}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{language === "he" ? "מאמנים" : "Trainers"}</Text>
-              <Pressable onPress={() => setPickerOpen(false)}>
-                <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
-              </Pressable>
-            </View>
-            <AppSearchField
-              value={pickerQ}
-              onChangeText={setPickerQ}
-              onSearch={() => {}}
-              placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
-              isRTL={isRTL}
-              style={styles.modalSearchField}
-            />
-            {trainersLoading ? (
-              <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
-            ) : (
-              <FlatList
-                data={trainers.filter((t) => {
-                  const q = pickerQ.trim().toLowerCase();
-                  if (!q) return true;
-                  const phone = (t as unknown as { phone?: string | null }).phone ?? "";
-                  return (
-                    (t.full_name ?? "").toLowerCase().includes(q) ||
-                    (t.username ?? "").toLowerCase().includes(q) ||
-                    String(phone).toLowerCase().includes(q)
-                  );
-                })}
-                keyExtractor={(item) => item.user_id}
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
-                    onPress={() => {
-                      setCoachId(item.user_id);
-                      setCoachLabel(`${item.full_name} (@${item.username}) · ${item.role}`);
-                      setPickerOpen(false);
-                    }}
-                  >
-                    <Text style={styles.pickerItemName}>{item.full_name}</Text>
-                    <Text style={styles.pickerItemRole}>
-                      @{item.username} · {item.role}
-                    </Text>
-                  </Pressable>
-                )}
-                ListEmptyComponent={
-                  <Text style={[styles.pickerEmpty, isRTL && styles.rtlText]}>{language === "he" ? "אין מאמנים" : "No trainers"}</Text>
-                }
-              />
-            )}
-          </View>
-        </View>
-      </Modal>
+      <AppSearchSheet
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title={language === "he" ? "מאמנים" : "Trainers"}
+        dismissLabel={language === "he" ? t("common.ok") : "Done"}
+        isRTL={isRTL}
+        search={
+          <AppSearchField
+            value={pickerQ}
+            onChangeText={setPickerQ}
+            onSearch={() => {}}
+            placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
+            isRTL={isRTL}
+          />
+        }
+        loading={trainersLoading}
+        data={trainers.filter((t) => {
+          const q = pickerQ.trim().toLowerCase();
+          if (!q) return true;
+          const phone = (t as unknown as { phone?: string | null }).phone ?? "";
+          return (
+            (t.full_name ?? "").toLowerCase().includes(q) ||
+            (t.username ?? "").toLowerCase().includes(q) ||
+            String(phone).toLowerCase().includes(q)
+          );
+        })}
+        keyExtractor={(item) => item.user_id}
+        renderItem={({ item }) => (
+          <Pressable
+            style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
+            onPress={() => {
+              setCoachId(item.user_id);
+              setCoachLabel(`${item.full_name} (@${item.username}) · ${item.role}`);
+              setPickerOpen(false);
+            }}
+          >
+            <Text style={styles.pickerItemName}>{item.full_name}</Text>
+            <Text style={styles.pickerItemRole}>
+              @{item.username} · {item.role}
+            </Text>
+          </Pressable>
+        )}
+        ListEmptyComponent={
+          <Text style={[styles.pickerEmpty, isRTL && styles.rtlText]}>{language === "he" ? "אין מאמנים" : "No trainers"}</Text>
+        }
+      />
 
       <FlatList
         style={styles.list}
@@ -291,28 +280,6 @@ const styles = StyleSheet.create({
   },
   pickerText: { fontSize: 16, color: theme.colors.textOnLight },
   pickerPlaceholder: { fontSize: 16, color: theme.colors.textSoftOnLight },
-  modalBackdrop: { flex: 1, justifyContent: "flex-end" },
-  modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
-  modalBox: {
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: theme.radius.xl,
-    borderTopRightRadius: theme.radius.xl,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    maxHeight: "70%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: theme.spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.borderMuted,
-  },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
-  modalClose: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "800" },
-  modalLoader: { padding: theme.spacing.xl },
-  modalSearchField: { marginHorizontal: theme.spacing.md, marginBottom: theme.spacing.sm },
   pickerItem: {
     paddingVertical: 14,
     paddingHorizontal: theme.spacing.md,

@@ -1240,7 +1240,7 @@ export default function ManagerSessionDetail() {
         lateExpected = await sumSessionBillingPrices(
           supabase,
           String(id),
-          lateCharged.map((c) => c.user_id)
+          lateCharged.map((c) => ({ userId: c.user_id }))
         );
       }
       let nsExpected: number | null = null;
@@ -1261,11 +1261,14 @@ export default function ManagerSessionDetail() {
             .eq("charge_no_show", true),
         ]);
         if (cancelled) return;
-        const userIds = [
-          ...((appNs as { user_id: string }[] | null) ?? []).map((r) => r.user_id),
-          ...((manNs as { manual_participant_id: string }[] | null) ?? []).map(() => null),
+        const payees = [
+          ...((appNs as { user_id: string }[] | null) ?? []).map((r) => ({ userId: r.user_id })),
+          ...((manNs as { manual_participant_id: string }[] | null) ?? []).map((r) => ({
+            userId: null as string | null,
+            manualParticipantId: r.manual_participant_id,
+          })),
         ];
-        nsExpected = await sumSessionBillingPrices(supabase, String(id), userIds);
+        nsExpected = await sumSessionBillingPrices(supabase, String(id), payees);
       }
       if (cancelled) return;
       setExtraFeeSummary({

@@ -33,6 +33,7 @@ import { SessionSeriesOptionsExpand } from "./SessionSeriesOptionsExpand";
 import { CollapsiblePricingForm } from "./CollapsiblePricingForm";
 import { parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
 import { AppSearchField } from "./AppSearchField";
+import { AppSearchSheet } from "./AppSearchSheet";
 import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
@@ -863,92 +864,87 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         ) : null}
       </View>
 
-      <Modal visible={traineesOpen} transparent animationType="slide" onRequestClose={() => setTraineesOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <Pressable
-            style={styles.modalBackdropTouch}
-            onPress={() => setTraineesOpen(false)}
-            accessibilityLabel={t("common.cancel")}
+      <AppSearchSheet
+        visible={traineesOpen}
+        onClose={() => setTraineesOpen(false)}
+        title={t("sessionForm.trainees")}
+        dismissLabel={t("common.ok")}
+        isRTL={isRTL}
+        backdropAccessibilityLabel={t("common.cancel")}
+        headerExtra={
+          <ParticipantQuickAddPanel
+            name={quickName}
+            phone={quickPhone}
+            onNameChange={setQuickName}
+            onPhoneChange={setQuickPhone}
+            onSubmit={() => void quickAddManual()}
+            busy={traineesBusy}
           />
-          <View style={styles.modalBox}>
-            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
-              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{t("sessionForm.trainees")}</Text>
-              <Pressable onPress={() => setTraineesOpen(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("common.ok")}>
-                <Text style={styles.modalClose}>{t("common.ok")}</Text>
-              </Pressable>
-            </View>
-
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.traineesScrollContent}
-            >
-              <ParticipantQuickAddPanel
-                name={quickName}
-                phone={quickPhone}
-                onNameChange={setQuickName}
-                onPhoneChange={setQuickPhone}
-                onSubmit={() => void quickAddManual()}
-                busy={traineesBusy}
-              />
-
-              <Text style={[styles.modalSubTitle, styles.modalSubTitleSpacing, isRTL && styles.rtlText]}>
-                {t("sessionForm.searchTrainees")}
-              </Text>
-              <AppSearchField
-                value={traineesQ}
-                onChangeText={setTraineesQ}
-                onSearch={(term) => void runTraineeSearch(term)}
-                placeholder={t("sessionForm.searchTrainees")}
-                isRTL={isRTL}
-                loading={traineesSearching}
-                accessibilityLabel={t("sessionForm.searchTrainees")}
-              />
-
-              <View style={styles.traineeList}>
-                {traineeSearchRows.length === 0 ? (
-                  <Text style={styles.pickerEmpty}>{t("sessionForm.noResults")}</Text>
-                ) : (
-                  traineeSearchRows.map((row) => {
-                    const already =
-                      row.kind === "athlete"
-                        ? selectedAthletes.some((x) => x.user_id === row.athlete.user_id)
-                        : selectedManual.some((x) => x.manual_participant_id === row.manual.id);
-                    return (
-                      <Pressable
-                        key={row.key}
-                        style={({ pressed }) => [
-                          styles.pickerRowSlim,
-                          pressed && { opacity: 0.9 },
-                          already && { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.cta },
-                        ]}
-                        onPress={() => {
-                          if (row.kind === "athlete") {
-                            if (already) removeAthletePick(row.athlete.user_id);
-                            else addAthletePick(row.athlete);
-                          } else {
-                            if (already) removeManualPick(row.manual.id);
-                            else addManualPick(row.manual);
-                          }
-                        }}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: already }}
-                      >
-                        <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
-                          {row.full_name}
-                        </Text>
-                        <Text style={styles.pickerRowMeta} numberOfLines={1} ellipsizeMode="tail">
-                          {row.meta}
-                        </Text>
-                      </Pressable>
-                    );
-                  })
-                )}
-              </View>
-
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        }
+        search={
+          <>
+            <Text style={[styles.modalSubTitle, isRTL && styles.rtlText]}>{t("sessionForm.searchTrainees")}</Text>
+            <AppSearchField
+              value={traineesQ}
+              onChangeText={setTraineesQ}
+              onSearch={(term) => void runTraineeSearch(term)}
+              placeholder={t("sessionForm.searchTrainees")}
+              isRTL={isRTL}
+              loading={traineesSearching}
+              accessibilityLabel={t("sessionForm.searchTrainees")}
+            />
+          </>
+        }
+        loading={traineesSearching}
+        results={
+          <ScrollView
+            style={styles.traineeResultsScroll}
+            contentContainerStyle={styles.traineeResultsContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator
+          >
+            {traineeSearchRows.length === 0 ? (
+              <Text style={styles.pickerEmpty}>{t("sessionForm.noResults")}</Text>
+            ) : (
+              traineeSearchRows.map((row) => {
+                const already =
+                  row.kind === "athlete"
+                    ? selectedAthletes.some((x) => x.user_id === row.athlete.user_id)
+                    : selectedManual.some((x) => x.manual_participant_id === row.manual.id);
+                return (
+                  <Pressable
+                    key={row.key}
+                    style={({ pressed }) => [
+                      styles.pickerRowSlim,
+                      pressed && { opacity: 0.9 },
+                      already && { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.cta },
+                    ]}
+                    onPress={() => {
+                      if (row.kind === "athlete") {
+                        if (already) removeAthletePick(row.athlete.user_id);
+                        else addAthletePick(row.athlete);
+                      } else {
+                        if (already) removeManualPick(row.manual.id);
+                        else addManualPick(row.manual);
+                      }
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: already }}
+                  >
+                    <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
+                      {row.full_name}
+                    </Text>
+                    <Text style={styles.pickerRowMeta} numberOfLines={1} ellipsizeMode="tail">
+                      {row.meta}
+                    </Text>
+                  </Pressable>
+                );
+              })
+            )}
+          </ScrollView>
+        }
+      />
 
       <View style={sf.card}>
         <View style={sf.actionsStack}>
@@ -1000,11 +996,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   sectionSpacer: { height: theme.spacing.sm },
-  traineesScrollContent: {
+  traineeResultsScroll: { flex: 1 },
+  traineeResultsContent: {
+    flexGrow: 1,
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.md,
-    gap: theme.spacing.sm,
+    paddingBottom: theme.spacing.sm,
+    gap: theme.spacing.xs,
   },
   modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
   modalBackdropTouch: { ...StyleSheet.absoluteFillObject },

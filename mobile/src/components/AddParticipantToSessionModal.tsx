@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useKeyboardInset } from "../hooks/useKeyboardInset";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { AppSearchField } from "./AppSearchField";
@@ -62,11 +63,15 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   const { showToast } = useToast();
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const keyboardInset = useKeyboardInset();
   /** Pixel cap so the card + ScrollView get a real bounded height on mobile web (flex + % maxHeight is flaky in Safari). */
-  const modalMaxHeight = Math.min(Math.round(windowHeight * 0.92), windowHeight - Math.max(insets.top, 8) - 12);
+  const modalMaxHeight = Math.min(
+    Math.round(windowHeight * 0.92),
+    windowHeight - Math.max(insets.top, 8) - 12 - keyboardInset
+  );
   const scrollBottomPad = Math.max(insets.bottom, 12) + 28;
-  /** Header, capacity line, and card vertical padding — scroll viewport = remaining space (explicit px scrolls reliably on iOS web). */
-  const scrollViewportMax = Math.max(200, modalMaxHeight - 122);
+  /** Header, capacity, quick-add, search, and card padding — results scroll in the remainder above the keyboard. */
+  const scrollViewportMax = Math.max(160, modalMaxHeight - 200);
   const [maxCap, setMaxCap] = useState<number | null>(null);
   const [currentCount, setCurrentCount] = useState(0);
   const [q, setQ] = useState("");
@@ -524,14 +529,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
             </View>
           ) : null}
 
-          <ScrollView
-            keyboardShouldPersistTaps="always"
-            nestedScrollEnabled
-            showsVerticalScrollIndicator
-            style={[styles.scrollBody, { maxHeight: scrollViewportMax }]}
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPad }]}
-            bounces
-          >
+          <View style={styles.modalBodyFixed}>
             <ParticipantQuickAddPanel
               name={quickName}
               phone={quickPhone}
@@ -551,7 +549,16 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
               loading={searching}
               editable={!adding}
             />
+          </View>
 
+          <ScrollView
+            keyboardShouldPersistTaps="always"
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+            style={[styles.scrollBody, { maxHeight: scrollViewportMax }]}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPad }]}
+            bounces
+          >
             <View style={styles.listSection}>
               {combinedPicks.length === 0 ? (
                 <Text style={[styles.muted, isRTL && styles.rtlText]}>
@@ -690,8 +697,11 @@ const styles = StyleSheet.create({
   },
   closeXText: { fontSize: 18, fontWeight: "700", color: theme.colors.textMuted, lineHeight: 20 },
   capacityLine: { color: theme.colors.textMuted, fontWeight: "800", marginBottom: 8 },
+  modalBodyFixed: { flexShrink: 0, gap: 12, marginBottom: 4 },
   /** Bounded maxHeight is set inline from window height; minHeight:0 helps nested flex on web. */
   scrollBody: {
+    flexGrow: 1,
+    minHeight: 140,
     minHeight: 0,
     width: "100%",
     ...(Platform.OS === "web" ? { overflowY: "scroll" as const } : {}),

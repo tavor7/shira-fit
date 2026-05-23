@@ -7,10 +7,6 @@ import {
   Pressable,
   Platform,
   Alert,
-  ActivityIndicator,
-  Modal,
-  FlatList,
-  TextInput,
 } from "react-native";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
@@ -22,6 +18,7 @@ import { PricingSection } from "../components/PricingSection";
 import { PricingTierFormFields } from "../components/PricingTierFormFields";
 import { PricingPickerField } from "../components/PricingPickerField";
 import { AppSearchField } from "../components/AppSearchField";
+import { AppSearchSheet } from "../components/AppSearchSheet";
 import { pricingScreenStyles as ps } from "../components/pricingScreenStyles";
 import type { AthleteSessionCapacityPricingRow, SessionCapacityPricingRow } from "../types/database";
 
@@ -33,6 +30,7 @@ type AthletePick =
 
 type OverrideRow = AthleteSessionCapacityPricingRow & {
   profiles?: { full_name: string } | { full_name: string }[] | null;
+  manual_participants?: { full_name: string } | { full_name: string }[] | null;
 };
 
 function parseTierCapacity(raw: string): number | null {
@@ -58,7 +56,8 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [pickedAthleteId, setPickedAthleteId] = useState("");
+  const [pickedUserId, setPickedUserId] = useState("");
+  const [pickedManualId, setPickedManualId] = useState("");
   const [pickedAthleteLabel, setPickedAthleteLabel] = useState("");
   const [athCapStr, setAthCapStr] = useState("");
   const [athPriceStr, setAthPriceStr] = useState("");
@@ -75,7 +74,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   const [kickboxRows, setKickboxRows] = useState<SessionCapacityPricingRow[]>([]);
   const [kickboxSaving, setKickboxSaving] = useState(false);
   const [editGlobal, setEditGlobal] = useState<{ cap: number; isKickbox: boolean } | null>(null);
-  const [editAthlete, setEditAthlete] = useState<{ userId: string; cap: number } | null>(null);
+  const [editAthlete, setEditAthlete] = useState<{ userId?: string; manualId?: string; cap: number } | null>(null);
   const [globalFormOpen, setGlobalFormOpen] = useState(false);
   const [athleteFormOpen, setAthleteFormOpen] = useState(false);
   const [kickboxFormOpen, setKickboxFormOpen] = useState(false);
@@ -109,7 +108,9 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     setOverrideLoading(true);
     const { data, error } = await supabase
       .from("athlete_session_capacity_pricing")
-      .select("user_id, max_participants, price_ils, updated_at, profiles(full_name)")
+      .select(
+        "user_id, manual_participant_id, max_participants, price_ils, updated_at, profiles(full_name), manual_participants(full_name)"
+      )
       .order("max_participants", { ascending: true });
     setOverrideLoading(false);
     if (error) {
@@ -119,7 +120,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     }
     const list = (data as OverrideRow[]) ?? [];
     list.sort((a, b) => {
-      const na = resolveProfileName(a).localeCompare(resolveProfileName(b));
+      const na = resolveOverrideName(a).localeCompare(resolveOverrideName(b));
       if (na !== 0) return na;
       return a.max_participants - b.max_participants;
     });
@@ -178,16 +179,19 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
 
   function selectAthletePick(item: AthletePick) {
     if (item.kind === "athlete") {
-      setPickedAthleteId(item.user_id);
+      setPickedUserId(item.user_id);
+      setPickedManualId("");
       setPickedAthleteLabel(`${item.full_name} (@${item.username})`);
       setPickerOpen(false);
       return;
     }
-    if (!item.linked_user_id) {
-      notifyErr(t("pricing.quickAddRatesNeedAccount"));
-      return;
+    if (item.linked_user_id) {
+      setPickedUserId(item.linked_user_id);
+      setPickedManualId("");
+    } else {
+      setPickedUserId("");
+      setPickedManualId(item.id);
     }
-    setPickedAthleteId(item.linked_user_id);
     setPickedAthleteLabel(`${item.full_name} · ${item.phone}`);
     setPickerOpen(false);
   }
@@ -270,7 +274,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   }
 
   async function saveAthleteRule() {
-    if (!pickedAthleteId) {
+    if (!pickedUserId && !pickedManualId) {
       notifyErr(t("pricing.chooseAthleteFirst"));
       return;
     }
@@ -284,18 +288,49 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
       notifyErr(t("pricing.invalidPrice"));
       return;
     }
+    const isManual = !!pickedManualId;
     setOverrideSaving(true);
-    if (editAthlete && (editAthlete.userId !== pickedAthleteId || editAthlete.cap !== cap)) {
-      await supabase
-        .from("athlete_session_capacity_pricing")
-        .delete()
-        .eq("user_id", editAthlete.userId)
-        .eq("max_participants", editAthlete.cap);
+    if (editAthlete && editAthlete.cap !== cap) {
+      if (editAthlete.manualId) {
+        await supabase
+          .from("athlete_session_capacity_pricing")
+          .delete()
+          .eq("manual_participant_id", editAthlete.manualId)
+          .eq("max_participants", editAthlete.cap);
+      } else if (editAthlete.userId) {
+        await supabase
+          .from("athlete_session_capacity_pricing")
+          .delete()
+          .eq("user_id", editAthlete.userId)
+          .eq("max_participants", editAthlete.cap);
+      }
     }
-    const { error } = await supabase.from("athlete_session_capacity_pricing").upsert(
-      { user_id: pickedAthleteId, max_participants: cap, price_ils: price },
-      { onConflict: "user_id,max_participants" }
-    );
+    if (
+      editAthlete &&
+      editAthlete.cap === cap &&
+      ((editAthlete.manualId && editAthlete.manualId !== pickedManualId) ||
+        (editAthlete.userId && editAthlete.userId !== pickedUserId))
+    ) {
+      if (editAthlete.manualId) {
+        await supabase
+          .from("athlete_session_capacity_pricing")
+          .delete()
+          .eq("manual_participant_id", editAthlete.manualId)
+          .eq("max_participants", editAthlete.cap);
+      } else if (editAthlete.userId) {
+        await supabase
+          .from("athlete_session_capacity_pricing")
+          .delete()
+          .eq("user_id", editAthlete.userId)
+          .eq("max_participants", editAthlete.cap);
+      }
+    }
+    const row = isManual
+      ? { user_id: null, manual_participant_id: pickedManualId, max_participants: cap, price_ils: price }
+      : { user_id: pickedUserId, manual_participant_id: null, max_participants: cap, price_ils: price };
+    const { error } = await supabase.from("athlete_session_capacity_pricing").upsert(row, {
+      onConflict: isManual ? "manual_participant_id,max_participants" : "user_id,max_participants",
+    });
     setOverrideSaving(false);
     if (error) {
       notifyErr(error.message);
@@ -303,7 +338,8 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     }
     setAthCapStr("");
     setAthPriceStr("");
-    setPickedAthleteId("");
+    setPickedUserId("");
+    setPickedManualId("");
     setPickedAthleteLabel("");
     setEditAthlete(null);
     setAthleteFormOpen(false);
@@ -311,12 +347,19 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   }
 
   function startEditAthlete(row: OverrideRow) {
-    const name = resolveProfileName(row);
+    const name = resolveOverrideName(row);
     setGlobalFormOpen(false);
     setKickboxFormOpen(false);
     setAthleteFormOpen(true);
-    setEditAthlete({ userId: row.user_id, cap: row.max_participants });
-    setPickedAthleteId(row.user_id);
+    if (row.manual_participant_id) {
+      setEditAthlete({ manualId: row.manual_participant_id, cap: row.max_participants });
+      setPickedManualId(row.manual_participant_id);
+      setPickedUserId("");
+    } else {
+      setEditAthlete({ userId: row.user_id ?? undefined, cap: row.max_participants });
+      setPickedUserId(row.user_id ?? "");
+      setPickedManualId("");
+    }
     setPickedAthleteLabel(name);
     setAthCapStr(String(row.max_participants));
     setAthPriceStr(String(row.price_ils));
@@ -324,7 +367,8 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
 
   function cancelEditAthlete() {
     setEditAthlete(null);
-    setPickedAthleteId("");
+    setPickedUserId("");
+    setPickedManualId("");
     setPickedAthleteLabel("");
     setAthCapStr("");
     setAthPriceStr("");
@@ -353,15 +397,25 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     ]);
   }
 
-  function confirmRemoveOverride(userId: string, cap: number, athleteLabelText: string) {
+  function confirmRemoveOverride(row: OverrideRow, athleteLabelText: string) {
+    const cap = row.max_participants;
     const msg = t("pricing.removeAthleteRateConfirm").replace(/\{name\}/g, athleteLabelText);
     const run = async () => {
-      await supabase
-        .from("athlete_session_capacity_pricing")
-        .delete()
-        .eq("user_id", userId)
-        .eq("max_participants", cap);
-      if (editAthlete?.userId === userId && editAthlete.cap === cap) cancelEditAthlete();
+      let q = supabase.from("athlete_session_capacity_pricing").delete().eq("max_participants", cap);
+      if (row.manual_participant_id) {
+        q = q.eq("manual_participant_id", row.manual_participant_id);
+      } else if (row.user_id) {
+        q = q.eq("user_id", row.user_id);
+      }
+      await q;
+      if (
+        editAthlete &&
+        editAthlete.cap === cap &&
+        ((editAthlete.manualId && editAthlete.manualId === row.manual_participant_id) ||
+          (editAthlete.userId && editAthlete.userId === row.user_id))
+      ) {
+        cancelEditAthlete();
+      }
       await loadOverrides();
     };
     if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -518,18 +572,19 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
         }
       >
         {overrideRows.map((r) => {
-          const name = resolveProfileName(r);
+          const name = resolveOverrideName(r);
           const p = Number(r.price_ils);
-          const key = `${r.user_id}-${r.max_participants}`;
+          const key = `${r.user_id ?? r.manual_participant_id}-${r.max_participants}`;
           const sub = tierSummary(r.max_participants, p);
           return (
             <PricingTierRow
               key={key}
               title={name}
               priceLabel={sub}
+              layout="stacked"
               isRTL={isRTL}
               onEdit={() => startEditAthlete(r)}
-              onRemove={() => confirmRemoveOverride(r.user_id, r.max_participants, name)}
+              onRemove={() => confirmRemoveOverride(r, name)}
             />
           );
         })}
@@ -592,66 +647,49 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
         })}
       </PricingSection>
 
-      <Modal visible={pickerOpen} transparent animationType="slide" onRequestClose={() => setPickerOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <Pressable style={styles.modalBackdropTouch} onPress={() => setPickerOpen(false)} accessibilityLabel={t("common.cancel")} />
-          <View style={styles.modalBox}>
-            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
-              <Text style={[styles.modalTitle, isRTL && ps.rtl]}>{t("pricing.pickAthlete")}</Text>
-              <Pressable
-                onPress={() => {
-                  setPickerOpen(false);
-                  setPickerQ("");
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={t("common.ok")}
-              >
-                <Text style={[styles.modalClose, isRTL && ps.rtl]}>{t("common.ok")}</Text>
-              </Pressable>
-            </View>
-            <AppSearchField
-              value={pickerQ}
-              onChangeText={setPickerQ}
-              onSearch={(term) => void loadAthletes(term)}
-              placeholder={t("pricing.searchAthletesPlaceholder")}
-              isRTL={isRTL}
-              loading={athletesLoading}
-              accessibilityLabel={t("pricing.searchAthletesPlaceholder")}
-              style={styles.modalSearchField}
-            />
-            {athletesLoading ? (
-              <ActivityIndicator size="large" color={theme.colors.cta} style={styles.modalLoader} accessibilityLabel={t("common.loading")} />
-            ) : (
-              <FlatList
-                data={athletes}
-                keyExtractor={(item) => (item.kind === "athlete" ? item.user_id : `quick:${item.id}`)}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
-                    onPress={() => selectAthletePick(item)}
-                    accessibilityRole="button"
-                    accessibilityLabel={item.full_name}
-                  >
-                    <Text style={[styles.pickerItemName, isRTL && ps.rtl]}>{item.full_name}</Text>
-                    <Text style={[styles.pickerItemRole, isRTL && ps.rtl]}>
-                      {item.kind === "athlete"
-                        ? `@${item.username}${item.phone ? ` · ${item.phone}` : ""}`
-                        : `${item.phone} · ${t("pricing.quickAddLabel")}${
-                            item.linked_user_id ? "" : ` · ${t("pricing.quickAddNoAccount")}`
-                          }`}
-                    </Text>
-                  </Pressable>
-                )}
-                ListEmptyComponent={
-                  <Text style={[styles.pickerEmpty, isRTL && ps.rtl]}>{t("pricing.noAthletes")}</Text>
-                }
-              />
-            )}
-          </View>
-        </View>
-      </Modal>
+      <AppSearchSheet
+        visible={pickerOpen}
+        onClose={() => {
+          setPickerOpen(false);
+          setPickerQ("");
+        }}
+        title={t("pricing.pickAthlete")}
+        dismissLabel={t("common.ok")}
+        isRTL={isRTL}
+        backdropAccessibilityLabel={t("common.cancel")}
+        search={
+          <AppSearchField
+            value={pickerQ}
+            onChangeText={setPickerQ}
+            onSearch={(term) => void loadAthletes(term)}
+            placeholder={t("pricing.searchAthletesPlaceholder")}
+            isRTL={isRTL}
+            loading={athletesLoading}
+            accessibilityLabel={t("pricing.searchAthletesPlaceholder")}
+          />
+        }
+        loading={athletesLoading}
+        data={athletes}
+        keyExtractor={(item) => (item.kind === "athlete" ? item.user_id : `quick:${item.id}`)}
+        renderItem={({ item }) => (
+          <Pressable
+            style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
+            onPress={() => selectAthletePick(item)}
+            accessibilityRole="button"
+            accessibilityLabel={item.full_name}
+          >
+            <Text style={[styles.pickerItemName, isRTL && ps.rtl]}>{item.full_name}</Text>
+            <Text style={[styles.pickerItemRole, isRTL && ps.rtl]}>
+              {item.kind === "athlete"
+                ? `@${item.username}${item.phone ? ` · ${item.phone}` : ""}`
+                : `${item.phone} · ${t("pricing.quickAddLabel")}${
+                    item.linked_user_id ? "" : ` · ${t("pricing.quickAddNoAccount")}`
+                  }`}
+            </Text>
+          </Pressable>
+        )}
+        ListEmptyComponent={<Text style={[styles.pickerEmpty, isRTL && ps.rtl]}>{t("pricing.noAthletes")}</Text>}
+      />
     </>
   );
 
@@ -673,30 +711,16 @@ function resolveProfileName(r: OverrideRow): string {
   return p?.full_name?.trim() || "—";
 }
 
+function resolveOverrideName(r: OverrideRow): string {
+  if (r.manual_participant_id) {
+    const raw = r.manual_participants;
+    const mp = raw ? (Array.isArray(raw) ? raw[0] : raw) : null;
+    return mp?.full_name?.trim() || "—";
+  }
+  return resolveProfileName(r);
+}
+
 const styles = StyleSheet.create({
-  modalBackdrop: { flex: 1, justifyContent: "flex-end" },
-  modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
-  modalBox: {
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: theme.radius.xl,
-    borderTopRightRadius: theme.radius.xl,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    maxHeight: "70%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: theme.spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.borderMuted,
-  },
-  modalHeaderRtl: { flexDirection: "row-reverse" },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
-  modalClose: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "800" },
-  modalLoader: { padding: theme.spacing.xl },
-  modalSearchField: { marginHorizontal: theme.spacing.md, marginBottom: theme.spacing.sm },
   pickerItem: {
     paddingVertical: 14,
     paddingHorizontal: theme.spacing.md,
