@@ -16,13 +16,13 @@ alter table public.athlete_session_capacity_pricing
     or (user_id is null and manual_participant_id is not null)
   );
 
-create unique index if not exists athlete_session_capacity_pricing_user_uidx
-  on public.athlete_session_capacity_pricing (user_id, max_participants)
-  where user_id is not null;
+alter table public.athlete_session_capacity_pricing
+  add constraint athlete_session_capacity_pricing_user_uniq
+  unique (user_id, max_participants);
 
-create unique index if not exists athlete_session_capacity_pricing_manual_uidx
-  on public.athlete_session_capacity_pricing (manual_participant_id, max_participants)
-  where manual_participant_id is not null;
+alter table public.athlete_session_capacity_pricing
+  add constraint athlete_session_capacity_pricing_manual_uniq
+  unique (manual_participant_id, max_participants);
 
 create index if not exists athlete_session_capacity_pricing_manual_idx
   on public.athlete_session_capacity_pricing (manual_participant_id)

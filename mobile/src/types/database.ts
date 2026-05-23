@@ -118,18 +118,24 @@ export type ManagerCoachSessionReportRow = {
 
 /** Global price when a session’s max_participants equals this capacity. */
 export type SessionCapacityPricingRow = {
+  id?: string;
   max_participants: number;
   price_ils: number | string;
   is_kickbox?: boolean;
+  effective_from?: string;
+  effective_to?: string | null;
   updated_at?: string;
 };
 
 /** Per-athlete override for a capacity tier; falls back to session_capacity_pricing. */
 export type AthleteSessionCapacityPricingRow = {
+  id?: string;
   user_id: string | null;
   manual_participant_id?: string | null;
   max_participants: number;
   price_ils: number | string;
+  effective_from?: string;
+  effective_to?: string | null;
   updated_at?: string;
 };
 

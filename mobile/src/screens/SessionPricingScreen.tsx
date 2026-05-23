@@ -21,6 +21,7 @@ import { AppSearchField } from "../components/AppSearchField";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { pricingScreenStyles as ps } from "../components/pricingScreenStyles";
 import type { AthleteSessionCapacityPricingRow, SessionCapacityPricingRow } from "../types/database";
+import { toISODateLocal } from "../lib/isoDate";
 
 type Props = { hideIntro?: boolean };
 
@@ -74,7 +75,13 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   const [kickboxRows, setKickboxRows] = useState<SessionCapacityPricingRow[]>([]);
   const [kickboxSaving, setKickboxSaving] = useState(false);
   const [editGlobal, setEditGlobal] = useState<{ cap: number; isKickbox: boolean } | null>(null);
-  const [editAthlete, setEditAthlete] = useState<{ userId?: string; manualId?: string; cap: number } | null>(null);
+  const [editAthlete, setEditAthlete] = useState<{
+    id?: string;
+    userId?: string;
+    manualId?: string;
+    cap: number;
+    effectiveFrom?: string;
+  } | null>(null);
   const [globalFormOpen, setGlobalFormOpen] = useState(false);
   const [athleteFormOpen, setAthleteFormOpen] = useState(false);
   const [kickboxFormOpen, setKickboxFormOpen] = useState(false);
@@ -109,7 +116,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     const { data, error } = await supabase
       .from("athlete_session_capacity_pricing")
       .select(
-        "user_id, manual_participant_id, max_participants, price_ils, updated_at, profiles(full_name), manual_participants(full_name)"
+        "id, user_id, manual_participant_id, max_participants, price_ils, effective_from, effective_to, updated_at, profiles(full_name), manual_participants(full_name)"
       )
       .order("max_participants", { ascending: true });
     setOverrideLoading(false);
@@ -219,8 +226,15 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
         .eq("max_participants", editing.cap)
         .eq("is_kickbox", isKickbox);
     }
+    const today = toISODateLocal(new Date());
     const { error } = await supabase.from("session_capacity_pricing").upsert(
-      { max_participants: cap, price_ils: price, is_kickbox: isKickbox },
+      {
+        max_participants: cap,
+        price_ils: price,
+        is_kickbox: isKickbox,
+        effective_from: today,
+        effective_to: null,
+      },
       { onConflict: "max_participants,is_kickbox" }
     );
     setBusy(false);
@@ -325,12 +339,34 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
           .eq("max_participants", editAthlete.cap);
       }
     }
+    const today = toISODateLocal(new Date());
+    const effectiveFrom = editAthlete?.effectiveFrom ?? today;
     const row = isManual
-      ? { user_id: null, manual_participant_id: pickedManualId, max_participants: cap, price_ils: price }
-      : { user_id: pickedUserId, manual_participant_id: null, max_participants: cap, price_ils: price };
-    const { error } = await supabase.from("athlete_session_capacity_pricing").upsert(row, {
-      onConflict: isManual ? "manual_participant_id,max_participants" : "user_id,max_participants",
-    });
+      ? {
+          user_id: null,
+          manual_participant_id: pickedManualId,
+          max_participants: cap,
+          price_ils: price,
+          effective_from: effectiveFrom,
+          effective_to: null,
+        }
+      : {
+          user_id: pickedUserId,
+          manual_participant_id: null,
+          max_participants: cap,
+          price_ils: price,
+          effective_from: effectiveFrom,
+          effective_to: null,
+        };
+
+    let error;
+    if (editAthlete?.id) {
+      ({ error } = await supabase.from("athlete_session_capacity_pricing").update(row).eq("id", editAthlete.id));
+    } else {
+      ({ error } = await supabase.from("athlete_session_capacity_pricing").upsert(row, {
+        onConflict: isManual ? "manual_participant_id,max_participants" : "user_id,max_participants",
+      }));
+    }
     setOverrideSaving(false);
     if (error) {
       notifyErr(error.message);
@@ -352,11 +388,21 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     setKickboxFormOpen(false);
     setAthleteFormOpen(true);
     if (row.manual_participant_id) {
-      setEditAthlete({ manualId: row.manual_participant_id, cap: row.max_participants });
+      setEditAthlete({
+        id: row.id,
+        manualId: row.manual_participant_id,
+        cap: row.max_participants,
+        effectiveFrom: row.effective_from,
+      });
       setPickedManualId(row.manual_participant_id);
       setPickedUserId("");
     } else {
-      setEditAthlete({ userId: row.user_id ?? undefined, cap: row.max_participants });
+      setEditAthlete({
+        id: row.id,
+        userId: row.user_id ?? undefined,
+        cap: row.max_participants,
+        effectiveFrom: row.effective_from,
+      });
       setPickedUserId(row.user_id ?? "");
       setPickedManualId("");
     }
