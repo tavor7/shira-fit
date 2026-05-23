@@ -16,7 +16,7 @@ import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
-import { addDaysToISODate } from "../lib/sessionTime";
+import { addDaysToISODate, DEFAULT_SESSION_START_TIME, suggestNextSessionStartTime } from "../lib/sessionTime";
 import { isMissingSessionSeriesRpc, staffCreateSessionSeries } from "../lib/sessionSeries";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { toISODateLocal, isValidISODateString } from "../lib/isoDate";
@@ -61,7 +61,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const { width } = useWindowDimensions();
   const compact = sessionFormIsCompact(width);
   const [date, setDate] = useState(() => initialDate?.trim() || toISODateLocal(new Date()));
-  const [time, setTime] = useState("18:00");
+  const [time, setTime] = useState(DEFAULT_SESSION_START_TIME);
   const [coachId, setCoachId] = useState(fixedCoachId ?? "");
   const coachYouLabel = t("sessionForm.coachYou");
   const [coachLabel, setCoachLabel] = useState(fixedCoachLabel ? `${fixedCoachLabel} — ${coachYouLabel}` : "");
@@ -97,6 +97,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [defaultTimeLoading, setDefaultTimeLoading] = useState(true);
 
   const noteSummary = useMemo(() => {
     const trimmed = note.trim();
@@ -182,13 +183,14 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
   useEffect(() => {
     setCreateBaseline(null);
-  }, [initialDate]);
+  }, [initialDate, date]);
 
   useEffect(() => {
     if (createBaseline !== null) return;
     if (!fixedCoachId && coachOptionsLoading) return;
+    if (defaultTimeLoading) return;
     setCreateBaseline(formSerialized);
-  }, [createBaseline, coachOptionsLoading, fixedCoachId, formSerialized]);
+  }, [createBaseline, coachOptionsLoading, defaultTimeLoading, fixedCoachId, formSerialized]);
 
   useEffect(() => {
     return navigation.addListener("beforeRemove", (e) => {
@@ -229,6 +231,33 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   useEffect(() => {
     if (initialDate?.trim()) setDate(initialDate.trim());
   }, [initialDate]);
+
+  useEffect(() => {
+    if (!isValidISODateString(date)) {
+      setDefaultTimeLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setDefaultTimeLoading(true);
+    (async () => {
+      const { data, error } = await supabase
+        .from("training_sessions")
+        .select("start_time")
+        .eq("session_date", date);
+      if (cancelled) return;
+      if (error) {
+        setTime(DEFAULT_SESSION_START_TIME);
+        return;
+      }
+      const startTimes = ((data as { start_time: string }[] | null) ?? []).map((r) => r.start_time);
+      setTime(suggestNextSessionStartTime(startTimes));
+    })().finally(() => {
+      if (!cancelled) setDefaultTimeLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [date]);
 
   useEffect(() => {
     if (fixedCoachId) {

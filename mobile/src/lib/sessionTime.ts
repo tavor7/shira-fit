@@ -13,6 +13,22 @@ function minutesToHHMM(total: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+export const DEFAULT_SESSION_START_TIME = "18:00";
+
+/** One hour after the latest start on the day, or fallback when the day has no sessions. */
+export function suggestNextSessionStartTime(
+  startTimes: string[],
+  fallback = DEFAULT_SESSION_START_TIME
+): string {
+  if (startTimes.length === 0) return fallback;
+  let latestM = 0;
+  for (const t of startTimes) {
+    latestM = Math.max(latestM, parseTimeToMinutes(t));
+  }
+  const nextM = Math.min(latestM + 60, 23 * 60);
+  return minutesToHHMM(nextM);
+}
+
 /** Start time only, 24h (e.g. 18:00), from a Postgres time string. */
 export function formatSessionStartTime(startTime: string): string {
   return minutesToHHMM(parseTimeToMinutes(startTime));

@@ -27,47 +27,49 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
   const staffLabels = item.showStaffSessionLabels === true;
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-      accessibilityRole="button"
-    >
+    <View style={styles.card}>
       {accent ? <View style={[styles.accent, { backgroundColor: accent }]} /> : null}
-      <View style={[styles.body, isRTL && styles.bodyRtl]}>
-        <View style={[styles.timeCol, phase === "past" && styles.timeColPast]}>
-          <Text style={[styles.time, phase === "past" && styles.timePast]}>{start}</Text>
-          {phase === "live" ? (
-            <View style={styles.livePill}>
-              <Text style={styles.livePillTxt}>{language === "he" ? "עכשיו" : "Live"}</Text>
-            </View>
-          ) : phase === "past" ? (
-            <View style={styles.endedPill}>
-              <Text style={styles.endedPillTxt}>{language === "he" ? "הסתיים" : "Ended"}</Text>
-            </View>
-          ) : null}
-        </View>
-        <View style={styles.main}>
-          {item.trainerName ? (
-            <Text style={[styles.trainer, isRTL && styles.rtl]} numberOfLines={1}>
-              {item.trainerName}
-            </Text>
-          ) : null}
-          <View style={[styles.chips, isRTL && styles.chipsRtl]}>
-            {showFill ? (
-              <StatusChip label={`${c}/${m}`} tone={m > 0 && c >= m ? "danger" : "neutral"} />
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.bodyPressable, pressed && styles.cardPressed]}
+        accessibilityRole="button"
+      >
+        <View style={[styles.body, isRTL && styles.bodyRtl]}>
+          <View style={[styles.timeCol, phase === "past" && styles.timeColPast]}>
+            <Text style={[styles.time, phase === "past" && styles.timePast]}>{start}</Text>
+            {phase === "live" ? (
+              <View style={styles.livePill}>
+                <Text style={styles.livePillTxt}>{language === "he" ? "עכשיו" : "Live"}</Text>
+              </View>
+            ) : phase === "past" ? (
+              <View style={styles.endedPill}>
+                <Text style={styles.endedPillTxt}>{language === "he" ? "הסתיים" : "Ended"}</Text>
+              </View>
             ) : null}
-            {staffLabels && item.isHidden ? (
-              <StatusChip label={language === "he" ? "מוסתר" : "Hidden"} tone="warning" />
-            ) : null}
-            {staffLabels && item.isOpenForRegistration === false ? (
-              <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
-            ) : null}
-            {item.isKickbox ? <KickboxSessionBadge compact isRTL={isRTL} /> : null}
-            {item.isRecurringSeries ? <SessionSeriesIndicator compact /> : null}
           </View>
+          <View style={styles.main}>
+            {item.trainerName ? (
+              <Text style={[styles.trainer, isRTL && styles.rtl]} numberOfLines={1}>
+                {item.trainerName}
+              </Text>
+            ) : null}
+            <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+              {showFill ? (
+                <StatusChip label={`${c}/${m}`} tone={m > 0 && c >= m ? "danger" : "neutral"} />
+              ) : null}
+              {staffLabels && item.isHidden ? (
+                <StatusChip label={language === "he" ? "מוסתר" : "Hidden"} tone="warning" />
+              ) : null}
+              {staffLabels && item.isOpenForRegistration === false ? (
+                <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
+              ) : null}
+              {item.isKickbox ? <KickboxSessionBadge compact isRTL={isRTL} /> : null}
+              {item.isRecurringSeries ? <SessionSeriesIndicator compact /> : null}
+            </View>
+          </View>
+          {!canDelete ? <Text style={styles.chevron}>{isRTL ? "‹" : "›"}</Text> : null}
         </View>
-        {!canDelete ? <Text style={styles.chevron}>{isRTL ? "‹" : "›"}</Text> : null}
-      </View>
+      </Pressable>
       {canDelete && onDelete ? (
         <Pressable
           onPress={onDelete}
@@ -84,7 +86,7 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
           )}
         </Pressable>
       ) : null}
-    </Pressable>
+    </View>
   );
 }
 
@@ -99,6 +101,7 @@ const styles = StyleSheet.create({
     minHeight: 64,
   },
   cardPressed: { opacity: 0.92 },
+  bodyPressable: { flex: 1, minWidth: 0 },
   accent: {
     width: 3,
     alignSelf: "stretch",
