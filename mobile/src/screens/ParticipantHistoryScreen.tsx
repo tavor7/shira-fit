@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, SectionList, TextInput, StyleSheet, Platform, Alert, Pressable, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, SectionList, TextInput, StyleSheet, Pressable, FlatList, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, usePathname } from "expo-router";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -13,6 +13,8 @@ import { toISODateLocal, isValidISODateString, parseISODateLocal, firstDayOfMont
 import { formatISODateFull } from "../lib/dateFormat";
 import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/database";
 import { useI18n } from "../context/I18nContext";
+import { useToast } from "../context/ToastContext";
+import { useAppAlert } from "../context/AppAlertContext";
 import { normalizePaymentMethodKey, paymentMethodHistoryLabel } from "../lib/paymentMethod";
 import { resolveSessionBillingPriceLocal } from "../lib/sessionSlotPrice";
 import type { PricingRateTierRow } from "../lib/pricingRates";
@@ -152,6 +154,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const presetUid =
     typeof presetUserId === "string" ? presetUserId : Array.isArray(presetUserId) ? presetUserId[0] : undefined;
   const { language, t, isRTL } = useI18n();
+  const { showToast } = useToast();
+  const { showConfirm } = useAppAlert();
   const pathname = usePathname();
   const isCoachHistory = pathname?.startsWith("/coach/participant-history") ?? false;
   /** Dedicated route or Reports hub athlete tab (embedded via ManagerReportsScreen). */
@@ -195,37 +199,30 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [policyBusyId, setPolicyBusyId] = useState<string | null>(null);
 
   function showError(msg: string) {
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.alert(msg);
-    } else {
-      Alert.alert(t("common.error"), msg);
-    }
+    showToast({ message: t("common.error"), detail: msg, variant: "error" });
   }
 
   function confirmDeleteAccountPayment(paymentId: string) {
-    const msg = t("billing.deletePaymentConfirm");
-    const runDelete = () => {
-      void (async () => {
-        setDeletingPaymentId(paymentId);
-        const { error } = await supabase.from("athlete_account_payments").delete().eq("id", paymentId);
-        setDeletingPaymentId(null);
-        if (error) {
-          showError(error.message);
-          return;
-        }
-        if (Platform.OS === "web" && typeof window !== "undefined") window.alert(t("billing.paymentDeleted"));
-        else Alert.alert("", t("billing.paymentDeleted"));
-        await load();
-      })();
-    };
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      if (window.confirm(msg)) runDelete();
-      return;
-    }
-    Alert.alert(language === "he" ? "אישור" : "Confirm", msg, [
-      { text: t("common.cancel"), style: "cancel" },
-      { text: t("billing.deletePayment"), style: "destructive", onPress: runDelete },
-    ]);
+    showConfirm({
+      title: language === "he" ? "אישור" : "Confirm",
+      message: t("billing.deletePaymentConfirm"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("billing.deletePayment"),
+      confirmVariant: "danger",
+      onConfirm: () => {
+        void (async () => {
+          setDeletingPaymentId(paymentId);
+          const { error } = await supabase.from("athlete_account_payments").delete().eq("id", paymentId);
+          setDeletingPaymentId(null);
+          if (error) {
+            showError(error.message);
+            return;
+          }
+          showToast({ message: t("billing.paymentDeleted"), variant: "success" });
+          await load();
+        })();
+      },
+    });
   }
 
   async function applyLateCancellationCharge(cancellationId: string, charge: boolean) {
@@ -818,8 +815,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   return;
                 }
                 setAddPayOpen(false);
-                if (Platform.OS === "web" && typeof window !== "undefined") window.alert(t("billing.paymentSaved"));
-                else Alert.alert("", t("billing.paymentSaved"));
+                showToast({ message: t("billing.paymentSaved"), variant: "success" });
                 await load();
               })();
             }}
