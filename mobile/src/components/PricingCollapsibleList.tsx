@@ -137,8 +137,11 @@ function ClusterBlock<T extends PricingRateTierRow>({
   const [showPast, setShowPast] = useState(false);
   const primary = cluster.items[0]?.period;
   const multi = cluster.items.length > 1 || cluster.pastCount > 0;
+  /** Athlete list: always use name + chevron row (even for a single rate). */
+  const collapsibleHeader = clusterMode === "title" || multi;
   const expandLabel = expanded ? t("pricing.collapseRates") : t("pricing.expandRates");
   const presentLabel = t("pricing.effectivePresent");
+  const ratesMeta = t("pricing.ratesCount").replace(/\{n\}/g, String(cluster.items.length));
 
   const tierLineForItem = (item: PricingListRow<T>) => {
     const tier = item.subtitle ?? (clusterMode === "groupKey" ? item.title : null);
@@ -148,7 +151,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
 
   return (
     <View style={styles.cluster}>
-      {multi ? (
+      {collapsibleHeader ? (
         <View style={[styles.header, isRTL && styles.headerRtl]}>
           <Pressable
             onPress={() => setExpanded((e) => !e)}
@@ -164,9 +167,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
             <Text style={[styles.headerTitle, isRTL && styles.rtl]} numberOfLines={2}>
               {cluster.title}
             </Text>
-            <Text style={[styles.headerMeta, isRTL && styles.rtl]}>
-              {t("pricing.ratesCount").replace(/\{n\}/g, String(cluster.items.length))}
-            </Text>
+            <Text style={[styles.headerMeta, isRTL && styles.rtl]}>{ratesMeta}</Text>
           </Pressable>
           <Pressable
             onPress={() => setExpanded((e) => !e)}
@@ -179,14 +180,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
           </Pressable>
         </View>
       ) : primary ? (
-        <View style={[styles.singleWrap, isRTL && styles.singleWrapRtl]}>
-          <View style={[styles.singleNameCol, isRTL && styles.singleNameColRtl]}>
-            {clusterMode === "title" ? (
-              <Text style={[styles.headerTitle, isRTL && styles.rtl]} numberOfLines={2}>
-                {cluster.title}
-              </Text>
-            ) : null}
-          </View>
+        <View style={styles.body}>
           <RateRowCard
             period={primary}
             tierLine={tierLineForItem(cluster.items[0]!)}
@@ -203,7 +197,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
         </View>
       ) : null}
 
-      {expanded && multi ? (
+      {expanded && collapsibleHeader ? (
         <View style={styles.body}>
           {cluster.items.map((item) => (
             <RateRowCard
@@ -254,7 +248,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
         </View>
       ) : null}
 
-      {!multi && cluster.pastCount > 0 ? (
+      {!collapsibleHeader && cluster.pastCount > 0 ? (
         <View style={styles.body}>
           {showPast ? (
             <>
@@ -346,10 +340,6 @@ const styles = StyleSheet.create({
   headerMainRtl: { alignItems: "flex-end" },
   headerTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text, lineHeight: 20 },
   headerMeta: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
-  singleWrap: { gap: 6, paddingHorizontal: 4, paddingBottom: 4 },
-  singleWrapRtl: { alignItems: "stretch" },
-  singleNameCol: { paddingHorizontal: 8, paddingTop: 4 },
-  singleNameColRtl: { alignItems: "flex-end" },
   iconBtn: {
     width: 36,
     height: 36,
