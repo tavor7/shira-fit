@@ -66,9 +66,9 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
         {active === "session" ? (
           <SessionPricingScreen hideIntro />
         ) : variant === "manager" ? (
-          <CoachCapacityPricingScreen allowCoachPicker hideIntro parentScrollRef={scrollRef} />
+          <CoachCapacityPricingScreen allowCoachPicker hideIntro />
         ) : (
-          <CoachCapacityPricingScreen lockedCoachId={profile?.user_id ?? null} hideIntro parentScrollRef={scrollRef} />
+          <CoachCapacityPricingScreen lockedCoachId={profile?.user_id ?? null} hideIntro />
         )}
       </View>
     </ScrollView>

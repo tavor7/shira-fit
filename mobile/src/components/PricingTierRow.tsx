@@ -6,6 +6,8 @@ import { sessionFormIsCompact } from "./sessionFormStyles";
 type Props = {
   title: string;
   priceLabel: string;
+  /** Muted line under title, e.g. date range. */
+  subtitle?: string;
   onEdit: () => void;
   onRemove: () => void;
   isRTL?: boolean;
@@ -13,7 +15,7 @@ type Props = {
   layout?: "auto" | "inline" | "stacked";
 };
 
-export function PricingTierRow({ title, priceLabel, onEdit, onRemove, isRTL, layout = "auto" }: Props) {
+export function PricingTierRow({ title, priceLabel, subtitle, onEdit, onRemove, isRTL, layout = "auto" }: Props) {
   const { t } = useI18n();
   const { width } = useWindowDimensions();
   const stacked = layout === "stacked" || (layout === "auto" && sessionFormIsCompact(width));
@@ -48,7 +50,14 @@ export function PricingTierRow({ title, priceLabel, onEdit, onRemove, isRTL, lay
   if (stacked) {
     return (
       <View style={styles.rowStacked}>
-        <Text style={[styles.titleStacked, isRTL && styles.rtl]}>{title}</Text>
+        <View style={styles.titleBlock}>
+          <Text style={[styles.titleStacked, isRTL && styles.rtl]}>{title}</Text>
+          {subtitle ? (
+            <Text style={[styles.subtitle, isRTL && styles.rtl]} numberOfLines={2}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
         <View style={[styles.bottomRow, isRTL && styles.bottomRowRtl]}>
           {pricePill}
           {actions}
@@ -59,9 +68,16 @@ export function PricingTierRow({ title, priceLabel, onEdit, onRemove, isRTL, lay
 
   return (
     <View style={[styles.row, isRTL && styles.rowRtl]}>
-      <Text style={[styles.rowCap, isRTL && styles.rtl]} numberOfLines={2}>
-        {title}
-      </Text>
+      <View style={styles.titleBlock}>
+        <Text style={[styles.rowCap, isRTL && styles.rtl]} numberOfLines={2}>
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text style={[styles.subtitle, isRTL && styles.rtl]} numberOfLines={2}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
       <View style={[styles.rowEnd, isRTL && styles.rowEndRtl]}>
         {pricePill}
         {actions}
@@ -84,7 +100,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   rowRtl: { flexDirection: "row-reverse" },
-  rowCap: { flex: 1, minWidth: 0, fontWeight: "700", fontSize: 14, color: theme.colors.text, lineHeight: 19 },
+  titleBlock: { flex: 1, minWidth: 0, gap: 2 },
+  rowCap: { fontWeight: "700", fontSize: 14, color: theme.colors.text, lineHeight: 19 },
+  subtitle: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, lineHeight: 16 },
   rowEnd: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, minWidth: 0 },
   rowEndRtl: { flexDirection: "row-reverse" },
   rowStacked: {

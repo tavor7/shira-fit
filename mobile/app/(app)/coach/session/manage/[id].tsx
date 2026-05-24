@@ -8,7 +8,7 @@ import { PrimaryButton } from "../../../../../src/components/PrimaryButton";
 import { DatePickerField } from "../../../../../src/components/DatePickerField";
 import { TimePickerField } from "../../../../../src/components/TimePickerField";
 import { isMissingColumnError } from "../../../../../src/lib/dbColumnErrors";
-import { isValidISODateString } from "../../../../../src/lib/isoDate";
+import { isValidISODateString, toISODateLocal } from "../../../../../src/lib/isoDate";
 import { useI18n } from "../../../../../src/context/I18nContext";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../../src/context/ToastContext";
@@ -20,7 +20,10 @@ import {
   formatCoachOptionLabel,
   type CoachOption,
 } from "../../../../../src/components/SessionCoachPickerField";
-import { parseCustomSlotPriceDraft } from "../../../../../src/lib/sessionSlotPrice";
+import {
+  fetchActiveGlobalTierPrice,
+  parseCustomSlotPriceDraft,
+} from "../../../../../src/lib/sessionSlotPrice";
 import {
   formatSessionSeriesError,
   isMissingSessionSeriesRpc,
@@ -133,13 +136,11 @@ export default function CoachSessionManageScreen() {
       const customRaw = (s as TrainingSession).custom_slot_price_ils;
       const customNum = customRaw != null && Number.isFinite(Number(customRaw)) ? Number(customRaw) : null;
       setCustomSlotPriceDraft(customNum != null ? String(customNum) : "");
-      const { data: priceRow } = await supabase
-        .from("session_capacity_pricing")
-        .select("price_ils")
-        .eq("max_participants", s.max_participants)
-        .maybeSingle();
-      const tierP = priceRow?.price_ils;
-      setTierSlotPriceIls(tierP != null && Number.isFinite(Number(tierP)) ? Number(tierP) : null);
+      const tierP = await fetchActiveGlobalTierPrice(supabase, s.max_participants, {
+        isKickbox: !!(s as TrainingSession).is_kickbox,
+        asOf: s.session_date,
+      });
+      setTierSlotPriceIls(tierP);
       setUndoStack([]);
       setForbidden(false);
       setReady(true);
@@ -150,20 +151,16 @@ export default function CoachSessionManageScreen() {
     const cap = parseInt(maxP, 10);
     if (!Number.isFinite(cap) || cap < 1) return;
     let cancelled = false;
-    (async () => {
-      const { data: priceRow } = await supabase
-        .from("session_capacity_pricing")
-        .select("price_ils")
-        .eq("max_participants", cap)
-        .maybeSingle();
+    const asOf = isValidISODateString(date.trim()) ? date.trim() : toISODateLocal(new Date());
+    void (async () => {
+      const tierP = await fetchActiveGlobalTierPrice(supabase, cap, { isKickbox, asOf });
       if (cancelled) return;
-      const tierP = priceRow?.price_ils;
-      setTierSlotPriceIls(tierP != null && Number.isFinite(Number(tierP)) ? Number(tierP) : null);
+      setTierSlotPriceIls(tierP);
     })();
     return () => {
       cancelled = true;
     };
-  }, [maxP]);
+  }, [maxP, date, isKickbox]);
 
   async function executeSaveWithScope(scope?: SeriesScope) {
     if (!isValidISODateString(date.trim())) {

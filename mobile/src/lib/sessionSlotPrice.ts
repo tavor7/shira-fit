@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { resolveTierPriceForDate, type PricingRateTierRow } from "./pricingRates";
 
 /** Parse custom session rate draft; empty string clears override. */
 export function parseCustomSlotPriceDraft(
@@ -19,26 +20,76 @@ export function resolveSessionBillingPriceLocal(args: {
   customSlotPriceIls: number | null | undefined;
   maxParticipants: number;
   isKickbox?: boolean;
-  athletePriceByCap: Record<number, number>;
-  globalPriceByCap: Record<number, number>;
+  sessionDate?: string;
+  athleteTiers?: PricingRateTierRow[];
+  globalTiers?: PricingRateTierRow[];
+  globalKickboxTiers?: PricingRateTierRow[];
+  athletePriceByCap?: Record<number, number>;
+  globalPriceByCap?: Record<number, number>;
   globalKickboxPriceByCap?: Record<number, number>;
 }): number | null {
   const custom = args.customSlotPriceIls;
   if (custom != null && Number.isFinite(Number(custom))) return Number(custom);
   const cap = args.maxParticipants;
   if (!Number.isFinite(cap) || cap < 1) return null;
+  const asOf = args.sessionDate;
+  if (asOf) {
+    if (args.isKickbox) {
+      const kick =
+        (args.globalKickboxTiers
+          ? resolveTierPriceForDate(args.globalKickboxTiers, cap, asOf)
+          : null) ?? args.globalKickboxPriceByCap?.[cap] ?? null;
+      if (kick != null) return kick;
+      const fallback =
+        (args.globalTiers ? resolveTierPriceForDate(args.globalTiers, cap, asOf) : null) ??
+        args.globalPriceByCap?.[cap] ??
+        null;
+      return fallback;
+    }
+    const athlete =
+      (args.athleteTiers ? resolveTierPriceForDate(args.athleteTiers, cap, asOf) : null) ??
+      args.athletePriceByCap?.[cap] ??
+      null;
+    if (athlete != null) return athlete;
+    const tier =
+      (args.globalTiers ? resolveTierPriceForDate(args.globalTiers, cap, asOf) : null) ??
+      args.globalPriceByCap?.[cap] ??
+      null;
+    return tier;
+  }
   if (args.isKickbox) {
     const kick = args.globalKickboxPriceByCap?.[cap];
     if (kick != null && Number.isFinite(kick)) return kick;
-    const fallback = args.globalPriceByCap[cap];
+    const fallback = args.globalPriceByCap?.[cap];
     if (fallback != null && Number.isFinite(fallback)) return fallback;
     return null;
   }
-  const athlete = args.athletePriceByCap[cap];
+  const athlete = args.athletePriceByCap?.[cap];
   if (athlete != null && Number.isFinite(athlete)) return athlete;
-  const tier = args.globalPriceByCap[cap];
+  const tier = args.globalPriceByCap?.[cap];
   if (tier != null && Number.isFinite(tier)) return tier;
   return null;
+}
+
+/** Active global tier price for a capacity on a given session date. */
+export async function fetchActiveGlobalTierPrice(
+  supabase: SupabaseClient,
+  cap: number,
+  opts: { isKickbox?: boolean; asOf: string }
+): Promise<number | null> {
+  const { data, error } = await supabase
+    .from("session_capacity_pricing")
+    .select("price_ils")
+    .eq("max_participants", cap)
+    .eq("is_kickbox", !!opts.isKickbox)
+    .lte("effective_from", opts.asOf)
+    .or(`effective_to.is.null,effective_to.gte.${opts.asOf}`)
+    .order("effective_from", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  const n = Number(data.price_ils);
+  return Number.isFinite(n) ? n : null;
 }
 
 export type SessionBillingPayee = {

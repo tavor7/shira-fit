@@ -36,6 +36,17 @@ export function isValidISODateString(s: string): boolean {
   return parseISODateLocal(s) !== null;
 }
 
+/** Compact display without weekday — used in pricing lists. */
+export function formatISODatePricing(iso: string, language: LanguageCode = "en"): string {
+  const d = parseISODateLocal(iso);
+  if (!d) return iso;
+  return d.toLocaleDateString(appLocale(language), {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 /** Picker / compact display: weekday + day, month, year (en-GB / he-IL order). */
 export function formatISODateShortDisplay(iso: string, language: LanguageCode = "en"): string {
   const d = parseISODateLocal(iso);

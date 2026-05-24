@@ -31,7 +31,7 @@ import { SessionSlotRateField } from "./SessionSlotRateField";
 import { SessionOptionsSection, type SessionOptionItem } from "./SessionOptionsSection";
 import { SessionSeriesOptionsExpand } from "./SessionSeriesOptionsExpand";
 import { CollapsiblePricingForm } from "./CollapsiblePricingForm";
-import { parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
+import { fetchActiveGlobalTierPrice, parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
 import { AppSearchField } from "./AppSearchField";
 import { AppSearchSheet } from "./AppSearchSheet";
 import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
@@ -165,20 +165,16 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       return;
     }
     let cancelled = false;
-    (async () => {
-      const { data: priceRow } = await supabase
-        .from("session_capacity_pricing")
-        .select("price_ils")
-        .eq("max_participants", cap)
-        .maybeSingle();
+    const asOf = isValidISODateString(date.trim()) ? date.trim() : toISODateLocal(new Date());
+    void (async () => {
+      const tierP = await fetchActiveGlobalTierPrice(supabase, cap, { isKickbox, asOf });
       if (cancelled) return;
-      const tierP = priceRow?.price_ils;
-      setTierSlotPriceIls(tierP != null && Number.isFinite(Number(tierP)) ? Number(tierP) : null);
+      setTierSlotPriceIls(tierP);
     })();
     return () => {
       cancelled = true;
     };
-  }, [max]);
+  }, [max, date, isKickbox]);
   formSerializedRef.current = formSerialized;
 
   useEffect(() => {

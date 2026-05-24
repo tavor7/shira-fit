@@ -27,7 +27,7 @@ import { AddParticipantToSessionModal } from "../../../../src/components/AddPart
 import { DatePickerField } from "../../../../src/components/DatePickerField";
 import { TimePickerField } from "../../../../src/components/TimePickerField";
 import { isMissingColumnError } from "../../../../src/lib/dbColumnErrors";
-import { isValidISODateString } from "../../../../src/lib/isoDate";
+import { isValidISODateString, toISODateLocal } from "../../../../src/lib/isoDate";
 import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay, formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateFormat";
 import { formatSessionStartTime, hasSessionNotEnded, isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
@@ -64,6 +64,7 @@ import {
   fetchSessionBillingPriceIls,
   parseCustomSlotPriceDraft,
   sumSessionBillingPrices,
+  fetchActiveGlobalTierPrice,
 } from "../../../../src/lib/sessionSlotPrice";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
@@ -463,21 +464,20 @@ export default function ManagerSessionDetail() {
     const cap = parseInt(maxP, 10);
     if (!Number.isFinite(cap) || cap < 1) return;
     let cancelled = false;
-    (async () => {
-      const { data: priceRow } = await supabase
-        .from("session_capacity_pricing")
-        .select("price_ils")
-        .eq("max_participants", cap)
-        .maybeSingle();
+    const asOf =
+      isValidISODateString(date.trim()) ? date.trim() : session?.session_date ?? toISODateLocal(new Date());
+    void (async () => {
+      const tierNum = await fetchActiveGlobalTierPrice(supabase, cap, {
+        isKickbox: !!isKickbox,
+        asOf,
+      });
       if (cancelled) return;
-      const tierP = priceRow?.price_ils;
-      const tierNum = tierP != null && Number.isFinite(Number(tierP)) ? Number(tierP) : null;
       setTierSlotPriceIls(tierNum);
     })();
     return () => {
       cancelled = true;
     };
-  }, [maxP, session?.custom_slot_price_ils]);
+  }, [maxP, date, isKickbox, session?.custom_slot_price_ils, session?.session_date]);
 
   useEffect(() => {
     return navigation.addListener("beforeRemove", (e) => {
@@ -683,13 +683,10 @@ export default function ManagerSessionDetail() {
       setOpen(s.is_open_for_registration);
       setHidden(!!(s as { is_hidden?: boolean }).is_hidden);
       setIsKickbox(!!(s as TrainingSession).is_kickbox);
-      const { data: priceRow } = await supabase
-        .from("session_capacity_pricing")
-        .select("price_ils")
-        .eq("max_participants", s.max_participants)
-        .maybeSingle();
-      const tierP = priceRow?.price_ils;
-      const tierNum = tierP != null && Number.isFinite(Number(tierP)) ? Number(tierP) : null;
+      const tierNum = await fetchActiveGlobalTierPrice(supabase, s.max_participants, {
+        isKickbox: !!(s as TrainingSession).is_kickbox,
+        asOf: s.session_date,
+      });
       setTierSlotPriceIls(tierNum);
       const customRaw = (s as TrainingSession).custom_slot_price_ils;
       const customNum = customRaw != null && Number.isFinite(Number(customRaw)) ? Number(customRaw) : null;

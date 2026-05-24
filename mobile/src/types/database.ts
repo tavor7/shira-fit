@@ -141,9 +141,12 @@ export type AthleteSessionCapacityPricingRow = {
 
 /** Per-coach payment per arrived athlete for sessions with this max_participants. */
 export type CoachCapacityPricingRow = {
+  id?: string;
   coach_id: string;
   max_participants: number;
   price_ils: number | string;
+  effective_from?: string;
+  effective_to?: string | null;
   updated_at?: string;
 };
 

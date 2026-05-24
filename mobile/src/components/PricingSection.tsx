@@ -9,6 +9,8 @@ type Props = {
   loading?: boolean;
   emptyMessage?: string;
   count?: number;
+  /** Shown under the section title (e.g. Add rate). */
+  headerAction?: ReactNode;
   children?: ReactNode;
   footer?: ReactNode;
 };
@@ -20,6 +22,7 @@ export function PricingSection({
   loading,
   emptyMessage,
   count,
+  headerAction,
   children,
   footer,
 }: Props) {
@@ -36,6 +39,8 @@ export function PricingSection({
         ) : null}
       </View>
       {hint ? <Text style={[styles.hint, isRTL && styles.rtl]}>{hint}</Text> : null}
+
+      {headerAction ? <View style={styles.headerAction}>{headerAction}</View> : null}
 
       {loading ? (
         <ActivityIndicator color={theme.colors.cta} style={styles.loader} accessibilityLabel="Loading" />
@@ -93,6 +98,10 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: theme.colors.textMuted,
   },
+  headerAction: {
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+  },
   rtl: { textAlign: "right" },
   loader: { paddingVertical: theme.spacing.lg },
   empty: {
@@ -105,7 +114,7 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: theme.spacing.sm,
     paddingBottom: theme.spacing.xs,
-    gap: 6,
+    gap: 8,
   },
   footer: {
     paddingHorizontal: theme.spacing.md,

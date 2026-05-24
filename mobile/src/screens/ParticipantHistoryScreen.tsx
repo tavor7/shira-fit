@@ -15,6 +15,7 @@ import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/data
 import { useI18n } from "../context/I18nContext";
 import { normalizePaymentMethodKey, paymentMethodHistoryLabel } from "../lib/paymentMethod";
 import { resolveSessionBillingPriceLocal } from "../lib/sessionSlotPrice";
+import type { PricingRateTierRow } from "../lib/pricingRates";
 
 type HistorySection = { title: string; data: HistoryListItem[] };
 type HistoryListItem =
@@ -40,9 +41,9 @@ type BillingSummary = {
 function computeBillingSummary(
   regs: ParticipantHistoryRow[],
   payments: AthleteAccountPayment[],
-  globalPriceByCap: Record<number, number>,
-  athletePriceByCap: Record<number, number>,
-  globalKickboxPriceByCap: Record<number, number>,
+  globalTiers: PricingRateTierRow[],
+  athleteTiers: PricingRateTierRow[],
+  globalKickboxTiers: PricingRateTierRow[],
   sessionCustomById: Record<string, number | null>,
   sessionKickboxById: Record<string, boolean>
 ): BillingSummary {
@@ -84,13 +85,15 @@ function computeBillingSummary(
       (r.reg_status === "active" && r.attended === false && r.charge_no_show === true) ||
       lateCancelOwes;
     if (!owes || cap === null || cap <= 0) continue;
+    const sessionDate = r.session_date;
     const price = resolveSessionBillingPriceLocal({
       customSlotPriceIls: sessionCustomById[r.session_id],
       maxParticipants: cap,
       isKickbox: sessionKickboxById[r.session_id] ?? false,
-      athletePriceByCap,
-      globalKickboxPriceByCap,
-      globalPriceByCap,
+      sessionDate,
+      athleteTiers,
+      globalTiers,
+      globalKickboxTiers,
     });
     if (price === null) missingRuleCount += 1;
     else expected += price;
@@ -168,9 +171,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [hasSearched, setHasSearched] = useState(false);
   const [rows, setRows] = useState<ParticipantHistoryRow[]>([]);
   const [accountPayments, setAccountPayments] = useState<AthleteAccountPayment[]>([]);
-  const [globalPriceByCap, setGlobalPriceByCap] = useState<Record<number, number>>({});
-  const [athletePriceByCap, setAthletePriceByCap] = useState<Record<number, number>>({});
-  const [globalKickboxPriceByCap, setGlobalKickboxPriceByCap] = useState<Record<number, number>>({});
+  const [globalTiers, setGlobalTiers] = useState<PricingRateTierRow[]>([]);
+  const [athleteTiers, setAthleteTiers] = useState<PricingRateTierRow[]>([]);
+  const [globalKickboxTiers, setGlobalKickboxTiers] = useState<PricingRateTierRow[]>([]);
   const [sessionCustomPriceById, setSessionCustomPriceById] = useState<Record<string, number | null>>({});
   const [sessionKickboxById, setSessionKickboxById] = useState<Record<string, boolean>>({});
   const [payeeIsManual, setPayeeIsManual] = useState(false);
@@ -354,9 +357,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     return computeBillingSummary(
       rows,
       accountPayments,
-      globalPriceByCap,
-      athletePriceByCap,
-      globalKickboxPriceByCap,
+      globalTiers,
+      athleteTiers,
+      globalKickboxTiers,
       sessionCustomPriceById,
       sessionKickboxById
     );
@@ -365,9 +368,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     athleteId,
     rows,
     accountPayments,
-    globalPriceByCap,
-    athletePriceByCap,
-    globalKickboxPriceByCap,
+    globalTiers,
+    athleteTiers,
+    globalKickboxTiers,
     sessionCustomPriceById,
     sessionKickboxById,
   ]);
@@ -453,7 +456,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         p_phone_search: phoneArg,
         p_athlete_key: athleteId,
       }),
-      supabase.from("session_capacity_pricing").select("max_participants, price_ils, is_kickbox"),
+      supabase
+        .from("session_capacity_pricing")
+        .select("max_participants, price_ils, is_kickbox, effective_from, effective_to"),
       supabase
         .from("athlete_account_payments")
         .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, paid_at, created_at, created_by")
@@ -465,11 +470,11 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       payeeIsManual
         ? supabase
             .from("athlete_session_capacity_pricing")
-            .select("max_participants, price_ils")
+            .select("max_participants, price_ils, effective_from, effective_to")
             .eq("manual_participant_id", athleteId)
         : supabase
             .from("athlete_session_capacity_pricing")
-            .select("max_participants, price_ils")
+            .select("max_participants, price_ils, effective_from, effective_to")
             .eq("user_id", athleteId),
     ]);
 
@@ -513,21 +518,40 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     const next = (histRes.data as ParticipantHistoryRow[]) ?? [];
     setRows(next);
     setAccountPayments((acctRes.data as AthleteAccountPayment[]) ?? []);
-    const globalMap: Record<number, number> = {};
-    const kickboxGlobalMap: Record<number, number> = {};
-    for (const r of (priceRes.data as { max_participants: number; price_ils: number | string; is_kickbox?: boolean }[]) ?? []) {
-      const cap = Number(r.max_participants);
-      const price = Number(r.price_ils);
-      if (r.is_kickbox) kickboxGlobalMap[cap] = price;
-      else globalMap[cap] = price;
+    const stdTiers: PricingRateTierRow[] = [];
+    const kickTiers: PricingRateTierRow[] = [];
+    for (const r of (priceRes.data as {
+      max_participants: number;
+      price_ils: number | string;
+      is_kickbox?: boolean;
+      effective_from: string;
+      effective_to?: string | null;
+    }[]) ?? []) {
+      const tier: PricingRateTierRow = {
+        max_participants: Number(r.max_participants),
+        price_ils: r.price_ils,
+        effective_from: r.effective_from,
+        effective_to: r.effective_to,
+      };
+      if (r.is_kickbox) kickTiers.push(tier);
+      else stdTiers.push(tier);
     }
-    const athleteMap: Record<number, number> = {};
-    for (const o of (ovRes.data as { max_participants: number; price_ils: number | string }[]) ?? []) {
-      athleteMap[Number(o.max_participants)] = Number(o.price_ils);
-    }
-    setGlobalPriceByCap(globalMap);
-    setAthletePriceByCap(athleteMap);
-    setGlobalKickboxPriceByCap(kickboxGlobalMap);
+    const athTiers: PricingRateTierRow[] = (
+      (ovRes.data as {
+        max_participants: number;
+        price_ils: number | string;
+        effective_from: string;
+        effective_to?: string | null;
+      }[]) ?? []
+    ).map((o) => ({
+      max_participants: Number(o.max_participants),
+      price_ils: o.price_ils,
+      effective_from: o.effective_from,
+      effective_to: o.effective_to,
+    }));
+    setGlobalTiers(stdTiers);
+    setGlobalKickboxTiers(kickTiers);
+    setAthleteTiers(athTiers);
 
     const sessionIds = [...new Set(next.map((r) => r.session_id).filter(Boolean))];
     if (sessionIds.length > 0) {
@@ -1016,9 +1040,10 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                       customSlotPriceIls: sessionCustomPriceById[reg.session_id],
                       maxParticipants: reg.max_participants,
                       isKickbox: sessionKickboxById[reg.session_id] ?? false,
-                      athletePriceByCap,
-                      globalKickboxPriceByCap,
-                      globalPriceByCap,
+                      sessionDate: reg.session_date,
+                      athleteTiers,
+                      globalTiers,
+                      globalKickboxTiers,
                     });
                     return price != null
                       ? language === "he"
