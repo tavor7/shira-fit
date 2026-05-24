@@ -128,6 +128,34 @@ export function pricingPeriodStatus(
   return "current";
 }
 
+/** Same athlete / payee + capacity — for overlap and gap checks on athlete overrides. */
+export function athletePricingTierKey(row: {
+  user_id?: string | null;
+  manual_participant_id?: string | null;
+  max_participants: number;
+}): string {
+  const payee = row.manual_participant_id ?? row.user_id ?? "";
+  return `${payee}:${row.max_participants}`;
+}
+
+export function groupPricingByTierKey<T extends PricingRateTierRow>(
+  rows: T[],
+  tierKey: (row: T) => string
+): { tierKey: string; capacity: number; periods: T[] }[] {
+  const map = new Map<string, T[]>();
+  for (const r of rows) {
+    const k = tierKey(r);
+    const list = map.get(k) ?? [];
+    list.push(r);
+    map.set(k, list);
+  }
+  return Array.from(map.entries()).map(([key, periods]) => ({
+    tierKey: key,
+    capacity: periods[0]?.max_participants ?? 0,
+    periods: [...periods].sort((a, b) => (b.effective_from ?? "").localeCompare(a.effective_from ?? "")),
+  }));
+}
+
 export function groupPricingByCapacity<T extends PricingRateTierRow>(rows: T[]): { capacity: number; periods: T[] }[] {
   const map = new Map<number, T[]>();
   for (const r of rows) {

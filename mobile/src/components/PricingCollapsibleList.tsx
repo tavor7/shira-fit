@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import type { PricingListRow, PricingListCluster, PricingRateTierRow } from "../lib/pricingRates";
-import { clusterPricingListRows } from "../lib/pricingRates";
+import { clusterPricingListRows, formatPricingEffectiveRange } from "../lib/pricingRates";
 import { PricingRowMoreMenu } from "./PricingRowMoreMenu";
 
 type Props<T extends PricingRateTierRow> = {
@@ -26,8 +26,90 @@ function priceLabel(row: PricingRateTierRow) {
   return Number.isFinite(n) ? `${n} ₪` : `${row.price_ils}`;
 }
 
+function RatePeriodLines({
+  period,
+  tierLine,
+  isRTL,
+  presentLabel,
+  language,
+}: {
+  period: PricingRateTierRow;
+  tierLine: string;
+  isRTL?: boolean;
+  presentLabel: string;
+  language: "en" | "he";
+}) {
+  const dates =
+    period.effective_from != null
+      ? formatPricingEffectiveRange(period.effective_from, period.effective_to, language, presentLabel)
+      : null;
+
+  return (
+    <View style={[styles.rateTextCol, isRTL && styles.rateTextColRtl]}>
+      <Text style={[styles.tierLine, isRTL && styles.rtl]} numberOfLines={2}>
+        {tierLine}
+      </Text>
+      {dates ? (
+        <Text style={[styles.dateLine, isRTL && styles.rtl]} numberOfLines={1}>
+          {dates}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function RateRowCard<T extends PricingRateTierRow>({
+  period,
+  tierLine,
+  isRTL,
+  presentLabel,
+  language,
+  editLabel,
+  removeLabel,
+  moreMenuLabel,
+  closeLabel,
+  onEdit,
+  onRemove,
+  muted,
+}: {
+  period: T;
+  tierLine: string;
+  isRTL?: boolean;
+  presentLabel: string;
+  language: "en" | "he";
+  editLabel: string;
+  removeLabel: string;
+  moreMenuLabel: string;
+  closeLabel: string;
+  onEdit: () => void;
+  onRemove: () => void;
+  muted?: boolean;
+}) {
+  return (
+    <View style={[styles.rateCard, muted && styles.rateCardMuted, isRTL && styles.rateCardRtl]}>
+      <RatePeriodLines
+        period={period}
+        tierLine={tierLine}
+        isRTL={isRTL}
+        presentLabel={presentLabel}
+        language={language}
+      />
+      <PricingRowMoreMenu
+        editLabel={editLabel}
+        removeLabel={removeLabel}
+        onEdit={onEdit}
+        onRemove={onRemove}
+        menuAccessibilityLabel={moreMenuLabel}
+        closeAccessibilityLabel={closeLabel}
+        isRTL={isRTL}
+      />
+    </View>
+  );
+}
+
 function ClusterBlock<T extends PricingRateTierRow>({
   cluster,
+  clusterMode,
   showEndedLabel,
   hideEndedLabel,
   editLabel,
@@ -39,6 +121,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
   isRTL,
 }: {
   cluster: PricingListCluster<T>;
+  clusterMode: "groupKey" | "title";
   showEndedLabel: (count: number) => string;
   hideEndedLabel: string;
   editLabel: string;
@@ -49,42 +132,42 @@ function ClusterBlock<T extends PricingRateTierRow>({
   onRemove: (row: T) => void;
   isRTL?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [showPast, setShowPast] = useState(false);
   const primary = cluster.items[0]?.period;
-  const headerPrice = primary ? priceLabel(primary) : "";
   const multi = cluster.items.length > 1 || cluster.pastCount > 0;
   const expandLabel = expanded ? t("pricing.collapseRates") : t("pricing.expandRates");
+  const presentLabel = t("pricing.effectivePresent");
+
+  const tierLineForItem = (item: PricingListRow<T>) => {
+    const tier = item.subtitle ?? (clusterMode === "groupKey" ? item.title : null);
+    const price = priceLabel(item.period);
+    return tier ? `${tier} · ${price}` : price;
+  };
 
   return (
     <View style={styles.cluster}>
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
-        <Pressable
-          onPress={() => multi && setExpanded((e) => !e)}
-          disabled={!multi}
-          style={({ pressed }) => [
-            styles.headerMain,
-            isRTL && styles.headerMainRtl,
-            pressed && multi && { opacity: 0.9 },
-          ]}
-          accessibilityRole={multi ? "button" : "none"}
-          accessibilityState={{ expanded: multi ? expanded : undefined }}
-          accessibilityLabel={multi ? expandLabel : cluster.title}
-        >
-          <Text style={[styles.headerTitle, isRTL && styles.rtl]} numberOfLines={2}>
-            {cluster.title}
-          </Text>
-          {multi ? (
+      {multi ? (
+        <View style={[styles.header, isRTL && styles.headerRtl]}>
+          <Pressable
+            onPress={() => setExpanded((e) => !e)}
+            style={({ pressed }) => [
+              styles.headerMain,
+              isRTL && styles.headerMainRtl,
+              pressed && { opacity: 0.9 },
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+            accessibilityLabel={expandLabel}
+          >
+            <Text style={[styles.headerTitle, isRTL && styles.rtl]} numberOfLines={2}>
+              {cluster.title}
+            </Text>
             <Text style={[styles.headerMeta, isRTL && styles.rtl]}>
               {t("pricing.ratesCount").replace(/\{n\}/g, String(cluster.items.length))}
             </Text>
-          ) : null}
-        </Pressable>
-        {!multi && headerPrice ? (
-          <Text style={[styles.headerPriceInline, isRTL && styles.rtl]}>{headerPrice}</Text>
-        ) : null}
-        {multi ? (
+          </Pressable>
           <Pressable
             onPress={() => setExpanded((e) => !e)}
             style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.85 }]}
@@ -94,61 +177,69 @@ function ClusterBlock<T extends PricingRateTierRow>({
           >
             <Text style={[styles.expandIcon, expanded && styles.expandIconOpen]}>{expanded ? "▴" : "▾"}</Text>
           </Pressable>
-        ) : primary ? (
-          <PricingRowMoreMenu
+        </View>
+      ) : primary ? (
+        <View style={[styles.singleWrap, isRTL && styles.singleWrapRtl]}>
+          <View style={[styles.singleNameCol, isRTL && styles.singleNameColRtl]}>
+            {clusterMode === "title" ? (
+              <Text style={[styles.headerTitle, isRTL && styles.rtl]} numberOfLines={2}>
+                {cluster.title}
+              </Text>
+            ) : null}
+          </View>
+          <RateRowCard
+            period={primary}
+            tierLine={tierLineForItem(cluster.items[0]!)}
+            isRTL={isRTL}
+            presentLabel={presentLabel}
+            language={language}
             editLabel={editLabel}
             removeLabel={removeLabel}
+            moreMenuLabel={moreMenuLabel}
+            closeLabel={closeLabel}
             onEdit={() => onEdit(primary)}
             onRemove={() => onRemove(primary)}
-            menuAccessibilityLabel={moreMenuLabel}
-            closeAccessibilityLabel={closeLabel}
-            isRTL={isRTL}
           />
-        ) : null}
-      </View>
+        </View>
+      ) : null}
 
       {expanded && multi ? (
         <View style={styles.body}>
-          {cluster.items.map((item) => {
-            const lineTitle = item.subtitle ?? item.title;
-            return (
-              <View key={item.key} style={[styles.innerRow, isRTL && styles.innerRowRtl]}>
-                <Text style={[styles.innerLabel, isRTL && styles.rtl]} numberOfLines={1}>
-                  {lineTitle} · {priceLabel(item.period)}
-                </Text>
-                <PricingRowMoreMenu
-                  editLabel={editLabel}
-                  removeLabel={removeLabel}
-                  onEdit={() => onEdit(item.period)}
-                  onRemove={() => onRemove(item.period)}
-                  menuAccessibilityLabel={moreMenuLabel}
-                  closeAccessibilityLabel={closeLabel}
-                  isRTL={isRTL}
-                />
-              </View>
-            );
-          })}
+          {cluster.items.map((item) => (
+            <RateRowCard
+              key={item.key}
+              period={item.period}
+              tierLine={tierLineForItem(item)}
+              isRTL={isRTL}
+              presentLabel={presentLabel}
+              language={language}
+              editLabel={editLabel}
+              removeLabel={removeLabel}
+              moreMenuLabel={moreMenuLabel}
+              closeLabel={closeLabel}
+              onEdit={() => onEdit(item.period)}
+              onRemove={() => onRemove(item.period)}
+            />
+          ))}
           {cluster.pastCount > 0 ? (
             showPast ? (
               <>
                 {cluster.pastPeriods.map((p) => (
-                  <View
+                  <RateRowCard
                     key={p.id ?? `past-${cluster.clusterKey}-${p.effective_from}`}
-                    style={[styles.innerRow, styles.innerMuted, isRTL && styles.innerRowRtl]}
-                  >
-                    <Text style={[styles.innerLabel, isRTL && styles.rtl]} numberOfLines={1}>
-                      {(cluster.items[0]?.subtitle ?? cluster.title) + " · " + priceLabel(p)}
-                    </Text>
-                    <PricingRowMoreMenu
-                      editLabel={editLabel}
-                      removeLabel={removeLabel}
-                      onEdit={() => onEdit(p)}
-                      onRemove={() => onRemove(p)}
-                      menuAccessibilityLabel={moreMenuLabel}
-                      closeAccessibilityLabel={closeLabel}
-                      isRTL={isRTL}
-                    />
-                  </View>
+                    period={p}
+                    tierLine={`${cluster.items[0]?.subtitle ?? cluster.title} · ${priceLabel(p)}`}
+                    isRTL={isRTL}
+                    presentLabel={presentLabel}
+                    language={language}
+                    editLabel={editLabel}
+                    removeLabel={removeLabel}
+                    moreMenuLabel={moreMenuLabel}
+                    closeLabel={closeLabel}
+                    onEdit={() => onEdit(p)}
+                    onRemove={() => onRemove(p)}
+                    muted
+                  />
                 ))}
                 <Pressable onPress={() => setShowPast(false)} style={styles.pastToggle}>
                   <Text style={styles.pastToggleTxt}>{hideEndedLabel}</Text>
@@ -168,20 +259,21 @@ function ClusterBlock<T extends PricingRateTierRow>({
           {showPast ? (
             <>
               {cluster.pastPeriods.map((p) => (
-                <View key={p.id ?? `past-${p.id}`} style={[styles.innerRow, styles.innerMuted, isRTL && styles.innerRowRtl]}>
-                  <Text style={[styles.innerLabel, isRTL && styles.rtl]} numberOfLines={1}>
-                    {cluster.title} · {priceLabel(p)}
-                  </Text>
-                  <PricingRowMoreMenu
-                    editLabel={editLabel}
-                    removeLabel={removeLabel}
-                    onEdit={() => onEdit(p)}
-                    onRemove={() => onRemove(p)}
-                    menuAccessibilityLabel={moreMenuLabel}
-                    closeAccessibilityLabel={closeLabel}
-                    isRTL={isRTL}
-                  />
-                </View>
+                <RateRowCard
+                  key={p.id ?? `past-${p.id}`}
+                  period={p}
+                  tierLine={`${cluster.items[0]?.subtitle ?? cluster.title} · ${priceLabel(p)}`}
+                  isRTL={isRTL}
+                  presentLabel={presentLabel}
+                  language={language}
+                  editLabel={editLabel}
+                  removeLabel={removeLabel}
+                  moreMenuLabel={moreMenuLabel}
+                  closeLabel={closeLabel}
+                  onEdit={() => onEdit(p)}
+                  onRemove={() => onRemove(p)}
+                  muted
+                />
               ))}
               <Pressable onPress={() => setShowPast(false)} style={styles.pastToggle}>
                 <Text style={styles.pastToggleTxt}>{hideEndedLabel}</Text>
@@ -219,6 +311,7 @@ export function PricingCollapsibleList<T extends PricingRateTierRow>({
         <ClusterBlock
           key={cluster.clusterKey}
           cluster={cluster}
+          clusterMode={clusterMode}
           showEndedLabel={showEndedLabel}
           hideEndedLabel={hideEndedLabel}
           editLabel={editLabel}
@@ -239,12 +332,13 @@ const styles = StyleSheet.create({
   cluster: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderMuted,
+    paddingVertical: 4,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 4,
   },
   headerRtl: { flexDirection: "row-reverse" },
@@ -252,14 +346,10 @@ const styles = StyleSheet.create({
   headerMainRtl: { alignItems: "flex-end" },
   headerTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text, lineHeight: 20 },
   headerMeta: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
-  headerPrice: { fontSize: 16, fontWeight: "800", color: theme.colors.text, marginTop: 1 },
-  headerPriceInline: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: theme.colors.text,
-    flexShrink: 0,
-    marginHorizontal: 4,
-  },
+  singleWrap: { gap: 6, paddingHorizontal: 4, paddingBottom: 4 },
+  singleWrapRtl: { alignItems: "stretch" },
+  singleNameCol: { paddingHorizontal: 8, paddingTop: 4 },
+  singleNameColRtl: { alignItems: "flex-end" },
   iconBtn: {
     width: 36,
     height: 36,
@@ -273,20 +363,24 @@ const styles = StyleSheet.create({
   },
   expandIcon: { fontSize: 14, fontWeight: "800", color: theme.colors.textMuted, lineHeight: 16 },
   expandIconOpen: { color: theme.colors.text },
-  body: { paddingBottom: 8, paddingHorizontal: 4, gap: 4 },
-  innerRow: {
+  body: { paddingBottom: 8, paddingHorizontal: 4, gap: 6 },
+  rateCard: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     borderRadius: theme.radius.sm,
     backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
   },
-  innerRowRtl: { flexDirection: "row-reverse" },
-  innerMuted: { opacity: 0.65 },
-  innerLabel: { flex: 1, fontSize: 14, fontWeight: "700", color: theme.colors.text },
+  rateCardRtl: { flexDirection: "row-reverse" },
+  rateCardMuted: { opacity: 0.65 },
+  rateTextCol: { flex: 1, minWidth: 0, gap: 4 },
+  rateTextColRtl: { alignItems: "flex-end" },
+  tierLine: { fontSize: 14, fontWeight: "800", color: theme.colors.text, lineHeight: 19 },
+  dateLine: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, lineHeight: 16 },
   pastToggle: { paddingVertical: 6, paddingHorizontal: 8 },
   pastToggleTxt: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
   rtl: { textAlign: "right" },

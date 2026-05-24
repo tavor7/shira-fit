@@ -4,6 +4,7 @@ import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useI18n } from "../context/I18nContext";
+import { PricingIssuesPanel } from "../components/PricingIssuesPanel";
 import { PricingCollapsibleList } from "../components/PricingCollapsibleList";
 import { PricingFormModal } from "../components/PricingFormModal";
 import { PricingSectionAddButton } from "../components/PricingSectionAddButton";
@@ -25,6 +26,14 @@ import {
   sortPricingRows,
   validatePricingPeriodInput,
 } from "../lib/pricingRates";
+import {
+  auditCoachSessionPricingIssues,
+  detectNoPricingConfigured,
+  detectPricingCoverageGaps,
+  detectPricingOverlaps,
+  mergePricingIssues,
+  type PricingIssue,
+} from "../lib/pricingIssues";
 
 type Trainer = { user_id: string; full_name: string; username: string; role: string };
 
@@ -55,6 +64,7 @@ export default function CoachCapacityPricingScreen({
   const [saving, setSaving] = useState(false);
   const [editRow, setEditRow] = useState<{ id: string; cap: number } | null>(null);
   const [formModalOpen, setFormModalOpen] = useState(false);
+  const [auditIssues, setAuditIssues] = useState<PricingIssue[]>([]);
 
   const coachId = lockedCoachId ?? pickedCoachId;
 
@@ -201,6 +211,66 @@ export default function CoachCapacityPricingScreen({
     [language, t]
   );
 
+  const capTitle = useCallback(
+    (cap: number) => t("coachPricing.tierListCaption").replace("{n}", String(cap)),
+    [t]
+  );
+
+  const staticIssues = useMemo(() => {
+    if (!coachId) return [];
+    return mergePricingIssues(
+      detectPricingOverlaps(rows, "coach", capTitle, formatRange),
+      detectPricingCoverageGaps(rows, "coach", capTitle, formatRange),
+      detectNoPricingConfigured(
+        rows,
+        "coach",
+        coachLabel ? `${coachLabel} · ${t("coachPricing.ratesSection")}` : t("coachPricing.ratesSection")
+      )
+    );
+  }, [coachId, coachLabel, rows, capTitle, formatRange, t]);
+
+  useEffect(() => {
+    if (!coachId || loading) {
+      setAuditIssues([]);
+      return;
+    }
+    let cancelled = false;
+    void auditCoachSessionPricingIssues({
+      supabase,
+      coachId,
+      coachRows: rows,
+      language,
+    }).then((issues) => {
+      if (!cancelled) setAuditIssues(issues);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [coachId, rows, language, loading]);
+
+  const pricingIssues = useMemo(
+    () => mergePricingIssues(staticIssues, auditIssues),
+    [staticIssues, auditIssues]
+  );
+
+  function applyPricingFix(issue: PricingIssue) {
+    const fix = issue.fix;
+    if (!fix) return;
+    if (fix.type === "edit_rate" && fix.section === "coach") {
+      const row = rows.find((r) => r.id === fix.rateId);
+      if (row) startEdit(row);
+      return;
+    }
+    if (fix.type === "add_rate" && fix.section === "coach") {
+      setEditRow(null);
+      setCapStr(fix.maxParticipants != null ? String(fix.maxParticipants) : "");
+      setPriceStr("");
+      setFromStr(fix.effectiveFrom ?? toISODateLocal(new Date()));
+      setToStr("");
+      setFormModalOpen(true);
+    }
+  }
+
   const showEndedLabel = useCallback(
     (n: number) => t("pricing.showEndedRates").replace(/\{n\}/g, String(n)),
     [t]
@@ -209,11 +279,6 @@ export default function CoachCapacityPricingScreen({
   const capacityGroups = useMemo(
     () => filterVisiblePricingGroups(groupPricingByCapacity(rows)),
     [rows]
-  );
-
-  const capTitle = useCallback(
-    (cap: number) => t("coachPricing.tierListCaption").replace("{n}", String(cap)),
-    [t]
   );
 
   const listRows = useMemo(
@@ -252,6 +317,8 @@ export default function CoachCapacityPricingScreen({
 
   const body = (
     <>
+      {coachId ? <PricingIssuesPanel issues={pricingIssues} onFix={applyPricingFix} isRTL={isRTL} /> : null}
+
       {allowCoachPicker && !lockedCoachId ? (
         <View style={styles.coachPickCard}>
           <PricingPickerField

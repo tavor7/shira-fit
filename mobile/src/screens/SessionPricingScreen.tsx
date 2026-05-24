@@ -12,6 +12,7 @@ import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useI18n } from "../context/I18nContext";
+import { PricingIssuesPanel } from "../components/PricingIssuesPanel";
 import { PricingSection } from "../components/PricingSection";
 import { PricingCollapsibleList } from "../components/PricingCollapsibleList";
 import { PricingFormModal } from "../components/PricingFormModal";
@@ -30,12 +31,22 @@ import {
   clusterPricingListRows,
   filterVisiblePricingGroups,
   flattenPricingGroupsForList,
+  athletePricingTierKey,
   groupAthletePricingRows,
   groupPricingByCapacity,
   isPricingOverlapDbError,
   sortPricingRows,
   validatePricingPeriodInput,
 } from "../lib/pricingRates";
+import {
+  auditSessionPricingIssues,
+  detectNoPricingConfigured,
+  detectPricingCoverageGaps,
+  detectPricingOverlaps,
+  mergePricingIssues,
+  type PricingIssue,
+  type PricingIssuesDetectOpts,
+} from "../lib/pricingIssues";
 
 type Props = { hideIntro?: boolean };
 
@@ -105,6 +116,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   const [globalModalOpen, setGlobalModalOpen] = useState(false);
   const [athleteModalOpen, setAthleteModalOpen] = useState(false);
   const [kickboxModalOpen, setKickboxModalOpen] = useState(false);
+  const [auditIssues, setAuditIssues] = useState<PricingIssue[]>([]);
 
   const notifyErr = useCallback(
     (message: string) => {
@@ -204,6 +216,118 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     void load();
     void loadOverrides();
   }, [load, loadOverrides]);
+
+  const formatRange = useCallback(
+    (from?: string, to?: string | null) => {
+      if (!from) return "—";
+      return formatPricingEffectiveRange(from, to, language, t("pricing.effectivePresent"));
+    },
+    [language, t]
+  );
+
+  const capTitle = useCallback(
+    (cap: number) => `${cap} ${t("pricing.participantsLabel")}`,
+    [t]
+  );
+
+  const athleteIssueOpts = useMemo(
+    (): PricingIssuesDetectOpts<OverrideRow> => ({
+      tierKey: (r) => athletePricingTierKey(r),
+      issueTitle: (periods) => {
+        const row = periods[0]!;
+        return `${resolveOverrideName(row)} · ${capTitle(row.max_participants)}`;
+      },
+    }),
+    [capTitle]
+  );
+
+  const staticIssues = useMemo(
+    () =>
+      mergePricingIssues(
+        detectPricingOverlaps(rows, "standard", capTitle, formatRange),
+        detectPricingCoverageGaps(rows, "standard", capTitle, formatRange),
+        detectNoPricingConfigured(rows, "standard", t("pricing.standardSection")),
+        detectPricingOverlaps(kickboxRows, "kickbox", capTitle, formatRange),
+        detectPricingCoverageGaps(kickboxRows, "kickbox", capTitle, formatRange),
+        detectNoPricingConfigured(kickboxRows, "kickbox", t("pricing.kickboxGlobalSection")),
+        detectPricingOverlaps(overrideRows, "athlete", capTitle, formatRange, athleteIssueOpts),
+        detectPricingCoverageGaps(overrideRows, "athlete", capTitle, formatRange, undefined, athleteIssueOpts)
+      ),
+    [rows, kickboxRows, overrideRows, capTitle, formatRange, t, athleteIssueOpts]
+  );
+
+  useEffect(() => {
+    if (loading || overrideLoading) return;
+    let cancelled = false;
+    void auditSessionPricingIssues({
+      supabase,
+      globalRows: rows,
+      kickboxRows,
+      athleteRows: overrideRows,
+      language,
+    }).then((issues) => {
+      if (!cancelled) setAuditIssues(issues);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [rows, kickboxRows, overrideRows, language, loading, overrideLoading]);
+
+  const pricingIssues = useMemo(
+    () => mergePricingIssues(staticIssues, auditIssues),
+    [staticIssues, auditIssues]
+  );
+
+  function applyPricingFix(issue: PricingIssue) {
+    const fix = issue.fix;
+    if (!fix) return;
+    if (fix.type === "edit_rate") {
+      if (fix.section === "standard") {
+        const row = rows.find((r) => r.id === fix.rateId);
+        if (row) startEditGlobal(row, false);
+      } else if (fix.section === "kickbox") {
+        const row = kickboxRows.find((r) => r.id === fix.rateId);
+        if (row) startEditGlobal(row, true);
+      } else if (fix.section === "athlete") {
+        const row = overrideRows.find((r) => r.id === fix.rateId);
+        if (row) startEditAthlete(row);
+      }
+      return;
+    }
+    if (fix.type === "add_rate") {
+      if (fix.section === "standard") {
+        setEditGlobal(null);
+        setCapStr(fix.maxParticipants != null ? String(fix.maxParticipants) : "");
+        setPriceStr("");
+        setGlobalFromStr(fix.effectiveFrom ?? toISODateLocal(new Date()));
+        setGlobalToStr("");
+        setKickboxModalOpen(false);
+        setAthleteModalOpen(false);
+        setGlobalModalOpen(true);
+      } else if (fix.section === "kickbox") {
+        setEditGlobal(null);
+        setKickboxCapStr(fix.maxParticipants != null ? String(fix.maxParticipants) : "");
+        setKickboxPriceStr("");
+        setKickboxFromStr(fix.effectiveFrom ?? toISODateLocal(new Date()));
+        setKickboxToStr("");
+        setGlobalModalOpen(false);
+        setAthleteModalOpen(false);
+        setKickboxModalOpen(true);
+      } else if (fix.section === "athlete") {
+        setEditAthlete(null);
+        setPickedUserId(fix.userId ?? "");
+        setPickedManualId(fix.manualParticipantId ?? "");
+        setPickedAthleteLabel(fix.athleteLabel ?? "");
+        setAthCapStr(fix.maxParticipants != null ? String(fix.maxParticipants) : "");
+        setAthPriceStr("");
+        setAthFromStr(fix.effectiveFrom ?? toISODateLocal(new Date()));
+        setAthToStr("");
+        setGlobalModalOpen(false);
+        setKickboxModalOpen(false);
+        setAthleteModalOpen(true);
+      }
+    }
+  }
 
   function selectAthletePick(item: AthletePick) {
     if (item.kind === "athlete") {
@@ -525,14 +649,6 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     });
   }
 
-  const formatRange = useCallback(
-    (from?: string, to?: string | null) => {
-      if (!from) return "—";
-      return formatPricingEffectiveRange(from, to, language, t("pricing.effectivePresent"));
-    },
-    [language, t]
-  );
-
   const showEndedLabel = useCallback(
     (n: number) => t("pricing.showEndedRates").replace(/\{n\}/g, String(n)),
     [t]
@@ -549,11 +665,6 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   const athleteGroups = useMemo(
     () => filterVisiblePricingGroups(groupAthletePricingRows(overrideRows, resolveOverrideName)),
     [overrideRows]
-  );
-
-  const capTitle = useCallback(
-    (cap: number) => `${cap} ${t("pricing.participantsLabel")}`,
-    [t]
   );
 
   const globalListRows = useMemo(
@@ -595,6 +706,8 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
 
   const body = (
     <>
+      <PricingIssuesPanel issues={pricingIssues} onFix={applyPricingFix} isRTL={isRTL} />
+
       <PricingSection
         title={t("pricing.standardSection")}
         isRTL={isRTL}
