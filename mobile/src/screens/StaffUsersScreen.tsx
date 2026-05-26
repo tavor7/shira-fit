@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { AppSearchField } from "../components/AppSearchField";
+import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 
 type ProfileRow = {
   kind: "profile";
@@ -38,6 +39,7 @@ export default function StaffUsersScreen() {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
+  const listBottomPad = useSearchListBottomPadding();
 
   const load = useCallback(async (termRaw?: string) => {
     const qTrim = (termRaw ?? q).trim();
@@ -117,7 +119,7 @@ export default function StaffUsersScreen() {
       <FlatList
         data={rows}
         keyExtractor={(i) => (i.kind === "profile" ? i.user_id : `manual:${i.id}`)}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: listBottomPad }]}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View style={styles.top}>

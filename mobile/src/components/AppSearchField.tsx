@@ -24,10 +24,28 @@ type Props = {
   editable?: boolean;
   accessibilityLabel?: string;
   autoFocus?: boolean;
+  /** Keep the field visible above the keyboard (mobile web). */
+  scrollOnFocus?: boolean;
   style?: StyleProp<ViewStyle>;
   onFocus?: () => void;
   onBlur?: () => void;
 };
+
+function scrollWebInputIntoView(ref: { current: TextInput | null }) {
+  if (Platform.OS !== "web" || typeof document === "undefined") return;
+
+  requestAnimationFrame(() => {
+    const target = ref.current as unknown as HTMLElement | null;
+    if (!target) return;
+
+    const input =
+      target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
+        ? target
+        : (target.querySelector?.("input, textarea") as HTMLElement | null);
+
+    input?.scrollIntoView?.({ block: "center", inline: "nearest" });
+  });
+}
 
 export function AppSearchField({
   value,
@@ -40,6 +58,7 @@ export function AppSearchField({
   editable = true,
   accessibilityLabel,
   autoFocus,
+  scrollOnFocus = Platform.OS === "web",
   style,
   onFocus,
   onBlur,
@@ -66,6 +85,11 @@ export function AppSearchField({
     scheduleSearch("");
   }
 
+  function handleFocus() {
+    if (scrollOnFocus) scrollWebInputIntoView(inputRef);
+    onFocus?.();
+  }
+
   return (
     <View style={[styles.shell, isRTL && styles.shellRtl, style]} accessibilityRole="search">
       <Text style={styles.glyph} accessibilityElementsHidden importantForAccessibility="no">
@@ -84,7 +108,7 @@ export function AppSearchField({
         accessibilityLabel={accessibilityLabel ?? placeholder}
         autoFocus={autoFocus}
         returnKeyType="search"
-        onFocus={onFocus}
+        onFocus={handleFocus}
         onBlur={onBlur}
         onSubmitEditing={() => void onSearchRef.current(value)}
       />

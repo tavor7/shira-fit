@@ -5,6 +5,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { AppSearchField } from "../components/AppSearchField";
+import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 
 type Role = "athlete" | "coach" | "manager";
 type Row = {
@@ -21,6 +22,7 @@ export default function RoleManagementScreen() {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
+  const listBottomPad = useSearchListBottomPadding();
 
   const load = useCallback(async (termRaw?: string) => {
     const qTrim = (termRaw ?? q).trim();
@@ -75,7 +77,7 @@ export default function RoleManagementScreen() {
       <FlatList
         data={rows}
         keyExtractor={(i) => i.user_id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: listBottomPad }]}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View style={styles.top}>

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View, Text, Pressable, StyleSheet, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, StyleSheet, FlatList } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
 import { surface } from "../theme/surfaces";
@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { AppSearchField } from "../components/AppSearchField";
+import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 
 type AthleteRow = { kind: "athlete"; id: string; title: string; subtitle: string };
 type ManualRow = { kind: "manual"; id: string; title: string; subtitle: string };
@@ -17,6 +18,7 @@ export default function StaffSearchScreen() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<(AthleteRow | ManualRow)[]>([]);
+  const listBottomPad = useSearchListBottomPadding();
 
   const historyPath =
     profile?.role === "manager" ? "/(app)/manager/participant-history" : "/(app)/coach/participant-history";
@@ -73,12 +75,11 @@ export default function StaffSearchScreen() {
         style={styles.searchField}
       />
 
-      {loading ? <ActivityIndicator color={theme.colors.cta} style={{ marginTop: 16 }} /> : null}
-
       <FlatList
         data={rows}
         keyExtractor={(item) => `${item.kind}:${item.id}`}
-        contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.list, { paddingBottom: listBottomPad }]}
         ListEmptyComponent={
           !loading ? (
             <Text style={[styles.empty, isRTL && styles.rtl]}>

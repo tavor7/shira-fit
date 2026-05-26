@@ -16,6 +16,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SearchSheetFocusContext } from "../context/SearchSheetFocusContext";
 import { useKeyboardInset } from "../hooks/useKeyboardInset";
+import { useLockBodyScroll } from "../hooks/useLockBodyScroll";
+import { useVisibleViewportHeight } from "../hooks/useVisibleViewportHeight";
 import { theme } from "../theme";
 import { AppSearchField } from "./AppSearchField";
 
@@ -42,22 +44,15 @@ type Props<T> = {
   visible: boolean;
   onClose: () => void;
   title: string;
-  /** Optional line under the title (stays visible while typing). */
   subtitle?: string;
   dismissLabel: string;
   isRTL?: boolean;
   backdropAccessibilityLabel?: string;
-  /** Renders above the search field (e.g. quick-add panel). Hidden while typing. */
   headerExtra?: ReactNode;
-  /** Preferred: stable search field rendered inside the sheet (avoids remount loops). */
   searchConfig?: AppSearchSheetSearchConfig;
-  /** Optional label above the search field (used with {@link searchConfig}). */
   searchLabel?: string;
-  /** Legacy custom search UI — prefer {@link searchConfig}. */
   search?: ReactNode;
-  /** Fraction of window height for the sheet (default 0.85). */
   sheetHeightPct?: number;
-  /** Hide {@link headerExtra} while the keyboard is open to leave room for search + results. */
   hideHeaderExtraOnKeyboard?: boolean;
   cardStyle?: StyleProp<ViewStyle>;
 } & (
@@ -88,7 +83,10 @@ export function AppSearchSheet<T>({
 }: Props<T>) {
   const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
+  const visibleHeight = useVisibleViewportHeight();
   const { height: windowHeight } = useWindowDimensions();
+
+  useLockBodyScroll(visible);
 
   useEffect(() => {
     if (!visible || !searchConfig) return;
@@ -96,21 +94,17 @@ export function AppSearchSheet<T>({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once when sheet opens
   }, [visible]);
 
-  const keyboardOpen = keyboardInset > 0;
-
-  const layoutKeyboardInset = keyboardInset;
+  const layoutHeight = Platform.OS === "web" ? visibleHeight : windowHeight;
+  const keyboardOpen =
+    Platform.OS === "web" ? visibleHeight < windowHeight * 0.92 : keyboardInset > 0;
 
   const sheetHeight = useMemo(() => {
     const topRoom = Math.max(insets.top, 8) + 8;
-    const cap = Math.round(windowHeight * sheetHeightPct);
-    const available = windowHeight - layoutKeyboardInset - topRoom;
-    if (keyboardOpen) {
-      return Math.max(220, Math.min(cap, available));
-    }
-    return Math.min(cap, windowHeight - topRoom);
-  }, [windowHeight, sheetHeightPct, insets.top, layoutKeyboardInset, keyboardOpen]);
+    const cap = Math.round(layoutHeight * sheetHeightPct);
+    return Math.max(260, Math.min(cap, layoutHeight - topRoom));
+  }, [layoutHeight, sheetHeightPct, insets.top]);
 
-  const bottomPad = keyboardOpen ? 8 : Math.max(insets.bottom, theme.spacing.md);
+  const bottomPad = Math.max(insets.bottom, theme.spacing.md);
   const showHeaderExtra = headerExtra != null && !(hideHeaderExtraOnKeyboard && keyboardOpen);
 
   const focusContext = useMemo(() => ({ isCompact: keyboardOpen }), [keyboardOpen]);
@@ -152,7 +146,11 @@ export function AppSearchSheet<T>({
           <View
             style={[
               styles.sheet,
-              { height: sheetHeight, paddingBottom: bottomPad, marginBottom: layoutKeyboardInset },
+              {
+                height: sheetHeight,
+                paddingBottom: bottomPad,
+                marginBottom: Platform.OS === "web" ? 0 : keyboardInset,
+              },
               cardStyle,
             ]}
           >
@@ -176,7 +174,7 @@ export function AppSearchSheet<T>({
 
             {searchNode != null ? <View style={styles.searchWrap}>{searchNode}</View> : null}
 
-            <View style={[styles.resultsArea, keyboardOpen && styles.resultsAreaKeyboard]}>
+            <View style={styles.resultsArea}>
               {listLoading ? (
                 <ActivityIndicator
                   size="small"
@@ -268,6 +266,14 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
     gap: theme.spacing.sm,
+    zIndex: 2,
+    ...(Platform.OS === "web"
+      ? ({
+          position: "sticky",
+          top: 0,
+          backgroundColor: theme.colors.surface,
+        } as object)
+      : {}),
   },
   searchLabel: {
     fontWeight: "800",
@@ -279,10 +285,6 @@ const styles = StyleSheet.create({
   resultsArea: {
     flex: 1,
     minHeight: 0,
-  },
-  resultsAreaKeyboard: {
-    minHeight: 120,
-    ...(Platform.OS === "web" ? { minHeight: 100 } : {}),
   },
   resultsFlexInner: {
     flex: 1,
