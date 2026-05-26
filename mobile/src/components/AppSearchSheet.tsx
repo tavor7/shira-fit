@@ -33,10 +33,14 @@ type Props<T> = {
   backdropAccessibilityLabel?: string;
   /** Renders above the search field (e.g. quick-add panel). */
   headerExtra?: ReactNode;
-  search: ReactNode;
+  search?: ReactNode;
   loading?: boolean;
   /** Fraction of window height for the sheet (default 0.85). */
   sheetHeightPct?: number;
+  /** Hide {@link headerExtra} while the keyboard is open to leave room for search + results. */
+  hideHeaderExtraOnKeyboard?: boolean;
+  /** Treat as keyboard-open for layout (e.g. search focused before inset is measured). */
+  keyboardCompact?: boolean;
   cardStyle?: StyleProp<ViewStyle>;
 } & (
   | ({ results: ReactNode } & Partial<Record<keyof ListProps<T>, never>>)
@@ -54,6 +58,7 @@ export function AppSearchSheet<T>({
   search,
   loading = false,
   sheetHeightPct = 0.85,
+  hideHeaderExtraOnKeyboard = true,
   cardStyle,
   results,
   data,
@@ -65,14 +70,25 @@ export function AppSearchSheet<T>({
   const keyboardInset = useKeyboardInset();
   const { height: windowHeight } = useWindowDimensions();
 
-  const sheetHeight = useMemo(() => {
-    const cap = Math.round(windowHeight * sheetHeightPct);
-    const topRoom = Math.max(insets.top, 8) + 12;
-    const withKeyboard = keyboardInset > 0 ? windowHeight - keyboardInset - topRoom : cap;
-    return Math.max(280, Math.min(cap, withKeyboard));
-  }, [windowHeight, sheetHeightPct, insets.top, keyboardInset]);
+  const keyboardOpen = keyboardInset > 0 || keyboardCompact;
+  const layoutKeyboardInset = useMemo(() => {
+    if (keyboardInset > 0) return keyboardInset;
+    if (!keyboardCompact) return 0;
+    return Math.min(Math.round(windowHeight * 0.42) + 52, 600);
+  }, [keyboardInset, keyboardCompact, windowHeight]);
 
-  const bottomPad = keyboardInset > 0 ? 8 : Math.max(insets.bottom, theme.spacing.md);
+  const sheetHeight = useMemo(() => {
+    const topRoom = Math.max(insets.top, 8) + 8;
+    const cap = Math.round(windowHeight * sheetHeightPct);
+    const available = windowHeight - layoutKeyboardInset - topRoom;
+    if (keyboardOpen) {
+      return Math.max(220, Math.min(cap, available));
+    }
+    return Math.min(cap, windowHeight - topRoom);
+  }, [windowHeight, sheetHeightPct, insets.top, layoutKeyboardInset, keyboardOpen]);
+
+  const bottomPad = keyboardOpen ? 8 : Math.max(insets.bottom, theme.spacing.md);
+  const showHeaderExtra = headerExtra != null && !(hideHeaderExtraOnKeyboard && keyboardOpen);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -83,7 +99,9 @@ export function AppSearchSheet<T>({
           accessibilityRole="button"
           accessibilityLabel={backdropAccessibilityLabel ?? dismissLabel}
         />
-        <View style={[styles.sheet, { height: sheetHeight, paddingBottom: bottomPad }, cardStyle]}>
+        <View
+          style={[styles.sheet, { height: sheetHeight, paddingBottom: bottomPad, marginBottom: layoutKeyboardInset }, cardStyle]}
+        >
           <View style={[styles.header, isRTL && styles.headerRtl]}>
             <Text style={[styles.title, isRTL && styles.rtlText]} numberOfLines={2}>
               {title}
@@ -93,11 +111,11 @@ export function AppSearchSheet<T>({
             </Pressable>
           </View>
 
-          {headerExtra ? <View style={styles.headerExtra}>{headerExtra}</View> : null}
+          {showHeaderExtra ? <View style={styles.headerExtra}>{headerExtra}</View> : null}
 
-          <View style={styles.searchWrap}>{search}</View>
+          {search != null ? <View style={styles.searchWrap}>{search}</View> : null}
 
-          <View style={styles.resultsArea}>
+          <View style={[styles.resultsArea, keyboardOpen && styles.resultsAreaKeyboard]}>
             {loading ? (
               <ActivityIndicator
                 size="large"
@@ -147,6 +165,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     borderColor: theme.colors.borderMuted,
     overflow: "hidden",
+    flexDirection: "column",
   },
   header: {
     flexDirection: "row",
@@ -184,8 +203,11 @@ const styles = StyleSheet.create({
   },
   resultsArea: {
     flex: 1,
-    minHeight: 140,
-    ...(Platform.OS === "web" ? { minHeight: 160 } : {}),
+    minHeight: 0,
+  },
+  resultsAreaKeyboard: {
+    minHeight: 120,
+    ...(Platform.OS === "web" ? { minHeight: 100 } : {}),
   },
   loader: { flex: 1, justifyContent: "center", paddingVertical: theme.spacing.xl },
   list: { flex: 1 },

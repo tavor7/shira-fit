@@ -62,7 +62,10 @@ export default function RootLayout() {
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         {Platform.OS === "web" ? (
           <Head>
-            <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+            <meta
+              name="viewport"
+              content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+            />
             <meta name="color-scheme" content="dark light" />
             <style>{`
               :root { color-scheme: dark; }

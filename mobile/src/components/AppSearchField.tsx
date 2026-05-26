@@ -25,6 +25,7 @@ type Props = {
   accessibilityLabel?: string;
   autoFocus?: boolean;
   style?: StyleProp<ViewStyle>;
+  onFocus?: () => void;
 };
 
 export function AppSearchField({
@@ -65,12 +66,22 @@ export function AppSearchField({
     onChangeText("");
   }
 
+  function handleFocus() {
+    onFocus?.();
+    if (Platform.OS !== "web" || typeof document === "undefined") return;
+    requestAnimationFrame(() => {
+      const node = inputRef.current as unknown as HTMLElement | null;
+      node?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    });
+  }
+
   return (
     <View style={[styles.shell, isRTL && styles.shellRtl, style]} accessibilityRole="search">
       <Text style={styles.glyph} accessibilityElementsHidden importantForAccessibility="no">
         ⌕
       </Text>
       <TextInput
+        ref={inputRef}
         value={value}
         onChangeText={handleChangeText}
         placeholder={placeholder}
@@ -82,6 +93,7 @@ export function AppSearchField({
         accessibilityLabel={accessibilityLabel ?? placeholder}
         autoFocus={autoFocus}
         returnKeyType="search"
+        onFocus={handleFocus}
         onSubmitEditing={() => void onSearchRef.current(value)}
       />
       {loading ? (
