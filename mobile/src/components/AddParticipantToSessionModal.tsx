@@ -5,7 +5,6 @@ import { supabase } from "../lib/supabase";
 import { AppSearchField } from "./AppSearchField";
 import { AppSearchSheet } from "./AppSearchSheet";
 import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
-import { useKeyboardInset } from "../hooks/useKeyboardInset";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 
@@ -50,7 +49,6 @@ function addManualParticipantRpcArgs(sid: string, manualId: string, allowOverCap
 export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAdded }: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
-  const keyboardInset = useKeyboardInset();
   const [maxCap, setMaxCap] = useState<number | null>(null);
   const [currentCount, setCurrentCount] = useState(0);
   const [q, setQ] = useState("");
@@ -62,7 +60,6 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   const [adding, setAdding] = useState(false);
   /** Web: `window.confirm` is unreliable inside RN Modal — use inline banner instead. */
   const [webFullAddPrompt, setWebFullAddPrompt] = useState<WebFullAddPrompt>(null);
-  const [searchFocused, setSearchFocused] = useState(false);
 
   const sid = typeof sessionId === "string" ? sessionId : Array.isArray(sessionId) ? sessionId[0] : String(sessionId ?? "");
 
@@ -174,7 +171,6 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     setQuickPhone("");
     setAdding(false);
     setWebFullAddPrompt(null);
-    setSearchFocused(false);
     void loadCounts();
     void runSearch("");
   }, [visible, sid, loadCounts, runSearch]);
@@ -450,36 +446,19 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   const capacityLabel = `${language === "he" ? "קיבולת" : "Capacity"}: ${currentCount}${
     maxCap != null ? `/${maxCap}` : ""
   }${full ? (language === "he" ? " · מלא" : " · Full") : ""}`;
-  const compactForKeyboard = keyboardInset > 0 || searchFocused;
-  const sheetTitle = compactForKeyboard ? `${addTitle} · ${capacityLabel}` : addTitle;
-
-  const searchField = (
-    <AppSearchField
-      value={q}
-      onChangeText={setQ}
-      onSearch={(term) => void runSearch(term)}
-      placeholder={language === "he" ? "חיפוש שם / טלפון / משתמש…" : "Search name / phone / username…"}
-      isRTL={isRTL}
-      loading={searching}
-      editable={!adding}
-      onFocus={() => setSearchFocused(true)}
-    />
-  );
 
   return (
     <AppSearchSheet
       visible={visible}
       onClose={handleClose}
-      title={sheetTitle}
+      title={addTitle}
+      subtitle={capacityLabel}
       dismissLabel={language === "he" ? "סגירה" : "Close"}
       isRTL={isRTL}
       backdropAccessibilityLabel={language === "he" ? "סגירה" : "Close"}
       sheetHeightPct={0.9}
-      hideHeaderExtraOnKeyboard
-      keyboardCompact={compactForKeyboard}
       headerExtra={
         <>
-          <Text style={[styles.capacityLine, isRTL && styles.rtlText]}>{capacityLabel}</Text>
           {webFullAddPrompt ? (
             <View style={[styles.capBanner, isRTL && styles.capBannerRtl]} accessibilityLiveRegion="polite">
               <Text style={[styles.capBannerTitle, isRTL && styles.rtlText]}>{fullAddCopy.title}</Text>
@@ -518,11 +497,20 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
             onSubmit={() => void quickAdd()}
             busy={adding}
             disabled={adding}
-            forceCollapsed={compactForKeyboard}
           />
         </>
       }
-      search={compactForKeyboard ? null : searchField}
+      search={
+        <AppSearchField
+          value={q}
+          onChangeText={setQ}
+          onSearch={(term) => void runSearch(term)}
+          placeholder={language === "he" ? "חיפוש שם / טלפון / משתמש…" : "Search name / phone / username…"}
+          isRTL={isRTL}
+          loading={searching}
+          editable={!adding}
+        />
+      }
       loading={searching}
       results={
         <ScrollView
@@ -533,7 +521,6 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
           showsVerticalScrollIndicator
           nestedScrollEnabled
         >
-          {compactForKeyboard ? <View style={styles.searchInList}>{searchField}</View> : null}
           {combinedPicks.length === 0 ? (
             <Text style={[styles.muted, isRTL && styles.rtlText]}>
               {q.trim()
@@ -616,9 +603,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   capBtnCtaTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 14 },
-  capacityLine: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 13 },
   resultsScroll: { flex: 1 },
-  searchInList: { marginBottom: theme.spacing.sm },
   resultsContent: {
     flexGrow: 1,
     paddingHorizontal: theme.spacing.md,

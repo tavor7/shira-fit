@@ -10,6 +10,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { useSearchSheetFocus } from "../context/SearchSheetFocusContext";
 import { theme } from "../theme";
 
 type Props = {
@@ -26,6 +27,7 @@ type Props = {
   autoFocus?: boolean;
   style?: StyleProp<ViewStyle>;
   onFocus?: () => void;
+  onBlur?: () => void;
 };
 
 export function AppSearchField({
@@ -40,7 +42,11 @@ export function AppSearchField({
   accessibilityLabel,
   autoFocus,
   style,
+  onFocus,
+  onBlur,
 }: Props) {
+  const inputRef = useRef<TextInput>(null);
+  const sheetFocus = useSearchSheetFocus();
   const onSearchRef = useRef(onSearch);
   onSearchRef.current = onSearch;
 
@@ -68,11 +74,18 @@ export function AppSearchField({
 
   function handleFocus() {
     onFocus?.();
+    sheetFocus?.registerFocus();
     if (Platform.OS !== "web" || typeof document === "undefined") return;
     requestAnimationFrame(() => {
       const node = inputRef.current as unknown as HTMLElement | null;
-      node?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      node?.scrollIntoView?.({ block: "center", inline: "nearest" });
     });
+  }
+
+  function handleBlur() {
+    onBlur?.();
+    if (!sheetFocus) return;
+    setTimeout(() => sheetFocus.registerBlur(), 120);
   }
 
   return (
@@ -94,6 +107,7 @@ export function AppSearchField({
         autoFocus={autoFocus}
         returnKeyType="search"
         onFocus={handleFocus}
+        onBlur={handleBlur}
         onSubmitEditing={() => void onSearchRef.current(value)}
       />
       {loading ? (

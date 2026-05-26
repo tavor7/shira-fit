@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { useSearchSheetFocus } from "../context/SearchSheetFocusContext";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
 type Props = {
@@ -28,7 +29,9 @@ export function ParticipantQuickAddPanel({
   forceCollapsed = false,
 }: Props) {
   const { t, isRTL } = useI18n();
+  const sheetFocus = useSearchSheetFocus();
   const [expanded, setExpanded] = useState(false);
+  const collapseForKeyboard = forceCollapsed || sheetFocus?.isCompact === true;
   const canSubmit = name.trim().length >= 2 && phone.trim().length >= 3 && !busy && !disabled;
 
   useEffect(() => {
@@ -36,8 +39,8 @@ export function ParticipantQuickAddPanel({
   }, [name, phone]);
 
   useEffect(() => {
-    if (forceCollapsed) setExpanded(false);
-  }, [forceCollapsed]);
+    if (collapseForKeyboard) setExpanded(false);
+  }, [collapseForKeyboard]);
 
   return (
     <View style={styles.card}>
