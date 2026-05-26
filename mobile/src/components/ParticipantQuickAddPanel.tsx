@@ -12,10 +12,21 @@ type Props = {
   onSubmit: () => void | Promise<void>;
   busy?: boolean;
   disabled?: boolean;
+  /** Collapse the panel (e.g. while the keyboard is open so search results have room). */
+  forceCollapsed?: boolean;
 };
 
 /** Collapsible quick-add strip for participant pickers (no account). */
-export function ParticipantQuickAddPanel({ name, phone, onNameChange, onPhoneChange, onSubmit, busy, disabled }: Props) {
+export function ParticipantQuickAddPanel({
+  name,
+  phone,
+  onNameChange,
+  onPhoneChange,
+  onSubmit,
+  busy,
+  disabled,
+  forceCollapsed = false,
+}: Props) {
   const { t, isRTL } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const canSubmit = name.trim().length >= 2 && phone.trim().length >= 3 && !busy && !disabled;
@@ -23,6 +34,10 @@ export function ParticipantQuickAddPanel({ name, phone, onNameChange, onPhoneCha
   useEffect(() => {
     if (!name.trim() && !phone.trim()) setExpanded(false);
   }, [name, phone]);
+
+  useEffect(() => {
+    if (forceCollapsed) setExpanded(false);
+  }, [forceCollapsed]);
 
   return (
     <View style={styles.card}>

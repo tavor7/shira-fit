@@ -7,6 +7,7 @@ import { formatISODateFull } from "../lib/dateFormat";
 import { firstDayOfMonthISOLocal, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "../components/StatusChip";
+import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { normalizePaymentMethodKey, paymentMethodDashboardLabel } from "../lib/paymentMethod";
 import {
@@ -77,6 +78,7 @@ export default function ManagerDashboardScreen() {
   const [capacityMismatchCount, setCapacityMismatchCount] = useState(0);
   const [expandedCoachId, setExpandedCoachId] = useState<string | null>(null);
   const [showAthleteList, setShowAthleteList] = useState(false);
+  const [addPayAthlete, setAddPayAthlete] = useState<WeeklyFinanceAthlete | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -222,6 +224,10 @@ export default function ManagerDashboardScreen() {
   function openAthleteHistory(a: WeeklyFinanceAthlete) {
     if (a.kind !== "app") return;
     router.push(`/(app)/manager/participant-history?presetUserId=${encodeURIComponent(a.id)}` as Href);
+  }
+
+  function openAddPayment(a: WeeklyFinanceAthlete) {
+    setAddPayAthlete(a);
   }
 
   const rangeLabelStart = data?.week_start ?? anchorDate;
@@ -620,39 +626,44 @@ export default function ManagerDashboardScreen() {
                     const owe = a.outstanding_ils > 0.005;
                     const canTap = a.kind === "app";
                     return (
-                      <Pressable
-                        key={`${a.kind}-${a.id}`}
-                        onPress={() => canTap && openAthleteHistory(a)}
-                        disabled={!canTap}
-                        style={({ pressed }) => [
-                          styles.athleteRow,
-                          canTap && pressed && styles.athleteRowPressed,
-                          !canTap && { opacity: 1 },
-                        ]}
-                      >
-                        <View style={[styles.athleteRowTop, isRTL && styles.athleteRowTopRtl]}>
-                          <Text style={[styles.athleteName, isRTL && styles.rtl]} numberOfLines={1}>
-                            {a.name?.trim() || "—"}
-                            {a.kind === "manual" ? ` · ${t("dashboard.financeQuickAdd")}` : ""}
+                      <View key={`${a.kind}-${a.id}`} style={styles.athleteRow}>
+                        <Pressable
+                          onPress={() => canTap && openAthleteHistory(a)}
+                          disabled={!canTap}
+                          style={({ pressed }) => [canTap && pressed && styles.athleteRowPressed]}
+                        >
+                          <View style={[styles.athleteRowTop, isRTL && styles.athleteRowTopRtl]}>
+                            <Text style={[styles.athleteName, isRTL && styles.rtl]} numberOfLines={1}>
+                              {a.name?.trim() || "—"}
+                              {a.kind === "manual" ? ` · ${t("dashboard.financeQuickAdd")}` : ""}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.athleteBal,
+                                owe ? styles.athleteBalOwe : a.outstanding_ils < -0.005 ? styles.athleteBalAhead : styles.athleteBalOk,
+                                isRTL && styles.rtl,
+                              ]}
+                            >
+                              {formatIls(a.outstanding_ils, language)}
+                            </Text>
+                          </View>
+                          <Text style={[styles.athleteSub, isRTL && styles.rtl]} numberOfLines={2}>
+                            {t("dashboard.financeExpected")}: {formatIls(a.expected_ils, language)} · {t("dashboard.financeCollectedTotal")}:{" "}
+                            {formatIls(a.collected_total_ils, language)}
                           </Text>
-                          <Text
-                            style={[
-                              styles.athleteBal,
-                              owe ? styles.athleteBalOwe : a.outstanding_ils < -0.005 ? styles.athleteBalAhead : styles.athleteBalOk,
-                              isRTL && styles.rtl,
-                            ]}
-                          >
-                            {formatIls(a.outstanding_ils, language)}
-                          </Text>
-                        </View>
-                        <Text style={[styles.athleteSub, isRTL && styles.rtl]} numberOfLines={2}>
-                          {t("dashboard.financeExpected")}: {formatIls(a.expected_ils, language)} · {t("dashboard.financeCollectedTotal")}:{" "}
-                          {formatIls(a.collected_total_ils, language)}
-                        </Text>
-                        {canTap ? (
-                          <Text style={[styles.sessionTapHint, isRTL && styles.rtl]}>{t("dashboard.financeTapActivityReport")}</Text>
-                        ) : null}
-                      </Pressable>
+                          {canTap ? (
+                            <Text style={[styles.sessionTapHint, isRTL && styles.rtl]}>{t("dashboard.financeTapActivityReport")}</Text>
+                          ) : null}
+                        </Pressable>
+                        <Pressable
+                          onPress={() => openAddPayment(a)}
+                          style={({ pressed }) => [styles.athleteAddPayBtn, pressed && { opacity: 0.88 }]}
+                          accessibilityRole="button"
+                          accessibilityLabel={t("billing.addPayment")}
+                        >
+                          <Text style={styles.athleteAddPayBtnTxt}>{t("billing.addPayment")}</Text>
+                        </Pressable>
+                      </View>
                     );
                   })
                 )}
@@ -680,6 +691,15 @@ export default function ManagerDashboardScreen() {
           )}
         </View>
       ) : null}
+
+      <AddAccountPaymentModal
+        visible={addPayAthlete != null}
+        onClose={() => setAddPayAthlete(null)}
+        payeeId={addPayAthlete?.id ?? ""}
+        payeeIsManual={addPayAthlete?.kind === "manual"}
+        payeeLabel={addPayAthlete?.name?.trim() || undefined}
+        onSaved={load}
+      />
     </ScrollView>
   );
 }
@@ -993,4 +1013,13 @@ const styles = StyleSheet.create({
   athleteBalAhead: { color: theme.colors.success },
   athleteBalOk: { color: theme.colors.textMuted },
   athleteSub: { marginTop: 6, fontSize: 11, color: theme.colors.textMuted, lineHeight: 16 },
+  athleteAddPayBtn: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.cta,
+  },
+  athleteAddPayBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 12 },
 });

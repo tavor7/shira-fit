@@ -123,8 +123,9 @@ export function ParticipantAttendanceList({
   showMarkAllArrived = true,
 }: Props) {
   const { language, t, isRTL } = useI18n();
-  const { showConfirm } = useAppAlert();
+  const { showConfirm, showAlert, showOk } = useAppAlert();
   const [rows, setRows] = useState<Row[]>([]);
+  const [maxParticipants, setMaxParticipants] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
@@ -138,6 +139,8 @@ export function ParticipantAttendanceList({
     return template.replace(/\{name\}/g, name);
   }
 
+  const canOfferDecreaseGroupSize = maxParticipants != null && maxParticipants < 12 && maxParticipants > 1 && rows.length >= maxParticipants;
+
   function confirmRemoveRegistered(item: Extract<Row, { kind: "registered" }>) {
     if (!onRemoveAthlete) return;
     showConfirm({
@@ -146,7 +149,47 @@ export function ParticipantAttendanceList({
       cancelLabel: t("common.cancel"),
       confirmLabel: t("managerSession.removeParticipantConfirmRemove"),
       confirmVariant: "danger",
-      onConfirm: () => void Promise.resolve(onRemoveAthlete(item.userId)),
+      onConfirm: () => {
+        // Optional second prompt: for small (<12) FULL sessions, also decrease max participants by 1.
+        if (canOfferDecreaseGroupSize) {
+          showAlert({
+            title: t("managerSession.decreaseGroupSizeTitle"),
+            message: t("managerSession.decreaseGroupSizeMessage"),
+            actions: [
+              {
+                label: t("common.cancel"),
+                variant: "secondary",
+                onPress: () => void Promise.resolve(onRemoveAthlete(item.userId)),
+              },
+              {
+                label: t("managerSession.decreaseGroupSizeConfirm"),
+                variant: "primary",
+                onPress: () => {
+                  void (async () => {
+                    if (!maxParticipants || maxParticipants <= 1) {
+                      await Promise.resolve(onRemoveAthlete(item.userId));
+                      return;
+                    }
+                    const nextMax = maxParticipants - 1;
+                    await Promise.resolve(onRemoveAthlete(item.userId));
+
+                    // Update max participants after the athlete is removed to avoid transient capacity violations.
+                    const { error: capErr } = await supabase
+                      .from("training_sessions")
+                      .update({ max_participants: nextMax })
+                      .eq("id", sessionId);
+                    if (capErr) showOk(t("common.error"), capErr.message);
+                    else setMaxParticipants(nextMax);
+                  })();
+                },
+              },
+            ],
+          });
+          return;
+        }
+
+        void Promise.resolve(onRemoveAthlete(item.userId));
+      },
     });
   }
 
@@ -164,6 +207,10 @@ export function ParticipantAttendanceList({
 
   const load = useCallback(async () => {
     setLoading(true);
+
+    const { data: s } = await supabase.from("training_sessions").select("max_participants").eq("id", sessionId).single();
+    setMaxParticipants((s as { max_participants?: number } | null)?.max_participants ?? null);
+
     const { data, error } = await supabase
       .from("session_registrations")
       .select("user_id, attended, charge_no_show, payment_method, amount_paid, profiles(full_name, username, phone, date_of_birth)")

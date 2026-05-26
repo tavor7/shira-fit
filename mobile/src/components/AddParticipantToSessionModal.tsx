@@ -1,22 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  Modal,
-  ScrollView,
-  Platform,
-  useWindowDimensions,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useKeyboardInset } from "../hooks/useKeyboardInset";
+import { Alert, View, Text, Pressable, StyleSheet, ScrollView, Platform } from "react-native";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { AppSearchField } from "./AppSearchField";
+import { AppSearchSheet } from "./AppSearchSheet";
 import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
+import { useKeyboardInset } from "../hooks/useKeyboardInset";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 
@@ -61,17 +50,7 @@ function addManualParticipantRpcArgs(sid: string, manualId: string, allowOverCap
 export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAdded }: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
-  const { height: windowHeight } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
-  /** Pixel cap so the card + ScrollView get a real bounded height on mobile web (flex + % maxHeight is flaky in Safari). */
-  const modalMaxHeight = Math.min(
-    Math.round(windowHeight * 0.92),
-    windowHeight - Math.max(insets.top, 8) - 12 - keyboardInset
-  );
-  const scrollBottomPad = Math.max(insets.bottom, 12) + 28;
-  /** Header, capacity, quick-add, search, and card padding — results scroll in the remainder above the keyboard. */
-  const scrollViewportMax = Math.max(160, modalMaxHeight - 200);
   const [maxCap, setMaxCap] = useState<number | null>(null);
   const [currentCount, setCurrentCount] = useState(0);
   const [q, setQ] = useState("");
@@ -466,38 +445,22 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   }
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-      <View style={styles.modalRoot}>
-        <Pressable
-          style={styles.backdrop}
-          onPress={handleClose}
-          accessibilityLabel={language === "he" ? "סגירה" : "Close"}
-        />
-        <View style={[styles.modalCard, isRTL && styles.modalCardRtl, { maxHeight: modalMaxHeight }]}>
-          <View style={styles.modalTopFixed}>
-            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
-              <Text style={[styles.modalTitle, isRTL && styles.rtlText]} numberOfLines={2}>
-                {language === "he" ? "הוספת משתתף" : "Add participant"}
-              </Text>
-              <Pressable
-                onPress={handleClose}
-                hitSlop={12}
-                style={({ pressed }) => [styles.closeX, pressed && { opacity: 0.75 }]}
-                accessibilityRole="button"
-                accessibilityLabel={language === "he" ? "סגירה" : "Close"}
-              >
-                <Text style={styles.closeXText}>✕</Text>
-              </Pressable>
-            </View>
-
-            <Text style={[styles.capacityLine, isRTL && styles.rtlText]}>
-              {language === "he" ? "קיבולת: " : "Capacity: "}
-              {currentCount}
-              {maxCap != null ? `/${maxCap}` : ""}
-              {full ? (language === "he" ? " · מלא" : " · Full") : ""}
-            </Text>
-          </View>
-
+    <AppSearchSheet
+      visible={visible}
+      onClose={handleClose}
+      title={language === "he" ? "הוספת משתתף" : "Add participant"}
+      dismissLabel={language === "he" ? "סגירה" : "Close"}
+      isRTL={isRTL}
+      backdropAccessibilityLabel={language === "he" ? "סגירה" : "Close"}
+      sheetHeightPct={0.9}
+      headerExtra={
+        <>
+          <Text style={[styles.capacityLine, isRTL && styles.rtlText]}>
+            {language === "he" ? "קיבולת: " : "Capacity: "}
+            {currentCount}
+            {maxCap != null ? `/${maxCap}` : ""}
+            {full ? (language === "he" ? " · מלא" : " · Full") : ""}
+          </Text>
           {webFullAddPrompt ? (
             <View style={[styles.capBanner, isRTL && styles.capBannerRtl]} accessibilityLiveRegion="polite">
               <Text style={[styles.capBannerTitle, isRTL && styles.rtlText]}>{fullAddCopy.title}</Text>
@@ -528,94 +491,81 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
               </Pressable>
             </View>
           ) : null}
-
-          <View style={styles.modalBodyFixed}>
-            <ParticipantQuickAddPanel
-              name={quickName}
-              phone={quickPhone}
-              onNameChange={setQuickName}
-              onPhoneChange={setQuickPhone}
-              onSubmit={() => void quickAdd()}
-              busy={adding}
-              disabled={adding}
-            />
-
-            <AppSearchField
-              value={q}
-              onChangeText={setQ}
-              onSearch={(term) => void runSearch(term)}
-              placeholder={language === "he" ? "חיפוש שם / טלפון / משתמש…" : "Search name / phone / username…"}
-              isRTL={isRTL}
-              loading={searching}
-              editable={!adding}
-            />
-          </View>
-
-          <ScrollView
-            keyboardShouldPersistTaps="always"
-            nestedScrollEnabled
-            showsVerticalScrollIndicator
-            style={[styles.scrollBody, { maxHeight: scrollViewportMax }]}
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPad }]}
-            bounces
-          >
-            <View style={styles.listSection}>
-              {combinedPicks.length === 0 ? (
-                <Text style={[styles.muted, isRTL && styles.rtlText]}>
-                  {q.trim()
-                    ? language === "he"
-                      ? "אין התאמות."
-                      : "No matches."
-                    : language === "he"
-                      ? "מוצגים עד 50 — חפשו לצמצום."
-                      : "Showing up to 50 — search to narrow."}
-                </Text>
-              ) : (
-                combinedPicks.map((item) => (
-                  <Pressable
-                    key={item.key}
-                    disabled={adding}
-                    style={({ pressed }) => [
-                      styles.pickRow,
-                      Platform.OS === "web" && styles.pickRowWeb,
-                      pressed && !adding && { opacity: 0.88 },
-                    ]}
-                    onPress={() =>
-                      void (item.kind === "athlete"
-                        ? addExistingAthlete(item.user_id)
-                        : addExistingManual(item.manual_id))
-                    }
-                    accessibilityRole="button"
-                  >
-                    <Text style={[styles.pickName, isRTL && styles.rtlText]}>{item.full_name}</Text>
-                    <Text style={[styles.pickMeta, isRTL && styles.rtlText]}>{item.meta}</Text>
-                  </Pressable>
-                ))
-              )}
-            </View>
-
-            <Pressable onPress={handleClose} disabled={adding} style={({ pressed }) => [pressed && { opacity: 0.8 }]}>
-              <Text style={[styles.cancel, isRTL && styles.rtlText]}>{t("common.cancel")}</Text>
-            </Pressable>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
+          <ParticipantQuickAddPanel
+            name={quickName}
+            phone={quickPhone}
+            onNameChange={setQuickName}
+            onPhoneChange={setQuickPhone}
+            onSubmit={() => void quickAdd()}
+            busy={adding}
+            disabled={adding}
+            forceCollapsed={keyboardInset > 0}
+          />
+        </>
+      }
+      search={
+        <AppSearchField
+          value={q}
+          onChangeText={setQ}
+          onSearch={(term) => void runSearch(term)}
+          placeholder={language === "he" ? "חיפוש שם / טלפון / משתמש…" : "Search name / phone / username…"}
+          isRTL={isRTL}
+          loading={searching}
+          editable={!adding}
+        />
+      }
+      loading={searching}
+      results={
+        <ScrollView
+          style={styles.resultsScroll}
+          contentContainerStyle={styles.resultsContent}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator
+          nestedScrollEnabled
+        >
+          {combinedPicks.length === 0 ? (
+            <Text style={[styles.muted, isRTL && styles.rtlText]}>
+              {q.trim()
+                ? language === "he"
+                  ? "אין התאמות."
+                  : "No matches."
+                : language === "he"
+                  ? "מוצגים עד 50 — חפשו לצמצום."
+                  : "Showing up to 50 — search to narrow."}
+            </Text>
+          ) : (
+            combinedPicks.map((item) => (
+              <Pressable
+                key={item.key}
+                disabled={adding}
+                style={({ pressed }) => [
+                  styles.pickRow,
+                  Platform.OS === "web" && styles.pickRowWeb,
+                  pressed && !adding && { opacity: 0.88 },
+                ]}
+                onPress={() =>
+                  void (item.kind === "athlete"
+                    ? addExistingAthlete(item.user_id)
+                    : addExistingManual(item.manual_id))
+                }
+                accessibilityRole="button"
+              >
+                <Text style={[styles.pickName, isRTL && styles.rtlText]}>{item.full_name}</Text>
+                <Text style={[styles.pickMeta, isRTL && styles.rtlText]}>{item.meta}</Text>
+              </Pressable>
+            ))
+          )}
+        </ScrollView>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  rtlText: { textAlign: "right" },
-  muted: { color: theme.colors.textSoft },
-  modalRoot: { flex: 1, justifyContent: "center", padding: 24, position: "relative" },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    zIndex: 0,
-  },
+  rtlText: { textAlign: "right", writingDirection: "rtl" },
+  muted: { color: theme.colors.textSoft, paddingVertical: theme.spacing.sm, textAlign: "center", fontWeight: "600" },
   capBanner: {
-    marginHorizontal: 20,
-    marginBottom: 12,
     padding: 12,
     borderRadius: theme.radius.md,
     borderWidth: 1,
@@ -656,60 +606,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   capBtnCtaTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 14 },
-  modalCard: {
-    position: "relative",
-    zIndex: 100,
-    elevation: 24,
-    width: "100%",
-    maxWidth: 520,
-    alignSelf: "center",
-    flexDirection: "column",
-    overflow: "hidden",
-    backgroundColor: theme.colors.surfaceElevated,
-    borderRadius: theme.radius.lg,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-  },
-  /** Header + capacity stay visible; ScrollView below takes remaining height and scrolls. */
-  modalTopFixed: { flexShrink: 0 },
-  modalCardRtl: {},
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 4,
-  },
-  modalHeaderRtl: { flexDirection: "row-reverse" },
-  modalTitle: { flex: 1, fontSize: 18, fontWeight: "800", color: theme.colors.text },
-  closeX: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radius.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-  },
-  closeXText: { fontSize: 18, fontWeight: "700", color: theme.colors.textMuted, lineHeight: 20 },
-  capacityLine: { color: theme.colors.textMuted, fontWeight: "800", marginBottom: 8 },
-  modalBodyFixed: { flexShrink: 0, gap: 12, marginBottom: 4 },
-  /** Bounded maxHeight is set inline from window height; minHeight:0 helps nested flex on web. */
-  scrollBody: {
+  capacityLine: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 13 },
+  resultsScroll: { flex: 1 },
+  resultsContent: {
     flexGrow: 1,
-    minHeight: 140,
-    minHeight: 0,
-    width: "100%",
-    ...(Platform.OS === "web" ? { overflowY: "scroll" as const } : {}),
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+    gap: theme.spacing.xs,
   },
-  scrollContent: { gap: 12, paddingTop: theme.spacing.sm },
-  modalSub: { fontWeight: "800", color: theme.colors.text, marginTop: 4, marginBottom: 8 },
-  modalSubSpaced: { marginTop: 14 },
-  listSection: { marginBottom: 4, marginTop: 4 },
   pickRow: {
     paddingVertical: 12,
     paddingHorizontal: 10,
@@ -724,17 +628,4 @@ const styles = StyleSheet.create({
   pickRowDisabled: { opacity: 0.5 },
   pickName: { color: theme.colors.text, fontWeight: "800" },
   pickMeta: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
-  input: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    padding: 12,
-    borderRadius: theme.radius.md,
-    marginBottom: 12,
-    fontSize: 16,
-    color: theme.colors.text,
-  },
-  inputFlex: { flex: 1, marginBottom: 0, minWidth: 0 },
-  inputRtl: { textAlign: "right" },
-  cancel: { marginTop: 12, color: theme.colors.textMuted, textAlign: "center", fontWeight: "600", paddingVertical: 8 },
 });
