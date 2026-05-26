@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, View, Text, Pressable, StyleSheet, ScrollView, Platform } from "react-native";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
-import { AppSearchField } from "./AppSearchField";
 import { AppSearchSheet } from "./AppSearchSheet";
 import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
 import { useI18n } from "../context/I18nContext";
@@ -172,8 +171,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     setAdding(false);
     setWebFullAddPrompt(null);
     void loadCounts();
-    void runSearch("");
-  }, [visible, sid, loadCounts, runSearch]);
+  }, [visible, sid, loadCounts]);
 
   const combinedPicks = useMemo(() => {
     type Row =
@@ -500,18 +498,14 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
           />
         </>
       }
-      search={
-        <AppSearchField
-          value={q}
-          onChangeText={setQ}
-          onSearch={(term) => void runSearch(term)}
-          placeholder={language === "he" ? "חיפוש שם / טלפון / משתמש…" : "Search name / phone / username…"}
-          isRTL={isRTL}
-          loading={searching}
-          editable={!adding}
-        />
-      }
-      loading={searching}
+      searchConfig={{
+        value: q,
+        onChangeText: setQ,
+        onSearch: (term) => void runSearch(term),
+        placeholder: language === "he" ? "חיפוש שם / טלפון / משתמש…" : "Search name / phone / username…",
+        loading: searching,
+        editable: !adding,
+      }}
       results={
         <ScrollView
           style={styles.resultsScroll}

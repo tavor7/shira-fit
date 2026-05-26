@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -10,13 +10,12 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { useSearchSheetFocus } from "../context/SearchSheetFocusContext";
 import { theme } from "../theme";
 
 type Props = {
   value: string;
   onChangeText: (next: string) => void;
-  /** Called after debounce when the query text changes (typing, delete, or clear). */
+  /** Called after debounce when the user edits the query (not on mount). */
   onSearch: (term: string) => void | Promise<void>;
   placeholder?: string;
   debounceMs?: number;
@@ -46,46 +45,25 @@ export function AppSearchField({
   onBlur,
 }: Props) {
   const inputRef = useRef<TextInput>(null);
-  const sheetFocus = useSearchSheetFocus();
   const onSearchRef = useRef(onSearch);
   onSearchRef.current = onSearch;
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** Last value we already scheduled a search for — skips re-runs when parent re-renders (e.g. loading). */
-  const lastQueryRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (lastQueryRef.current === value) return;
-    lastQueryRef.current = value;
-
-    const timer = setTimeout(() => {
-      void onSearchRef.current(value);
+  function scheduleSearch(term: string) {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      void onSearchRef.current(term);
     }, debounceMs);
-
-    return () => clearTimeout(timer);
-  }, [value, debounceMs]);
+  }
 
   function handleChangeText(next: string) {
     onChangeText(next);
+    scheduleSearch(next);
   }
 
   function handleClear() {
     onChangeText("");
-  }
-
-  function handleFocus() {
-    onFocus?.();
-    sheetFocus?.registerFocus();
-    if (Platform.OS !== "web" || typeof document === "undefined") return;
-    requestAnimationFrame(() => {
-      const node = inputRef.current as unknown as HTMLElement | null;
-      node?.scrollIntoView?.({ block: "center", inline: "nearest" });
-    });
-  }
-
-  function handleBlur() {
-    onBlur?.();
-    if (!sheetFocus) return;
-    setTimeout(() => sheetFocus.registerBlur(), 120);
+    scheduleSearch("");
   }
 
   return (
@@ -106,8 +84,8 @@ export function AppSearchField({
         accessibilityLabel={accessibilityLabel ?? placeholder}
         autoFocus={autoFocus}
         returnKeyType="search"
-        onFocus={handleFocus}
-        onBlur={handleBlur}
+        onFocus={onFocus}
+        onBlur={onBlur}
         onSubmitEditing={() => void onSearchRef.current(value)}
       />
       {loading ? (

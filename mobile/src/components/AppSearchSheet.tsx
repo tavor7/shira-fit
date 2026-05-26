@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -17,6 +17,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SearchSheetFocusContext } from "../context/SearchSheetFocusContext";
 import { useKeyboardInset } from "../hooks/useKeyboardInset";
 import { theme } from "../theme";
+import { AppSearchField } from "./AppSearchField";
+
+export type AppSearchSheetSearchConfig = {
+  value: string;
+  onChangeText: (next: string) => void;
+  onSearch: (term: string) => void | Promise<void>;
+  placeholder?: string;
+  debounceMs?: number;
+  loading?: boolean;
+  editable?: boolean;
+  accessibilityLabel?: string;
+  autoFocus?: boolean;
+};
 
 type ListProps<T> = {
   data: readonly T[];
@@ -36,8 +49,12 @@ type Props<T> = {
   backdropAccessibilityLabel?: string;
   /** Renders above the search field (e.g. quick-add panel). Hidden while typing. */
   headerExtra?: ReactNode;
+  /** Preferred: stable search field rendered inside the sheet (avoids remount loops). */
+  searchConfig?: AppSearchSheetSearchConfig;
+  /** Optional label above the search field (used with {@link searchConfig}). */
+  searchLabel?: string;
+  /** Legacy custom search UI — prefer {@link searchConfig}. */
   search?: ReactNode;
-  loading?: boolean;
   /** Fraction of window height for the sheet (default 0.85). */
   sheetHeightPct?: number;
   /** Hide {@link headerExtra} while the keyboard is open to leave room for search + results. */
@@ -57,8 +74,9 @@ export function AppSearchSheet<T>({
   isRTL,
   backdropAccessibilityLabel,
   headerExtra,
+  searchConfig,
+  searchLabel,
   search,
-  loading = false,
   sheetHeightPct = 0.85,
   hideHeaderExtraOnKeyboard = true,
   cardStyle,
@@ -71,19 +89,16 @@ export function AppSearchSheet<T>({
   const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
   const { height: windowHeight } = useWindowDimensions();
-  const [searchFocused, setSearchFocused] = useState(false);
 
   useEffect(() => {
-    if (!visible) setSearchFocused(false);
+    if (!visible || !searchConfig) return;
+    void searchConfig.onSearch("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once when sheet opens
   }, [visible]);
 
-  const keyboardOpen = keyboardInset > 0 || searchFocused;
+  const keyboardOpen = keyboardInset > 0;
 
-  const layoutKeyboardInset = useMemo(() => {
-    if (keyboardInset > 0) return keyboardInset;
-    if (!searchFocused) return 0;
-    return Math.min(Math.round(windowHeight * 0.42) + 52, 600);
-  }, [keyboardInset, searchFocused, windowHeight]);
+  const layoutKeyboardInset = keyboardInset;
 
   const sheetHeight = useMemo(() => {
     const topRoom = Math.max(insets.top, 8) + 8;
@@ -97,19 +112,32 @@ export function AppSearchSheet<T>({
 
   const bottomPad = keyboardOpen ? 8 : Math.max(insets.bottom, theme.spacing.md);
   const showHeaderExtra = headerExtra != null && !(hideHeaderExtraOnKeyboard && keyboardOpen);
-  const searchInResults = keyboardOpen && search != null;
 
-  const focusContext = useMemo(
-    () => ({
-      registerFocus: () => setSearchFocused(true),
-      /** Clears focus latch only; layout stays compact while {@link keyboardInset} &gt; 0. */
-      registerBlur: () => setSearchFocused(false),
-      isCompact: keyboardOpen,
-    }),
-    [keyboardOpen]
+  const focusContext = useMemo(() => ({ isCompact: keyboardOpen }), [keyboardOpen]);
+
+  const searchNode = searchConfig ? (
+    <>
+      {searchLabel?.trim() ? (
+        <Text style={[styles.searchLabel, isRTL && styles.rtlText]}>{searchLabel.trim()}</Text>
+      ) : null}
+      <AppSearchField
+        value={searchConfig.value}
+        onChangeText={searchConfig.onChangeText}
+        onSearch={searchConfig.onSearch}
+        placeholder={searchConfig.placeholder}
+        debounceMs={searchConfig.debounceMs}
+        isRTL={isRTL}
+        loading={searchConfig.loading}
+        editable={searchConfig.editable}
+        accessibilityLabel={searchConfig.accessibilityLabel ?? searchConfig.placeholder}
+        autoFocus={searchConfig.autoFocus}
+      />
+    </>
+  ) : (
+    search
   );
 
-  const searchInList = searchInResults ? <View style={styles.searchInList}>{search}</View> : null;
+  const listLoading = searchConfig?.loading ?? false;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -146,21 +174,19 @@ export function AppSearchSheet<T>({
 
             {showHeaderExtra ? <View style={styles.headerExtra}>{headerExtra}</View> : null}
 
-            {!searchInResults && search != null ? <View style={styles.searchWrap}>{search}</View> : null}
+            {searchNode != null ? <View style={styles.searchWrap}>{searchNode}</View> : null}
 
             <View style={[styles.resultsArea, keyboardOpen && styles.resultsAreaKeyboard]}>
-              {loading ? (
+              {listLoading ? (
                 <ActivityIndicator
-                  size="large"
+                  size="small"
                   color={theme.colors.cta}
-                  style={styles.loader}
+                  style={styles.loadingBar}
                   accessibilityLabel="Loading"
                 />
-              ) : results != null ? (
-                <View style={styles.resultsFlex}>
-                  {searchInList}
-                  <View style={styles.resultsFlexInner}>{results}</View>
-                </View>
+              ) : null}
+              {results != null ? (
+                <View style={styles.resultsFlexInner}>{results}</View>
               ) : data != null && keyExtractor != null && renderItem != null ? (
                 <FlatList
                   style={styles.list}
@@ -171,7 +197,6 @@ export function AppSearchSheet<T>({
                   keyboardShouldPersistTaps="handled"
                   keyboardDismissMode="on-drag"
                   showsVerticalScrollIndicator
-                  ListHeaderComponent={searchInList ?? undefined}
                   ListEmptyComponent={
                     ListEmptyComponent != null ? () => <>{ListEmptyComponent}</> : undefined
                   }
@@ -244,10 +269,12 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.sm,
     gap: theme.spacing.sm,
   },
-  searchInList: {
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
-    gap: theme.spacing.sm,
+  searchLabel: {
+    fontWeight: "800",
+    color: theme.colors.textMuted,
+    letterSpacing: 0.3,
+    fontSize: 12,
+    textTransform: "uppercase",
   },
   resultsArea: {
     flex: 1,
@@ -257,15 +284,14 @@ const styles = StyleSheet.create({
     minHeight: 120,
     ...(Platform.OS === "web" ? { minHeight: 100 } : {}),
   },
-  resultsFlex: {
-    flex: 1,
-    minHeight: 0,
-  },
   resultsFlexInner: {
     flex: 1,
     minHeight: 0,
   },
-  loader: { flex: 1, justifyContent: "center", paddingVertical: theme.spacing.xl },
+  loadingBar: {
+    alignSelf: "center",
+    marginVertical: theme.spacing.xs,
+  },
   list: { flex: 1 },
   listContent: {
     flexGrow: 1,

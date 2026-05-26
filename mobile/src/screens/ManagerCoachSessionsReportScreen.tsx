@@ -19,7 +19,6 @@ import { formatISODateFull } from "../lib/dateFormat";
 import type { ManagerCoachSessionReportRow } from "../types/database";
 import { DatePickerField } from "../components/DatePickerField";
 import { useI18n } from "../context/I18nContext";
-import { AppSearchField } from "../components/AppSearchField";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 
 function defaultEndISO() {
@@ -158,16 +157,13 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
         title={language === "he" ? "מאמנים" : "Trainers"}
         dismissLabel={language === "he" ? t("common.ok") : "Done"}
         isRTL={isRTL}
-        search={
-          <AppSearchField
-            value={pickerQ}
-            onChangeText={setPickerQ}
-            onSearch={() => {}}
-            placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
-            isRTL={isRTL}
-          />
-        }
-        loading={trainersLoading}
+        searchConfig={{
+          value: pickerQ,
+          onChangeText: setPickerQ,
+          onSearch: () => {},
+          placeholder: language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…",
+          loading: trainersLoading,
+        }}
         data={trainers.filter((t) => {
           const q = pickerQ.trim().toLowerCase();
           if (!q) return true;

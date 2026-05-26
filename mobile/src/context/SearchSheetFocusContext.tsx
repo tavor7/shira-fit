@@ -1,10 +1,7 @@
 import { createContext, useContext } from "react";
 
 export type SearchSheetFocusContextValue = {
-  /** Search field received focus — sheet should use compact keyboard layout. */
-  registerFocus: () => void;
-  registerBlur: () => void;
-  /** True while the keyboard is open or the search field is focused. */
+  /** True while the software keyboard is open (sheet uses compact layout). */
   isCompact: boolean;
 };
 

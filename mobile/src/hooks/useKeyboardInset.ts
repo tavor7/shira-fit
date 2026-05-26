@@ -46,10 +46,17 @@ export function useKeyboardInset(): number {
 
       let layoutBaseline = window.innerHeight;
       let inputFocused = false;
+      let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const applyInset = (next: number) => {
+        setInset((prev) => (prev === next ? prev : next));
+      };
 
       const compute = () => {
         layoutBaseline = Math.max(layoutBaseline, window.innerHeight, document.documentElement.clientHeight);
-        setInset(measureWebKeyboardInset(layoutBaseline, inputFocused));
+        const next = measureWebKeyboardInset(layoutBaseline, inputFocused);
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => applyInset(next), 60);
       };
 
       const onFocusIn = (e: FocusEvent) => {
@@ -58,26 +65,23 @@ export function useKeyboardInset(): number {
         inputFocused = true;
         layoutBaseline = Math.max(layoutBaseline, window.innerHeight);
         compute();
-        window.setTimeout(compute, 80);
-        window.setTimeout(compute, 280);
       };
 
       const onFocusOut = () => {
         inputFocused = false;
-        window.setTimeout(compute, 120);
+        setTimeout(compute, 150);
       };
 
       compute();
       const vv = window.visualViewport;
       vv?.addEventListener("resize", compute);
-      vv?.addEventListener("scroll", compute);
       window.addEventListener("resize", compute);
       document.addEventListener("focusin", onFocusIn);
       document.addEventListener("focusout", onFocusOut);
 
       return () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
         vv?.removeEventListener("resize", compute);
-        vv?.removeEventListener("scroll", compute);
         window.removeEventListener("resize", compute);
         document.removeEventListener("focusin", onFocusIn);
         document.removeEventListener("focusout", onFocusOut);

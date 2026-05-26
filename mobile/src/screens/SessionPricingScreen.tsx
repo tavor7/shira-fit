@@ -20,7 +20,6 @@ import { PricingSectionAddButton } from "../components/PricingSectionAddButton";
 import { PricingTierFormFields } from "../components/PricingTierFormFields";
 import { PricingRatePeriodFields } from "../components/PricingRatePeriodFields";
 import { PricingPickerField } from "../components/PricingPickerField";
-import { AppSearchField } from "../components/AppSearchField";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { pricingScreenStyles as ps } from "../components/pricingScreenStyles";
 import type { AthleteSessionCapacityPricingRow, SessionCapacityPricingRow } from "../types/database";
@@ -885,18 +884,14 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
         dismissLabel={t("common.ok")}
         isRTL={isRTL}
         backdropAccessibilityLabel={t("common.cancel")}
-        search={
-          <AppSearchField
-            value={pickerQ}
-            onChangeText={setPickerQ}
-            onSearch={(term) => void loadAthletes(term)}
-            placeholder={t("pricing.searchAthletesPlaceholder")}
-            isRTL={isRTL}
-            loading={athletesLoading}
-            accessibilityLabel={t("pricing.searchAthletesPlaceholder")}
-          />
-        }
-        loading={athletesLoading}
+        searchConfig={{
+          value: pickerQ,
+          onChangeText: setPickerQ,
+          onSearch: (term) => void loadAthletes(term),
+          placeholder: t("pricing.searchAthletesPlaceholder"),
+          loading: athletesLoading,
+          accessibilityLabel: t("pricing.searchAthletesPlaceholder"),
+        }}
         data={athletes}
         keyExtractor={(item) => (item.kind === "athlete" ? item.user_id : `quick:${item.id}`)}
         renderItem={({ item }) => (

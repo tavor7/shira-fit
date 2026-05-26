@@ -6,13 +6,10 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
-  Modal,
-  FlatList,
-  ActivityIndicator,
   useWindowDimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
@@ -32,8 +29,8 @@ import { SessionOptionsSection, type SessionOptionItem } from "./SessionOptionsS
 import { SessionSeriesOptionsExpand } from "./SessionSeriesOptionsExpand";
 import { CollapsiblePricingForm } from "./CollapsiblePricingForm";
 import { fetchActiveGlobalTierPrice, parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
-import { AppSearchField } from "./AppSearchField";
 import { AppSearchSheet } from "./AppSearchSheet";
+import { CoachPickerSheet } from "./CoachPickerSheet";
 import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
@@ -66,8 +63,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const coachYouLabel = t("sessionForm.coachYou");
   const [coachLabel, setCoachLabel] = useState(fixedCoachLabel ? `${fixedCoachLabel} — ${coachYouLabel}` : "");
   const [coachColor, setCoachColor] = useState<string | null>(null);
-  const [coachOptions, setCoachOptions] = useState<CoachOption[]>([]);
-  const [coachOptionsLoading, setCoachOptionsLoading] = useState(!fixedCoachId);
   const [showCoachPicker, setShowCoachPicker] = useState(false);
   const [max, setMax] = useState("12");
   const [durationMinutes, setDurationMinutes] = useState("55");
@@ -183,10 +178,9 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
   useEffect(() => {
     if (createBaseline !== null) return;
-    if (!fixedCoachId && coachOptionsLoading) return;
     if (defaultTimeLoading) return;
     setCreateBaseline(formSerialized);
-  }, [createBaseline, coachOptionsLoading, defaultTimeLoading, fixedCoachId, formSerialized]);
+  }, [createBaseline, defaultTimeLoading, fixedCoachId, formSerialized]);
 
   useEffect(() => {
     return navigation.addListener("beforeRemove", (e) => {
@@ -259,7 +253,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     if (fixedCoachId) {
       setCoachId(fixedCoachId);
       setCoachLabel(fixedCoachLabel ? `${fixedCoachLabel} — ${coachYouLabel}` : coachYouLabel);
-      setCoachOptionsLoading(false);
     }
   }, [fixedCoachId, fixedCoachLabel, coachYouLabel]);
 
@@ -275,27 +268,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       setCoachColor((res.data as { calendar_color?: string | null } | null)?.calendar_color ?? null);
     })();
   }, [fixedCoachId]);
-
-  const loadCoaches = useCallback(async () => {
-    if (fixedCoachId) return;
-    setCoachOptionsLoading(true);
-    let res: any = await supabase
-      .from("profiles")
-      .select("user_id, full_name, role, username, calendar_color")
-      .in("role", ["coach", "manager"])
-      .order("full_name");
-    if (res.error && isMissingColumnError(res.error.message, "calendar_color")) {
-      res = await supabase
-        .from("profiles")
-        .select("user_id, full_name, role, username")
-        .in("role", ["coach", "manager"])
-        .order("full_name");
-    }
-    setCoachOptions((res.data as CoachOption[]) ?? []);
-    setCoachOptionsLoading(false);
-  }, [fixedCoachId]);
-
-  useFocusEffect(useCallback(() => { loadCoaches(); }, [loadCoaches]));
 
   function selectCoach(opt: CoachOption) {
     setCoachId(opt.user_id);
@@ -336,11 +308,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       setTraineesSearching(false);
     }
   }, []);
-
-  useEffect(() => {
-    if (!traineesOpen) return;
-    void runTraineeSearch("");
-  }, [traineesOpen, runTraineeSearch]);
 
   const traineeSearchRows = useMemo(() => {
     type Row =
@@ -709,52 +676,20 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                 </Text>
               </View>
             </Pressable>
-            <Modal visible={showCoachPicker} transparent animationType="slide" onRequestClose={() => setShowCoachPicker(false)}>
-              <View style={styles.modalBackdrop}>
-                <Pressable
-                  style={styles.modalBackdropTouch}
-                  onPress={() => setShowCoachPicker(false)}
-                  accessibilityLabel={t("common.cancel")}
-                />
-                <View style={styles.modalBox}>
-                  <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
-                    <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{t("sessionForm.allTrainers")}</Text>
-                    <Pressable onPress={() => setShowCoachPicker(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("common.ok")}>
-                      <Text style={styles.modalClose}>{t("common.ok")}</Text>
-                    </Pressable>
-                  </View>
-                  {coachOptionsLoading ? (
-                    <ActivityIndicator size="large" color={theme.colors.text} style={styles.modalLoader} />
-                  ) : (
-                    <FlatList
-                      data={coachOptions}
-                      keyExtractor={(item) => item.user_id}
-                      renderItem={({ item }) => (
-                        <Pressable
-                          style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
-                          onPress={() => selectCoach(item)}
-                        >
-                          <View style={styles.pickerItemLeading}>
-                            {item.calendar_color ? (
-                              <View style={[styles.coachColorDot, { backgroundColor: item.calendar_color }]} />
-                            ) : null}
-                            <View style={styles.pickerItemTextCol}>
-                              <Text style={styles.pickerItemName} numberOfLines={1} ellipsizeMode="tail">
-                                {item.full_name}
-                              </Text>
-                              <Text style={styles.pickerItemRole} numberOfLines={1} ellipsizeMode="tail">
-                                @{item.username} · {item.role}
-                              </Text>
-                            </View>
-                          </View>
-                        </Pressable>
-                      )}
-                      ListEmptyComponent={<Text style={styles.pickerEmpty}>{t("sessionForm.noTrainers")}</Text>}
-                    />
-                  )}
-                </View>
-              </View>
-            </Modal>
+            <CoachPickerSheet
+              visible={showCoachPicker}
+              onClose={() => setShowCoachPicker(false)}
+              selectedCoachId={coachId}
+              onSelect={(coach) =>
+                selectCoach({
+                  user_id: coach.user_id,
+                  full_name: coach.full_name,
+                  role: coach.role,
+                  username: coach.username,
+                  calendar_color: coach.calendar_color,
+                })
+              }
+            />
           </>
         )}
       </View>
@@ -846,10 +781,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
         <PrimaryButton
           label={t("sessionForm.selectTrainees")}
-          onPress={() => {
-            setTraineesOpen(true);
-            void runTraineeSearch(traineesQ || "");
-          }}
+          onPress={() => setTraineesOpen(true)}
           variant="ghost"
         />
 
@@ -891,7 +823,10 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
       <AppSearchSheet
         visible={traineesOpen}
-        onClose={() => setTraineesOpen(false)}
+        onClose={() => {
+          setTraineesOpen(false);
+          setTraineesQ("");
+        }}
         title={t("sessionForm.trainees")}
         dismissLabel={t("common.ok")}
         isRTL={isRTL}
@@ -906,21 +841,15 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
             busy={traineesBusy}
           />
         }
-        search={
-          <>
-            <Text style={[styles.modalSubTitle, isRTL && styles.rtlText]}>{t("sessionForm.searchTrainees")}</Text>
-            <AppSearchField
-              value={traineesQ}
-              onChangeText={setTraineesQ}
-              onSearch={(term) => void runTraineeSearch(term)}
-              placeholder={t("sessionForm.searchTrainees")}
-              isRTL={isRTL}
-              loading={traineesSearching}
-              accessibilityLabel={t("sessionForm.searchTrainees")}
-            />
-          </>
-        }
-        loading={traineesSearching}
+        searchLabel={t("sessionForm.searchTrainees")}
+        searchConfig={{
+          value: traineesQ,
+          onChangeText: setTraineesQ,
+          onSearch: (term) => void runTraineeSearch(term),
+          placeholder: t("sessionForm.searchTrainees"),
+          loading: traineesSearching,
+          accessibilityLabel: t("sessionForm.searchTrainees"),
+        }}
         results={
           <ScrollView
             style={styles.traineeResultsScroll}

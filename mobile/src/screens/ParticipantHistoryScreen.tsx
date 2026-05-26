@@ -5,7 +5,6 @@ import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { DatePickerField } from "../components/DatePickerField";
 import { AppModal } from "../components/AppModal";
-import { AppSearchField } from "../components/AppSearchField";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
 import { formatSessionTimeRange } from "../lib/sessionTime";
@@ -679,22 +678,21 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
 
       <AppSearchSheet
         visible={pickerOpen}
-        onClose={() => setPickerOpen(false)}
+        onClose={() => {
+          setPickerOpen(false);
+          setPickerQ("");
+        }}
         title={language === "he" ? "מתאמנים" : "Athletes"}
         dismissLabel={language === "he" ? t("common.ok") : "Done"}
         isRTL={isRTL}
         backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
-        search={
-          <AppSearchField
-            value={pickerQ}
-            onChangeText={setPickerQ}
-            onSearch={(term) => void loadAthletes(term)}
-            placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
-            isRTL={isRTL}
-            loading={athletesLoading}
-          />
-        }
-        loading={athletesLoading}
+        searchConfig={{
+          value: pickerQ,
+          onChangeText: setPickerQ,
+          onSearch: (term) => void loadAthletes(term),
+          placeholder: language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…",
+          loading: athletesLoading,
+        }}
         data={athletes}
         keyExtractor={(item) => (item.kind === "athlete" ? item.user_id : `quick:${item.id}`)}
         renderItem={({ item }) => (

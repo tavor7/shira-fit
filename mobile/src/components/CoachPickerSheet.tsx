@@ -4,7 +4,6 @@ import { supabase } from "../lib/supabase";
 import { resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
-import { AppSearchField } from "./AppSearchField";
 import { AppSearchSheet } from "./AppSearchSheet";
 
 export type CoachPickOption = {
@@ -72,17 +71,14 @@ export function CoachPickerSheet({ visible, onClose, onSelect, selectedCoachId }
       isRTL={isRTL}
       backdropAccessibilityLabel={t("common.cancel")}
       sheetHeightPct={0.78}
-      search={
-        <AppSearchField
-          value={query}
-          onChangeText={setQuery}
-          onSearch={() => {}}
-          placeholder={t("coachPricing.searchCoachesPlaceholder")}
-          isRTL={isRTL}
-          accessibilityLabel={t("coachPricing.searchCoachesPlaceholder")}
-        />
-      }
-      loading={loading}
+      searchConfig={{
+        value: query,
+        onChangeText: setQuery,
+        onSearch: () => {},
+        placeholder: t("coachPricing.searchCoachesPlaceholder"),
+        loading,
+        accessibilityLabel: t("coachPricing.searchCoachesPlaceholder"),
+      }}
       data={filtered}
       keyExtractor={(item) => item.user_id}
       renderItem={({ item }) => {
