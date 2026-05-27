@@ -17,17 +17,20 @@ type Props = {
   /** Android back / optional backdrop behavior */
   onRequestClose: () => void;
   isRTL?: boolean;
+  /** Used to force remount on web so the dialog stays frontmost. */
+  instanceKey?: number;
 };
 
 /**
  * Generic on-brand alert / confirm (mobile + web). Same visual language as {@link ConfirmDiscardDialog}.
  */
-export function AppAlertDialog({ visible, title, message, actions, onRequestClose, isRTL }: Props) {
+export function AppAlertDialog({ visible, title, message, actions, onRequestClose, isRTL, instanceKey }: Props) {
   const { width } = useWindowDimensions();
   const maxCard = Math.min(400, width - theme.spacing.lg * 2);
 
   return (
     <Modal
+      key={Platform.OS === "web" ? instanceKey ?? 0 : undefined}
       visible={visible}
       transparent
       animationType="fade"
@@ -35,17 +38,14 @@ export function AppAlertDialog({ visible, title, message, actions, onRequestClos
       statusBarTranslucent
       style={styles.modalLayer}
     >
-      <Pressable
-        style={styles.backdrop}
-        onPress={onRequestClose}
-        accessibilityRole="button"
-        accessibilityLabel={actions[0]?.label}
-      >
+      <View style={styles.backdrop} accessibilityViewIsModal>
         <Pressable
-          style={[styles.card, { maxWidth: maxCard }, Platform.OS === "web" ? styles.cardWeb : null]}
-          onPress={(e) => e.stopPropagation()}
-          accessibilityViewIsModal
-        >
+          style={styles.backdropTouch}
+          onPress={onRequestClose}
+          accessibilityRole="button"
+          accessibilityLabel={actions[0]?.label}
+        />
+        <View style={[styles.card, { maxWidth: maxCard }, Platform.OS === "web" ? styles.cardWeb : null]}>
           {title ? (
             <Text style={[styles.title, isRTL && styles.rtlText]} accessibilityRole="header">
               {title}
@@ -91,8 +91,8 @@ export function AppAlertDialog({ visible, title, message, actions, onRequestClos
               );
             })}
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -112,7 +112,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: theme.spacing.lg,
+    ...(Platform.OS === "web"
+      ? ({
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        } as const)
+      : {}),
   },
+  backdropTouch: { ...StyleSheet.absoluteFillObject },
   card: {
     width: "100%",
     borderRadius: theme.radius.lg,

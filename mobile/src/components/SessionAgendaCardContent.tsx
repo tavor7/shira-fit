@@ -48,30 +48,37 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
       ]}
     >
       <View style={styles.timeRow}>
-        <Text style={timeStyle}>{formatSessionStartTime(item.start_time)}</Text>
-        {showTemporalPills ? (
-          temporalPhase === "live" ? (
-            <View style={styles.livePill}>
-              <Text style={styles.livePillTxt}>{language === "he" ? "עכשיו" : "Live"}</Text>
+        <View style={styles.timeRowLeft}>
+          <Text style={timeStyle}>{formatSessionStartTime(item.start_time)}</Text>
+          {showTemporalPills ? (
+            temporalPhase === "live" ? (
+              <View style={styles.livePill}>
+                <Text style={styles.livePillTxt}>{language === "he" ? "עכשיו" : "Live"}</Text>
+              </View>
+            ) : temporalPhase === "past" ? (
+              <View style={styles.endedPill}>
+                <Text style={styles.endedPillTxt}>{language === "he" ? "הסתיים" : "Ended"}</Text>
+              </View>
+            ) : null
+          ) : null}
+          {item.timeBadgeText ? (
+            <View style={[styles.timeBadge, compact && styles.timeBadgeCompact]}>
+              <Text style={[styles.timeBadgeTxt, compact && styles.timeBadgeTxtCompact]}>{item.timeBadgeText}</Text>
             </View>
-          ) : temporalPhase === "past" ? (
-            <View style={styles.endedPill}>
-              <Text style={styles.endedPillTxt}>{language === "he" ? "הסתיים" : "Ended"}</Text>
+          ) : null}
+          {item.timeBadgeText2 ? (
+            <View style={[styles.timeBadge, compact && styles.timeBadgeCompact]}>
+              <Text style={[styles.timeBadgeTxt, compact && styles.timeBadgeTxtCompact]}>{item.timeBadgeText2}</Text>
             </View>
-          ) : null
-        ) : null}
-        {item.timeBadgeText ? (
-          <View style={[styles.timeBadge, compact && styles.timeBadgeCompact]}>
-            <Text style={[styles.timeBadgeTxt, compact && styles.timeBadgeTxtCompact]}>{item.timeBadgeText}</Text>
+          ) : null}
+          {item.isKickbox ? <KickboxSessionBadge compact isRTL={isRTL} /> : null}
+        </View>
+
+        {item.isRecurringSeries ? (
+          <View style={styles.repeatBadgePin}>
+            <SessionSeriesIndicator compact />
           </View>
         ) : null}
-        {item.timeBadgeText2 ? (
-          <View style={[styles.timeBadge, compact && styles.timeBadgeCompact]}>
-            <Text style={[styles.timeBadgeTxt, compact && styles.timeBadgeTxtCompact]}>{item.timeBadgeText2}</Text>
-          </View>
-        ) : null}
-        {item.isKickbox ? <KickboxSessionBadge compact isRTL={isRTL} /> : null}
-        {item.isRecurringSeries ? <SessionSeriesIndicator compact /> : null}
       </View>
       {item.trainerName ? (
         <Text style={[styles.trainer, compact && styles.trainerCompact]} numberOfLines={1}>
@@ -134,7 +141,20 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
 
 const styles = StyleSheet.create({
   inner: { paddingVertical: 2 },
-  timeRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
+  timeRow: {
+    position: "relative",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+    paddingEnd: 26, // reserve space for pinned repeat badge
+  },
+  timeRowLeft: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0, flexWrap: "wrap" },
+  repeatBadgePin: {
+    position: "absolute",
+    top: 0,
+    end: 0,
+  },
   time: { fontWeight: "800", color: theme.colors.cta, fontSize: 15, letterSpacing: 0.2, lineHeight: 18 },
   timeCompact: { fontSize: 14, lineHeight: 17 },
   timePast: { color: theme.colors.textSoft, fontWeight: "600" },

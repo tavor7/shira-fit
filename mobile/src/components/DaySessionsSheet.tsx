@@ -21,6 +21,8 @@ import { DaySessionSheetRow } from "./DaySessionSheetRow";
 import { AthleteWaitlistInviteStripe, AthleteWaitlistJoinedStripe } from "./AthleteWaitlistInviteStripe";
 import { useI18n } from "../context/I18nContext";
 import { appendNetworkHint } from "../lib/networkErrors";
+import { isSessionInActiveSeries, type SeriesScope } from "../lib/sessionSeries";
+import { useAppAlert } from "../context/AppAlertContext";
 import { DatePickerField } from "./DatePickerField";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import type { StudioCalendarNote } from "../lib/studioCalendarNotes";
@@ -38,6 +40,8 @@ type TrainingSessionRow = {
   is_open_for_registration: boolean;
   duration_minutes?: number | null;
   is_hidden?: boolean | null;
+  series_id?: string | null;
+  series_detached?: boolean | null;
 };
 
 type UndoAction =
@@ -81,8 +85,6 @@ export function DaySessionsSheet({
   const [dupOpen, setDupOpen] = useState(false);
   const [dupToDate, setDupToDate] = useState<string>("");
   const [undo, setUndo] = useState<UndoAction | null>(null);
-  /** RN Web: avoid `window.confirm` inside modals; use inline confirm like session delete. */
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [pendingDeleteStudioNoteId, setPendingDeleteStudioNoteId] = useState<string | null>(null);
   const [pendingClearDay, setPendingClearDay] = useState(false);
   const [noteFormOpen, setNoteFormOpen] = useState(false);
@@ -96,6 +98,7 @@ export function DaySessionsSheet({
   const [noteBusy, setNoteBusy] = useState(false);
   const isManager = variant === "manager";
   const offlineHint = useMemo(() => t("network.offlineHint"), [t]);
+  const { showAlert, showConfirm } = useAppAlert();
 
   const dayStudioNotes = useMemo(
     () => (calendarNotes ?? []).filter((n) => studioNoteCoversDate(n, dateIso)),
@@ -114,7 +117,6 @@ export function DaySessionsSheet({
   useEffect(() => {
     if (!visible) return;
     setUndo(null);
-    setPendingDeleteId(null);
     setPendingDeleteStudioNoteId(null);
     setPendingClearDay(false);
     if (dupOpen) return;
@@ -125,18 +127,30 @@ export function DaySessionsSheet({
     setDupToDate(toISODateLocal(d));
   }, [visible, dateIso, dupOpen]);
 
-  async function executeSessionDelete(sessionId: string) {
+  async function executeSessionDelete(sessionId: string, scope?: SeriesScope) {
     setBusyId(sessionId);
     const before = await supabase.from("training_sessions").select("*").eq("id", sessionId).single();
     const sessionRow = before.data as unknown as TrainingSessionRow | null;
-    const { error } = await supabase.from("training_sessions").delete().eq("id", sessionId);
+    let deleteError: { message: string } | null = null;
+    if (scope && sessionRow?.series_id) {
+      const { data, error } = await supabase.rpc("staff_delete_session_series_scope", {
+        p_session_id: sessionId,
+        p_scope: scope,
+      });
+      if (error) deleteError = { message: error.message };
+      else if (!data?.ok) deleteError = { message: String(data?.error ?? "failed") };
+    } else {
+      const res = await supabase.from("training_sessions").delete().eq("id", sessionId);
+      if (res.error) deleteError = { message: res.error.message };
+    }
     setBusyId(null);
-    setPendingDeleteId(null);
-    if (error) {
+    if (deleteError) {
       if (Platform.OS === "web" && typeof window !== "undefined") {
-        window.alert(language === "he" ? `לא ניתן למחוק: ${error.message}` : `Could not delete: ${error.message}`);
+        window.alert(
+          language === "he" ? `לא ניתן למחוק: ${deleteError.message}` : `Could not delete: ${deleteError.message}`
+        );
       } else {
-        Alert.alert(language === "he" ? "לא ניתן למחוק" : "Could not delete", error.message);
+        Alert.alert(language === "he" ? "לא ניתן למחוק" : "Could not delete", deleteError.message);
       }
       return;
     }
@@ -144,21 +158,72 @@ export function DaySessionsSheet({
     onChanged?.();
   }
 
-  function confirmDelete(sessionId: string) {
-    const msg =
-      language === "he"
-        ? "למחוק את האימון? גם ההרשמות אליו יימחקו."
-        : "Delete this session? Registrations for it will be removed too.";
-
-    if (Platform.OS === "web") {
-      setPendingDeleteId(sessionId);
+  async function startDeleteFlow(sessionId: string) {
+    // Decide if this deletion should create a series exception (so the base occurrence won't respawn).
+    const before = await supabase.from("training_sessions").select("id, series_id, series_detached").eq("id", sessionId).single();
+    const sessionRow = before.data as unknown as TrainingSessionRow | null;
+    const hasSeries = Boolean(sessionRow?.series_id);
+    if (!hasSeries) {
+      showConfirm({
+        title: language === "he" ? "מחיקת אימון?" : "Delete session?",
+        message:
+          language === "he"
+            ? "למחוק את האימון? גם ההרשמות אליו יימחקו."
+            : "Delete this session? Registrations for it will be removed too.",
+        cancelLabel: language === "he" ? "ביטול" : "Cancel",
+        confirmLabel: language === "he" ? "מחק" : "Delete",
+        confirmVariant: "danger",
+        onConfirm: () => void executeSessionDelete(sessionId),
+      });
       return;
     }
 
-    Alert.alert(language === "he" ? "מחיקת אימון?" : "Delete session?", msg, [
-      { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
-      { text: language === "he" ? "מחיקה" : "Delete", style: "destructive", onPress: () => void executeSessionDelete(sessionId) },
-    ]);
+    // If session is part of an active series, allow deleting future too; otherwise only delete this.
+    const allowFuture = isSessionInActiveSeries({
+      series_id: sessionRow?.series_id,
+      series_detached: sessionRow?.series_detached ?? false,
+    });
+    if (allowFuture) {
+      showAlert({
+        title: language === "he" ? "מחיקת אימון חוזר" : "Delete recurring session",
+        message:
+          language === "he"
+            ? "בחרו פעולה. גם ההרשמות יימחקו."
+            : "Choose an action. Registrations will be removed too.",
+        actions: [
+          { label: language === "he" ? "ביטול" : "Cancel", variant: "secondary", onPress: () => {} },
+          {
+            label: language === "he" ? "מחק רק אימון זה" : "Delete only this session",
+            variant: "danger",
+            onPress: () => void executeSessionDelete(sessionId, "this"),
+          },
+          {
+            label: language === "he" ? "מחק אימון זה והבאים" : "Delete this and future",
+            variant: "danger",
+            onPress: () => void executeSessionDelete(sessionId, "future"),
+          },
+        ],
+      });
+    } else {
+      showConfirm({
+        title: language === "he" ? "מחיקת אימון?" : "Delete session?",
+        message:
+          language === "he"
+            ? "למחוק רק את האימון הזה? גם ההרשמות יימחקו."
+            : "Delete only this session? Registrations will be removed too.",
+        cancelLabel: language === "he" ? "ביטול" : "Cancel",
+        confirmLabel: language === "he" ? "מחק" : "Delete",
+        confirmVariant: "danger",
+        onConfirm: () => void executeSessionDelete(sessionId, "this"),
+      });
+    }
+  }
+
+  function confirmDelete(sessionId: string) {
+    // Single-step delete UX:
+    // - If this belongs to a recurring series, ask scope (this vs this+future) immediately.
+    // - Otherwise, show a normal confirm.
+    void startDeleteFlow(sessionId);
   }
 
   function goEdit(sessionId: string, coachId?: string) {
@@ -670,25 +735,7 @@ export function DaySessionsSheet({
               </View>
             ) : null}
 
-            {Platform.OS === "web" && pendingDeleteId ? (
-              <View style={styles.deleteBanner}>
-                <Text style={[styles.deleteBannerTxt, isRTL && styles.rtlText]}>
-                  {language === "he" ? "למחוק את האימון?" : "Delete this session?"}
-                </Text>
-                <View style={[styles.deleteBannerRow, isRTL && styles.deleteBannerRowRtl]}>
-                  <Pressable onPress={() => setPendingDeleteId(null)} disabled={!!busyId}>
-                    <Text style={styles.deleteBannerCancel}>{language === "he" ? "ביטול" : "Cancel"}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => void executeSessionDelete(pendingDeleteId)} disabled={!!busyId}>
-                    {busyId ? (
-                      <ActivityIndicator color={theme.colors.error} size="small" />
-                    ) : (
-                      <Text style={styles.deleteBannerOk}>{language === "he" ? "מחק" : "Delete"}</Text>
-                    )}
-                  </Pressable>
-                </View>
-              </View>
-            ) : null}
+            {/* Confirmations are handled via AppAlertContext (floating dialog). */}
 
             {isManager ? (
               <View style={styles.dayToolsBlock}>

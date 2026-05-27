@@ -178,12 +178,12 @@ export default function CoachSessionManageScreen() {
 
     const sid = String(id ?? "").trim();
     const duration = Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60));
-    const useSeriesRpc = Boolean(session?.series_id && !session?.series_detached && scope);
+    const seriesScope: SeriesScope | null = session?.series_id && !session?.series_detached && scope ? scope : null;
 
-    if (useSeriesRpc) {
+    if (seriesScope) {
       const res = await updateSessionWithSeriesScope({
         sessionId: sid,
-        scope,
+        scope: seriesScope,
         sessionDate: date.trim(),
         startTime: time,
         coachId: session!.coach_id,
@@ -260,6 +260,21 @@ export default function CoachSessionManageScreen() {
         }
         Alert.alert(language === "he" ? "הערה" : "Note", parts.join("\n"));
       }
+    }
+    if (seriesScope) {
+      showToast({
+        message:
+          seriesScope === "future"
+            ? language === "he"
+              ? "נשמר — אימון זה והבאים בסדרה"
+              : "Saved — this and future sessions"
+            : language === "he"
+              ? "נשמר — רק אימון זה"
+              : "Saved — only this session",
+        variant: "success",
+      });
+    } else {
+      showToast({ message: language === "he" ? "נשמר — אימון" : "Saved session", variant: "success" });
     }
     router.replace("/(app)/coach/sessions");
   }

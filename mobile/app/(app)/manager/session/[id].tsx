@@ -896,10 +896,11 @@ export default function ManagerSessionDetail() {
 
     const sid = String(id ?? "").trim();
     const duration = Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60));
-    if (session?.series_id && !session?.series_detached && scope) {
+    const seriesScope: SeriesScope | null = session?.series_id && !session?.series_detached && scope ? scope : null;
+    if (seriesScope) {
       const res = await updateSessionWithSeriesScope({
         sessionId: sid,
-        scope,
+        scope: seriesScope,
         sessionDate: date.trim(),
         startTime: time,
         coachId,
@@ -972,6 +973,21 @@ export default function ManagerSessionDetail() {
     await load();
     setEditingSession(false);
     setEditBaseline(null);
+    if (seriesScope) {
+      showToast({
+        message:
+          seriesScope === "future"
+            ? language === "he"
+              ? "נשמר — אימון זה והבאים בסדרה"
+              : "Saved — this and future sessions"
+            : language === "he"
+              ? "נשמר — רק אימון זה"
+              : "Saved — only this session",
+        variant: "success",
+      });
+    } else {
+      showToast({ message: language === "he" ? "נשמר — אימון" : "Saved session", variant: "success" });
+    }
     pushDiag("clearPersisted: saveSession success");
     void persistDraft.clearPersisted();
   }
@@ -1070,8 +1086,9 @@ export default function ManagerSessionDetail() {
     if (!sid) return;
     setDeleteSessionBusy(true);
 
-    if (session?.series_id && !session.series_detached && scope) {
-      const res = await deleteSessionWithSeriesScope(sid, scope);
+    const seriesScope: SeriesScope | null = session?.series_id && !session.series_detached && scope ? scope : null;
+    if (seriesScope) {
+      const res = await deleteSessionWithSeriesScope(sid, seriesScope);
       setDeleteSessionBusy(false);
       if (!res.ok) {
         if (isMissingSessionSeriesRpc({ message: res.error })) {
@@ -1088,6 +1105,22 @@ export default function ManagerSessionDetail() {
         showOk(t("common.error"), error.message);
         return;
       }
+    }
+
+    if (seriesScope) {
+      showToast({
+        message:
+          seriesScope === "future"
+            ? language === "he"
+              ? "נמחק — אימון זה והבאים בסדרה"
+              : "Deleted — this and future sessions"
+            : language === "he"
+              ? "נמחק — רק אימון זה"
+              : "Deleted — only this session",
+        variant: "success",
+      });
+    } else {
+      showToast({ message: language === "he" ? "נמחק — אימון" : "Deleted session", variant: "success" });
     }
 
     pushDiag("clearPersisted: runDeleteSession success");

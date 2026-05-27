@@ -29,10 +29,12 @@ const AppAlertContext = createContext<Ctx | null>(null);
 export function AppAlertProvider({ children }: { children: ReactNode }) {
   const { t, isRTL } = useI18n();
   const [opts, setOpts] = useState<ShowAppAlertOptions | null>(null);
+  const [instanceKey, setInstanceKey] = useState(0);
 
   const close = useCallback(() => setOpts(null), []);
 
   const showAlert = useCallback((o: ShowAppAlertOptions) => {
+    setInstanceKey((k) => k + 1);
     setOpts({
       ...o,
       actions: o.actions.map((a) => ({
@@ -107,6 +109,7 @@ export function AppAlertProvider({ children }: { children: ReactNode }) {
         actions={opts?.actions ?? []}
         onRequestClose={onRequestClose}
         isRTL={isRTL}
+        instanceKey={instanceKey}
       />
     </AppAlertContext.Provider>
   );

@@ -10,9 +10,11 @@ type Props = {
   mode: "edit" | "delete";
   onClose: () => void;
   onChoose: (scope: SeriesScopeChoice) => void;
+  /** When false, hide the "this and future" option (e.g. detached occurrence). */
+  allowFuture?: boolean;
 };
 
-export function SessionSeriesScopeSheet({ visible, mode, onClose, onChoose }: Props) {
+export function SessionSeriesScopeSheet({ visible, mode, onClose, onChoose, allowFuture = true }: Props) {
   const { t, isRTL } = useI18n();
   const title = mode === "delete" ? t("session.seriesScopeDeleteTitle") : t("session.seriesScopeEditTitle");
   const subtitle = mode === "delete" ? t("session.seriesScopeDeleteSubtitle") : t("session.seriesScopeEditSubtitle");
@@ -40,16 +42,18 @@ export function SessionSeriesScopeSheet({ visible, mode, onClose, onChoose }: Pr
         </Text>
       </Pressable>
 
-      <Pressable
-        style={({ pressed }) => [styles.choice, styles.choiceFuture, pressed && styles.choicePressed]}
-        onPress={() => onChoose("future")}
-        accessibilityRole="button"
-      >
-        <Text style={[styles.choiceTitle, isRTL && styles.rtl]}>{t("session.seriesScopeThisAndFuture")}</Text>
-        <Text style={[styles.choiceHint, isRTL && styles.rtl]}>
-          {mode === "delete" ? t("session.seriesScopeFutureDeleteHint") : t("session.seriesScopeFutureEditHint")}
-        </Text>
-      </Pressable>
+      {allowFuture ? (
+        <Pressable
+          style={({ pressed }) => [styles.choice, styles.choiceFuture, pressed && styles.choicePressed]}
+          onPress={() => onChoose("future")}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.choiceTitle, isRTL && styles.rtl]}>{t("session.seriesScopeThisAndFuture")}</Text>
+          <Text style={[styles.choiceHint, isRTL && styles.rtl]}>
+            {mode === "delete" ? t("session.seriesScopeFutureDeleteHint") : t("session.seriesScopeFutureEditHint")}
+          </Text>
+        </Pressable>
+      ) : null}
 
       <Pressable onPress={onClose} style={styles.cancelBtn} accessibilityRole="button">
         <Text style={[styles.cancelTxt, isRTL && styles.rtl]}>{t("common.cancel")}</Text>
