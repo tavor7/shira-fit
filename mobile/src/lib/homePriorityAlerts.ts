@@ -478,18 +478,20 @@ export async function fetchAthleteHomeAlertItems(
   return [...regItems, ...multiDayItems, ...waitItems];
 }
 
-function formatUtcOpeningLabel(isoZ: string, language: LanguageCode): string {
-  const d = new Date(isoZ);
-  if (!Number.isFinite(d.getTime())) return isoZ;
-  const datePart = isoZ.slice(0, 10);
+const STUDIO_TZ = "Asia/Jerusalem";
+
+function formatStudioOpeningLabel(isoInstant: string, language: LanguageCode): string {
+  const d = new Date(isoInstant);
+  if (!Number.isFinite(d.getTime())) return isoInstant;
+  const datePart = d.toLocaleDateString("en-CA", { timeZone: STUDIO_TZ });
   const dateFormatted = formatISODateDayMonthWithWeekday(datePart, language);
-  const timeUtc = d.toLocaleTimeString(language === "he" ? "he-IL" : "en-GB", {
+  const timeStudio = d.toLocaleTimeString(language === "he" ? "he-IL" : "en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: "UTC",
+    timeZone: STUDIO_TZ,
   });
-  return `${dateFormatted} · ${timeUtc}`;
+  return `${dateFormatted} · ${timeStudio}`;
 }
 
 export function buildAthleteRegistrationItems(
@@ -500,7 +502,7 @@ export function buildAthleteRegistrationItems(
   const items: HomePriorityAlertItem[] = [];
   if (state.show_registration_countdown && state.eligible_next_week_count > 0 && state.next_open_at_utc) {
     const rid = `reg-cd-${state.next_open_at_utc}`;
-    const detail = formatUtcOpeningLabel(state.next_open_at_utc, language);
+    const detail = formatStudioOpeningLabel(state.next_open_at_utc, language);
     const lead = tr(language, "homeAlerts.registrationOpensLead");
     const leadDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
     const detailDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";

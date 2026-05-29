@@ -71,8 +71,8 @@ export default function RegistrationOpeningScheduleScreen() {
     Alert.alert(
       t("common.saved"),
       language === "he"
-        ? `פתיחת הרשמה שבועית נקבעה ל-${weekdayLabel} בשעה ${timeStr} (UTC).`
-        : `Weekly opening set to ${weekdayLabel} at ${timeStr} (UTC).`,
+        ? `פתיחת הרשמה שבועית נקבעה ל-${weekdayLabel} בשעה ${timeStr} (שעון ישראל).`
+        : `Weekly opening set to ${weekdayLabel} at ${timeStr} (Israel time).`,
     );
   }
 
@@ -89,8 +89,8 @@ export default function RegistrationOpeningScheduleScreen() {
       </Text>
       <Text style={[styles.hint, isRTL && styles.rtlText]}>
         {language === "he"
-          ? "אימונים של שבוע הבא נשארים סגורים עד זמן הפתיחה. בזמן הפתיחה, כל האימונים שאינם מוסתרים בשבוע הבא (א׳–ש׳) ייפתחו להרשמה. השעה נשמרת כ-UTC."
-          : "Next-week sessions stay closed until the opening time. At the opening, all non-hidden sessions in next week (Sun–Sat) become open for registration. Time is stored as UTC."}
+          ? "אימונים של שבוע הבא נשארים סגורים עד זמן הפתיחה. בזמן הפתיחה, כל האימונים שאינם מוסתרים בשבוע הבא (א׳–ש׳) ייפתחו להרשמה. היום והשעה לפי שעון ישראל."
+          : "Next-week sessions stay closed until the opening time. At the opening, all non-hidden sessions in next week (Sun–Sat) become open for registration. Day and time use Israel (studio) time."}
       </Text>
 
       <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "יום" : "Day"}</Text>
@@ -110,7 +110,9 @@ export default function RegistrationOpeningScheduleScreen() {
         ))}
       </View>
 
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "שעה (UTC)" : "Time (UTC)"}</Text>
+      <Text style={[styles.label, isRTL && styles.rtlText]}>
+        {language === "he" ? "שעה (שעון ישראל)" : "Time (Israel)"}
+      </Text>
       <TextInput
         value={time}
         onChangeText={setTime}
