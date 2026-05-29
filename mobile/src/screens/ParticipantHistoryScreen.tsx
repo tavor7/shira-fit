@@ -237,7 +237,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         return;
       }
       if (data?.ok !== true) {
-        showError(String(data?.error ?? "failed"));
+        const code = String(data?.error ?? "failed");
+        showError(code === "not_late_cancellation" ? t("managerSession.notLateCancellationError") : code);
         return;
       }
       await load();

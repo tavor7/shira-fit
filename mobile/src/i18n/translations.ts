@@ -454,6 +454,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "managerSession.summaryFeesLate": "Late cancel ×{n}: {expected} · collected {collected}",
     "managerSession.summaryFeesNoShow": "No-show ×{n}: {expected} · collected {collected}",
     "managerSession.lateCancelBadge": "Late cancellation (<12h before session)",
+    "managerSession.notLateCancellationError":
+      "This cancellation is outside the late window on the server. If you still see this after an update, contact support.",
     "managerSession.cancelChargeWaive": "Waive fee",
     "managerSession.cancelChargeApply": "Charge fee",
     "managerSession.penaltyCollected": "Collected: {amount}",
@@ -1033,6 +1035,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "managerSession.summaryFeesLate": "ביטול מאוחר ×{n}: {expected} · נגבה {collected}",
     "managerSession.summaryFeesNoShow": "נעדרות ×{n}: {expected} · נגבה {collected}",
     "managerSession.lateCancelBadge": "ביטול מאוחר (<12ש׳ לפני האימון)",
+    "managerSession.notLateCancellationError":
+      "הביטול לא נמצא בחלון המאוחר בשרת. אם זה ממשיך אחרי עדכון, פנו לתמיכה.",
     "managerSession.cancelChargeWaive": "ללא חיוב",
     "managerSession.cancelChargeApply": "לחייב",
     "managerSession.penaltyCollected": "נגבה: {amount}",

@@ -624,7 +624,11 @@ export default function ManagerSessionDetail() {
       return;
     }
     if (!data?.ok) {
-      showOk(t("common.failed"), String(data?.error ?? ""));
+      const code = String(data?.error ?? "");
+      showOk(
+        t("common.failed"),
+        code === "not_late_cancellation" ? t("managerSession.notLateCancellationError") : code
+      );
       return;
     }
     await loadCancellations();
