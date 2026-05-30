@@ -10,7 +10,7 @@ import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
 import { formatSessionTimeRange } from "../lib/sessionTime";
 import { toISODateLocal, isValidISODateString, parseISODateLocal, firstDayOfMonthISOLocal } from "../lib/isoDate";
-import { formatISODateFull } from "../lib/dateFormat";
+import { formatISODateFull, formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
 import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/database";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
@@ -202,6 +202,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [globalKickboxTiers, setGlobalKickboxTiers] = useState<PricingRateTierRow[]>([]);
   const [sessionCustomPriceById, setSessionCustomPriceById] = useState<Record<string, number | null>>({});
   const [sessionKickboxById, setSessionKickboxById] = useState<Record<string, boolean>>({});
+  const [sessionCoachById, setSessionCoachById] = useState<Record<string, string>>({});
   const [payeeIsManual, setPayeeIsManual] = useState(false);
   const [addPayOpen, setAddPayOpen] = useState(false);
   const [editAccountPayment, setEditAccountPayment] = useState<AthleteAccountPayment | null>(null);
@@ -696,24 +697,35 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     if (sessionIds.length > 0) {
       const { data: sessRows } = await supabase
         .from("training_sessions")
-        .select("id, custom_slot_price_ils, is_kickbox")
+        .select("id, custom_slot_price_ils, is_kickbox, trainer:profiles!coach_id(full_name)")
         .in("id", sessionIds);
       const customMap: Record<string, number | null> = {};
       const kickboxMap: Record<string, boolean> = {};
+      const coachMap: Record<string, string> = {};
       for (const sid of sessionIds) {
         customMap[sid] = null;
         kickboxMap[sid] = false;
+        coachMap[sid] = "";
       }
-      for (const row of (sessRows as { id: string; custom_slot_price_ils?: number | null; is_kickbox?: boolean }[]) ?? []) {
+      for (const row of (sessRows as {
+        id: string;
+        custom_slot_price_ils?: number | null;
+        is_kickbox?: boolean;
+        trainer?: { full_name: string } | { full_name: string }[] | null;
+      }[]) ?? []) {
         const raw = row.custom_slot_price_ils;
         customMap[row.id] = raw != null && Number.isFinite(Number(raw)) ? Number(raw) : null;
         kickboxMap[row.id] = !!row.is_kickbox;
+        const tr = row.trainer ? (Array.isArray(row.trainer) ? row.trainer[0] : row.trainer) : null;
+        coachMap[row.id] = (tr?.full_name ?? "").trim();
       }
       setSessionCustomPriceById(customMap);
       setSessionKickboxById(kickboxMap);
+      setSessionCoachById(coachMap);
     } else {
       setSessionCustomPriceById({});
       setSessionKickboxById({});
+      setSessionCoachById({});
     }
 
     if (next.length === 0 && ((acctRes.data as unknown[]) ?? []).length === 0) {
@@ -738,135 +750,6 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
 
   return (
     <View style={styles.screen}>
-      <View style={styles.filters}>
-        {!hideTitle ? (
-          <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>
-            {t(isCoachHistory ? "menu.coachHistory" : "menu.athleteActivity")}
-          </Text>
-        ) : null}
-        <DatePickerField label={t("common.from")} value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
-        <DatePickerField label={t("common.to")} value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
-        <Text style={[styles.label, isRTL && styles.rtlText]}>
-          {language === "he" ? "מתאמן (חיפוש לפי שם, משתמש או טלפון)" : "Athlete (search by name, username, or phone)"}
-        </Text>
-        <Pressable style={styles.pickerTouch} onPress={() => { setPickerQ(""); setPickerOpen(true); }}>
-          <Text style={athleteLabel ? styles.pickerText : styles.pickerPlaceholder}>
-            {athleteLabel || (language === "he" ? "בחרו מתאמן…" : "Choose an athlete…")}
-          </Text>
-        </Pressable>
-        {athleteId ? (
-          <Pressable
-            style={({ pressed }) => [styles.clearSel, pressed && { opacity: 0.9 }]}
-            onPress={() => {
-              setAthleteId("");
-              setAthleteLabel("");
-              setPhone("");
-              setPayeeIsManual(false);
-              setRows([]);
-              setAccountPayments([]);
-              setReportReady(false);
-              setHasSearched(false);
-            }}
-          >
-            <Text style={styles.clearSelTxt}>{t("common.clearSelection")}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-
-      {athleteId && loading ? (
-        <View style={styles.loadingBanner}>
-          <ActivityIndicator size="small" color={theme.colors.cta} />
-          <Text style={styles.loadingBannerTxt}>{t("common.loading")}</Text>
-        </View>
-      ) : null}
-
-      {billingSummary && athleteId && reportReady ? (
-        <View style={styles.billingCard}>
-          <Text style={[styles.billingTitle, isRTL && styles.rtlText]}>{t("billing.summaryTitle")}</Text>
-          <View style={[styles.billingStatGrid, isRTL && styles.billingStatGridRtl]}>
-            <View style={styles.billingStatTile}>
-              <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.received")}</Text>
-              <Text style={[styles.billingStatValue, isRTL && styles.rtlText]}>
-                {`${Math.round(billingSummary.received * 100) / 100} ₪`}
-              </Text>
-            </View>
-            <View style={styles.billingStatTile}>
-              <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.expected")}</Text>
-              <Text style={[styles.billingStatValue, isRTL && styles.rtlText]}>
-                {`${Math.round(billingSummary.expected * 100) / 100} ₪`}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.billingStatTile,
-                billingSummary.balance > 0
-                  ? styles.billingStatTileOwed
-                  : billingSummary.balance < 0
-                    ? styles.billingStatTileCredit
-                    : null,
-              ]}
-            >
-              <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.balance")}</Text>
-              <Text
-                style={[
-                  styles.billingStatValue,
-                  isRTL && styles.rtlText,
-                  billingSummary.balance > 0
-                    ? styles.billingStatValueOwed
-                    : billingSummary.balance < 0
-                      ? styles.billingStatValueCredit
-                      : null,
-                ]}
-                numberOfLines={2}
-              >
-                {billingSummary.balance > 0
-                  ? t("billing.balanceOwes").replace(
-                      "{n}",
-                      String(Math.round(Math.abs(billingSummary.balance) * 100) / 100)
-                    )
-                  : billingSummary.balance < 0
-                    ? t("billing.balanceCredit").replace(
-                        "{n}",
-                        String(Math.round(Math.abs(billingSummary.balance) * 100) / 100)
-                      )
-                    : t("billing.balanceEven")}
-              </Text>
-            </View>
-          </View>
-          {billingSummary.byMethod.length > 0 ? (
-            <View style={styles.billingMethodsBlock}>
-              <Text style={[styles.billingMethodsTitle, isRTL && styles.rtlText]}>{t("billing.byMethod")}</Text>
-              <View style={[styles.billingMethodGrid, isRTL && styles.billingMethodGridRtl]}>
-                {billingSummary.byMethod.map((x) => (
-                  <View key={x.key} style={styles.billingMethodTile}>
-                    <Text style={[styles.billingMethodLabel, isRTL && styles.rtlText]} numberOfLines={1}>
-                      {paymentMethodHistoryLabel(x.key, language)}
-                    </Text>
-                    <Text style={[styles.billingMethodValue, isRTL && styles.rtlText]}>
-                      {`${Math.round(x.total * 100) / 100} ₪`}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ) : null}
-          {billingSummary.missingRuleCount > 0 ? (
-            <Text style={[styles.billingWarn, isRTL && styles.rtlText]}>
-              {t("billing.missingRules").replace("{n}", String(billingSummary.missingRuleCount))}
-            </Text>
-          ) : null}
-          <Pressable
-            style={({ pressed }) => [styles.addPayBtn, pressed && { opacity: 0.9 }]}
-            onPress={() => {
-              setEditAccountPayment(null);
-              setAddPayOpen(true);
-            }}
-          >
-            <Text style={styles.addPayBtnTxt}>{t("billing.addPayment")}</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
       <AppSearchSheet
         visible={pickerOpen}
         onClose={() => {
@@ -1018,6 +901,138 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         style={styles.list}
         sections={sections}
         keyExtractor={(item) => (item.kind === "session" ? item.reg.registration_id : `pay:${item.pay.id}`)}
+        ListHeaderComponent={
+          <>
+            <View style={styles.filters}>
+              {!hideTitle ? (
+                <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>
+                  {t(isCoachHistory ? "menu.coachHistory" : "menu.athleteActivity")}
+                </Text>
+              ) : null}
+              <DatePickerField label={t("common.from")} value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
+              <DatePickerField label={t("common.to")} value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
+              <Text style={[styles.label, isRTL && styles.rtlText]}>
+                {language === "he" ? "מתאמן (חיפוש לפי שם, משתמש או טלפון)" : "Athlete (search by name, username, or phone)"}
+              </Text>
+              <Pressable style={styles.pickerTouch} onPress={() => { setPickerQ(""); setPickerOpen(true); }}>
+                <Text style={athleteLabel ? styles.pickerText : styles.pickerPlaceholder}>
+                  {athleteLabel || (language === "he" ? "בחרו מתאמן…" : "Choose an athlete…")}
+                </Text>
+              </Pressable>
+              {athleteId ? (
+                <Pressable
+                  style={({ pressed }) => [styles.clearSel, pressed && { opacity: 0.9 }]}
+                  onPress={() => {
+                    setAthleteId("");
+                    setAthleteLabel("");
+                    setPhone("");
+                    setPayeeIsManual(false);
+                    setRows([]);
+                    setAccountPayments([]);
+                    setReportReady(false);
+                    setHasSearched(false);
+                  }}
+                >
+                  <Text style={styles.clearSelTxt}>{t("common.clearSelection")}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            {athleteId && loading ? (
+              <View style={styles.loadingBanner}>
+                <ActivityIndicator size="small" color={theme.colors.cta} />
+                <Text style={styles.loadingBannerTxt}>{t("common.loading")}</Text>
+              </View>
+            ) : null}
+
+            {billingSummary && athleteId && reportReady ? (
+              <View style={styles.billingCard}>
+                <Text style={[styles.billingTitle, isRTL && styles.rtlText]}>{t("billing.summaryTitle")}</Text>
+                <View style={[styles.billingStatGrid, isRTL && styles.billingStatGridRtl]}>
+                  <View style={styles.billingStatTile}>
+                    <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.received")}</Text>
+                    <Text style={[styles.billingStatValue, isRTL && styles.rtlText]}>
+                      {`${Math.round(billingSummary.received * 100) / 100} ₪`}
+                    </Text>
+                  </View>
+                  <View style={styles.billingStatTile}>
+                    <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.expected")}</Text>
+                    <Text style={[styles.billingStatValue, isRTL && styles.rtlText]}>
+                      {`${Math.round(billingSummary.expected * 100) / 100} ₪`}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.billingStatTile,
+                      billingSummary.balance > 0
+                        ? styles.billingStatTileOwed
+                        : billingSummary.balance < 0
+                          ? styles.billingStatTileCredit
+                          : null,
+                    ]}
+                  >
+                    <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.balance")}</Text>
+                    <Text
+                      style={[
+                        styles.billingStatValue,
+                        isRTL && styles.rtlText,
+                        billingSummary.balance > 0
+                          ? styles.billingStatValueOwed
+                          : billingSummary.balance < 0
+                            ? styles.billingStatValueCredit
+                            : null,
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {billingSummary.balance > 0
+                        ? t("billing.balanceOwes").replace(
+                            "{n}",
+                            String(Math.round(Math.abs(billingSummary.balance) * 100) / 100)
+                          )
+                        : billingSummary.balance < 0
+                          ? t("billing.balanceCredit").replace(
+                              "{n}",
+                              String(Math.round(Math.abs(billingSummary.balance) * 100) / 100)
+                            )
+                          : t("billing.balanceEven")}
+                    </Text>
+                  </View>
+                </View>
+                {billingSummary.byMethod.length > 0 ? (
+                  <View style={styles.billingMethodsBlock}>
+                    <Text style={[styles.billingMethodsTitle, isRTL && styles.rtlText]}>{t("billing.byMethod")}</Text>
+                    <View style={[styles.billingMethodGrid, isRTL && styles.billingMethodGridRtl]}>
+                      {billingSummary.byMethod.map((x) => (
+                        <View key={x.key} style={styles.billingMethodTile}>
+                          <Text style={[styles.billingMethodLabel, isRTL && styles.rtlText]} numberOfLines={1}>
+                            {paymentMethodHistoryLabel(x.key, language)}
+                          </Text>
+                          <Text style={[styles.billingMethodValue, isRTL && styles.rtlText]}>
+                            {`${Math.round(x.total * 100) / 100} ₪`}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
+                {billingSummary.missingRuleCount > 0 ? (
+                  <Text style={[styles.billingWarn, isRTL && styles.rtlText]}>
+                    {t("billing.missingRules").replace("{n}", String(billingSummary.missingRuleCount))}
+                  </Text>
+                ) : null}
+                <Pressable
+                  style={({ pressed }) => [styles.addPayBtn, pressed && { opacity: 0.9 }]}
+                  onPress={() => {
+                    setEditAccountPayment(null);
+                    setAddPayOpen(true);
+                  }}
+                >
+                  <Text style={styles.addPayBtnTxt}>{t("billing.addPayment")}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </>
+        }
         renderSectionHeader={({ section: { title } }) => (
           <View style={styles.sectionHead}>
             <Text style={styles.sectionTitle} numberOfLines={1} ellipsizeMode="tail">
@@ -1039,9 +1054,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
               <View style={styles.row}>
                 <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
                   <View style={[styles.sessionHeadRow, isRTL && styles.sessionHeadRowRtl]}>
-                    <Text style={[styles.cardDate, isRTL && styles.rtlText]} numberOfLines={1}>
-                      {formatISODateFull(p.paid_at, language)}
-                    </Text>
+                  <Text style={[styles.cardDate, isRTL && styles.rtlText]} numberOfLines={1}>
+                    {formatISODateFullWithWeekdayAfter(p.paid_at, language)}
+                  </Text>
                     <Text style={[styles.sessionAmount, isRTL && styles.rtlText]}>{amtTxt}</Text>
                   </View>
                   <Text style={[styles.sessionSubline, isRTL && styles.rtlText]} numberOfLines={1}>
@@ -1139,6 +1154,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                 ? t("participantHistory.sessionMeta").replace("{spots}", String(reg.max_participants)).replace("{price}", String(sessionPrice))
                 : t("participantHistory.sessionMetaSpotsOnly").replace("{spots}", String(reg.max_participants))
               : null;
+          const coachName = (sessionCoachById[reg.session_id] ?? "").trim();
+          const sublineParts = [coachName, metaLine].filter(Boolean);
+          const sessionSubline = sublineParts.length > 0 ? sublineParts.join(" · ") : null;
           const attCurrent = attStatusFromRow(reg);
           const attOpen = expandedAttendanceId === reg.registration_id;
           const attLabel = attStatusLabel(attCurrent, t);
@@ -1154,17 +1172,17 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             <View style={styles.row}>
               <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
                 <View style={[styles.sessionHeadRow, isRTL && styles.sessionHeadRowRtl]}>
-                  <Text style={[styles.cardDate, isRTL && styles.rtlText]} numberOfLines={1}>
-                    {formatISODateFull(reg.session_date, language)}
+                  <Text style={[styles.cardDate, isRTL && styles.rtlText]} numberOfLines={2}>
+                    {formatISODateFullWithWeekdayAfter(reg.session_date, language)}
                   </Text>
                   <Text style={[styles.sessionTime, isRTL && styles.rtlText]} numberOfLines={1}>
                     {formatSessionTimeRange(reg.start_time, reg.duration_minutes ?? 60)}
                   </Text>
                 </View>
                 <View style={[styles.sessionSublineRow, isRTL && styles.sessionSublineRowRtl]}>
-                  {metaLine ? (
-                    <Text style={[styles.sessionSubline, isRTL && styles.rtlText, styles.sessionSublineFlex]} numberOfLines={1}>
-                      {metaLine}
+                  {sessionSubline ? (
+                    <Text style={[styles.sessionSubline, isRTL && styles.rtlText, styles.sessionSublineFlex]} numberOfLines={2}>
+                      {sessionSubline}
                     </Text>
                   ) : (
                     <View style={styles.sessionSublineFlex} />
