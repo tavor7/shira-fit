@@ -13,6 +13,7 @@ import { formatSessionTimeRange, sessionStartsAt } from "../../../src/lib/sessio
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { fetchRegistrationAthletesBySessionIds } from "../../../src/lib/sessionRosterQueries";
+import { formatISODateLong } from "../../../src/lib/dateFormat";
 import { supabase } from "../../../src/lib/supabase";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 import { logRedirectToManagerSessions } from "../../../src/lib/managerSessionsRedirectLog";
