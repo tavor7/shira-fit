@@ -21,6 +21,7 @@ import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 import { isSessionInActiveSeries, maintainSessionSeriesHorizon } from "../../../src/lib/sessionSeries";
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
+import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySlot";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
@@ -96,9 +97,14 @@ export default function ManagerSessionsScreen() {
     }, [load])
   );
 
+  const visibleRows = useMemo(
+    () => dedupeSessionsBySignupCount(rows, signupBySession),
+    [rows, signupBySession]
+  );
+
   const items = useMemo<SessionsWeekItem[]>(
     () =>
-      rows.map((s) => ({
+      visibleRows.map((s) => ({
         key: s.id,
         session_date: s.session_date,
         start_time: s.start_time,
@@ -117,7 +123,7 @@ export default function ManagerSessionsScreen() {
         isRecurringSeries: isSessionInActiveSeries(s),
         onPress: () => router.push(`/(app)/manager/session/${s.id}`),
       })),
-    [rows, signupBySession, waitlistBySession]
+    [visibleRows, signupBySession, waitlistBySession]
   );
 
   const sheetItems = useMemo(() => (sheetDay ? items.filter((i) => i.session_date === sheetDay) : []), [items, sheetDay]);

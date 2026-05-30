@@ -383,9 +383,18 @@ export async function auditSessionPricingIssues(args: {
   const { data: regs } = await supabase
     .from("session_registrations")
     .select(
-      "session_id, user_id, training_sessions!inner(session_date, max_participants, is_kickbox, custom_slot_price_ils), profiles(full_name)"
+      "session_id, user_id, training_sessions!inner(session_date, max_participants, is_kickbox, custom_slot_price_ils)"
     )
     .eq("status", "active");
+
+  const regUserIds = [...new Set(((regs ?? []) as { user_id: string }[]).map((r) => r.user_id))];
+  const { data: regProfiles } =
+    regUserIds.length > 0
+      ? await supabase.from("profiles").select("user_id, full_name").in("user_id", regUserIds)
+      : { data: [] as { user_id: string; full_name: string }[] };
+  const regNameByUserId = new Map(
+    ((regProfiles ?? []) as { user_id: string; full_name: string }[]).map((p) => [p.user_id, p.full_name])
+  );
 
   const { data: manuals } = await supabase
     .from("session_manual_participants")
@@ -398,11 +407,9 @@ export async function auditSessionPricingIssues(args: {
     session_id: string;
     user_id: string;
     training_sessions: SessionAuditRow | SessionAuditRow[];
-    profiles: { full_name: string } | { full_name: string }[] | null;
   }[]) {
     const sess = Array.isArray(r.training_sessions) ? r.training_sessions[0] : r.training_sessions;
     if (!sess || sess.session_date < start || sess.session_date > end) continue;
-    const prof = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
     regRows.push({
       session_id: r.session_id,
       user_id: r.user_id,
@@ -411,7 +418,7 @@ export async function auditSessionPricingIssues(args: {
       max_participants: sess.max_participants,
       is_kickbox: sess.is_kickbox,
       custom_slot_price_ils: sess.custom_slot_price_ils,
-      athlete_name: prof?.full_name?.trim() || "—",
+      athlete_name: regNameByUserId.get(r.user_id)?.trim() || "—",
     });
   }
   for (const r of (manuals ?? []) as {

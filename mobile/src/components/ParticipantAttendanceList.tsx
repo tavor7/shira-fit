@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert, Modal, TextInput, Keyboard } from "react-native";
 import { useFocusEffect } from "expo-router";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { isBirthdayToday } from "../lib/birthday";
-import { normalizePaymentMethodKey, paymentMethodAttendanceLabel } from "../lib/paymentMethod";
+import { normalizePaymentMethodKey, paymentMethodAttendanceLabel, paymentDisplayTone } from "../lib/paymentMethod";
 import { fetchSessionBillingPriceIls } from "../lib/sessionSlotPrice";
+import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
+import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueries";
+import { isMissingColumnError } from "../lib/dbColumnErrors";
 
 type RegRow = {
   user_id: string;
@@ -16,10 +19,12 @@ type RegRow = {
   charge_no_show?: boolean | null;
   payment_method?: string | null;
   amount_paid?: number | string | null;
-  profiles:
-    | { full_name: string; username: string; phone?: string | null; date_of_birth?: string | null }
-    | { full_name: string; username: string; phone?: string | null; date_of_birth?: string | null }[]
-    | null;
+  profile: {
+    full_name: string;
+    username?: string;
+    phone?: string | null;
+    date_of_birth?: string | null;
+  } | null;
 };
 
 type ManualRow = {
@@ -68,14 +73,6 @@ function coerceAmountPaid(raw: number | string | null | undefined): number | nul
   return Number.isFinite(n) ? n : null;
 }
 
-/** Unpaid = no stored method; Cash/PayBox = green; anything else = yellow */
-function paymentDisplayTone(payment: string | null | undefined): "unpaid" | "cash_paybox" | "other" {
-  const k = normalizePaymentMethodKey(payment);
-  if (k === "(none)") return "unpaid";
-  if (k === "cash" || k === "paybox") return "cash_paybox";
-  return "other";
-}
-
 export type SessionAttendanceStats = {
   registered: number;
   arrived: number;
@@ -110,6 +107,8 @@ type Props = {
   onRemoveManualParticipant?: (manualParticipantId: string) => void | Promise<void>;
   /** Staff: bulk mark everyone as arrived (payment optional — skipped). */
   showMarkAllArrived?: boolean;
+  /** When roster is empty but another session at the same slot has athletes. */
+  onDuplicateRosterSession?: (otherSessionId: string | null) => void;
 };
 
 export function ParticipantAttendanceList({
@@ -121,12 +120,16 @@ export function ParticipantAttendanceList({
   onRemoveAthlete,
   onRemoveManualParticipant,
   showMarkAllArrived = true,
+  onDuplicateRosterSession,
 }: Props) {
   const { language, t, isRTL } = useI18n();
+  const pathname = usePathname();
   const { showConfirm, showAlert, showOk } = useAppAlert();
   const [rows, setRows] = useState<Row[]>([]);
   const [maxParticipants, setMaxParticipants] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [duplicateRosterSessionId, setDuplicateRosterSessionId] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [payFor, setPayFor] = useState<Row | null>(null);
@@ -207,22 +210,37 @@ export function ParticipantAttendanceList({
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
+    setDuplicateRosterSessionId(null);
+    onDuplicateRosterSession?.(null);
 
-    const { data: s } = await supabase.from("training_sessions").select("max_participants").eq("id", sessionId).single();
+    const { data: s } = await supabase
+      .from("training_sessions")
+      .select("max_participants, session_date, start_time, coach_id")
+      .eq("id", sessionId)
+      .single();
     setMaxParticipants((s as { max_participants?: number } | null)?.max_participants ?? null);
 
-    const { data, error } = await supabase
-      .from("session_registrations")
-      .select("user_id, attended, charge_no_show, payment_method, amount_paid, profiles(full_name, username, phone, date_of_birth)")
-      .eq("session_id", sessionId)
-      .eq("status", "active");
-    const { data: mData, error: mErr } = await supabase
+    let regRes = await fetchSessionRegistrationsWithProfiles(sessionId);
+
+    let manRes = await supabase
       .from("session_manual_participants")
       .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone, date_of_birth)")
       .eq("session_id", sessionId);
+    if (manRes.error && isMissingColumnError(manRes.error.message, "date_of_birth")) {
+      manRes = await supabase
+        .from("session_manual_participants")
+        .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone)")
+        .eq("session_id", sessionId);
+    }
+
+    const { data, error } = { data: regRes.rows, error: regRes.error ? { message: regRes.error } : null };
+    const { data: mData, error: mErr } = manRes;
+    const errors = [error?.message, mErr?.message].filter(Boolean);
 
     if (error && mErr) {
       setRows([]);
+      setLoadError(errors.join(" · "));
       setLoading(false);
       onParticipantCountChange?.(0);
       onAttendanceStatsChange?.({
@@ -240,18 +258,22 @@ export function ParticipantAttendanceList({
       return;
     }
 
-    const regRows: Row[] = ((data as unknown as RegRow[]) ?? []).map((r) => {
-      const p = r.profiles ? (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles) : null;
+    if (errors.length > 0) {
+      setLoadError(errors.join(" · "));
+    }
+
+    const regRows: Row[] = ((data as RegRow[]) ?? []).map((r) => {
+      const p = r.profile;
       return {
         kind: "registered",
         id: `u:${r.user_id}`,
         userId: r.user_id,
         name: p?.full_name ?? "—",
-        phone: (p as any)?.phone ? String((p as any).phone) : "",
+        phone: p?.phone ? String(p.phone) : "",
         attended: r.attended ?? null,
-        chargeNoShow: !!(r as any).charge_no_show,
-        paymentMethod: (r as any).payment_method ?? null,
-        amountPaid: coerceAmountPaid((r as any).amount_paid),
+        chargeNoShow: !!r.charge_no_show,
+        paymentMethod: r.payment_method ?? null,
+        amountPaid: coerceAmountPaid(r.amount_paid),
         birthdayToday: isBirthdayToday(p?.date_of_birth ?? null),
       };
     });
@@ -318,8 +340,27 @@ export function ParticipantAttendanceList({
       expectedPaymentsIls,
       expectedPaymentSlots,
     });
+
+    if (all.length === 0 && s) {
+      const slot = s as { session_date: string; start_time: string; coach_id: string };
+      const { data: siblings } = await supabase
+        .from("training_sessions")
+        .select("id")
+        .eq("session_date", slot.session_date)
+        .eq("start_time", slot.start_time)
+        .eq("coach_id", slot.coach_id)
+        .neq("id", sessionId);
+      const siblingIds = ((siblings as { id: string }[] | null) ?? []).map((x) => x.id);
+      if (siblingIds.length > 0) {
+        const counts = await fetchActiveSignupCountsBySession(siblingIds);
+        const withRoster = siblingIds.find((sid) => (counts[sid] ?? 0) > 0) ?? null;
+        setDuplicateRosterSessionId(withRoster);
+        onDuplicateRosterSession?.(withRoster);
+      }
+    }
+
     setLoading(false);
-  }, [sessionId, onParticipantCountChange, onAttendanceStatsChange]);
+  }, [sessionId, onParticipantCountChange, onAttendanceStatsChange, onDuplicateRosterSession]);
 
   useFocusEffect(
     useCallback(() => {
@@ -489,12 +530,38 @@ export function ParticipantAttendanceList({
     return <ActivityIndicator color={theme.colors.cta} style={styles.loader} />;
   }
 
+  const duplicateBanner =
+    duplicateRosterSessionId != null ? (
+      <Pressable
+        style={({ pressed }) => [styles.duplicateBanner, pressed && { opacity: 0.92 }]}
+        onPress={() => {
+          const base = pathname.includes("/coach/") ? "/(app)/coach/session/" : "/(app)/manager/session/";
+          router.replace(`${base}${duplicateRosterSessionId}` as never);
+        }}
+      >
+        <Text style={[styles.duplicateBannerTxt, isRTL && styles.rtlText]}>{t("managerSession.duplicateRosterHint")}</Text>
+        <Text style={styles.duplicateBannerLink}>{t("managerSession.duplicateRosterOpen")}</Text>
+      </Pressable>
+    ) : null;
+
   if (rows.length === 0) {
-    return <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין הרשמות פעילות." : "No active registrations."}</Text>;
+    return (
+      <View style={styles.emptyWrap}>
+        {loadError ? (
+          <Text style={[styles.loadError, isRTL && styles.rtlText]}>{loadError}</Text>
+        ) : null}
+        {duplicateBanner}
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>
+          {language === "he" ? "אין הרשמות פעילות." : "No active registrations."}
+        </Text>
+      </View>
+    );
   }
 
   return (
     <View style={styles.list}>
+      {loadError ? <Text style={[styles.loadError, isRTL && styles.rtlText]}>{loadError}</Text> : null}
+      {duplicateBanner}
       {showMarkAllArrived && rows.some((r) => r.attended !== true) ? (
         <Pressable
           style={({ pressed }) => [styles.markAll, pressed && { opacity: 0.9 }]}
@@ -932,4 +999,16 @@ const styles = StyleSheet.create({
   payBtnUnpaid: { borderColor: theme.colors.error, backgroundColor: theme.colors.errorBg },
   payBtnTxtUnpaid: { color: theme.colors.error },
   payCancel: { marginTop: 6, textAlign: "center", color: theme.colors.textMuted, fontWeight: "800" },
+  emptyWrap: { gap: 8 },
+  loadError: { fontSize: 13, color: theme.colors.error, lineHeight: 18 },
+  duplicateBanner: {
+    padding: 12,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.cta,
+    backgroundColor: "rgba(96, 165, 250, 0.12)",
+    gap: 6,
+  },
+  duplicateBannerTxt: { fontSize: 13, color: theme.colors.text, lineHeight: 18, fontWeight: "600" },
+  duplicateBannerLink: { fontSize: 13, color: theme.colors.cta, fontWeight: "900" },
 });

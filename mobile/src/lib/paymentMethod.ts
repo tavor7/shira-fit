@@ -43,3 +43,15 @@ export function paymentMethodHistoryLabel(key: string | null | undefined, langua
   if (k === "(none)") return language === "he" ? "—" : "—";
   return paymentMethodAttendanceLabel(key, language);
 }
+
+/** Unpaid = no stored method; Cash/PayBox = green; anything else = yellow */
+export function paymentDisplayTone(payment: string | null | undefined): "unpaid" | "cash_paybox" | "other" {
+  const k = normalizePaymentMethodKey(payment);
+  if (k === "(none)") return "unpaid";
+  if (k === "cash" || k === "paybox") return "cash_paybox";
+  return "other";
+}
+
+export function isSessionPaymentRecorded(paymentMethod: string | null | undefined): boolean {
+  return paymentDisplayTone(paymentMethod) !== "unpaid";
+}

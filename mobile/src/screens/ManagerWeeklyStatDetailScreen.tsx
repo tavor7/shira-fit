@@ -235,7 +235,7 @@ export default function ManagerWeeklyStatDetailScreen() {
         const { data, error: qErr } = await supabase
           .from("session_registrations")
           .select(
-            "user_id, session_id, profiles(full_name), training_sessions(session_date, start_time, duration_minutes)"
+            "user_id, session_id, profiles!user_id(full_name), training_sessions(session_date, start_time, duration_minutes)"
           )
           .eq("status", "active")
           .eq("attended", false)
@@ -355,7 +355,7 @@ export default function ManagerWeeklyStatDetailScreen() {
         const [regRes, manRes] = await Promise.all([
           supabase
             .from("session_registrations")
-            .select("user_id, session_id, profiles(full_name), training_sessions(session_date, start_time, duration_minutes)")
+            .select("user_id, session_id, profiles!user_id(full_name), training_sessions(session_date, start_time, duration_minutes)")
             .eq("status", "active")
             .eq("attended", true)
             .in("session_id", sessionIds),

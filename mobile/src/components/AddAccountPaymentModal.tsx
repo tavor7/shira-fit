@@ -8,7 +8,15 @@ import { supabase } from "../lib/supabase";
 import { toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
-import { paymentMethodHistoryLabel } from "../lib/paymentMethod";
+import { paymentMethodHistoryLabel, normalizePaymentMethodKey } from "../lib/paymentMethod";
+
+export type AccountPaymentEdit = {
+  id: string;
+  amount_ils: number | string;
+  payment_method: string;
+  note: string | null;
+  paid_at: string;
+};
 
 type Props = {
   visible: boolean;
@@ -17,6 +25,8 @@ type Props = {
   payeeIsManual: boolean;
   /** Shown under the modal title (e.g. athlete name). */
   payeeLabel?: string;
+  /** When set, the modal edits an existing account payment instead of creating one. */
+  editPayment?: AccountPaymentEdit | null;
   onSaved: () => void | Promise<void>;
 };
 
@@ -26,10 +36,12 @@ export function AddAccountPaymentModal({
   payeeId,
   payeeIsManual,
   payeeLabel,
+  editPayment,
   onSaved,
 }: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
+  const isEdit = !!editPayment?.id;
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"cash" | "paybox" | "other">("cash");
   const [note, setNote] = useState("");
@@ -38,12 +50,21 @@ export function AddAccountPaymentModal({
 
   useEffect(() => {
     if (!visible) return;
-    setAmount("");
-    setNote("");
-    setMethod("cash");
-    setPaidAt(toISODateLocal(new Date()));
+    if (editPayment) {
+      const rawAmt = editPayment.amount_ils;
+      setAmount(rawAmt !== null && rawAmt !== undefined ? String(rawAmt) : "");
+      const k = normalizePaymentMethodKey(editPayment.payment_method);
+      setMethod(k === "cash" || k === "paybox" || k === "other" ? k : "other");
+      setNote((editPayment.note ?? "").trim());
+      setPaidAt(editPayment.paid_at.trim());
+    } else {
+      setAmount("");
+      setNote("");
+      setMethod("cash");
+      setPaidAt(toISODateLocal(new Date()));
+    }
     setBusy(false);
-  }, [visible, payeeId]);
+  }, [visible, payeeId, editPayment?.id]);
 
   function showError(msg: string) {
     showToast({ message: t("common.error"), detail: msg, variant: "error" });
@@ -60,21 +81,29 @@ export function AddAccountPaymentModal({
       return;
     }
     setBusy(true);
-    const { error } = await supabase.from("athlete_account_payments").insert({
-      payee_id: payeeId,
-      payee_is_manual: payeeIsManual,
+    const payload = {
       amount_ils: amt,
       payment_method: method,
       note: note.trim() || null,
       paid_at: paidAt.trim(),
-    });
+    };
+    const { error } = isEdit
+      ? await supabase.from("athlete_account_payments").update(payload).eq("id", editPayment!.id)
+      : await supabase.from("athlete_account_payments").insert({
+          payee_id: payeeId,
+          payee_is_manual: payeeIsManual,
+          ...payload,
+        });
     setBusy(false);
     if (error) {
       showError(error.message);
       return;
     }
     onClose();
-    showToast({ message: t("billing.paymentSaved"), variant: "success" });
+    showToast({
+      message: isEdit ? t("billing.paymentUpdated") : t("billing.paymentSaved"),
+      variant: "success",
+    });
     await onSaved();
   }
 
@@ -91,7 +120,9 @@ export function AddAccountPaymentModal({
     >
       <View style={[styles.header, isRTL && styles.headerRtl]}>
         <View style={styles.headerText}>
-          <Text style={[styles.title, isRTL && styles.rtlText]}>{t("billing.addPaymentTitle")}</Text>
+          <Text style={[styles.title, isRTL && styles.rtlText]}>
+            {isEdit ? t("billing.editPaymentTitle") : t("billing.addPaymentTitle")}
+          </Text>
           {payeeLabel?.trim() ? (
             <Text style={[styles.subtitle, isRTL && styles.rtlText]} numberOfLines={2}>
               {payeeLabel.trim()}

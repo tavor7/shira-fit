@@ -12,7 +12,7 @@ import { resolveTrainerAccentColor } from "../../../src/lib/trainerCalendarColor
 import { formatSessionTimeRange, sessionStartsAt } from "../../../src/lib/sessionTime";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
-import { formatISODateLong } from "../../../src/lib/dateFormat";
+import { fetchRegistrationAthletesBySessionIds } from "../../../src/lib/sessionRosterQueries";
 import { supabase } from "../../../src/lib/supabase";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 import { logRedirectToManagerSessions } from "../../../src/lib/managerSessionsRedirectLog";
@@ -254,24 +254,15 @@ export default function ManagerRosterCalendarScreen() {
       const next: Record<string, RosterEntry[]> = {};
       for (const id of ids) next[id] = [];
 
-      const [reg, man, notesRes] = await Promise.all([
-        supabase
-          .from("session_registrations")
-          .select("session_id, profiles(full_name, phone)")
-          .in("session_id", ids)
-          .eq("status", "active"),
+      const [regBatch, man, notesRes] = await Promise.all([
+        fetchRegistrationAthletesBySessionIds(ids),
         supabase.from("session_manual_participants").select("session_id, manual_participants(full_name, phone)").in("session_id", ids),
         supabase.from("session_notes").select("session_id, body, created_at").in("session_id", ids).order("created_at"),
       ]);
 
-      if (!reg.error) {
-        for (const row of (reg.data as any[]) ?? []) {
-          const session_id = String(row.session_id ?? "");
-          const p = row.profiles ? (Array.isArray(row.profiles) ? row.profiles[0] : row.profiles) : null;
-          const name = String(p?.full_name ?? "").trim();
-          const phoneRaw = String(p?.phone ?? "").trim();
-          const phone = phoneRaw.length > 0 ? phoneRaw : null;
-          if (session_id && name && next[session_id]) next[session_id].push({ name, phone });
+      if (!regBatch.error) {
+        for (const [session_id, entries] of Object.entries(regBatch.bySession)) {
+          if (next[session_id]) next[session_id].push(...entries);
         }
       }
 

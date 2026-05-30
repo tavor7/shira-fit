@@ -83,6 +83,9 @@ export type ParticipantHistoryRow = {
   payment_method?: string | null;
   /** Optional amount recorded with payment (same workflow). */
   amount_paid?: number | string | null;
+  /** Staff member who last saved payment on this session row. */
+  payment_recorded_by_name?: string | null;
+  payment_recorded_at?: string | null;
   /** From `cancellations.reason` when the athlete self-cancelled. */
   cancellation_reason?: string | null;
   /** True when cancellation was within 24h of session start (time-based). */
@@ -175,4 +178,6 @@ export type AthleteAccountPayment = {
   paid_at: string;
   created_at: string;
   created_by: string | null;
+  /** Resolved client-side from profiles.full_name when created_by is set. */
+  created_by_name?: string | null;
 };

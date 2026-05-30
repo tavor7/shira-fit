@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, SectionList, TextInput, StyleSheet, Pressable, FlatList, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, usePathname } from "expo-router";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { DatePickerField } from "../components/DatePickerField";
+import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { AppModal } from "../components/AppModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
@@ -14,7 +15,7 @@ import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/data
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
-import { normalizePaymentMethodKey, paymentMethodHistoryLabel } from "../lib/paymentMethod";
+import { normalizePaymentMethodKey, paymentMethodHistoryLabel, isSessionPaymentRecorded } from "../lib/paymentMethod";
 import { resolveSessionBillingPriceLocal } from "../lib/sessionSlotPrice";
 import type { PricingRateTierRow } from "../lib/pricingRates";
 
@@ -29,6 +30,28 @@ function parseMoney(raw: unknown): number | null {
   if (!s) return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
+}
+
+type AttStatus = "unset" | "arrived" | "absent";
+
+function attStatusFromRow(reg: ParticipantHistoryRow): AttStatus {
+  return reg.attended === true ? "arrived" : reg.attended === false ? "absent" : "unset";
+}
+
+function attStatusLabel(status: AttStatus, t: (key: string) => string): string {
+  if (status === "arrived") return t("participantHistory.attendanceArrived");
+  if (status === "absent") return t("participantHistory.attendanceAbsent");
+  return t("participantHistory.attendanceNotSet");
+}
+
+function attStatusColor(status: AttStatus): string {
+  if (status === "arrived") return theme.colors.success;
+  if (status === "absent") return theme.colors.error;
+  return theme.colors.textSoft;
+}
+
+function AttStatusDot({ status }: { status: AttStatus }) {
+  return <View style={[styles.statusDot, { backgroundColor: attStatusColor(status) }]} />;
 }
 
 type BillingSummary = {
@@ -181,11 +204,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [sessionKickboxById, setSessionKickboxById] = useState<Record<string, boolean>>({});
   const [payeeIsManual, setPayeeIsManual] = useState(false);
   const [addPayOpen, setAddPayOpen] = useState(false);
-  const [addPayAmount, setAddPayAmount] = useState("");
-  const [addPayMethod, setAddPayMethod] = useState<"cash" | "paybox" | "other">("cash");
-  const [addPayNote, setAddPayNote] = useState("");
-  const [addPayDate, setAddPayDate] = useState(defaultEndISO);
-  const [addPayBusy, setAddPayBusy] = useState(false);
+  const [editAccountPayment, setEditAccountPayment] = useState<AthleteAccountPayment | null>(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
   /** True after a successful Load for the current athlete/date range (hides billing card on fetch error). */
   const [reportReady, setReportReady] = useState(false);
@@ -196,6 +215,13 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [editMethod, setEditMethod] = useState<"cash" | "paybox" | "other" | "">("");
   const [editReg, setEditReg] = useState<ParticipantHistoryRow | null>(null);
   const [policyBusyId, setPolicyBusyId] = useState<string | null>(null);
+  const [removingRegId, setRemovingRegId] = useState<string | null>(null);
+  const [attendanceBusyId, setAttendanceBusyId] = useState<string | null>(null);
+  const [expandedAttendanceId, setExpandedAttendanceId] = useState<string | null>(null);
+
+  function isManualHistoryRow(reg: ParticipantHistoryRow): boolean {
+    return payeeIsManual || reg.athlete_user_id !== athleteId;
+  }
 
   function showError(msg: string) {
     showToast({ message: t("common.error"), detail: msg, variant: "error" });
@@ -252,7 +278,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     if (policyBusyId) return;
     setPolicyBusyId(key);
     try {
-      const res = payeeIsManual
+      const isManualRow = isManualHistoryRow(reg);
+      const res = isManualRow
         ? await supabase.rpc("set_manual_participant_attendance", {
             p_session_id: reg.session_id,
             p_manual_participant_id: reg.athlete_user_id,
@@ -280,6 +307,61 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       await load();
     } finally {
       setPolicyBusyId(null);
+    }
+  }
+
+  async function applyAttendance(reg: ParticipantHistoryRow, status: "unset" | "arrived" | "absent") {
+    const key = `att:${reg.registration_id}`;
+    if (attendanceBusyId) return;
+    const current =
+      reg.attended === true ? "arrived" : reg.attended === false ? "absent" : "unset";
+    if (current === status) return;
+
+    setAttendanceBusyId(key);
+    try {
+      const isManualRow = isManualHistoryRow(reg);
+      const chargeNoShow = status === "absent" && reg.charge_no_show === true;
+      const hasPay = isSessionPaymentRecorded(reg.payment_method);
+      const method =
+        status === "arrived" && hasPay
+          ? normalizePaymentMethodKey(reg.payment_method) === "(none)"
+            ? null
+            : reg.payment_method
+          : status === "absent" && chargeNoShow && hasPay
+            ? reg.payment_method
+            : null;
+      const amtRaw = method != null ? parseMoney(reg.amount_paid) : null;
+      const amountPaid = amtRaw !== null && amtRaw >= 0 ? amtRaw : null;
+
+      const res = isManualRow
+        ? await supabase.rpc("set_manual_participant_attendance", {
+            p_session_id: reg.session_id,
+            p_manual_participant_id: reg.athlete_user_id,
+            p_status: status,
+            p_payment_method: method,
+            p_amount_paid: amountPaid,
+            p_charge_no_show: chargeNoShow,
+          })
+        : await supabase.rpc("set_registration_attendance", {
+            p_session_id: reg.session_id,
+            p_user_id: reg.athlete_user_id,
+            p_status: status,
+            p_payment_method: method,
+            p_amount_paid: amountPaid,
+            p_charge_no_show: chargeNoShow,
+          });
+      if (res.error) {
+        showError(res.error.message);
+        return;
+      }
+      if (res.data?.ok !== true) {
+        showError(String(res.data?.error ?? "failed"));
+        return;
+      }
+      await load();
+      setExpandedAttendanceId(null);
+    } finally {
+      setAttendanceBusyId(null);
     }
   }
 
@@ -312,10 +394,11 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     const status = "arrived";
 
     setEditAmountBusy(true);
-    const res = payeeIsManual
+    const isManualRow = isManualHistoryRow(editReg);
+    const res = isManualRow
       ? await supabase.rpc("set_manual_participant_attendance", {
           p_session_id: editReg.session_id,
-          p_manual_participant_id: athleteId,
+          p_manual_participant_id: editReg.athlete_user_id,
           p_status: status,
           p_payment_method: method,
           p_amount_paid: amt,
@@ -323,7 +406,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         })
       : await supabase.rpc("set_registration_attendance", {
           p_session_id: editReg.session_id,
-          p_user_id: athleteId,
+          p_user_id: editReg.athlete_user_id,
           p_status: status,
           p_payment_method: method,
           p_amount_paid: amt,
@@ -342,6 +425,48 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     setEditAmountOpen(false);
     setEditReg(null);
     await load();
+  }
+
+  function confirmRemoveRegistration(reg: ParticipantHistoryRow) {
+    const name = (reg.athlete_name || athleteLabel).trim() || (language === "he" ? "המתאמן" : "this athlete");
+    const when = `${formatISODateFull(reg.session_date, language)} · ${formatSessionTimeRange(reg.start_time, reg.duration_minutes ?? 60)}`;
+    showConfirm({
+      title: t("participantHistory.removeRegistrationTitle"),
+      message: t("participantHistory.removeRegistrationMessage").replace("{name}", name).replace("{when}", when),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("participantHistory.removeRegistration"),
+      confirmVariant: "danger",
+      onConfirm: () => void removeRegistration(reg),
+    });
+  }
+
+  async function removeRegistration(reg: ParticipantHistoryRow) {
+    if (!athleteId || removingRegId) return;
+    setRemovingRegId(reg.registration_id);
+    try {
+      const isManualRow = isManualHistoryRow(reg);
+      const res = isManualRow
+        ? await supabase.rpc("remove_manual_participant_from_session", {
+            p_session_id: reg.session_id,
+            p_manual_participant_id: reg.athlete_user_id,
+          })
+        : await supabase.rpc(isManagerHistory ? "manager_remove_athlete" : "coach_remove_athlete", {
+            p_session_id: reg.session_id,
+            p_user_id: reg.athlete_user_id,
+          });
+      if (res.error) {
+        showError(res.error.message);
+        return;
+      }
+      if (res.data?.ok !== true) {
+        showError(String(res.data?.error ?? "failed"));
+        return;
+      }
+      showToast({ message: t("participantHistory.registrationRemoved"), variant: "success" });
+      await load();
+    } finally {
+      setRemovingRegId(null);
+    }
   }
 
   const sections = useMemo(() => {
@@ -514,7 +639,24 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
 
     const next = (histRes.data as ParticipantHistoryRow[]) ?? [];
     setRows(next);
-    setAccountPayments((acctRes.data as AthleteAccountPayment[]) ?? []);
+    const payRows = (acctRes.data as AthleteAccountPayment[]) ?? [];
+    const staffIds = [...new Set(payRows.map((p) => p.created_by).filter((id): id is string => !!id))];
+    let nameByStaff: Record<string, string> = {};
+    if (staffIds.length > 0) {
+      const { data: staffProfiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", staffIds);
+      nameByStaff = Object.fromEntries(
+        (staffProfiles ?? []).map((p) => [p.user_id, (p.full_name ?? "").trim()])
+      );
+    }
+    setAccountPayments(
+      payRows.map((p) => ({
+        ...p,
+        created_by_name: p.created_by ? nameByStaff[p.created_by] ?? null : null,
+      }))
+    );
     const stdTiers: PricingRateTierRow[] = [];
     const kickTiers: PricingRateTierRow[] = [];
     for (const r of (priceRes.data as {
@@ -583,6 +725,17 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     setHasSearched(true);
   }, [start, end, phone, athleteId, payeeIsManual, language]);
 
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
+  useEffect(() => {
+    if (!athleteId) return;
+    const s = start.trim();
+    const e = end.trim();
+    if (!isValidISODateString(s) || !isValidISODateString(e) || s > e) return;
+    void loadRef.current();
+  }, [athleteId, start, end, payeeIsManual]);
+
   return (
     <View style={styles.screen}>
       <View style={styles.filters}>
@@ -618,44 +771,84 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             <Text style={styles.clearSelTxt}>{t("common.clearSelection")}</Text>
           </Pressable>
         ) : null}
-        <PrimaryButton label={t("common.load")} onPress={load} loading={loading} loadingLabel={t("common.loading")} />
       </View>
+
+      {athleteId && loading ? (
+        <View style={styles.loadingBanner}>
+          <ActivityIndicator size="small" color={theme.colors.cta} />
+          <Text style={styles.loadingBannerTxt}>{t("common.loading")}</Text>
+        </View>
+      ) : null}
 
       {billingSummary && athleteId && reportReady ? (
         <View style={styles.billingCard}>
           <Text style={[styles.billingTitle, isRTL && styles.rtlText]}>{t("billing.summaryTitle")}</Text>
-          <View style={styles.billingRow}>
-            <Text style={[styles.billingLabel, isRTL && styles.rtlText]}>{t("billing.received")}</Text>
-            <Text style={[styles.billingValue, isRTL && styles.rtlText]}>{`${Math.round(billingSummary.received * 100) / 100} ₪`}</Text>
-          </View>
-          <View style={styles.billingRow}>
-            <Text style={[styles.billingLabel, isRTL && styles.rtlText]}>{t("billing.expected")}</Text>
-            <Text style={[styles.billingValue, isRTL && styles.rtlText]}>{`${Math.round(billingSummary.expected * 100) / 100} ₪`}</Text>
-          </View>
-          <View style={styles.billingRow}>
-            <Text style={[styles.billingLabel, isRTL && styles.rtlText]}>{t("billing.balance")}</Text>
-            <Text
+          <View style={[styles.billingStatGrid, isRTL && styles.billingStatGridRtl]}>
+            <View style={styles.billingStatTile}>
+              <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.received")}</Text>
+              <Text style={[styles.billingStatValue, isRTL && styles.rtlText]}>
+                {`${Math.round(billingSummary.received * 100) / 100} ₪`}
+              </Text>
+            </View>
+            <View style={styles.billingStatTile}>
+              <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.expected")}</Text>
+              <Text style={[styles.billingStatValue, isRTL && styles.rtlText]}>
+                {`${Math.round(billingSummary.expected * 100) / 100} ₪`}
+              </Text>
+            </View>
+            <View
               style={[
-                styles.billingValue,
-                isRTL && styles.rtlText,
-                billingSummary.balance > 0 ? styles.billingOwed : billingSummary.balance < 0 ? styles.billingCredit : null,
+                styles.billingStatTile,
+                billingSummary.balance > 0
+                  ? styles.billingStatTileOwed
+                  : billingSummary.balance < 0
+                    ? styles.billingStatTileCredit
+                    : null,
               ]}
             >
-              {billingSummary.balance > 0
-                ? t("billing.balanceOwes").replace("{n}", String(Math.round(Math.abs(billingSummary.balance) * 100) / 100))
-                : billingSummary.balance < 0
-                  ? t("billing.balanceCredit").replace("{n}", String(Math.round(Math.abs(billingSummary.balance) * 100) / 100))
-                  : t("billing.balanceEven")}
-            </Text>
+              <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.balance")}</Text>
+              <Text
+                style={[
+                  styles.billingStatValue,
+                  isRTL && styles.rtlText,
+                  billingSummary.balance > 0
+                    ? styles.billingStatValueOwed
+                    : billingSummary.balance < 0
+                      ? styles.billingStatValueCredit
+                      : null,
+                ]}
+                numberOfLines={2}
+              >
+                {billingSummary.balance > 0
+                  ? t("billing.balanceOwes").replace(
+                      "{n}",
+                      String(Math.round(Math.abs(billingSummary.balance) * 100) / 100)
+                    )
+                  : billingSummary.balance < 0
+                    ? t("billing.balanceCredit").replace(
+                        "{n}",
+                        String(Math.round(Math.abs(billingSummary.balance) * 100) / 100)
+                      )
+                    : t("billing.balanceEven")}
+              </Text>
+            </View>
           </View>
           {billingSummary.byMethod.length > 0 ? (
-            <Text style={[styles.billingMethods, isRTL && styles.rtlText]}>
-              {t("billing.byMethod")}
-              {": "}
-              {billingSummary.byMethod
-                .map((x) => `${paymentMethodHistoryLabel(x.key, language)} · ${Math.round(x.total * 100) / 100} ₪`)
-                .join(" · ")}
-            </Text>
+            <View style={styles.billingMethodsBlock}>
+              <Text style={[styles.billingMethodsTitle, isRTL && styles.rtlText]}>{t("billing.byMethod")}</Text>
+              <View style={[styles.billingMethodGrid, isRTL && styles.billingMethodGridRtl]}>
+                {billingSummary.byMethod.map((x) => (
+                  <View key={x.key} style={styles.billingMethodTile}>
+                    <Text style={[styles.billingMethodLabel, isRTL && styles.rtlText]} numberOfLines={1}>
+                      {paymentMethodHistoryLabel(x.key, language)}
+                    </Text>
+                    <Text style={[styles.billingMethodValue, isRTL && styles.rtlText]}>
+                      {`${Math.round(x.total * 100) / 100} ₪`}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
           ) : null}
           {billingSummary.missingRuleCount > 0 ? (
             <Text style={[styles.billingWarn, isRTL && styles.rtlText]}>
@@ -665,10 +858,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
           <Pressable
             style={({ pressed }) => [styles.addPayBtn, pressed && { opacity: 0.9 }]}
             onPress={() => {
-              setAddPayAmount("");
-              setAddPayNote("");
-              setAddPayMethod("cash");
-              setAddPayDate(toISODateLocal(new Date()));
+              setEditAccountPayment(null);
               setAddPayOpen(true);
             }}
           >
@@ -735,92 +925,18 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         }
       />
 
-      <AppModal
+      <AddAccountPaymentModal
         visible={addPayOpen}
-        onClose={() => setAddPayOpen(false)}
-        variant="sheet"
-        backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
-        cardStyle={styles.modalBox}
-      >
-        <View style={styles.modalHeader}>
-          <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>{t("billing.addPaymentTitle")}</Text>
-          <Pressable onPress={() => setAddPayOpen(false)}>
-            <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
-          </Pressable>
-        </View>
-        <View style={styles.addPayBody}>
-          <DatePickerField label={t("billing.paidOn")} value={addPayDate} onChange={setAddPayDate} />
-          <Text style={[styles.label, isRTL && styles.rtlText]}>{t("billing.amount")}</Text>
-          <TextInput
-            value={addPayAmount}
-            onChangeText={setAddPayAmount}
-            keyboardType="decimal-pad"
-            placeholder="0"
-            placeholderTextColor={theme.colors.placeholderOnLight}
-            style={styles.inputLight}
-          />
-          <Text style={[styles.label, isRTL && styles.rtlText]}>{t("billing.method")}</Text>
-          <View style={styles.methodRow}>
-            {(["cash", "paybox", "other"] as const).map((m) => {
-              const on = addPayMethod === m;
-              return (
-                <Pressable
-                  key={m}
-                  onPress={() => setAddPayMethod(m)}
-                  style={({ pressed }) => [
-                    styles.methodChip,
-                    on && styles.methodChipOn,
-                    pressed && !on && { opacity: 0.9 },
-                  ]}
-                >
-                  <Text style={[styles.methodChipTxt, on && styles.methodChipTxtOn]}>
-                    {paymentMethodHistoryLabel(m, language)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text style={[styles.label, isRTL && styles.rtlText]}>{t("billing.noteOptional")}</Text>
-          <TextInput
-            value={addPayNote}
-            onChangeText={setAddPayNote}
-            placeholder="…"
-            placeholderTextColor={theme.colors.placeholderOnLight}
-            style={styles.inputLight}
-          />
-          <PrimaryButton
-            label={t("common.save")}
-            loading={addPayBusy}
-            loadingLabel={t("common.loading")}
-            onPress={() => {
-              void (async () => {
-                const amt = Number.parseFloat(addPayAmount.replace(",", ".").trim());
-                if (!Number.isFinite(amt) || amt <= 0) {
-                  showError(language === "he" ? "הזינו סכום תקין." : "Enter a valid amount.");
-                  return;
-                }
-                setAddPayBusy(true);
-                const { error } = await supabase.from("athlete_account_payments").insert({
-                  payee_id: athleteId,
-                  payee_is_manual: payeeIsManual,
-                  amount_ils: amt,
-                  payment_method: addPayMethod,
-                  note: addPayNote.trim() || null,
-                  paid_at: addPayDate.trim(),
-                });
-                setAddPayBusy(false);
-                if (error) {
-                  showError(error.message);
-                  return;
-                }
-                setAddPayOpen(false);
-                showToast({ message: t("billing.paymentSaved"), variant: "success" });
-                await load();
-              })();
-            }}
-          />
-        </View>
-      </AppModal>
+        onClose={() => {
+          setAddPayOpen(false);
+          setEditAccountPayment(null);
+        }}
+        payeeId={athleteId}
+        payeeIsManual={payeeIsManual}
+        payeeLabel={athleteLabel}
+        editPayment={editAccountPayment}
+        onSaved={() => load()}
+      />
 
       <AppModal
         visible={editAmountOpen}
@@ -915,63 +1031,78 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             const amt = parseMoney(p.amount_ils);
             const amtTxt = amt !== null && amt > 0 ? `${amt} ₪` : "—";
             const busyPay = deletingPaymentId === p.id;
+            const recorder = (p.created_by_name ?? "").trim();
+            const reporterLine = recorder
+              ? t("participantHistory.reportedBy").replace("{name}", recorder)
+              : t("participantHistory.reportedByUnknown");
             return (
-              <View style={[styles.row, styles.paymentRow]}>
-                <View style={[styles.paymentRowHead, isRTL && styles.paymentRowHeadRtl]}>
-                  <Text style={[styles.rowDate, isRTL && styles.rtlText, styles.paymentRowDate]} numberOfLines={1}>
-                    {formatISODateFull(p.paid_at, language)}
+              <View style={styles.row}>
+                <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
+                  <View style={[styles.sessionHeadRow, isRTL && styles.sessionHeadRowRtl]}>
+                    <Text style={[styles.cardDate, isRTL && styles.rtlText]} numberOfLines={1}>
+                      {formatISODateFull(p.paid_at, language)}
+                    </Text>
+                    <Text style={[styles.sessionAmount, isRTL && styles.rtlText]}>{amtTxt}</Text>
+                  </View>
+                  <Text style={[styles.sessionSubline, isRTL && styles.rtlText]} numberOfLines={1}>
+                    {t("billing.accountPayment")} · {paymentMethodHistoryLabel(p.payment_method, language)}
                   </Text>
+                  <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]} numberOfLines={2}>
+                    {reporterLine}
+                  </Text>
+                  {(p.note ?? "").trim().length > 0 ? (
+                    <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]}>{p.note}</Text>
+                  ) : null}
+                </View>
+                <View style={[styles.actionBar, isRTL && styles.actionBarRtl]}>
+                  <Pressable
+                    onPress={() => {
+                      setEditAccountPayment(p);
+                      setAddPayOpen(true);
+                    }}
+                    disabled={busyPay}
+                    style={({ pressed }) => [styles.actionBarItem, pressed && !busyPay && styles.actionBarItemPressed]}
+                  >
+                    <Text style={[styles.actionBarLabel, isRTL && styles.rtlText]}>{t("participantHistory.editShort")}</Text>
+                  </Pressable>
+                  <View style={styles.actionBarSep} />
                   <Pressable
                     onPress={() => confirmDeleteAccountPayment(p.id)}
                     disabled={busyPay}
-                    style={({ pressed }) => [styles.paymentDeleteBtn, pressed && !busyPay && { opacity: 0.85 }]}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("billing.deletePayment")}
+                    style={({ pressed }) => [
+                      styles.actionBarItem,
+                      styles.actionBarItemDanger,
+                      pressed && !busyPay && styles.actionBarItemPressed,
+                    ]}
                   >
                     {busyPay ? (
                       <ActivityIndicator size="small" color={theme.colors.error} />
                     ) : (
-                      <Text style={styles.paymentDeleteTxt}>{t("billing.deletePayment")}</Text>
+                      <Text style={[styles.actionBarLabelDanger, isRTL && styles.rtlText]}>
+                        {t("participantHistory.removeShort")}
+                      </Text>
                     )}
                   </Pressable>
                 </View>
-                <View style={[styles.badge, styles.badgePayment]}>
-                  <Text style={[styles.badgeTxt, styles.badgeTxtPayment]}>{t("billing.accountPayment")}</Text>
-                </View>
-                <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
-                  {paymentMethodHistoryLabel(p.payment_method, language)} · {amtTxt}
-                </Text>
-                {(p.note ?? "").trim().length > 0 ? (
-                  <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>{p.note}</Text>
-                ) : null}
               </View>
             );
           }
           const reg = item.reg;
-          const att = reg.attended;
-          const attLabel =
-            att === true
-              ? language === "he"
-                ? "הגיע"
-                : "Arrived"
-              : att === false
-                ? language === "he"
-                  ? "נעדר"
-                  : "Absent"
-                : language === "he"
-                  ? "נוכחות לא סומנה"
-                  : "Attendance not set";
-          const attStyle =
-            att === true ? styles.badgeAttYes : att === false ? styles.badgeAttNo : styles.badgeAttUnset;
-          const attTxtStyle =
-            att === true ? styles.badgeAttTxtYes : att === false ? styles.badgeAttTxtNo : styles.badgeAttTxtUnset;
-          const hasPaymentMethod = normalizePaymentMethodKey(reg.payment_method) !== "(none)";
+          const hasPaymentMethod = isSessionPaymentRecorded(reg.payment_method);
           const amtRaw = reg.amount_paid;
           const amt =
             amtRaw !== null && amtRaw !== undefined && String(amtRaw).trim() !== ""
               ? Number(amtRaw)
               : null;
           const amtOk = amt !== null && Number.isFinite(amt);
+          const recorder = (reg.payment_recorded_by_name ?? "").trim();
+          const chargeNoShow = reg.charge_no_show === true;
+          const showPaymentBlock =
+            reg.reg_status === "active" &&
+            (reg.attended === true || (reg.attended === false && chargeNoShow));
+          const reporterLine = recorder
+            ? t("participantHistory.reportedBy").replace("{name}", recorder)
+            : t("participantHistory.reportedByUnknown");
           const reason = (reg.cancellation_reason ?? "").trim();
           const raw12 = reg.cancellation_within_12h;
           const within12 =
@@ -989,107 +1120,209 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   : "Cancelled more than 12h before session"
                 : null;
           const feeCharged = reg.cancellation_charged === true;
-          const chargeNoShow = reg.charge_no_show === true;
+          const staffCanEdit = isManagerHistory || isCoachHistory;
+          const sessionPrice =
+            typeof reg.max_participants === "number" && reg.max_participants > 0
+              ? resolveSessionBillingPriceLocal({
+                  customSlotPriceIls: sessionCustomPriceById[reg.session_id],
+                  maxParticipants: reg.max_participants,
+                  isKickbox: sessionKickboxById[reg.session_id] ?? false,
+                  sessionDate: reg.session_date,
+                  athleteTiers,
+                  globalTiers,
+                  globalKickboxTiers,
+                })
+              : null;
+          const metaLine =
+            typeof reg.max_participants === "number" && reg.max_participants > 0
+              ? sessionPrice != null
+                ? t("participantHistory.sessionMeta").replace("{spots}", String(reg.max_participants)).replace("{price}", String(sessionPrice))
+                : t("participantHistory.sessionMetaSpotsOnly").replace("{spots}", String(reg.max_participants))
+              : null;
+          const attCurrent = attStatusFromRow(reg);
+          const attOpen = expandedAttendanceId === reg.registration_id;
+          const attLabel = attStatusLabel(attCurrent, t);
+          const paymentLine =
+            showPaymentBlock && hasPaymentMethod
+              ? amtOk
+                ? `${t("participantHistory.paidBadge")} · ${amt} ₪`
+                : t("participantHistory.paidBadge")
+              : showPaymentBlock
+                ? t("participantHistory.unpaidBadge")
+                : null;
           return (
             <View style={styles.row}>
-              <View style={styles.rowMain}>
-                <Text style={[styles.rowDate, isRTL && styles.rtlText]} numberOfLines={1} ellipsizeMode="tail">
-                  {formatISODateFull(reg.session_date, language)}
-                </Text>
-                <Text style={[styles.rowTime, isRTL && styles.rtlText]} numberOfLines={1} ellipsizeMode="tail">
-                  {formatSessionTimeRange(reg.start_time, reg.duration_minutes ?? 60)}
-                </Text>
-                <View style={[styles.badge, reg.reg_status === "active" ? styles.badgeOn : styles.badgeOff]}>
-                  <Text style={[styles.badgeTxt, reg.reg_status === "active" ? styles.badgeTxtOn : styles.badgeTxtOff]}>
-                    {reg.reg_status === "active"
-                      ? language === "he"
-                        ? "פעיל"
-                        : "Active"
-                      : language === "he"
-                        ? "בוטל"
-                        : "Cancelled"}
+              <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
+                <View style={[styles.sessionHeadRow, isRTL && styles.sessionHeadRowRtl]}>
+                  <Text style={[styles.cardDate, isRTL && styles.rtlText]} numberOfLines={1}>
+                    {formatISODateFull(reg.session_date, language)}
+                  </Text>
+                  <Text style={[styles.sessionTime, isRTL && styles.rtlText]} numberOfLines={1}>
+                    {formatSessionTimeRange(reg.start_time, reg.duration_minutes ?? 60)}
                   </Text>
                 </View>
-                {reg.reg_status === "active" ? (
-                  <View style={[styles.badge, attStyle, styles.badgeAtt]}>
-                    <Text style={[styles.badgeTxt, attTxtStyle]}>{attLabel}</Text>
-                  </View>
+                <View style={[styles.sessionSublineRow, isRTL && styles.sessionSublineRowRtl]}>
+                  {metaLine ? (
+                    <Text style={[styles.sessionSubline, isRTL && styles.rtlText, styles.sessionSublineFlex]} numberOfLines={1}>
+                      {metaLine}
+                    </Text>
+                  ) : (
+                    <View style={styles.sessionSublineFlex} />
+                  )}
+                  {reg.reg_status === "cancelled" ? (
+                    <Text style={[styles.sessionStatusMuted, isRTL && styles.rtlText]}>
+                      {language === "he" ? "בוטל" : "Cancelled"}
+                    </Text>
+                  ) : paymentLine ? (
+                    <Text
+                      style={[
+                        styles.sessionStatus,
+                        isRTL && styles.rtlText,
+                        hasPaymentMethod ? styles.sessionStatusPaid : styles.sessionStatusUnpaid,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {paymentLine}
+                    </Text>
+                  ) : reg.reg_status === "active" && !staffCanEdit ? (
+                    <View style={[styles.sessionStatusInline, isRTL && styles.sessionStatusInlineRtl]}>
+                      <AttStatusDot status={attCurrent} />
+                      <Text style={[styles.sessionStatus, isRTL && styles.rtlText]} numberOfLines={1}>
+                        {attLabel}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                {showPaymentBlock && hasPaymentMethod ? (
+                  <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]} numberOfLines={2}>
+                    {[paymentMethodHistoryLabel(reg.payment_method, language), reporterLine].filter(Boolean).join(" · ")}
+                  </Text>
                 ) : null}
               </View>
-              {reg.reg_status === "active" && reg.attended === true ? (
-                <Pressable
-                  onPress={() => openEditAmount(reg)}
-                  style={({ pressed }) => [styles.inlineAction, pressed && { opacity: 0.88 }]}
-                  accessibilityRole="button"
-                  accessibilityLabel={language === "he" ? "עריכת סכום" : "Edit amount"}
-                >
-                  <Text style={styles.inlineActionTxt}>{language === "he" ? "עריכת סכום" : "Edit amount"}</Text>
-                </Pressable>
+
+              {reg.reg_status === "active" && staffCanEdit ? (
+                <>
+                  {attOpen && attendanceBusyId !== `att:${reg.registration_id}` ? (
+                    <View style={[styles.attPicker, isRTL && styles.attPickerRtl]}>
+                      {(["unset", "arrived", "absent"] as const).map((status) => {
+                        const on = attCurrent === status;
+                        return (
+                          <Pressable
+                            key={status}
+                            onPress={() => void applyAttendance(reg, status)}
+                            style={({ pressed }) => [
+                              styles.attPickerOpt,
+                              on && styles.attPickerOptOn,
+                              pressed && { opacity: 0.9 },
+                            ]}
+                          >
+                            <AttStatusDot status={status} />
+                            <Text style={[styles.attPickerTxt, on && styles.attPickerTxtOn, isRTL && styles.rtlText]}>
+                              {attStatusLabel(status, t)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                  <View style={[styles.actionBar, isRTL && styles.actionBarRtl]}>
+                    <Pressable
+                      onPress={() =>
+                        setExpandedAttendanceId((cur) =>
+                          cur === reg.registration_id ? null : reg.registration_id
+                        )
+                      }
+                      disabled={attendanceBusyId === `att:${reg.registration_id}`}
+                      style={({ pressed }) => [
+                        styles.actionBarItem,
+                        styles.actionBarItemWide,
+                        pressed && { opacity: 0.9 },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: attOpen }}
+                    >
+                      {attendanceBusyId === `att:${reg.registration_id}` ? (
+                        <ActivityIndicator size="small" color={theme.colors.text} />
+                      ) : (
+                        <>
+                          <AttStatusDot status={attCurrent} />
+                          <Text style={[styles.actionBarLabel, isRTL && styles.rtlText]} numberOfLines={1}>
+                            {attLabel}
+                          </Text>
+                          <Text style={styles.actionBarChevron}>{attOpen ? "▴" : "▾"}</Text>
+                        </>
+                      )}
+                    </Pressable>
+                    {reg.attended === true ? (
+                      <>
+                        <View style={styles.actionBarSep} />
+                        <Pressable
+                          onPress={() => openEditAmount(reg)}
+                          style={({ pressed }) => [styles.actionBarItem, pressed && styles.actionBarItemPressed]}
+                          accessibilityRole="button"
+                        >
+                          <Text style={[styles.actionBarLabel, isRTL && styles.rtlText]}>
+                            {hasPaymentMethod
+                              ? t("participantHistory.editShort")
+                              : t("participantHistory.payShort")}
+                          </Text>
+                        </Pressable>
+                      </>
+                    ) : null}
+                    <View style={styles.actionBarSep} />
+                    <Pressable
+                      onPress={() => confirmRemoveRegistration(reg)}
+                      disabled={removingRegId === reg.registration_id}
+                      style={({ pressed }) => [
+                        styles.actionBarItem,
+                        styles.actionBarItemDanger,
+                        pressed && removingRegId !== reg.registration_id && styles.actionBarItemPressed,
+                      ]}
+                      accessibilityRole="button"
+                    >
+                      {removingRegId === reg.registration_id ? (
+                        <ActivityIndicator size="small" color={theme.colors.error} />
+                      ) : (
+                        <Text style={[styles.actionBarLabelDanger, isRTL && styles.rtlText]}>
+                          {t("participantHistory.removeShort")}
+                        </Text>
+                      )}
+                    </Pressable>
+                  </View>
+                </>
               ) : null}
-              {typeof reg.max_participants === "number" && reg.max_participants > 0 ? (
-                <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
-                  {language === "he" ? "גודל קבוצה (מקס׳ משתתפים): " : "Group size (max spots): "}
-                  {reg.max_participants}
-                  {(() => {
-                    const price = resolveSessionBillingPriceLocal({
-                      customSlotPriceIls: sessionCustomPriceById[reg.session_id],
-                      maxParticipants: reg.max_participants,
-                      isKickbox: sessionKickboxById[reg.session_id] ?? false,
-                      sessionDate: reg.session_date,
-                      athleteTiers,
-                      globalTiers,
-                      globalKickboxTiers,
-                    });
-                    return price != null
-                      ? language === "he"
-                        ? ` · מחיר: ${price} ₪`
-                        : ` · Price: ${price} ₪`
-                      : "";
-                  })()}
-                </Text>
-              ) : null}
-              {hasPaymentMethod ? (
-                <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
-                  {language === "he" ? "תשלום: " : "Payment: "}
-                  {paymentMethodHistoryLabel(reg.payment_method, language)}
-                  {amtOk ? (language === "he" ? ` · ${amt} ₪` : ` · ${amt}`) : ""}
-                </Text>
-              ) : amtOk ? (
-                <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
-                  {language === "he" ? "סכום: " : "Amount: "}
-                  {language === "he" ? `${amt} ₪` : `${amt}`}
-                </Text>
-              ) : null}
-              {reg.reg_status === "active" && reg.attended === false && (isManagerHistory || isCoachHistory) ? (
-                <View style={[styles.noShowPolicyBlock, isRTL && styles.noShowPolicyBlockRtl]}>
-                  <Text style={[styles.noShowPolicyLabel, isRTL && styles.rtlText]}>
+
+              {reg.reg_status === "active" && reg.attended === false && staffCanEdit ? (
+                <View style={styles.cardInset}>
+                  <Text style={[styles.cardInsetLabel, isRTL && styles.rtlText]}>
                     {t("participantHistory.noShowChargeHeading")}
                   </Text>
                   {policyBusyId === `ns:${reg.registration_id}` ? (
-                    <ActivityIndicator color={theme.colors.cta} style={{ marginVertical: 8 }} />
+                    <ActivityIndicator color={theme.colors.cta} style={styles.cardSpinner} />
                   ) : (
-                    <View style={[styles.policySeg, isRTL && styles.policySegRtl]}>
+                    <View style={[styles.actionBar, styles.actionBarInset, isRTL && styles.actionBarRtl]}>
                       <Pressable
                         onPress={() => void applyNoShowCharge(reg, false)}
                         style={({ pressed }) => [
-                          styles.policyBtn,
-                          !chargeNoShow && styles.policyBtnOn,
-                          pressed && { opacity: 0.88 },
+                          styles.actionBarItem,
+                          !chargeNoShow && styles.actionBarItemActive,
+                          pressed && { opacity: 0.9 },
                         ]}
                       >
-                        <Text style={[styles.policyBtnTxt, !chargeNoShow && styles.policyBtnTxtOn]}>
+                        <Text style={[styles.actionBarLabel, !chargeNoShow && styles.actionBarLabelActive, isRTL && styles.rtlText]}>
                           {t("managerSession.cancelChargeWaive")}
                         </Text>
                       </Pressable>
+                      <View style={styles.actionBarSep} />
                       <Pressable
                         onPress={() => void applyNoShowCharge(reg, true)}
                         style={({ pressed }) => [
-                          styles.policyBtn,
-                          chargeNoShow && styles.policyBtnOn,
-                          pressed && { opacity: 0.88 },
+                          styles.actionBarItem,
+                          chargeNoShow && styles.actionBarItemActive,
+                          pressed && { opacity: 0.9 },
                         ]}
                       >
-                        <Text style={[styles.policyBtnTxt, chargeNoShow && styles.policyBtnTxtOn]}>
+                        <Text style={[styles.actionBarLabel, chargeNoShow && styles.actionBarLabelActive, isRTL && styles.rtlText]}>
                           {t("managerSession.cancelChargeApply")}
                         </Text>
                       </Pressable>
@@ -1097,22 +1330,23 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   )}
                 </View>
               ) : null}
+
               {reg.reg_status === "cancelled" ? (
-                <>
+                <View style={styles.cardSubsection}>
                   {reason.length > 0 ? (
-                    <Text style={[styles.rowDetail, isRTL && styles.rtlText]}>
-                      {language === "he" ? "סיבת ביטול: " : "Cancellation reason: "}
+                    <Text style={[styles.cardNote, isRTL && styles.rtlText]}>
+                      {language === "he" ? "סיבה: " : "Reason: "}
                       {reason}
                     </Text>
                   ) : null}
                   {late ? (
-                    <View style={[styles.badge, within12 ? styles.badgeLate : styles.badgeLateOk]}>
+                    <View style={[styles.badge, within12 ? styles.badgeLate : styles.badgeLateOk, styles.badgeInline]}>
                       <Text style={[styles.badgeTxt, within12 ? styles.badgeLateTxt : styles.badgeLateOkTxt]}>{late}</Text>
                     </View>
                   ) : null}
                   {within12 && isManagerHistory && reg.cancellation_id ? (
                     policyBusyId === `lc:${reg.cancellation_id}` ? (
-                      <ActivityIndicator color={theme.colors.cta} style={{ marginTop: 10 }} />
+                      <ActivityIndicator color={theme.colors.cta} style={styles.cardSpinner} />
                     ) : (
                       <View style={[styles.policySeg, isRTL && styles.policySegRtl, styles.lateFeeSegMargin]}>
                         <Pressable
@@ -1142,18 +1376,20 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                       </View>
                     )
                   ) : null}
-                </>
+                </View>
               ) : null}
             </View>
           );
         }}
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {!hasSearched
+            {!athleteId
               ? language === "he"
-                ? "בחרו טווח תאריכים ומתאמן, ואז לחצו על טען."
-                : "Set the period (and optional phone), then tap Load."
-              : emptyHint}
+                ? "בחרו מתאמן כדי לראות את הפעילות."
+                : "Choose an athlete to see their activity."
+              : !hasSearched || loading
+                ? ""
+                : emptyHint}
           </Text>
         }
         contentContainerStyle={styles.listContent}
@@ -1201,6 +1437,16 @@ const styles = StyleSheet.create({
   pickerPlaceholder: { fontSize: 16, color: theme.colors.textSoftOnLight },
   clearSel: { marginTop: 8, alignSelf: "flex-start" },
   clearSelTxt: { color: theme.colors.textMuted, fontWeight: "700" },
+  loadingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    paddingVertical: 10,
+  },
+  loadingBannerTxt: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
   modalBackdrop: { flex: 1, justifyContent: "flex-end" },
   modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
   modalBox: {
@@ -1247,24 +1493,125 @@ const styles = StyleSheet.create({
   row: {
     marginHorizontal: theme.spacing.md,
     marginTop: theme.spacing.sm,
-    padding: theme.spacing.md,
-    flexDirection: "column",
-    alignItems: "stretch",
-    overflow: "hidden",
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.surface,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.borderMuted,
+    overflow: "hidden",
   },
-  rowMain: {
+  sessionCardBody: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md, paddingBottom: theme.spacing.sm, gap: 4 },
+  sessionCardBodyRtl: { alignItems: "stretch" },
+  sessionHeadRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12 },
+  sessionHeadRowRtl: { flexDirection: "row-reverse" },
+  sessionSublineRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 2 },
+  sessionSublineRowRtl: { flexDirection: "row-reverse" },
+  sessionSublineFlex: { flex: 1, minWidth: 0 },
+  sessionSubline: { fontSize: 13, color: theme.colors.textMuted, lineHeight: 18 },
+  sessionTime: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, flexShrink: 0 },
+  sessionAmount: { fontSize: 17, fontWeight: "800", color: theme.colors.success, flexShrink: 0 },
+  sessionStatus: { fontSize: 12, fontWeight: "700", flexShrink: 0 },
+  sessionStatusPaid: { color: theme.colors.success },
+  sessionStatusUnpaid: { color: "#fbbf24" },
+  sessionStatusMuted: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, flexShrink: 0 },
+  sessionStatusInline: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0 },
+  sessionStatusInlineRtl: { flexDirection: "row-reverse" },
+  sessionFootnote: { fontSize: 11, color: theme.colors.textSoft, lineHeight: 15, marginTop: 2 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  actionBar: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "flex-start",
+    alignItems: "stretch",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
   },
-  rowMainRtl: { flexDirection: "row-reverse" },
-  rowDetail: { marginTop: 8, fontSize: 13, color: theme.colors.textMuted, lineHeight: 18 },
-  rowDate: { fontSize: 15, fontWeight: "700", color: theme.colors.text, flex: 1, minWidth: 120, flexShrink: 1 },
-  rowTime: { fontSize: 14, color: theme.colors.cta, fontWeight: "600", flex: 1, minWidth: 90, flexShrink: 1 },
+  actionBarRtl: { flexDirection: "row-reverse" },
+  actionBarInset: { borderTopWidth: 0, borderRadius: theme.radius.md, overflow: "hidden" },
+  actionBarItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 11,
+    paddingHorizontal: 8,
+    minHeight: 42,
+  },
+  actionBarItemWide: { flex: 1.35 },
+  actionBarItemDanger: {},
+  actionBarItemActive: { backgroundColor: theme.colors.cta },
+  actionBarItemPressed: { opacity: 0.88 },
+  actionBarSep: { width: StyleSheet.hairlineWidth, backgroundColor: theme.colors.borderMuted },
+  actionBarLabel: { fontSize: 13, fontWeight: "600", color: theme.colors.text },
+  actionBarLabelActive: { color: theme.colors.ctaText, fontWeight: "700" },
+  actionBarLabelDanger: { fontSize: 13, fontWeight: "600", color: theme.colors.error },
+  actionBarChevron: { fontSize: 10, color: theme.colors.textSoft, marginTop: 1 },
+  attPicker: {
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: 4,
+    paddingBottom: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+  },
+  attPickerRtl: { flexDirection: "row-reverse" },
+  attPickerOpt: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  attPickerOptOn: { backgroundColor: theme.colors.cta },
+  attPickerTxt: { fontSize: 12, fontWeight: "600", color: theme.colors.textMuted },
+  attPickerTxtOn: { color: theme.colors.ctaText, fontWeight: "700" },
+  cardInset: {
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+    gap: 6,
+  },
+  cardInsetLabel: { fontSize: 11, fontWeight: "600", color: theme.colors.textSoft },
+  cardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  cardTopRtl: { flexDirection: "row-reverse" },
+  cardDate: { fontSize: 16, fontWeight: "700", color: theme.colors.text, flexShrink: 1 },
+  cardMeta: { fontSize: 12, color: theme.colors.textMuted, lineHeight: 16 },
+  cardNote: { fontSize: 13, color: theme.colors.textMuted, lineHeight: 18 },
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.borderMuted,
+    marginTop: 2,
+  },
+  cardSpinner: { marginVertical: 6 },
+  cardLinks: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4 },
+  cardLinksRtl: { flexDirection: "row-reverse" },
+  cardLinkHit: { paddingVertical: 2 },
+  cardLink: { fontSize: 13, fontWeight: "800", color: theme.colors.cta },
+  cardLinkDanger: { color: theme.colors.error },
+  cardLinkSep: { fontSize: 13, color: theme.colors.textSoft, fontWeight: "700" },
+  cardPaymentSummary: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  cardPaymentSummaryRtl: { flexDirection: "row-reverse" },
+  cardPaymentAmount: { fontSize: 16, fontWeight: "900", color: theme.colors.success },
+  cardPaymentMethod: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
+  cardPaymentFoot: {
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+    gap: 4,
+  },
+  cardPaymentFootPaid: {},
+  cardUnpaid: { fontSize: 13, color: theme.colors.textMuted, lineHeight: 18 },
+  cardSubsection: { gap: 8, paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.sm },
+  cardSubLabel: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
+  badgeInline: { alignSelf: "flex-start", marginTop: 0 },
   badge: {
     alignSelf: "flex-start",
     paddingHorizontal: 10,
@@ -1301,9 +1648,9 @@ const styles = StyleSheet.create({
   lateFeeSegMargin: { marginTop: 10 },
   policyBtn: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: theme.radius.sm,
+    paddingVertical: 7,
+    paddingHorizontal: 6,
+    borderRadius: theme.radius.full,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
@@ -1324,12 +1671,52 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   billingTitle: { fontSize: 13, fontWeight: "900", color: theme.colors.textMuted, letterSpacing: 0.3, textTransform: "uppercase" },
-  billingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
-  billingLabel: { fontSize: 14, fontWeight: "700", color: theme.colors.text },
-  billingValue: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
-  billingOwed: { color: theme.colors.error },
-  billingCredit: { color: theme.colors.success },
-  billingMethods: { fontSize: 12, color: theme.colors.textMuted, lineHeight: 18, marginTop: 4 },
+  billingStatGrid: { flexDirection: "row", gap: 8 },
+  billingStatGridRtl: { flexDirection: "row-reverse" },
+  billingStatTile: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    minHeight: 68,
+  },
+  billingStatTileOwed: { borderColor: theme.colors.errorBorder, backgroundColor: theme.colors.errorBg },
+  billingStatTileCredit: { borderColor: "rgba(34,197,94,0.35)", backgroundColor: theme.colors.successBg },
+  billingStatLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: theme.colors.textMuted,
+    letterSpacing: 0.25,
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
+  billingStatValue: { fontSize: 15, fontWeight: "900", color: theme.colors.text, textAlign: "center", lineHeight: 18 },
+  billingStatValueOwed: { color: theme.colors.error },
+  billingStatValueCredit: { color: theme.colors.success },
+  billingMethodsBlock: { gap: 6, marginTop: 2 },
+  billingMethodsTitle: { fontSize: 10, fontWeight: "800", color: theme.colors.textMuted, letterSpacing: 0.25, textTransform: "uppercase" },
+  billingMethodGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  billingMethodGridRtl: { flexDirection: "row-reverse" },
+  billingMethodTile: {
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: "center",
+    gap: 2,
+    minWidth: 72,
+  },
+  billingMethodLabel: { fontSize: 10, fontWeight: "800", color: theme.colors.textMuted, textAlign: "center" },
+  billingMethodValue: { fontSize: 13, fontWeight: "900", color: theme.colors.text, textAlign: "center" },
   billingWarn: { fontSize: 12, color: theme.colors.textSoft, marginTop: 4, lineHeight: 17 },
   addPayBtn: {
     marginTop: 8,
@@ -1362,7 +1749,30 @@ const styles = StyleSheet.create({
   methodChipOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   methodChipTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.text },
   methodChipTxtOn: { color: theme.colors.ctaText },
-  paymentRow: { borderLeftWidth: 3, borderLeftColor: theme.colors.cta },
+  paymentRow: { borderLeftWidth: 3, borderLeftColor: theme.colors.success },
+  paymentStatusRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  paymentStatusRowRtl: { flexDirection: "row-reverse" },
+  paymentPaidAmount: { fontSize: 18, fontWeight: "900", color: theme.colors.success },
+  paymentMethodLine: { fontSize: 14, fontWeight: "700", color: theme.colors.text, marginTop: 4 },
+  paymentMethodCash: { color: theme.colors.success },
+  paymentMethodOther: { color: "#ca8a04" },
+  paymentRecordedBy: { fontSize: 12, color: theme.colors.textMuted, marginTop: 4, lineHeight: 17 },
+  paymentUnpaidHint: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4, lineHeight: 18 },
+  sessionPaymentBlock: {
+    marginTop: 8,
+    padding: 10,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    gap: 2,
+  },
+  sessionPaymentBlockPaid: {
+    backgroundColor: "rgba(34, 197, 94, 0.08)",
+    borderColor: "rgba(34, 197, 94, 0.35)",
+  },
+  sessionPaymentBlockUnpaid: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderMuted,
+  },
   badgePayment: { backgroundColor: "rgba(96, 165, 250, 0.15)", borderWidth: 1, borderColor: theme.colors.cta },
   badgeTxtPayment: { color: theme.colors.cta },
   paymentRowHead: {
@@ -1373,12 +1783,15 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   paymentRowHeadRtl: { flexDirection: "row-reverse" },
+  paymentRowActions: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 0 },
+  paymentRowActionsRtl: { flexDirection: "row-reverse" },
   paymentRowDate: { flex: 1, minWidth: 0 },
+  paymentEditBtn: { paddingVertical: 6, paddingHorizontal: 8 },
+  paymentEditTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.cta },
   paymentDeleteBtn: { paddingVertical: 6, paddingHorizontal: 8 },
   paymentDeleteTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.error },
   inlineAction: {
     alignSelf: "flex-start",
-    marginTop: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,
@@ -1387,4 +1800,14 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
   },
   inlineActionTxt: { color: theme.colors.cta, fontWeight: "900", letterSpacing: 0.1 },
+  rowActions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  rowActionsRtl: { flexDirection: "row-reverse" },
+  attendanceBlock: { marginTop: 10, gap: 6 },
+  attendanceBlockRtl: { alignItems: "flex-end" },
+  attendanceLabel: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted, letterSpacing: 0.2 },
+  inlineActionDanger: {
+    borderColor: "rgba(239, 68, 68, 0.35)",
+    backgroundColor: "rgba(239, 68, 68, 0.08)",
+  },
+  inlineActionDangerTxt: { color: theme.colors.error, fontWeight: "900", letterSpacing: 0.1 },
 });
