@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, SectionList, TextInput, StyleSheet, Pressable, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, SectionList, TextInput, StyleSheet, Pressable, FlatList, ActivityIndicator, Platform } from "react-native";
 import { useLocalSearchParams, usePathname } from "expo-router";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -8,7 +8,7 @@ import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { AppModal } from "../components/AppModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
-import { formatSessionTimeRange } from "../lib/sessionTime";
+import { formatSessionStartTime, formatSessionTimeRange } from "../lib/sessionTime";
 import { toISODateLocal, isValidISODateString, parseISODateLocal, firstDayOfMonthISOLocal } from "../lib/isoDate";
 import { formatISODateFull, formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
 import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/database";
@@ -176,6 +176,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const presetUid =
     typeof presetUserId === "string" ? presetUserId : Array.isArray(presetUserId) ? presetUserId[0] : undefined;
   const { language, t, isRTL } = useI18n();
+  /** Web sets `html dir=rtl`; extra row-reverse there mirrors layout twice. */
+  const rtlRowFlip = isRTL && Platform.OS !== "web";
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
   const pathname = usePathname();
@@ -948,7 +950,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             {billingSummary && athleteId && reportReady ? (
               <View style={styles.billingCard}>
                 <Text style={[styles.billingTitle, isRTL && styles.rtlText]}>{t("billing.summaryTitle")}</Text>
-                <View style={[styles.billingStatGrid, isRTL && styles.billingStatGridRtl]}>
+                <View style={[styles.billingStatGrid, rtlRowFlip && styles.billingStatGridRtl]}>
                   <View style={styles.billingStatTile}>
                     <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.received")}</Text>
                     <Text style={[styles.billingStatValue, isRTL && styles.rtlText]}>
@@ -1001,7 +1003,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                 {billingSummary.byMethod.length > 0 ? (
                   <View style={styles.billingMethodsBlock}>
                     <Text style={[styles.billingMethodsTitle, isRTL && styles.rtlText]}>{t("billing.byMethod")}</Text>
-                    <View style={[styles.billingMethodGrid, isRTL && styles.billingMethodGridRtl]}>
+                    <View style={[styles.billingMethodGrid, rtlRowFlip && styles.billingMethodGridRtl]}>
                       {billingSummary.byMethod.map((x) => (
                         <View key={x.key} style={styles.billingMethodTile}>
                           <Text style={[styles.billingMethodLabel, isRTL && styles.rtlText]} numberOfLines={1}>
@@ -1034,8 +1036,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
           </>
         }
         renderSectionHeader={({ section: { title } }) => (
-          <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle} numberOfLines={1} ellipsizeMode="tail">
+          <View style={[styles.sectionHead, isRTL && styles.sectionHeadRtl]}>
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]} numberOfLines={1} ellipsizeMode="tail">
               {title}
             </Text>
           </View>
@@ -1053,11 +1055,11 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             return (
               <View style={styles.row}>
                 <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
-                  <View style={[styles.sessionHeadRow, isRTL && styles.sessionHeadRowRtl]}>
+                  <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
                   <Text style={[styles.cardDate, isRTL && styles.rtlText]} numberOfLines={1}>
                     {formatISODateFullWithWeekdayAfter(p.paid_at, language)}
                   </Text>
-                    <Text style={[styles.sessionAmount, isRTL && styles.rtlText]}>{amtTxt}</Text>
+                    <Text style={[styles.sessionAmount, isRTL ? styles.ltrText : undefined]}>{amtTxt}</Text>
                   </View>
                   <Text style={[styles.sessionSubline, isRTL && styles.rtlText]} numberOfLines={1}>
                     {t("billing.accountPayment")} · {paymentMethodHistoryLabel(p.payment_method, language)}
@@ -1069,7 +1071,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                     <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]}>{p.note}</Text>
                   ) : null}
                 </View>
-                <View style={[styles.actionBar, isRTL && styles.actionBarRtl]}>
+                <View style={[styles.actionBar, rtlRowFlip && styles.actionBarRtl]}>
                   <Pressable
                     onPress={() => {
                       setEditAccountPayment(p);
@@ -1155,35 +1157,39 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                 : t("participantHistory.sessionMetaSpotsOnly").replace("{spots}", String(reg.max_participants))
               : null;
           const coachName = (sessionCoachById[reg.session_id] ?? "").trim();
-          const sublineParts = [coachName, metaLine].filter(Boolean);
-          const sessionSubline = sublineParts.length > 0 ? sublineParts.join(" · ") : null;
           const attCurrent = attStatusFromRow(reg);
           const attOpen = expandedAttendanceId === reg.registration_id;
           const attLabel = attStatusLabel(attCurrent, t);
-          const paymentLine =
-            showPaymentBlock && hasPaymentMethod
-              ? amtOk
-                ? `${t("participantHistory.paidBadge")} · ${amt} ₪`
-                : t("participantHistory.paidBadge")
-              : showPaymentBlock
-                ? t("participantHistory.unpaidBadge")
-                : null;
+          const showPaidStatus = showPaymentBlock && hasPaymentMethod;
+          const showUnpaidStatus = showPaymentBlock && !hasPaymentMethod;
           return (
             <View style={styles.row}>
               <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
-                <View style={[styles.sessionHeadRow, isRTL && styles.sessionHeadRowRtl]}>
+                <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
                   <Text style={[styles.cardDate, isRTL && styles.rtlText]} numberOfLines={2}>
                     {formatISODateFullWithWeekdayAfter(reg.session_date, language)}
                   </Text>
-                  <Text style={[styles.sessionTime, isRTL && styles.rtlText]} numberOfLines={1}>
-                    {formatSessionTimeRange(reg.start_time, reg.duration_minutes ?? 60)}
+                  <Text style={[styles.sessionTime, isRTL && styles.sessionTimeRtl]} numberOfLines={1}>
+                    {formatSessionStartTime(reg.start_time)}
                   </Text>
                 </View>
-                <View style={[styles.sessionSublineRow, isRTL && styles.sessionSublineRowRtl]}>
-                  {sessionSubline ? (
-                    <Text style={[styles.sessionSubline, isRTL && styles.rtlText, styles.sessionSublineFlex]} numberOfLines={2}>
-                      {sessionSubline}
-                    </Text>
+                <View style={[styles.sessionSublineRow, rtlRowFlip && styles.sessionSublineRowRtl]}>
+                  {coachName || metaLine ? (
+                    <View style={[styles.sessionSublineFlex, isRTL && styles.sessionSublineBlockRtl]}>
+                      {coachName ? (
+                        <Text
+                          style={[styles.sessionSubline, isRTL ? styles.sessionCoachRtl : styles.ltrText]}
+                          numberOfLines={1}
+                        >
+                          {coachName}
+                        </Text>
+                      ) : null}
+                      {metaLine ? (
+                        <Text style={[styles.sessionSubline, isRTL && styles.rtlText]} numberOfLines={1}>
+                          {metaLine}
+                        </Text>
+                      ) : null}
+                    </View>
                   ) : (
                     <View style={styles.sessionSublineFlex} />
                   )}
@@ -1191,19 +1197,30 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                     <Text style={[styles.sessionStatusMuted, isRTL && styles.rtlText]}>
                       {language === "he" ? "בוטל" : "Cancelled"}
                     </Text>
-                  ) : paymentLine ? (
-                    <Text
-                      style={[
-                        styles.sessionStatus,
-                        isRTL && styles.rtlText,
-                        hasPaymentMethod ? styles.sessionStatusPaid : styles.sessionStatusUnpaid,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {paymentLine}
-                    </Text>
+                  ) : showPaidStatus || showUnpaidStatus ? (
+                    showPaidStatus && amtOk ? (
+                      <View style={[styles.sessionStatusInline, rtlRowFlip && styles.sessionStatusInlineRtl]}>
+                        <Text style={[styles.sessionStatus, styles.sessionStatusPaid, isRTL && styles.rtlText]} numberOfLines={1}>
+                          {t("participantHistory.paidBadge")}
+                        </Text>
+                        <Text style={[styles.sessionStatus, styles.sessionStatusPaid, styles.ltrText]} numberOfLines={1}>
+                          {amt} ₪
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text
+                        style={[
+                          styles.sessionStatus,
+                          isRTL && styles.rtlText,
+                          showPaidStatus ? styles.sessionStatusPaid : styles.sessionStatusUnpaid,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {showPaidStatus ? t("participantHistory.paidBadge") : t("participantHistory.unpaidBadge")}
+                      </Text>
+                    )
                   ) : reg.reg_status === "active" && !staffCanEdit ? (
-                    <View style={[styles.sessionStatusInline, isRTL && styles.sessionStatusInlineRtl]}>
+                    <View style={[styles.sessionStatusInline, rtlRowFlip && styles.sessionStatusInlineRtl]}>
                       <AttStatusDot status={attCurrent} />
                       <Text style={[styles.sessionStatus, isRTL && styles.rtlText]} numberOfLines={1}>
                         {attLabel}
@@ -1221,7 +1238,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
               {reg.reg_status === "active" && staffCanEdit ? (
                 <>
                   {attOpen && attendanceBusyId !== `att:${reg.registration_id}` ? (
-                    <View style={[styles.attPicker, isRTL && styles.attPickerRtl]}>
+                    <View style={[styles.attPicker, rtlRowFlip && styles.attPickerRtl]}>
                       {(["unset", "arrived", "absent"] as const).map((status) => {
                         const on = attCurrent === status;
                         return (
@@ -1243,7 +1260,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                       })}
                     </View>
                   ) : null}
-                  <View style={[styles.actionBar, isRTL && styles.actionBarRtl]}>
+                  <View style={[styles.actionBar, rtlRowFlip && styles.actionBarRtl]}>
                     <Pressable
                       onPress={() =>
                         setExpandedAttendanceId((cur) =>
@@ -1318,7 +1335,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   {policyBusyId === `ns:${reg.registration_id}` ? (
                     <ActivityIndicator color={theme.colors.cta} style={styles.cardSpinner} />
                   ) : (
-                    <View style={[styles.actionBar, styles.actionBarInset, isRTL && styles.actionBarRtl]}>
+                    <View style={[styles.actionBar, styles.actionBarInset, rtlRowFlip && styles.actionBarRtl]}>
                       <Pressable
                         onPress={() => void applyNoShowCharge(reg, false)}
                         style={({ pressed }) => [
@@ -1366,7 +1383,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                     policyBusyId === `lc:${reg.cancellation_id}` ? (
                       <ActivityIndicator color={theme.colors.cta} style={styles.cardSpinner} />
                     ) : (
-                      <View style={[styles.policySeg, isRTL && styles.policySegRtl, styles.lateFeeSegMargin]}>
+                      <View style={[styles.policySeg, rtlRowFlip && styles.policySegRtl, styles.lateFeeSegMargin]}>
                         <Pressable
                           onPress={() => void applyLateCancellationCharge(String(reg.cancellation_id), false)}
                           style={({ pressed }) => [
@@ -1419,7 +1436,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  rtlText: { textAlign: "right" },
+  rtlText: { textAlign: "right", writingDirection: "rtl" },
+  ltrText: { textAlign: "left", writingDirection: "ltr" },
   filters: {
     margin: theme.spacing.md,
     padding: theme.spacing.md,
@@ -1507,6 +1525,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     marginHorizontal: theme.spacing.md,
   },
+  sectionHeadRtl: { alignItems: "flex-end" },
   sectionTitle: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
   row: {
     marginHorizontal: theme.spacing.md,
@@ -1521,11 +1540,14 @@ const styles = StyleSheet.create({
   sessionCardBodyRtl: { alignItems: "stretch" },
   sessionHeadRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12 },
   sessionHeadRowRtl: { flexDirection: "row-reverse" },
-  sessionSublineRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 2 },
+  sessionSublineRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginTop: 2 },
   sessionSublineRowRtl: { flexDirection: "row-reverse" },
   sessionSublineFlex: { flex: 1, minWidth: 0 },
+  sessionSublineBlockRtl: { alignItems: "flex-end" },
   sessionSubline: { fontSize: 13, color: theme.colors.textMuted, lineHeight: 18 },
-  sessionTime: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, flexShrink: 0 },
+  sessionCoachRtl: { textAlign: "right", writingDirection: "ltr" },
+  sessionTime: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, flexShrink: 0, writingDirection: "ltr" },
+  sessionTimeRtl: { textAlign: "left" },
   sessionAmount: { fontSize: 17, fontWeight: "800", color: theme.colors.success, flexShrink: 0 },
   sessionStatus: { fontSize: 12, fontWeight: "700", flexShrink: 0 },
   sessionStatusPaid: { color: theme.colors.success },
