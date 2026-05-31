@@ -247,7 +247,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             return;
           }
           showToast({ message: t("billing.paymentDeleted"), variant: "success" });
-          await load();
+          await load({ silent: true });
         })();
       },
     });
@@ -270,7 +270,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         showError(code === "not_late_cancellation" ? t("managerSession.notLateCancellationError") : code);
         return;
       }
-      await load();
+      await load({ silent: true });
     } finally {
       setPolicyBusyId(null);
     }
@@ -307,7 +307,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         showError(String(res.data?.error ?? "failed"));
         return;
       }
-      await load();
+      await load({ silent: true });
     } finally {
       setPolicyBusyId(null);
     }
@@ -361,7 +361,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         showError(String(res.data?.error ?? "failed"));
         return;
       }
-      await load();
+      await load({ silent: true });
       setExpandedAttendanceId(null);
     } finally {
       setAttendanceBusyId(null);
@@ -427,7 +427,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     }
     setEditAmountOpen(false);
     setEditReg(null);
-    await load();
+    await load({ silent: true });
   }
 
   function confirmRemoveRegistration(reg: ParticipantHistoryRow) {
@@ -466,7 +466,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         return;
       }
       showToast({ message: t("participantHistory.registrationRemoved"), variant: "success" });
-      await load();
+      await load({ silent: true });
     } finally {
       setRemovingRegId(null);
     }
@@ -556,7 +556,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     setAthletes([...quickDedup, ...base]);
   }, []);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
     const s = start.trim();
     const e = end.trim();
     if (!isValidISODateString(s) || !isValidISODateString(e)) {
@@ -571,8 +572,10 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       showError(language === "he" ? "בחרו מתאמן קודם." : "Choose an athlete first.");
       return;
     }
-    setLoading(true);
-    setReportReady(false);
+    if (!silent) {
+      setLoading(true);
+      setReportReady(false);
+    }
     const phoneArg = phone.trim().length > 0 ? phone.trim() : null;
     const [histRes, priceRes, acctRes, ovRes] = await Promise.all([
       supabase.rpc("participant_registration_history", {
@@ -604,39 +607,47 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     ]);
 
     if (histRes.error) {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+        setRows([]);
+        setAccountPayments([]);
+        setReportReady(false);
+        setHasSearched(true);
+      }
       showError(histRes.error.message);
-      setRows([]);
-      setAccountPayments([]);
-      setReportReady(false);
-      setHasSearched(true);
       return;
     }
     if (priceRes.error) {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+        setRows([]);
+        setAccountPayments([]);
+        setReportReady(false);
+        setHasSearched(true);
+      }
       showError(priceRes.error.message);
-      setRows([]);
-      setAccountPayments([]);
-      setReportReady(false);
-      setHasSearched(true);
       return;
     }
     if (acctRes.error) {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+        setRows([]);
+        setAccountPayments([]);
+        setReportReady(false);
+        setHasSearched(true);
+      }
       showError(acctRes.error.message);
-      setRows([]);
-      setAccountPayments([]);
-      setReportReady(false);
-      setHasSearched(true);
       return;
     }
     if (ovRes.error) {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+        setRows([]);
+        setAccountPayments([]);
+        setReportReady(false);
+        setHasSearched(true);
+      }
       showError(ovRes.error.message);
-      setRows([]);
-      setAccountPayments([]);
-      setReportReady(false);
-      setHasSearched(true);
       return;
     }
 
@@ -734,7 +745,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       setEmptyHint(language === "he" ? "אין רשומות לתאריכים שנבחרו." : "No records for those dates.");
     }
 
-    setLoading(false);
+    if (!silent) setLoading(false);
     setReportReady(true);
     setHasSearched(true);
   }, [start, end, phone, athleteId, payeeIsManual, language]);
@@ -820,7 +831,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         payeeIsManual={payeeIsManual}
         payeeLabel={athleteLabel}
         editPayment={editAccountPayment}
-        onSaved={() => load()}
+        onSaved={() => load({ silent: true })}
       />
 
       <AppModal

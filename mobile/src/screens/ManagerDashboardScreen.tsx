@@ -80,8 +80,9 @@ export default function ManagerDashboardScreen() {
   const [showAthleteList, setShowAthleteList] = useState(false);
   const [addPayAthlete, setAddPayAthlete] = useState<WeeklyFinanceAthlete | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
+    if (!silent) setLoading(true);
 
     let raw: unknown = null;
     let error: { message: string } | null = null;
@@ -118,15 +119,15 @@ export default function ManagerDashboardScreen() {
       error = legacy.error;
     }
 
-    setLoading(false);
+    if (!silent) setLoading(false);
 
     if (error && periodMode === "month" && isMissingRpcSignature(primary.error)) {
-      setData({ ok: false, error: t("dashboard.monthModeNeedsDb") });
+      if (!silent) setData({ ok: false, error: t("dashboard.monthModeNeedsDb") });
       return;
     }
 
     if (error) {
-      setData({ ok: false, error: error.message });
+      if (!silent) setData({ ok: false, error: error.message });
       return;
     }
     setData((raw as StatsPayload) ?? { ok: false });
@@ -698,7 +699,7 @@ export default function ManagerDashboardScreen() {
         payeeId={addPayAthlete?.id ?? ""}
         payeeIsManual={addPayAthlete?.kind === "manual"}
         payeeLabel={addPayAthlete?.name?.trim() || undefined}
-        onSaved={load}
+        onSaved={() => load({ silent: true })}
       />
     </ScrollView>
   );
