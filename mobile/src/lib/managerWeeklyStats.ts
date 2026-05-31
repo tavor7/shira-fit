@@ -40,6 +40,17 @@ export type WeeklyFinanceAthlete = {
   outstanding_ils: number;
 };
 
+export type WeeklyFinanceFamily = {
+  id: string;
+  name: string;
+  expected_ils: number;
+  collected_sessions_ils: number;
+  collected_account_ils: number;
+  collected_total_ils: number;
+  outstanding_ils: number;
+  members: WeeklyFinanceAthlete[];
+};
+
 export type DailyCollectionSession = {
   session_id: string;
   start_time: string;
@@ -102,6 +113,7 @@ export type WeeklyFinance = {
   coaches: WeeklyFinanceCoach[];
   athlete_totals: WeeklyFinanceAthleteTotals;
   athletes: WeeklyFinanceAthlete[];
+  families: WeeklyFinanceFamily[];
   amounts_by_method: Record<string, number>;
   collections_by_day: DailyCollectionDay[];
   expected_by_day: DailyExpectedDay[];
@@ -315,6 +327,22 @@ export function parseCapacityMismatch(raw: unknown): CapacityMismatchPayload {
   return { count: num(o.count, sessions.length), sessions };
 }
 
+function parseFinanceAthlete(r: Record<string, unknown>): WeeklyFinanceAthlete | null {
+  const kind = r.kind === "manual" ? "manual" : "app";
+  const id = String(r.id ?? "");
+  if (!id) return null;
+  return {
+    kind,
+    id,
+    name: r.name == null ? null : String(r.name),
+    expected_ils: num(r.expected_ils),
+    collected_sessions_ils: num(r.collected_sessions_ils),
+    collected_account_ils: num(r.collected_account_ils),
+    collected_total_ils: num(r.collected_total_ils),
+    outstanding_ils: num(r.outstanding_ils),
+  };
+}
+
 export function parseFinance(raw: unknown): WeeklyFinance | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -382,19 +410,38 @@ export function parseFinance(raw: unknown): WeeklyFinance | null {
   if (Array.isArray(athletesRaw)) {
     for (const a of athletesRaw) {
       if (!a || typeof a !== "object") continue;
-      const r = a as Record<string, unknown>;
-      const kind = r.kind === "manual" ? "manual" : "app";
+      const parsed = parseFinanceAthlete(a as Record<string, unknown>);
+      if (parsed) athletes.push(parsed);
+    }
+  }
+
+  const familiesRaw = o.families;
+  const families: WeeklyFinanceFamily[] = [];
+  if (Array.isArray(familiesRaw)) {
+    for (const f of familiesRaw) {
+      if (!f || typeof f !== "object") continue;
+      const r = f as Record<string, unknown>;
       const id = String(r.id ?? "");
-      if (!id) continue;
-      athletes.push({
-        kind,
+      const name = String(r.name ?? "");
+      if (!id || !name) continue;
+      const membersRaw = r.members;
+      const members: WeeklyFinanceAthlete[] = [];
+      if (Array.isArray(membersRaw)) {
+        for (const m of membersRaw) {
+          if (!m || typeof m !== "object") continue;
+          const parsed = parseFinanceAthlete(m as Record<string, unknown>);
+          if (parsed) members.push(parsed);
+        }
+      }
+      families.push({
         id,
-        name: r.name == null ? null : String(r.name),
+        name,
         expected_ils: num(r.expected_ils),
         collected_sessions_ils: num(r.collected_sessions_ils),
         collected_account_ils: num(r.collected_account_ils),
         collected_total_ils: num(r.collected_total_ils),
         outstanding_ils: num(r.outstanding_ils),
+        members,
       });
     }
   }
@@ -411,6 +458,7 @@ export function parseFinance(raw: unknown): WeeklyFinance | null {
     coaches,
     athlete_totals,
     athletes,
+    families,
     amounts_by_method,
     collections_by_day: parseCollectionsByDay(o.collections_by_day),
     expected_by_day: parseExpectedByDay(o.expected_by_day),

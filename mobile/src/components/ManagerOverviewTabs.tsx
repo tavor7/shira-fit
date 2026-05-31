@@ -194,6 +194,12 @@ export function ManagerStudioSetupTabs() {
         isActive: (p) => startsWithAny(p, ["/staff/users", "/staff/profile", "/staff/manual"]),
       },
       {
+        id: "families",
+        label: t("menu.families"),
+        href: "/(app)/manager/families",
+        isActive: (p) => startsWithAny(p, ["/manager/families"]),
+      },
+      {
         id: "colors",
         label: t("menu.trainerColors"),
         href: "/(app)/manager/trainer-colors",

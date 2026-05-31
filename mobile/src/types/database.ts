@@ -175,6 +175,8 @@ export type AthleteAccountPayment = {
   amount_ils: number | string;
   payment_method: string;
   note: string | null;
+  /** Who physically paid (e.g. parent), mainly for family billing. */
+  payer_name: string | null;
   paid_at: string;
   created_at: string;
   created_by: string | null;

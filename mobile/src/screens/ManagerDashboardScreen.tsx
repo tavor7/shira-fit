@@ -16,6 +16,7 @@ import {
   parseMissingAttendance,
   type WeeklyFinance,
   type WeeklyFinanceAthlete,
+  type WeeklyFinanceFamily,
 } from "../lib/managerWeeklyStats";
 
 /** Local-calendar Sunday (matches server `public._week_start_sunday`). */
@@ -79,6 +80,7 @@ export default function ManagerDashboardScreen() {
   const [expandedCoachId, setExpandedCoachId] = useState<string | null>(null);
   const [showAthleteList, setShowAthleteList] = useState(false);
   const [addPayAthlete, setAddPayAthlete] = useState<WeeklyFinanceAthlete | null>(null);
+  const [addPayFromFamily, setAddPayFromFamily] = useState(false);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent === true;
@@ -222,12 +224,75 @@ export default function ManagerDashboardScreen() {
     [finance?.coaches]
   );
 
+  const athleteListModel = useMemo(() => {
+    if (!finance) return { families: [] as WeeklyFinanceFamily[], solo: [] as WeeklyFinanceAthlete[] };
+    const inFamily = new Set<string>();
+    for (const f of finance.families) {
+      for (const m of f.members) {
+        inFamily.add(`${m.kind}:${m.id}`);
+      }
+    }
+    const solo = finance.athletes.filter((a) => !inFamily.has(`${a.kind}:${a.id}`));
+    return { families: finance.families, solo };
+  }, [finance]);
+
   function openAthleteHistory(a: WeeklyFinanceAthlete) {
     if (a.kind !== "app") return;
     router.push(`/(app)/manager/participant-history?presetUserId=${encodeURIComponent(a.id)}` as Href);
   }
 
-  function openAddPayment(a: WeeklyFinanceAthlete) {
+  function openFamilyHistory(family: WeeklyFinanceFamily) {
+    const firstApp = family.members.find((m) => m.kind === "app");
+    if (firstApp) openAthleteHistory(firstApp);
+  }
+
+  function renderAthleteBalanceRow(a: WeeklyFinanceAthlete, opts?: { member?: boolean }) {
+    const owe = a.outstanding_ils > 0.005;
+    const canTap = a.kind === "app";
+    return (
+      <View key={`${opts?.member ? "m:" : ""}${a.kind}-${a.id}`} style={[styles.athleteRow, opts?.member && styles.athleteRowMember]}>
+        <Pressable
+          onPress={() => canTap && openAthleteHistory(a)}
+          disabled={!canTap}
+          style={({ pressed }) => [canTap && pressed && styles.athleteRowPressed]}
+        >
+          <View style={[styles.athleteRowTop, isRTL && styles.athleteRowTopRtl]}>
+            <Text style={[styles.athleteName, isRTL && styles.rtl]} numberOfLines={1}>
+              {a.name?.trim() || "—"}
+              {a.kind === "manual" ? ` · ${t("dashboard.financeQuickAdd")}` : ""}
+            </Text>
+            <Text
+              style={[
+                styles.athleteBal,
+                owe ? styles.athleteBalOwe : a.outstanding_ils < -0.005 ? styles.athleteBalAhead : styles.athleteBalOk,
+                isRTL && styles.rtl,
+              ]}
+            >
+              {formatIls(a.outstanding_ils, language)}
+            </Text>
+          </View>
+          <Text style={[styles.athleteSub, isRTL && styles.rtl]} numberOfLines={2}>
+            {t("dashboard.financeExpected")}: {formatIls(a.expected_ils, language)} · {t("dashboard.financeCollectedTotal")}:{" "}
+            {formatIls(a.collected_total_ils, language)}
+          </Text>
+          {canTap ? (
+            <Text style={[styles.sessionTapHint, isRTL && styles.rtl]}>{t("dashboard.financeTapActivityReport")}</Text>
+          ) : null}
+        </Pressable>
+        <Pressable
+          onPress={() => openAddPayment(a, opts?.member === true)}
+          style={({ pressed }) => [styles.athleteAddPayBtn, pressed && { opacity: 0.88 }]}
+          accessibilityRole="button"
+          accessibilityLabel={t("billing.addPayment")}
+        >
+          <Text style={styles.athleteAddPayBtnTxt}>{t("billing.addPayment")}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  function openAddPayment(a: WeeklyFinanceAthlete, fromFamily = false) {
+    setAddPayFromFamily(fromFamily);
     setAddPayAthlete(a);
   }
 
@@ -620,53 +685,53 @@ export default function ManagerDashboardScreen() {
 
             {showAthleteList ? (
               <View style={styles.athleteList}>
-                {finance.athletes.length === 0 ? (
+                {athleteListModel.families.length === 0 && athleteListModel.solo.length === 0 ? (
                   <Text style={[styles.muted, isRTL && styles.rtl]}>{t("dashboard.financeNoAthleteRows")}</Text>
                 ) : (
-                  finance.athletes.map((a) => {
-                    const owe = a.outstanding_ils > 0.005;
-                    const canTap = a.kind === "app";
-                    return (
-                      <View key={`${a.kind}-${a.id}`} style={styles.athleteRow}>
-                        <Pressable
-                          onPress={() => canTap && openAthleteHistory(a)}
-                          disabled={!canTap}
-                          style={({ pressed }) => [canTap && pressed && styles.athleteRowPressed]}
-                        >
-                          <View style={[styles.athleteRowTop, isRTL && styles.athleteRowTopRtl]}>
-                            <Text style={[styles.athleteName, isRTL && styles.rtl]} numberOfLines={1}>
-                              {a.name?.trim() || "—"}
-                              {a.kind === "manual" ? ` · ${t("dashboard.financeQuickAdd")}` : ""}
+                  <>
+                    {athleteListModel.families.map((family) => {
+                      const owe = family.outstanding_ils > 0.005;
+                      const canTapFamily = family.members.some((m) => m.kind === "app");
+                      return (
+                        <View key={`family-${family.id}`} style={styles.familyGroup}>
+                          <Pressable
+                            onPress={() => canTapFamily && openFamilyHistory(family)}
+                            disabled={!canTapFamily}
+                            style={({ pressed }) => [
+                              styles.familyRow,
+                              canTapFamily && pressed && styles.athleteRowPressed,
+                            ]}
+                          >
+                            <View style={[styles.athleteRowTop, isRTL && styles.athleteRowTopRtl]}>
+                              <Text style={[styles.familyName, isRTL && styles.rtl]} numberOfLines={1}>
+                                {family.name}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.athleteBal,
+                                  owe ? styles.athleteBalOwe : family.outstanding_ils < -0.005 ? styles.athleteBalAhead : styles.athleteBalOk,
+                                  isRTL && styles.rtl,
+                                ]}
+                              >
+                                {formatIls(family.outstanding_ils, language)}
+                              </Text>
+                            </View>
+                            <Text style={[styles.athleteSub, isRTL && styles.rtl]} numberOfLines={2}>
+                              {t("dashboard.financeFamilySummary")
+                                .replace("{n}", String(family.members.length))}{" "}
+                              · {t("dashboard.financeExpected")}: {formatIls(family.expected_ils, language)} ·{" "}
+                              {t("dashboard.financeCollectedTotal")}: {formatIls(family.collected_total_ils, language)}
                             </Text>
-                            <Text
-                              style={[
-                                styles.athleteBal,
-                                owe ? styles.athleteBalOwe : a.outstanding_ils < -0.005 ? styles.athleteBalAhead : styles.athleteBalOk,
-                                isRTL && styles.rtl,
-                              ]}
-                            >
-                              {formatIls(a.outstanding_ils, language)}
-                            </Text>
-                          </View>
-                          <Text style={[styles.athleteSub, isRTL && styles.rtl]} numberOfLines={2}>
-                            {t("dashboard.financeExpected")}: {formatIls(a.expected_ils, language)} · {t("dashboard.financeCollectedTotal")}:{" "}
-                            {formatIls(a.collected_total_ils, language)}
-                          </Text>
-                          {canTap ? (
-                            <Text style={[styles.sessionTapHint, isRTL && styles.rtl]}>{t("dashboard.financeTapActivityReport")}</Text>
-                          ) : null}
-                        </Pressable>
-                        <Pressable
-                          onPress={() => openAddPayment(a)}
-                          style={({ pressed }) => [styles.athleteAddPayBtn, pressed && { opacity: 0.88 }]}
-                          accessibilityRole="button"
-                          accessibilityLabel={t("billing.addPayment")}
-                        >
-                          <Text style={styles.athleteAddPayBtnTxt}>{t("billing.addPayment")}</Text>
-                        </Pressable>
-                      </View>
-                    );
-                  })
+                            {canTapFamily ? (
+                              <Text style={[styles.sessionTapHint, isRTL && styles.rtl]}>{t("dashboard.financeTapActivityReport")}</Text>
+                            ) : null}
+                          </Pressable>
+                          {family.members.map((m) => renderAthleteBalanceRow(m, { member: true }))}
+                        </View>
+                      );
+                    })}
+                    {athleteListModel.solo.map((a) => renderAthleteBalanceRow(a))}
+                  </>
                 )}
               </View>
             ) : null}
@@ -695,10 +760,14 @@ export default function ManagerDashboardScreen() {
 
       <AddAccountPaymentModal
         visible={addPayAthlete != null}
-        onClose={() => setAddPayAthlete(null)}
+        onClose={() => {
+          setAddPayAthlete(null);
+          setAddPayFromFamily(false);
+        }}
         payeeId={addPayAthlete?.id ?? ""}
         payeeIsManual={addPayAthlete?.kind === "manual"}
         payeeLabel={addPayAthlete?.name?.trim() || undefined}
+        showPayerName={addPayFromFamily}
         onSaved={() => load({ silent: true })}
       />
     </ScrollView>
@@ -998,6 +1067,16 @@ const styles = StyleSheet.create({
   payN: { fontSize: 16, fontWeight: "900", color: theme.colors.cta },
   payAmt: { fontSize: 14, fontWeight: "900", color: theme.colors.success, fontVariant: ["tabular-nums"] },
   athleteList: { marginTop: 10, gap: 8 },
+  familyGroup: { gap: 6 },
+  familyRow: {
+    padding: 12,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  familyName: { flex: 1, fontSize: 15, fontWeight: "900", color: theme.colors.text },
+  athleteRowMember: { marginStart: theme.spacing.md },
   athleteRow: {
     padding: 12,
     borderRadius: theme.radius.lg,

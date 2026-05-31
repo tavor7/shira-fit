@@ -17,6 +17,13 @@ import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { normalizePaymentMethodKey, paymentMethodHistoryLabel, isSessionPaymentRecorded } from "../lib/paymentMethod";
 import { resolveSessionBillingPriceLocal } from "../lib/sessionSlotPrice";
+import {
+  type AthleteFamily,
+  type AthleteFamilyMember,
+  memberPayeeKey,
+  parseFamilyMembers,
+  resolveFamilyMemberByPayee,
+} from "../lib/athleteFamilies";
 import type { PricingRateTierRow } from "../lib/pricingRates";
 
 type HistorySection = { title: string; data: HistoryListItem[] };
@@ -69,7 +76,9 @@ function computeBillingSummary(
   athleteTiers: PricingRateTierRow[],
   globalKickboxTiers: PricingRateTierRow[],
   sessionCustomById: Record<string, number | null>,
-  sessionKickboxById: Record<string, boolean>
+  sessionKickboxById: Record<string, boolean>,
+  athleteTiersByMember?: Record<string, PricingRateTierRow[]>,
+  memberKeyForRow?: (reg: ParticipantHistoryRow) => string | null
 ): BillingSummary {
   const methodTotals = new Map<string, number>();
 
@@ -110,12 +119,15 @@ function computeBillingSummary(
       lateCancelOwes;
     if (!owes || cap === null || cap <= 0) continue;
     const sessionDate = r.session_date;
+    const memberKey = memberKeyForRow?.(r) ?? null;
+    const rowAthleteTiers =
+      memberKey && athleteTiersByMember?.[memberKey] ? athleteTiersByMember[memberKey]! : athleteTiers;
     const price = resolveSessionBillingPriceLocal({
       customSlotPriceIls: sessionCustomById[r.session_id],
       maxParticipants: cap,
       isKickbox: sessionKickboxById[r.session_id] ?? false,
       sessionDate,
-      athleteTiers,
+      athleteTiers: rowAthleteTiers,
       globalTiers,
       globalKickboxTiers,
     });
@@ -141,10 +153,14 @@ function computeBillingSummary(
 function mergedHistorySections(
   rows: ParticipantHistoryRow[],
   payments: AthleteAccountPayment[],
-  athleteLabel: string
+  athleteLabel: string,
+  familyContext?: AthleteFamily | null
 ): HistorySection[] {
-  const title =
-    rows.length > 0 ? `${rows[0]!.athlete_name} · ${rows[0]!.athlete_phone}` : athleteLabel.trim() || "—";
+  const title = familyContext
+    ? familyContext.name
+    : rows.length > 0
+      ? `${rows[0]!.athlete_name} · ${rows[0]!.athlete_phone}`
+      : athleteLabel.trim() || "—";
   const data: HistoryListItem[] = [
     ...payments.map((pay) => ({ kind: "payment" as const, pay })),
     ...rows.map((reg) => ({ kind: "session" as const, reg })),
@@ -206,6 +222,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [sessionKickboxById, setSessionKickboxById] = useState<Record<string, boolean>>({});
   const [sessionCoachById, setSessionCoachById] = useState<Record<string, string>>({});
   const [payeeIsManual, setPayeeIsManual] = useState(false);
+  const [familyContext, setFamilyContext] = useState<AthleteFamily | null>(null);
+  const [athleteTiersByMember, setAthleteTiersByMember] = useState<Record<string, PricingRateTierRow[]>>({});
   const [addPayOpen, setAddPayOpen] = useState(false);
   const [editAccountPayment, setEditAccountPayment] = useState<AthleteAccountPayment | null>(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
@@ -222,7 +240,21 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [attendanceBusyId, setAttendanceBusyId] = useState<string | null>(null);
   const [expandedAttendanceId, setExpandedAttendanceId] = useState<string | null>(null);
 
+  function memberForRow(reg: ParticipantHistoryRow): AthleteFamilyMember | null {
+    if (!familyContext) return null;
+    return familyContext.members.find((m) => m.id === reg.athlete_user_id) ?? null;
+  }
+
+  function memberKeyForRow(reg: ParticipantHistoryRow): string | null {
+    const m = memberForRow(reg);
+    if (m) return memberPayeeKey(m.kind, m.id);
+    if (familyContext) return memberPayeeKey(payeeIsManual ? "manual" : "app", reg.athlete_user_id);
+    return null;
+  }
+
   function isManualHistoryRow(reg: ParticipantHistoryRow): boolean {
+    const m = memberForRow(reg);
+    if (m) return m.kind === "manual";
     return payeeIsManual || reg.athlete_user_id !== athleteId;
   }
 
@@ -474,8 +506,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
 
   const sections = useMemo(() => {
     if (!hasSearched) return [];
-    return mergedHistorySections(rows, accountPayments, athleteLabel);
-  }, [hasSearched, rows, accountPayments, athleteLabel]);
+    return mergedHistorySections(rows, accountPayments, athleteLabel, familyContext);
+  }, [hasSearched, rows, accountPayments, athleteLabel, familyContext]);
 
   const billingSummary = useMemo(() => {
     if (!hasSearched || !athleteId) return null;
@@ -486,7 +518,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       athleteTiers,
       globalKickboxTiers,
       sessionCustomPriceById,
-      sessionKickboxById
+      sessionKickboxById,
+      familyContext ? athleteTiersByMember : undefined,
+      familyContext ? memberKeyForRow : undefined
     );
   }, [
     hasSearched,
@@ -495,10 +529,43 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     accountPayments,
     globalTiers,
     athleteTiers,
+    athleteTiersByMember,
+    familyContext,
     globalKickboxTiers,
     sessionCustomPriceById,
     sessionKickboxById,
+    payeeIsManual,
   ]);
+
+  useEffect(() => {
+    if (!athleteId) {
+      setFamilyContext(null);
+      return;
+    }
+    void (async () => {
+      const { data, error } = await supabase.rpc("get_athlete_family", {
+        p_payee_id: athleteId,
+        p_payee_is_manual: payeeIsManual,
+      });
+      if (error) {
+        setFamilyContext(null);
+        return;
+      }
+      const payload = data as {
+        ok?: boolean;
+        family?: { id: string; name: string; members?: unknown[] } | null;
+      };
+      if (!payload?.ok || !payload.family) {
+        setFamilyContext(null);
+        return;
+      }
+      setFamilyContext({
+        id: payload.family.id,
+        name: payload.family.name,
+        members: parseFamilyMembers(payload.family.members),
+      });
+    })();
+  }, [athleteId, payeeIsManual]);
 
   useEffect(() => {
     const uid = presetUid;
@@ -577,33 +644,76 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       setReportReady(false);
     }
     const phoneArg = phone.trim().length > 0 ? phone.trim() : null;
-    const [histRes, priceRes, acctRes, ovRes] = await Promise.all([
-      supabase.rpc("participant_registration_history", {
-        p_start: s,
-        p_end: e,
-        p_phone_search: phoneArg,
-        p_athlete_key: athleteId,
-      }),
-      supabase
-        .from("session_capacity_pricing")
-        .select("max_participants, price_ils, is_kickbox, effective_from, effective_to"),
-      supabase
+    const familyId = familyContext?.id ?? null;
+    const familyMembers = familyContext?.members ?? [];
+
+    const histPromise = supabase.rpc("participant_registration_history", {
+      p_start: s,
+      p_end: e,
+      p_phone_search: phoneArg,
+      p_athlete_key: familyId ? null : athleteId,
+      p_family_id: familyId,
+    });
+
+    const pricePromise = supabase
+      .from("session_capacity_pricing")
+      .select("max_participants, price_ils, is_kickbox, effective_from, effective_to");
+
+    let acctPromise;
+    if (familyId && familyMembers.length > 0) {
+      const orParts = familyMembers.map(
+        (m) => `and(payee_id.eq.${m.id},payee_is_manual.eq.${m.kind === "manual"})`
+      );
+      acctPromise = supabase
         .from("athlete_account_payments")
-        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, paid_at, created_at, created_by")
+        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by")
+        .gte("paid_at", s)
+        .lte("paid_at", e)
+        .or(orParts.join(","))
+        .order("paid_at", { ascending: false });
+    } else {
+      acctPromise = supabase
+        .from("athlete_account_payments")
+        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by")
         .gte("paid_at", s)
         .lte("paid_at", e)
         .eq("payee_id", athleteId)
         .eq("payee_is_manual", payeeIsManual)
-        .order("paid_at", { ascending: false }),
-      payeeIsManual
-        ? supabase
-            .from("athlete_session_capacity_pricing")
-            .select("max_participants, price_ils, effective_from, effective_to")
-            .eq("manual_participant_id", athleteId)
-        : supabase
-            .from("athlete_session_capacity_pricing")
-            .select("max_participants, price_ils, effective_from, effective_to")
-            .eq("user_id", athleteId),
+        .order("paid_at", { ascending: false });
+    }
+
+    const ovPromise =
+      familyId && familyMembers.length > 0
+        ? Promise.all(
+            familyMembers.map(async (m) => {
+              const res =
+                m.kind === "manual"
+                  ? await supabase
+                      .from("athlete_session_capacity_pricing")
+                      .select("max_participants, price_ils, effective_from, effective_to")
+                      .eq("manual_participant_id", m.id)
+                  : await supabase
+                      .from("athlete_session_capacity_pricing")
+                      .select("max_participants, price_ils, effective_from, effective_to")
+                      .eq("user_id", m.id);
+              return { key: memberPayeeKey(m.kind, m.id), error: res.error, data: res.data };
+            })
+          )
+        : payeeIsManual
+          ? supabase
+              .from("athlete_session_capacity_pricing")
+              .select("max_participants, price_ils, effective_from, effective_to")
+              .eq("manual_participant_id", athleteId)
+          : supabase
+              .from("athlete_session_capacity_pricing")
+              .select("max_participants, price_ils, effective_from, effective_to")
+              .eq("user_id", athleteId);
+
+    const [histRes, priceRes, acctRes, ovRes] = await Promise.all([
+      histPromise,
+      pricePromise,
+      acctPromise,
+      ovPromise,
     ]);
 
     if (histRes.error) {
@@ -639,16 +749,64 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       showError(acctRes.error.message);
       return;
     }
-    if (ovRes.error) {
-      if (!silent) {
-        setLoading(false);
-        setRows([]);
-        setAccountPayments([]);
-        setReportReady(false);
-        setHasSearched(true);
+
+    const tierRowMap: Record<string, PricingRateTierRow[]> = {};
+    let athTiers: PricingRateTierRow[] = [];
+    if (familyId && Array.isArray(ovRes)) {
+      for (const chunk of ovRes) {
+        if (chunk.error) {
+          if (!silent) {
+            setLoading(false);
+            setRows([]);
+            setAccountPayments([]);
+            setReportReady(false);
+            setHasSearched(true);
+          }
+          showError(chunk.error.message);
+          return;
+        }
+        tierRowMap[chunk.key] = (
+          (chunk.data as {
+            max_participants: number;
+            price_ils: number | string;
+            effective_from: string;
+            effective_to?: string | null;
+          }[]) ?? []
+        ).map((o) => ({
+          max_participants: Number(o.max_participants),
+          price_ils: o.price_ils,
+          effective_from: o.effective_from,
+          effective_to: o.effective_to,
+        }));
       }
-      showError(ovRes.error.message);
-      return;
+      const pickerKey = memberPayeeKey(payeeIsManual ? "manual" : "app", athleteId);
+      athTiers = tierRowMap[pickerKey] ?? [];
+    } else {
+      const singleOv = ovRes as { error?: { message: string } | null; data?: unknown };
+      if (singleOv.error) {
+        if (!silent) {
+          setLoading(false);
+          setRows([]);
+          setAccountPayments([]);
+          setReportReady(false);
+          setHasSearched(true);
+        }
+        showError(singleOv.error.message);
+        return;
+      }
+      athTiers = (
+        (singleOv.data as {
+          max_participants: number;
+          price_ils: number | string;
+          effective_from: string;
+          effective_to?: string | null;
+        }[]) ?? []
+      ).map((o) => ({
+        max_participants: Number(o.max_participants),
+        price_ils: o.price_ils,
+        effective_from: o.effective_from,
+        effective_to: o.effective_to,
+      }));
     }
 
     const next = (histRes.data as ParticipantHistoryRow[]) ?? [];
@@ -689,22 +847,10 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       if (r.is_kickbox) kickTiers.push(tier);
       else stdTiers.push(tier);
     }
-    const athTiers: PricingRateTierRow[] = (
-      (ovRes.data as {
-        max_participants: number;
-        price_ils: number | string;
-        effective_from: string;
-        effective_to?: string | null;
-      }[]) ?? []
-    ).map((o) => ({
-      max_participants: Number(o.max_participants),
-      price_ils: o.price_ils,
-      effective_from: o.effective_from,
-      effective_to: o.effective_to,
-    }));
     setGlobalTiers(stdTiers);
     setGlobalKickboxTiers(kickTiers);
     setAthleteTiers(athTiers);
+    setAthleteTiersByMember(tierRowMap);
 
     const sessionIds = [...new Set(next.map((r) => r.session_id).filter(Boolean))];
     if (sessionIds.length > 0) {
@@ -748,7 +894,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     if (!silent) setLoading(false);
     setReportReady(true);
     setHasSearched(true);
-  }, [start, end, phone, athleteId, payeeIsManual, language]);
+  }, [start, end, phone, athleteId, payeeIsManual, familyContext, language]);
 
   const loadRef = useRef(load);
   loadRef.current = load;
@@ -759,7 +905,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     const e = end.trim();
     if (!isValidISODateString(s) || !isValidISODateString(e) || s > e) return;
     void loadRef.current();
-  }, [athleteId, start, end, payeeIsManual]);
+  }, [athleteId, start, end, payeeIsManual, familyContext?.id]);
 
   return (
     <View style={styles.screen}>
@@ -827,10 +973,20 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
           setAddPayOpen(false);
           setEditAccountPayment(null);
         }}
-        payeeId={athleteId}
-        payeeIsManual={payeeIsManual}
-        payeeLabel={athleteLabel}
+        payeeId={editAccountPayment?.payee_id ?? athleteId}
+        payeeIsManual={editAccountPayment?.payee_is_manual ?? payeeIsManual}
+        payeeLabel={
+          editAccountPayment
+            ? resolveFamilyMemberByPayee(
+                familyContext,
+                editAccountPayment.payee_id ?? athleteId,
+                editAccountPayment.payee_is_manual ?? payeeIsManual
+              )?.name?.trim() ||
+              athleteLabel
+            : athleteLabel
+        }
         editPayment={editAccountPayment}
+        showPayerName={!!familyContext}
         onSaved={() => load({ silent: true })}
       />
 
@@ -940,6 +1096,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                     setAthleteLabel("");
                     setPhone("");
                     setPayeeIsManual(false);
+                    setFamilyContext(null);
+                    setAthleteTiersByMember({});
                     setRows([]);
                     setAccountPayments([]);
                     setReportReady(false);
@@ -950,6 +1108,39 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                 </Pressable>
               ) : null}
             </View>
+
+            {familyContext && athleteId ? (
+              <View style={styles.familyBanner}>
+                <Text style={[styles.familyBannerTxt, isRTL && styles.rtlText]}>
+                  {t("families.reportBanner")
+                    .replace("{name}", familyContext.name)
+                    .replace("{n}", String(familyContext.members.length))}
+                </Text>
+                <Text style={[styles.familyMembersLabel, isRTL && styles.rtlText]}>
+                  {t("families.reportMembers")}
+                </Text>
+                {familyContext.members.map((m) => {
+                  const phone = (m.phone ?? "").trim();
+                  return (
+                    <View
+                      key={memberPayeeKey(m.kind, m.id)}
+                      style={[styles.familyMemberRow, rtlRowFlip && styles.familyMemberRowRtl]}
+                    >
+                      <Text style={[styles.familyMemberName, isRTL && styles.rtlText]} numberOfLines={1}>
+                        {m.name?.trim() || "—"}
+                        {m.kind === "manual" ? ` · ${language === "he" ? "מהיר" : "Quick Add"}` : ""}
+                      </Text>
+                      <Text
+                        style={[styles.familyMemberPhone, isRTL ? styles.ltrText : undefined]}
+                        numberOfLines={1}
+                      >
+                        {phone || "—"}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
 
             {athleteId && loading ? (
               <View style={styles.loadingBanner}>
@@ -1063,6 +1254,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             const reporterLine = recorder
               ? t("participantHistory.reportedBy").replace("{name}", recorder)
               : t("participantHistory.reportedByUnknown");
+            const payeeMember = resolveFamilyMemberByPayee(familyContext, p.payee_id, p.payee_is_manual);
+            const assignedName = payeeMember?.name?.trim() || null;
+            const payerName = (p.payer_name ?? "").trim();
             return (
               <View style={styles.row}>
                 <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
@@ -1075,6 +1269,16 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   <Text style={[styles.sessionSubline, isRTL && styles.rtlText]} numberOfLines={1}>
                     {t("billing.accountPayment")} · {paymentMethodHistoryLabel(p.payment_method, language)}
                   </Text>
+                  {familyContext && assignedName ? (
+                    <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]} numberOfLines={1}>
+                      {t("families.assignedTo").replace("{name}", assignedName)}
+                    </Text>
+                  ) : null}
+                  {familyContext && payerName ? (
+                    <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]} numberOfLines={1}>
+                      {t("families.paidBy").replace("{name}", payerName)}
+                    </Text>
+                  ) : null}
                   <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]} numberOfLines={2}>
                     {reporterLine}
                   </Text>
@@ -1151,15 +1355,22 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
           const staffCanEdit = isManagerHistory || isCoachHistory;
           const sessionPrice =
             typeof reg.max_participants === "number" && reg.max_participants > 0
-              ? resolveSessionBillingPriceLocal({
-                  customSlotPriceIls: sessionCustomPriceById[reg.session_id],
-                  maxParticipants: reg.max_participants,
-                  isKickbox: sessionKickboxById[reg.session_id] ?? false,
-                  sessionDate: reg.session_date,
-                  athleteTiers,
-                  globalTiers,
-                  globalKickboxTiers,
-                })
+              ? (() => {
+                  const mk = memberKeyForRow(reg);
+                  const rowTiers =
+                    mk && athleteTiersByMember[mk] && athleteTiersByMember[mk]!.length > 0
+                      ? athleteTiersByMember[mk]!
+                      : athleteTiers;
+                  return resolveSessionBillingPriceLocal({
+                    customSlotPriceIls: sessionCustomPriceById[reg.session_id],
+                    maxParticipants: reg.max_participants,
+                    isKickbox: sessionKickboxById[reg.session_id] ?? false,
+                    sessionDate: reg.session_date,
+                    athleteTiers: rowTiers,
+                    globalTiers,
+                    globalKickboxTiers,
+                  });
+                })()
               : null;
           const metaLine =
             typeof reg.max_participants === "number" && reg.max_participants > 0
@@ -1185,8 +1396,16 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   </Text>
                 </View>
                 <View style={[styles.sessionSublineRow, rtlRowFlip && styles.sessionSublineRowRtl]}>
-                  {coachName || metaLine ? (
+                  {familyContext || coachName || metaLine ? (
                     <View style={[styles.sessionSublineFlex, isRTL && styles.sessionSublineBlockRtl]}>
+                      {familyContext ? (
+                        <Text style={[styles.sessionSubline, styles.sessionMemberName, isRTL && styles.rtlText]} numberOfLines={1}>
+                          {t("families.assignedTo").replace(
+                            "{name}",
+                            reg.athlete_name?.trim() || "—"
+                          )}
+                        </Text>
+                      ) : null}
                       {coachName ? (
                         <Text
                           style={[styles.sessionSubline, isRTL ? styles.sessionCoachRtl : styles.ltrText]}
@@ -1457,6 +1676,37 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
     borderRadius: theme.radius.lg,
   },
+  familyBanner: {
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    gap: 6,
+  },
+  familyBannerTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted, lineHeight: 18 },
+  familyMembersLabel: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: "800",
+    color: theme.colors.textSoft,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  familyMemberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 4,
+  },
+  familyMemberRowRtl: { flexDirection: "row-reverse" },
+  familyMemberName: { flex: 1, minWidth: 0, fontSize: 14, fontWeight: "700", color: theme.colors.text },
+  familyMemberPhone: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  sessionMemberName: { fontWeight: "800", color: theme.colors.text },
   screenTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   hint: { marginTop: theme.spacing.sm, fontSize: 12, color: theme.colors.textMuted, lineHeight: 18 },

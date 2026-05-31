@@ -15,7 +15,10 @@ export type AccountPaymentEdit = {
   amount_ils: number | string;
   payment_method: string;
   note: string | null;
+  payer_name?: string | null;
   paid_at: string;
+  payee_id?: string;
+  payee_is_manual?: boolean;
 };
 
 type Props = {
@@ -27,6 +30,8 @@ type Props = {
   payeeLabel?: string;
   /** When set, the modal edits an existing account payment instead of creating one. */
   editPayment?: AccountPaymentEdit | null;
+  /** Family billing: optional field for who physically paid. */
+  showPayerName?: boolean;
   onSaved: () => void | Promise<void>;
 };
 
@@ -37,6 +42,7 @@ export function AddAccountPaymentModal({
   payeeIsManual,
   payeeLabel,
   editPayment,
+  showPayerName = false,
   onSaved,
 }: Props) {
   const { language, t, isRTL } = useI18n();
@@ -45,6 +51,7 @@ export function AddAccountPaymentModal({
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"cash" | "paybox" | "other">("cash");
   const [note, setNote] = useState("");
+  const [payerName, setPayerName] = useState("");
   const [paidAt, setPaidAt] = useState(() => toISODateLocal(new Date()));
   const [busy, setBusy] = useState(false);
 
@@ -56,10 +63,12 @@ export function AddAccountPaymentModal({
       const k = normalizePaymentMethodKey(editPayment.payment_method);
       setMethod(k === "cash" || k === "paybox" || k === "other" ? k : "other");
       setNote((editPayment.note ?? "").trim());
+      setPayerName((editPayment.payer_name ?? "").trim());
       setPaidAt(editPayment.paid_at.trim());
     } else {
       setAmount("");
       setNote("");
+      setPayerName("");
       setMethod("cash");
       setPaidAt(toISODateLocal(new Date()));
     }
@@ -81,12 +90,21 @@ export function AddAccountPaymentModal({
       return;
     }
     setBusy(true);
-    const payload = {
+    const payload: {
+      amount_ils: number;
+      payment_method: string;
+      note: string | null;
+      paid_at: string;
+      payer_name?: string | null;
+    } = {
       amount_ils: amt,
       payment_method: method,
       note: note.trim() || null,
       paid_at: paidAt.trim(),
     };
+    if (showPayerName) {
+      payload.payer_name = payerName.trim() || null;
+    }
     const { error } = isEdit
       ? await supabase.from("athlete_account_payments").update(payload).eq("id", editPayment!.id)
       : await supabase.from("athlete_account_payments").insert({
@@ -176,6 +194,19 @@ export function AddAccountPaymentModal({
             );
           })}
         </View>
+        {showPayerName ? (
+          <>
+            <Text style={[styles.label, isRTL && styles.rtlText]}>{t("families.payerNameLabel")}</Text>
+            <TextInput
+              value={payerName}
+              onChangeText={setPayerName}
+              placeholder={t("families.payerNamePlaceholder")}
+              placeholderTextColor={theme.colors.placeholderOnLight}
+              style={[styles.input, isRTL && styles.inputRtl]}
+              editable={!busy}
+            />
+          </>
+        ) : null}
         <Text style={[styles.label, isRTL && styles.rtlText]}>{t("billing.noteOptional")}</Text>
         <TextInput
           value={note}
