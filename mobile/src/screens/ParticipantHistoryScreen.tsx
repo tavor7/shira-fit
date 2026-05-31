@@ -1097,34 +1097,47 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
 
             {familyContext && athleteId ? (
               <View style={styles.familyBanner}>
-                <Text style={[styles.familyBannerTxt, isRTL && styles.rtlText]}>
-                  {t("families.reportBanner")
-                    .replace("{name}", familyContext.name)
-                    .replace("{n}", String(familyContext.members.length))}
-                </Text>
-                <Text style={[styles.familyMembersLabel, isRTL && styles.rtlText]}>
-                  {t("families.reportMembers")}
-                </Text>
-                {familyContext.members.map((m) => {
-                  const phone = (m.phone ?? "").trim();
-                  return (
-                    <View
-                      key={memberPayeeKey(m.kind, m.id)}
-                      style={[styles.familyMemberRow, rtlRowFlip && styles.familyMemberRowRtl]}
-                    >
-                      <Text style={[styles.familyMemberName, isRTL && styles.rtlText]} numberOfLines={1}>
-                        {m.name?.trim() || "—"}
-                        {m.kind === "manual" ? ` · ${language === "he" ? "מהיר" : "Quick Add"}` : ""}
-                      </Text>
-                      <Text
-                        style={[styles.familyMemberPhone, isRTL ? styles.ltrText : undefined]}
-                        numberOfLines={1}
-                      >
-                        {phone || "—"}
-                      </Text>
-                    </View>
-                  );
-                })}
+                <View style={styles.familyBannerHead}>
+                  <Text style={[styles.familyBannerTitle, isRTL && styles.rtlText]} numberOfLines={2}>
+                    {familyContext.name}
+                  </Text>
+                  <Text style={[styles.familyBannerMeta, isRTL && styles.rtlText]}>
+                    {t("families.reportMeta").replace("{n}", String(familyContext.members.length))}
+                  </Text>
+                </View>
+                <View style={styles.familyMembersPanel}>
+                  <Text style={[styles.familyMembersLabel, isRTL && styles.rtlText]}>
+                    {t("families.reportMembers")}
+                  </Text>
+                  {familyContext.members.map((m) => {
+                    const phone = (m.phone ?? "").trim();
+                    return (
+                      <View key={memberPayeeKey(m.kind, m.id)} style={styles.familyMemberCard}>
+                        <View style={[styles.familyMemberMain, rtlRowFlip && styles.familyMemberMainRtl]}>
+                          <Text style={[styles.familyMemberName, isRTL && styles.rtlText]} numberOfLines={1}>
+                            {m.name?.trim() || "—"}
+                          </Text>
+                          {m.kind === "manual" ? (
+                            <View style={styles.familyMemberBadge}>
+                              <Text style={styles.familyMemberBadgeTxt}>
+                                {language === "he" ? "מהיר" : "Quick Add"}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        <Text
+                          style={[
+                            styles.familyMemberPhone,
+                            isRTL ? styles.familyMemberPhoneRtl : styles.ltrText,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {phone || "—"}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
               </View>
             ) : null}
 
@@ -1665,33 +1678,58 @@ const styles = StyleSheet.create({
   familyBanner: {
     marginHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
+    padding: theme.spacing.md,
     borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
-    gap: 6,
+    gap: theme.spacing.sm,
   },
-  familyBannerTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted, lineHeight: 18 },
+  familyBannerHead: { gap: 2 },
+  familyBannerTitle: { fontSize: 17, fontWeight: "900", color: theme.colors.text, lineHeight: 22 },
+  familyBannerMeta: { fontSize: 12, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 17 },
+  familyMembersPanel: {
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+    gap: 8,
+  },
   familyMembersLabel: {
-    marginTop: 2,
     fontSize: 11,
     fontWeight: "800",
     color: theme.colors.textSoft,
     textTransform: "uppercase",
     letterSpacing: 0.4,
+    marginBottom: 2,
   },
-  familyMemberRow: {
+  familyMemberCard: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    gap: 4,
+  },
+  familyMemberMain: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 4,
+    flexWrap: "wrap",
+    gap: 8,
   },
-  familyMemberRowRtl: { flexDirection: "row-reverse" },
-  familyMemberName: { flex: 1, minWidth: 0, fontSize: 14, fontWeight: "700", color: theme.colors.text },
+  familyMemberMainRtl: { flexDirection: "row-reverse" },
+  familyMemberName: { flexShrink: 1, fontSize: 14, fontWeight: "800", color: theme.colors.text },
+  familyMemberBadge: {
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.accent,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  familyMemberBadgeTxt: { fontSize: 10, fontWeight: "800", color: theme.colors.textSoft },
   familyMemberPhone: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  familyMemberPhoneRtl: { textAlign: "right", writingDirection: "ltr", alignSelf: "stretch" },
   sessionMemberName: { fontWeight: "800", color: theme.colors.text },
   screenTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
