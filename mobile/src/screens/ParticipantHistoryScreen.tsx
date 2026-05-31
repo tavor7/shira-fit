@@ -21,7 +21,7 @@ import {
   type AthleteFamily,
   type AthleteFamilyMember,
   memberPayeeKey,
-  parseFamilyMembers,
+  fetchAthleteFamilyForPayee,
   resolveFamilyMemberByPayee,
 } from "../lib/athleteFamilies";
 import type { PricingRateTierRow } from "../lib/pricingRates";
@@ -543,27 +543,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       return;
     }
     void (async () => {
-      const { data, error } = await supabase.rpc("get_athlete_family", {
-        p_payee_id: athleteId,
-        p_payee_is_manual: payeeIsManual,
-      });
-      if (error) {
-        setFamilyContext(null);
-        return;
-      }
-      const payload = data as {
-        ok?: boolean;
-        family?: { id: string; name: string; members?: unknown[] } | null;
-      };
-      if (!payload?.ok || !payload.family) {
-        setFamilyContext(null);
-        return;
-      }
-      setFamilyContext({
-        id: payload.family.id,
-        name: payload.family.name,
-        members: parseFamilyMembers(payload.family.members),
-      });
+      const family = await fetchAthleteFamilyForPayee(athleteId, payeeIsManual);
+      setFamilyContext(family);
     })();
   }, [athleteId, payeeIsManual]);
 
@@ -643,9 +624,14 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       setLoading(true);
       setReportReady(false);
     }
-    const phoneArg = phone.trim().length > 0 ? phone.trim() : null;
-    const familyId = familyContext?.id ?? null;
-    const familyMembers = familyContext?.members ?? [];
+
+    const activeFamily = await fetchAthleteFamilyForPayee(athleteId, payeeIsManual);
+    setFamilyContext(activeFamily);
+
+    const familyId = activeFamily?.id ?? null;
+    const familyMembers = activeFamily?.members ?? [];
+    const phoneArg =
+      familyId ? null : phone.trim().length > 0 ? phone.trim() : null;
 
     const histPromise = supabase.rpc("participant_registration_history", {
       p_start: s,
@@ -894,7 +880,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     if (!silent) setLoading(false);
     setReportReady(true);
     setHasSearched(true);
-  }, [start, end, phone, athleteId, payeeIsManual, familyContext, language]);
+  }, [start, end, phone, athleteId, payeeIsManual, language]);
 
   const loadRef = useRef(load);
   loadRef.current = load;
@@ -905,7 +891,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     const e = end.trim();
     if (!isValidISODateString(s) || !isValidISODateString(e) || s > e) return;
     void loadRef.current();
-  }, [athleteId, start, end, payeeIsManual, familyContext?.id]);
+  }, [athleteId, start, end, payeeIsManual]);
 
   return (
     <View style={styles.screen}>

@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+
 export type FamilyMemberKind = "app" | "manual";
 
 export type AthleteFamilyMember = {
@@ -65,4 +67,30 @@ export function parseFamilyMembers(raw: unknown): AthleteFamilyMember[] {
       } satisfies AthleteFamilyMember;
     })
     .filter(Boolean) as AthleteFamilyMember[];
+}
+
+export function parseFamilyRpcResponse(data: unknown): AthleteFamily | null {
+  if (!data || typeof data !== "object") return null;
+  const payload = data as {
+    ok?: boolean;
+    family?: { id: string; name: string; members?: unknown[] } | null;
+  };
+  if (!payload.ok || !payload.family) return null;
+  return {
+    id: payload.family.id,
+    name: payload.family.name,
+    members: parseFamilyMembers(payload.family.members),
+  };
+}
+
+export async function fetchAthleteFamilyForPayee(
+  payeeId: string,
+  payeeIsManual: boolean
+): Promise<AthleteFamily | null> {
+  const { data, error } = await supabase.rpc("get_athlete_family", {
+    p_payee_id: payeeId,
+    p_payee_is_manual: payeeIsManual,
+  });
+  if (error) return null;
+  return parseFamilyRpcResponse(data);
 }
