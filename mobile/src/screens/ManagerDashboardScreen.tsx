@@ -211,18 +211,6 @@ export default function ManagerDashboardScreen() {
     } as Href);
   }
 
-  const paymentRows = useMemo(() => {
-    const p = data?.payments_by_method ?? {};
-    const merged = new Map<string, number>();
-    for (const [k, v] of Object.entries(p)) {
-      const canon = normalizePaymentMethodKey(k);
-      const n = typeof v === "number" ? v : Number(v);
-      if (!Number.isFinite(n)) continue;
-      merged.set(canon, (merged.get(canon) ?? 0) + n);
-    }
-    return [...merged.entries()].sort((a, b) => b[1] - a[1]);
-  }, [data]);
-
   const amountRows = useMemo(() => {
     const p = finance?.amounts_by_method ?? {};
     const merged = new Map<string, number>();
@@ -552,10 +540,10 @@ export default function ManagerDashboardScreen() {
               accessibilityLabel={t("dashboard.a11yMissingAttendance")}
               accessibilityState={{ disabled: missingAttendance.count === 0 }}
             >
-              <Text style={[styles.alertTileL, isRTL && styles.rtl]}>{t("dashboard.missingAttendanceTile")}</Text>
-              <Text style={[styles.alertTileV, isRTL && styles.rtl]}>{missingAttendance.count}</Text>
+              <Text style={styles.alertTileL}>{t("dashboard.missingAttendanceTile")}</Text>
+              <Text style={styles.alertTileV}>{missingAttendance.count}</Text>
               {missingAttendance.count > 0 ? (
-                <Text style={[styles.alertTileHint, isRTL && styles.rtl]}>{t("dashboard.missingAttendanceTileHint")}</Text>
+                <Text style={styles.alertTileHint}>{t("dashboard.missingAttendanceTileHint")}</Text>
               ) : null}
             </Pressable>
           ) : null}
@@ -572,10 +560,10 @@ export default function ManagerDashboardScreen() {
             accessibilityLabel={t("dashboard.a11yCapacityMismatch")}
             accessibilityState={{ disabled: capacityMismatchCount === 0 }}
           >
-            <Text style={[styles.alertTileL, isRTL && styles.rtl]}>{t("dashboard.capacityMismatchTile")}</Text>
-            <Text style={[styles.alertTileV, isRTL && styles.rtl]}>{capacityMismatchCount}</Text>
+            <Text style={styles.alertTileL}>{t("dashboard.capacityMismatchTile")}</Text>
+            <Text style={styles.alertTileV}>{capacityMismatchCount}</Text>
             {capacityMismatchCount > 0 ? (
-              <Text style={[styles.alertTileHintWarn, isRTL && styles.rtl]}>{t("dashboard.capacityMismatchTileHint")}</Text>
+              <Text style={styles.alertTileHintWarn}>{t("dashboard.capacityMismatchTileHint")}</Text>
             ) : null}
           </Pressable>
         </View>
@@ -808,25 +796,6 @@ export default function ManagerDashboardScreen() {
         </View>
       ) : null}
 
-      {!loading && data?.ok ? (
-        <View style={styles.paySectionCard}>
-          <Text style={[styles.subh, isRTL && styles.rtl]}>{t("dashboard.paymentsByMethodCounts")}</Text>
-          <Text style={[styles.hintLine, isRTL && styles.rtl]}>{t("dashboard.paymentsHint")}</Text>
-          {paymentRows.length === 0 ? (
-            <Text style={[styles.muted, isRTL && styles.rtl]}>{t("dashboard.paymentsCountsEmpty")}</Text>
-          ) : (
-            <View style={[styles.payList, isRTL && styles.payListRtl]}>
-              {paymentRows.map(([method, n]) => (
-                <View key={method} style={[styles.payRow, isRTL && styles.payRowRtl]}>
-                  <StatusChip label={paymentMethodDashboardLabel(method, language)} tone="neutral" />
-                  <Text style={styles.payN}>{n}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-      ) : null}
-
       <AddAccountPaymentModal
         visible={addPayAthlete != null}
         onClose={() => {
@@ -1014,7 +983,7 @@ const styles = StyleSheet.create({
   ghostBtnSpaced: { marginTop: theme.spacing.sm },
   ghostBtnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.text },
   tapHint: { fontSize: 11, fontWeight: "600", color: theme.colors.textSoft, marginBottom: 8, lineHeight: 16 },
-  amountsHeading: { marginTop: theme.spacing.md },
+  amountsHeading: { marginTop: theme.spacing.md, marginBottom: 4 },
   coachList: { marginTop: 6, gap: 8 },
   coachRowWrap: { borderRadius: theme.radius.md, overflow: "hidden" },
   coachRow: {
@@ -1101,6 +1070,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     borderRadius: theme.radius.xl,
     borderWidth: 1,
+    alignItems: "center",
   },
   alertTileHalf: { flex: 1, minWidth: 0 },
   alertTileActive: {
@@ -1116,10 +1086,38 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     opacity: 0.85,
   },
-  alertTileL: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
-  alertTileV: { marginTop: 6, fontSize: 28, fontWeight: "900", color: theme.colors.text, fontVariant: ["tabular-nums"] },
-  alertTileHint: { marginTop: 6, fontSize: 11, fontWeight: "700", color: theme.colors.error },
-  alertTileHintWarn: { marginTop: 6, fontSize: 11, fontWeight: "700", color: theme.colors.alertSubject },
+  alertTileL: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: theme.colors.textMuted,
+    textAlign: "center",
+    alignSelf: "stretch",
+  },
+  alertTileV: {
+    marginTop: 6,
+    fontSize: 28,
+    fontWeight: "900",
+    color: theme.colors.text,
+    fontVariant: ["tabular-nums"],
+    textAlign: "center",
+    alignSelf: "stretch",
+  },
+  alertTileHint: {
+    marginTop: 6,
+    fontSize: 11,
+    fontWeight: "700",
+    color: theme.colors.error,
+    textAlign: "center",
+    alignSelf: "stretch",
+  },
+  alertTileHintWarn: {
+    marginTop: 6,
+    fontSize: 11,
+    fontWeight: "700",
+    color: theme.colors.alertSubject,
+    textAlign: "center",
+    alignSelf: "stretch",
+  },
   muted: { color: theme.colors.textSoft },
   paySectionCard: {
     marginTop: theme.spacing.lg,
@@ -1129,7 +1127,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     padding: theme.spacing.md,
   },
-  payList: { gap: 8 },
+  payList: { gap: 10 },
   payListRtl: { alignItems: "stretch" },
   payRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   payRowRtl: { flexDirection: "row-reverse" },
