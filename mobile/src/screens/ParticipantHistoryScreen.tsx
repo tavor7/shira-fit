@@ -188,9 +188,25 @@ type PickerRow =
   | ({ kind: "quick" } & QuickLinked);
 
 export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTitle?: boolean } = {}) {
-  const { presetUserId } = useLocalSearchParams<{ presetUserId?: string }>();
+  const { presetUserId, presetManualId, presetStart, presetEnd } = useLocalSearchParams<{
+    presetUserId?: string;
+    presetManualId?: string;
+    presetStart?: string;
+    presetEnd?: string;
+  }>();
   const presetUid =
     typeof presetUserId === "string" ? presetUserId : Array.isArray(presetUserId) ? presetUserId[0] : undefined;
+  const presetManual =
+    typeof presetManualId === "string"
+      ? presetManualId
+      : Array.isArray(presetManualId)
+        ? presetManualId[0]
+        : undefined;
+  const presetStartIso =
+    typeof presetStart === "string" ? presetStart : Array.isArray(presetStart) ? presetStart[0] : undefined;
+  const presetEndIso =
+    typeof presetEnd === "string" ? presetEnd : Array.isArray(presetEnd) ? presetEnd[0] : undefined;
+  const awaitingPresetAthlete = !!(presetUid || presetManual);
   const { language, t, isRTL } = useI18n();
   /** Web sets `html dir=rtl`; extra row-reverse there mirrors layout twice. */
   const rtlRowFlip = isRTL && Platform.OS !== "web";
@@ -202,8 +218,15 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const isManagerHistory =
     (pathname?.startsWith("/manager/participant-history") ?? false) ||
     (pathname?.startsWith("/manager/reports") ?? false);
-  const [start, setStart] = useState(() => firstDayOfMonthISOLocal());
-  const [end, setEnd] = useState(defaultEndISO);
+  const [start, setStart] = useState(() =>
+    presetStartIso && isValidISODateString(presetStartIso.trim())
+      ? presetStartIso.trim()
+      : firstDayOfMonthISOLocal()
+  );
+  const [end, setEnd] = useState(() =>
+    presetEndIso && isValidISODateString(presetEndIso.trim()) ? presetEndIso.trim() : defaultEndISO()
+  );
+  const [presetResolved, setPresetResolved] = useState(!awaitingPresetAthlete);
   const [athleteId, setAthleteId] = useState<string>("");
   const [athleteLabel, setAthleteLabel] = useState<string>("");
   const [phone, setPhone] = useState(""); // used as RPC filter; set from athlete selection
@@ -551,19 +574,64 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   useEffect(() => {
     const uid = presetUid;
     if (!uid) return;
-    (async () => {
+    void (async () => {
       const { data, error } = await supabase
         .from("profiles")
         .select("full_name, username, phone")
         .eq("user_id", uid)
         .maybeSingle();
-      if (error || !data) return;
+      if (error || !data) {
+        setPresetResolved(true);
+        return;
+      }
       setAthleteId(uid);
       setPayeeIsManual(false);
       setAthleteLabel(`${data.full_name} (@${data.username ?? ""}) · ${data.phone ?? ""}`);
       setPhone((data.phone ?? "").trim());
+      setPresetResolved(true);
     })();
   }, [presetUid]);
+
+  useEffect(() => {
+    const mid = presetManual;
+    if (!mid || presetUid) return;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("manual_participants")
+        .select("full_name, phone, linked_user_id")
+        .eq("id", mid)
+        .maybeSingle();
+      if (error || !data) {
+        setPresetResolved(true);
+        return;
+      }
+      const linked = (data.linked_user_id ?? "").trim() || null;
+      setAthleteId(linked ?? mid);
+      setPayeeIsManual(!linked);
+      setAthleteLabel(
+        `${data.full_name} · ${data.phone ?? ""} · ${
+          linked
+            ? language === "he"
+              ? "קישור מרשימת מהיר"
+              : "Quick Add link"
+            : language === "he"
+              ? "ללא חשבון"
+              : "No account"
+        }`
+      );
+      setPhone((data.phone ?? "").trim());
+      setPresetResolved(true);
+    })();
+  }, [presetManual, presetUid, language]);
+
+  useEffect(() => {
+    if (presetStartIso && isValidISODateString(presetStartIso.trim())) {
+      setStart(presetStartIso.trim());
+    }
+    if (presetEndIso && isValidISODateString(presetEndIso.trim())) {
+      setEnd(presetEndIso.trim());
+    }
+  }, [presetStartIso, presetEndIso]);
 
   const loadAthletes = useCallback(async (termRaw: string) => {
     const q = termRaw.trim();
@@ -886,12 +954,12 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   loadRef.current = load;
 
   useEffect(() => {
-    if (!athleteId) return;
+    if (!athleteId || !presetResolved) return;
     const s = start.trim();
     const e = end.trim();
     if (!isValidISODateString(s) || !isValidISODateString(e) || s > e) return;
     void loadRef.current();
-  }, [athleteId, start, end, payeeIsManual]);
+  }, [athleteId, start, end, payeeIsManual, presetResolved]);
 
   return (
     <View style={styles.screen}>

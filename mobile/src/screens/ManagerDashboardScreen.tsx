@@ -4,12 +4,19 @@ import { router, type Href } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { formatISODateFull } from "../lib/dateFormat";
-import { firstDayOfMonthISOLocal, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
+import { firstDayOfMonthISOLocal, isValidISODateString, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "../components/StatusChip";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { normalizePaymentMethodKey, paymentMethodDashboardLabel } from "../lib/paymentMethod";
+import {
+  financeNoSessionsKey,
+  noSessionsKey,
+  overviewTitleKey,
+  sectionEyebrowKey,
+  type ManagerPeriodMode,
+} from "../lib/managerPeriodMode";
 import {
   parseCapacityMismatch,
   parseFinance,
@@ -26,7 +33,7 @@ function startOfWeekSunday(d: Date): string {
   return toISODateLocal(cal);
 }
 
-type PeriodMode = "week" | "month";
+type PeriodMode = ManagerPeriodMode;
 
 type StatsPayload = {
   ok?: boolean;
@@ -123,7 +130,7 @@ export default function ManagerDashboardScreen() {
 
     if (!silent) setLoading(false);
 
-    if (error && periodMode === "month" && isMissingRpcSignature(primary.error)) {
+    if (error && (periodMode === "month" || periodMode === "global") && isMissingRpcSignature(primary.error)) {
       if (!silent) setData({ ok: false, error: t("dashboard.monthModeNeedsDb") });
       return;
     }
@@ -140,10 +147,11 @@ export default function ManagerDashboardScreen() {
   }, [load]);
 
   useEffect(() => {
+    if (periodMode === "global") return;
     if (data?.ok && data.week_start && data.week_start !== anchorDate) {
       setAnchorDate(String(data.week_start));
     }
-  }, [data?.ok, data?.week_start, anchorDate]);
+  }, [data?.ok, data?.week_start, anchorDate, periodMode]);
 
   function setWeekMode() {
     if (periodMode === "week") return;
@@ -156,6 +164,12 @@ export default function ManagerDashboardScreen() {
     if (periodMode === "month") return;
     setPeriodMode("month");
     setAnchorDate((a) => firstDayOfMonthISOLocal(parseISODateLocal(a) ?? new Date()));
+    setExpandedCoachId(null);
+  }
+
+  function setGlobalMode() {
+    if (periodMode === "global") return;
+    setPeriodMode("global");
     setExpandedCoachId(null);
   }
 
@@ -175,7 +189,7 @@ export default function ManagerDashboardScreen() {
   function openMissingAttendance() {
     router.push({
       pathname: "/(app)/manager/missing-attendance",
-      params: { anchor: data?.week_start ?? anchorDate, periodMode: "week" },
+      params: { anchor: data?.week_start ?? anchorDate, periodMode },
     } as Href);
   }
 
@@ -236,25 +250,53 @@ export default function ManagerDashboardScreen() {
     return { families: finance.families, solo };
   }, [finance]);
 
+  function reportDateRangeFromOverview(): { start: string; end: string } {
+    const ws = data?.week_start?.trim();
+    const we = data?.week_end?.trim();
+    if (ws && we) return { start: ws, end: we };
+
+    const anchor = anchorDate;
+    if (periodMode === "month") {
+      const start = firstDayOfMonthISOLocal(parseISODateLocal(anchor) ?? new Date());
+      const monthEnd = parseISODateLocal(shiftMonthAnchorISOLocal(start, 1)) ?? new Date();
+      monthEnd.setDate(monthEnd.getDate() - 1);
+      return { start, end: toISODateLocal(monthEnd) };
+    }
+    if (periodMode === "global") {
+      return { start: ws || anchor, end: toISODateLocal(new Date()) };
+    }
+    const weekStart = startOfWeekSunday(parseISODateLocal(anchor) ?? new Date());
+    const weekEnd = parseISODateLocal(weekStart) ?? new Date();
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    return { start: weekStart, end: toISODateLocal(weekEnd) };
+  }
+
   function openAthleteHistory(a: WeeklyFinanceAthlete) {
-    if (a.kind !== "app") return;
-    router.push(`/(app)/manager/participant-history?presetUserId=${encodeURIComponent(a.id)}` as Href);
+    const params = new URLSearchParams();
+    if (a.kind === "app") {
+      params.set("presetUserId", a.id);
+    } else {
+      params.set("presetManualId", a.id);
+    }
+    const { start: ps, end: pe } = reportDateRangeFromOverview();
+    params.set("presetStart", ps);
+    params.set("presetEnd", pe);
+    router.push(`/(app)/manager/participant-history?${params.toString()}` as Href);
   }
 
   function openFamilyHistory(family: WeeklyFinanceFamily) {
-    const firstApp = family.members.find((m) => m.kind === "app");
-    if (firstApp) openAthleteHistory(firstApp);
+    const first = family.members.find((m) => m.kind === "app") ?? family.members[0];
+    if (!first) return;
+    openAthleteHistory(first);
   }
 
   function renderAthleteBalanceRow(a: WeeklyFinanceAthlete, opts?: { member?: boolean }) {
     const owe = a.outstanding_ils > 0.005;
-    const canTap = a.kind === "app";
     return (
       <View key={`${opts?.member ? "m:" : ""}${a.kind}-${a.id}`} style={[styles.athleteRow, opts?.member && styles.athleteRowMember]}>
         <Pressable
-          onPress={() => canTap && openAthleteHistory(a)}
-          disabled={!canTap}
-          style={({ pressed }) => [canTap && pressed && styles.athleteRowPressed]}
+          onPress={() => openAthleteHistory(a)}
+          style={({ pressed }) => [pressed && styles.athleteRowPressed]}
         >
           <View style={[styles.athleteRowTop, isRTL && styles.athleteRowTopRtl]}>
             <Text style={[styles.athleteName, isRTL && styles.rtl]} numberOfLines={1}>
@@ -275,9 +317,7 @@ export default function ManagerDashboardScreen() {
             {t("dashboard.financeExpected")}: {formatIls(a.expected_ils, language)} · {t("dashboard.financeCollectedTotal")}:{" "}
             {formatIls(a.collected_total_ils, language)}
           </Text>
-          {canTap ? (
-            <Text style={[styles.sessionTapHint, isRTL && styles.rtl]}>{t("dashboard.financeTapActivityReport")}</Text>
-          ) : null}
+          <Text style={[styles.sessionTapHint, isRTL && styles.rtl]}>{t("dashboard.financeTapActivityReport")}</Text>
         </Pressable>
         <Pressable
           onPress={() => openAddPayment(a, opts?.member === true)}
@@ -298,14 +338,16 @@ export default function ManagerDashboardScreen() {
 
   const rangeLabelStart = data?.week_start ?? anchorDate;
   const rangeLabelEnd = data?.week_end;
+  const isGlobal = periodMode === "global";
+  const showMissingAttendanceTile = periodMode === "week" || missingAttendance.count > 0;
+  const showAlertRow =
+    periodMode === "week" || capacityMismatchCount > 0 || missingAttendance.count > 0;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <ManagerOverviewHubTabs />
       <View style={[styles.titleBlock, isRTL && styles.titleBlockRtl]}>
-        <Text style={[styles.h, isRTL && styles.rtl]}>
-          {periodMode === "month" ? t("dashboard.monthlyOverview") : t("dashboard.weeklyOverview")}
-        </Text>
+        <Text style={[styles.h, isRTL && styles.rtl]}>{t(overviewTitleKey(periodMode))}</Text>
         <View style={[styles.periodTrack, isRTL && styles.periodTrackRtl]}>
           <Pressable
             onPress={setWeekMode}
@@ -335,8 +377,39 @@ export default function ManagerDashboardScreen() {
               {t("dashboard.periodMonth")}
             </Text>
           </Pressable>
+          <Pressable
+            onPress={setGlobalMode}
+            style={({ pressed }) => [
+              styles.periodChip,
+              periodMode === "global" && styles.periodChipOn,
+              pressed && periodMode !== "global" && styles.periodChipPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: periodMode === "global" }}
+          >
+            <Text style={[styles.periodChipTxt, periodMode === "global" && styles.periodChipTxtOn]} numberOfLines={1}>
+              {t("dashboard.periodGlobal")}
+            </Text>
+          </Pressable>
         </View>
       </View>
+      {isGlobal ? (
+        <View style={styles.rangeRow}>
+          <View style={styles.rangeCenter}>
+            <Text style={[styles.rangeDates, isRTL && styles.rtl]} numberOfLines={2}>
+              {t("dashboard.rangeAllTime")}
+              {rangeLabelEnd ? (
+                <>
+                  {" · "}
+                  {formatISODateFull(rangeLabelStart, language)}
+                  <Text style={styles.rangeDash}>{" — "}</Text>
+                  {formatISODateFull(rangeLabelEnd, language)}
+                </>
+              ) : null}
+            </Text>
+          </View>
+        </View>
+      ) : (
       <View style={[styles.rangeRow, isRTL && styles.rangeRowRtl]}>
         <Pressable
           style={({ pressed }) => [styles.rangeNavHit, pressed && styles.rangeNavPressed]}
@@ -376,6 +449,7 @@ export default function ManagerDashboardScreen() {
           <Text style={styles.rangeChevron}>{"›"}</Text>
         </Pressable>
       </View>
+      )}
 
       {loading ? (
         <View style={styles.loadingWrap}>
@@ -389,9 +463,7 @@ export default function ManagerDashboardScreen() {
 
       {!loading && data?.ok ? (
         <>
-          <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>
-            {periodMode === "month" ? t("dashboard.sectionThisMonth") : t("dashboard.sectionThisWeek")}
-          </Text>
+          <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>{t(sectionEyebrowKey(periodMode))}</Text>
           <View style={styles.statsCard}>
             <View style={styles.statsGrid}>
               <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
@@ -460,14 +532,12 @@ export default function ManagerDashboardScreen() {
       ) : null}
 
       {!loading && data?.ok && (data.session_count ?? 0) === 0 ? (
-        <Text style={[styles.emptyWeek, isRTL && styles.rtl]}>
-          {periodMode === "month" ? t("dashboard.noSessionsThisMonth") : t("dashboard.noSessionsThisWeek")}
-        </Text>
+        <Text style={[styles.emptyWeek, isRTL && styles.rtl]}>{t(noSessionsKey(periodMode))}</Text>
       ) : null}
 
-      {!loading && data?.ok && (periodMode === "week" || capacityMismatchCount > 0) ? (
+      {!loading && data?.ok && showAlertRow ? (
         <View style={[styles.alertRow, isRTL && styles.alertRowRtl]}>
-          {periodMode === "week" ? (
+          {showMissingAttendanceTile ? (
             <Pressable
               onPress={missingAttendance.count > 0 ? openMissingAttendance : undefined}
               disabled={missingAttendance.count === 0}
@@ -524,9 +594,7 @@ export default function ManagerDashboardScreen() {
             <Text style={[styles.tapHint, isRTL && styles.rtl]}>{t("dashboard.financeTapCoachHint")}</Text>
             <View style={styles.coachList}>
               {finance.coaches.length === 0 ? (
-                <Text style={[styles.muted, isRTL && styles.rtl]}>
-                  {periodMode === "month" ? t("dashboard.financeNoSessionsInMonth") : t("dashboard.financeNoSessionsInWeek")}
-                </Text>
+                <Text style={[styles.muted, isRTL && styles.rtl]}>{t(financeNoSessionsKey(periodMode))}</Text>
               ) : (
                 finance.coaches.map((c) => {
                   const open = expandedCoachId === c.coach_id;
@@ -691,7 +759,7 @@ export default function ManagerDashboardScreen() {
                   <>
                     {athleteListModel.families.map((family) => {
                       const owe = family.outstanding_ils > 0.005;
-                      const canTapFamily = family.members.some((m) => m.kind === "app");
+                      const canTapFamily = family.members.length > 0;
                       return (
                         <View key={`family-${family.id}`} style={styles.familyGroup}>
                           <Pressable

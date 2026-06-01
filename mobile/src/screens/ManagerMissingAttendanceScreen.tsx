@@ -10,7 +10,7 @@ import {
 import { Stack, useLocalSearchParams, router, type Href } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
-import { useI18n } from "../context/I18nContext";
+import { parseManagerPeriodMode } from "../lib/managerPeriodMode";
 import { useAppAlert } from "../context/AppAlertContext";
 import { formatISODateFull } from "../lib/dateFormat";
 import { formatSessionTimeRange } from "../lib/sessionTime";
@@ -31,7 +31,9 @@ export default function ManagerMissingAttendanceScreen() {
   const { showOk } = useAppAlert();
   const params = useLocalSearchParams<{ anchor?: string; periodMode?: string }>();
   const anchor = String(params.anchor ?? "").trim();
-  const periodMode = params.periodMode === "month" ? "month" : "week";
+  const periodMode = parseManagerPeriodMode(
+    typeof params.periodMode === "string" ? params.periodMode : undefined
+  );
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
