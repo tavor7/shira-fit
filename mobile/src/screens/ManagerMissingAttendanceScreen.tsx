@@ -10,6 +10,7 @@ import {
 import { Stack, useLocalSearchParams, router, type Href } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
+import { useI18n } from "../context/I18nContext";
 import { parseManagerPeriodMode } from "../lib/managerPeriodMode";
 import { useAppAlert } from "../context/AppAlertContext";
 import { formatISODateFull } from "../lib/dateFormat";

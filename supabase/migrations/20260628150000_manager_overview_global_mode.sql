@@ -19,7 +19,7 @@ begin
 
   if v_mode = 'global' then
     v_end := current_date;
-    v_start := coalesce((select min(s.session_date) from public.training_sessions s), v_end);
+    v_start := '2026-05-01'::date;
   elsif v_mode = 'month' then
     v_start := date_trunc('month', p_anchor::timestamp)::date;
     v_end := (v_start + interval '1 month - 1 day')::date;

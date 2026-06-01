@@ -15,6 +15,7 @@ import {
   noSessionsKey,
   overviewTitleKey,
   sectionEyebrowKey,
+  GLOBAL_OVERVIEW_START_ISO,
   type ManagerPeriodMode,
 } from "../lib/managerPeriodMode";
 import {
@@ -263,7 +264,7 @@ export default function ManagerDashboardScreen() {
       return { start, end: toISODateLocal(monthEnd) };
     }
     if (periodMode === "global") {
-      return { start: ws || anchor, end: toISODateLocal(new Date()) };
+      return { start: GLOBAL_OVERVIEW_START_ISO, end: toISODateLocal(new Date()) };
     }
     const weekStart = startOfWeekSunday(parseISODateLocal(anchor) ?? new Date());
     const weekEnd = parseISODateLocal(weekStart) ?? new Date();

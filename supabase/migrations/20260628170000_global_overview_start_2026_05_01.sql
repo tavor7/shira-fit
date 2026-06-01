@@ -1,4 +1,4 @@
--- Global overview: end at today (not last session date).
+-- Global overview: fixed start 1 May 2026, end today.
 
 create or replace function public._manager_stats_period_bounds(p_anchor date, p_mode text)
 returns table (period_start date, period_end date)

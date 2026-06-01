@@ -1,5 +1,8 @@
 export type ManagerPeriodMode = "week" | "month" | "global";
 
+/** Global overview / reports: fixed range start (1 May 2026). End is today (server). */
+export const GLOBAL_OVERVIEW_START_ISO = "2026-05-01";
+
 export function parseManagerPeriodMode(raw: string | undefined): ManagerPeriodMode {
   if (raw === "month") return "month";
   if (raw === "global") return "global";
