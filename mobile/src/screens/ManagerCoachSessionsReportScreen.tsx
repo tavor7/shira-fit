@@ -17,10 +17,9 @@ import { isValidISODateString, lastNDaysRangeISO } from "../lib/isoDate";
 import { formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
 import type { ManagerCoachSessionReportRow } from "../types/database";
 import { useI18n } from "../context/I18nContext";
-import { AppSearchSheet } from "../components/AppSearchSheet";
+import { CoachPickerSheet } from "../components/CoachPickerSheet";
+import { PricingPickerField } from "../components/PricingPickerField";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
-
-type Trainer = { user_id: string; full_name: string; username: string; role: string; phone?: string | null };
 
 function formatPayout(n: number) {
   return `${Math.round(n * 100) / 100} ₪`;
@@ -125,12 +124,9 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
   const defaultRange = useMemo(() => lastNDaysRangeISO(30), []);
   const [start, setStart] = useState(defaultRange.start);
   const [end, setEnd] = useState(defaultRange.end);
-  const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [coachId, setCoachId] = useState("");
   const [coachLabel, setCoachLabel] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerQ, setPickerQ] = useState("");
-  const [trainersLoading, setTrainersLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<ManagerCoachSessionReportRow[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
@@ -143,21 +139,6 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
     () => rows.filter((r) => r.coach_rate_missing === true).length,
     [rows]
   );
-
-  const loadTrainers = useCallback(async () => {
-    setTrainersLoading(true);
-    const { data } = await supabase
-      .from("profiles")
-      .select("user_id, full_name, username, role, phone")
-      .in("role", ["coach", "manager"])
-      .order("full_name");
-    setTrainers((data as Trainer[]) ?? []);
-    setTrainersLoading(false);
-  }, []);
-
-  useEffect(() => {
-    loadTrainers();
-  }, [loadTrainers]);
 
   const loadReport = useCallback(async () => {
     const s = start.trim();
@@ -220,12 +201,17 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
           <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t("menu.coachHistory")}</Text>
         ) : null}
         <ReportDateRangeControls start={start} end={end} onChange={onDateRangeChange} />
-        <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן" : "Coach"}</Text>
-        <Pressable style={styles.pickerTouch} onPress={() => setPickerOpen(true)}>
-          <Text style={coachLabel ? styles.pickerText : styles.pickerPlaceholder}>
-            {coachLabel || (language === "he" ? "בחרו מאמן או מנהל…" : "Choose coach or manager…")}
-          </Text>
-        </Pressable>
+      </View>
+
+      <View style={styles.coachPickCard}>
+        <PricingPickerField
+          label={t("sessionForm.trainer")}
+          value={coachLabel}
+          placeholder={t("sessionForm.chooseTrainer")}
+          onPress={() => setPickerOpen(true)}
+          isRTL={isRTL}
+          accessibilityLabel={t("sessionForm.trainer")}
+        />
       </View>
 
       {coachId && loading ? (
@@ -256,48 +242,14 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
         </View>
       ) : null}
 
-      <AppSearchSheet
+      <CoachPickerSheet
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        title={language === "he" ? "מאמנים" : "Trainers"}
-        dismissLabel={language === "he" ? t("common.ok") : "Done"}
-        isRTL={isRTL}
-        searchConfig={{
-          value: pickerQ,
-          onChangeText: setPickerQ,
-          onSearch: () => {},
-          placeholder: language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…",
-          loading: trainersLoading,
+        selectedCoachId={coachId}
+        onSelect={(coach) => {
+          setCoachId(coach.user_id);
+          setCoachLabel(coach.full_name);
         }}
-        data={trainers.filter((t) => {
-          const q = pickerQ.trim().toLowerCase();
-          if (!q) return true;
-          const phone = (t as unknown as { phone?: string | null }).phone ?? "";
-          return (
-            (t.full_name ?? "").toLowerCase().includes(q) ||
-            (t.username ?? "").toLowerCase().includes(q) ||
-            String(phone).toLowerCase().includes(q)
-          );
-        })}
-        keyExtractor={(item) => item.user_id}
-        renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]}
-            onPress={() => {
-              setCoachId(item.user_id);
-              setCoachLabel(`${item.full_name} (@${item.username}) · ${item.role}`);
-              setPickerOpen(false);
-            }}
-          >
-            <Text style={styles.pickerItemName}>{item.full_name}</Text>
-            <Text style={styles.pickerItemRole}>
-              @{item.username} · {item.role}
-            </Text>
-          </Pressable>
-        )}
-        ListEmptyComponent={
-          <Text style={[styles.pickerEmpty, isRTL && styles.rtlText]}>{language === "he" ? "אין מאמנים" : "No trainers"}</Text>
-        }
       />
 
       <FlatList
@@ -338,7 +290,6 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
   },
   screenTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
-  label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   rtlText: { textAlign: "right" },
   ltrText: { textAlign: "left", writingDirection: "ltr" },
   loadingBanner: {
@@ -351,27 +302,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   loadingBannerTxt: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
-  pickerTouch: {
+  coachPickCard: {
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    marginTop: 6,
-    backgroundColor: theme.colors.white,
-    minHeight: 48,
-    justifyContent: "center",
-  },
-  pickerText: { fontSize: 16, color: theme.colors.textOnLight },
-  pickerPlaceholder: { fontSize: 16, color: theme.colors.textSoftOnLight },
-  pickerItem: {
-    paddingVertical: 14,
-    paddingHorizontal: theme.spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.borderMuted,
   },
-  pickerItemName: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
-  pickerItemRole: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4 },
-  pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoft, textAlign: "center" },
   list: { flex: 1 },
   listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, flexGrow: 1, gap: 10 },
   empty: { textAlign: "center", color: theme.colors.textSoft, padding: theme.spacing.xl, fontSize: 14 },

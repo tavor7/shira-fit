@@ -659,8 +659,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "activityLog.pageNext": "Next",
 
     "homeAlerts.staffWaitlistFreeSpot": "Waitlist + free spot: {date} · {time}",
-    "homeAlerts.staffAthleteMultipleSessionsDay": "{name} has {n} sessions on {date}",
-    "homeAlerts.athleteMultipleSessionsDay": "You have {n} sessions on {date}",
+    "homeAlerts.staffAthleteMultipleSessionsDay": "{name} has {n} sessions ({times}) on {date}",
+    "homeAlerts.athleteMultipleSessionsDay": "You have {n} sessions ({times}) on {date}",
     "homeAlerts.trainerMultipleSessionsLead": "Same day",
     "homeAlerts.lateCancellation": "Late cancellation: {name} · {day} · {time}",
     "homeAlerts.lateCancellationLead": "Late cancellation",
@@ -1337,8 +1337,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "activityLog.pageNext": "הבא",
 
     "homeAlerts.staffWaitlistFreeSpot": "רשימת המתנה + מקום פנוי: {date} · {time}",
-    "homeAlerts.staffAthleteMultipleSessionsDay": "ל-{name} יש {n} אימונים ב-{date}",
-    "homeAlerts.athleteMultipleSessionsDay": "יש לך {n} אימונים ב-{date}",
+    "homeAlerts.staffAthleteMultipleSessionsDay": "ל-{name} יש {n} אימונים ({times}) ב-{date}",
+    "homeAlerts.athleteMultipleSessionsDay": "יש לך {n} אימונים ({times}) ב-{date}",
     "homeAlerts.trainerMultipleSessionsLead": "אותו יום",
     "homeAlerts.lateCancellation": "ביטול מאוחר (חיוב): {name} · {day} · {time}",
     "homeAlerts.lateCancellationLead": "ביטול מאוחר (חיוב)",

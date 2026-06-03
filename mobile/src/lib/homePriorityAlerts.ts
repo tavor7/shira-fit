@@ -133,7 +133,12 @@ type StaffAthleteOcc = {
   date: string;
   sessionId: string;
   startMs: number;
+  startTime: string;
 };
+
+function formatSessionTimesCommaSeparated(startTimes: string[]): string {
+  return startTimes.map((t) => formatSessionStartTime(t)).join(", ");
+}
 
 /**
  * Staff home: an athlete (profile or quick-add) has 2+ active roster spots on the same calendar day among
@@ -168,6 +173,7 @@ export async function fetchStaffAthleteMultipleSessionsPerDayItems(
       date: s.session_date,
       sessionId: s.id,
       startMs: sessionStartsAt(s.session_date, s.start_time).getTime(),
+      startTime: s.start_time,
     });
   }
   for (const m of (mans ?? []) as { session_id: string; manual_participant_id: string }[]) {
@@ -180,6 +186,7 @@ export async function fetchStaffAthleteMultipleSessionsPerDayItems(
       date: s.session_date,
       sessionId: s.id,
       startMs: sessionStartsAt(s.session_date, s.start_time).getTime(),
+      startTime: s.start_time,
     });
   }
 
@@ -242,8 +249,14 @@ export async function fetchStaffAthleteMultipleSessionsPerDayItems(
     const athleteName = resolveAthleteName(first.athleteKey);
     const dateStr = formatISODateFull(first.date, language);
     const n = list.length;
+    const times = formatSessionTimesCommaSeparated(list.map((o) => o.startTime));
     const lead = tr(language, "homeAlerts.trainerMultipleSessionsLead");
-    const detail = tr(language, "homeAlerts.staffAthleteMultipleSessionsDay", { name: athleteName, n, date: dateStr });
+    const detail = tr(language, "homeAlerts.staffAthleteMultipleSessionsDay", {
+      name: athleteName,
+      n,
+      date: dateStr,
+      times,
+    });
     const leadDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
     const bodyDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
     const sep = " · ";
@@ -447,8 +460,9 @@ export async function fetchAthleteMultipleSessionsPerDayItems(
     const first = list[0]!;
     const dateStr = formatISODateFull(first.session_date, language);
     const n = list.length;
+    const times = formatSessionTimesCommaSeparated(list.map((s) => s.start_time));
     const lead = tr(language, "homeAlerts.trainerMultipleSessionsLead");
-    const detail = tr(language, "homeAlerts.athleteMultipleSessionsDay", { n, date: dateStr });
+    const detail = tr(language, "homeAlerts.athleteMultipleSessionsDay", { n, date: dateStr, times });
     const leadDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
     const bodyDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
     const sep = " · ";
