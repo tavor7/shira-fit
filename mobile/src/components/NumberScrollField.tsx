@@ -37,6 +37,7 @@ export type NumberScrollFieldProps = {
 export function NumberScrollField({ label, value, onChange, options, formatOption }: NumberScrollFieldProps) {
   const { isRTL, language } = useI18n();
   const scrollRef = useRef<ScrollView>(null);
+  const lastEmittedIndexRef = useRef(0);
   const parsed = parseInt(String(value ?? "").trim(), 10);
 
   const selectedIndex = useMemo(() => {
@@ -52,6 +53,7 @@ export function NumberScrollField({ label, value, onChange, options, formatOptio
 
   useEffect(() => {
     setFocusedIndex(selectedIndex);
+    lastEmittedIndexRef.current = selectedIndex;
   }, [selectedIndex]);
 
   useEffect(() => {
@@ -65,19 +67,26 @@ export function NumberScrollField({ label, value, onChange, options, formatOptio
     return Math.max(0, Math.min(options.length - 1, Math.round(y / ITEM_HEIGHT)));
   }
 
-  function commitOffset(y: number) {
-    const i = indexFromOffset(y);
-    setFocusedIndex(i);
-    const next = String(options[i]!);
-    if (next !== String(value).trim()) onChange(next);
+  function emitIndex(i: number) {
+    const clamped = Math.max(0, Math.min(options.length - 1, i));
+    setFocusedIndex(clamped);
+    if (clamped === lastEmittedIndexRef.current) return;
+    lastEmittedIndexRef.current = clamped;
+    onChange(String(options[clamped]!));
+  }
+
+  function snapToIndex(i: number) {
+    const y = i * ITEM_HEIGHT;
+    scrollRef.current?.scrollTo({ y, animated: false });
+    emitIndex(i);
   }
 
   function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
-    setFocusedIndex(indexFromOffset(e.nativeEvent.contentOffset.y));
+    emitIndex(indexFromOffset(e.nativeEvent.contentOffset.y));
   }
 
   function onScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
-    commitOffset(e.nativeEvent.contentOffset.y);
+    snapToIndex(indexFromOffset(e.nativeEvent.contentOffset.y));
   }
 
   const padY = (WHEEL_HEIGHT - ITEM_HEIGHT) / 2;

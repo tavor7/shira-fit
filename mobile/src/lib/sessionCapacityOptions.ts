@@ -1,6 +1,6 @@
 export const SESSION_DURATION_MIN = 30;
 export const SESSION_DURATION_MAX = 120;
-export const SESSION_MAX_PARTICIPANTS_MIN = 0;
+export const SESSION_MAX_PARTICIPANTS_MIN = 1;
 export const SESSION_MAX_PARTICIPANTS_MAX = 15;
 
 export const SESSION_DURATION_OPTIONS = Array.from(

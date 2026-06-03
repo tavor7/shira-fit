@@ -882,7 +882,7 @@ export default function ManagerSessionDetail() {
     if (!isValidSessionMaxParticipants(parsedMax)) {
       showOk(
         language === "he" ? "גודל קבוצה לא תקין" : "Invalid group size",
-        language === "he" ? "בחרו גודל קבוצה בין 0 ל-15." : "Choose a group size between 0 and 15."
+        language === "he" ? "בחרו גודל קבוצה בין 1 ל-15." : "Choose a group size between 1 and 15."
       );
       return;
     }

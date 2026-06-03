@@ -414,7 +414,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     const parsedMax = parseInt(max.trim(), 10);
     const maxP = clampSessionMaxParticipants(parsedMax);
     if (!isValidSessionMaxParticipants(parsedMax)) {
-      setError(language === "he" ? "בחרו גודל קבוצה בין 0 ל-15." : "Choose a group size between 0 and 15.");
+      setError(language === "he" ? "בחרו גודל קבוצה בין 1 ל-15." : "Choose a group size between 1 and 15.");
       return;
     }
     const customParsed = parseCustomSlotPriceDraft(customSlotPriceDraft);

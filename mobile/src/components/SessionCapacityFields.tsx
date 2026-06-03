@@ -14,7 +14,7 @@ type Props = {
   maxLabel: string;
 };
 
-/** Scrollable duration (30–120 min) + max size (0–15). */
+/** Scrollable duration (30–120 min) + max size (1–15). */
 export function SessionCapacityFields({
   duration,
   max,
