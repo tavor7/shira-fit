@@ -6,7 +6,6 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
-  useWindowDimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { router } from "expo-router";
@@ -18,11 +17,20 @@ import { isMissingSessionSeriesRpc, staffCreateSessionSeries } from "../lib/sess
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { toISODateLocal, isValidISODateString } from "../lib/isoDate";
 import { SessionWhenFields } from "./SessionWhenFields";
+import { SessionCapacityFields } from "./SessionCapacityFields";
+import {
+  clampSessionDuration,
+  clampSessionMaxParticipants,
+  isValidSessionDuration,
+  isValidSessionMaxParticipants,
+  normalizeSessionDurationString,
+  normalizeSessionMaxString,
+} from "../lib/sessionCapacityOptions";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { appendNetworkHint } from "../lib/networkErrors";
 import { useDiscardChangesPrompt } from "../hooks/useDiscardChangesPrompt";
-import { sessionFormIsCompact, sessionFormStyles as sf } from "./sessionFormStyles";
+import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { SessionSlotRateField } from "./SessionSlotRateField";
 import { SessionOptionsSection, type SessionOptionItem } from "./SessionOptionsSection";
 import { SessionSeriesOptionsExpand } from "./SessionSeriesOptionsExpand";
@@ -54,8 +62,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showToast } = useToast();
   const navigation = useNavigation();
-  const { width } = useWindowDimensions();
-  const compact = sessionFormIsCompact(width);
   const [date, setDate] = useState(() => initialDate?.trim() || toISODateLocal(new Date()));
   const [time, setTime] = useState(DEFAULT_SESSION_START_TIME);
   const [coachId, setCoachId] = useState(fixedCoachId ?? "");
@@ -220,6 +226,11 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   useEffect(() => {
     if (initialDate?.trim()) setDate(initialDate.trim());
   }, [initialDate]);
+
+  useEffect(() => {
+    setDurationMinutes((cur) => normalizeSessionDurationString(cur));
+    setMax((cur) => normalizeSessionMaxString(cur));
+  }, []);
 
   useEffect(() => {
     if (!isValidISODateString(date)) {
@@ -394,13 +405,18 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       return;
     }
     const parsedDuration = parseInt(durationMinutes.trim(), 10);
-    const duration = Number.isFinite(parsedDuration) ? parsedDuration : 55;
-    if (duration < 1 || duration > 24 * 60) {
+    const duration = clampSessionDuration(parsedDuration);
+    if (!isValidSessionDuration(parsedDuration)) {
       setError(t("sessionForm.invalidDuration"));
       return;
     }
     const startT = time.trim() || "18:00";
-    const maxP = parseInt(max, 10) || 1;
+    const parsedMax = parseInt(max.trim(), 10);
+    const maxP = clampSessionMaxParticipants(parsedMax);
+    if (!isValidSessionMaxParticipants(parsedMax)) {
+      setError(language === "he" ? "בחרו גודל קבוצה בין 0 ל-15." : "Choose a group size between 0 and 15.");
+      return;
+    }
     const customParsed = parseCustomSlotPriceDraft(customSlotPriceDraft);
     if (!customParsed.ok) {
       setError(t("managerSession.customSlotPriceInvalid"));
@@ -625,200 +641,211 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     [t, open, hidden, isKickbox, repeatWeekly, repeatOngoing, repeatCopyRoster, weeklyOccurrences, isRTL]
   );
 
+  const traineeCount = selectedAthletes.length + selectedManual.length;
+
   return (
     <>
     <ScrollView contentContainerStyle={sf.content} style={sf.screen} keyboardShouldPersistTaps="handled">
       <View style={sf.sections}>
-      <View style={sf.card}>
-        <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("sessionForm.when")}</Text>
-        <SessionWhenFields
-          date={date}
-          time={time}
-          onDateChange={setDate}
-          onTimeChange={setTime}
-          dateLabel={t("sessionForm.sessionDate")}
-          timeLabel={t("sessionForm.startTime")}
-        />
-      </View>
+        <View style={sf.card}>
+          <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("sessionForm.when")}</Text>
+          <SessionWhenFields
+            date={date}
+            time={time}
+            onDateChange={setDate}
+            onTimeChange={setTime}
+            dateLabel={t("sessionForm.sessionDate")}
+            timeLabel={t("sessionForm.startTime")}
+          />
+        </View>
 
-      <View style={sf.card}>
-        <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("sessionForm.trainer")}</Text>
-        {fixedCoachId ? (
-          <View style={[sf.control, { justifyContent: "center" }]}>
-            <View style={styles.coachRow}>
-              {coachColor ? (
-                <View style={[styles.coachColorDot, { backgroundColor: coachColor }]} />
-              ) : null}
-              <Text style={[sf.controlText, { flex: 1 }]} numberOfLines={1} ellipsizeMode="tail">
-                {coachLabel || coachYouLabel}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <>
-            <Pressable
-              style={({ pressed }) => [sf.control, pressed && { opacity: 0.9 }, { justifyContent: "center" }]}
-              onPress={() => setShowCoachPicker(true)}
-              accessibilityRole="button"
-              accessibilityLabel={t("sessionForm.chooseTrainer")}
-            >
-              <View style={styles.coachRow}>
-                {coachLabel && coachColor ? (
-                  <View style={[styles.coachColorDot, { backgroundColor: coachColor }]} />
-                ) : null}
-                <Text
-                  style={[coachLabel ? sf.controlText : sf.controlPlaceholder, { flex: 1 }]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {coachLabel || t("sessionForm.chooseTrainer")}
-                </Text>
+        <View style={sf.card}>
+          <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("sessionForm.trainer")}</Text>
+          {fixedCoachId ? (
+            <View style={sf.formPanel}>
+              <View style={styles.trainerRow}>
+                <View style={styles.trainerLeading}>
+                  {coachColor ? (
+                    <View style={[styles.coachColorDot, { backgroundColor: coachColor }]} />
+                  ) : null}
+                  <Text style={[sf.controlText, styles.trainerName]} numberOfLines={2} ellipsizeMode="tail">
+                    {coachLabel || coachYouLabel}
+                  </Text>
+                </View>
               </View>
-            </Pressable>
-            <CoachPickerSheet
-              visible={showCoachPicker}
-              onClose={() => setShowCoachPicker(false)}
-              selectedCoachId={coachId}
-              onSelect={(coach) =>
-                selectCoach({
-                  user_id: coach.user_id,
-                  full_name: coach.full_name,
-                  role: coach.role,
-                  username: coach.username,
-                  calendar_color: coach.calendar_color,
-                })
-              }
-            />
-          </>
-        )}
-      </View>
-
-      <View style={sf.card}>
-        <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("sessionForm.capacity")}</Text>
-        <View style={[sf.row, compact && sf.rowStack]}>
-          <View style={sf.col}>
-            <Text style={[sf.label, isRTL && sf.labelRtl]}>{t("sessionForm.lengthMin")}</Text>
-            <TextInput
-              style={[sf.control, sf.controlInput]}
-              value={durationMinutes}
-              onChangeText={setDurationMinutes}
-              keyboardType="number-pad"
-              placeholder="55"
-              placeholderTextColor={theme.colors.textSoft}
-              accessibilityLabel={t("sessionForm.lengthMin")}
-            />
-          </View>
-          <View style={sf.col}>
-            <Text style={[sf.label, isRTL && sf.labelRtl]}>{t("sessionForm.maxParticipants")}</Text>
-            <TextInput
-              style={[sf.control, sf.controlInput]}
-              value={max}
-              onChangeText={setMax}
-              keyboardType="number-pad"
-              placeholder="12"
-              placeholderTextColor={theme.colors.textSoft}
-              accessibilityLabel={t("sessionForm.maxParticipants")}
-            />
-            <View style={styles.quickCapsRow}>
-              {[1, 2, 4, 12].map((n) => {
-                const active = String(n) === max.trim();
-                return (
-                  <Pressable
-                    key={n}
-                    onPress={() => setMax(String(n))}
-                    style={({ pressed }) => [styles.quickCapBtn, active && styles.quickCapBtnActive, pressed && { opacity: 0.92 }]}
-                    accessibilityRole="button"
-                  >
-                    <Text style={[styles.quickCapTxt, active && styles.quickCapTxtActive]}>{n}</Text>
-                  </Pressable>
-                );
-              })}
             </View>
+          ) : (
+            <>
+              <View style={sf.formPanel}>
+                <Pressable
+                  style={({ pressed }) => [styles.trainerRow, pressed && styles.trainerRowPressed]}
+                  onPress={() => setShowCoachPicker(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("sessionForm.chooseTrainer")}
+                >
+                  <View style={styles.trainerLeading}>
+                    {coachLabel && coachColor ? (
+                      <View style={[styles.coachColorDot, { backgroundColor: coachColor }]} />
+                    ) : null}
+                    <Text
+                      style={[coachLabel ? sf.controlText : sf.controlPlaceholder, styles.trainerName]}
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                    >
+                      {coachLabel || t("sessionForm.chooseTrainer")}
+                    </Text>
+                  </View>
+                  <Text style={styles.trainerChev}>{isRTL ? "‹" : "›"}</Text>
+                </Pressable>
+              </View>
+              <CoachPickerSheet
+                visible={showCoachPicker}
+                onClose={() => setShowCoachPicker(false)}
+                selectedCoachId={coachId}
+                onSelect={(coach) =>
+                  selectCoach({
+                    user_id: coach.user_id,
+                    full_name: coach.full_name,
+                    role: coach.role,
+                    username: coach.username,
+                    calendar_color: coach.calendar_color,
+                  })
+                }
+              />
+            </>
+          )}
+        </View>
+
+        <View style={sf.card}>
+          <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("sessionForm.capacity")}</Text>
+          <SessionCapacityFields
+            duration={durationMinutes}
+            max={max}
+            onDurationChange={setDurationMinutes}
+            onMaxChange={setMax}
+            durationLabel={t("sessionForm.lengthMin")}
+            maxLabel={t("sessionForm.maxParticipants")}
+          />
+        </View>
+
+        <View style={sf.card}>
+          <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("session.optionsTitle")}</Text>
+          <View style={styles.optionsPanel}>
+            <SessionOptionsSection embedded isRTL={isRTL} options={sessionOptions} />
           </View>
         </View>
-      </View>
 
-      <View style={sf.card}>
-        <CollapsiblePricingForm
-          variant="inline"
-          title={t("sessionForm.note")}
-          expanded={noteOpen}
-          onToggle={() => setNoteOpen((open) => !open)}
-          summary={noteSummary}
-          isRTL={isRTL}
-        >
-          <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl]}>{t("sessionForm.noteHint")}</Text>
-          <TextInput
-            style={[sf.control, styles.noteInput, isRTL && styles.rtlInput]}
-            value={note}
-            onChangeText={setNote}
-            placeholder={t("sessionForm.notePlaceholder")}
-            placeholderTextColor={theme.colors.textSoft}
-            multiline
-            textAlignVertical="top"
-            accessibilityLabel={t("sessionForm.note")}
-          />
-        </CollapsiblePricingForm>
-      </View>
-
-      <SessionSlotRateField
-        layout="form"
-        value={customSlotPriceDraft}
-        onChangeValue={setCustomSlotPriceDraft}
-        tierPriceIls={tierSlotPriceIls}
-        hasCustomOnServer={false}
-      />
-
-      <View style={sf.card}>
-        <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("session.optionsTitle")}</Text>
-        <SessionOptionsSection embedded isRTL={isRTL} options={sessionOptions} />
-      </View>
-
-      <View style={sf.card}>
-        <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("sessionForm.trainees")}</Text>
-        <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl]}>{t("sessionForm.traineesHint")}</Text>
-
-        <PrimaryButton
-          label={t("sessionForm.selectTrainees")}
-          onPress={() => setTraineesOpen(true)}
-          variant="ghost"
+        <SessionSlotRateField
+          layout="form"
+          value={customSlotPriceDraft}
+          onChangeValue={setCustomSlotPriceDraft}
+          tierPriceIls={tierSlotPriceIls}
+          hasCustomOnServer={false}
         />
 
-        {selectedAthletes.length + selectedManual.length > 0 ? (
-          <View style={styles.selectedList}>
-            {selectedAthletes.map((a) => (
-              <View key={a.user_id} style={styles.selectedChip}>
-                <Text style={styles.selectedChipTxt} numberOfLines={1} ellipsizeMode="tail">
-                  {a.full_name}
-                </Text>
-                <Pressable
-                  onPress={() => removeAthletePick(a.user_id)}
-                  style={styles.chipX}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("common.remove")}
-                >
-                  <Text style={styles.chipXTxt}>✕</Text>
-                </Pressable>
+        <View style={sf.card}>
+          <View style={[sf.sectionHeaderRow, isRTL && sf.sectionHeaderRowRtl]}>
+            <Text style={[sf.cardTitle, styles.sectionTitleInline, isRTL && styles.rtlText]}>{t("sessionForm.trainees")}</Text>
+            {traineeCount > 0 ? (
+              <View style={sf.countBadge}>
+                <Text style={sf.countBadgeTxt}>{traineeCount}</Text>
               </View>
-            ))}
-            {selectedManual.map((m) => (
-              <View key={m.manual_participant_id} style={styles.selectedChip}>
-                <Text style={styles.selectedChipTxt} numberOfLines={1} ellipsizeMode="tail">
-                  {m.full_name}
-                </Text>
-                <Pressable
-                  onPress={() => removeManualPick(m.manual_participant_id)}
-                  style={styles.chipX}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("common.remove")}
-                >
-                  <Text style={styles.chipXTxt}>✕</Text>
-                </Pressable>
-              </View>
-            ))}
+            ) : null}
           </View>
-        ) : null}
+          <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl]}>{t("sessionForm.traineesHint")}</Text>
+
+          <Pressable
+            style={({ pressed }) => [styles.traineeSelectBtn, pressed && styles.traineeSelectBtnPressed]}
+            onPress={() => setTraineesOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t("sessionForm.selectTrainees")}
+          >
+            <Text style={styles.traineeSelectBtnTxt}>{t("sessionForm.selectTrainees")}</Text>
+            <Text style={styles.traineeSelectChev}>{isRTL ? "‹" : "›"}</Text>
+          </Pressable>
+
+          {traineeCount > 0 ? (
+            <View style={styles.selectedList}>
+              {selectedAthletes.map((a) => (
+                <View key={a.user_id} style={styles.selectedChip}>
+                  <Text style={styles.selectedChipTxt} numberOfLines={1} ellipsizeMode="tail">
+                    {a.full_name}
+                  </Text>
+                  <Pressable
+                    onPress={() => removeAthletePick(a.user_id)}
+                    style={styles.chipX}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("common.remove")}
+                  >
+                    <Text style={styles.chipXTxt}>✕</Text>
+                  </Pressable>
+                </View>
+              ))}
+              {selectedManual.map((m) => (
+                <View key={m.manual_participant_id} style={styles.selectedChip}>
+                  <Text style={styles.selectedChipTxt} numberOfLines={1} ellipsizeMode="tail">
+                    {m.full_name}
+                  </Text>
+                  <Pressable
+                    onPress={() => removeManualPick(m.manual_participant_id)}
+                    style={styles.chipX}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("common.remove")}
+                  >
+                    <Text style={styles.chipXTxt}>✕</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </View>
+
+        <View style={sf.card}>
+          <CollapsiblePricingForm
+            variant="inline"
+            title={t("sessionForm.note")}
+            expanded={noteOpen}
+            onToggle={() => setNoteOpen((open) => !open)}
+            summary={noteSummary}
+            isRTL={isRTL}
+          >
+            <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl]}>{t("sessionForm.noteHint")}</Text>
+            <TextInput
+              style={[sf.control, styles.noteInput, isRTL && styles.rtlInput]}
+              value={note}
+              onChangeText={setNote}
+              placeholder={t("sessionForm.notePlaceholder")}
+              placeholderTextColor={theme.colors.textSoft}
+              multiline
+              textAlignVertical="top"
+              accessibilityLabel={t("sessionForm.note")}
+            />
+          </CollapsiblePricingForm>
+        </View>
+
+        <View style={styles.footer}>
+          {error ? (
+            <Text style={[sf.error, isRTL && styles.rtlText]} accessibilityLiveRegion="polite">
+              {appendNetworkHint(error, t("network.offlineHint"))}
+            </Text>
+          ) : null}
+          <PrimaryButton
+            label={t("sessionForm.saveSession")}
+            onPress={save}
+            loading={saving}
+            loadingLabel={t("common.loading")}
+          />
+          <Pressable
+            onPress={() => confirmLeaveCreateThen(() => router.back())}
+            style={({ pressed }) => [styles.secondaryAction, pressed && { opacity: 0.85 }]}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.cancel")}
+          >
+            <Text style={styles.secondaryActionTxt}>{t("common.cancel")}</Text>
+          </Pressable>
+        </View>
       </View>
+    </ScrollView>
 
       <AppSearchSheet
         visible={traineesOpen}
@@ -899,31 +926,6 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         }
       />
 
-      <View style={sf.card}>
-        <View style={sf.actionsStack}>
-          {error ? (
-            <Text style={[sf.error, isRTL && styles.rtlText]} accessibilityLiveRegion="polite">
-              {appendNetworkHint(error, t("network.offlineHint"))}
-            </Text>
-          ) : null}
-          <PrimaryButton
-            label={t("sessionForm.saveSession")}
-            onPress={save}
-            loading={saving}
-            loadingLabel={t("common.loading")}
-          />
-          <Pressable
-            onPress={() => confirmLeaveCreateThen(() => router.back())}
-            style={({ pressed }) => [styles.secondaryAction, pressed && { opacity: 0.85 }]}
-            accessibilityRole="button"
-            accessibilityLabel={t("common.cancel")}
-          >
-            <Text style={styles.secondaryActionTxt}>{t("common.cancel")}</Text>
-          </Pressable>
-        </View>
-      </View>
-      </View>
-    </ScrollView>
     {discardDialog}
     </>
   );
@@ -932,8 +934,47 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 const styles = StyleSheet.create({
   rtlText: { textAlign: "right" },
   rtlInput: { textAlign: "right" },
-  expandedField: { gap: theme.spacing.xs },
-  coachRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm },
+  sectionTitleInline: { marginBottom: 0, flex: 1 },
+  trainerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 52,
+  },
+  trainerRowPressed: { opacity: 0.9 },
+  trainerLeading: { flex: 1, flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, minWidth: 0 },
+  trainerName: { flex: 1 },
+  trainerChev: { fontSize: 20, fontWeight: "300", color: theme.colors.textSoft, lineHeight: 22 },
+  optionsPanel: {
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    overflow: "hidden",
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  traineeSelectBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginTop: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    minHeight: 48,
+  },
+  traineeSelectBtnPressed: { opacity: 0.9 },
+  traineeSelectBtnTxt: { flex: 1, fontSize: 15, fontWeight: "800", color: theme.colors.text },
+  traineeSelectChev: { fontSize: 20, fontWeight: "300", color: theme.colors.textSoft },
+  footer: { gap: theme.spacing.sm, paddingTop: theme.spacing.xs },
   coachColorDot: {
     width: 10,
     height: 10,
@@ -992,25 +1033,6 @@ const styles = StyleSheet.create({
   pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoft, textAlign: "center", fontWeight: "700" },
   secondaryAction: { paddingVertical: theme.spacing.sm, alignItems: "center", minHeight: 44, justifyContent: "center" },
   secondaryActionTxt: { color: theme.colors.textMuted, fontWeight: "800" },
-  quickCapsRow: {
-    flexDirection: "row",
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.sm,
-    flexWrap: "wrap",
-  },
-  quickCapBtn: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surfaceElevated,
-    minWidth: 44,
-    alignItems: "center",
-  },
-  quickCapBtnActive: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  quickCapTxt: { color: theme.colors.text, fontWeight: "800" },
-  quickCapTxtActive: { color: theme.colors.ctaText },
   noteInput: { minHeight: 110, paddingVertical: theme.spacing.sm },
 
   selectedList: {
@@ -1022,15 +1044,17 @@ const styles = StyleSheet.create({
   selectedChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    paddingHorizontal: theme.spacing.sm,
+    gap: 8,
+    paddingVertical: 7,
+    paddingLeft: 12,
+    paddingRight: 6,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
+    maxWidth: "100%",
   },
-  selectedChipTxt: { color: theme.colors.text, fontWeight: "800", maxWidth: 140 },
+  selectedChipTxt: { color: theme.colors.text, fontWeight: "800", flexShrink: 1 },
   chipX: { width: 26, height: 26, borderRadius: theme.radius.full, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderMuted, alignItems: "center", justifyContent: "center" },
   chipXTxt: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 12, lineHeight: 14 },
 

@@ -1,5 +1,5 @@
 import { StyleSheet, View } from "react-native";
-import { theme } from "../theme";
+import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { DatePickerField } from "./DatePickerField";
 import { InlineTimePickerField } from "./InlineTimePickerField";
 
@@ -26,8 +26,8 @@ export function SessionWhenFields({
   maximumDate,
 }: Props) {
   return (
-    <View style={styles.panel}>
-      <View style={styles.cell}>
+    <View style={sf.formPanel}>
+      <View style={sf.formPanelCell}>
         <DatePickerField
           appearance="embedded"
           label={dateLabel}
@@ -37,29 +37,10 @@ export function SessionWhenFields({
           maximumDate={maximumDate}
         />
       </View>
-      <View style={styles.divider} />
-      <View style={styles.cell}>
+      <View style={sf.formPanelDivider} />
+      <View style={sf.formPanelCell}>
         <InlineTimePickerField appearance="embedded" label={timeLabel} value={time} onChange={onTimeChange} />
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  panel: {
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surfaceElevated,
-    overflow: "hidden",
-  },
-  cell: {
-    paddingHorizontal: theme.spacing.sm + 4,
-    paddingVertical: 10,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.colors.borderMuted,
-    marginHorizontal: theme.spacing.sm + 4,
-  },
-});
