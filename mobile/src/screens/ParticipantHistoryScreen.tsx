@@ -10,7 +10,7 @@ import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
 import { firstWordOfDisplayName } from "../lib/displayName";
 import { formatSessionStartTime, formatSessionTimeRange } from "../lib/sessionTime";
-import { toISODateLocal, isValidISODateString, firstDayOfMonthISOLocal } from "../lib/isoDate";
+import { toISODateLocal, isValidISODateString, lastNDaysRangeISO } from "../lib/isoDate";
 import { formatISODateFull, formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
 import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/database";
 import { useI18n } from "../context/I18nContext";
@@ -178,10 +178,6 @@ function mergedHistorySections(
   return [{ title, data }];
 }
 
-function defaultEndISO() {
-  return toISODateLocal(new Date());
-}
-
 type Athlete = { user_id: string; full_name: string; username: string; phone: string };
 type QuickLinked = { id: string; full_name: string; phone: string; linked_user_id: string | null };
 type PickerRow =
@@ -219,14 +215,14 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const isManagerHistory =
     (pathname?.startsWith("/manager/participant-history") ?? false) ||
     (pathname?.startsWith("/manager/reports") ?? false);
-  const [start, setStart] = useState(() =>
-    presetStartIso && isValidISODateString(presetStartIso.trim())
-      ? presetStartIso.trim()
-      : firstDayOfMonthISOLocal()
-  );
-  const [end, setEnd] = useState(() =>
-    presetEndIso && isValidISODateString(presetEndIso.trim()) ? presetEndIso.trim() : defaultEndISO()
-  );
+  const [start, setStart] = useState(() => {
+    if (presetStartIso && isValidISODateString(presetStartIso.trim())) return presetStartIso.trim();
+    return lastNDaysRangeISO(30).start;
+  });
+  const [end, setEnd] = useState(() => {
+    if (presetEndIso && isValidISODateString(presetEndIso.trim())) return presetEndIso.trim();
+    return lastNDaysRangeISO(30).end;
+  });
   const [presetResolved, setPresetResolved] = useState(!awaitingPresetAthlete);
   const [athleteId, setAthleteId] = useState<string>("");
   const [athleteLabel, setAthleteLabel] = useState<string>("");
@@ -1141,9 +1137,6 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   setEnd(e);
                 }}
               />
-              <Text style={[styles.label, isRTL && styles.rtlText]}>
-                {language === "he" ? "מתאמן (חיפוש לפי שם, משתמש או טלפון)" : "Athlete (search by name, username, or phone)"}
-              </Text>
               <Pressable style={styles.pickerTouch} onPress={() => { setPickerQ(""); setPickerOpen(true); }}>
                 <Text style={athleteLabel ? styles.pickerText : styles.pickerPlaceholder}>
                   {athleteLabel || (language === "he" ? "בחרו מתאמן…" : "Choose an athlete…")}
@@ -1334,12 +1327,21 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             return (
               <View style={styles.row}>
                 <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
-                  <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
-                  <Text style={[styles.cardDate, isRTL && styles.rtlText]} numberOfLines={1}>
-                    {formatISODateFullWithWeekdayAfter(p.paid_at, language)}
-                  </Text>
-                    <Text style={[styles.sessionAmount, isRTL ? styles.ltrText : undefined]}>{amtTxt}</Text>
-                  </View>
+                  {isRTL ? (
+                    <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
+                      <Text style={[styles.cardDate, styles.rtlText, styles.sessionHeadMainFlex]} numberOfLines={2}>
+                        {formatISODateFullWithWeekdayAfter(p.paid_at, language)}
+                      </Text>
+                      <Text style={[styles.sessionAmount, styles.ltrText]}>{amtTxt}</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.sessionHeadRow}>
+                      <Text style={styles.cardDate} numberOfLines={1}>
+                        {formatISODateFullWithWeekdayAfter(p.paid_at, language)}
+                      </Text>
+                      <Text style={styles.sessionAmount}>{amtTxt}</Text>
+                    </View>
+                  )}
                   <Text style={[styles.sessionSubline, isRTL && styles.rtlText]} numberOfLines={1}>
                     {t("billing.accountPayment")} · {paymentMethodHistoryLabel(p.payment_method, language)}
                   </Text>
@@ -1473,7 +1475,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                 style={[
                   styles.payPill,
                   showPaidStatus ? styles.payPillPaid : styles.payPillUnpaid,
-                  rtlRowFlip && styles.payPillRtl,
+                  isRTL && styles.payPillRtl,
                 ]}
               >
                 <Text
@@ -1493,7 +1495,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                 ) : null}
               </View>
             ) : reg.reg_status === "active" && !staffCanEdit ? (
-              <View style={[styles.payPill, styles.payPillMuted, rtlRowFlip && styles.payPillRtl]}>
+              <View style={[styles.payPill, styles.payPillMuted, isRTL && styles.payPillRtl]}>
                 <AttStatusDot status={attCurrent} />
                 <Text style={[styles.payPillTxt, styles.payPillTxtMuted, isRTL && styles.rtlText]} numberOfLines={1}>
                   {attLabel}
@@ -1503,37 +1505,65 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
           return (
             <View style={styles.row}>
               <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
-                <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
-                  <View style={[styles.sessionHeadMain, isRTL && styles.sessionHeadMainRtl]}>
-                    <Text style={[styles.cardDatePrimary, isRTL && styles.rtlText]} numberOfLines={2}>
-                      {formatISODateFullWithWeekdayAfter(reg.session_date, language)}
-                    </Text>
-                    <Text
-                      style={[styles.cardDateMeta, isRTL ? styles.cardDateMetaRtl : styles.ltrText]}
-                      numberOfLines={1}
-                    >
-                      {timeCoachPart}
-                    </Text>
-                    {familyContext ? (
-                      <Text style={[styles.sessionSubline, styles.sessionMemberName, isRTL && styles.rtlText]} numberOfLines={1}>
-                        {t("families.assignedTo").replace(
-                          "{name}",
-                          reg.athlete_name?.trim() || "—"
-                        )}
+                {isRTL ? (
+                  <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
+                    <View style={[styles.sessionHeadMain, styles.sessionHeadMainRtl]}>
+                      <Text style={[styles.cardDatePrimary, styles.sessionHeadTextHe]} numberOfLines={2}>
+                        {formatISODateFullWithWeekdayAfter(reg.session_date, language)}
                       </Text>
-                    ) : null}
-                  </View>
-                  {metaLine || statusBlock ? (
-                    <View style={[styles.sessionHeadAside, isRTL && styles.sessionHeadAsideRtl]}>
-                      {metaLine ? (
-                        <Text style={[styles.sessionMetaAside, isRTL && styles.sessionMetaAsideRtl]} numberOfLines={2}>
-                          {metaLine}
+                      <Text style={[styles.cardDateMeta, styles.sessionHeadTextHe, styles.sessionHeadTimeHe]} numberOfLines={1}>
+                        {timeCoachPart}
+                      </Text>
+                      {familyContext ? (
+                        <Text style={[styles.sessionSubline, styles.sessionMemberName, styles.sessionHeadTextHe]} numberOfLines={1}>
+                          {t("families.assignedTo").replace(
+                            "{name}",
+                            reg.athlete_name?.trim() || "—"
+                          )}
                         </Text>
                       ) : null}
-                      {statusBlock}
                     </View>
-                  ) : null}
-                </View>
+                    {metaLine || statusBlock ? (
+                      <View style={styles.sessionHeadAsideHe}>
+                        {metaLine ? (
+                          <Text style={[styles.sessionMetaAsideHe, styles.rtlText]} numberOfLines={2}>
+                            {metaLine}
+                          </Text>
+                        ) : null}
+                        {statusBlock}
+                      </View>
+                    ) : null}
+                  </View>
+                ) : (
+                  <View style={styles.sessionHeadRow}>
+                    <View style={styles.sessionHeadMain}>
+                      <Text style={styles.cardDatePrimary} numberOfLines={2}>
+                        {formatISODateFullWithWeekdayAfter(reg.session_date, language)}
+                      </Text>
+                      <Text style={[styles.cardDateMeta, styles.ltrText]} numberOfLines={1}>
+                        {timeCoachPart}
+                      </Text>
+                      {familyContext ? (
+                        <Text style={[styles.sessionSubline, styles.sessionMemberName]} numberOfLines={1}>
+                          {t("families.assignedTo").replace(
+                            "{name}",
+                            reg.athlete_name?.trim() || "—"
+                          )}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {metaLine || statusBlock ? (
+                      <View style={styles.sessionHeadAside}>
+                        {metaLine ? (
+                          <Text style={styles.sessionMetaAside} numberOfLines={2}>
+                            {metaLine}
+                          </Text>
+                        ) : null}
+                        {statusBlock}
+                      </View>
+                    ) : null}
+                  </View>
+                )}
                 {showPaymentBlock && hasPaymentMethod ? (
                   <View style={styles.sessionFootnoteRow}>
                     <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]} numberOfLines={2}>
@@ -1828,7 +1858,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderInput,
     borderRadius: theme.radius.md,
     padding: 12,
-    marginTop: 6,
+    marginTop: theme.spacing.sm,
     backgroundColor: theme.colors.white,
     minHeight: 48,
     justifyContent: "center",
@@ -1910,7 +1940,10 @@ const styles = StyleSheet.create({
   sessionHeadRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 14 },
   sessionHeadRowRtl: { flexDirection: "row-reverse" },
   sessionHeadMain: { flex: 1, minWidth: 0, gap: 4 },
-  sessionHeadMainRtl: { alignItems: "flex-end" },
+  sessionHeadMainFlex: { flex: 1, minWidth: 0 },
+  sessionHeadMainRtl: { alignItems: "stretch" },
+  sessionHeadTextHe: { alignSelf: "stretch", textAlign: "right", writingDirection: "rtl" },
+  sessionHeadTimeHe: { writingDirection: "ltr", textAlign: "right" },
   sessionHeadAside: {
     alignItems: "flex-end",
     justifyContent: "flex-start",
@@ -1920,7 +1953,15 @@ const styles = StyleSheet.create({
     maxWidth: "40%",
     paddingTop: 1,
   },
-  sessionHeadAsideRtl: { alignItems: "flex-start" },
+  sessionHeadAsideHe: {
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+    gap: 6,
+    flexShrink: 0,
+    minWidth: 96,
+    maxWidth: "40%",
+    paddingTop: 1,
+  },
   sessionMetaAside: {
     fontSize: 12,
     fontWeight: "700",
@@ -1928,10 +1969,16 @@ const styles = StyleSheet.create({
     textAlign: "right",
     lineHeight: 16,
   },
-  sessionMetaAsideRtl: { textAlign: "left" },
+  sessionMetaAsideHe: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: theme.colors.textMuted,
+    textAlign: "left",
+    lineHeight: 16,
+    alignSelf: "flex-start",
+  },
   cardDatePrimary: { fontSize: 15, fontWeight: "800", color: theme.colors.text, lineHeight: 21 },
-  cardDateMeta: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 20, writingDirection: "ltr" },
-  cardDateMetaRtl: { textAlign: "right" },
+  cardDateMeta: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 20 },
   sessionSubline: { fontSize: 13, color: theme.colors.textMuted, lineHeight: 18 },
   payPill: {
     flexDirection: "row",

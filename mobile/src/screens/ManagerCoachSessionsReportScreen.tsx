@@ -49,20 +49,43 @@ function CoachSessionReportCard({
       style={({ pressed }) => [styles.sessionCard, pressed && styles.sessionCardPressed]}
       onPress={onPress}
     >
-      <View style={[styles.sessionHead, rtlRowFlip && styles.sessionHeadRtl]}>
-        <View style={styles.sessionHeadMain}>
-          <Text style={[styles.sessionDate, isRTL && styles.rtlText]} numberOfLines={2}>
+      <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
+        <View style={[styles.sessionHeadMain, isRTL && styles.sessionHeadMainRtl]}>
+          <Text style={[styles.cardDatePrimary, isRTL && styles.sessionHeadTextHe]} numberOfLines={2}>
             {formatISODateFullWithWeekdayAfter(item.session_date, language as "en" | "he")}
-            {" · "}
+          </Text>
+          <Text
+            style={[
+              styles.cardDateMeta,
+              isRTL ? [styles.sessionHeadTextHe, styles.sessionHeadTimeHe] : styles.ltrText,
+            ]}
+            numberOfLines={1}
+          >
             {formatSessionStartTime(item.start_time)}
           </Text>
         </View>
-        <View style={[styles.sessionDueWrap, isRTL && styles.sessionDueWrapRtl]}>
-          <Text style={[styles.sessionDue, missingRate && styles.sessionDueMissing, isRTL && styles.rtlText]}>
-            {missingRate ? "—" : formatPayout(due)}
-          </Text>
+        <View style={[styles.sessionPayoutAside, isRTL && styles.sessionPayoutAsideHe]}>
+          <View
+            style={[
+              styles.sessionPayoutPill,
+              missingRate && styles.sessionPayoutPillMissing,
+              !missingRate && due <= 0 && styles.sessionPayoutPillZero,
+            ]}
+          >
+            <Text
+              style={[
+                styles.sessionPayoutAmt,
+                missingRate && styles.sessionPayoutAmtMissing,
+                !missingRate && due <= 0 && styles.sessionPayoutAmtZero,
+                styles.ltrText,
+              ]}
+              numberOfLines={1}
+            >
+              {missingRate ? "—" : formatPayout(due)}
+            </Text>
+          </View>
           {!missingRate ? (
-            <Text style={[styles.sessionDueMeta, isRTL && styles.rtlText]}>
+            <Text style={[styles.sessionPayoutMeta, isRTL && styles.sessionPayoutMetaHe]} numberOfLines={1}>
               {t("coachReport.payoutPeopleCount").replace("{n}", String(item.registered_count ?? 0))}
             </Text>
           ) : null}
@@ -317,6 +340,7 @@ const styles = StyleSheet.create({
   screenTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
   rtlText: { textAlign: "right" },
+  ltrText: { textAlign: "left", writingDirection: "ltr" },
   loadingBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -395,7 +419,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   sessionCardPressed: { opacity: 0.92, transform: [{ scale: 0.995 }] },
-  sessionHead: {
+  sessionHeadRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
@@ -404,14 +428,50 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.sm,
   },
-  sessionHeadRtl: { flexDirection: "row-reverse" },
-  sessionHeadMain: { flex: 1, minWidth: 0, gap: 2 },
-  sessionDate: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
-  sessionDueWrap: { alignItems: "flex-end", gap: 2 },
-  sessionDueWrapRtl: { alignItems: "flex-start" },
-  sessionDue: { fontSize: 20, fontWeight: "900", color: theme.colors.cta, letterSpacing: -0.3 },
-  sessionDueMeta: { fontSize: 11, fontWeight: "700", color: theme.colors.textMuted, marginTop: 2 },
-  sessionDueMissing: { color: theme.colors.textSoft },
+  sessionHeadRowRtl: { flexDirection: "row-reverse" },
+  sessionHeadMain: { flex: 1, minWidth: 0, gap: 3 },
+  sessionHeadMainRtl: { alignItems: "stretch" },
+  sessionHeadTextHe: { alignSelf: "stretch", textAlign: "right", writingDirection: "rtl" },
+  sessionHeadTimeHe: { writingDirection: "ltr", textAlign: "right" },
+  cardDatePrimary: { fontSize: 15, fontWeight: "800", color: theme.colors.text, lineHeight: 21 },
+  cardDateMeta: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 20 },
+  sessionPayoutAside: {
+    alignItems: "flex-end",
+    justifyContent: "flex-start",
+    gap: 5,
+    flexShrink: 0,
+    minWidth: 88,
+    maxWidth: "42%",
+    paddingTop: 1,
+  },
+  sessionPayoutAsideHe: { alignItems: "flex-start" },
+  sessionPayoutPill: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.successBg,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.4)",
+  },
+  sessionPayoutPillZero: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderMuted,
+  },
+  sessionPayoutPillMissing: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderMuted,
+  },
+  sessionPayoutAmt: { fontSize: 18, fontWeight: "900", color: theme.colors.success, letterSpacing: -0.3 },
+  sessionPayoutAmtZero: { color: theme.colors.textMuted },
+  sessionPayoutAmtMissing: { color: theme.colors.textSoft },
+  sessionPayoutMeta: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: theme.colors.textMuted,
+    textAlign: "right",
+    lineHeight: 14,
+  },
+  sessionPayoutMetaHe: { textAlign: "left", alignSelf: "flex-start" },
   statsRow: {
     flexDirection: "row",
     alignItems: "stretch",

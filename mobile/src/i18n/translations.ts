@@ -86,6 +86,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
 
     "reports.dateQuickSelect": "Quick range",
     "reports.periodLabel": "Period",
+    "reports.presetDays": "days",
+    "reports.athleteLabel": "Athlete",
     "reports.modeRecent": "Recent",
     "reports.modeMonth": "Month",
     "reports.modeRange": "Custom",
@@ -768,6 +770,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
 
     "reports.dateQuickSelect": "טווח מהיר",
     "reports.periodLabel": "תקופה",
+    "reports.presetDays": "ימים",
+    "reports.athleteLabel": "מתאמן",
     "reports.modeRecent": "אחרונים",
     "reports.modeMonth": "חודש",
     "reports.modeRange": "טווח",
