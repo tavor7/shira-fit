@@ -18,7 +18,7 @@ import { isMissingSessionSeriesRpc, staffCreateSessionSeries } from "../lib/sess
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { toISODateLocal, isValidISODateString } from "../lib/isoDate";
 import { DatePickerField } from "./DatePickerField";
-import { TimePickerField } from "./TimePickerField";
+import { InlineTimePickerField } from "./InlineTimePickerField";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { appendNetworkHint } from "../lib/networkErrors";
@@ -637,7 +637,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
             <DatePickerField label={t("sessionForm.sessionDate")} value={date} onChange={setDate} />
           </View>
           <View style={sf.col}>
-            <TimePickerField label={t("sessionForm.startTime")} value={time} onChange={setTime} />
+            <InlineTimePickerField label={t("sessionForm.startTime")} value={time} onChange={setTime} />
           </View>
         </View>
       </View>

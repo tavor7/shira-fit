@@ -5,12 +5,13 @@ import { useI18n } from "../context/I18nContext";
 import { dateToHHMM, toPickerDate } from "../lib/timePickerUtils";
 import type { TimePickerFieldProps } from "./TimePickerField";
 
-export function InlineTimePickerField({ label, value, onChange }: TimePickerFieldProps) {
+export function InlineTimePickerField({ label, value, onChange, labelTone = "form" }: TimePickerFieldProps) {
   const { isRTL } = useI18n();
+  const sectionLabel = labelTone === "section";
 
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
+      <Text style={[sectionLabel ? styles.labelSection : styles.labelForm, isRTL && styles.rtlText]}>{label}</Text>
       <View style={styles.pickerShell}>
         <DateTimePicker
           value={toPickerDate(value)}
@@ -29,7 +30,8 @@ export function InlineTimePickerField({ label, value, onChange }: TimePickerFiel
 
 const styles = StyleSheet.create({
   wrap: { alignSelf: "stretch", minWidth: 0 },
-  label: {
+  labelForm: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
+  labelSection: {
     marginBottom: 8,
     fontSize: 11,
     fontWeight: "800",

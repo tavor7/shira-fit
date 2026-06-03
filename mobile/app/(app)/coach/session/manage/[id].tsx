@@ -6,7 +6,7 @@ import type { TrainingSession } from "../../../../../src/types/database";
 import { theme } from "../../../../../src/theme";
 import { PrimaryButton } from "../../../../../src/components/PrimaryButton";
 import { DatePickerField } from "../../../../../src/components/DatePickerField";
-import { TimePickerField } from "../../../../../src/components/TimePickerField";
+import { InlineTimePickerField } from "../../../../../src/components/InlineTimePickerField";
 import { isMissingColumnError } from "../../../../../src/lib/dbColumnErrors";
 import { isValidISODateString, toISODateLocal } from "../../../../../src/lib/isoDate";
 import { useI18n } from "../../../../../src/context/I18nContext";
@@ -428,7 +428,7 @@ export default function CoachSessionManageScreen() {
             />
           </View>
           <View style={sf.col}>
-            <TimePickerField
+            <InlineTimePickerField
               label={language === "he" ? "שעת התחלה" : "Start time"}
               value={time}
               onChange={(v) => {
@@ -560,7 +560,7 @@ export default function CoachSessionManageScreen() {
                 <DatePickerField label={language === "he" ? "תאריך חדש" : "New date"} value={dupDate} onChange={setDupDate} />
               </View>
               <View style={sf.col}>
-                <TimePickerField label={language === "he" ? "שעה חדשה" : "New time"} value={dupTime} onChange={setDupTime} />
+                <InlineTimePickerField label={language === "he" ? "שעה חדשה" : "New time"} value={dupTime} onChange={setDupTime} />
               </View>
             </View>
             <SessionCoachPickerField
