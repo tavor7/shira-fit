@@ -3,13 +3,14 @@ import { View, Text, SectionList, TextInput, StyleSheet, Pressable, FlatList, Ac
 import { useLocalSearchParams, usePathname } from "expo-router";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
-import { DatePickerField } from "../components/DatePickerField";
+import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { AppModal } from "../components/AppModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
+import { firstWordOfDisplayName } from "../lib/displayName";
 import { formatSessionStartTime, formatSessionTimeRange } from "../lib/sessionTime";
-import { toISODateLocal, isValidISODateString, parseISODateLocal, firstDayOfMonthISOLocal } from "../lib/isoDate";
+import { toISODateLocal, isValidISODateString, firstDayOfMonthISOLocal } from "../lib/isoDate";
 import { formatISODateFull, formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
 import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/database";
 import { useI18n } from "../context/I18nContext";
@@ -1132,8 +1133,14 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   {t(isCoachHistory ? "menu.coachHistory" : "menu.athleteActivity")}
                 </Text>
               ) : null}
-              <DatePickerField label={t("common.from")} value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
-              <DatePickerField label={t("common.to")} value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
+              <ReportDateRangeControls
+                start={start}
+                end={end}
+                onChange={({ start: s, end: e }) => {
+                  setStart(s);
+                  setEnd(e);
+                }}
+              />
               <Text style={[styles.label, isRTL && styles.rtlText]}>
                 {language === "he" ? "מתאמן (חיפוש לפי שם, משתמש או טלפון)" : "Athlete (search by name, username, or phone)"}
               </Text>
@@ -1319,7 +1326,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             const busyPay = deletingPaymentId === p.id;
             const recorder = (p.created_by_name ?? "").trim();
             const reporterLine = recorder
-              ? t("participantHistory.reportedBy").replace("{name}", recorder)
+              ? t("participantHistory.reportedBy").replace("{name}", firstWordOfDisplayName(recorder))
               : t("participantHistory.reportedByUnknown");
             const payeeMember = resolveFamilyMemberByPayee(familyContext, p.payee_id, p.payee_is_manual);
             const assignedName = payeeMember?.name?.trim() || null;
@@ -1400,7 +1407,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             reg.reg_status === "active" &&
             (reg.attended === true || (reg.attended === false && chargeNoShow));
           const reporterLine = recorder
-            ? t("participantHistory.reportedBy").replace("{name}", recorder)
+            ? t("participantHistory.reportedBy").replace("{name}", firstWordOfDisplayName(recorder))
             : t("participantHistory.reportedByUnknown");
           const reason = (reg.cancellation_reason ?? "").trim();
           const raw12 = reg.cancellation_within_12h;
@@ -1445,90 +1452,94 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                 ? t("participantHistory.sessionMeta").replace("{spots}", String(reg.max_participants)).replace("{price}", String(sessionPrice))
                 : t("participantHistory.sessionMetaSpotsOnly").replace("{spots}", String(reg.max_participants))
               : null;
-          const coachName = (sessionCoachById[reg.session_id] ?? "").trim();
+          const coachName = firstWordOfDisplayName(sessionCoachById[reg.session_id] ?? "");
           const attCurrent = attStatusFromRow(reg);
           const attOpen = expandedAttendanceId === reg.registration_id;
           const attLabel = attStatusLabel(attCurrent, t);
           const showPaidStatus = showPaymentBlock && hasPaymentMethod;
           const showUnpaidStatus = showPaymentBlock && !hasPaymentMethod;
+          const timeCoachPart = coachName
+            ? `${formatSessionStartTime(reg.start_time)} · ${coachName}`
+            : formatSessionStartTime(reg.start_time);
+          const statusBlock =
+            reg.reg_status === "cancelled" ? (
+              <View style={[styles.payPill, styles.payPillMuted]}>
+                <Text style={[styles.payPillTxt, styles.payPillTxtMuted, isRTL && styles.rtlText]}>
+                  {language === "he" ? "בוטל" : "Cancelled"}
+                </Text>
+              </View>
+            ) : showPaidStatus || showUnpaidStatus ? (
+              <View
+                style={[
+                  styles.payPill,
+                  showPaidStatus ? styles.payPillPaid : styles.payPillUnpaid,
+                  rtlRowFlip && styles.payPillRtl,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.payPillTxt,
+                    showPaidStatus ? styles.payPillTxtPaid : styles.payPillTxtUnpaid,
+                    isRTL && styles.rtlText,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {showPaidStatus ? t("participantHistory.paidBadge") : t("participantHistory.unpaidBadge")}
+                </Text>
+                {showPaidStatus && amtOk ? (
+                  <Text style={[styles.payPillAmt, styles.ltrText]} numberOfLines={1}>
+                    {amt} ₪
+                  </Text>
+                ) : null}
+              </View>
+            ) : reg.reg_status === "active" && !staffCanEdit ? (
+              <View style={[styles.payPill, styles.payPillMuted, rtlRowFlip && styles.payPillRtl]}>
+                <AttStatusDot status={attCurrent} />
+                <Text style={[styles.payPillTxt, styles.payPillTxtMuted, isRTL && styles.rtlText]} numberOfLines={1}>
+                  {attLabel}
+                </Text>
+              </View>
+            ) : null;
           return (
             <View style={styles.row}>
               <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
                 <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
-                  <Text style={[styles.cardDate, isRTL && styles.rtlText]} numberOfLines={2}>
-                    {formatISODateFullWithWeekdayAfter(reg.session_date, language)}
-                  </Text>
-                  <Text style={[styles.sessionTime, isRTL && styles.sessionTimeRtl]} numberOfLines={1}>
-                    {formatSessionStartTime(reg.start_time)}
-                  </Text>
-                </View>
-                <View style={[styles.sessionSublineRow, rtlRowFlip && styles.sessionSublineRowRtl]}>
-                  {familyContext || coachName || metaLine ? (
-                    <View style={[styles.sessionSublineFlex, isRTL && styles.sessionSublineBlockRtl]}>
-                      {familyContext ? (
-                        <Text style={[styles.sessionSubline, styles.sessionMemberName, isRTL && styles.rtlText]} numberOfLines={1}>
-                          {t("families.assignedTo").replace(
-                            "{name}",
-                            reg.athlete_name?.trim() || "—"
-                          )}
-                        </Text>
-                      ) : null}
-                      {coachName ? (
-                        <Text
-                          style={[styles.sessionSubline, isRTL ? styles.sessionCoachRtl : styles.ltrText]}
-                          numberOfLines={1}
-                        >
-                          {coachName}
-                        </Text>
-                      ) : null}
+                  <View style={[styles.sessionHeadMain, isRTL && styles.sessionHeadMainRtl]}>
+                    <Text style={[styles.cardDatePrimary, isRTL && styles.rtlText]} numberOfLines={2}>
+                      {formatISODateFullWithWeekdayAfter(reg.session_date, language)}
+                    </Text>
+                    <Text
+                      style={[styles.cardDateMeta, isRTL ? styles.cardDateMetaRtl : styles.ltrText]}
+                      numberOfLines={1}
+                    >
+                      {timeCoachPart}
+                    </Text>
+                    {familyContext ? (
+                      <Text style={[styles.sessionSubline, styles.sessionMemberName, isRTL && styles.rtlText]} numberOfLines={1}>
+                        {t("families.assignedTo").replace(
+                          "{name}",
+                          reg.athlete_name?.trim() || "—"
+                        )}
+                      </Text>
+                    ) : null}
+                  </View>
+                  {metaLine || statusBlock ? (
+                    <View style={[styles.sessionHeadAside, isRTL && styles.sessionHeadAsideRtl]}>
                       {metaLine ? (
-                        <Text style={[styles.sessionSubline, isRTL && styles.rtlText]} numberOfLines={1}>
+                        <Text style={[styles.sessionMetaAside, isRTL && styles.sessionMetaAsideRtl]} numberOfLines={2}>
                           {metaLine}
                         </Text>
                       ) : null}
-                    </View>
-                  ) : (
-                    <View style={styles.sessionSublineFlex} />
-                  )}
-                  {reg.reg_status === "cancelled" ? (
-                    <Text style={[styles.sessionStatusMuted, isRTL && styles.rtlText]}>
-                      {language === "he" ? "בוטל" : "Cancelled"}
-                    </Text>
-                  ) : showPaidStatus || showUnpaidStatus ? (
-                    showPaidStatus && amtOk ? (
-                      <View style={[styles.sessionStatusInline, rtlRowFlip && styles.sessionStatusInlineRtl]}>
-                        <Text style={[styles.sessionStatus, styles.sessionStatusPaid, isRTL && styles.rtlText]} numberOfLines={1}>
-                          {t("participantHistory.paidBadge")}
-                        </Text>
-                        <Text style={[styles.sessionStatus, styles.sessionStatusPaid, styles.ltrText]} numberOfLines={1}>
-                          {amt} ₪
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text
-                        style={[
-                          styles.sessionStatus,
-                          isRTL && styles.rtlText,
-                          showPaidStatus ? styles.sessionStatusPaid : styles.sessionStatusUnpaid,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {showPaidStatus ? t("participantHistory.paidBadge") : t("participantHistory.unpaidBadge")}
-                      </Text>
-                    )
-                  ) : reg.reg_status === "active" && !staffCanEdit ? (
-                    <View style={[styles.sessionStatusInline, rtlRowFlip && styles.sessionStatusInlineRtl]}>
-                      <AttStatusDot status={attCurrent} />
-                      <Text style={[styles.sessionStatus, isRTL && styles.rtlText]} numberOfLines={1}>
-                        {attLabel}
-                      </Text>
+                      {statusBlock}
                     </View>
                   ) : null}
                 </View>
                 {showPaymentBlock && hasPaymentMethod ? (
-                  <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]} numberOfLines={2}>
-                    {[paymentMethodHistoryLabel(reg.payment_method, language), reporterLine].filter(Boolean).join(" · ")}
-                  </Text>
+                  <View style={styles.sessionFootnoteRow}>
+                    <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]} numberOfLines={2}>
+                      {[paymentMethodHistoryLabel(reg.payment_method, language), reporterLine].filter(Boolean).join(" · ")}
+                    </Text>
+                  </View>
                 ) : null}
               </View>
 
@@ -1885,30 +1896,70 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
     borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     overflow: "hidden",
   },
-  sessionCardBody: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md, paddingBottom: theme.spacing.sm, gap: 4 },
+  sessionCardBody: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: 14,
+    paddingBottom: 12,
+    gap: 0,
+  },
   sessionCardBodyRtl: { alignItems: "stretch" },
-  sessionHeadRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12 },
+  sessionHeadRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 14 },
   sessionHeadRowRtl: { flexDirection: "row-reverse" },
-  sessionSublineRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginTop: 2 },
-  sessionSublineRowRtl: { flexDirection: "row-reverse" },
-  sessionSublineFlex: { flex: 1, minWidth: 0 },
-  sessionSublineBlockRtl: { alignItems: "flex-end" },
+  sessionHeadMain: { flex: 1, minWidth: 0, gap: 4 },
+  sessionHeadMainRtl: { alignItems: "flex-end" },
+  sessionHeadAside: {
+    alignItems: "flex-end",
+    justifyContent: "flex-start",
+    gap: 6,
+    flexShrink: 0,
+    minWidth: 96,
+    maxWidth: "40%",
+    paddingTop: 1,
+  },
+  sessionHeadAsideRtl: { alignItems: "flex-start" },
+  sessionMetaAside: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: theme.colors.textMuted,
+    textAlign: "right",
+    lineHeight: 16,
+  },
+  sessionMetaAsideRtl: { textAlign: "left" },
+  cardDatePrimary: { fontSize: 15, fontWeight: "800", color: theme.colors.text, lineHeight: 21 },
+  cardDateMeta: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 20, writingDirection: "ltr" },
+  cardDateMetaRtl: { textAlign: "right" },
   sessionSubline: { fontSize: 13, color: theme.colors.textMuted, lineHeight: 18 },
-  sessionCoachRtl: { textAlign: "right", writingDirection: "ltr" },
-  sessionTime: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, flexShrink: 0, writingDirection: "ltr" },
-  sessionTimeRtl: { textAlign: "left" },
+  payPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+  },
+  payPillRtl: { flexDirection: "row-reverse" },
+  payPillPaid: { backgroundColor: theme.colors.successBg, borderColor: "rgba(34, 197, 94, 0.35)" },
+  payPillUnpaid: { backgroundColor: "rgba(251, 191, 36, 0.12)", borderColor: "rgba(251, 191, 36, 0.35)" },
+  payPillMuted: { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.borderMuted },
+  payPillTxt: { fontSize: 12, fontWeight: "800" },
+  payPillTxtPaid: { color: theme.colors.success },
+  payPillTxtUnpaid: { color: "#fbbf24" },
+  payPillTxtMuted: { color: theme.colors.textMuted },
+  payPillAmt: { fontSize: 12, fontWeight: "900", color: theme.colors.success },
+  sessionFootnoteRow: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+  },
+  sessionFootnote: { fontSize: 12, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 17 },
   sessionAmount: { fontSize: 17, fontWeight: "800", color: theme.colors.success, flexShrink: 0 },
-  sessionStatus: { fontSize: 12, fontWeight: "700", flexShrink: 0 },
-  sessionStatusPaid: { color: theme.colors.success },
-  sessionStatusUnpaid: { color: "#fbbf24" },
-  sessionStatusMuted: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, flexShrink: 0 },
-  sessionStatusInline: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0 },
-  sessionStatusInlineRtl: { flexDirection: "row-reverse" },
-  sessionFootnote: { fontSize: 11, color: theme.colors.textSoft, lineHeight: 15, marginTop: 2 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   actionBar: {
     flexDirection: "row",
@@ -1925,9 +1976,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 11,
+    paddingVertical: 13,
     paddingHorizontal: 8,
-    minHeight: 42,
+    minHeight: 46,
   },
   actionBarItemWide: { flex: 1.35 },
   actionBarItemDanger: {},

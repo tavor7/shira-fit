@@ -1,42 +1,107 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   FlatList,
   Pressable,
   Platform,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { router, type Href } from "expo-router";
 import { theme } from "../theme";
-import { PrimaryButton } from "../components/PrimaryButton";
 import { supabase } from "../lib/supabase";
-import { formatSessionTimeRange } from "../lib/sessionTime";
-import { toISODateLocal, isValidISODateString, parseISODateLocal, firstDayOfMonthISOLocal } from "../lib/isoDate";
-import { formatISODateFull } from "../lib/dateFormat";
+import { formatSessionStartTime } from "../lib/sessionTime";
+import { isValidISODateString, lastNDaysRangeISO } from "../lib/isoDate";
+import { formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
 import type { ManagerCoachSessionReportRow } from "../types/database";
-import { DatePickerField } from "../components/DatePickerField";
 import { useI18n } from "../context/I18nContext";
 import { AppSearchSheet } from "../components/AppSearchSheet";
-
-function defaultEndISO() {
-  return toISODateLocal(new Date());
-}
-
-function defaultStartISO() {
-  const d = new Date();
-  d.setDate(d.getDate() - 30);
-  return toISODateLocal(d);
-}
+import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 
 type Trainer = { user_id: string; full_name: string; username: string; role: string; phone?: string | null };
 
+function formatPayout(n: number) {
+  return `${Math.round(n * 100) / 100} ₪`;
+}
+
+function CoachSessionReportCard({
+  item,
+  language,
+  isRTL,
+  onPress,
+}: {
+  item: ManagerCoachSessionReportRow;
+  language: string;
+  isRTL: boolean;
+  onPress: () => void;
+}) {
+  const { t } = useI18n();
+  const rtlRowFlip = isRTL && Platform.OS !== "web";
+  const due = Number(item.coach_earnings_ils ?? 0);
+  const lateCancels =
+    typeof item.late_cancellations_within_24h === "number" ? item.late_cancellations_within_24h : 0;
+  const missingRate = item.coach_rate_missing === true;
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.sessionCard, pressed && styles.sessionCardPressed]}
+      onPress={onPress}
+    >
+      <View style={[styles.sessionHead, rtlRowFlip && styles.sessionHeadRtl]}>
+        <View style={styles.sessionHeadMain}>
+          <Text style={[styles.sessionDate, isRTL && styles.rtlText]} numberOfLines={2}>
+            {formatISODateFullWithWeekdayAfter(item.session_date, language as "en" | "he")}
+            {" · "}
+            {formatSessionStartTime(item.start_time)}
+          </Text>
+        </View>
+        <View style={[styles.sessionDueWrap, isRTL && styles.sessionDueWrapRtl]}>
+          <Text style={[styles.sessionDue, missingRate && styles.sessionDueMissing, isRTL && styles.rtlText]}>
+            {missingRate ? "—" : formatPayout(due)}
+          </Text>
+          {!missingRate ? (
+            <Text style={[styles.sessionDueMeta, isRTL && styles.rtlText]}>
+              {t("coachReport.payoutPeopleCount").replace("{n}", String(item.registered_count ?? 0))}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+
+      <View style={[styles.statsRow, rtlRowFlip && styles.statsRowRtl]}>
+        <View style={styles.statCell}>
+          <Text style={styles.statValue}>{item.registered_count}</Text>
+          <Text style={[styles.statLabel, isRTL && styles.rtlText]}>{t("coachReport.statRegistered")}</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statCell}>
+          <Text style={styles.statValue}>{item.arrived_count}</Text>
+          <Text style={[styles.statLabel, isRTL && styles.rtlText]}>{t("coachReport.statArrived")}</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statCell}>
+          <Text style={[styles.statValue, lateCancels > 0 && styles.statValueWarn]}>{lateCancels}</Text>
+          <Text style={[styles.statLabel, isRTL && styles.rtlText]}>{t("coachReport.statLateCancel")}</Text>
+        </View>
+      </View>
+
+      {missingRate ? (
+        <View style={[styles.sessionFoot, rtlRowFlip && styles.sessionFootRtl]}>
+          <View style={styles.rateWarnPill}>
+            <Text style={styles.rateWarnPillTxt}>{t("coachReport.noRateForSize")}</Text>
+          </View>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
 export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: { hideTitle?: boolean } = {}) {
   const { language, t, isRTL } = useI18n();
-  const [start, setStart] = useState(() => firstDayOfMonthISOLocal());
-  const [end, setEnd] = useState(defaultEndISO);
+  const defaultRange = useMemo(() => lastNDaysRangeISO(30), []);
+  const [start, setStart] = useState(defaultRange.start);
+  const [end, setEnd] = useState(defaultRange.end);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [coachId, setCoachId] = useState("");
   const [coachLabel, setCoachLabel] = useState("");
@@ -86,12 +151,7 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
       else Alert.alert(t("common.error"), msg);
       return;
     }
-    if (!coachId) {
-      const msg = language === "he" ? "בחרו מאמן/ת (מאמן או מנהל)." : "Choose a trainer (coach or manager).";
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
-      else Alert.alert(t("common.error"), msg);
-      return;
-    }
+    if (!coachId) return;
     setLoading(true);
     const { data, error } = await supabase.rpc("manager_coach_sessions_report", {
       p_start: s,
@@ -110,39 +170,61 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
     setRows((data as ManagerCoachSessionReportRow[]) ?? []);
   }, [start, end, coachId, language, t]);
 
+  const loadRef = useRef(loadReport);
+  loadRef.current = loadReport;
+
+  useEffect(() => {
+    if (!coachId) {
+      setHasSearched(false);
+      setRows([]);
+      return;
+    }
+    const s = start.trim();
+    const e = end.trim();
+    if (!isValidISODateString(s) || !isValidISODateString(e) || s > e) return;
+    void loadRef.current();
+  }, [coachId, start, end]);
+
+  function onDateRangeChange(range: { start: string; end: string }) {
+    setStart(range.start);
+    setEnd(range.end);
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.filters}>
         {!hideTitle ? (
           <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t("menu.coachHistory")}</Text>
         ) : null}
-        <DatePickerField label={t("common.from")} value={start} onChange={setStart} maximumDate={parseISODateLocal(end) ?? undefined} />
-        <DatePickerField label={t("common.to")} value={end} onChange={setEnd} minimumDate={parseISODateLocal(start) ?? undefined} />
+        <ReportDateRangeControls start={start} end={end} onChange={onDateRangeChange} />
         <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "מאמן" : "Coach"}</Text>
         <Pressable style={styles.pickerTouch} onPress={() => setPickerOpen(true)}>
           <Text style={coachLabel ? styles.pickerText : styles.pickerPlaceholder}>
             {coachLabel || (language === "he" ? "בחרו מאמן או מנהל…" : "Choose coach or manager…")}
           </Text>
         </Pressable>
-        <Text style={[styles.hint, isRTL && styles.rtlText]}>
-          {language === "he"
-            ? "מציג את כל האימונים של אותו מאמן בטווח. נרשמו = הרשמות פעילות + quick-add; הגיעו = נוכחות (כולל quick-add); ביטולים תוך 24 ש׳ = ביטול עצמי בטווח 24 שעות לפני האימון. סכום לתשלום = סכום קבוע מהרמה שמתאימה למספר הנרשמים (לא תלוי במקס׳ משתתפים או בהגעות)."
-            : "Lists each session for that trainer in the range. Registered = active sign-ups plus quick-add; arrived = marked attended (including quick-add); late cancels = self-cancellations within 24h before start. Due = flat tier amount for that registered headcount (not session max size or arrivals)."}
-        </Text>
-        <PrimaryButton
-          label={t("common.load")}
-          onPress={loadReport}
-          loading={loading}
-          loadingLabel={t("common.loading")}
-        />
       </View>
 
-      {hasSearched && coachId ? (
+      {coachId && loading ? (
+        <View style={styles.loadingBanner}>
+          <ActivityIndicator size="small" color={theme.colors.cta} />
+          <Text style={styles.loadingBannerTxt}>{t("common.loading")}</Text>
+        </View>
+      ) : null}
+
+      {hasSearched && coachId && !loading ? (
         <View style={styles.payoutCard}>
-          <Text style={[styles.payoutTitle, isRTL && styles.rtlText]}>{t("coachReport.payoutTitle")}</Text>
-          <Text style={[styles.payoutSub, isRTL && styles.rtlText]}>{t("coachReport.payoutTotal")}</Text>
-          <Text style={[styles.payoutBig, isRTL && styles.rtlText]}>{`${Math.round(payoutTotal * 100) / 100} ₪`}</Text>
-          <Text style={[styles.payoutHint, isRTL && styles.rtlText]}>{t("coachReport.payoutHint")}</Text>
+          <View style={[styles.payoutTop, isRTL && Platform.OS !== "web" && styles.payoutTopRtl]}>
+            <View style={styles.payoutTopMain}>
+              <Text style={[styles.payoutEyebrow, isRTL && styles.rtlText]}>{t("coachReport.payoutTitle")}</Text>
+              <Text style={[styles.payoutBig, isRTL && styles.rtlText]}>{formatPayout(payoutTotal)}</Text>
+            </View>
+            <View style={styles.payoutBadge}>
+              <Text style={styles.payoutBadgeTxt}>
+                {t("coachReport.sessionCount").replace("{n}", String(rows.length))}
+              </Text>
+            </View>
+          </View>
           {missingRateSessions > 0 ? (
             <Text style={[styles.payoutWarn, isRTL && styles.rtlText]}>
               {t("coachReport.sessionsMissingRate").replace("{n}", String(missingRateSessions))}
@@ -201,38 +283,20 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
         keyExtractor={(item) => item.session_id}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.row, pressed && { opacity: 0.9 }]}
+          <CoachSessionReportCard
+            item={item}
+            language={language}
+            isRTL={isRTL}
             onPress={() => router.push(`/(app)/manager/session/${item.session_id}` as Href)}
-          >
-            <Text style={styles.rowDate}>{formatISODateFull(item.session_date, language)}</Text>
-            <Text style={styles.rowTime}>{formatSessionTimeRange(item.start_time, item.duration_minutes ?? 60)}</Text>
-            <Text style={styles.rowStats}>
-              {language === "he" ? "נרשמו" : "Registered"}: {item.registered_count} · {language === "he" ? "הגיעו" : "Arrived"}:{" "}
-              {item.arrived_count}
-              {" · "}
-              {language === "he" ? "ביטולים מאוחרים (<12ש׳)" : "Late cancels (<12h)"}:{" "}
-              {typeof item.late_cancellations_within_24h === "number" ? item.late_cancellations_within_24h : 0}
-            </Text>
-            <Text style={[styles.rowPayout, isRTL && styles.rtlText]}>
-              {language === "he" ? "מקס׳ משתתפים" : "Group size"}: {item.max_participants ?? "—"} · {t("coachReport.dueThisSession")}:{" "}
-              {Math.round(Number(item.coach_earnings_ils ?? 0) * 100) / 100} ₪
-              {t("coachReport.rateHeadcountSuffix").replace("{n}", String(item.registered_count ?? 0))}
-            </Text>
-            {item.coach_rate_missing === true ? (
-              <Text style={[styles.rowPayoutWarn, isRTL && styles.rtlText]}>{t("coachReport.noRateForSize")}</Text>
-            ) : null}
-          </Pressable>
+          />
         )}
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {!hasSearched
-              ? language === "he"
-                ? "בחרו מאמן וטווח תאריכים, ואז לחצו על טעינת דוח."
-                : "Pick a trainer and date range, then tap Load report."
-              : language === "he"
-                ? "אין אימונים בטווח הזה."
-                : "No sessions in this range."}
+            {!coachId
+              ? t("coachReport.chooseTrainer")
+              : !hasSearched || loading
+                ? ""
+                : t("coachReport.noSessionsInRange")}
           </Text>
         }
       />
@@ -252,18 +316,17 @@ const styles = StyleSheet.create({
   },
   screenTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
   label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
-  hint: { marginTop: theme.spacing.sm, fontSize: 12, color: theme.colors.textMuted, lineHeight: 18 },
   rtlText: { textAlign: "right" },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    marginTop: 6,
-    fontSize: 16,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+  loadingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    paddingVertical: 10,
   },
+  loadingBannerTxt: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
   pickerTouch: {
     borderWidth: 1,
     borderColor: theme.colors.borderInput,
@@ -286,18 +349,7 @@ const styles = StyleSheet.create({
   pickerItemRole: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4 },
   pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoft, textAlign: "center" },
   list: { flex: 1 },
-  listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, flexGrow: 1 },
-  row: {
-    padding: theme.spacing.md,
-    marginTop: theme.spacing.sm,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-  },
-  rowDate: { fontSize: 15, fontWeight: "700", color: theme.colors.text },
-  rowTime: { marginTop: 4, fontSize: 14, color: theme.colors.cta, fontWeight: "600" },
-  rowStats: { marginTop: 8, fontSize: 14, color: theme.colors.textMuted, fontWeight: "600" },
+  listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, flexGrow: 1, gap: 10 },
   empty: { textAlign: "center", color: theme.colors.textSoft, padding: theme.spacing.xl, fontSize: 14 },
   payoutCard: {
     marginHorizontal: theme.spacing.md,
@@ -307,19 +359,98 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
-    gap: 6,
+    gap: 8,
   },
-  payoutTitle: {
-    fontSize: 12,
-    fontWeight: "900",
+  payoutTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: theme.spacing.sm,
+  },
+  payoutTopRtl: { flexDirection: "row-reverse" },
+  payoutTopMain: { flex: 1, minWidth: 0 },
+  payoutEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
     color: theme.colors.textMuted,
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
     textTransform: "uppercase",
   },
-  payoutSub: { fontSize: 13, fontWeight: "700", color: theme.colors.text, marginTop: 2 },
-  payoutBig: { fontSize: 22, fontWeight: "900", color: theme.colors.cta },
-  payoutHint: { fontSize: 12, color: theme.colors.textMuted, lineHeight: 17 },
-  payoutWarn: { fontSize: 12, color: theme.colors.textSoft, lineHeight: 17 },
-  rowPayout: { marginTop: 8, fontSize: 13, color: theme.colors.text, fontWeight: "700" },
-  rowPayoutWarn: { marginTop: 6, fontSize: 12, fontWeight: "800", color: theme.colors.error },
+  payoutBig: { fontSize: 28, fontWeight: "900", color: theme.colors.cta, marginTop: 4, letterSpacing: -0.5 },
+  payoutBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  payoutBadgeTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
+  payoutWarn: { fontSize: 12, fontWeight: "600", color: theme.colors.error, lineHeight: 17 },
+  sessionCard: {
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    overflow: "hidden",
+  },
+  sessionCardPressed: { opacity: 0.92, transform: [{ scale: 0.995 }] },
+  sessionHead: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+  },
+  sessionHeadRtl: { flexDirection: "row-reverse" },
+  sessionHeadMain: { flex: 1, minWidth: 0, gap: 2 },
+  sessionDate: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
+  sessionDueWrap: { alignItems: "flex-end", gap: 2 },
+  sessionDueWrapRtl: { alignItems: "flex-start" },
+  sessionDue: { fontSize: 20, fontWeight: "900", color: theme.colors.cta, letterSpacing: -0.3 },
+  sessionDueMeta: { fontSize: 11, fontWeight: "700", color: theme.colors.textMuted, marginTop: 2 },
+  sessionDueMissing: { color: theme.colors.textSoft },
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    overflow: "hidden",
+  },
+  statsRowRtl: { flexDirection: "row-reverse" },
+  statCell: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 12, paddingHorizontal: 6 },
+  statDivider: { width: StyleSheet.hairlineWidth, backgroundColor: theme.colors.borderMuted },
+  statValue: { fontSize: 20, fontWeight: "900", color: theme.colors.text, lineHeight: 24 },
+  statValueWarn: { color: theme.colors.error },
+  statLabel: {
+    marginTop: 4,
+    fontSize: 10,
+    fontWeight: "800",
+    color: theme.colors.textSoft,
+    letterSpacing: 0.2,
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
+  sessionFoot: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+  },
+  sessionFootRtl: { flexDirection: "row-reverse" },
+  rateWarnPill: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.errorBg,
+    borderWidth: 1,
+    borderColor: theme.colors.errorBorder,
+  },
+  rateWarnPillTxt: { fontSize: 10, fontWeight: "800", color: theme.colors.error },
 });

@@ -23,6 +23,31 @@ export function shiftMonthAnchorISOLocal(iso: string, deltaMonths: number): stri
   return toISODateLocal(nd);
 }
 
+/** Last day of the month containing `ref` (Date or YYYY-MM-DD). */
+export function lastDayOfMonthISOLocal(ref: Date | string = new Date()): string {
+  const d = typeof ref === "string" ? parseISODateLocal(ref) : ref;
+  const base = d ?? new Date();
+  const last = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+  return toISODateLocal(last);
+}
+
+/** Inclusive range ending today: last N calendar days. */
+export function lastNDaysRangeISO(days: number): { start: string; end: string } {
+  const end = new Date();
+  const start = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  start.setDate(start.getDate() - (days - 1));
+  return { start: toISODateLocal(start), end: toISODateLocal(end) };
+}
+
+/** Full calendar month containing `anchor` (YYYY-MM-DD). */
+export function monthRangeISO(anchor: string): { start: string; end: string } | null {
+  const d = parseISODateLocal(anchor);
+  if (!d) return null;
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return { start: toISODateLocal(start), end: toISODateLocal(end) };
+}
+
 export function parseISODateLocal(s: string): Date | null {
   const t = s.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return null;
