@@ -141,90 +141,105 @@ export default function SignupScreen() {
             <Text style={[styles.errorText, isRTL && styles.rtlText]}>{errorMessage}</Text>
           </View>
         ) : null}
-        <TextInput
-          style={[styles.input, isRTL && styles.inputRtl]}
-          placeholder={t("auth.email")}
-          placeholderTextColor={theme.colors.textSoft}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={(t) => { setEmail(t); setErrorMessage(""); }}
-        />
-        <TextInput
-          style={[styles.input, isRTL && styles.inputRtl]}
-          placeholder={t("auth.passwordMin6")}
-          placeholderTextColor={theme.colors.textSoft}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-        <TextInput
-          style={[styles.input, isRTL && styles.inputRtl]}
-          placeholder={t("profile.fullName")}
-          placeholderTextColor={theme.colors.textSoft}
-          value={fullName}
-          onChangeText={setFullName}
-        />
-        <TextInput
-          style={[styles.input, isRTL && styles.inputRtl]}
-          placeholder={t("profile.phone")}
-          placeholderTextColor={theme.colors.textSoft}
-          keyboardType="phone-pad"
-          value={phone}
-          onChangeText={setPhone}
-        />
-        <DatePickerField
-          label={t("profile.dob")}
-          value={dobText}
-          minimumDate={minDob}
-          maximumDate={today}
-          onChange={(v) => {
-            setDobText(v);
-            setErrorMessage("");
-          }}
-        />
-        <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.gender")}</Text>
-        <View style={styles.genderRow}>
-          {(["male", "female"] as const).map((g) => (
-            <Pressable
-              key={g}
-              style={({ pressed }) => [
-                styles.genderBtn,
-                gender === g && styles.genderBtnOn,
-                pressed && styles.genderBtnPressed,
-              ]}
-              onPress={() => setGender(g)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: gender === g }}
-            >
-              <Text style={[styles.genderTxt, gender === g && styles.genderTxtOn]}>
-                {g === "male" ? (language === "he" ? "זכר" : "Male") : language === "he" ? "נקבה" : "Female"}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <Text style={[styles.label, isRTL && styles.rtlText]}>{t("health.required")}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.healthLink, pressed && styles.linkPressed]}
-          onPress={openHealthDeclaration}
-        >
-          <Text style={styles.healthLinkTxt}>{t("health.openForm")}</Text>
-          <Text style={styles.healthLinkSub}>{healthUrl}</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.checkRow, pressed && styles.linkPressed]}
-          onPress={() => {
-            setHealthConfirmed((v) => !v);
-            setErrorMessage("");
-          }}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: healthConfirmed }}
-        >
-          <View style={[styles.checkbox, healthConfirmed && styles.checkboxOn]}>
-            {healthConfirmed ? <Text style={styles.checkboxMark}>✓</Text> : null}
+
+        <View style={styles.formCard}>
+          <Text style={[styles.fieldLabel, styles.fieldLabelFirst, isRTL && styles.rtlText]}>{t("auth.email")}</Text>
+          <TextInput
+            style={[styles.input, isRTL && styles.inputRtl]}
+            placeholder={t("auth.email")}
+            placeholderTextColor={theme.colors.textSoft}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={(v) => {
+              setEmail(v);
+              setErrorMessage("");
+            }}
+          />
+          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("auth.passwordMin6")}</Text>
+          <TextInput
+            style={[styles.input, isRTL && styles.inputRtl]}
+            placeholder={t("auth.passwordMin6")}
+            placeholderTextColor={theme.colors.textSoft}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("profile.fullName")}</Text>
+          <TextInput
+            style={[styles.input, isRTL && styles.inputRtl]}
+            placeholder={t("profile.fullName")}
+            placeholderTextColor={theme.colors.textSoft}
+            value={fullName}
+            onChangeText={setFullName}
+          />
+          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("profile.phone")}</Text>
+          <TextInput
+            style={[styles.input, isRTL && styles.inputRtl]}
+            placeholder={t("profile.phone")}
+            placeholderTextColor={theme.colors.textSoft}
+            keyboardType="phone-pad"
+            value={phone}
+            onChangeText={setPhone}
+          />
+          <DatePickerField
+            appearance="auth"
+            label={t("profile.dob")}
+            value={dobText}
+            minimumDate={minDob}
+            maximumDate={today}
+            onChange={(v) => {
+              setDobText(v);
+              setErrorMessage("");
+            }}
+          />
+
+          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("profile.gender")}</Text>
+          <View style={styles.genderRow}>
+            {(["male", "female"] as const).map((g) => (
+              <Pressable
+                key={g}
+                style={({ pressed }) => [
+                  styles.genderBtn,
+                  gender === g && styles.genderBtnOn,
+                  pressed && styles.genderBtnPressed,
+                ]}
+                onPress={() => setGender(g)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: gender === g }}
+              >
+                <Text style={[styles.genderTxt, gender === g && styles.genderTxtOn]}>
+                  {g === "male" ? (language === "he" ? "זכר" : "Male") : language === "he" ? "נקבה" : "Female"}
+                </Text>
+              </Pressable>
+            ))}
           </View>
-          <Text style={[styles.checkTxt, isRTL && styles.rtlText]}>{t("health.confirmDone")}</Text>
-        </Pressable>
+
+          <View style={styles.sectionDivider} />
+          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("health.required")}</Text>
+          <Pressable
+            style={({ pressed }) => [styles.healthLink, pressed && styles.linkPressed]}
+            onPress={openHealthDeclaration}
+          >
+            <Text style={styles.healthLinkTxt}>{t("health.openForm")}</Text>
+            <Text style={styles.healthLinkSub}>{healthUrl}</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.checkRow, pressed && styles.linkPressed]}
+            onPress={() => {
+              setHealthConfirmed((v) => !v);
+              setErrorMessage("");
+            }}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: healthConfirmed }}
+          >
+            <View style={[styles.checkbox, healthConfirmed && styles.checkboxOn]}>
+              {healthConfirmed ? <Text style={styles.checkboxMark}>✓</Text> : null}
+            </View>
+            <Text style={[styles.checkTxt, isRTL && styles.rtlText]}>{t("health.confirmDone")}</Text>
+          </Pressable>
+        </View>
+
         <PrimaryButton label={t("auth.signUp")} loadingLabel={t("common.loading")} loading={busy} onPress={onSignup} />
         <ActionButton label={t("auth.alreadyHaveAccount")} onPress={() => router.push("/(auth)/login")} style={styles.navBtn} />
       </ScrollView>
@@ -268,7 +283,15 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   errorText: { color: theme.colors.error, fontSize: 14, lineHeight: 20, fontWeight: "600" },
-  label: {
+  formCard: {
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  fieldLabel: {
     fontWeight: "700",
     fontSize: 12,
     letterSpacing: 0.3,
@@ -277,6 +300,12 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
     color: theme.colors.textSoft,
   },
+  fieldLabelFirst: { marginTop: 0 },
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.borderMuted,
+    marginVertical: theme.spacing.md,
+  },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.borderInput,
@@ -284,13 +313,14 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.sm,
+    minHeight: 48,
     fontSize: 16,
     lineHeight: 22,
-    backgroundColor: theme.colors.backgroundAlt,
+    backgroundColor: theme.colors.surfaceElevated,
     color: theme.colors.text,
   },
   inputRtl: { textAlign: "right", writingDirection: "rtl" },
-  genderRow: { flexDirection: "row", gap: theme.spacing.sm, marginBottom: theme.spacing.md },
+  genderRow: { flexDirection: "row", gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
   genderBtn: {
     flex: 1,
     paddingVertical: theme.spacing.sm,
@@ -299,7 +329,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderInput,
     alignItems: "center",
-    backgroundColor: theme.colors.backgroundAlt,
+    minHeight: 48,
+    justifyContent: "center",
+    backgroundColor: theme.colors.surfaceElevated,
   },
   genderBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   genderBtnPressed: { opacity: 0.92 },
@@ -311,7 +343,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
-    backgroundColor: theme.colors.backgroundAlt,
+    backgroundColor: theme.colors.surfaceElevated,
     marginBottom: theme.spacing.sm,
   },
   linkPressed: { opacity: 0.9 },
@@ -321,8 +353,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
   },
   checkbox: {
     width: 22,
@@ -330,7 +361,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.sm,
     borderWidth: 1,
     borderColor: theme.colors.borderInput,
-    backgroundColor: theme.colors.backgroundAlt,
+    backgroundColor: theme.colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
   },

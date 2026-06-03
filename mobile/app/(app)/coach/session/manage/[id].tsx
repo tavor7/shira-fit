@@ -1,15 +1,24 @@
 import { useLocalSearchParams, router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator, ScrollView, useWindowDimensions, Modal, Platform } from "react-native";
+import { View, Text, Pressable, StyleSheet, Alert, ActivityIndicator, ScrollView, Modal, Platform } from "react-native";
 import { supabase } from "../../../../../src/lib/supabase";
 import type { TrainingSession } from "../../../../../src/types/database";
 import { theme } from "../../../../../src/theme";
 import { PrimaryButton } from "../../../../../src/components/PrimaryButton";
 import { SessionWhenFields } from "../../../../../src/components/SessionWhenFields";
+import { SessionCapacityFields } from "../../../../../src/components/SessionCapacityFields";
+import {
+  clampSessionDuration,
+  clampSessionMaxParticipants,
+  isValidSessionDuration,
+  isValidSessionMaxParticipants,
+  normalizeSessionDurationString,
+  normalizeSessionMaxString,
+} from "../../../../../src/lib/sessionCapacityOptions";
 import { isMissingColumnError } from "../../../../../src/lib/dbColumnErrors";
 import { isValidISODateString, toISODateLocal } from "../../../../../src/lib/isoDate";
 import { useI18n } from "../../../../../src/context/I18nContext";
-import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../../src/components/sessionFormStyles";
+import { sessionFormStyles as sf } from "../../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../../src/context/ToastContext";
 import { copySessionParticipantsToNewSession } from "../../../../../src/lib/copySessionParticipants";
 import { SessionSlotRateField } from "../../../../../src/components/SessionSlotRateField";
@@ -48,8 +57,6 @@ export default function CoachSessionManageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
-  const { width } = useWindowDimensions();
-  const compact = sessionFormIsCompact(width);
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [ready, setReady] = useState(false);
@@ -127,8 +134,8 @@ export default function CoachSessionManageScreen() {
       setSession(s as TrainingSession);
       setDate(s.session_date);
       setTime(s.start_time);
-      setMaxP(String(s.max_participants));
-      setDurationMin(String(s.duration_minutes ?? 60));
+      setMaxP(normalizeSessionMaxString(String(s.max_participants)));
+      setDurationMin(normalizeSessionDurationString(String(s.duration_minutes ?? 60)));
       setOpen(s.is_open_for_registration);
       setHidden(!!(s as { is_hidden?: boolean }).is_hidden);
       setIsKickbox(!!(s as TrainingSession).is_kickbox);
@@ -175,8 +182,26 @@ export default function CoachSessionManageScreen() {
       return;
     }
 
+    const parsedDuration = parseInt(durationMin.trim(), 10);
+    const duration = clampSessionDuration(parsedDuration);
+    if (!isValidSessionDuration(parsedDuration)) {
+      Alert.alert(
+        language === "he" ? "משך לא תקין" : "Invalid duration",
+        language === "he" ? "בחרו משך בין 30 ל-120 דקות." : "Choose a duration between 30 and 120 minutes."
+      );
+      return;
+    }
+    const parsedMax = parseInt(maxP.trim(), 10);
+    const maxParticipants = clampSessionMaxParticipants(parsedMax);
+    if (!isValidSessionMaxParticipants(parsedMax)) {
+      Alert.alert(
+        language === "he" ? "גודל קבוצה לא תקין" : "Invalid group size",
+        language === "he" ? "בחרו גודל קבוצה בין 0 ל-15." : "Choose a group size between 0 and 15."
+      );
+      return;
+    }
+
     const sid = String(id ?? "").trim();
-    const duration = Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60));
     const seriesScope: SeriesScope | null = session?.series_id && !session?.series_detached && scope ? scope : null;
 
     if (seriesScope) {
@@ -186,7 +211,7 @@ export default function CoachSessionManageScreen() {
         sessionDate: date.trim(),
         startTime: time,
         coachId: session!.coach_id,
-        maxParticipants: parseInt(maxP, 10) || 1,
+        maxParticipants,
         durationMinutes: duration,
         isOpen: open,
         isHidden: hidden,
@@ -206,7 +231,7 @@ export default function CoachSessionManageScreen() {
       const payload = {
         session_date: date.trim(),
         start_time: time,
-        max_participants: parseInt(maxP, 10) || 1,
+        max_participants: maxParticipants,
         duration_minutes: duration,
         is_open_for_registration: open,
         is_hidden: hidden,
@@ -334,8 +359,8 @@ export default function CoachSessionManageScreen() {
       session_date: d,
       start_time: dupTime || time,
       coach_id: dupCoachId,
-      max_participants: parseInt(maxP, 10) || 1,
-      duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
+      max_participants: clampSessionMaxParticipants(parseInt(maxP.trim(), 10)),
+      duration_minutes: clampSessionDuration(parseInt(durationMin.trim(), 10)),
       is_open_for_registration: false,
       is_hidden: hidden,
       is_kickbox: isKickbox,
@@ -414,7 +439,7 @@ export default function CoachSessionManageScreen() {
       <ScrollView style={sf.screen} contentContainerStyle={sf.content} keyboardShouldPersistTaps="handled">
       <View style={sf.sections}>
       <View style={sf.card}>
-        <Text style={[sf.cardTitle, isRTL && { textAlign: "right" }]}>{language === "he" ? "עריכה" : "Edit"}</Text>
+        <Text style={[sf.cardTitle, isRTL && { textAlign: "right" }]}>{language === "he" ? "מתי" : "When"}</Text>
         <SessionWhenFields
           date={date}
           time={time}
@@ -433,38 +458,25 @@ export default function CoachSessionManageScreen() {
 
       <View style={sf.card}>
         <Text style={sf.cardTitle}>{language === "he" ? "קיבולת" : "Capacity"}</Text>
-        <View style={[sf.row, compact && sf.rowStack]}>
-          <View style={sf.col}>
-            <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "משך (דקות)" : "Length (min)"}</Text>
-            <TextInput
-              style={[sf.control, sf.controlInput]}
-              value={durationMin}
-              onChangeText={(v) => {
-                pushUndo();
-                setDurationMin(v);
-              }}
-              keyboardType="number-pad"
-              placeholderTextColor={theme.colors.textSoft}
-            />
-          </View>
-          <View style={sf.col}>
-            <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
-            <TextInput
-              style={[sf.control, sf.controlInput]}
-              value={maxP}
-              onChangeText={(v) => {
-                pushUndo();
-                setMaxP(v);
-              }}
-              keyboardType="number-pad"
-              placeholderTextColor={theme.colors.textSoft}
-            />
-          </View>
-        </View>
+        <SessionCapacityFields
+          duration={durationMin}
+          max={maxP}
+          onDurationChange={(v) => {
+            pushUndo();
+            setDurationMin(v);
+          }}
+          onMaxChange={(v) => {
+            pushUndo();
+            setMaxP(v);
+          }}
+          durationLabel={t("sessionForm.lengthMin")}
+          maxLabel={t("sessionForm.maxParticipants")}
+        />
       </View>
 
       <View style={sf.card}>
         <Text style={[sf.cardTitle, isRTL && styles.toggleTextRtl]}>{t("session.optionsTitle")}</Text>
+        <View style={styles.optionsPanel}>
         <SessionOptionsSection
         embedded
         isRTL={isRTL}
@@ -501,6 +513,7 @@ export default function CoachSessionManageScreen() {
           },
         ]}
         />
+        </View>
       </View>
 
       <SessionSlotRateField
@@ -673,4 +686,13 @@ const styles = StyleSheet.create({
   dupChoiceTxtOn: { color: theme.colors.cta, fontWeight: "900" },
   dupCancel: { marginTop: 10, paddingVertical: 10, alignItems: "center" },
   dupCancelTxt: { color: theme.colors.textMuted, fontWeight: "900" },
+  optionsPanel: {
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    overflow: "hidden",
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
 });

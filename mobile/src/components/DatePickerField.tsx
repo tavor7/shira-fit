@@ -19,6 +19,7 @@ export function DatePickerField({
   const [iosDraft, setIosDraft] = useState<Date>(() => parseISODateLocal(value) ?? new Date());
   const { language, isRTL } = useI18n();
   const embedded = appearance === "embedded";
+  const auth = appearance === "auth";
 
   useEffect(() => {
     const p = parseISODateLocal(value);
@@ -35,25 +36,31 @@ export function DatePickerField({
 
   if (Platform.OS === "android") {
     return (
-      <View style={[styles.wrap, embedded && styles.wrapEmbedded]}>
-        <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
+      <View style={[styles.wrap, embedded && styles.wrapEmbedded, auth && styles.wrapAuth]}>
+        <Text style={[styles.label, auth && styles.labelAuth, isRTL && styles.rtlText]}>{label}</Text>
         <Pressable
           onPress={() => setAndroidOpen(true)}
           style={({ pressed }) => [
             styles.touch,
             embedded && styles.touchEmbedded,
-            hasValue && !embedded && styles.touchActive,
+            auth && styles.touchAuth,
+            hasValue && !embedded && !auth && styles.touchActive,
             pressed && styles.touchPressed,
           ]}
         >
           <Text
-            style={[styles.touchText, !hasValue && styles.touchTextPlaceholder, isRTL && styles.rtlTextLight]}
+            style={[
+              styles.touchText,
+              auth && styles.touchTextAuth,
+              !hasValue && styles.touchTextPlaceholder,
+              isRTL && styles.rtlTextLight,
+            ]}
             numberOfLines={1}
             ellipsizeMode="tail"
           >
             {displayText}
           </Text>
-          <Text style={[styles.chev, isRTL ? styles.chevRtl : styles.chevLtr]}>▼</Text>
+          {!auth ? <Text style={[styles.chev, isRTL ? styles.chevRtl : styles.chevLtr]}>▼</Text> : null}
         </Pressable>
         {androidOpen ? (
           <DateTimePicker
@@ -75,25 +82,31 @@ export function DatePickerField({
   }
 
   return (
-    <View style={[styles.wrap, embedded && styles.wrapEmbedded]}>
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
+    <View style={[styles.wrap, embedded && styles.wrapEmbedded, auth && styles.wrapAuth]}>
+      <Text style={[styles.label, auth && styles.labelAuth, isRTL && styles.rtlText]}>{label}</Text>
       <Pressable
         onPress={() => setIosOpen(true)}
         style={({ pressed }) => [
           styles.touch,
           embedded && styles.touchEmbedded,
-          hasValue && !embedded && styles.touchActive,
+          auth && styles.touchAuth,
+          hasValue && !embedded && !auth && styles.touchActive,
           pressed && styles.touchPressed,
         ]}
       >
         <Text
-          style={[styles.touchText, !hasValue && styles.touchTextPlaceholder, isRTL && styles.rtlTextLight]}
+          style={[
+            styles.touchText,
+            auth && styles.touchTextAuth,
+            !hasValue && styles.touchTextPlaceholder,
+            isRTL && styles.rtlTextLight,
+          ]}
           numberOfLines={1}
           ellipsizeMode="tail"
         >
           {displayText}
         </Text>
-        <Text style={[styles.chev, isRTL ? styles.chevRtl : styles.chevLtr]}>▼</Text>
+        {!auth ? <Text style={[styles.chev, isRTL ? styles.chevRtl : styles.chevLtr]}>▼</Text> : null}
       </Pressable>
       <Modal visible={iosOpen} transparent animationType="slide" onRequestClose={() => setIosOpen(false)}>
         <View style={styles.modalRoot}>
@@ -138,7 +151,17 @@ const styles = StyleSheet.create({
   // Critical: allow this field to shrink inside rows without overflowing/overlapping.
   wrap: { marginTop: theme.spacing.sm, alignSelf: "stretch", minWidth: 0 },
   wrapEmbedded: { marginTop: 0 },
+  wrapAuth: { marginTop: 0, marginBottom: theme.spacing.sm },
   label: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
+  labelAuth: {
+    marginBottom: theme.spacing.xs,
+    marginTop: 0,
+    fontWeight: "700",
+    fontSize: 12,
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+    color: theme.colors.textSoft,
+  },
   rtlText: { textAlign: "right" },
   touch: {
     alignSelf: "stretch",
@@ -162,12 +185,20 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     minHeight: 44,
   },
+  touchAuth: {
+    borderColor: theme.colors.borderInput,
+    backgroundColor: theme.colors.surfaceElevated,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    minHeight: 48,
+  },
   touchActive: {
     borderColor: theme.colors.cta,
     backgroundColor: theme.colors.surface,
   },
   touchPressed: { opacity: 0.92 },
   touchText: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  touchTextAuth: { fontWeight: "500", lineHeight: 22 },
   touchTextPlaceholder: { color: theme.colors.textMuted, fontWeight: "800" },
   rtlTextLight: { textAlign: "right" },
   chev: { fontSize: 10, color: theme.colors.textMuted },

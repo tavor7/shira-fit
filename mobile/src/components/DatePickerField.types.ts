@@ -5,5 +5,5 @@ export type DatePickerFieldProps = {
   onChange: (isoDate: string) => void;
   minimumDate?: Date;
   maximumDate?: Date;
-  appearance?: "standalone" | "embedded";
+  appearance?: "standalone" | "embedded" | "auth";
 };

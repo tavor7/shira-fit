@@ -31,7 +31,7 @@ export function InlineTimePickerField({
             const next = e.target.value;
             if (next) onChange(next);
           },
-          style: webFormNativeInputStyle(isRTL, embedded),
+          style: webFormNativeInputStyle(isRTL, appearance),
         })}
       </View>
     </View>

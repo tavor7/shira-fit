@@ -1,5 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
-import { router, useLocalSearchParams, useFocusEffect, Stack } from "expo-router";
+import { router, useLocalSearchParams, Stack } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import {
   View,
@@ -11,7 +11,6 @@ import {
   Platform,
   ScrollView,
   Modal,
-  FlatList,
   ActivityIndicator,
   useWindowDimensions,
 } from "react-native";
@@ -25,6 +24,15 @@ import {
 } from "../../../../src/components/ParticipantAttendanceList";
 import { AddParticipantToSessionModal } from "../../../../src/components/AddParticipantToSessionModal";
 import { SessionWhenFields } from "../../../../src/components/SessionWhenFields";
+import { SessionCapacityFields } from "../../../../src/components/SessionCapacityFields";
+import {
+  clampSessionDuration,
+  clampSessionMaxParticipants,
+  isValidSessionDuration,
+  isValidSessionMaxParticipants,
+  normalizeSessionDurationString,
+  normalizeSessionMaxString,
+} from "../../../../src/lib/sessionCapacityOptions";
 import { isMissingColumnError } from "../../../../src/lib/dbColumnErrors";
 import { isValidISODateString, toISODateLocal } from "../../../../src/lib/isoDate";
 import { useI18n } from "../../../../src/context/I18nContext";
@@ -108,7 +116,6 @@ type ManagerSessionUiDraft = {
   noteComposerOpen: boolean;
   editingNoteId: string | null;
   noteEditDraft: string;
-  showCoachPicker: boolean;
 };
 
 const INITIAL_MANAGER_SESSION_DRAFT: ManagerSessionUiDraft = {
@@ -134,7 +141,6 @@ const INITIAL_MANAGER_SESSION_DRAFT: ManagerSessionUiDraft = {
   noteComposerOpen: false,
   editingNoteId: null,
   noteEditDraft: "",
-  showCoachPicker: false,
 };
 
 type NoteRow = {
@@ -243,9 +249,6 @@ export default function ManagerSessionDetail() {
   const [time, setTime] = useState("");
   const [coachId, setCoachId] = useState("");
   const [coachLabel, setCoachLabel] = useState("");
-  const [coachOptions, setCoachOptions] = useState<CoachOption[]>([]);
-  const [coachOptionsLoading, setCoachOptionsLoading] = useState(false);
-  const [showCoachPicker, setShowCoachPicker] = useState(false);
   const [maxP, setMaxP] = useState("");
   const [durationMin, setDurationMin] = useState("");
   const [open, setOpen] = useState(false);
@@ -363,7 +366,6 @@ export default function ManagerSessionDetail() {
     setDupDate(d.dupDate);
     setDupTime(d.dupTime);
     setDupIncludeParticipants(d.dupIncludeParticipants);
-    setShowCoachPicker(d.showCoachPicker);
     setUndoStack(d.undoStack);
     consumeEditAfterLoadRef.current = d.editingSession ? d : null;
     draftMergedIntoLocalRef.current = true;
@@ -382,8 +384,8 @@ export default function ManagerSessionDetail() {
     setTime(d.time);
     setCoachId(d.coachId);
     setCoachLabel(d.coachLabel);
-    setMaxP(d.maxP);
-    setDurationMin(d.durationMin);
+    setMaxP(normalizeSessionMaxString(d.maxP));
+    setDurationMin(normalizeSessionDurationString(d.durationMin));
     setOpen(d.open);
     setHidden(d.hidden);
     setIsKickbox(d.isKickbox);
@@ -416,7 +418,6 @@ export default function ManagerSessionDetail() {
       noteComposerOpen,
       editingNoteId,
       noteEditDraft,
-      showCoachPicker,
     };
     setUiDraft((prev) => {
       const changed = JSON.stringify(prev) !== JSON.stringify(next);
@@ -451,7 +452,6 @@ export default function ManagerSessionDetail() {
     noteComposerOpen,
     editingNoteId,
     noteEditDraft,
-    showCoachPicker,
     pushDiag,
   ]);
 
@@ -681,8 +681,8 @@ export default function ManagerSessionDetail() {
       setDate(s.session_date);
       setTime(s.start_time);
       setCoachId(s.coach_id);
-      setMaxP(String(s.max_participants));
-      setDurationMin(String(s.duration_minutes ?? 60));
+      setMaxP(normalizeSessionMaxString(String(s.max_participants)));
+      setDurationMin(normalizeSessionDurationString(String(s.duration_minutes ?? 60)));
       setOpen(s.is_open_for_registration);
       setHidden(!!(s as { is_hidden?: boolean }).is_hidden);
       setIsKickbox(!!(s as TrainingSession).is_kickbox);
@@ -788,52 +788,29 @@ export default function ManagerSessionDetail() {
     });
   }
 
-  const loadCoaches = useCallback(async () => {
-    setCoachOptionsLoading(true);
-    const { data } = await supabase
-      .from("profiles")
-      .select("user_id, full_name, role, username")
-      .in("role", ["coach", "manager"])
-      .order("full_name");
-    setCoachOptions((data as CoachOption[]) ?? []);
-    setCoachOptionsLoading(false);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!editingSession) return;
-      loadCoaches();
-    }, [editingSession, loadCoaches])
-  );
-
-  function selectCoach(opt: CoachOption) {
-    pushUndo();
-    setCoachId(opt.user_id);
-    setCoachLabel(`${opt.full_name} — ${opt.role}`);
-    setShowCoachPicker(false);
-  }
+  useEffect(() => {
+    if (!coachId) {
+      setCoachLabel("");
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, role, username")
+        .eq("user_id", coachId)
+        .single();
+      if (cancelled || !data) return;
+      setCoachLabel(formatCoachOptionLabel(data as CoachOption));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [coachId]);
 
   useEffect(() => {
     load();
   }, [id]);
-
-  useEffect(() => {
-    (async () => {
-      if (!coachId) return;
-      // If we already have a label for this id, keep it.
-      if (coachLabel && coachOptions.some((c) => c.user_id === coachId)) return;
-      const fromList = coachOptions.find((c) => c.user_id === coachId);
-      if (fromList) {
-        setCoachLabel(`${fromList.full_name} — ${fromList.role}`);
-        return;
-      }
-      const { data } = await supabase.from("profiles").select("user_id, full_name, role, username").eq("user_id", coachId).single();
-      if (data) {
-        const d = data as CoachOption;
-        setCoachLabel(`${d.full_name} — ${d.role}`);
-      }
-    })();
-  }, [coachId, coachLabel, coachOptions]);
 
   function pushUndo() {
     setUndoStack((prev) => {
@@ -891,6 +868,24 @@ export default function ManagerSessionDetail() {
       );
       return;
     }
+    const parsedDuration = parseInt(durationMin.trim(), 10);
+    const duration = clampSessionDuration(parsedDuration);
+    if (!isValidSessionDuration(parsedDuration)) {
+      showOk(
+        language === "he" ? "משך לא תקין" : "Invalid duration",
+        language === "he" ? "בחרו משך בין 30 ל-120 דקות." : "Choose a duration between 30 and 120 minutes."
+      );
+      return;
+    }
+    const parsedMax = parseInt(maxP.trim(), 10);
+    const maxParticipants = clampSessionMaxParticipants(parsedMax);
+    if (!isValidSessionMaxParticipants(parsedMax)) {
+      showOk(
+        language === "he" ? "גודל קבוצה לא תקין" : "Invalid group size",
+        language === "he" ? "בחרו גודל קבוצה בין 0 ל-15." : "Choose a group size between 0 and 15."
+      );
+      return;
+    }
     const parsedPrice = parseCustomSlotPriceDraft(customSlotPriceDraft);
     if (!parsedPrice.ok) {
       showOk(t("common.error"), t("managerSession.customSlotPriceInvalid"));
@@ -898,7 +893,6 @@ export default function ManagerSessionDetail() {
     }
 
     const sid = String(id ?? "").trim();
-    const duration = Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60));
     const seriesScope: SeriesScope | null = session?.series_id && !session?.series_detached && scope ? scope : null;
     if (seriesScope) {
       const res = await updateSessionWithSeriesScope({
@@ -907,7 +901,7 @@ export default function ManagerSessionDetail() {
         sessionDate: date.trim(),
         startTime: time,
         coachId,
-        maxParticipants: parseInt(maxP, 10) || 1,
+        maxParticipants,
         durationMinutes: duration,
         isOpen: open,
         isHidden: hidden,
@@ -927,7 +921,7 @@ export default function ManagerSessionDetail() {
         session_date: date.trim(),
         start_time: time,
         coach_id: coachId,
-        max_participants: parseInt(maxP, 10) || 1,
+        max_participants: maxParticipants,
         duration_minutes: duration,
         is_open_for_registration: open,
         is_hidden: hidden,
@@ -1034,8 +1028,8 @@ export default function ManagerSessionDetail() {
       session_date: d,
       start_time: dupTime || time,
       coach_id: dupCoachId,
-      max_participants: parseInt(maxP, 10) || 1,
-      duration_minutes: Math.min(24 * 60, Math.max(1, parseInt(durationMin, 10) || 60)),
+      max_participants: clampSessionMaxParticipants(parseInt(maxP.trim(), 10)),
+      duration_minutes: clampSessionDuration(parseInt(durationMin.trim(), 10)),
       is_open_for_registration: false,
       is_hidden: hidden,
       is_kickbox: isKickbox,
@@ -1393,9 +1387,12 @@ export default function ManagerSessionDetail() {
       </View>
     );
 
-  const durationMinutesForEnded = Math.max(1, parseInt(durationMin, 10) || 60);
+  const durationMinutesForEnded = clampSessionDuration(parseInt(durationMin.trim(), 10));
   const sessionHasEnded = !hasSessionNotEnded(date, time, durationMinutesForEnded);
-  const maxCap = Math.max(1, parseInt(maxP, 10) || session.max_participants || 1);
+  const parsedMaxCap = parseInt(maxP.trim(), 10);
+  const maxCap = Number.isFinite(parsedMaxCap)
+    ? clampSessionMaxParticipants(parsedMaxCap)
+    : clampSessionMaxParticipants(session.max_participants);
   const coachNameOnly = coachDisplayNameFromLabel(coachLabel);
   const arrivalRatePct =
     attendanceStats.registered > 0
@@ -1572,87 +1569,38 @@ export default function ManagerSessionDetail() {
           </View>
 
           <View style={sf.card}>
-            <Text style={sf.cardTitle}>{language === "he" ? "מאמן" : "Trainer"}</Text>
-            <Pressable
-              style={({ pressed }) => [sf.control, pressed && { opacity: 0.9 }, { justifyContent: "center" }]}
-              onPress={() => setShowCoachPicker(true)}
-            >
-              <Text style={coachLabel ? sf.controlText : sf.controlPlaceholder} numberOfLines={1} ellipsizeMode="tail">
-                {coachLabel || (language === "he" ? "בחירת מאמן לפי שם…" : "Choose trainer by name…")}
-              </Text>
-            </Pressable>
-          <Modal visible={showCoachPicker} transparent animationType="slide" onRequestClose={() => setShowCoachPicker(false)}>
-            <View style={styles.modalBackdrop}>
-              <Pressable style={styles.modalBackdropTouch} onPress={() => setShowCoachPicker(false)} accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"} />
-              <View style={styles.modalBox}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>{language === "he" ? "כל המאמנים" : "All trainers"}</Text>
-                  <Pressable onPress={() => setShowCoachPicker(false)} hitSlop={12}>
-                    <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
-                  </Pressable>
-                </View>
-                {coachOptionsLoading ? (
-                  <ActivityIndicator size="large" color={theme.colors.textOnLight} style={styles.modalLoader} />
-                ) : (
-                  <FlatList
-                    data={coachOptions}
-                    keyExtractor={(item) => item.user_id}
-                    renderItem={({ item }) => (
-                      <Pressable style={({ pressed }) => [styles.pickerItem, pressed && { opacity: 0.85 }]} onPress={() => selectCoach(item)}>
-                        <View style={styles.pickerItemTextCol}>
-                          <Text style={styles.pickerItemName} numberOfLines={1} ellipsizeMode="tail">
-                            {item.full_name}
-                          </Text>
-                          <Text style={styles.pickerItemRole} numberOfLines={1} ellipsizeMode="tail">
-                            @{item.username} · {item.role}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    )}
-                    ListEmptyComponent={
-                      <Text style={styles.pickerEmpty}>{language === "he" ? "עדיין אין מאמנים" : "No trainers yet"}</Text>
-                    }
-                  />
-                )}
-              </View>
-            </View>
-          </Modal>
+            <SessionCoachPickerField
+              coachId={coachId}
+              coachLabel={coachLabel}
+              onSelect={(opt) => {
+                pushUndo();
+                setCoachId(opt.user_id);
+                setCoachLabel(formatCoachOptionLabel(opt));
+              }}
+            />
           </View>
 
           <View style={sf.card}>
             <Text style={sf.cardTitle}>{language === "he" ? "קיבולת" : "Capacity"}</Text>
-            <View style={[sf.row, compact && sf.rowStack]}>
-              <View style={sf.col}>
-                <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "משך (דקות)" : "Length (min)"}</Text>
-                <TextInput
-                  style={[sf.control, sf.controlInput]}
-                  value={durationMin}
-                  onChangeText={(v) => {
-                    pushUndo();
-                    setDurationMin(v);
-                  }}
-                  keyboardType="number-pad"
-                  placeholderTextColor={theme.colors.textSoft}
-                />
-              </View>
-              <View style={sf.col}>
-                <Text style={[sf.label, isRTL && sf.labelRtl]}>{language === "he" ? "מקסימום משתתפים" : "Max participants"}</Text>
-                <TextInput
-                  style={[sf.control, sf.controlInput]}
-                  value={maxP}
-                  onChangeText={(v) => {
-                    pushUndo();
-                    setMaxP(v);
-                  }}
-                  keyboardType="number-pad"
-                  placeholderTextColor={theme.colors.textSoft}
-                />
-              </View>
-            </View>
+            <SessionCapacityFields
+              duration={durationMin}
+              max={maxP}
+              onDurationChange={(v) => {
+                pushUndo();
+                setDurationMin(v);
+              }}
+              onMaxChange={(v) => {
+                pushUndo();
+                setMaxP(v);
+              }}
+              durationLabel={t("sessionForm.lengthMin")}
+              maxLabel={t("sessionForm.maxParticipants")}
+            />
           </View>
 
           <View style={sf.card}>
             <Text style={[sf.cardTitle, isRTL && styles.toggleTextRtl]}>{t("session.optionsTitle")}</Text>
+            <View style={styles.optionsPanel}>
             <SessionOptionsSection
             embedded
             isRTL={isRTL}
@@ -1689,6 +1637,7 @@ export default function ManagerSessionDetail() {
               },
             ]}
             />
+            </View>
           </View>
 
           <SessionSlotRateField
@@ -2400,6 +2349,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   editBlock: {},
+  optionsPanel: {
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    overflow: "hidden",
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
   editSpacer: { height: theme.spacing.sm },
   h: {
     fontSize: 17,
