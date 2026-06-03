@@ -135,7 +135,13 @@ export default function RegistrationOpeningScheduleScreen() {
 
         <View style={styles.sectionDivider} />
 
-        <InlineTimePickerField label={timeLabel} value={time} onChange={setTime} labelTone="section" />
+        <InlineTimePickerField
+          label={timeLabel}
+          value={time}
+          onChange={setTime}
+          labelTone="section"
+          appearance="embedded"
+        />
       </View>
 
       <View style={styles.preview}>

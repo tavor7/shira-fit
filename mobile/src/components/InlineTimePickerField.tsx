@@ -5,14 +5,21 @@ import { useI18n } from "../context/I18nContext";
 import { dateToHHMM, toPickerDate } from "../lib/timePickerUtils";
 import type { TimePickerFieldProps } from "./TimePickerField";
 
-export function InlineTimePickerField({ label, value, onChange, labelTone = "form" }: TimePickerFieldProps) {
+export function InlineTimePickerField({
+  label,
+  value,
+  onChange,
+  labelTone = "form",
+  appearance = "standalone",
+}: TimePickerFieldProps) {
   const { isRTL } = useI18n();
   const sectionLabel = labelTone === "section";
+  const embedded = appearance === "embedded";
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, embedded && styles.wrapEmbedded]}>
       <Text style={[sectionLabel ? styles.labelSection : styles.labelForm, isRTL && styles.rtlText]}>{label}</Text>
-      <View style={styles.pickerShell}>
+      <View style={[styles.pickerShell, embedded && styles.pickerShellEmbedded]}>
         <DateTimePicker
           value={toPickerDate(value)}
           mode="time"
@@ -30,6 +37,7 @@ export function InlineTimePickerField({ label, value, onChange, labelTone = "for
 
 const styles = StyleSheet.create({
   wrap: { alignSelf: "stretch", minWidth: 0 },
+  wrapEmbedded: { marginTop: 0 },
   labelForm: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
   labelSection: {
     marginBottom: 8,
@@ -49,6 +57,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minHeight: Platform.OS === "ios" ? 196 : 160,
+  },
+  pickerShellEmbedded: {
+    borderWidth: 0,
+    backgroundColor: "transparent",
+    minHeight: Platform.OS === "ios" ? 168 : 140,
   },
   picker: {
     alignSelf: "stretch",

@@ -11,6 +11,7 @@ export type TimePickerFieldProps = {
   onChange: (hhmm: string) => void;
   /** Section screens (settings) use uppercase labels; forms match DatePickerField. */
   labelTone?: "form" | "section";
+  appearance?: "standalone" | "embedded";
 };
 
 function parseHHMM(v: string): { hh: number; mm: number } | null {

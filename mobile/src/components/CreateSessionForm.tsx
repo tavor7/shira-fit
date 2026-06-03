@@ -17,8 +17,7 @@ import { addDaysToISODate, DEFAULT_SESSION_START_TIME, suggestNextSessionStartTi
 import { isMissingSessionSeriesRpc, staffCreateSessionSeries } from "../lib/sessionSeries";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { toISODateLocal, isValidISODateString } from "../lib/isoDate";
-import { DatePickerField } from "./DatePickerField";
-import { InlineTimePickerField } from "./InlineTimePickerField";
+import { SessionWhenFields } from "./SessionWhenFields";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { appendNetworkHint } from "../lib/networkErrors";
@@ -632,14 +631,14 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       <View style={sf.sections}>
       <View style={sf.card}>
         <Text style={[sf.sectionTitle, isRTL && styles.rtlText]}>{t("sessionForm.when")}</Text>
-        <View style={[sf.row, compact && sf.rowStack]}>
-          <View style={sf.col}>
-            <DatePickerField label={t("sessionForm.sessionDate")} value={date} onChange={setDate} />
-          </View>
-          <View style={sf.col}>
-            <InlineTimePickerField label={t("sessionForm.startTime")} value={time} onChange={setTime} />
-          </View>
-        </View>
+        <SessionWhenFields
+          date={date}
+          time={time}
+          onDateChange={setDate}
+          onTimeChange={setTime}
+          dateLabel={t("sessionForm.sessionDate")}
+          timeLabel={t("sessionForm.startTime")}
+        />
       </View>
 
       <View style={sf.card}>

@@ -6,11 +6,19 @@ import { parseISODateLocal, toISODateLocal, formatISODateShortDisplay, isValidIS
 import type { DatePickerFieldProps } from "./DatePickerField.types";
 import { useI18n } from "../context/I18nContext";
 
-export function DatePickerField({ label, value, onChange, minimumDate, maximumDate }: DatePickerFieldProps) {
+export function DatePickerField({
+  label,
+  value,
+  onChange,
+  minimumDate,
+  maximumDate,
+  appearance = "standalone",
+}: DatePickerFieldProps) {
   const [androidOpen, setAndroidOpen] = useState(false);
   const [iosOpen, setIosOpen] = useState(false);
   const [iosDraft, setIosDraft] = useState<Date>(() => parseISODateLocal(value) ?? new Date());
   const { language, isRTL } = useI18n();
+  const embedded = appearance === "embedded";
 
   useEffect(() => {
     const p = parseISODateLocal(value);
@@ -27,11 +35,16 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
 
   if (Platform.OS === "android") {
     return (
-      <View style={styles.wrap}>
+      <View style={[styles.wrap, embedded && styles.wrapEmbedded]}>
         <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
         <Pressable
           onPress={() => setAndroidOpen(true)}
-          style={({ pressed }) => [styles.touch, hasValue && styles.touchActive, pressed && styles.touchPressed]}
+          style={({ pressed }) => [
+            styles.touch,
+            embedded && styles.touchEmbedded,
+            hasValue && !embedded && styles.touchActive,
+            pressed && styles.touchPressed,
+          ]}
         >
           <Text
             style={[styles.touchText, !hasValue && styles.touchTextPlaceholder, isRTL && styles.rtlTextLight]}
@@ -62,11 +75,16 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
   }
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, embedded && styles.wrapEmbedded]}>
       <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
       <Pressable
         onPress={() => setIosOpen(true)}
-        style={({ pressed }) => [styles.touch, hasValue && styles.touchActive, pressed && styles.touchPressed]}
+        style={({ pressed }) => [
+          styles.touch,
+          embedded && styles.touchEmbedded,
+          hasValue && !embedded && styles.touchActive,
+          pressed && styles.touchPressed,
+        ]}
       >
         <Text
           style={[styles.touchText, !hasValue && styles.touchTextPlaceholder, isRTL && styles.rtlTextLight]}
@@ -119,6 +137,7 @@ export function DatePickerField({ label, value, onChange, minimumDate, maximumDa
 const styles = StyleSheet.create({
   // Critical: allow this field to shrink inside rows without overflowing/overlapping.
   wrap: { marginTop: theme.spacing.sm, alignSelf: "stretch", minWidth: 0 },
+  wrapEmbedded: { marginTop: 0 },
   label: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
   rtlText: { textAlign: "right" },
   touch: {
@@ -135,6 +154,13 @@ const styles = StyleSheet.create({
     minHeight: 48,
     backgroundColor: theme.colors.surfaceElevated,
     overflow: "hidden",
+  },
+  touchEmbedded: {
+    borderWidth: 0,
+    backgroundColor: "transparent",
+    paddingHorizontal: 0,
+    paddingVertical: 4,
+    minHeight: 44,
   },
   touchActive: {
     borderColor: theme.colors.cta,

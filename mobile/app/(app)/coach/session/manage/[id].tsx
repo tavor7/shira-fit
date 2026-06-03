@@ -5,8 +5,7 @@ import { supabase } from "../../../../../src/lib/supabase";
 import type { TrainingSession } from "../../../../../src/types/database";
 import { theme } from "../../../../../src/theme";
 import { PrimaryButton } from "../../../../../src/components/PrimaryButton";
-import { DatePickerField } from "../../../../../src/components/DatePickerField";
-import { InlineTimePickerField } from "../../../../../src/components/InlineTimePickerField";
+import { SessionWhenFields } from "../../../../../src/components/SessionWhenFields";
 import { isMissingColumnError } from "../../../../../src/lib/dbColumnErrors";
 import { isValidISODateString, toISODateLocal } from "../../../../../src/lib/isoDate";
 import { useI18n } from "../../../../../src/context/I18nContext";
@@ -416,28 +415,20 @@ export default function CoachSessionManageScreen() {
       <View style={sf.sections}>
       <View style={sf.card}>
         <Text style={[sf.cardTitle, isRTL && { textAlign: "right" }]}>{language === "he" ? "עריכה" : "Edit"}</Text>
-        <View style={[sf.row, compact && sf.rowStack]}>
-          <View style={sf.col}>
-            <DatePickerField
-              label={language === "he" ? "תאריך אימון" : "Session date"}
-              value={date}
-              onChange={(v) => {
-                pushUndo();
-                setDate(v);
-              }}
-            />
-          </View>
-          <View style={sf.col}>
-            <InlineTimePickerField
-              label={language === "he" ? "שעת התחלה" : "Start time"}
-              value={time}
-              onChange={(v) => {
-                pushUndo();
-                setTime(v);
-              }}
-            />
-          </View>
-        </View>
+        <SessionWhenFields
+          date={date}
+          time={time}
+          onDateChange={(v) => {
+            pushUndo();
+            setDate(v);
+          }}
+          onTimeChange={(v) => {
+            pushUndo();
+            setTime(v);
+          }}
+          dateLabel={language === "he" ? "תאריך אימון" : "Session date"}
+          timeLabel={language === "he" ? "שעת התחלה" : "Start time"}
+        />
       </View>
 
       <View style={sf.card}>
@@ -555,14 +546,14 @@ export default function CoachSessionManageScreen() {
           <Pressable style={styles.dupBackdropTouch} onPress={() => (dupBusy ? null : setDupOpen(false))} />
           <View style={styles.dupCard}>
             <Text style={[styles.dupTitle, isRTL && styles.rtlText]}>{language === "he" ? "שכפול אימון" : "Duplicate session"}</Text>
-            <View style={[sf.row, compact && sf.rowStack]}>
-              <View style={sf.col}>
-                <DatePickerField label={language === "he" ? "תאריך חדש" : "New date"} value={dupDate} onChange={setDupDate} />
-              </View>
-              <View style={sf.col}>
-                <InlineTimePickerField label={language === "he" ? "שעה חדשה" : "New time"} value={dupTime} onChange={setDupTime} />
-              </View>
-            </View>
+            <SessionWhenFields
+              date={dupDate}
+              time={dupTime}
+              onDateChange={setDupDate}
+              onTimeChange={setDupTime}
+              dateLabel={language === "he" ? "תאריך חדש" : "New date"}
+              timeLabel={language === "he" ? "שעה חדשה" : "New time"}
+            />
             <SessionCoachPickerField
               coachId={dupCoachId}
               coachLabel={dupCoachLabel}
