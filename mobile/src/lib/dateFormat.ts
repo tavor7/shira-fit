@@ -8,6 +8,15 @@ function langOrEn(language: LanguageCode | undefined): LanguageCode {
   return language ?? "en";
 }
 
+/** Parse RFC3339-ish instants from Postgres (`…+00`) and standard ISO strings. */
+export function parseInstantIso(iso: string): Date | null {
+  const raw = iso.trim();
+  if (!raw) return null;
+  const normalized = /[+-]\d{2}$/.test(raw) && !/[+-]\d{2}:\d{2}$/.test(raw) ? `${raw}:00` : raw;
+  const d = new Date(normalized);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
 /** YYYY-MM-DD → "15 March 2026" / Hebrew equivalent */
 export function formatISODateFull(iso: string, language?: LanguageCode): string {
   const d = parseISODateLocal(iso);
@@ -74,8 +83,8 @@ export function formatISODateLong(iso: string, language?: LanguageCode): string 
 
 /** ISO datetime from server → local "day month year, time" */
 export function formatDateTimeForDisplay(iso: string, language?: LanguageCode): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
+  const d = parseInstantIso(iso);
+  if (!d) return iso;
   const lang = langOrEn(language);
   return d.toLocaleString(appLocale(lang), {
     day: "numeric",

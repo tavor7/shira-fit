@@ -11,7 +11,12 @@ import {
 import { fetchActiveSignupCountsBySession } from "./sessionSignupCounts";
 import type { LanguageCode } from "../i18n/translations";
 import { translations } from "../i18n/translations";
-import { formatISODateDayMonth, formatISODateDayMonthWithWeekday, formatISODateFull } from "./dateFormat";
+import {
+  formatISODateDayMonth,
+  formatISODateDayMonthWithWeekday,
+  formatISODateFull,
+  parseInstantIso,
+} from "./dateFormat";
 import { appLocale } from "./appLocale";
 import { isRtlScript } from "./bidiEmbed";
 
@@ -495,11 +500,11 @@ export async function fetchAthleteHomeAlertItems(
 const STUDIO_TZ = "Asia/Jerusalem";
 
 function formatStudioOpeningLabel(isoInstant: string, language: LanguageCode): string {
-  const d = new Date(isoInstant);
-  if (!Number.isFinite(d.getTime())) return isoInstant;
+  const d = parseInstantIso(isoInstant);
+  if (!d) return isoInstant;
   const datePart = d.toLocaleDateString("en-CA", { timeZone: STUDIO_TZ });
   const dateFormatted = formatISODateDayMonthWithWeekday(datePart, language);
-  const timeStudio = d.toLocaleTimeString(language === "he" ? "he-IL" : "en-GB", {
+  const timeStudio = d.toLocaleTimeString(appLocale(language), {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
