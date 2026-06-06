@@ -16,7 +16,14 @@ import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/data
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
-import { normalizePaymentMethodKey, paymentMethodHistoryLabel, isSessionPaymentRecorded } from "../lib/paymentMethod";
+import {
+  coerceSessionPaymentMethodKey,
+  normalizePaymentMethodKey,
+  paymentMethodHistoryLabel,
+  isSessionPaymentRecorded,
+  SESSION_PAYMENT_METHOD_KEYS,
+  type SessionPaymentMethodKey,
+} from "../lib/paymentMethod";
 import { resolveSessionBillingPriceLocal } from "../lib/sessionSlotPrice";
 import {
   type AthleteFamily,
@@ -253,7 +260,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [editAmountOpen, setEditAmountOpen] = useState(false);
   const [editAmountBusy, setEditAmountBusy] = useState(false);
   const [editAmountStr, setEditAmountStr] = useState("");
-  const [editMethod, setEditMethod] = useState<"cash" | "paybox" | "other" | "">("");
+  const [editMethod, setEditMethod] = useState<SessionPaymentMethodKey | "">("");
   const [editReg, setEditReg] = useState<ParticipantHistoryRow | null>(null);
   const [policyBusyId, setPolicyBusyId] = useState<string | null>(null);
   const [removingRegId, setRemovingRegId] = useState<string | null>(null);
@@ -425,8 +432,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     const raw = reg.amount_paid;
     const s = raw !== null && raw !== undefined && String(raw).trim() !== "" ? String(raw) : "";
     setEditAmountStr(s);
-    const k = normalizePaymentMethodKey(reg.payment_method);
-    setEditMethod(k === "cash" || k === "paybox" || k === "other" ? k : "");
+    setEditMethod(coerceSessionPaymentMethodKey(reg.payment_method, ""));
     setEditAmountOpen(true);
   }
 
@@ -1077,7 +1083,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
           ) : null}
           <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "אמצעי תשלום" : "Payment method"}</Text>
           <View style={styles.methodRow}>
-            {(["", "cash", "paybox", "other"] as const).map((m) => {
+            {(["", ...SESSION_PAYMENT_METHOD_KEYS] as const).map((m) => {
               const on = editMethod === m;
               const label = m === "" ? (language === "he" ? "ללא" : "None") : paymentMethodHistoryLabel(m, language);
               return (

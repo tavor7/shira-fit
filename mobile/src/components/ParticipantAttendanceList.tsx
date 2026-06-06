@@ -7,7 +7,12 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { isBirthdayToday } from "../lib/birthday";
-import { normalizePaymentMethodKey, paymentMethodAttendanceLabel, paymentDisplayTone } from "../lib/paymentMethod";
+import {
+  normalizePaymentMethodKey,
+  paymentMethodAttendanceLabel,
+  paymentDisplayTone,
+  SESSION_PAYMENT_METHOD_KEYS,
+} from "../lib/paymentMethod";
 import { fetchSessionBillingPriceIls } from "../lib/sessionSlotPrice";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueries";
@@ -774,18 +779,15 @@ export function ParticipantAttendanceList({
                       ? "אופן תשלום"
                       : "Payment method"}
                 </Text>
-                {(["cash", "PayBox", "other"] as const).map((pm) => (
+                {SESSION_PAYMENT_METHOD_KEYS.map((pm) => (
                   <Pressable
                     key={pm}
                     style={({ pressed }) => [styles.payBtn, pressed && { opacity: 0.9 }]}
                     onPress={() => {
-                      const method = pm === "cash" ? "cash" : pm === "PayBox" ? "paybox" : "other";
-                      void goToPaymentAmountPhase(method);
+                      void goToPaymentAmountPhase(pm);
                     }}
                   >
-                    <Text style={styles.payBtnTxt}>
-                      {pm === "cash" ? (language === "he" ? "מזומן" : "Cash") : pm === "PayBox" ? "PayBox" : language === "he" ? "אחר" : "Other"}
-                    </Text>
+                    <Text style={styles.payBtnTxt}>{paymentMethodAttendanceLabel(pm, language)}</Text>
                   </Pressable>
                 ))}
                 <Pressable

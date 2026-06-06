@@ -8,7 +8,12 @@ import { supabase } from "../lib/supabase";
 import { toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
-import { paymentMethodHistoryLabel, normalizePaymentMethodKey } from "../lib/paymentMethod";
+import {
+  coerceSessionPaymentMethodKey,
+  paymentMethodHistoryLabel,
+  SESSION_PAYMENT_METHOD_KEYS,
+  type SessionPaymentMethodKey,
+} from "../lib/paymentMethod";
 
 export type AccountPaymentEdit = {
   id: string;
@@ -49,7 +54,7 @@ export function AddAccountPaymentModal({
   const { showToast } = useToast();
   const isEdit = !!editPayment?.id;
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<"cash" | "paybox" | "other">("cash");
+  const [method, setMethod] = useState<SessionPaymentMethodKey>("cash");
   const [note, setNote] = useState("");
   const [payerName, setPayerName] = useState("");
   const [paidAt, setPaidAt] = useState(() => toISODateLocal(new Date()));
@@ -60,8 +65,7 @@ export function AddAccountPaymentModal({
     if (editPayment) {
       const rawAmt = editPayment.amount_ils;
       setAmount(rawAmt !== null && rawAmt !== undefined ? String(rawAmt) : "");
-      const k = normalizePaymentMethodKey(editPayment.payment_method);
-      setMethod(k === "cash" || k === "paybox" || k === "other" ? k : "other");
+      setMethod(coerceSessionPaymentMethodKey(editPayment.payment_method, "other"));
       setNote((editPayment.note ?? "").trim());
       setPayerName((editPayment.payer_name ?? "").trim());
       setPaidAt(editPayment.paid_at.trim());
@@ -174,7 +178,7 @@ export function AddAccountPaymentModal({
         />
         <Text style={[styles.label, isRTL && styles.rtlText]}>{t("billing.method")}</Text>
         <View style={[styles.methodRow, isRTL && styles.methodRowRtl]}>
-          {(["cash", "paybox", "other"] as const).map((m) => {
+          {SESSION_PAYMENT_METHOD_KEYS.map((m) => {
             const on = method === m;
             return (
               <Pressable
