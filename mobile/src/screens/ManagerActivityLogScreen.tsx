@@ -1007,11 +1007,38 @@ export default function ManagerActivityLogScreen() {
               <View style={[styles.card, isReverted && styles.cardReverted]}>
                 <View style={[styles.cardHeaderRow, isRTL && styles.cardHeaderRowRtl]}>
                   <Text style={[styles.when, isRTL && styles.rtl, styles.whenInHeader]}>{formatWhen(item.created_at, language)}</Text>
-                  {isReverted ? (
-                    <View style={styles.revertedBadge}>
-                      <Text style={styles.revertedBadgeText}>{t("activityLog.revertedBadge")}</Text>
-                    </View>
-                  ) : null}
+                  <View style={[styles.cardHeaderActions, isRTL && styles.cardHeaderActionsRtl]}>
+                    {isReverted ? (
+                      <View style={styles.revertedBadge}>
+                        <Text style={styles.revertedBadgeText}>{t("activityLog.revertedBadge")}</Text>
+                      </View>
+                    ) : null}
+                    {canRevert ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t("activityLog.revertAction")}
+                        style={({ pressed }) => [
+                          styles.revertLink,
+                          isRTL && styles.revertLinkRtl,
+                          pressed && styles.revertLinkPressed,
+                          revertBusy && styles.revertLinkDisabled,
+                        ]}
+                        disabled={revertBusy}
+                        onPress={() => requestRevert(item)}
+                      >
+                        {revertBusy ? (
+                          <ActivityIndicator size="small" color={theme.colors.textMuted} />
+                        ) : (
+                          <>
+                            <Text style={styles.revertIcon} accessible={false}>
+                              ↩
+                            </Text>
+                            <Text style={[styles.revertLinkText, isRTL && styles.rtl]}>{t("activityLog.revertLink")}</Text>
+                          </>
+                        )}
+                      </Pressable>
+                    ) : null}
+                  </View>
                 </View>
                 <Text style={[styles.event, isRTL && styles.rtl]}>{eventLabel(item.event_type, language)}</Text>
                 <Text style={[styles.meta, isRTL && styles.rtl]} selectable>
@@ -1032,23 +1059,6 @@ export default function ManagerActivityLogScreen() {
                   <Text style={[styles.json, isRTL && styles.rtl]} selectable numberOfLines={6}>
                     {JSON.stringify(item.metadata, null, 0)}
                   </Text>
-                ) : null}
-                {canRevert ? (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.revertBtn,
-                      (pressed || revertBusy) && styles.revertBtnPressed,
-                      revertBusy && styles.revertBtnDisabled,
-                    ]}
-                    disabled={revertBusy}
-                    onPress={() => requestRevert(item)}
-                  >
-                    {revertBusy ? (
-                      <ActivityIndicator size="small" color={theme.colors.error} />
-                    ) : (
-                      <Text style={styles.revertBtnText}>{t("activityLog.revertAction")}</Text>
-                    )}
-                  </Pressable>
                 ) : null}
               </View>
             );
@@ -1210,7 +1220,14 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   cardHeaderRowRtl: { flexDirection: "row-reverse" },
-  whenInHeader: { flex: 1 },
+  whenInHeader: { flex: 1, minWidth: 0 },
+  cardHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.xs,
+    flexShrink: 0,
+  },
+  cardHeaderActionsRtl: { flexDirection: "row-reverse" },
   revertedBadge: {
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 3,
@@ -1225,24 +1242,29 @@ const styles = StyleSheet.create({
     color: theme.colors.textSoft,
     letterSpacing: 0.2,
   },
-  revertBtn: {
-    marginTop: theme.spacing.md,
-    alignSelf: "flex-start",
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.error,
-    minHeight: 36,
-    justifyContent: "center",
+  revertLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: theme.radius.full,
+    minHeight: 28,
   },
-  revertBtnPressed: { opacity: 0.85 },
-  revertBtnDisabled: { opacity: 0.6 },
-  revertBtnText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: theme.colors.error,
-    letterSpacing: 0.15,
+  revertLinkRtl: { flexDirection: "row-reverse" },
+  revertLinkPressed: { backgroundColor: theme.colors.surfaceElevated },
+  revertLinkDisabled: { opacity: 0.55 },
+  revertIcon: {
+    fontSize: 15,
+    lineHeight: 18,
+    color: theme.colors.textSoft,
+    fontWeight: "600",
+  },
+  revertLinkText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: theme.colors.textMuted,
+    letterSpacing: 0.2,
   },
   when: {
     fontSize: 12,
