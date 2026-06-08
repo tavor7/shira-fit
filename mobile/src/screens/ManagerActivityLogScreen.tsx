@@ -9,6 +9,7 @@ import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { DatePickerField } from "../components/DatePickerField";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
+import { activityEventLooksRevertible, activityRevertReasonLabel } from "../lib/activityLogRevert";
 
 type Row = {
   id: string;
@@ -18,6 +19,7 @@ type Row = {
   target_type: string | null;
   target_id: string | null;
   metadata: Record<string, unknown> | null;
+  reverted_at: string | null;
 };
 
 type SessionRow = {
@@ -57,9 +59,45 @@ const ACTIVITY_GROUP_TYPES: Record<Exclude<ActivityGroupId, "all">, string[]> = 
     "athlete_approved",
     "athlete_rejected",
     "athlete_approval_updated",
+    "user_role_changed",
+    "manual_participant_created",
+    "manual_participant_updated",
+    "athlete_family_created",
+    "athlete_family_updated",
+    "athlete_family_deleted",
   ],
-  sessions: ["session_created", "session_updated", "session_deleted"],
-  registration: ["session_registration", "session_registration_cancelled", "session_registration_status_changed"],
+  sessions: [
+    "session_created",
+    "session_updated",
+    "session_deleted",
+    "session_note_created",
+    "session_note_updated",
+    "session_note_deleted",
+    "calendar_note_created",
+    "calendar_note_updated",
+    "calendar_note_deleted",
+  ],
+  registration: [
+    "session_registration",
+    "session_registration_cancelled",
+    "session_registration_status_changed",
+    "session_manual_participant_added",
+    "session_manual_participant_removed",
+    "registration_attendance_updated",
+    "manual_participant_attendance_updated",
+    "waitlist_request_created",
+    "waitlist_request_removed",
+    "cancellation_charge_updated",
+    "cancellation_penalty_collected_updated",
+    "registration_opening_schedule_updated",
+    "account_payment_created",
+    "account_payment_updated",
+    "account_payment_deleted",
+    "pricing_setting_created",
+    "pricing_setting_updated",
+    "pricing_setting_deleted",
+    "activity_event_reverted",
+  ],
 };
 
 function eventTypesForActivityGroup(g: ActivityGroupId): string[] | null {
@@ -202,6 +240,8 @@ function collectIdsFromRow(row: Row, profileIds: Set<string>, sessionIds: Set<st
   if (typeof mu.edited_user_id === "string") profileIds.add(mu.edited_user_id);
   if (typeof mu.user_id === "string") profileIds.add(mu.user_id);
   if (typeof mu.session_id === "string") sessionIds.add(mu.session_id);
+  if (typeof mu.author_id === "string") profileIds.add(mu.author_id);
+  if (typeof mu.payee_id === "string" && mu.payee_is_manual !== true) profileIds.add(mu.payee_id as string);
   if (typeof mu.coach_id === "string" && UUID_RE.test(mu.coach_id)) profileIds.add(mu.coach_id);
 
   for (const snapKey of ["after", "before"] as const) {
@@ -232,6 +272,7 @@ function sessionFieldLabel(key: string, he: boolean): string {
     is_open_for_registration: { en: "Open for registration", he: "\u05e4\u05ea\u05d5\u05d7 \u05dc\u05d4\u05e8\u05e9\u05de\u05d4" },
     duration_minutes: { en: "Duration (min)", he: "\u05de\u05e9\u05da (\u05d3\u05e7\u05d5\u05ea)" },
     is_hidden: { en: "Hidden", he: "\u05de\u05d5\u05e1\u05ea\u05e8" },
+    custom_slot_price_ils: { en: "Custom slot price", he: "מחיר מותאם לאימון" },
   };
   const m = map[key];
   return m ? (he ? m.he : m.en) : key;
@@ -387,6 +428,90 @@ function buildDetailLines(
     return lines;
   }
 
+  if (item.event_type === "user_role_changed") {
+    const tid = item.target_id;
+    if (tid) lines.push(`${L("User", "משתמש")}: ${profileLabels[tid] ?? `${tid.slice(0, 8)}…`}`);
+    if (mu.previous_role != null && mu.new_role != null) {
+      lines.push(`${L("Role", "תפקיד")}: ${str(mu.previous_role)} → ${str(mu.new_role)}`);
+    }
+    return lines;
+  }
+
+  if (
+    item.event_type === "session_manual_participant_added" ||
+    item.event_type === "session_manual_participant_removed" ||
+    item.event_type === "manual_participant_attendance_updated"
+  ) {
+    const sid = typeof mu.session_id === "string" ? mu.session_id : null;
+    const pid = typeof mu.manual_participant_id === "string" ? mu.manual_participant_id : null;
+    if (sid) lines.push(`${L("Session", "אימון")}: ${sessionSummaries[sid] ?? `${sid.slice(0, 8)}…`}`);
+    if (pid) lines.push(`${L("Quick-add participant", "משתתף מהיר")}: ${pid.slice(0, 8)}…`);
+    if (mu.changes && typeof mu.changes === "object") {
+      for (const [key, val] of Object.entries(mu.changes as Record<string, unknown>)) {
+        if (isFromTo(val)) lines.push(`${key}: ${str(val.from)} → ${str(val.to)}`);
+      }
+    }
+    return lines;
+  }
+
+  if (item.event_type === "registration_attendance_updated") {
+    const sid = typeof mu.session_id === "string" ? mu.session_id : null;
+    const pid = typeof mu.user_id === "string" ? mu.user_id : null;
+    if (sid) lines.push(`${L("Session", "אימון")}: ${sessionSummaries[sid] ?? `${sid.slice(0, 8)}…`}`);
+    if (pid) lines.push(`${L("Participant", "משתתף")}: ${profileLabels[pid] ?? `${pid.slice(0, 8)}…`}`);
+    if (mu.changes && typeof mu.changes === "object") {
+      for (const [key, val] of Object.entries(mu.changes as Record<string, unknown>)) {
+        if (isFromTo(val)) lines.push(`${key}: ${str(val.from)} → ${str(val.to)}`);
+      }
+    }
+    return lines;
+  }
+
+  if (
+    item.event_type === "account_payment_created" ||
+    item.event_type === "account_payment_updated" ||
+    item.event_type === "account_payment_deleted"
+  ) {
+    if (mu.amount_ils != null) lines.push(`${L("Amount", "סכום")}: ${str(mu.amount_ils)}`);
+    if (mu.payment_method != null) lines.push(`${L("Payment method", "אמצעי תשלום")}: ${str(mu.payment_method)}`);
+    if (mu.paid_at != null) lines.push(`${L("Paid on", "תאריך תשלום")}: ${str(mu.paid_at)}`);
+    if (mu.payer_name != null) lines.push(`${L("Payer", "משלם")}: ${str(mu.payer_name)}`);
+    return lines;
+  }
+
+  if (item.event_type.startsWith("athlete_family_")) {
+    if (mu.name != null) lines.push(`${L("Family name", "שם משפחה")}: ${str(mu.name)}`);
+    if (Array.isArray(mu.members)) lines.push(`${L("Members", "חברים")}: ${mu.members.length}`);
+    return lines;
+  }
+
+  if (item.event_type.startsWith("session_note_")) {
+    const sid = typeof mu.session_id === "string" ? mu.session_id : null;
+    if (sid) lines.push(`${L("Session", "אימון")}: ${sessionSummaries[sid] ?? `${sid.slice(0, 8)}…`}`);
+    if (typeof mu.body === "string") lines.push(`${L("Note", "הערה")}: ${mu.body.slice(0, 120)}`);
+    return lines;
+  }
+
+  if (item.event_type.startsWith("calendar_note_")) {
+    if (mu.title != null) lines.push(`${L("Title", "כותרת")}: ${str(mu.title)}`);
+    if (mu.start_date != null) lines.push(`${L("From", "מ")}: ${str(mu.start_date)}`);
+    if (mu.end_date != null) lines.push(`${L("To", "עד")}: ${str(mu.end_date)}`);
+    return lines;
+  }
+
+  if (item.event_type.startsWith("pricing_setting_")) {
+    if (mu.table != null) lines.push(`${L("Table", "טבלה")}: ${str(mu.table)}`);
+    return lines;
+  }
+
+  if (item.event_type === "activity_event_reverted") {
+    const revertedType = mu.reverted_event_type;
+    if (typeof revertedType === "string") {
+      lines.push(`${L("Reverted action", "פעולה שבוטלה")}: ${eventLabel(revertedType, language)}`);
+    }
+    return lines;
+  }
+
   return lines;
 }
 
@@ -408,6 +533,34 @@ function eventLabel(eventType: string, language: string): string {
     session_registration: { en: "Session registration", he: "הרשמה לאימון" },
     session_registration_cancelled: { en: "Registration cancelled", he: "הרשמה בוטלה" },
     session_registration_status_changed: { en: "Registration status changed", he: "סטטוס הרשמה השתנה" },
+    activity_event_reverted: { en: "Action reverted", he: "פעולה בוטלה" },
+    session_manual_participant_added: { en: "Quick-add participant added", he: "משתתף מהיר נוסף לאימון" },
+    session_manual_participant_removed: { en: "Quick-add participant removed", he: "משתתף מהיר הוסר מהאימון" },
+    registration_attendance_updated: { en: "Registration attendance updated", he: "נוכחות הרשמה עודכנה" },
+    manual_participant_attendance_updated: { en: "Quick-add attendance updated", he: "נוכחות משתתף מהיר עודכנה" },
+    user_role_changed: { en: "User role changed", he: "תפקיד משתמש השתנה" },
+    manual_participant_created: { en: "Quick-add person created", he: "משתתף מהיר נוצר" },
+    manual_participant_updated: { en: "Quick-add person updated", he: "משתתף מהיר עודכן" },
+    account_payment_created: { en: "Account payment recorded", he: "תשלום חשבון נרשם" },
+    account_payment_updated: { en: "Account payment updated", he: "תשלום חשבון עודכן" },
+    account_payment_deleted: { en: "Account payment deleted", he: "תשלום חשבון נמחק" },
+    pricing_setting_created: { en: "Pricing setting added", he: "הגדרת מחיר נוספה" },
+    pricing_setting_updated: { en: "Pricing setting updated", he: "הגדרת מחיר עודכנה" },
+    pricing_setting_deleted: { en: "Pricing setting removed", he: "הגדרת מחיר הוסרה" },
+    calendar_note_created: { en: "Calendar note added", he: "הערת לוח שנה נוספה" },
+    calendar_note_updated: { en: "Calendar note updated", he: "הערת לוח שנה עודכנה" },
+    calendar_note_deleted: { en: "Calendar note removed", he: "הערת לוח שנה הוסרה" },
+    session_note_created: { en: "Session note added", he: "הערת אימון נוספה" },
+    session_note_updated: { en: "Session note updated", he: "הערת אימון עודכנה" },
+    session_note_deleted: { en: "Session note removed", he: "הערת אימון הוסרה" },
+    athlete_family_created: { en: "Family group created", he: "קבוצת משפחה נוצרה" },
+    athlete_family_updated: { en: "Family group updated", he: "קבוצת משפחה עודכנה" },
+    athlete_family_deleted: { en: "Family group deleted", he: "קבוצת משפחה נמחקה" },
+    cancellation_charge_updated: { en: "Late-cancel charge updated", he: "חיוב ביטול מאוחר עודכן" },
+    cancellation_penalty_collected_updated: { en: "Late-cancel collection updated", he: "גביית ביטול מאוחר עודכנה" },
+    registration_opening_schedule_updated: { en: "Registration opening schedule updated", he: "לוח פתיחת הרשמה עודכן" },
+    waitlist_request_created: { en: "Waitlist request added", he: "בקשת המתנה נוספה" },
+    waitlist_request_removed: { en: "Waitlist request removed", he: "בקשת המתנה הוסרה" },
   };
   const m = map[eventType];
   if (!m) return eventType;
@@ -416,7 +569,7 @@ function eventLabel(eventType: string, language: string): string {
 
 export default function ManagerActivityLogScreen() {
   const { language, isRTL, t } = useI18n();
-  const { showOk } = useAppAlert();
+  const { showOk, showConfirm } = useAppAlert();
   const initRange = computePresetRange("14", 14);
   const [dateFrom, setDateFrom] = useState(initRange.from);
   const [dateTo, setDateTo] = useState(initRange.to);
@@ -433,6 +586,7 @@ export default function ManagerActivityLogScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [revertingId, setRevertingId] = useState<string | null>(null);
 
   const reload = useCallback(
     async (forcePage?: number) => {
@@ -461,7 +615,7 @@ export default function ManagerActivityLogScreen() {
 
         let evQuery = supabase
           .from("user_activity_events")
-          .select("id, created_at, actor_user_id, event_type, target_type, target_id, metadata", {
+          .select("id, created_at, actor_user_id, event_type, target_type, target_id, metadata, reverted_at", {
             count: "exact",
           })
           .gte("created_at", bounds.startIso)
@@ -568,6 +722,58 @@ export default function ManagerActivityLogScreen() {
     } finally {
       setSavingRetention(false);
     }
+  }
+
+  function requestRevert(item: Row) {
+    const run = async () => {
+      setRevertingId(item.id);
+      try {
+        const { data, error } = await supabase.rpc("manager_revert_activity_event", { p_event_id: item.id });
+        if (error) throw error;
+        const parsed = data as { ok?: boolean; error?: string };
+        if (!parsed?.ok) {
+          const reason = parsed?.error ?? "not_revertible";
+          showOk(t("common.error"), activityRevertReasonLabel(reason, language));
+          return;
+        }
+        showOk(t("common.saved"), t("activityLog.revertDone"));
+        await reload(pageIndex);
+      } catch (e) {
+        showOk(t("common.error"), e instanceof Error ? e.message : t("activityLog.revertFailed"));
+      } finally {
+        setRevertingId(null);
+      }
+    };
+
+    void (async () => {
+      setRevertingId(item.id);
+      try {
+        const { data, error } = await supabase.rpc("manager_activity_revert_info", { p_event_id: item.id });
+        if (error) throw error;
+        const info = data as { ok?: boolean; can_revert?: boolean; reason?: string; error?: string };
+        if (!info?.ok) {
+          const reason = info?.error ?? info?.reason ?? "not_revertible";
+          showOk(t("common.error"), activityRevertReasonLabel(reason, language));
+          return;
+        }
+        if (!info.can_revert) {
+          showOk(t("common.error"), activityRevertReasonLabel(info.reason ?? "not_revertible", language));
+          return;
+        }
+        showConfirm({
+          title: t("activityLog.revertConfirmTitle"),
+          message: t("activityLog.revertConfirmBody"),
+          cancelLabel: t("common.cancel"),
+          confirmLabel: t("activityLog.revertAction"),
+          confirmVariant: "danger",
+          onConfirm: () => void run(),
+        });
+      } catch (e) {
+        showOk(t("common.error"), e instanceof Error ? e.message : t("activityLog.revertFailed"));
+      } finally {
+        setRevertingId(null);
+      }
+    })();
   }
 
   const datePresetRows: { preset: DatePreset; labelKey: string }[] = [
@@ -794,9 +1000,19 @@ export default function ManagerActivityLogScreen() {
             const actorLine = item.actor_user_id
               ? `${language === "he" ? "מבצע" : "Actor"}: ${profileLabels[item.actor_user_id] ?? `${item.actor_user_id.slice(0, 8)}…`}`
               : "—";
+            const isReverted = !!item.reverted_at;
+            const canRevert = activityEventLooksRevertible(item);
+            const revertBusy = revertingId === item.id;
             return (
-              <View style={styles.card}>
-                <Text style={[styles.when, isRTL && styles.rtl]}>{formatWhen(item.created_at, language)}</Text>
+              <View style={[styles.card, isReverted && styles.cardReverted]}>
+                <View style={[styles.cardHeaderRow, isRTL && styles.cardHeaderRowRtl]}>
+                  <Text style={[styles.when, isRTL && styles.rtl, styles.whenInHeader]}>{formatWhen(item.created_at, language)}</Text>
+                  {isReverted ? (
+                    <View style={styles.revertedBadge}>
+                      <Text style={styles.revertedBadgeText}>{t("activityLog.revertedBadge")}</Text>
+                    </View>
+                  ) : null}
+                </View>
                 <Text style={[styles.event, isRTL && styles.rtl]}>{eventLabel(item.event_type, language)}</Text>
                 <Text style={[styles.meta, isRTL && styles.rtl]} selectable>
                   {actorLine}
@@ -816,6 +1032,23 @@ export default function ManagerActivityLogScreen() {
                   <Text style={[styles.json, isRTL && styles.rtl]} selectable numberOfLines={6}>
                     {JSON.stringify(item.metadata, null, 0)}
                   </Text>
+                ) : null}
+                {canRevert ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.revertBtn,
+                      (pressed || revertBusy) && styles.revertBtnPressed,
+                      revertBusy && styles.revertBtnDisabled,
+                    ]}
+                    disabled={revertBusy}
+                    onPress={() => requestRevert(item)}
+                  >
+                    {revertBusy ? (
+                      <ActivityIndicator size="small" color={theme.colors.error} />
+                    ) : (
+                      <Text style={styles.revertBtnText}>{t("activityLog.revertAction")}</Text>
+                    )}
+                  </Pressable>
                 ) : null}
               </View>
             );
@@ -965,6 +1198,51 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
+  },
+  cardReverted: {
+    opacity: 0.72,
+    borderColor: theme.colors.borderMuted,
+  },
+  cardHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing.sm,
+  },
+  cardHeaderRowRtl: { flexDirection: "row-reverse" },
+  whenInHeader: { flex: 1 },
+  revertedBadge: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 3,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  revertedBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: theme.colors.textSoft,
+    letterSpacing: 0.2,
+  },
+  revertBtn: {
+    marginTop: theme.spacing.md,
+    alignSelf: "flex-start",
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.error,
+    minHeight: 36,
+    justifyContent: "center",
+  },
+  revertBtnPressed: { opacity: 0.85 },
+  revertBtnDisabled: { opacity: 0.6 },
+  revertBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: theme.colors.error,
+    letterSpacing: 0.15,
   },
   when: {
     fontSize: 12,
