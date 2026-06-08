@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
@@ -1030,9 +1031,7 @@ export default function ManagerActivityLogScreen() {
                           <ActivityIndicator size="small" color={theme.colors.textMuted} />
                         ) : (
                           <>
-                            <Text style={styles.revertIcon} accessible={false}>
-                              ↩
-                            </Text>
+                            <Ionicons name="arrow-undo" size={13} color={theme.colors.textSoft} style={styles.revertIcon} />
                             <Text style={[styles.revertLinkText, isRTL && styles.rtl]}>{t("activityLog.revertLink")}</Text>
                           </>
                         )}
@@ -1245,26 +1244,26 @@ const styles = StyleSheet.create({
   revertLink: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    gap: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
     borderRadius: theme.radius.full,
-    minHeight: 28,
+    minHeight: 34,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
   },
   revertLinkRtl: { flexDirection: "row-reverse" },
-  revertLinkPressed: { backgroundColor: theme.colors.surfaceElevated },
+  revertLinkPressed: { opacity: 0.88, backgroundColor: theme.colors.accent },
   revertLinkDisabled: { opacity: 0.55 },
   revertIcon: {
-    fontSize: 15,
-    lineHeight: 18,
-    color: theme.colors.textSoft,
-    fontWeight: "600",
+    marginTop: 1,
   },
   revertLinkText: {
     fontSize: 12,
     fontWeight: "700",
     color: theme.colors.textMuted,
-    letterSpacing: 0.2,
+    letterSpacing: 0.15,
   },
   when: {
     fontSize: 12,
