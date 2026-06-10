@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useAuth } from "../context/AuthContext";
@@ -17,6 +17,7 @@ type ProfileRow = {
   phone: string;
   role: "athlete" | "coach" | "manager";
   approval_status: "pending" | "approved" | "rejected";
+  disabled_at?: string | null;
   date_of_birth?: string | null;
 };
 
@@ -39,14 +40,36 @@ export default function StaffUsersScreen() {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
+  const [duplicateNameCounts, setDuplicateNameCounts] = useState<Record<string, number>>({});
   const listBottomPad = useSearchListBottomPadding();
+
+  function normalizeFullName(name: string): string {
+    return name.trim().toLowerCase();
+  }
+
+  const loadDuplicateNameCounts = useCallback(async () => {
+    let query = supabase.from("profiles").select("full_name");
+    query = isManager ? query.in("role", ["athlete", "coach"]) : query.eq("role", "athlete");
+    const { data, error } = await query;
+    if (error) {
+      setDuplicateNameCounts({});
+      return;
+    }
+    const counts: Record<string, number> = {};
+    for (const row of (data as { full_name?: string }[]) ?? []) {
+      const key = normalizeFullName(row.full_name ?? "");
+      if (!key) continue;
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    setDuplicateNameCounts(counts);
+  }, [isManager]);
 
   const load = useCallback(async (termRaw?: string) => {
     const qTrim = (termRaw ?? q).trim();
     setLoading(true);
     let query = supabase
       .from("profiles")
-      .select("user_id, full_name, username, phone, role, approval_status, date_of_birth")
+      .select("user_id, full_name, username, phone, role, approval_status, date_of_birth, disabled_at")
       .order("full_name", { ascending: true })
       .limit(200);
 
@@ -107,7 +130,14 @@ export default function StaffUsersScreen() {
 
   useEffect(() => {
     void load(q);
+    void loadDuplicateNameCounts();
   }, [isManager]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadDuplicateNameCounts();
+    }, [loadDuplicateNameCounts])
+  );
 
   const subtitle = useMemo(() => {
     if (isManager) return language === "he" ? "חיפוש מתאמנים ומאמנים (מנהלים מוסתרים). לחצו על משתמש לעריכה." : "Search athletes and coaches (managers hidden). Tap a user to edit.";
@@ -141,13 +171,21 @@ export default function StaffUsersScreen() {
             {loading ? t("common.loading") : language === "he" ? "לא נמצאו משתמשים." : "No users found."}
           </Text>
         }
-        renderItem={({ item }) => (
+        renderItem={({ item }) => {
+          const nameKey = normalizeFullName(item.full_name ?? "");
+          const sameNameCount = item.kind === "profile" ? (duplicateNameCounts[nameKey] ?? 0) : 0;
+          const hasDuplicateName = sameNameCount > 1;
+          return (
           <Pressable
             onPress={() => {
               if (item.kind === "profile") router.push(`/(app)/staff/profile/${item.user_id}` as never);
               else router.push(`/(app)/staff/manual/${item.id}` as never);
             }}
-            style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+            style={({ pressed }) => [
+              styles.card,
+              hasDuplicateName && styles.cardDuplicateName,
+              pressed && { opacity: 0.9 },
+            ]}
             accessibilityRole="button"
           >
             <Text style={styles.name}>
@@ -161,13 +199,21 @@ export default function StaffUsersScreen() {
                 return md === tmd ? <Text style={styles.bday}>{"  "}🎂</Text> : null;
               })()}
             </Text>
+            {hasDuplicateName ? (
+              <Text style={[styles.duplicateBadge, isRTL && styles.rtlText]}>
+                {t("profile.duplicateNameBadge").replace("{n}", String(sameNameCount))}
+              </Text>
+            ) : null}
             <Text style={styles.meta}>
               {item.kind === "profile"
-                ? `@${item.username} · ${item.phone} · ${item.role} · ${item.approval_status}`
+                ? `${t("profile.username")}: @${item.username} · ${item.phone} · ${item.role} · ${item.approval_status}${
+                    item.disabled_at ? ` · ${t("profile.accountDisabledBadge")}` : ""
+                  }`
                 : `${item.phone} · ${language === "he" ? "מהיר" : "Quick Add"}`}
             </Text>
           </Pressable>
-        )}
+          );
+        }}
       />
     </View>
   );
@@ -194,6 +240,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     marginBottom: theme.spacing.sm,
+  },
+  cardDuplicateName: {
+    borderColor: theme.colors.cta,
+    backgroundColor: "rgba(96, 165, 250, 0.08)",
+  },
+  duplicateBadge: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: "800",
+    color: theme.colors.cta,
+    lineHeight: 16,
   },
   name: { color: theme.colors.text, fontWeight: "900", fontSize: 15 },
   bday: { color: theme.colors.cta, fontWeight: "900" },

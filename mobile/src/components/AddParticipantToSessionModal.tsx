@@ -218,6 +218,9 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     if (code === "invalid_athlete") {
       return language === "he" ? "המתאמן חייב להיות מאושר במערכת." : "This person must be an approved athlete in the system.";
     }
+    if (code === "account_disabled") {
+      return t("profile.accountDisabledStaffHint");
+    }
     if (code === "forbidden") {
       return language === "he" ? "אין הרשאה." : "Not allowed.";
     }

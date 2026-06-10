@@ -38,6 +38,7 @@ export function isAuthOrExcludedPath(pathname: string): boolean {
   if (p.startsWith("/(auth)")) return true;
   if (p.includes("callback")) return true;
   if (p === "/pending") return true;
+  if (p === "/disabled") return true;
   return false;
 }
 

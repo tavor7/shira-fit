@@ -118,7 +118,11 @@ export function AddAccountPaymentModal({
         });
     setBusy(false);
     if (error) {
-      showError(error.message);
+      const msg =
+        error.message.includes("account_disabled_payee")
+          ? t("profile.accountDisabledPaymentHint")
+          : error.message;
+      showError(msg);
       return;
     }
     onClose();

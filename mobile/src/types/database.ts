@@ -16,6 +16,9 @@ export interface Profile {
   created_at: string;
   /** #RRGGBB; managers set for coaches/managers for calendar chips */
   calendar_color?: string | null;
+  /** When set, athlete account is disabled and cannot use the app. */
+  disabled_at?: string | null;
+  disabled_by?: string | null;
 }
 
 export type ManualParticipant = {

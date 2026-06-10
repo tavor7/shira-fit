@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, Image } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
+import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
 import { logRedirectToManagerSessions } from "../../src/lib/managerSessionsRedirectLog";
 
 export default function PendingScreen() {
@@ -17,6 +18,9 @@ export default function PendingScreen() {
   );
 
   // If approval status changed, don't let the user get stuck here.
+  if (profile?.role === "athlete" && isAthleteAccountDisabled(profile)) {
+    return <Redirect href="/(app)/disabled" />;
+  }
   if (profile?.role === "athlete" && profile.approval_status === "approved") {
     return <Redirect href="/(app)/athlete/sessions" />;
   }

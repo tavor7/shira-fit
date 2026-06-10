@@ -11,6 +11,7 @@ import {
   recordIndexRouteRestoreDebug,
 } from "../src/lib/routeRestoreDebug";
 import { canRoleAccessWebPath, readWebLastRoute, webPublicPathToExpoHref } from "../src/lib/webLastRoute";
+import { isAthleteAccountDisabled } from "../src/lib/profileAccount";
 
 /**
  * Entry route for `/` only. After auth + profile are ready, web clients may be sent to the last saved
@@ -36,7 +37,7 @@ export default function Index() {
     setWebIndexRestoreReady(false);
     if (loading || !session?.user?.id || !profile) return;
     if (profile.role === "manager" && !athletePreviewStorageReady) return;
-    if (profile.role === "athlete" && profile.approval_status === "pending") {
+    if (profile.role === "athlete" && (profile.approval_status === "pending" || isAthleteAccountDisabled(profile))) {
       setWebIndexRestoreReady(true);
       return;
     }
@@ -217,6 +218,8 @@ export default function Index() {
       </View>
     );
   }
+  if (profile.role === "athlete" && isAthleteAccountDisabled(profile))
+    return <Redirect href="/(app)/disabled" />;
   if (profile.role === "athlete" && profile.approval_status === "pending")
     return <Redirect href="/(app)/pending" />;
 

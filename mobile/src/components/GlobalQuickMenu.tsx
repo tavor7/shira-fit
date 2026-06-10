@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router, usePathname } from "expo-router";
 import { theme } from "../theme";
 import { useAuth } from "../context/AuthContext";
+import { isAthleteAccountDisabled } from "../lib/profileAccount";
 import { FoldableActionsMenu, type FoldableActionsMenuItem } from "./FoldableActionsMenu";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
@@ -61,7 +62,7 @@ export function GlobalQuickMenu() {
       isActive: () => false,
     };
 
-    if (profile?.role === "athlete" && profile?.approval_status === "pending") {
+    if (profile?.role === "athlete" && (profile?.approval_status === "pending" || isAthleteAccountDisabled(profile))) {
       return [languageItem];
     }
 

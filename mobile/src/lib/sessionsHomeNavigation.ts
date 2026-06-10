@@ -51,6 +51,10 @@ export function isPendingPathname(pathname: string): boolean {
   return pathname === "/pending" || pathname.startsWith("/pending/");
 }
 
+export function isDisabledPathname(pathname: string): boolean {
+  return pathname === "/disabled" || pathname.startsWith("/disabled/");
+}
+
 /** Role-based sessions calendar — app “home” for back / Android hardware back. */
 export function getSessionsHomeHref(
   role: UserRole | undefined | null,

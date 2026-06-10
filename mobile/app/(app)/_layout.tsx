@@ -5,7 +5,8 @@ import { AppHeaderRight } from "../../src/components/AppHeaderRight";
 import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
 import { theme } from "../../src/theme";
 import { useAndroidSessionsBackHandler } from "../../src/hooks/useAndroidSessionsBackHandler";
-import { isPendingPathname } from "../../src/lib/sessionsHomeNavigation";
+import { isPendingPathname, isDisabledPathname } from "../../src/lib/sessionsHomeNavigation";
+import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
 import { useI18n } from "../../src/context/I18nContext";
 import { getLoginHrefWithOptionalRedirectWeb } from "../../src/lib/webLastRoute";
 
@@ -79,6 +80,10 @@ export default function AppLayout() {
   }
 
   const pendingAthlete = profile?.role === "athlete" && profile?.approval_status === "pending";
+  const disabledAthlete = isAthleteAccountDisabled(profile);
+  if (disabledAthlete && !isDisabledPathname(pathname)) {
+    return <Redirect href="/(app)/disabled" />;
+  }
   if (pendingAthlete && !isPendingPathname(pathname)) {
     return <Redirect href="/(app)/pending" />;
   }

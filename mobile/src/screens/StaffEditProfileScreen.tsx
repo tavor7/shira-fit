@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
+import { useAppAlert } from "../context/AppAlertContext";
 import { DatePickerField } from "../components/DatePickerField";
 import { isValidISODateString } from "../lib/isoDate";
+import { formatDateTimeForDisplay } from "../lib/dateFormat";
 import { useAuth } from "../context/AuthContext";
 
 export default function StaffEditProfileScreen() {
@@ -15,6 +17,7 @@ export default function StaffEditProfileScreen() {
   const userId = String(id ?? "");
   const { t, isRTL, language } = useI18n();
   const { showToast } = useToast();
+  const { showConfirm } = useAppAlert();
   const { profile } = useAuth();
   const isManager = profile?.role === "manager";
 
@@ -25,24 +28,78 @@ export default function StaffEditProfileScreen() {
   const [dob, setDob] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmingEmail, setConfirmingEmail] = useState(false);
+  const [lastSignInAt, setLastSignInAt] = useState<string | null>(null);
+  const [metaLoading, setMetaLoading] = useState(true);
+  const [disabledAt, setDisabledAt] = useState<string | null>(null);
+  const [username, setUsername] = useState("");
+  const [togglingDisabled, setTogglingDisabled] = useState(false);
+  const [duplicateNames, setDuplicateNames] = useState<
+    { user_id: string; full_name: string; username: string; phone: string; role: string }[]
+  >([]);
+  const [duplicateNamesLoading, setDuplicateNamesLoading] = useState(false);
+
+  const loadDuplicateNames = useCallback(
+    async (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed || !userId) {
+        setDuplicateNames([]);
+        return;
+      }
+      setDuplicateNamesLoading(true);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, username, phone, role")
+        .ilike("full_name", trimmed)
+        .neq("user_id", userId)
+        .limit(20);
+      setDuplicateNamesLoading(false);
+      if (error) {
+        setDuplicateNames([]);
+        return;
+      }
+      const normalized = trimmed.toLowerCase();
+      setDuplicateNames(
+        ((data as { user_id: string; full_name: string; username: string; phone: string; role: string }[]) ?? []).filter(
+          (row) => row.full_name.trim().toLowerCase() === normalized
+        )
+      );
+    },
+    [userId]
+  );
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("full_name, phone, gender, date_of_birth")
-        .eq("user_id", userId)
-        .single();
+      setMetaLoading(true);
+      const [profileRes, metaRes] = await Promise.all([
+        supabase.from("profiles").select("full_name, phone, gender, date_of_birth, disabled_at, username").eq("user_id", userId).single(),
+        supabase.rpc("staff_get_user_auth_meta", { p_user_id: userId }),
+      ]);
       setLoading(false);
+      setMetaLoading(false);
+      const { data, error } = profileRes;
       if (error || !data) return;
       setFullName((data as any).full_name ?? "");
       setPhone((data as any).phone ?? "");
       const g = String((data as any).gender ?? "").trim().toLowerCase();
       setGender(g === "male" || g === "female" ? (g as any) : "");
       setDob((data as any).date_of_birth ?? "");
+      setDisabledAt(typeof (data as any).disabled_at === "string" ? (data as any).disabled_at : null);
+      setUsername(String((data as any).username ?? "").trim());
+
+      const meta = metaRes.data as { ok?: boolean; last_sign_in_at?: string | null } | null;
+      if (meta?.ok) {
+        setLastSignInAt(typeof meta.last_sign_in_at === "string" ? meta.last_sign_in_at : null);
+      }
     })();
   }, [userId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void loadDuplicateNames(fullName);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [fullName, loadDuplicateNames]);
 
   async function save() {
     setSaving(true);
@@ -74,6 +131,43 @@ export default function StaffEditProfileScreen() {
     router.back();
   }
 
+  async function toggleAccountDisabled() {
+    if (togglingDisabled) return;
+    const disabling = disabledAt == null;
+    showConfirm({
+      title: disabling ? t("profile.disableAccountTitle") : t("profile.enableAccountTitle"),
+      message: disabling ? t("profile.disableAccountMessage") : t("profile.enableAccountMessage"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: disabling ? t("profile.disableAccountConfirm") : t("profile.enableAccountConfirm"),
+      confirmVariant: disabling ? "danger" : "primary",
+      onConfirm: () => {
+        void (async () => {
+          setTogglingDisabled(true);
+          const { data, error } = await supabase.rpc("staff_set_account_disabled", {
+            p_user_id: userId,
+            p_disabled: disabling,
+          });
+          setTogglingDisabled(false);
+          if (error) {
+            showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+            return;
+          }
+          if (!data?.ok) {
+            showToast({ message: t("common.failed"), detail: String(data?.error ?? ""), variant: "error" });
+            return;
+          }
+          setDisabledAt(disabling ? new Date().toISOString() : null);
+          showToast({
+            message: disabling ? t("profile.accountDisabledToast") : t("profile.accountEnabledToast"),
+            variant: "success",
+          });
+        })();
+      },
+    });
+  }
+
+  const isDisabled = disabledAt != null;
+
   async function confirmEmail() {
     if (!isManager) return;
     const uid = userId.trim();
@@ -99,12 +193,75 @@ export default function StaffEditProfileScreen() {
   }
 
   return (
-    <View style={styles.screen}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={[styles.title, isRTL && styles.rtlText]}>{t("profile.editUser")}</Text>
       {loading ? <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("common.loading")}</Text> : null}
 
+      {userId ? (
+        <View style={styles.metaCard}>
+          {username ? (
+            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+              <Text style={[styles.metaLabel, isRTL && styles.rtlText]}>{t("profile.username")}</Text>
+              <Text style={[styles.metaValue, isRTL && styles.rtlText]} selectable numberOfLines={2}>
+                @{username}
+              </Text>
+            </View>
+          ) : null}
+          <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+            <Text style={[styles.metaLabel, isRTL && styles.rtlText]}>{t("profile.lastLogin")}</Text>
+            <Text style={[styles.metaValue, isRTL && styles.rtlText]} numberOfLines={2}>
+              {metaLoading
+                ? t("common.loading")
+                : lastSignInAt
+                  ? formatDateTimeForDisplay(lastSignInAt, language)
+                  : t("profile.neverLoggedIn")}
+            </Text>
+          </View>
+          {isDisabled ? (
+            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+              <Text style={[styles.metaLabel, isRTL && styles.rtlText]}>{t("profile.accountStatus")}</Text>
+              <Text style={[styles.metaValue, styles.metaDisabled, isRTL && styles.rtlText]} numberOfLines={2}>
+                {t("profile.accountDisabledSince").replace(
+                  "{date}",
+                  formatDateTimeForDisplay(disabledAt!, language)
+                )}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.fullName")}</Text>
       <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholderTextColor={theme.colors.textSoft} />
+      {duplicateNamesLoading ? (
+        <Text style={[styles.duplicateHint, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
+      ) : duplicateNames.length > 0 ? (
+        <View style={styles.duplicateCard}>
+          <Text style={[styles.duplicateTitle, isRTL && styles.rtlText]}>
+            {t("profile.duplicateNameTitle").replace("{n}", String(duplicateNames.length))}
+          </Text>
+          {duplicateNames.map((row) => (
+            <Pressable
+              key={row.user_id}
+              onPress={() => router.push(`/(app)/staff/profile/${row.user_id}` as never)}
+              style={({ pressed }) => [styles.duplicateRow, pressed && { opacity: 0.88 }]}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.duplicateRowTxt, isRTL && styles.rtlText]} numberOfLines={2}>
+                {t("profile.duplicateNameLine")
+                  .replace("{username}", row.username)
+                  .replace("{phone}", row.phone || "—")
+                  .replace("{role}", row.role)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
 
       <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.phone")}</Text>
       <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholderTextColor={theme.colors.textSoft} />
@@ -130,6 +287,25 @@ export default function StaffEditProfileScreen() {
       <DatePickerField label={t("profile.dob")} value={dob} onChange={setDob} />
 
       <PrimaryButton label={t("common.save")} onPress={save} loading={saving} loadingLabel={t("common.loading")} />
+
+      <Pressable
+        onPress={() => void toggleAccountDisabled()}
+        disabled={togglingDisabled || loading}
+        style={({ pressed }) => [
+          isDisabled ? styles.enableAccountBtn : styles.disableAccountBtn,
+          (togglingDisabled || loading) && { opacity: 0.6 },
+          pressed && !togglingDisabled && !loading && { opacity: 0.9 },
+        ]}
+        accessibilityRole="button"
+      >
+        <Text style={[isDisabled ? styles.enableAccountTxt : styles.disableAccountTxt, isRTL && styles.rtlText]}>
+          {togglingDisabled
+            ? t("common.loading")
+            : isDisabled
+              ? t("profile.enableAccountConfirm")
+              : t("profile.disableAccountConfirm")}
+        </Text>
+      </Pressable>
 
       {isManager ? (
         <Pressable
@@ -159,14 +335,60 @@ export default function StaffEditProfileScreen() {
       <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancel, pressed && { opacity: 0.9 }]}>
         <Text style={styles.cancelTxt}>{t("common.cancel")}</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt, padding: theme.spacing.md },
+  screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  scrollContent: {
+    padding: theme.spacing.md,
+    paddingBottom: theme.spacing.xl * 2,
+  },
   title: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
   muted: { color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
+  metaCard: {
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+    gap: theme.spacing.sm,
+  },
+  metaRow: { gap: 4 },
+  metaRowRtl: { alignItems: "flex-end" },
+  metaLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: theme.colors.textSoft,
+    textTransform: "uppercase",
+    letterSpacing: 0.35,
+  },
+  metaValue: { fontSize: 14, fontWeight: "700", color: theme.colors.text, lineHeight: 20 },
+  metaDisabled: { color: theme.colors.error },
+  disableAccountBtn: {
+    marginTop: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.error,
+    backgroundColor: theme.colors.errorBg,
+    borderRadius: theme.radius.md,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  disableAccountTxt: { color: theme.colors.error, fontWeight: "900", letterSpacing: 0.2 },
+  enableAccountBtn: {
+    marginTop: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.md,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  enableAccountTxt: { color: theme.colors.text, fontWeight: "900", letterSpacing: 0.2 },
   label: { marginTop: theme.spacing.sm, fontWeight: "700", color: theme.colors.text, fontSize: 13 },
   rtlText: { textAlign: "right" },
   genderRow: { flexDirection: "row", gap: 10, marginTop: 6 },
@@ -196,6 +418,19 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.white,
     color: theme.colors.textOnLight,
   },
+  duplicateHint: { marginTop: 6, fontSize: 12, fontWeight: "600", color: theme.colors.textMuted },
+  duplicateCard: {
+    marginTop: 8,
+    padding: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.cta,
+    backgroundColor: "rgba(96, 165, 250, 0.1)",
+    gap: 6,
+  },
+  duplicateTitle: { fontSize: 12, fontWeight: "800", color: theme.colors.text, lineHeight: 17 },
+  duplicateRow: { paddingVertical: 4 },
+  duplicateRowTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.cta, lineHeight: 18 },
   confirmEmailBtn: {
     marginTop: theme.spacing.sm,
     borderWidth: 1,

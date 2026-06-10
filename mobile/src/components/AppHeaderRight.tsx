@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useManagerAthletePreview } from "../context/ManagerAthletePreviewContext";
+import { isAthleteAccountDisabled } from "../lib/profileAccount";
 
 function formatRole(role: string | undefined) {
   if (!role) return "";
@@ -20,6 +21,7 @@ export function AppHeaderRight() {
 
   const name = profile?.full_name || profile?.username || t("common.account");
   const pendingAthlete = profile?.role === "athlete" && profile?.approval_status === "pending";
+  const blockedAthlete = pendingAthlete || isAthleteAccountDisabled(profile);
   const baseRole = formatRole(profile?.role);
   const roleLine =
     profile?.role === "manager" && athletePreview
@@ -54,10 +56,10 @@ export function AppHeaderRight() {
       <View style={[styles.chipsRow, isRTL && styles.chipsRowRtl]}>
         <Pressable
           onPress={() => router.push("/(app)/profile")}
-          disabled={loading || pendingAthlete}
+          disabled={loading || blockedAthlete}
           accessibilityRole="button"
           accessibilityLabel={t("header.profile")}
-          style={({ pressed }) => [styles.chip, (pressed && !loading && !pendingAthlete) && styles.pressed, pendingAthlete && { opacity: 0.45 }]}
+          style={({ pressed }) => [styles.chip, (pressed && !loading && !blockedAthlete) && styles.pressed, blockedAthlete && { opacity: 0.45 }]}
         >
           <Text style={styles.chipTxt} numberOfLines={1} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
             {t("header.profile")}
