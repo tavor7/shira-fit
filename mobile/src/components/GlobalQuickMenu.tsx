@@ -103,6 +103,7 @@ export function GlobalQuickMenu() {
               "/staff/profile",
               "/staff/manual",
               "/manager/families",
+              "/manager/account-payments",
               "/manager/trainer-colors",
               "/manager/roles",
               "/manager/pricing",

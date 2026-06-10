@@ -200,6 +200,12 @@ export function ManagerStudioSetupTabs() {
         isActive: (p) => startsWithAny(p, ["/manager/families"]),
       },
       {
+        id: "payments",
+        label: t("menu.accountPayments"),
+        href: "/(app)/manager/account-payments",
+        isActive: (p) => startsWithAny(p, ["/manager/account-payments"]),
+      },
+      {
         id: "colors",
         label: t("menu.trainerColors"),
         href: "/(app)/manager/trainer-colors",
