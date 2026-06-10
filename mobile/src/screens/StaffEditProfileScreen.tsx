@@ -24,12 +24,15 @@ export default function StaffEditProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [zipCode, setZipCode] = useState("");
   const [gender, setGender] = useState<"male" | "female" | "">("");
   const [dob, setDob] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmingEmail, setConfirmingEmail] = useState(false);
   const [lastSignInAt, setLastSignInAt] = useState<string | null>(null);
   const [metaLoading, setMetaLoading] = useState(true);
+  const [email, setEmail] = useState("");
   const [disabledAt, setDisabledAt] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [togglingDisabled, setTogglingDisabled] = useState(false);
@@ -72,7 +75,7 @@ export default function StaffEditProfileScreen() {
       setLoading(true);
       setMetaLoading(true);
       const [profileRes, metaRes] = await Promise.all([
-        supabase.from("profiles").select("full_name, phone, gender, date_of_birth, disabled_at, username").eq("user_id", userId).single(),
+        supabase.from("profiles").select("full_name, phone, gender, date_of_birth, disabled_at, username, address, zip_code").eq("user_id", userId).single(),
         supabase.rpc("staff_get_user_auth_meta", { p_user_id: userId }),
       ]);
       setLoading(false);
@@ -81,15 +84,18 @@ export default function StaffEditProfileScreen() {
       if (error || !data) return;
       setFullName((data as any).full_name ?? "");
       setPhone((data as any).phone ?? "");
+      setAddress(String((data as any).address ?? "").trim());
+      setZipCode(String((data as any).zip_code ?? "").trim());
       const g = String((data as any).gender ?? "").trim().toLowerCase();
       setGender(g === "male" || g === "female" ? (g as any) : "");
       setDob((data as any).date_of_birth ?? "");
       setDisabledAt(typeof (data as any).disabled_at === "string" ? (data as any).disabled_at : null);
       setUsername(String((data as any).username ?? "").trim());
 
-      const meta = metaRes.data as { ok?: boolean; last_sign_in_at?: string | null } | null;
+      const meta = metaRes.data as { ok?: boolean; last_sign_in_at?: string | null; email?: string | null } | null;
       if (meta?.ok) {
         setLastSignInAt(typeof meta.last_sign_in_at === "string" ? meta.last_sign_in_at : null);
+        setEmail(typeof meta.email === "string" ? meta.email : "");
       }
     })();
   }, [userId]);
@@ -116,6 +122,8 @@ export default function StaffEditProfileScreen() {
     if (ph.length > 0) payload.p_phone = ph;
     if (gen.length > 0) payload.p_gender = gen;
     if (dobTrim.length > 0 && isValidISODateString(dobTrim)) payload.p_date_of_birth = dobTrim;
+    payload.p_address = address.trim();
+    payload.p_zip_code = zipCode.trim();
 
     const { data, error } = await supabase.rpc("staff_update_profile_text", payload as any);
     setSaving(false);
@@ -213,6 +221,12 @@ export default function StaffEditProfileScreen() {
             </View>
           ) : null}
           <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+            <Text style={[styles.metaLabel, isRTL && styles.rtlText]}>{t("auth.email")}</Text>
+            <Text style={[styles.metaValue, isRTL && styles.rtlText]} selectable numberOfLines={2}>
+              {metaLoading ? t("common.loading") : email.trim() || "—"}
+            </Text>
+          </View>
+          <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
             <Text style={[styles.metaLabel, isRTL && styles.rtlText]}>{t("profile.lastLogin")}</Text>
             <Text style={[styles.metaValue, isRTL && styles.rtlText]} numberOfLines={2}>
               {metaLoading
@@ -264,7 +278,32 @@ export default function StaffEditProfileScreen() {
       ) : null}
 
       <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.phone")}</Text>
-      <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholderTextColor={theme.colors.textSoft} />
+      <TextInput
+        style={[styles.input, isRTL && styles.inputRtl]}
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
+        placeholderTextColor={theme.colors.textSoft}
+      />
+
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.address")}</Text>
+      <TextInput
+        style={[styles.input, isRTL && styles.inputRtl]}
+        value={address}
+        onChangeText={setAddress}
+        placeholder={t("profile.address")}
+        placeholderTextColor={theme.colors.textSoft}
+      />
+
+      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.zipCode")}</Text>
+      <TextInput
+        style={[styles.input, isRTL && styles.inputRtl]}
+        value={zipCode}
+        onChangeText={setZipCode}
+        keyboardType="number-pad"
+        placeholder={t("profile.zipCode")}
+        placeholderTextColor={theme.colors.textSoft}
+      />
 
       <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.gender")}</Text>
       <View style={[styles.genderRow, isRTL && styles.genderRowRtl]}>
@@ -391,6 +430,7 @@ const styles = StyleSheet.create({
   enableAccountTxt: { color: theme.colors.text, fontWeight: "900", letterSpacing: 0.2 },
   label: { marginTop: theme.spacing.sm, fontWeight: "700", color: theme.colors.text, fontSize: 13 },
   rtlText: { textAlign: "right" },
+  inputRtl: { textAlign: "right" },
   genderRow: { flexDirection: "row", gap: 10, marginTop: 6 },
   genderRowRtl: { flexDirection: "row-reverse" },
   genderBtn: {

@@ -4,7 +4,7 @@ import { useLocalSearchParams } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
-import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
+import { ManagerMoneyHubTabs } from "../components/ManagerOverviewTabs";
 import SessionPricingScreen from "./SessionPricingScreen";
 import CoachCapacityPricingScreen from "./CoachCapacityPricingScreen";
 
@@ -35,8 +35,9 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
   );
 
   return (
-    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {variant === "manager" ? <ManagerStudioSetupTabs /> : null}
+    <View style={styles.screen}>
+      {variant === "manager" ? <ManagerMoneyHubTabs /> : null}
+      <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.pricingHub")}</Text>
 
       <View style={[styles.track, isRTL && styles.trackRtl]}>
@@ -72,12 +73,14 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
         )}
       </View>
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  content: { padding: theme.spacing.md, paddingBottom: 40 },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, paddingBottom: 40 },
   rtl: { textAlign: "right", alignSelf: "stretch" },
   title: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: 10 },
 

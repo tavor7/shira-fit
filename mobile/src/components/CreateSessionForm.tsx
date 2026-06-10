@@ -521,7 +521,11 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       if (insertedIds.length > 0 && (athleteIds.length > 0 || manualIds.length > 0)) {
         for (const sid of insertedIds) {
           for (const uid of athleteIds) {
-            const { data, error } = await supabase.rpc("coach_add_athlete", { p_session_id: sid, p_user_id: uid });
+            const { data, error } = await supabase.rpc("coach_add_athlete", {
+              p_session_id: sid,
+              p_user_id: uid,
+              p_allow_over_capacity: false,
+            });
             if (error) {
               showToast({ message: language === "he" ? "שגיאה הוספת מתאמן" : "Error adding trainee", detail: error.message, variant: "error" });
               continue;
@@ -535,6 +539,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
             const { data, error } = await supabase.rpc("add_manual_participant_to_session", {
               p_session_id: sid,
               p_manual_participant_id: mid,
+              p_allow_over_capacity: false,
             });
             if (error) {
               showToast({ message: language === "he" ? "שגיאה הוספת משתתף ידני" : "Error adding manual participant", detail: error.message, variant: "error" });

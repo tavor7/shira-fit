@@ -96,6 +96,17 @@ export function GlobalQuickMenu() {
             ]),
         },
         {
+          label: t("menu.money"),
+          onPress: () => router.push("/(app)/manager/account-payments"),
+          isActive: (p) =>
+            startsWithAny(p, [
+              "/manager/account-payments",
+              "/manager/documents-invoices",
+              "/manager/pricing",
+              "/manager/coach-capacity-pricing",
+            ]),
+        },
+        {
           label: t("menu.managerSetup"),
           onPress: () => router.push("/(app)/staff/users"),
           isActive: (p) =>
@@ -104,11 +115,8 @@ export function GlobalQuickMenu() {
               "/staff/profile",
               "/staff/manual",
               "/manager/families",
-              "/manager/account-payments",
               "/manager/trainer-colors",
               "/manager/roles",
-              "/manager/pricing",
-              "/manager/coach-capacity-pricing",
               "/manager/opening-schedule",
             ]),
         },

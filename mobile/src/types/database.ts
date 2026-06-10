@@ -8,6 +8,8 @@ export interface Profile {
   phone: string;
   age: number | null;
   gender: "male" | "female";
+  address?: string;
+  zip_code?: string;
   date_of_birth?: string | null;
   health_declaration_confirmed_at?: string | null;
   approval_status: ApprovalStatus;
@@ -19,6 +21,8 @@ export interface Profile {
   /** When set, athlete account is disabled and cannot use the app. */
   disabled_at?: string | null;
   disabled_by?: string | null;
+  electronic_receipts_consent_version?: number | null;
+  electronic_receipts_consented_at?: string | null;
 }
 
 export type ManualParticipant = {

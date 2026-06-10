@@ -223,7 +223,11 @@ export default function CoachSessionDetail() {
     if (!id || waitlistQuickUserId || !canEditSession) return;
     setWaitlistQuickUserId(userId);
     try {
-      const { data, error } = await supabase.rpc("coach_add_athlete", { p_session_id: id, p_user_id: userId });
+      const { data, error } = await supabase.rpc("coach_add_athlete", {
+        p_session_id: id,
+        p_user_id: userId,
+        p_allow_over_capacity: false,
+      });
       if (error) {
         showToast({ message: t("common.error"), detail: error.message, variant: "error" });
         return;

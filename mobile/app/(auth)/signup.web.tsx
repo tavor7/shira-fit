@@ -20,6 +20,7 @@ import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { DatePickerField } from "../../src/components/DatePickerField";
 import { buildAuthRedirectUrl } from "../../src/lib/authRedirect";
+import { recordUserConsent } from "../../src/lib/consent";
 
 const today = new Date();
 const minDob = new Date(1900, 0, 1);
@@ -38,9 +39,12 @@ export default function SignupScreen() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [zipCode, setZipCode] = useState("");
   const [dobText, setDobText] = useState("2000-01-15");
   const [gender, setGender] = useState<"male" | "female">("male");
   const [healthConfirmed, setHealthConfirmed] = useState(false);
+  const [receiptConsent, setReceiptConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -57,11 +61,11 @@ export default function SignupScreen() {
 
   async function onSignup() {
     setErrorMessage("");
-    if (!email.trim() || password.length < 6 || !fullName.trim() || !phone.trim()) {
+    if (!email.trim() || password.length < 6 || !fullName.trim() || !phone.trim() || !address.trim() || !zipCode.trim()) {
       setErrorMessage(
         language === "he"
-          ? "אנא מלאו אימייל, סיסמה (מינימום 6), שם מלא וטלפון."
-          : "Please fill in email, password (min 6), full name, and phone."
+          ? "אנא מלאו אימייל, סיסמה (מינימום 6), שם מלא, טלפון, כתובת ומיקוד."
+          : "Please fill in email, password (min 6), full name, phone, address, and zip code."
       );
       return;
     }
@@ -70,6 +74,14 @@ export default function SignupScreen() {
         language === "he"
           ? "אנא מלאו את הצהרת הבריאות ואשרו זאת לפני ההרשמה."
           : "Please complete the health declaration and confirm it before signing up."
+      );
+      return;
+    }
+    if (!receiptConsent) {
+      setErrorMessage(
+        language === "he"
+          ? "יש לאשר את ההסכמה לקבלת קבלות אלקטרוניות."
+          : "Please accept electronic receipt consent before signing up."
       );
       return;
     }
@@ -109,12 +121,23 @@ export default function SignupScreen() {
         .update({
           full_name: fullName.trim(),
           phone: phone.trim(),
+          address: address.trim(),
+          zip_code: zipCode.trim(),
           gender,
           date_of_birth: dobIso,
           age: new Date().getFullYear() - dobFinal.getFullYear(),
           health_declaration_confirmed_at: new Date().toISOString(),
         })
         .eq("user_id", data.user.id);
+      try {
+        await recordUserConsent({
+          consent_type: "electronic_receipts",
+          status: "accepted",
+          consent_version: 1,
+        });
+      } catch {
+        /* ConsentGateModal handles missing session */
+      }
     }
     setBusy(false);
     router.replace({
@@ -182,6 +205,23 @@ export default function SignupScreen() {
             value={phone}
             onChangeText={setPhone}
           />
+          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("profile.address")}</Text>
+          <TextInput
+            style={[styles.input, isRTL && styles.inputRtl]}
+            placeholder={t("profile.address")}
+            placeholderTextColor={theme.colors.textSoft}
+            value={address}
+            onChangeText={setAddress}
+          />
+          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("profile.zipCode")}</Text>
+          <TextInput
+            style={[styles.input, isRTL && styles.inputRtl]}
+            placeholder={t("profile.zipCode")}
+            placeholderTextColor={theme.colors.textSoft}
+            keyboardType="number-pad"
+            value={zipCode}
+            onChangeText={setZipCode}
+          />
           <DatePickerField
             appearance="auth"
             label={t("profile.dob")}
@@ -237,6 +277,23 @@ export default function SignupScreen() {
               {healthConfirmed ? <Text style={styles.checkboxMark}>✓</Text> : null}
             </View>
             <Text style={[styles.checkTxt, isRTL && styles.rtlText]}>{t("health.confirmDone")}</Text>
+          </Pressable>
+
+          <View style={styles.sectionDivider} />
+          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("consent.receiptsRequired")}</Text>
+          <Pressable
+            style={({ pressed }) => [styles.checkRow, pressed && styles.linkPressed]}
+            onPress={() => {
+              setReceiptConsent((v) => !v);
+              setErrorMessage("");
+            }}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: receiptConsent }}
+          >
+            <View style={[styles.checkbox, receiptConsent && styles.checkboxOn]}>
+              {receiptConsent ? <Text style={styles.checkboxMark}>✓</Text> : null}
+            </View>
+            <Text style={[styles.checkTxt, isRTL && styles.rtlText]}>{t("consent.receiptsConfirm")}</Text>
           </Pressable>
         </View>
 

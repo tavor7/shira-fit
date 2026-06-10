@@ -8,6 +8,7 @@ import { useAndroidSessionsBackHandler } from "../../src/hooks/useAndroidSession
 import { isPendingPathname, isDisabledPathname } from "../../src/lib/sessionsHomeNavigation";
 import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
 import { useI18n } from "../../src/context/I18nContext";
+import { ConsentGateModal } from "../../src/components/ConsentGateModal";
 import { getLoginHrefWithOptionalRedirectWeb } from "../../src/lib/webLastRoute";
 
 const headerStyle: ViewStyle = {
@@ -89,7 +90,9 @@ export default function AppLayout() {
   }
 
   return (
-    <Stack
+    <>
+      <ConsentGateModal />
+      <Stack
       screenOptions={{
         headerShown: true,
         headerTitle: "",
@@ -103,5 +106,6 @@ export default function AppLayout() {
         headerTitleStyle: headerTitleStyle as object,
       }}
     />
+    </>
   );
 }

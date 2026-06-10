@@ -79,7 +79,8 @@ begin
     perform public._insert_activity_event(
       v_uid,
       'account_disabled',
-      p_user_id,
+      'profile',
+      p_user_id::text,
       jsonb_build_object(
         'target_user_id', p_user_id::text,
         'target_full_name', coalesce(v_fn, ''),
@@ -97,7 +98,8 @@ begin
     perform public._insert_activity_event(
       v_uid,
       'account_enabled',
-      p_user_id,
+      'profile',
+      p_user_id::text,
       jsonb_build_object(
         'target_user_id', p_user_id::text,
         'target_full_name', coalesce(v_fn, ''),

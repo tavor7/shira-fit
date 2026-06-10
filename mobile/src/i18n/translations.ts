@@ -13,6 +13,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "menu.editUsers": "Edit users",
     "menu.families": "Families",
     "menu.accountPayments": "Payments received",
+    "menu.documentsInvoices": "Receipts",
+    "menu.money": "Money",
     "accountPayments.subtitle": "All payments recorded by staff — at sessions and on account.",
     "accountPayments.allPayees": "All payees",
     "accountPayments.allDates": "All dates",
@@ -685,6 +687,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "screen.staffSearch": "Search",
     "screen.staffProfile": "User profile",
     "screen.staffManualParticipant": "Manual participant",
+    "screen.documentsInvoices": "Receipts",
 
     "sessionNav.prevA11y": "Earlier session",
     "sessionNav.nextA11y": "Later session",
@@ -692,6 +695,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "health.required": "Health declaration (required)",
     "health.openForm": "Open health declaration form",
     "health.confirmDone": "I completed the health declaration",
+
+    "consent.receiptsRequired": "Electronic receipts consent (required)",
+    "consent.receiptsConfirm": "I agree to receive receipts and business documents electronically",
+    "profile.address": "Street address",
+    "profile.zipCode": "Zip code",
 
     "activityLog.hint": "System events with timestamps (logins, profiles, sessions, registrations, and more).",
     "activityLog.filterTitle": "Time range",
@@ -770,6 +778,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "menu.editUsers": "עריכת משתמשים",
     "menu.families": "משפחות",
     "menu.accountPayments": "תשלומים שהתקבלו",
+    "menu.documentsInvoices": "קבלות",
+    "menu.money": "כספים",
     "accountPayments.subtitle": "כל התשלומים שנרשמו על ידי הצוות — באימון ובחשבון.",
     "accountPayments.allPayees": "כל המשלמים",
     "accountPayments.allDates": "כל התאריכים",
@@ -1429,6 +1439,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "screen.staffSearch": "חיפוש",
     "screen.staffProfile": "פרופיל משתמש",
     "screen.staffManualParticipant": "משתתף ידני",
+    "screen.documentsInvoices": "קבלות",
 
     "sessionNav.prevA11y": "אימון מוקדם יותר",
     "sessionNav.nextA11y": "אימון מאוחר יותר",
@@ -1436,6 +1447,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "health.required": "הצהרת בריאות (חובה)",
     "health.openForm": "פתיחת טופס הצהרת בריאות",
     "health.confirmDone": "מילאתי את הצהרת הבריאות",
+
+    "consent.receiptsRequired": "הסכמה לקבלות אלקטרוניות (חובה)",
+    "consent.receiptsConfirm": "אני מסכים/ה לקבל קבלות ומסמכים עסקיים באופן אלקטרוני",
+    "profile.address": "כתובת",
+    "profile.zipCode": "מיקוד",
 
     "activityLog.hint": "אירועים מהמערכת עם חותמת זמן (התחברות, פרופיל, אימונים, הרשמות ועוד).",
     "activityLog.filterTitle": "טווח תאריכים",

@@ -530,7 +530,11 @@ export default function ManagerSessionDetail() {
 
     setWaitlistQuickUserId(userId);
     try {
-      const { data, error } = await supabase.rpc("coach_add_athlete", { p_session_id: sid, p_user_id: userId });
+      const { data, error } = await supabase.rpc("coach_add_athlete", {
+        p_session_id: sid,
+        p_user_id: userId,
+        p_allow_over_capacity: false,
+      });
       if (error) {
         showToast({ message: t("common.error"), detail: error.message, variant: "error" });
         return;
@@ -565,7 +569,11 @@ export default function ManagerSessionDetail() {
               return;
             }
             setMaxP(String(next));
-            const r2 = await supabase.rpc("coach_add_athlete", { p_session_id: sid, p_user_id: userId });
+            const r2 = await supabase.rpc("coach_add_athlete", {
+              p_session_id: sid,
+              p_user_id: userId,
+              p_allow_over_capacity: false,
+            });
             if (r2.error) {
               showToast({ message: t("common.error"), detail: r2.error.message, variant: "error" });
               return;

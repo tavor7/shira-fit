@@ -13,28 +13,27 @@ export type ManagerPillTabItem = {
   isActive: (pathname: string) => boolean;
 };
 
+function normalizePathname(pathname: string): string {
+  const stripped = pathname.replace(/^\/\([^/]+\)/, "");
+  return stripped || "/";
+}
+
 function startsWithAny(pathname: string, prefixes: string[]) {
-  return prefixes.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname.startsWith(p));
+  const p = normalizePathname(pathname);
+  return prefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
 }
 
 type TabDensity = "comfortable" | "compact";
 
-/**
- * Minimal underline tabs — text + thin accent bar (no pill boxes).
- * Overview uses comfortable spacing; setup uses compact for more labels per row.
- */
-export function ManagerPillTabBar({
-  tabs,
-  density = "comfortable",
-}: {
-  tabs: ManagerPillTabItem[];
+type PillTabCoreProps = {
+  tabs: { id: string; label: string }[];
+  activeId: string;
+  onPressTab: (id: string) => void;
   density?: TabDensity;
-}) {
-  const pathname = usePathname() ?? "";
-  const { language, isRTL } = useI18n();
-  const { loading: authLoading, user, profile } = useAuth();
+};
 
-  const activeId = tabs.find((x) => x.isActive(pathname))?.id ?? tabs[0]?.id ?? "";
+function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }: PillTabCoreProps) {
+  const { language, isRTL } = useI18n();
   const compact = density === "compact";
 
   return (
@@ -45,16 +44,7 @@ export function ManagerPillTabBar({
           return (
             <Pressable
               key={x.id}
-              onPress={() => {
-                if (x.href === "/(app)/manager/sessions") {
-                  logRedirectToManagerSessions("src/components/ManagerOverviewTabs.tsx", "overview_tab_sessions", {
-                    authLoading,
-                    authUserId: user?.id ?? null,
-                    profileRole: profile?.role ?? null,
-                  });
-                }
-                router.replace(x.href);
-              }}
+              onPress={() => onPressTab(x.id)}
               style={({ pressed }) => [
                 compact ? styles.tabCompact : styles.tab,
                 pressed && !active && styles.tabPressed,
@@ -77,6 +67,58 @@ export function ManagerPillTabBar({
       </View>
     </View>
   );
+}
+
+/**
+ * Minimal underline tabs — text + thin accent bar (no pill boxes).
+ * Overview uses comfortable spacing; setup uses compact for more labels per row.
+ */
+export function ManagerPillTabBar({
+  tabs,
+  density = "comfortable",
+}: {
+  tabs: ManagerPillTabItem[];
+  density?: TabDensity;
+}) {
+  const pathname = usePathname() ?? "";
+  const { loading: authLoading, user, profile } = useAuth();
+
+  const activeId = tabs.find((x) => x.isActive(normalizePathname(pathname)))?.id ?? tabs[0]?.id ?? "";
+
+  return (
+    <PillTabBarCore
+      tabs={tabs}
+      activeId={activeId}
+      density={density}
+      onPressTab={(id) => {
+        const tab = tabs.find((x) => x.id === id);
+        if (!tab) return;
+        if (tab.href === "/(app)/manager/sessions") {
+          logRedirectToManagerSessions("src/components/ManagerOverviewTabs.tsx", "overview_tab_sessions", {
+            authLoading,
+            authUserId: user?.id ?? null,
+            profileRole: profile?.role ?? null,
+          });
+        }
+        router.replace(tab.href);
+      }}
+    />
+  );
+}
+
+/** Same look as route tabs, for in-screen section switching. */
+export function ManagerStatePillTabBar({
+  tabs,
+  active,
+  onChange,
+  density = "comfortable",
+}: {
+  tabs: { id: string; label: string }[];
+  active: string;
+  onChange: (id: string) => void;
+  density?: TabDensity;
+}) {
+  return <PillTabBarCore tabs={tabs} activeId={active} onPressTab={onChange} density={density} />;
 }
 
 const styles = StyleSheet.create({
@@ -142,7 +184,7 @@ const styles = StyleSheet.create({
   },
 });
 
-/** Main overview: dashboard, activity log, reports (no link to setup — use the menu). */
+/** Main menu: overview, activity log, reports (Money is in the ≡ menu). */
 export function ManagerOverviewHubTabs() {
   const { t } = useI18n();
 
@@ -181,7 +223,47 @@ export function ManagerOverviewHubTabs() {
   return <ManagerPillTabBar tabs={tabs} density="comfortable" />;
 }
 
-/** Studio setup: edit users, colors, roles, pricing, opening (no link back to overview — use the menu). */
+const moneyHubShell = {
+  paddingHorizontal: theme.spacing.md,
+  paddingTop: theme.spacing.md,
+} as const;
+
+/** Money hub: payments, receipts, pricing (shown under the Money main tab). */
+export function ManagerMoneyHubTabs() {
+  const { t } = useI18n();
+
+  const tabs = useMemo<ManagerPillTabItem[]>(
+    () => [
+      {
+        id: "payments",
+        label: t("menu.accountPayments"),
+        href: "/(app)/manager/account-payments",
+        isActive: (p) => startsWithAny(p, ["/manager/account-payments"]),
+      },
+      {
+        id: "documents",
+        label: t("menu.documentsInvoices"),
+        href: "/(app)/manager/documents-invoices",
+        isActive: (p) => startsWithAny(p, ["/manager/documents-invoices"]),
+      },
+      {
+        id: "pricing",
+        label: t("menu.pricingHub"),
+        href: "/(app)/manager/pricing",
+        isActive: (p) => startsWithAny(p, ["/manager/pricing", "/manager/coach-capacity-pricing"]),
+      },
+    ],
+    [t]
+  );
+
+  return (
+    <View style={moneyHubShell}>
+      <ManagerPillTabBar tabs={tabs} density="comfortable" />
+    </View>
+  );
+}
+
+/** Studio setup: edit users, colors, roles, opening (no link back to overview — use the menu). */
 export function ManagerStudioSetupTabs() {
   const { t } = useI18n();
 
@@ -200,12 +282,6 @@ export function ManagerStudioSetupTabs() {
         isActive: (p) => startsWithAny(p, ["/manager/families"]),
       },
       {
-        id: "payments",
-        label: t("menu.accountPayments"),
-        href: "/(app)/manager/account-payments",
-        isActive: (p) => startsWithAny(p, ["/manager/account-payments"]),
-      },
-      {
         id: "colors",
         label: t("menu.trainerColors"),
         href: "/(app)/manager/trainer-colors",
@@ -216,12 +292,6 @@ export function ManagerStudioSetupTabs() {
         label: t("menu.roles"),
         href: "/(app)/manager/roles",
         isActive: (p) => startsWithAny(p, ["/manager/roles"]),
-      },
-      {
-        id: "pricing",
-        label: t("menu.pricingHub"),
-        href: "/(app)/manager/pricing",
-        isActive: (p) => startsWithAny(p, ["/manager/pricing", "/manager/coach-capacity-pricing"]),
       },
       {
         id: "opening",

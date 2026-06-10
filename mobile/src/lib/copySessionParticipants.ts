@@ -27,6 +27,7 @@ export async function copySessionParticipantsToNewSession(
     const { data, error } = await supabase.rpc("coach_add_athlete", {
       p_session_id: targetSessionId,
       p_user_id: user_id,
+      p_allow_over_capacity: true,
     });
     if (error) errors.push(`${user_id}: ${error.message}`);
     else if (!data?.ok) errors.push(`${user_id}: ${String((data as { error?: string })?.error ?? "failed")}`);
@@ -48,6 +49,7 @@ export async function copySessionParticipantsToNewSession(
     const { data, error } = await supabase.rpc("add_manual_participant_to_session", {
       p_session_id: targetSessionId,
       p_manual_participant_id: manual_participant_id,
+      p_allow_over_capacity: true,
     });
     if (error) errors.push(`manual ${manual_participant_id}: ${error.message}`);
     else if (!data?.ok)

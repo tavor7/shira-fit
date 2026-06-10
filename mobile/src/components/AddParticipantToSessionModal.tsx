@@ -28,21 +28,21 @@ function escapeIlike(term: string) {
   return term.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
-/** Only include over-capacity when true so PostgREST matches the DB after migration; omitting matches 2-arg legacy. */
+/** Always pass p_allow_over_capacity so PostgREST matches the single 3-arg DB function. */
 function coachAddAthleteRpcArgs(sid: string, userId: string, allowOverCapacity: boolean) {
-  return allowOverCapacity
-    ? { p_session_id: sid, p_user_id: userId, p_allow_over_capacity: true as const }
-    : { p_session_id: sid, p_user_id: userId };
+  return {
+    p_session_id: sid,
+    p_user_id: userId,
+    p_allow_over_capacity: allowOverCapacity,
+  };
 }
 
 function addManualParticipantRpcArgs(sid: string, manualId: string, allowOverCapacity: boolean) {
-  return allowOverCapacity
-    ? {
-        p_session_id: sid,
-        p_manual_participant_id: manualId,
-        p_allow_over_capacity: true as const,
-      }
-    : { p_session_id: sid, p_manual_participant_id: manualId };
+  return {
+    p_session_id: sid,
+    p_manual_participant_id: manualId,
+    p_allow_over_capacity: allowOverCapacity,
+  };
 }
 
 export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAdded }: Props) {

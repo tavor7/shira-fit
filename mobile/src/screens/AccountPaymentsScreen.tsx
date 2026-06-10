@@ -14,7 +14,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useToast } from "../context/ToastContext";
-import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
+import { ManagerMoneyHubTabs } from "../components/ManagerOverviewTabs";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { AppSearchField } from "../components/AppSearchField";
 import { AppModal } from "../components/AppModal";
@@ -30,7 +30,8 @@ import {
   type SessionPaymentMethodKey,
 } from "../lib/paymentMethod";
 import { type FamilyMemberKind, memberPayeeKey, parseFamilyMembers } from "../lib/athleteFamilies";
-import type { AthleteAccountPayment } from "../types/database";
+import { CreateDocumentModal, type CreateDocumentPrefill } from "../components/CreateDocumentModal";
+import { fetchReceiptSettings } from "../lib/documents";
 
 type DateMode = "all" | "range";
 type PaymentMethodFilter = "all" | SessionPaymentMethodKey;
@@ -108,6 +109,15 @@ export default function AccountPaymentsScreen() {
   const [addPayee, setAddPayee] = useState<{ id: string; isManual: boolean; label: string; showPayerName: boolean } | null>(
     null
   );
+  const [documentsEnabled, setDocumentsEnabled] = useState(false);
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [docPrefill, setDocPrefill] = useState<CreateDocumentPrefill | null>(null);
+
+  useEffect(() => {
+    void fetchReceiptSettings()
+      .then((s) => setDocumentsEnabled(!!s?.digital_receipts_enabled))
+      .catch(() => setDocumentsEnabled(false));
+  }, []);
 
   const loadPayments = useCallback(async () => {
     const rpcArgs: Record<string, unknown> = {
@@ -251,6 +261,26 @@ export default function AccountPaymentsScreen() {
     if (kind === "no_show") return t("accountPayments.sessionNoShow");
     if (kind === "cancellation") return t("accountPayments.sessionLateCancel");
     return t("accountPayments.sessionPayment");
+  }
+
+  function openGenerateDocument(item: PaymentRow) {
+    const amt = parseMoney(item.amount_ils);
+    if (amt === null || amt <= 0) return;
+    setDocPrefill({
+      gross_amount: amt,
+      customer_name: item.payee_label,
+      profile_user_id: item.payee_is_manual ? null : item.payee_id,
+      manual_participant_id: item.payee_is_manual ? item.payee_id : null,
+      source_type:
+        item.session_slot_kind === "cancellation"
+          ? "cancellation_penalty"
+          : item.source === "account"
+            ? "account_payment"
+            : "session_payment",
+      source_id: item.record_id,
+      source_payment_method: item.payment_method,
+    });
+    setDocModalOpen(true);
   }
 
   function openSessionPayment(item: PaymentRow) {
@@ -474,7 +504,6 @@ export default function AccountPaymentsScreen() {
 
   const listHeader = (
     <View style={styles.headerBlock}>
-      <ManagerStudioSetupTabs />
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.accountPayments")}</Text>
       <Text style={[styles.hint, isRTL && styles.rtl]}>{t("accountPayments.subtitle")}</Text>
 
@@ -562,6 +591,7 @@ export default function AccountPaymentsScreen() {
 
   return (
     <View style={styles.screen}>
+      <ManagerMoneyHubTabs />
       <FlatList
         style={styles.list}
         data={rows}
@@ -632,6 +662,19 @@ export default function AccountPaymentsScreen() {
                 </Text>
               ) : null}
               <View style={[styles.actionBar, rtlRow && styles.actionBarRtl]}>
+                {documentsEnabled && amt !== null && amt > 0 ? (
+                  <>
+                    <Pressable
+                      onPress={() => openGenerateDocument(item)}
+                      style={({ pressed }) => [styles.actionItem, styles.actionItemWide, pressed && styles.actionItemPressed]}
+                    >
+                      <Text style={[styles.actionText, isRTL && styles.rtl]}>
+                        {language === "he" ? "הפק מסמך" : "Generate document"}
+                      </Text>
+                    </Pressable>
+                    <View style={styles.actionSep} />
+                  </>
+                ) : null}
                 {isAccount ? (
                   <>
                     <Pressable
@@ -784,6 +827,19 @@ export default function AccountPaymentsScreen() {
           onSaved={() => reload({ silent: true })}
         />
       ) : null}
+
+      <CreateDocumentModal
+        visible={docModalOpen}
+        onClose={() => setDocModalOpen(false)}
+        prefill={docPrefill}
+        onCreated={() => {
+          showToast({
+            message: language === "he" ? "מסמך נוצר" : "Document created",
+            variant: "success",
+          });
+          router.push("/(app)/manager/documents-invoices");
+        }}
+      />
     </View>
   );
 }
@@ -792,7 +848,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   list: { flex: 1 },
   listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl },
-  headerBlock: { paddingTop: theme.spacing.md },
+  headerBlock: { paddingTop: theme.spacing.sm },
   title: {
     fontSize: 22,
     fontWeight: "800",

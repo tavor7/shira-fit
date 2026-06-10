@@ -13,3 +13,13 @@ entrypoint = "./functions/notify-waitlist/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/staff-user-email/index.ts"
+
+[functions.generate-document-pdf]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/generate-document-pdf/index.ts"
+
+[functions.send-document-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send-document-email/index.ts"
