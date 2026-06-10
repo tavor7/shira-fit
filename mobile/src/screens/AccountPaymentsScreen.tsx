@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useRouter, type Href } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
@@ -20,12 +21,13 @@ import { AppModal } from "../components/AppModal";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
+import { formatSessionTimeShort } from "../lib/financeBreakdownFormat";
 import { lastNDaysRangeISO } from "../lib/isoDate";
+import { parseStaffReceivedPayments, type StaffReceivedPaymentRow } from "../lib/staffReceivedPayments";
 import {
   paymentMethodHistoryLabel,
   SESSION_PAYMENT_METHOD_KEYS,
   type SessionPaymentMethodKey,
-  normalizePaymentMethodKey,
 } from "../lib/paymentMethod";
 import { type FamilyMemberKind, memberPayeeKey, parseFamilyMembers } from "../lib/athleteFamilies";
 import type { AthleteAccountPayment } from "../types/database";
@@ -44,7 +46,7 @@ type PayeeFilter =
       members: { kind: FamilyMemberKind; id: string; name: string | null }[];
     };
 
-type PaymentRow = AthleteAccountPayment & {
+type PaymentRow = StaffReceivedPaymentRow & {
   payee_label: string;
   payee_kind: "app" | "manual";
   family_name: string | null;
@@ -74,6 +76,7 @@ function payeeFilterLabel(filter: PayeeFilter, t: (k: string) => string): string
 }
 
 export default function AccountPaymentsScreen() {
+  const router = useRouter();
   const { language, t, isRTL } = useI18n();
   const { showConfirm } = useAppAlert();
   const { showToast } = useToast();
@@ -87,6 +90,8 @@ export default function AccountPaymentsScreen() {
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethodFilter>("all");
 
   const [rows, setRows] = useState<PaymentRow[]>([]);
+  const [totalReceived, setTotalReceived] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -105,39 +110,56 @@ export default function AccountPaymentsScreen() {
   );
 
   const loadPayments = useCallback(async () => {
-    let query = supabase
-      .from("athlete_account_payments")
-      .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by")
-      .order("paid_at", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(500);
+    const rpcArgs: Record<string, unknown> = {
+      p_limit: 500,
+      p_offset: 0,
+    };
 
     if (dateMode === "range") {
-      query = query.gte("paid_at", dateStart).lte("paid_at", dateEnd);
+      rpcArgs.p_date_start = dateStart;
+      rpcArgs.p_date_end = dateEnd;
     }
 
     if (payeeFilter.type === "app") {
-      query = query.eq("payee_id", payeeFilter.id).eq("payee_is_manual", false);
+      rpcArgs.p_payee_id = payeeFilter.id;
+      rpcArgs.p_payee_is_manual = false;
     } else if (payeeFilter.type === "manual") {
-      query = query.eq("payee_id", payeeFilter.id).eq("payee_is_manual", true);
+      rpcArgs.p_payee_id = payeeFilter.id;
+      rpcArgs.p_payee_is_manual = true;
     } else if (payeeFilter.type === "family") {
-      const orParts = payeeFilter.members.map(
-        (m) => `and(payee_id.eq.${m.id},payee_is_manual.eq.${m.kind === "manual"})`
-      );
-      if (orParts.length > 0) query = query.or(orParts.join(","));
+      rpcArgs.p_payee_filters = payeeFilter.members.map((m) => ({
+        id: m.id,
+        is_manual: m.kind === "manual",
+      }));
     }
 
-    const { data, error } = await query;
+    if (paymentMethodFilter !== "all") {
+      rpcArgs.p_payment_method = paymentMethodFilter;
+    }
+
+    const { data, error } = await supabase.rpc("staff_list_received_payments", rpcArgs);
     if (error) {
       showToast({ message: t("common.error"), detail: error.message, variant: "error" });
       setRows([]);
+      setTotalReceived(0);
+      setTotalCount(0);
       return;
     }
 
-    let payRows = (data as AthleteAccountPayment[]) ?? [];
-    if (paymentMethodFilter !== "all") {
-      payRows = payRows.filter((p) => normalizePaymentMethodKey(p.payment_method) === paymentMethodFilter);
+    const payload = parseStaffReceivedPayments(data);
+    if (!payload.ok) {
+      showToast({
+        message: t("common.error"),
+        detail: payload.error ?? "staff_list_received_payments",
+        variant: "error",
+      });
+      setRows([]);
+      setTotalReceived(0);
+      setTotalCount(0);
+      return;
     }
+
+    const payRows = payload.payments;
     const appIds = [...new Set(payRows.filter((p) => !p.payee_is_manual).map((p) => p.payee_id))];
     const manualIds = [...new Set(payRows.filter((p) => p.payee_is_manual).map((p) => p.payee_id))];
     const staffIds = [...new Set(payRows.map((p) => p.created_by).filter((id): id is string => !!id))];
@@ -201,6 +223,8 @@ export default function AccountPaymentsScreen() {
         };
       })
     );
+    setTotalReceived(payload.total_received);
+    setTotalCount(payload.total_count);
   }, [dateMode, dateStart, dateEnd, payeeFilter, paymentMethodFilter, showToast, t]);
 
   const reload = useCallback(
@@ -222,10 +246,17 @@ export default function AccountPaymentsScreen() {
     void reload({ silent: true });
   }, [reload]);
 
-  const totalReceived = useMemo(
-    () => rows.reduce((sum, r) => sum + (parseMoney(r.amount_ils) ?? 0), 0),
-    [rows]
-  );
+  function sessionSlotLabel(kind: PaymentRow["session_slot_kind"]): string {
+    if (kind === "arrival") return t("accountPayments.sessionArrival");
+    if (kind === "no_show") return t("accountPayments.sessionNoShow");
+    if (kind === "cancellation") return t("accountPayments.sessionLateCancel");
+    return t("accountPayments.sessionPayment");
+  }
+
+  function openSessionPayment(item: PaymentRow) {
+    if (!item.session_id) return;
+    router.push(`/(app)/manager/session/${item.session_id}` as Href);
+  }
 
   const loadPickerRows = useCallback(async (termRaw: string) => {
     const q = termRaw.trim();
@@ -406,6 +437,28 @@ export default function AccountPaymentsScreen() {
     });
   }
 
+  function openAccountPaymentEdit(item: PaymentRow) {
+    setAddPayee({
+      id: item.payee_id,
+      isManual: item.payee_is_manual,
+      label: item.payee_label,
+      showPayerName: !!item.family_name || !!item.payer_name,
+    });
+    setEditPayment({
+      id: item.record_id,
+      payee_id: item.payee_id,
+      payee_is_manual: item.payee_is_manual,
+      amount_ils: item.amount_ils,
+      payment_method: item.payment_method ?? "",
+      note: item.note,
+      payer_name: item.payer_name,
+      paid_at: item.paid_at,
+      created_at: item.created_at,
+      created_by: item.created_by,
+    });
+    setAddPayOpen(true);
+  }
+
   const dateModeOptions: { id: DateMode; label: string }[] = [
     { id: "all", label: t("accountPayments.allDates") },
     { id: "range", label: t("accountPayments.dateRange") },
@@ -492,7 +545,7 @@ export default function AccountPaymentsScreen() {
 
         <View style={[styles.summaryRow, rtlRow && styles.summaryRowRtl]}>
           <View style={styles.summaryStat}>
-            <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{rows.length}</Text>
+            <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{totalCount}</Text>
             <Text style={[styles.summaryLabel, isRTL && styles.rtl]}>{t("accountPayments.paymentCount")}</Text>
           </View>
           <View style={styles.summaryDivider} />
@@ -512,7 +565,7 @@ export default function AccountPaymentsScreen() {
       <FlatList
         style={styles.list}
         data={rows}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.row_id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.cta} />}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={listHeader}
@@ -526,9 +579,16 @@ export default function AccountPaymentsScreen() {
         renderItem={({ item }) => {
           const amt = parseMoney(item.amount_ils);
           const amtTxt = amt !== null && amt > 0 ? `${amt} ₪` : "—";
-          const busy = deletingId === item.id;
+          const busy = deletingId === item.record_id;
+          const isAccount = item.source === "account";
           const kindLabel =
             item.payee_kind === "manual" ? t("accountPayments.kindManual") : t("accountPayments.kindAthlete");
+          const sessionMeta =
+            item.source === "session" && item.session_date
+              ? `${sessionSlotLabel(item.session_slot_kind)} · ${formatISODateFullWithWeekdayAfter(item.session_date, language)}${
+                  item.session_start_time ? ` · ${formatSessionTimeShort(item.session_start_time)}` : ""
+                }`
+              : null;
           return (
             <View style={styles.paymentCard}>
               <View style={[styles.paymentHead, rtlRow && styles.paymentHeadRtl]}>
@@ -550,8 +610,15 @@ export default function AccountPaymentsScreen() {
                   {language === "he" ? "משפחה" : "Family"}: {item.family_name}
                 </Text>
               ) : null}
+              {sessionMeta ? (
+                <Text style={[styles.metaLine, isRTL && styles.rtl]} numberOfLines={2}>
+                  {sessionMeta}
+                </Text>
+              ) : null}
               <Text style={[styles.metaLine, isRTL && styles.rtl]} numberOfLines={1}>
-                {paymentMethodHistoryLabel(item.payment_method, language)}
+                {item.payment_method
+                  ? paymentMethodHistoryLabel(item.payment_method, language)
+                  : t("accountPayments.methodUnknown")}
                 {(item.note ?? "").trim() ? ` · ${item.note}` : ""}
               </Text>
               {item.payer_name?.trim() ? (
@@ -565,34 +632,36 @@ export default function AccountPaymentsScreen() {
                 </Text>
               ) : null}
               <View style={[styles.actionBar, rtlRow && styles.actionBarRtl]}>
-                <Pressable
-                  onPress={() => {
-                    setAddPayee({
-                      id: item.payee_id,
-                      isManual: item.payee_is_manual,
-                      label: item.payee_label,
-                      showPayerName: !!item.family_name || !!item.payer_name,
-                    });
-                    setEditPayment(item);
-                    setAddPayOpen(true);
-                  }}
-                  disabled={busy}
-                  style={({ pressed }) => [styles.actionItem, pressed && !busy && styles.actionItemPressed]}
-                >
-                  <Text style={[styles.actionText, isRTL && styles.rtl]}>{t("participantHistory.editShort")}</Text>
-                </Pressable>
-                <View style={styles.actionSep} />
-                <Pressable
-                  onPress={() => confirmDelete(item.id)}
-                  disabled={busy}
-                  style={({ pressed }) => [styles.actionItem, styles.actionItemDanger, pressed && !busy && styles.actionItemPressed]}
-                >
-                  {busy ? (
-                    <ActivityIndicator size="small" color={theme.colors.error} />
-                  ) : (
-                    <Text style={[styles.actionTextDanger, isRTL && styles.rtl]}>{t("participantHistory.removeShort")}</Text>
-                  )}
-                </Pressable>
+                {isAccount ? (
+                  <>
+                    <Pressable
+                      onPress={() => openAccountPaymentEdit(item)}
+                      disabled={busy}
+                      style={({ pressed }) => [styles.actionItem, pressed && !busy && styles.actionItemPressed]}
+                    >
+                      <Text style={[styles.actionText, isRTL && styles.rtl]}>{t("participantHistory.editShort")}</Text>
+                    </Pressable>
+                    <View style={styles.actionSep} />
+                    <Pressable
+                      onPress={() => confirmDelete(item.record_id)}
+                      disabled={busy}
+                      style={({ pressed }) => [styles.actionItem, styles.actionItemDanger, pressed && !busy && styles.actionItemPressed]}
+                    >
+                      {busy ? (
+                        <ActivityIndicator size="small" color={theme.colors.error} />
+                      ) : (
+                        <Text style={[styles.actionTextDanger, isRTL && styles.rtl]}>{t("participantHistory.removeShort")}</Text>
+                      )}
+                    </Pressable>
+                  </>
+                ) : (
+                  <Pressable
+                    onPress={() => openSessionPayment(item)}
+                    style={({ pressed }) => [styles.actionItem, styles.actionItemWide, pressed && styles.actionItemPressed]}
+                  >
+                    <Text style={[styles.actionText, isRTL && styles.rtl]}>{t("accountPayments.openSession")}</Text>
+                  </Pressable>
+                )}
               </View>
             </View>
           );
@@ -851,6 +920,7 @@ const styles = StyleSheet.create({
   },
   actionBarRtl: { flexDirection: "row-reverse" },
   actionItem: { flex: 1, alignItems: "center", paddingVertical: 8 },
+  actionItemWide: { flex: 1 },
   actionItemDanger: {},
   actionItemPressed: { opacity: 0.75 },
   actionSep: { width: StyleSheet.hairlineWidth, backgroundColor: theme.colors.borderMuted },
