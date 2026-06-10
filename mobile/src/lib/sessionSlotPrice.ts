@@ -14,7 +14,7 @@ export function parseCustomSlotPriceDraft(
 
 /**
  * Client-side mirror of DB `session_billing_price_ils` when RPC is unavailable.
- * Order: session custom → athlete tier override → global tier.
+ * Order: roster override → session custom → athlete tier override → global tier.
  */
 export function resolveSessionBillingPriceLocal(args: {
   customSlotPriceIls: number | null | undefined;
@@ -112,6 +112,51 @@ export async function fetchSessionBillingPriceIls(
   if (error) return 0;
   const n = Number(data);
   return Number.isFinite(n) ? n : 0;
+}
+
+type RowBillingMeta = {
+  max_participants: number;
+  is_kickbox: boolean;
+  session_date: string;
+  custom_slot_price_ils: number | null;
+};
+
+/**
+ * Billing price for one roster row — RPC first, then session/tier fallback when RPC is 0 or unavailable.
+ */
+export async function resolveRowBillingPriceIls(
+  supabase: SupabaseClient,
+  sessionId: string,
+  userId: string | null,
+  manualParticipantId: string | null,
+  sessionMeta: RowBillingMeta,
+  rosterOverrideIls?: number | null
+): Promise<number> {
+  if (rosterOverrideIls != null && Number.isFinite(rosterOverrideIls)) {
+    return rosterOverrideIls;
+  }
+
+  const rpcPrice = await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
+  if (rpcPrice > 0) return rpcPrice;
+
+  const sessionCustom = sessionMeta.custom_slot_price_ils;
+  if (sessionCustom != null && Number.isFinite(sessionCustom) && sessionCustom > 0) {
+    return sessionCustom;
+  }
+
+  const { data, error } = await supabase.rpc("participant_capacity_price_ils", {
+    p_user_id: userId,
+    p_manual_participant_id: manualParticipantId,
+    p_max_participants: sessionMeta.max_participants,
+    p_is_kickbox: sessionMeta.is_kickbox,
+    p_as_of: sessionMeta.session_date,
+  });
+  if (!error && data != null) {
+    const tier = Number(data);
+    if (Number.isFinite(tier) && tier > 0) return tier;
+  }
+
+  return 0;
 }
 
 export async function sumSessionBillingPrices(

@@ -13,7 +13,8 @@ import {
   paymentDisplayTone,
   SESSION_PAYMENT_METHOD_KEYS,
 } from "../lib/paymentMethod";
-import { fetchSessionBillingPriceIls } from "../lib/sessionSlotPrice";
+import { fetchSessionBillingPriceIls, resolveRowBillingPriceIls } from "../lib/sessionSlotPrice";
+import { RosterSlotRateChip, formatRosterIls, type SessionRateMeta } from "./RosterSlotRateChip";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueries";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
@@ -132,6 +133,9 @@ export function ParticipantAttendanceList({
   const { showConfirm, showAlert, showOk } = useAppAlert();
   const [rows, setRows] = useState<Row[]>([]);
   const [maxParticipants, setMaxParticipants] = useState<number | null>(null);
+  const [sessionMeta, setSessionMeta] = useState<SessionRateMeta | null>(null);
+  const [rosterPriceByRowId, setRosterPriceByRowId] = useState<Record<string, number>>({});
+  const [effectivePriceByRowId, setEffectivePriceByRowId] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [duplicateRosterSessionId, setDuplicateRosterSessionId] = useState<string | null>(null);
@@ -221,10 +225,39 @@ export function ParticipantAttendanceList({
 
     const { data: s } = await supabase
       .from("training_sessions")
-      .select("max_participants, session_date, start_time, coach_id")
+      .select("max_participants, session_date, start_time, coach_id, is_kickbox, custom_slot_price_ils")
       .eq("id", sessionId)
       .single();
-    setMaxParticipants((s as { max_participants?: number } | null)?.max_participants ?? null);
+    const sess = s as {
+      max_participants?: number;
+      session_date?: string;
+      is_kickbox?: boolean;
+      custom_slot_price_ils?: number | string | null;
+    } | null;
+    setMaxParticipants(sess?.max_participants ?? null);
+    if (sess?.max_participants && sess.session_date) {
+      const custom = sess.custom_slot_price_ils;
+      setSessionMeta({
+        max_participants: sess.max_participants,
+        is_kickbox: !!sess.is_kickbox,
+        session_date: sess.session_date,
+        custom_slot_price_ils:
+          custom != null && custom !== "" && Number.isFinite(Number(custom)) ? Number(custom) : null,
+      });
+    } else {
+      setSessionMeta(null);
+    }
+
+    const { data: rosterPriceRows } = await supabase
+      .from("session_roster_slot_prices")
+      .select("user_id, manual_participant_id, price_ils")
+      .eq("session_id", sessionId);
+    const rosterMap: Record<string, number> = {};
+    for (const rp of (rosterPriceRows as { user_id?: string; manual_participant_id?: string; price_ils: number | string }[] | null) ?? []) {
+      const key = rp.user_id ? `u:${rp.user_id}` : `m:${rp.manual_participant_id}`;
+      const n = Number(rp.price_ils);
+      if (key && Number.isFinite(n)) rosterMap[key] = n;
+    }
 
     let regRes = await fetchSessionRegistrationsWithProfiles(sessionId);
 
@@ -309,6 +342,22 @@ export function ParticipantAttendanceList({
     let noShowCollectedIls = 0;
     let expectedPaymentsIls = 0;
     let expectedPaymentSlots = 0;
+    const effectiveMap: Record<string, number> = {};
+    const metaForBilling =
+      sess?.max_participants && sess.session_date
+        ? {
+            max_participants: sess.max_participants,
+            is_kickbox: !!sess.is_kickbox,
+            session_date: sess.session_date,
+            custom_slot_price_ils:
+              sess.custom_slot_price_ils != null &&
+              sess.custom_slot_price_ils !== "" &&
+              Number.isFinite(Number(sess.custom_slot_price_ils))
+                ? Number(sess.custom_slot_price_ils)
+                : null,
+          }
+        : null;
+
     for (const r of all) {
       if (normalizePaymentMethodKey(r.paymentMethod) !== "(none)") withPaymentMethod += 1;
       if (r.amountPaid != null && r.amountPaid > 0) totalPaidIls += r.amountPaid;
@@ -316,21 +365,31 @@ export function ParticipantAttendanceList({
         noShowChargedCount += 1;
         if (r.amountPaid != null && r.amountPaid > 0) noShowCollectedIls += r.amountPaid;
       }
-    }
-    for (const r of all) {
-      const owes = r.attended === true || (r.attended === false && r.chargeNoShow);
-      if (!owes) continue;
-      expectedPaymentSlots += 1;
+
       const userId = r.kind === "registered" ? r.userId : null;
       const manualParticipantId = r.kind === "manual" ? r.manualId : null;
+      const rosterOverride = rosterMap[r.id] ?? null;
       // eslint-disable-next-line no-await-in-loop
-      expectedPaymentsIls += await fetchSessionBillingPriceIls(
-        supabase,
-        sessionId,
-        userId,
-        manualParticipantId
-      );
+      const price = metaForBilling
+        ? await resolveRowBillingPriceIls(
+            supabase,
+            sessionId,
+            userId,
+            manualParticipantId,
+            metaForBilling,
+            rosterOverride
+          )
+        : await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
+      effectiveMap[r.id] = price;
+
+      const owes = r.attended === true || (r.attended === false && r.chargeNoShow);
+      if (owes) {
+        expectedPaymentSlots += 1;
+        expectedPaymentsIls += price;
+      }
     }
+    setRosterPriceByRowId(rosterMap);
+    setEffectivePriceByRowId(effectiveMap);
     setRows(all);
     onParticipantCountChange?.(all.length);
     onAttendanceStatsChange?.({
@@ -385,7 +444,20 @@ export function ParticipantAttendanceList({
   async function defaultBillingAmountDraft(row: Row): Promise<string> {
     const userId = row.kind === "registered" ? row.userId : null;
     const manualParticipantId = row.kind === "manual" ? row.manualId : null;
-    const price = await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
+    const cached = effectivePriceByRowId[row.id];
+    const price =
+      cached != null && cached > 0
+        ? cached
+        : sessionMeta
+          ? await resolveRowBillingPriceIls(
+              supabase,
+              sessionId,
+              userId,
+              manualParticipantId,
+              sessionMeta,
+              rosterPriceByRowId[row.id] ?? null
+            )
+          : await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
     if (price <= 0) return "";
     return formatBillingAmountDraft(price);
   }
@@ -580,6 +652,8 @@ export function ParticipantAttendanceList({
         const current: AttendanceStatus =
           item.attended === true ? "arrived" : item.attended === false ? "absent" : "unset";
         const busy = busyKey === item.id || busyKey === "__all__";
+        const effectivePrice = effectivePriceByRowId[item.id] ?? 0;
+        const hasRateOverride = rosterPriceByRowId[item.id] != null;
         return (
           <View key={item.id} style={styles.card}>
             <View style={[styles.nameRow, isRTL && styles.nameRowRtl]}>
@@ -591,6 +665,22 @@ export function ParticipantAttendanceList({
                 {item.phone ? (
                   <Text style={[styles.sub, isRTL && styles.rtlText]} numberOfLines={1}>
                     {item.phone}
+                  </Text>
+                ) : null}
+                {sessionMeta && effectivePrice > 0 ? (
+                  <Text
+                    style={[
+                      styles.dueLine,
+                      isRTL && styles.rtlText,
+                      hasRateOverride && styles.dueLineCustom,
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {t("managerSession.rosterSlotRateDue").replace(
+                      "{amount}",
+                      formatRosterIls(effectivePrice, language)
+                    )}
+                    {hasRateOverride ? ` · ${t("managerSession.rosterSlotRateCustomBadge")}` : ""}
                   </Text>
                 ) : null}
                 {item.attended === true ? (
@@ -662,6 +752,21 @@ export function ParticipantAttendanceList({
                 ) : null}
               </View>
               <View style={[styles.nameRight, isRTL && styles.nameRightRtl]}>
+                {sessionMeta ? (
+                  <RosterSlotRateChip
+                    sessionId={sessionId}
+                    userId={item.kind === "registered" ? item.userId : null}
+                    manualParticipantId={item.kind === "manual" ? item.manualId : null}
+                    participantName={item.name}
+                    rosterPriceIls={rosterPriceByRowId[item.id] ?? null}
+                    effectivePriceIls={effectivePriceByRowId[item.id] ?? 0}
+                    disabled={busy}
+                    onSaved={() => {
+                      void load();
+                      onChanged?.();
+                    }}
+                  />
+                ) : null}
                 {busy ? <ActivityIndicator size="small" color={theme.colors.cta} /> : null}
                 {item.kind === "registered" && onRemoveAthlete && !busy ? (
                   <Pressable
@@ -899,6 +1004,8 @@ const styles = StyleSheet.create({
   name: { flex: 1, fontSize: 16, fontWeight: "700", color: theme.colors.text },
   bday: { color: theme.colors.cta, fontWeight: "900" },
   sub: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
+  dueLine: { marginTop: 6, fontSize: 14, fontWeight: "800", color: theme.colors.text },
+  dueLineCustom: { color: theme.colors.cta },
   paymentLine: { marginTop: 6, fontSize: 13, fontWeight: "800" },
   paymentUnpaid: { color: theme.colors.error },
   paymentCash: { color: theme.colors.success },

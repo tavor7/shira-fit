@@ -21,11 +21,17 @@ import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
 import { lastNDaysRangeISO } from "../lib/isoDate";
-import { paymentMethodHistoryLabel } from "../lib/paymentMethod";
+import {
+  paymentMethodHistoryLabel,
+  SESSION_PAYMENT_METHOD_KEYS,
+  type SessionPaymentMethodKey,
+  normalizePaymentMethodKey,
+} from "../lib/paymentMethod";
 import { type FamilyMemberKind, memberPayeeKey, parseFamilyMembers } from "../lib/athleteFamilies";
 import type { AthleteAccountPayment } from "../types/database";
 
 type DateMode = "all" | "range";
+type PaymentMethodFilter = "all" | SessionPaymentMethodKey;
 
 type PayeeFilter =
   | { type: "all" }
@@ -78,6 +84,7 @@ export default function AccountPaymentsScreen() {
   const [dateStart, setDateStart] = useState(defaultRange.start);
   const [dateEnd, setDateEnd] = useState(defaultRange.end);
   const [payeeFilter, setPayeeFilter] = useState<PayeeFilter>({ type: "all" });
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethodFilter>("all");
 
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,7 +134,10 @@ export default function AccountPaymentsScreen() {
       return;
     }
 
-    const payRows = (data as AthleteAccountPayment[]) ?? [];
+    let payRows = (data as AthleteAccountPayment[]) ?? [];
+    if (paymentMethodFilter !== "all") {
+      payRows = payRows.filter((p) => normalizePaymentMethodKey(p.payment_method) === paymentMethodFilter);
+    }
     const appIds = [...new Set(payRows.filter((p) => !p.payee_is_manual).map((p) => p.payee_id))];
     const manualIds = [...new Set(payRows.filter((p) => p.payee_is_manual).map((p) => p.payee_id))];
     const staffIds = [...new Set(payRows.map((p) => p.created_by).filter((id): id is string => !!id))];
@@ -191,7 +201,7 @@ export default function AccountPaymentsScreen() {
         };
       })
     );
-  }, [dateMode, dateStart, dateEnd, payeeFilter, showToast, t]);
+  }, [dateMode, dateStart, dateEnd, payeeFilter, paymentMethodFilter, showToast, t]);
 
   const reload = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -401,6 +411,14 @@ export default function AccountPaymentsScreen() {
     { id: "range", label: t("accountPayments.dateRange") },
   ];
 
+  const paymentMethodOptions: { id: PaymentMethodFilter; label: string }[] = [
+    { id: "all", label: t("accountPayments.allMethods") },
+    ...SESSION_PAYMENT_METHOD_KEYS.map((key) => ({
+      id: key as PaymentMethodFilter,
+      label: paymentMethodHistoryLabel(key, language),
+    })),
+  ];
+
   const listHeader = (
     <View style={styles.headerBlock}>
       <ManagerStudioSetupTabs />
@@ -453,6 +471,24 @@ export default function AccountPaymentsScreen() {
             />
           </View>
         ) : null}
+
+        <Text style={[styles.sectionLabel, styles.sectionSpaced, isRTL && styles.rtl]}>{t("accountPayments.methodFilter")}</Text>
+        <View style={[styles.methodChipRow, rtlRow && styles.methodChipRowRtl]}>
+          {paymentMethodOptions.map((opt) => {
+            const on = paymentMethodFilter === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
+                onPress={() => setPaymentMethodFilter(opt.id)}
+                style={({ pressed }) => [styles.methodChip, on && styles.methodChipOn, pressed && !on && { opacity: 0.9 }]}
+              >
+                <Text style={[styles.methodChipText, on && styles.methodChipTextOn]} numberOfLines={1}>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         <View style={[styles.summaryRow, rtlRow && styles.summaryRowRtl]}>
           <View style={styles.summaryStat}>
@@ -749,6 +785,19 @@ const styles = StyleSheet.create({
   dateModeChipText: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
   dateModeChipTextOn: { color: theme.colors.ctaText },
   dateRangeWrap: { marginTop: theme.spacing.xs },
+  methodChipRow: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm },
+  methodChipRowRtl: { flexDirection: "row-reverse" },
+  methodChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  methodChipOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  methodChipText: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
+  methodChipTextOn: { color: theme.colors.ctaText },
   summaryRow: {
     flexDirection: "row",
     alignItems: "center",
