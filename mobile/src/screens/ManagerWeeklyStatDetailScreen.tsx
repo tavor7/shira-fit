@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
   Platform,
+  Alert,
 } from "react-native";
 import { Stack, useLocalSearchParams, router, type Href } from "expo-router";
 import { theme } from "../theme";
@@ -22,6 +23,51 @@ import {
 import { formatSessionTimeRange, sessionStartsAt, isCancellationWithinHoursBeforeSession } from "../lib/sessionTime";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
+
+type SessionBrief = {
+  session_date: string;
+  start_time: string;
+  duration_minutes: number;
+};
+
+async function fetchSessionsById(ids: string[]): Promise<Map<string, SessionBrief>> {
+  if (ids.length === 0) return new Map();
+  const { data, error } = await supabase
+    .from("training_sessions")
+    .select("id, session_date, start_time, duration_minutes")
+    .in("id", ids);
+  if (error) throw error;
+  const map = new Map<string, SessionBrief>();
+  for (const s of (data ?? []) as {
+    id: string;
+    session_date: string;
+    start_time: string;
+    duration_minutes?: number | null;
+  }[]) {
+    map.set(s.id, {
+      session_date: s.session_date,
+      start_time: s.start_time,
+      duration_minutes: s.duration_minutes ?? 60,
+    });
+  }
+  return map;
+}
+
+async function fetchProfileNames(userIds: string[]): Promise<Map<string, string>> {
+  if (userIds.length === 0) return new Map();
+  const { data, error } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
+  if (error) throw error;
+  return new Map(
+    ((data ?? []) as { user_id: string; full_name: string }[]).map((p) => [p.user_id, p.full_name])
+  );
+}
+
+async function fetchManualNames(manualIds: string[]): Promise<Map<string, string>> {
+  if (manualIds.length === 0) return new Map();
+  const { data, error } = await supabase.from("manual_participants").select("id, full_name").in("id", manualIds);
+  if (error) throw error;
+  return new Map(((data ?? []) as { id: string; full_name: string }[]).map((m) => [m.id, m.full_name]));
+}
 
 export type WeeklyDetailKind =
   | "avg_fill"
@@ -47,6 +93,136 @@ function parseKind(s: string | undefined): WeeklyDetailKind | null {
 function oneRelation<T>(x: T | T[] | null | undefined): T | null {
   if (x == null) return null;
   return Array.isArray(x) ? (x[0] ?? null) : x;
+}
+
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === "object" && "message" in e) {
+    const msg = (e as { message: unknown }).message;
+    if (typeof msg === "string" && msg.trim()) return msg;
+  }
+  try {
+    return JSON.stringify(e);
+  } catch {
+    return String(e);
+  }
+}
+
+type NoShowRow = {
+  key: string;
+  kind: "registered" | "manual";
+  userId?: string;
+  manualParticipantId?: string;
+  name: string;
+  session_id: string;
+  session_date: string;
+  start_time: string;
+  duration_minutes: number;
+  chargeNoShow: boolean;
+};
+
+function NoShowRowCard({
+  row,
+  language,
+  isRTL,
+  t,
+}: {
+  row: NoShowRow;
+  language: string;
+  isRTL: boolean;
+  t: (key: string) => string;
+}) {
+  const [chargeNoShow, setChargeNoShow] = useState(row.chargeNoShow);
+  const [busy, setBusy] = useState(false);
+
+  async function setCharge(charge: boolean) {
+    if (busy || charge === chargeNoShow) return;
+    setBusy(true);
+    try {
+      const res =
+        row.kind === "registered"
+          ? await supabase.rpc("set_registration_attendance", {
+              p_session_id: row.session_id,
+              p_user_id: row.userId,
+              p_status: "absent",
+              p_payment_method: null,
+              p_amount_paid: null,
+              p_charge_no_show: charge,
+            })
+          : await supabase.rpc("set_manual_participant_attendance", {
+              p_session_id: row.session_id,
+              p_manual_participant_id: row.manualParticipantId,
+              p_status: "absent",
+              p_payment_method: null,
+              p_amount_paid: null,
+              p_charge_no_show: charge,
+            });
+      if (res.error) {
+        Alert.alert(t("common.error"), res.error.message);
+        return;
+      }
+      if (res.data?.ok !== true) {
+        Alert.alert(
+          language === "he" ? "לא ניתן לשמור" : "Could not save",
+          String(res.data?.error ?? "")
+        );
+        return;
+      }
+      setChargeNoShow(charge);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <View style={styles.rowCard}>
+      <Pressable
+        onPress={() => router.push(`/(app)/manager/session/${row.session_id}` as Href)}
+        style={({ pressed }) => [styles.noShowHead, pressed && styles.rowCardPressed]}
+      >
+        <Text style={[styles.rowTitle, isRTL && styles.rtl]} numberOfLines={2}>
+          {row.name}
+        </Text>
+        <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={2}>
+          {formatISODateFullWithWeekdayAfter(row.session_date, language)} ·{" "}
+          {formatSessionTimeRange(row.start_time, row.duration_minutes)}
+        </Text>
+      </Pressable>
+      <View style={[styles.noShowFeeRow, isRTL && styles.noShowFeeRowRtl]}>
+        <Text style={[styles.noShowFeeLabel, isRTL && styles.rtl]}>
+          {t("participantHistory.noShowChargeHeading")}
+        </Text>
+        <View style={[styles.noShowFeeSeg, isRTL && styles.noShowFeeSegRtl]}>
+          <Pressable
+            disabled={busy}
+            onPress={() => void setCharge(false)}
+            style={({ pressed }) => [
+              styles.noShowFeeBtn,
+              !chargeNoShow && styles.noShowFeeBtnOn,
+              pressed && styles.segBtnPressed,
+            ]}
+          >
+            <Text style={[styles.noShowFeeBtnTxt, !chargeNoShow && styles.noShowFeeBtnTxtOn]}>
+              {language === "he" ? "לא" : "No"}
+            </Text>
+          </Pressable>
+          <Pressable
+            disabled={busy}
+            onPress={() => void setCharge(true)}
+            style={({ pressed }) => [
+              styles.noShowFeeBtn,
+              chargeNoShow && styles.noShowFeeBtnOn,
+              pressed && styles.segBtnPressed,
+            ]}
+          >
+            <Text style={[styles.noShowFeeBtnTxt, chargeNoShow && styles.noShowFeeBtnTxtOn]}>
+              {language === "he" ? "כן" : "Yes"}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
 }
 
 export default function ManagerWeeklyStatDetailScreen() {
@@ -232,69 +408,87 @@ export default function ManagerWeeklyStatDetailScreen() {
       }
 
       if (kind === "no_shows") {
-        const { data, error: qErr } = await supabase
-          .from("session_registrations")
-          .select(
-            "user_id, session_id, profiles!user_id(full_name), training_sessions(session_date, start_time, duration_minutes)"
-          )
-          .eq("status", "active")
-          .eq("attended", false)
-          .in("session_id", sessionIds);
-        if (qErr) throw qErr;
-        const now = Date.now();
-        const raw = (data ?? []) as unknown as {
+        const [regRes, manRes, sessionsById] = await Promise.all([
+          supabase
+            .from("session_registrations")
+            .select("user_id, session_id, charge_no_show")
+            .eq("status", "active")
+            .eq("attended", false)
+            .in("session_id", sessionIds),
+          supabase
+            .from("session_manual_participants")
+            .select("session_id, manual_participant_id, charge_no_show")
+            .eq("attended", false)
+            .in("session_id", sessionIds),
+          fetchSessionsById(sessionIds),
+        ]);
+        if (regRes.error) throw regRes.error;
+        if (manRes.error) throw manRes.error;
+
+        const regList = (regRes.data ?? []) as {
           user_id: string;
           session_id: string;
-          profiles: { full_name: string } | { full_name: string }[] | null;
-          training_sessions:
-            | {
-                session_date: string;
-                start_time: string;
-                duration_minutes?: number | null;
-              }
-            | {
-                session_date: string;
-                start_time: string;
-                duration_minutes?: number | null;
-              }[]
-            | null;
+          charge_no_show: boolean | null;
         }[];
-        const list = raw.filter((r) => {
-          const sess = oneRelation(r.training_sessions as any);
-          if (!sess?.session_date || !sess.start_time) return false;
-          return sessionStartsAt(sess.session_date, sess.start_time).getTime() < now;
-        });
-        list.sort((a, b) => {
-          const sa = oneRelation(a.training_sessions as any);
-          const sb = oneRelation(b.training_sessions as any);
-          const ka = `${sa?.session_date ?? ""} ${sa?.start_time ?? ""}`;
-          const kb = `${sb?.session_date ?? ""} ${sb?.start_time ?? ""}`;
-          return ka.localeCompare(kb);
-        });
+        const manList = (manRes.data ?? []) as {
+          session_id: string;
+          manual_participant_id: string;
+          charge_no_show: boolean | null;
+        }[];
+        const [profileNames, manualNames] = await Promise.all([
+          fetchProfileNames([...new Set(regList.map((r) => r.user_id))]),
+          fetchManualNames([...new Set(manList.map((r) => r.manual_participant_id))]),
+        ]);
+
+        const now = Date.now();
+        const rows: NoShowRow[] = [];
+
+        for (const r of regList) {
+          const sess = sessionsById.get(r.session_id);
+          if (!sess?.session_date || !sess.start_time) continue;
+          if (sessionStartsAt(sess.session_date, sess.start_time).getTime() >= now) continue;
+          rows.push({
+            key: `u:${r.session_id}:${r.user_id}`,
+            kind: "registered",
+            userId: r.user_id,
+            name: profileNames.get(r.user_id) ?? r.user_id,
+            session_id: r.session_id,
+            session_date: sess.session_date,
+            start_time: sess.start_time,
+            duration_minutes: sess.duration_minutes,
+            chargeNoShow: r.charge_no_show === true,
+          });
+        }
+
+        for (const r of manList) {
+          const sess = sessionsById.get(r.session_id);
+          if (!sess?.session_date || !sess.start_time) continue;
+          if (sessionStartsAt(sess.session_date, sess.start_time).getTime() >= now) continue;
+          rows.push({
+            key: `m:${r.session_id}:${r.manual_participant_id}`,
+            kind: "manual",
+            manualParticipantId: r.manual_participant_id,
+            name:
+              manualNames.get(r.manual_participant_id) ??
+              (language === "he" ? "משתתף ידני" : "Manual participant"),
+            session_id: r.session_id,
+            session_date: sess.session_date,
+            start_time: sess.start_time,
+            duration_minutes: sess.duration_minutes,
+            chargeNoShow: r.charge_no_show === true,
+          });
+        }
+
+        rows.sort((a, b) =>
+          `${a.session_date} ${a.start_time}`.localeCompare(`${b.session_date} ${b.start_time}`)
+        );
+
         setBody(
           <View style={styles.list}>
-            {list.map((r) => {
-              const p = r.profiles ? oneRelation(r.profiles) : null;
-              const sess = oneRelation(r.training_sessions as any);
-              const name = p?.full_name ?? r.user_id;
-              return (
-                <Pressable
-                  key={`${r.session_id}-${r.user_id}`}
-                  onPress={() => router.push(`/(app)/manager/session/${r.session_id}` as Href)}
-                  style={({ pressed }) => [styles.rowCard, pressed && styles.rowCardPressed]}
-                >
-                  <Text style={[styles.rowTitle, isRTL && styles.rtl]} numberOfLines={2}>
-                    {name}
-                  </Text>
-                  <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={2}>
-                    {sess
-                      ? `${formatISODateFullWithWeekdayAfter(sess.session_date, language)} · ${formatSessionTimeRange(sess.start_time, sess.duration_minutes ?? 60)}`
-                      : "—"}
-                  </Text>
-                </Pressable>
-              );
-            })}
-            {list.length === 0 ? (
+            {rows.map((r) => (
+              <NoShowRowCard key={r.key} row={r} language={language} isRTL={isRTL} t={t} />
+            ))}
+            {rows.length === 0 ? (
               <Text style={[styles.empty, isRTL && styles.rtl]}>{t("dashboard.detailEmpty")}</Text>
             ) : null}
           </View>
@@ -352,21 +546,30 @@ export default function ManagerWeeklyStatDetailScreen() {
       }
 
       if (kind === "checked_in") {
-        const [regRes, manRes] = await Promise.all([
+        const [regRes, manRes, sessionsById] = await Promise.all([
           supabase
             .from("session_registrations")
-            .select("user_id, session_id, profiles!user_id(full_name), training_sessions(session_date, start_time, duration_minutes)")
+            .select("user_id, session_id")
             .eq("status", "active")
             .eq("attended", true)
             .in("session_id", sessionIds),
           supabase
             .from("session_manual_participants")
-            .select("session_id, manual_participants(full_name), training_sessions(session_date, start_time, duration_minutes)")
+            .select("session_id, manual_participant_id")
             .eq("attended", true)
             .in("session_id", sessionIds),
+          fetchSessionsById(sessionIds),
         ]);
         if (regRes.error) throw regRes.error;
         if (manRes.error) throw manRes.error;
+
+        const regList = (regRes.data ?? []) as { user_id: string; session_id: string }[];
+        const manList = (manRes.data ?? []) as { session_id: string; manual_participant_id: string }[];
+        const [profileNames, manualNames] = await Promise.all([
+          fetchProfileNames([...new Set(regList.map((r) => r.user_id))]),
+          fetchManualNames([...new Set(manList.map((r) => r.manual_participant_id))]),
+        ]);
+
         type Row = {
           name: string;
           session_id: string;
@@ -375,28 +578,28 @@ export default function ManagerWeeklyStatDetailScreen() {
           duration_minutes: number;
         };
         const rows: Row[] = [];
-        for (const r of (regRes.data ?? []) as any[]) {
-          const pr = r.profiles ? oneRelation(r.profiles) : null;
-          const sess = oneRelation(r.training_sessions);
+        for (const r of regList) {
+          const sess = sessionsById.get(r.session_id);
           if (!sess?.session_date) continue;
           rows.push({
-            name: pr?.full_name ?? r.user_id,
+            name: profileNames.get(r.user_id) ?? r.user_id,
             session_id: r.session_id,
             session_date: sess.session_date,
             start_time: sess.start_time,
-            duration_minutes: sess.duration_minutes ?? 60,
+            duration_minutes: sess.duration_minutes,
           });
         }
-        for (const r of (manRes.data ?? []) as any[]) {
-          const mp = r.manual_participants ? oneRelation(r.manual_participants) : null;
-          const sess = oneRelation(r.training_sessions);
+        for (const r of manList) {
+          const sess = sessionsById.get(r.session_id);
           if (!sess?.session_date) continue;
           rows.push({
-            name: mp?.full_name ?? (language === "he" ? "משתתף ידני" : "Manual participant"),
+            name:
+              manualNames.get(r.manual_participant_id) ??
+              (language === "he" ? "משתתף ידני" : "Manual participant"),
             session_id: r.session_id,
             session_date: sess.session_date,
             start_time: sess.start_time,
-            duration_minutes: sess.duration_minutes ?? 60,
+            duration_minutes: sess.duration_minutes,
           });
         }
         rows.sort((a, b) =>
@@ -429,7 +632,7 @@ export default function ManagerWeeklyStatDetailScreen() {
 
       setBody(null);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
       setBody(null);
     } finally {
       setLoading(false);
@@ -454,6 +657,7 @@ export default function ManagerWeeklyStatDetailScreen() {
       <Stack.Screen options={{ title }} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
         <ManagerOverviewHubTabs />
+        {kind ? <Text style={[styles.h, isRTL && styles.rtl]}>{title}</Text> : null}
         {rangeLabel ? (
           <Text style={[styles.range, isRTL && styles.rtl]}>{rangeLabel}</Text>
         ) : null}
@@ -472,6 +676,7 @@ export default function ManagerWeeklyStatDetailScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: 40 },
+  h: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginBottom: 4 },
   range: {
     fontSize: 13,
     fontWeight: "700",
@@ -490,9 +695,32 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   rowCardPressed: { opacity: Platform.OS === "web" ? 0.92 : 0.88 },
+  noShowHead: { marginBottom: 10 },
   rowTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
   rowMeta: { marginTop: 6, fontSize: 14, fontWeight: "600", color: theme.colors.textMuted },
   rowDetail: { marginTop: 8, fontSize: 14, color: theme.colors.text, lineHeight: 20 },
   rowHint: { marginTop: 6, fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
+  noShowFeeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.borderMuted,
+  },
+  noShowFeeRowRtl: { flexDirection: "row-reverse" },
+  noShowFeeLabel: { flex: 1, fontSize: 13, fontWeight: "700", color: theme.colors.textSoft },
+  noShowFeeSeg: { flexDirection: "row", borderRadius: theme.radius.md, overflow: "hidden", borderWidth: 1, borderColor: theme.colors.borderMuted },
+  noShowFeeSegRtl: { flexDirection: "row-reverse" },
+  noShowFeeBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: theme.colors.surface,
+  },
+  noShowFeeBtnOn: { backgroundColor: theme.colors.cta },
+  noShowFeeBtnTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
+  noShowFeeBtnTxtOn: { color: theme.colors.ctaText },
+  segBtnPressed: { opacity: 0.85 },
   empty: { marginTop: 12, color: theme.colors.textSoft, fontWeight: "600" },
 });
