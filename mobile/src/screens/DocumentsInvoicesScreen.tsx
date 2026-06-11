@@ -34,6 +34,7 @@ import {
   getDocumentPdfSignedUrl,
   invokeGenerateDocumentPdf,
   invokeSendDocumentEmail,
+  invokeSendDocumentsEmail,
   listDocuments,
   logDocumentEvent,
   prepareDocumentPdfRegeneration,
@@ -376,25 +377,26 @@ export default function DocumentsInvoicesScreen() {
       return;
     }
     setBulkAccountantBusy(true);
-    let sent = 0;
-    let failed = 0;
     try {
-      for (const doc of eligible) {
-        try {
-          await invokeSendDocumentEmail(doc.id, accountant);
-          sent += 1;
-        } catch {
-          failed += 1;
-        }
-      }
+      const result = await invokeSendDocumentsEmail({
+        documentIds: eligible.map((d) => d.id),
+        mode: "accountant",
+        recipientEmail: accountant,
+      });
       showToast({
         message:
           language === "he"
-            ? `נשלחו ${sent} לרו״ח${failed ? ` · ${failed} נכשלו` : ""}`
-            : `${sent} sent to accountant${failed ? ` · ${failed} failed` : ""}`,
-        variant: failed ? "info" : "success",
+            ? `נשלח אימייל אחד לרו״ח עם ${result.documents_sent} קבלות`
+            : `1 email sent to accountant with ${result.documents_sent} receipt(s)`,
+        variant: "success",
       });
       void load();
+    } catch (e) {
+      showToast({
+        message: language === "he" ? "שליחה לרו״ח נכשלה" : "Failed to send to accountant",
+        detail: e instanceof Error ? e.message : undefined,
+        variant: "error",
+      });
     } finally {
       setBulkAccountantBusy(false);
     }

@@ -909,7 +909,7 @@ const styles = StyleSheet.create({
   dateModeChipOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   dateModeChipText: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
   dateModeChipTextOn: { color: theme.colors.ctaText },
-  dateRangeWrap: { marginTop: theme.spacing.xs },
+  dateRangeWrap: { marginTop: theme.spacing.xs, width: "100%", maxWidth: "100%", minWidth: 0 },
   methodChipRow: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm },
   methodChipRowRtl: { flexDirection: "row-reverse" },
   methodChip: {

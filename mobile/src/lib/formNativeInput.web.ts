@@ -8,7 +8,10 @@ export function webFormNativeInputStyle(
   const embedded = appearance === "embedded";
   const auth = appearance === "auth";
   const base: CSSProperties = {
+    display: "block",
     width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
     boxSizing: "border-box",
     height: auth ? 48 : embedded ? 44 : 48,
     maxHeight: auth ? 48 : undefined,

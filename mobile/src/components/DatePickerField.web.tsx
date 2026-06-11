@@ -23,24 +23,27 @@ export function DatePickerField({
   return (
     <View style={[styles.wrap, embedded && styles.wrapEmbedded, auth && styles.wrapAuth]}>
       <Text style={[styles.label, auth && styles.labelAuth, isRTL && styles.rtlText]}>{label}</Text>
-      {createElement("input", {
-        type: "date",
-        value: value || "",
-        min,
-        max,
-        onChange: (e: { target: { value: string } }) => onChange(e.target.value),
-        onKeyDown: (e: { preventDefault: () => void }) => e.preventDefault(),
-        onPaste: (e: { preventDefault: () => void }) => e.preventDefault(),
-        onBeforeInput: (e: { preventDefault: () => void }) => e.preventDefault(),
-        autoComplete: "off",
-        style: webFormNativeInputStyle(isRTL, appearance),
-      })}
+      <View style={styles.inputShell}>
+        {createElement("input", {
+          type: "date",
+          value: value || "",
+          min,
+          max,
+          onChange: (e: { target: { value: string } }) => onChange(e.target.value),
+          onKeyDown: (e: { preventDefault: () => void }) => e.preventDefault(),
+          onPaste: (e: { preventDefault: () => void }) => e.preventDefault(),
+          onBeforeInput: (e: { preventDefault: () => void }) => e.preventDefault(),
+          autoComplete: "off",
+          style: webFormNativeInputStyle(isRTL, appearance),
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginTop: theme.spacing.sm, alignSelf: "stretch", minWidth: 0 },
+  wrap: { marginTop: theme.spacing.sm, alignSelf: "stretch", minWidth: 0, width: "100%", maxWidth: "100%" },
+  inputShell: { width: "100%", maxWidth: "100%", minWidth: 0, overflow: "hidden" },
   wrapEmbedded: { marginTop: 0 },
   wrapAuth: { marginTop: 0, marginBottom: theme.spacing.sm },
   label: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },

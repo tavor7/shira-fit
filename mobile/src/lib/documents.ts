@@ -366,6 +366,12 @@ export async function invokeGenerateDocumentPdf(documentId: string, allowOverwri
   return row.signature_hash ?? null;
 }
 
+export type SendDocumentsEmailResult = {
+  emails_sent: number;
+  documents_sent: number;
+  skipped_no_email?: number;
+};
+
 export async function invokeSendDocumentEmail(documentId: string, recipientEmail: string): Promise<void> {
   const { data, error } = await supabase.functions.invoke("send-document-email", {
     body: { document_id: documentId, recipient_email: recipientEmail },
@@ -373,6 +379,39 @@ export async function invokeSendDocumentEmail(documentId: string, recipientEmail
   if (error) throw error;
   const row = data as { ok?: boolean; error?: string };
   if (!row?.ok) throw new Error(row?.error ?? "email_send_failed");
+}
+
+export async function invokeSendDocumentsEmail(opts: {
+  documentIds: string[];
+  mode: "accountant" | "customers";
+  recipientEmail?: string;
+}): Promise<SendDocumentsEmailResult> {
+  const ids = opts.documentIds.filter(Boolean);
+  if (ids.length === 0) return { emails_sent: 0, documents_sent: 0 };
+
+  const body: Record<string, unknown> = { document_ids: ids };
+  if (opts.mode === "customers") {
+    body.mode = "customers";
+  } else {
+    if (!opts.recipientEmail?.trim()) throw new Error("missing_recipient");
+    body.recipient_email = opts.recipientEmail.trim();
+  }
+
+  const { data, error } = await supabase.functions.invoke("send-document-email", { body });
+  if (error) throw error;
+  const row = data as {
+    ok?: boolean;
+    error?: string;
+    emails_sent?: number;
+    documents_sent?: number;
+    skipped_no_email?: number;
+  };
+  if (!row?.ok) throw new Error(row?.error ?? "email_send_failed");
+  return {
+    emails_sent: row.emails_sent ?? 0,
+    documents_sent: row.documents_sent ?? 0,
+    skipped_no_email: row.skipped_no_email,
+  };
 }
 
 export async function publishLegalDocument(

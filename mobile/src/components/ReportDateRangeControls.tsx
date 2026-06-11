@@ -248,7 +248,7 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 0 },
+  wrap: { gap: 0, width: "100%", maxWidth: "100%", minWidth: 0 },
   rtlText: { textAlign: "right" },
   segmentTrack: {
     flexDirection: "row",
@@ -345,7 +345,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   monthPickChev: { fontSize: 10, color: theme.colors.textMuted, marginTop: 2 },
-  rangeFields: { marginBottom: 4 },
+  rangeFields: {
+    marginBottom: 4,
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    gap: theme.spacing.sm,
+  },
   summary: {
     fontSize: 12,
     fontWeight: "600",

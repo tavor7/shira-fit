@@ -149,7 +149,7 @@ export function DatePickerField({
 
 const styles = StyleSheet.create({
   // Critical: allow this field to shrink inside rows without overflowing/overlapping.
-  wrap: { marginTop: theme.spacing.sm, alignSelf: "stretch", minWidth: 0 },
+  wrap: { marginTop: theme.spacing.sm, alignSelf: "stretch", minWidth: 0, width: "100%", maxWidth: "100%" },
   wrapEmbedded: { marginTop: 0 },
   wrapAuth: { marginTop: 0, marginBottom: theme.spacing.sm },
   label: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
@@ -166,6 +166,8 @@ const styles = StyleSheet.create({
   touch: {
     alignSelf: "stretch",
     minWidth: 0,
+    width: "100%",
+    maxWidth: "100%",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
