@@ -58,6 +58,7 @@ export default function CoachSessionDetail() {
   const [myId, setMyId] = useState<string | null>(null);
   const [waitlistQuickUserId, setWaitlistQuickUserId] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const scrollYRef = useRef(0);
 
   useEffect(() => {
     const t = requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
@@ -269,13 +270,28 @@ export default function CoachSessionDetail() {
     setParticipantCount(n);
   }, []);
 
+  const preserveScrollPosition = useCallback(() => {
+    const y = scrollYRef.current;
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y, animated: false });
+    });
+  }, []);
+
   const maxCapCoach = Math.max(1, sessionMaxParticipants || 1);
 
   return (
     <>
       <Stack.Screen options={{ title: t("screen.coachSession") }} />
       <View style={styles.root}>
-        <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.screen}
+          contentContainerStyle={styles.content}
+          onScroll={(e) => {
+            scrollYRef.current = e.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
+        >
       {isKickbox ? (
         <View style={styles.kickboxBanner}>
           <KickboxSessionBadge isRTL={isRTL} />
@@ -293,6 +309,7 @@ export default function CoachSessionDetail() {
         refreshNonce={participantsRev}
         onChanged={afterParticipantsChange}
         onParticipantCountChange={handleParticipantCountChange}
+        onAttendanceStatsChange={preserveScrollPosition}
         onRemoveAthlete={canEditSession ? removeAthlete : undefined}
         onRemoveManualParticipant={canEditSession ? removeManual : undefined}
       />

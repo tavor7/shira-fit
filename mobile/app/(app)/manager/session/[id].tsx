@@ -266,6 +266,7 @@ export default function ManagerSessionDetail() {
   const [seriesScopeOpen, setSeriesScopeOpen] = useState(false);
   const [seriesScopeMode, setSeriesScopeMode] = useState<"edit" | "delete">("edit");
   const scrollRef = useRef<ScrollView>(null);
+  const scrollYRef = useRef(0);
 
   useEffect(() => {
     if (!editingSession) return;
@@ -715,6 +716,12 @@ export default function ManagerSessionDetail() {
     if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
       pushDiag(`load() finished #${loadCountRef.current} serverFormReady=true`);
     }
+  }
+
+  function afterParticipantsChange() {
+    loadWaitlist();
+    loadCancellations();
+    loadNotes();
   }
 
   async function loadNotes() {
@@ -1175,7 +1182,11 @@ export default function ManagerSessionDetail() {
   }, []);
 
   const handleAttendanceStatsChange = useCallback((s: SessionAttendanceStats) => {
+    const y = scrollYRef.current;
     setAttendanceStats(s);
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y, animated: false });
+    });
   }, []);
 
   async function removeManual(manualId: string) {
@@ -1411,7 +1422,15 @@ export default function ManagerSessionDetail() {
     <>
       <Stack.Screen options={{ title: t("screen.managerSession") }} />
       <View style={styles.root}>
-        <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.screen}
+          contentContainerStyle={styles.content}
+          onScroll={(e) => {
+            scrollYRef.current = e.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
+        >
       {!editingSession ? (
         <View style={styles.summaryCard}>
           <View style={[styles.summaryTitleRow, isRTL && styles.summaryTitleRowRtl]}>
@@ -1757,7 +1776,7 @@ export default function ManagerSessionDetail() {
       <ParticipantAttendanceList
         sessionId={id}
         refreshNonce={participantsRev}
-        onChanged={load}
+        onChanged={afterParticipantsChange}
         onParticipantCountChange={handleParticipantCountChange}
         onAttendanceStatsChange={handleAttendanceStatsChange}
         onRemoveAthlete={removeAthlete}

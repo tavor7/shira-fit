@@ -217,8 +217,11 @@ export function ParticipantAttendanceList({
     });
   }
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
+    if (!silent) {
+      setLoading(true);
+    }
     setLoadError(null);
     setDuplicateRosterSessionId(null);
     onDuplicateRosterSession?.(null);
@@ -488,13 +491,13 @@ export function ParticipantAttendanceList({
   }
 
   function closePaymentModal() {
-    Keyboard.dismiss();
     setPayOpen(false);
     setPayFor(null);
     setPayPhase("method");
     setPayChosenMethod(null);
     setPayAmountDraft("");
     setPayMode("arrived");
+    Keyboard.dismiss();
   }
 
   function parseOptionalAmountInput(s: string): number | null | "invalid" {
@@ -543,7 +546,21 @@ export function ParticipantAttendanceList({
       Alert.alert(language === "he" ? "לא ניתן לשמור" : "Could not save", data?.error ?? "");
       return;
     }
-    await load();
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== key) return r;
+        const attended =
+          status === "unset" ? null : status === "arrived" ? true : false;
+        return {
+          ...r,
+          attended,
+          paymentMethod: status === "unset" ? null : (paymentMethod ?? null),
+          amountPaid: status === "unset" ? null : (amountPaid ?? null),
+          chargeNoShow: status === "absent" ? (chargeNoShow ?? false) : false,
+        };
+      })
+    );
+    await load({ silent: true });
     onChanged?.();
   }
 
@@ -596,7 +613,7 @@ export function ParticipantAttendanceList({
           return;
         }
       }
-      await load();
+      await load({ silent: true });
       onChanged?.();
     } finally {
       setBusyKey(null);
@@ -762,7 +779,7 @@ export function ParticipantAttendanceList({
                     effectivePriceIls={effectivePriceByRowId[item.id] ?? 0}
                     disabled={busy}
                     onSaved={() => {
-                      void load();
+                      void load({ silent: true });
                       onChanged?.();
                     }}
                   />
