@@ -114,15 +114,9 @@ const wrapBase: ViewStyle = {
   overflow: "hidden",
 };
 
-const CANCELLATION_ACCENT = "#f59e0b";
-const CANCELLATION_SUBJECT = "#fbbf24";
-
 function alertAccent(tone?: HomePriorityAlertTone) {
   if (tone === "doubleSession") {
     return { border: theme.colors.calendarNoteHoliday, subject: theme.colors.calendarNoteHoliday };
-  }
-  if (tone === "cancellation") {
-    return { border: CANCELLATION_ACCENT, subject: CANCELLATION_SUBJECT };
   }
   return { border: theme.colors.cta, subject: theme.colors.alertSubject };
 }
