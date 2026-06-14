@@ -11,6 +11,11 @@ import { StatusChip } from "./StatusChip";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
+import { useAppAlert } from "../context/AppAlertContext";
+import {
+  confirmSameDaySecondRegistration,
+  fetchSameDayActiveRegistrations,
+} from "../lib/athleteSameDayRegistration";
 import { appendNetworkHint } from "../lib/networkErrors";
 import { scheduleSessionReminders, cancelSessionReminders } from "../lib/sessionReminders";
 import { clearWaitlistSpotFlag } from "../lib/waitlistSpotNotifier";
@@ -29,6 +34,7 @@ type Props = {
 export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange }: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
+  const { showAlert } = useAppAlert();
   const [userId, setUserId] = useState<string | null>(null);
   const [regId, setRegId] = useState<string | null>(null);
   const [waitlist, setWaitlist] = useState(false);
@@ -83,6 +89,19 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
 
   async function onRegister() {
     if (!next) return;
+    const u = userId ?? (await supabase.auth.getUser()).data.user?.id ?? null;
+    if (u) {
+      const others = await fetchSameDayActiveRegistrations(u, next.session_date, next.id);
+      if (others.length > 0) {
+        const ok = await confirmSameDaySecondRegistration(showAlert, {
+          t,
+          language,
+          sessionDate: next.session_date,
+          others,
+        });
+        if (!ok) return;
+      }
+    }
     setBusy(true);
     const { data, error } = await supabase.rpc("register_for_session", { p_session_id: next.id });
     setBusy(false);

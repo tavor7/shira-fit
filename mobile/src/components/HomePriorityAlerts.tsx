@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
-import type { HomePriorityAlertItem, HomePriorityLabelSegment } from "../lib/homePriorityAlerts";
+import type { HomePriorityAlertItem, HomePriorityAlertTone, HomePriorityLabelSegment } from "../lib/homePriorityAlerts";
 import {
   dismissHomeAlert,
   dismissHomeAlerts,
@@ -107,14 +107,25 @@ type Props = {
 
 const wrapBase: ViewStyle = {
   marginBottom: theme.spacing.sm,
-  borderLeftWidth: 4,
-  borderLeftColor: theme.colors.cta,
   backgroundColor: theme.colors.surface,
   borderRadius: theme.radius.md,
   borderWidth: 1,
   borderColor: theme.colors.borderMuted,
   overflow: "hidden",
 };
+
+const CANCELLATION_ACCENT = "#f59e0b";
+const CANCELLATION_SUBJECT = "#fbbf24";
+
+function alertAccent(tone?: HomePriorityAlertTone) {
+  if (tone === "doubleSession") {
+    return { border: theme.colors.calendarNoteHoliday, subject: theme.colors.calendarNoteHoliday };
+  }
+  if (tone === "cancellation") {
+    return { border: CANCELLATION_ACCENT, subject: CANCELLATION_SUBJECT };
+  }
+  return { border: theme.colors.cta, subject: theme.colors.alertSubject };
+}
 
 function interpolate(str: string, params: Record<string, string | number>) {
   let s = str;
@@ -134,8 +145,12 @@ function AlertLabel({
   numberOfLines?: number;
 }) {
   const { isRTL } = useI18n();
+  const accent = alertAccent(item.tone);
   const textStyle = variant === "strip" ? styles.text : modalStyles.sheetRowText;
-  const subjectStyle = variant === "strip" ? styles.segSubject : modalStyles.segSubject;
+  const subjectStyle =
+    variant === "strip"
+      ? [styles.segSubject, { color: accent.subject }]
+      : [modalStyles.segSubject, { color: accent.subject }];
   const rtlAlign = variant === "strip" ? styles.rtl : modalStyles.rtlSheet;
 
   const baseDir: "ltr" | "rtl" = isRTL ? "rtl" : "ltr";
@@ -275,6 +290,7 @@ export function HomePriorityAlerts({
     variant: "strip" | "sheet";
     showBottomBorder: boolean;
   }) {
+    const accent = alertAccent(it.tone);
     const a11y = `${it.isNew ? `${t("homeAlerts.newBadge")}. ` : ""}${it.label}`;
     const body = (
       <View style={[styles.rowContent, isRTL && styles.rowContentRtl]}>
@@ -316,7 +332,14 @@ export function HomePriorityAlerts({
 
     if (variant === "strip") {
       return (
-        <View style={[styles.rowOuter, showBottomBorder && styles.rowBorder, isRTL && styles.rowOuterRtl]}>
+        <View
+          style={[
+            styles.rowOuter,
+            showBottomBorder && styles.rowBorder,
+            isRTL && styles.rowOuterRtl,
+            { borderStartWidth: 4, borderStartColor: accent.border },
+          ]}
+        >
           <View style={styles.rowMain}>
             <Pressable
               style={({ pressed }) => [styles.rowTap, isRTL && styles.rowTapRtl, pressed && { opacity: 0.88 }]}
@@ -339,7 +362,14 @@ export function HomePriorityAlerts({
     }
 
     return (
-      <View style={[modalStyles.sheetRowOuter, showBottomBorder && modalStyles.sheetRowBorder, isRTL && modalStyles.sheetRowOuterRtl]}>
+      <View
+        style={[
+          modalStyles.sheetRowOuter,
+          showBottomBorder && modalStyles.sheetRowBorder,
+          isRTL && modalStyles.sheetRowOuterRtl,
+          { borderStartWidth: 4, borderStartColor: accent.border },
+        ]}
+      >
         <View style={styles.rowMain}>
           <Pressable
             style={({ pressed }) => [modalStyles.sheetRowTap, isRTL && modalStyles.sheetRowTapRtl, pressed && { opacity: 0.88 }]}
@@ -363,7 +393,7 @@ export function HomePriorityAlerts({
 
   return (
     <>
-      <View style={[wrapBase, isRTL && { borderLeftWidth: 0, borderRightWidth: 4, borderRightColor: theme.colors.cta }]}>
+      <View style={wrapBase}>
         {visible.map((it, i) => (
           <RowChrome
             key={it.id}

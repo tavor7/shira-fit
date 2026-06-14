@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Text } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl, Text, Pressable } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import { formatSessionTimeRange, hasSessionNotEnded, sessionStartsAt } from "../../../src/lib/sessionTime";
 import { supabase } from "../../../src/lib/supabase";
@@ -9,7 +9,8 @@ import { fetchActiveSignupCountsBySession } from "../../../src/lib/sessionSignup
 import { resolveTrainerAccentColor } from "../../../src/lib/trainerCalendarColor";
 import { theme } from "../../../src/theme";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
-import { ActionButton } from "../../../src/components/ActionButton";
+import { formatISODateWeekdayDayMonth } from "../../../src/lib/dateFormat";
+import { firstWordOfDisplayName } from "../../../src/lib/displayName";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { useI18n } from "../../../src/context/I18nContext";
 import { useToast } from "../../../src/context/ToastContext";
@@ -24,7 +25,7 @@ import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../..
 
 export default function AthleteSessionsScreen() {
   const { profile, session } = useAuth();
-  const { language, t } = useI18n();
+  const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
@@ -228,6 +229,7 @@ export default function AthleteSessionsScreen() {
           accentColor: resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id),
           isKickbox: !!s.is_kickbox,
           isOpenForRegistration: regOpen,
+          athleteRegistered: registered,
           athleteOnWaitlist: waitlisted,
           onJoinWaitlist: showJoinWl ? () => void joinWaitlistForSession(s.id) : undefined,
           waitlistJoining: waitlistJoiningId === s.id,
@@ -276,13 +278,31 @@ export default function AthleteSessionsScreen() {
             <Text style={styles.myUpcomingEmpty}>{language === "he" ? "אין עוד אימונים שלך." : "No upcoming sessions."}</Text>
           ) : (
             <View style={styles.myUpcomingList}>
-              {myUpcoming.map((s) => (
-                <ActionButton
-                  key={s.id}
-                  label={`${formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60)} · ${s.session_date}`}
-                  onPress={() => router.push(`/(app)/athlete/session/${s.id}`)}
-                />
-              ))}
+              {myUpcoming.map((s) => {
+                const trainer = s.trainer?.full_name ? firstWordOfDisplayName(s.trainer.full_name) : "";
+                const time = formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60);
+                const meta = trainer ? `${time} · ${trainer}` : time;
+                const accent = resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id);
+                return (
+                  <Pressable
+                    key={s.id}
+                    onPress={() => router.push(`/(app)/athlete/session/${s.id}`)}
+                    style={({ pressed }) => [styles.upcomingRow, pressed && { opacity: 0.88 }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${formatISODateWeekdayDayMonth(s.session_date, language)} ${meta}`}
+                  >
+                    {accent ? <View style={[styles.upcomingAccent, { backgroundColor: accent }]} /> : null}
+                    <View style={[styles.upcomingBody, isRTL && styles.upcomingBodyRtl]}>
+                      <Text style={[styles.upcomingDay, isRTL && styles.rtlText]}>
+                        {formatISODateWeekdayDayMonth(s.session_date, language)}
+                      </Text>
+                      <Text style={[styles.upcomingMeta, isRTL && styles.rtlText]} numberOfLines={1}>
+                        {meta}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
         </View>
@@ -325,5 +345,19 @@ const styles = StyleSheet.create({
   },
   myUpcomingTitle: { fontWeight: "900", color: theme.colors.text, fontSize: 16 },
   myUpcomingEmpty: { color: theme.colors.textMuted, fontWeight: "700" },
-  myUpcomingList: { gap: theme.spacing.sm },
+  myUpcomingList: { gap: theme.spacing.xs },
+  upcomingRow: {
+    flexDirection: "row",
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.backgroundAlt,
+    overflow: "hidden",
+  },
+  upcomingAccent: { width: 3, alignSelf: "stretch" },
+  upcomingBody: { flex: 1, paddingVertical: 10, paddingHorizontal: theme.spacing.sm, gap: 2 },
+  upcomingBodyRtl: { alignItems: "flex-end" },
+  upcomingDay: { fontSize: 14, fontWeight: "800", color: theme.colors.text, letterSpacing: 0.1 },
+  upcomingMeta: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  rtlText: { textAlign: "right", alignSelf: "stretch" },
 });

@@ -11,17 +11,14 @@ import { DatePickerField } from "../components/DatePickerField";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import { activityEventLooksRevertible, activityRevertReasonLabel } from "../lib/activityLogRevert";
+import {
+  activityLogEventLabel,
+  buildActivityLogDetailLines,
+  collectActivityLogIds,
+  type ActivityLogRow,
+} from "../lib/activityLogDetails";
 
-type Row = {
-  id: string;
-  created_at: string;
-  actor_user_id: string | null;
-  event_type: string;
-  target_type: string | null;
-  target_id: string | null;
-  metadata: Record<string, unknown> | null;
-  reverted_at: string | null;
-};
+type Row = ActivityLogRow;
 
 type SessionRow = {
   id: string;
@@ -31,8 +28,6 @@ type SessionRow = {
   duration_minutes: number;
   coach_id: string;
 };
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function formatWhen(iso: string, language: string) {
   try {
@@ -181,16 +176,6 @@ function ChipButton({
   );
 }
 
-function isFromTo(val: unknown): val is { from: unknown; to: unknown } {
-  return typeof val === "object" && val !== null && "from" in val && "to" in val;
-}
-
-function str(v: unknown): string {
-  if (v === null || v === undefined) return "";
-  if (typeof v === "boolean") return v ? "true" : "false";
-  return String(v);
-}
-
 async function fetchProfileLabels(userIds: string[]): Promise<Record<string, string>> {
   const unique = [...new Set(userIds.filter(Boolean))];
   const out: Record<string, string> = {};
@@ -202,7 +187,24 @@ async function fetchProfileLabels(userIds: string[]): Promise<Record<string, str
       const row = p as { user_id: string; full_name: string | null; username: string | null };
       const fn = (row.full_name ?? "").trim();
       const un = (row.username ?? "").trim();
-      out[row.user_id] = fn ? (un ? `${fn} (@${un})` : fn) : un ? `@${un}` : `${row.user_id.slice(0, 8)}…`;
+      out[row.user_id] = fn ? (un ? `${fn} (@${un})` : fn) : un ? `@${un}` : row.user_id;
+    }
+  }
+  return out;
+}
+
+async function fetchManualParticipantLabels(manualIds: string[]): Promise<Record<string, string>> {
+  const unique = [...new Set(manualIds.filter(Boolean))];
+  const out: Record<string, string> = {};
+  const chunkSize = 100;
+  for (let i = 0; i < unique.length; i += chunkSize) {
+    const chunk = unique.slice(i, i + chunkSize);
+    const { data } = await supabase.from("manual_participants").select("id, full_name, phone").in("id", chunk);
+    for (const p of data ?? []) {
+      const row = p as { id: string; full_name: string | null; phone: string | null };
+      const fn = (row.full_name ?? "").trim();
+      const ph = (row.phone ?? "").trim();
+      out[row.id] = fn && ph ? `${fn} · ${ph}` : fn ? fn : ph ? ph : row.id;
     }
   }
   return out;
@@ -228,346 +230,6 @@ function sessionOneLine(s: SessionRow, _language: string): string {
   return `${s.session_date} · ${time} · max ${s.max_participants} · ${s.duration_minutes} min`;
 }
 
-function collectIdsFromRow(row: Row, profileIds: Set<string>, sessionIds: Set<string>) {
-  if (row.actor_user_id) profileIds.add(row.actor_user_id);
-  if (row.target_type === "profile" && row.target_id) profileIds.add(row.target_id);
-  if (row.target_type === "training_session" && row.target_id) sessionIds.add(row.target_id);
-
-  const m = row.metadata;
-  if (!m || typeof m !== "object") return;
-  const mu = m as Record<string, unknown>;
-
-  if (typeof mu.target_user_id === "string") profileIds.add(mu.target_user_id);
-  if (typeof mu.edited_user_id === "string") profileIds.add(mu.edited_user_id);
-  if (typeof mu.user_id === "string") profileIds.add(mu.user_id);
-  if (typeof mu.session_id === "string") sessionIds.add(mu.session_id);
-  if (typeof mu.author_id === "string") profileIds.add(mu.author_id);
-  if (typeof mu.payee_id === "string" && mu.payee_is_manual !== true) profileIds.add(mu.payee_id as string);
-  if (typeof mu.coach_id === "string" && UUID_RE.test(mu.coach_id)) profileIds.add(mu.coach_id);
-
-  for (const snapKey of ["after", "before"] as const) {
-    const snap = mu[snapKey];
-    if (snap && typeof snap === "object") {
-      const c = (snap as Record<string, unknown>).coach_id;
-      if (typeof c === "string" && UUID_RE.test(c)) profileIds.add(c);
-    }
-  }
-
-  const ch = mu.changes;
-  if (ch && typeof ch === "object") {
-    for (const v of Object.values(ch as Record<string, unknown>)) {
-      if (isFromTo(v)) {
-        if (typeof v.from === "string" && UUID_RE.test(v.from)) profileIds.add(v.from);
-        if (typeof v.to === "string" && UUID_RE.test(v.to)) profileIds.add(v.to);
-      }
-    }
-  }
-}
-
-function sessionFieldLabel(key: string, he: boolean): string {
-  const map: Record<string, { en: string; he: string }> = {
-    session_date: { en: "Date", he: "\u05ea\u05d0\u05e8\u05d9\u05da" },
-    start_time: { en: "Start time", he: "\u05e9\u05e2\u05ea \u05d4\u05ea\u05d7\u05dc\u05d4" },
-    coach_id: { en: "Coach", he: "\u05de\u05d0\u05de\u05df" },
-    max_participants: { en: "Max participants", he: "\u05de\u05e7\u05e1\u05d9\u05de\u05d5\u05dd \u05de\u05e9\u05ea\u05ea\u05e4\u05d9\u05dd" },
-    is_open_for_registration: { en: "Open for registration", he: "\u05e4\u05ea\u05d5\u05d7 \u05dc\u05d4\u05e8\u05e9\u05de\u05d4" },
-    duration_minutes: { en: "Duration (min)", he: "\u05de\u05e9\u05da (\u05d3\u05e7\u05d5\u05ea)" },
-    is_hidden: { en: "Hidden", he: "\u05de\u05d5\u05e1\u05ea\u05e8" },
-    custom_slot_price_ils: { en: "Custom slot price", he: "מחיר מותאם לאימון" },
-  };
-  const m = map[key];
-  return m ? (he ? m.he : m.en) : key;
-}
-
-function profileFieldLabel(key: string, he: boolean): string {
-  const map: Record<string, { en: string; he: string }> = {
-    full_name: { en: "Full name", he: "שם מלא" },
-    phone: { en: "Phone", he: "טלפון" },
-    gender: { en: "Gender", he: "מין" },
-    date_of_birth: { en: "Date of birth", he: "\u05ea\u05d0\u05e8\u05d9\u05da \u05dc\u05d9\u05d3\u05d4" },
-    username: { en: "Username", he: "שם משתמש" },
-  };
-  const m = map[key];
-  return m ? (he ? m.he : m.en) : key;
-}
-
-function formatCoachRef(id: string, profileLabels: Record<string, string>): string {
-  return profileLabels[id] ?? `${id.slice(0, 8)}…`;
-}
-
-function buildDetailLines(
-  item: Row,
-  profileLabels: Record<string, string>,
-  sessionSummaries: Record<string, string>,
-  language: string
-): string[] {
-  const lines: string[] = [];
-  const he = language === "he";
-  const L = (en: string, h: string) => (he ? h : en);
-  const m = item.metadata || {};
-  const mu = m as Record<string, unknown>;
-
-  if (["athlete_approved", "athlete_rejected", "athlete_approval_updated"].includes(item.event_type)) {
-    const tid = (typeof mu.target_user_id === "string" ? mu.target_user_id : null) ?? item.target_id;
-    const fn = typeof mu.target_full_name === "string" ? mu.target_full_name.trim() : "";
-    const un = typeof mu.target_username === "string" ? mu.target_username.trim() : "";
-    const fromMeta =
-      fn && un ? `${fn} (@${un})` : fn ? fn : un ? `@${un}` : tid ? profileLabels[tid] ?? `${tid.slice(0, 8)}…` : "—";
-    lines.push(`${L("Athlete / user", "מתאמן / משתמש")}: ${fromMeta}`);
-    if (mu.previous_approval_status != null && mu.new_approval_status != null) {
-      lines.push(
-        `${L("Approval", "אישור")}: ${str(mu.previous_approval_status)} → ${str(mu.new_approval_status)}`
-      );
-    } else if (mu.previous_approval_status != null && mu.status != null) {
-      lines.push(`${L("Approval", "אישור")}: ${str(mu.previous_approval_status)} → ${str(mu.status)}`);
-    } else if (mu.new_approval_status != null) {
-      lines.push(`${L("New approval status", "סטטוס אישור חדש")}: ${str(mu.new_approval_status)}`);
-    } else if (mu.status != null) {
-      lines.push(`${L("New status", "סטטוס חדש")}: ${str(mu.status)}`);
-    }
-    return lines;
-  }
-
-  if (item.event_type === "profile_updated") {
-    const edited =
-      (typeof mu.edited_user_id === "string" ? mu.edited_user_id : null) ?? item.target_id ?? null;
-    if (edited) {
-      lines.push(`${L("Edited profile", "פרופיל שעודכן")}: ${profileLabels[edited] ?? `${edited.slice(0, 8)}…`}`);
-    }
-    const changes = mu.changes;
-    if (changes && typeof changes === "object") {
-      for (const [key, val] of Object.entries(changes as Record<string, unknown>)) {
-        if (isFromTo(val)) {
-          lines.push(`${profileFieldLabel(key, he)}: ${str(val.from)} → ${str(val.to)}`);
-        }
-      }
-    }
-    const legacy = ["full_name", "phone", "gender", "date_of_birth", "username"].filter((k) => mu[k] === true);
-    if (legacy.length && (!changes || typeof changes !== "object" || Object.keys(changes as object).length === 0)) {
-      lines.push(
-        `${L("Fields touched (older log — values not stored)", "שדות שעודכנו (רישום ישן — ללא ערכים)")}: ${legacy.join(", ")}`
-      );
-    }
-    return lines;
-  }
-
-  if (item.event_type === "session_created" && mu.after && typeof mu.after === "object") {
-    const snap = mu.after as Record<string, unknown>;
-    const sid = item.target_id;
-    if (sid && sessionSummaries[sid]) lines.push(`${L("Session", "אימון")}: ${sessionSummaries[sid]}`);
-    lines.push(
-      `${L("Date", "\u05ea\u05d0\u05e8\u05d9\u05da")}: ${str(snap.session_date)} · ${L("Time", "\u05e9\u05e2\u05d4")}: ${str(snap.start_time).slice(0, 5)}`
-    );
-    lines.push(
-      `${L("Max", "\u05de\u05e7\u05e1\u05d9\u05de\u05d5\u05dd")}: ${str(snap.max_participants)} · ${L("Duration", "\u05de\u05e9\u05da")}: ${str(snap.duration_minutes)} min`
-    );
-    const cid = snap.coach_id;
-    if (typeof cid === "string") lines.push(`${L("Coach", "מאמן")}: ${formatCoachRef(cid, profileLabels)}`);
-    lines.push(`${L("Open for registration", "פתוח להרשמה")}: ${str(snap.is_open_for_registration)} · ${L("Hidden", "מוסתר")}: ${str(snap.is_hidden)}`);
-    return lines;
-  }
-
-  if (item.event_type === "session_deleted" && mu.before && typeof mu.before === "object") {
-    const snap = mu.before as Record<string, unknown>;
-    const sid = item.target_id;
-    if (sid && sessionSummaries[sid]) lines.push(`${L("Session", "אימון")}: ${sessionSummaries[sid]}`);
-    lines.push(
-      `${L("Was", "\u05d4\u05d9\u05d4")}: ${str(snap.session_date)} · ${str(snap.start_time).slice(0, 5)} · ${L("max", "\u05de\u05e7\u05e1")} ${str(snap.max_participants)}`
-    );
-    const cid = snap.coach_id;
-    if (typeof cid === "string") lines.push(`${L("Coach", "מאמן")}: ${formatCoachRef(cid, profileLabels)}`);
-    return lines;
-  }
-
-  if (item.event_type === "session_updated" && mu.changes && typeof mu.changes === "object") {
-    const sid = item.target_id;
-    if (sid && sessionSummaries[sid]) lines.push(`${L("Session", "אימון")}: ${sessionSummaries[sid]}`);
-    for (const [key, val] of Object.entries(mu.changes as Record<string, unknown>)) {
-      if (!isFromTo(val)) continue;
-      if (key === "coach_id") {
-        lines.push(
-          `${sessionFieldLabel(key, he)}: ${formatCoachRef(str(val.from), profileLabels)} → ${formatCoachRef(str(val.to), profileLabels)}`
-        );
-      } else {
-        lines.push(`${sessionFieldLabel(key, he)}: ${str(val.from)} → ${str(val.to)}`);
-      }
-    }
-    return lines;
-  }
-
-  if (
-    item.event_type === "session_registration" ||
-    item.event_type === "session_registration_cancelled" ||
-    item.event_type === "session_registration_status_changed"
-  ) {
-    const sid = typeof mu.session_id === "string" ? mu.session_id : null;
-    const pid = typeof mu.user_id === "string" ? mu.user_id : null;
-    if (sid) lines.push(`${L("Session", "אימון")}: ${sessionSummaries[sid] ?? `${sid.slice(0, 8)}…`}`);
-    if (pid) lines.push(`${L("Participant", "משתתף")}: ${profileLabels[pid] ?? `${pid.slice(0, 8)}…`}`);
-    if (mu.status != null) lines.push(`${L("Registration status", "סטטוס הרשמה")}: ${str(mu.status)}`);
-    if (mu.from != null && mu.to != null) {
-      lines.push(`${L("Status change", "שינוי סטטוס")}: ${str(mu.from)} → ${str(mu.to)}`);
-    }
-    return lines;
-  }
-
-  if (item.event_type === "athlete_profile_created" || item.event_type === "profile_created") {
-    const tid = item.target_id;
-    if (tid) lines.push(`${L("Profile", "פרופיל")}: ${profileLabels[tid] ?? `${tid.slice(0, 8)}…`}`);
-    if (mu.role != null) lines.push(`${L("Role", "תפקיד")}: ${str(mu.role)}`);
-    if (mu.approval_status != null) lines.push(`${L("Approval status", "סטטוס אישור")}: ${str(mu.approval_status)}`);
-    return lines;
-  }
-
-  if (["auth_login", "email_confirmed", "password_reset_completed", "signup_completed"].includes(item.event_type)) {
-    lines.push(
-      L(
-        "This event is tied to the actor account only.",
-        "\u05d0\u05d9\u05e8\u05d5\u05e2 \u05d6\u05d4 \u05de\u05e9\u05d5\u05d9\u05da \u05dc\u05d7\u05e9\u05d1\u05d5\u05df \u05d4\u05de\u05d1\u05e6\u05e2 \u05d1\u05dc\u05d1\u05d3."
-      )
-    );
-    return lines;
-  }
-
-  if (item.event_type === "user_role_changed") {
-    const tid = item.target_id;
-    if (tid) lines.push(`${L("User", "משתמש")}: ${profileLabels[tid] ?? `${tid.slice(0, 8)}…`}`);
-    if (mu.previous_role != null && mu.new_role != null) {
-      lines.push(`${L("Role", "תפקיד")}: ${str(mu.previous_role)} → ${str(mu.new_role)}`);
-    }
-    return lines;
-  }
-
-  if (
-    item.event_type === "session_manual_participant_added" ||
-    item.event_type === "session_manual_participant_removed" ||
-    item.event_type === "manual_participant_attendance_updated"
-  ) {
-    const sid = typeof mu.session_id === "string" ? mu.session_id : null;
-    const pid = typeof mu.manual_participant_id === "string" ? mu.manual_participant_id : null;
-    if (sid) lines.push(`${L("Session", "אימון")}: ${sessionSummaries[sid] ?? `${sid.slice(0, 8)}…`}`);
-    if (pid) lines.push(`${L("Quick-add participant", "משתתף מהיר")}: ${pid.slice(0, 8)}…`);
-    if (mu.changes && typeof mu.changes === "object") {
-      for (const [key, val] of Object.entries(mu.changes as Record<string, unknown>)) {
-        if (isFromTo(val)) lines.push(`${key}: ${str(val.from)} → ${str(val.to)}`);
-      }
-    }
-    return lines;
-  }
-
-  if (item.event_type === "registration_attendance_updated") {
-    const sid = typeof mu.session_id === "string" ? mu.session_id : null;
-    const pid = typeof mu.user_id === "string" ? mu.user_id : null;
-    if (sid) lines.push(`${L("Session", "אימון")}: ${sessionSummaries[sid] ?? `${sid.slice(0, 8)}…`}`);
-    if (pid) lines.push(`${L("Participant", "משתתף")}: ${profileLabels[pid] ?? `${pid.slice(0, 8)}…`}`);
-    if (mu.changes && typeof mu.changes === "object") {
-      for (const [key, val] of Object.entries(mu.changes as Record<string, unknown>)) {
-        if (isFromTo(val)) lines.push(`${key}: ${str(val.from)} → ${str(val.to)}`);
-      }
-    }
-    return lines;
-  }
-
-  if (
-    item.event_type === "account_payment_created" ||
-    item.event_type === "account_payment_updated" ||
-    item.event_type === "account_payment_deleted"
-  ) {
-    if (mu.amount_ils != null) lines.push(`${L("Amount", "סכום")}: ${str(mu.amount_ils)}`);
-    if (mu.payment_method != null) lines.push(`${L("Payment method", "אמצעי תשלום")}: ${str(mu.payment_method)}`);
-    if (mu.paid_at != null) lines.push(`${L("Paid on", "תאריך תשלום")}: ${str(mu.paid_at)}`);
-    if (mu.payer_name != null) lines.push(`${L("Payer", "משלם")}: ${str(mu.payer_name)}`);
-    return lines;
-  }
-
-  if (item.event_type.startsWith("athlete_family_")) {
-    if (mu.name != null) lines.push(`${L("Family name", "שם משפחה")}: ${str(mu.name)}`);
-    if (Array.isArray(mu.members)) lines.push(`${L("Members", "חברים")}: ${mu.members.length}`);
-    return lines;
-  }
-
-  if (item.event_type.startsWith("session_note_")) {
-    const sid = typeof mu.session_id === "string" ? mu.session_id : null;
-    if (sid) lines.push(`${L("Session", "אימון")}: ${sessionSummaries[sid] ?? `${sid.slice(0, 8)}…`}`);
-    if (typeof mu.body === "string") lines.push(`${L("Note", "הערה")}: ${mu.body.slice(0, 120)}`);
-    return lines;
-  }
-
-  if (item.event_type.startsWith("calendar_note_")) {
-    if (mu.title != null) lines.push(`${L("Title", "כותרת")}: ${str(mu.title)}`);
-    if (mu.start_date != null) lines.push(`${L("From", "מ")}: ${str(mu.start_date)}`);
-    if (mu.end_date != null) lines.push(`${L("To", "עד")}: ${str(mu.end_date)}`);
-    return lines;
-  }
-
-  if (item.event_type.startsWith("pricing_setting_")) {
-    if (mu.table != null) lines.push(`${L("Table", "טבלה")}: ${str(mu.table)}`);
-    return lines;
-  }
-
-  if (item.event_type === "activity_event_reverted") {
-    const revertedType = mu.reverted_event_type;
-    if (typeof revertedType === "string") {
-      lines.push(`${L("Reverted action", "פעולה שבוטלה")}: ${eventLabel(revertedType, language)}`);
-    }
-    return lines;
-  }
-
-  return lines;
-}
-
-function eventLabel(eventType: string, language: string): string {
-  const map: Record<string, { en: string; he: string }> = {
-    auth_login: { en: "Login", he: "התחברות" },
-    email_confirmed: { en: "Email confirmed", he: "אימייל אומת" },
-    password_reset_completed: { en: "Password reset completed", he: "איפוס סיסמה הושלם" },
-    signup_completed: { en: "Signup completed", he: "הרשמה הושלמה" },
-    athlete_profile_created: { en: "Athlete profile created", he: "פרופיל מתאמן נוצר" },
-    profile_created: { en: "Profile created", he: "פרופיל נוצר" },
-    profile_updated: { en: "Profile updated", he: "פרופיל עודכן" },
-    athlete_approved: { en: "Athlete approved", he: "מתאמן אושר" },
-    athlete_rejected: { en: "Athlete rejected", he: "מתאמן נדחה" },
-    athlete_approval_updated: { en: "Athlete approval updated", he: "סטטוס אישור עודכן" },
-    session_created: { en: "Session created", he: "אימון נוצר" },
-    session_updated: { en: "Session updated", he: "אימון עודכן" },
-    session_deleted: { en: "Session deleted", he: "אימון נמחק" },
-    session_registration: { en: "Session registration", he: "הרשמה לאימון" },
-    session_registration_cancelled: { en: "Registration cancelled", he: "הרשמה בוטלה" },
-    session_registration_status_changed: { en: "Registration status changed", he: "סטטוס הרשמה השתנה" },
-    activity_event_reverted: { en: "Action reverted", he: "פעולה בוטלה" },
-    session_manual_participant_added: { en: "Quick-add participant added", he: "משתתף מהיר נוסף לאימון" },
-    session_manual_participant_removed: { en: "Quick-add participant removed", he: "משתתף מהיר הוסר מהאימון" },
-    registration_attendance_updated: { en: "Registration attendance updated", he: "נוכחות הרשמה עודכנה" },
-    manual_participant_attendance_updated: { en: "Quick-add attendance updated", he: "נוכחות משתתף מהיר עודכנה" },
-    user_role_changed: { en: "User role changed", he: "תפקיד משתמש השתנה" },
-    manual_participant_created: { en: "Quick-add person created", he: "משתתף מהיר נוצר" },
-    manual_participant_updated: { en: "Quick-add person updated", he: "משתתף מהיר עודכן" },
-    account_payment_created: { en: "Account payment recorded", he: "תשלום חשבון נרשם" },
-    account_payment_updated: { en: "Account payment updated", he: "תשלום חשבון עודכן" },
-    account_payment_deleted: { en: "Account payment deleted", he: "תשלום חשבון נמחק" },
-    pricing_setting_created: { en: "Pricing setting added", he: "הגדרת מחיר נוספה" },
-    pricing_setting_updated: { en: "Pricing setting updated", he: "הגדרת מחיר עודכנה" },
-    pricing_setting_deleted: { en: "Pricing setting removed", he: "הגדרת מחיר הוסרה" },
-    calendar_note_created: { en: "Calendar note added", he: "הערת לוח שנה נוספה" },
-    calendar_note_updated: { en: "Calendar note updated", he: "הערת לוח שנה עודכנה" },
-    calendar_note_deleted: { en: "Calendar note removed", he: "הערת לוח שנה הוסרה" },
-    session_note_created: { en: "Session note added", he: "הערת אימון נוספה" },
-    session_note_updated: { en: "Session note updated", he: "הערת אימון עודכנה" },
-    session_note_deleted: { en: "Session note removed", he: "הערת אימון הוסרה" },
-    athlete_family_created: { en: "Family group created", he: "קבוצת משפחה נוצרה" },
-    athlete_family_updated: { en: "Family group updated", he: "קבוצת משפחה עודכנה" },
-    athlete_family_deleted: { en: "Family group deleted", he: "קבוצת משפחה נמחקה" },
-    cancellation_charge_updated: { en: "Late-cancel charge updated", he: "חיוב ביטול מאוחר עודכן" },
-    cancellation_penalty_collected_updated: { en: "Late-cancel collection updated", he: "גביית ביטול מאוחר עודכנה" },
-    registration_opening_schedule_updated: { en: "Registration opening schedule updated", he: "לוח פתיחת הרשמה עודכן" },
-    waitlist_request_created: { en: "Waitlist request added", he: "בקשת המתנה נוספה" },
-    waitlist_request_removed: { en: "Waitlist request removed", he: "בקשת המתנה הוסרה" },
-  };
-  const m = map[eventType];
-  if (!m) return eventType;
-  return language === "he" ? m.he : m.en;
-}
-
 export default function ManagerActivityLogScreen() {
   const { language, isRTL, t } = useI18n();
   const { showOk, showConfirm } = useAppAlert();
@@ -582,6 +244,7 @@ export default function ManagerActivityLogScreen() {
   const [retentionExpanded, setRetentionExpanded] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [profileLabels, setProfileLabels] = useState<Record<string, string>>({});
+  const [manualLabels, setManualLabels] = useState<Record<string, string>>({});
   const [sessionSummaries, setSessionSummaries] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -595,6 +258,7 @@ export default function ManagerActivityLogScreen() {
       if (!bounds) {
         setRows([]);
         setProfileLabels({});
+        setManualLabels({});
         setSessionSummaries({});
         setTotalCount(0);
         setLoading(false);
@@ -648,7 +312,8 @@ export default function ManagerActivityLogScreen() {
 
         const profileIds = new Set<string>();
         const sessionIds = new Set<string>();
-        for (const r of list) collectIdsFromRow(r, profileIds, sessionIds);
+        const manualIds = new Set<string>();
+        for (const r of list) collectActivityLogIds(r, profileIds, sessionIds, manualIds);
 
         const sessions = await fetchSessionsRaw([...sessionIds]);
         const sum: Record<string, string> = {};
@@ -658,8 +323,12 @@ export default function ManagerActivityLogScreen() {
         }
         setSessionSummaries(sum);
 
-        const labels = await fetchProfileLabels([...profileIds]);
+        const [labels, manual] = await Promise.all([
+          fetchProfileLabels([...profileIds]),
+          fetchManualParticipantLabels([...manualIds]),
+        ]);
         setProfileLabels(labels);
+        setManualLabels(manual);
       } finally {
         setLoading(false);
       }
@@ -997,9 +666,9 @@ export default function ManagerActivityLogScreen() {
         }
         ListFooterComponent={listFooter}
         renderItem={({ item }) => {
-            const details = buildDetailLines(item, profileLabels, sessionSummaries, language);
+            const details = buildActivityLogDetailLines(item, profileLabels, manualLabels, sessionSummaries, language);
             const actorLine = item.actor_user_id
-              ? `${language === "he" ? "מבצע" : "Actor"}: ${profileLabels[item.actor_user_id] ?? `${item.actor_user_id.slice(0, 8)}…`}`
+              ? `${language === "he" ? "מבצע" : "Actor"}: ${profileLabels[item.actor_user_id] ?? item.actor_user_id}`
               : "—";
             const isReverted = !!item.reverted_at;
             const canRevert = activityEventLooksRevertible(item);
@@ -1039,7 +708,7 @@ export default function ManagerActivityLogScreen() {
                     ) : null}
                   </View>
                 </View>
-                <Text style={[styles.event, isRTL && styles.rtl]}>{eventLabel(item.event_type, language)}</Text>
+                <Text style={[styles.event, isRTL && styles.rtl]}>{activityLogEventLabel(item.event_type, language)}</Text>
                 <Text style={[styles.meta, isRTL && styles.rtl]} selectable>
                   {actorLine}
                 </Text>
@@ -1302,6 +971,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: theme.spacing.xs,
     fontWeight: "500",
+    flexShrink: 1,
   },
   json: { marginTop: theme.spacing.sm, fontSize: 11, color: theme.colors.textMuted, fontFamily: undefined },
   empty: { textAlign: "center", marginTop: theme.spacing.xl, color: theme.colors.textSoft, fontWeight: "600", fontSize: 15 },

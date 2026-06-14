@@ -532,6 +532,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "athleteCalendar.joinWaitlistLine2": "waitlist",
     "athleteCalendar.onWaitlistCompact": "On list",
     "athleteCalendar.onWaitlistStatus": "You're on the waitlist",
+    "athleteCalendar.registeredCompact": "You're in",
+    "athleteCalendar.registeredStatus": "You're registered",
     "athleteCalendar.waitlistJoinedToast": "You’ll be notified if a spot opens",
     "athleteCalendar.waitlistHeading": "Waitlist",
 
@@ -566,6 +568,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "athleteSession.sessionEnded": "Session ended",
     "athleteSession.sessionEndedNoRegister": "This workout has already ended — you can’t register or join the waitlist.",
     "athleteSession.sessionStartedNoCancel": "This workout has already started — you can’t cancel your registration.",
+    "athleteSession.sameDayConfirmTitle": "Another workout that day",
+    "athleteSession.sameDayConfirmMessage":
+      "You’re already registered on {date} at {times}. Are you sure you want to sign up for a second session that day?",
+    "athleteSession.sameDayConfirmYes": "Yes, register",
     "athleteSession.cancelledLateNotice": "Cancelled close to start time — the studio will confirm if a session fee applies.",
     "athleteSession.cancelledOk": "Registration cancelled.",
     "screen.managerSessions": "Sessions",
@@ -1284,6 +1290,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "athleteCalendar.joinWaitlistLine2": "המתנה",
     "athleteCalendar.onWaitlistCompact": "ברשימה",
     "athleteCalendar.onWaitlistStatus": "נרשמת לרשימת ההמתנה",
+    "athleteCalendar.registeredCompact": "נרשמת",
+    "athleteCalendar.registeredStatus": "נרשמת לאימון",
     "athleteCalendar.waitlistJoinedToast": "נעדכן אם יתפנה מקום",
     "athleteCalendar.waitlistHeading": "רשימת המתנה",
 
@@ -1318,6 +1326,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "athleteSession.sessionEnded": "האימון הסתיים",
     "athleteSession.sessionEndedNoRegister": "האימון כבר הסתיים — לא ניתן להירשם או להצטרף לרשימת המתנה.",
     "athleteSession.sessionStartedNoCancel": "האימון כבר החל — לא ניתן לבטל את ההרשמה.",
+    "athleteSession.sameDayConfirmTitle": "עוד אימון באותו יום",
+    "athleteSession.sameDayConfirmMessage":
+      "כבר נרשמת ל-{date} בשעות {times}. בטוח/ה שרוצה להירשם לאימון נוסף באותו יום?",
+    "athleteSession.sameDayConfirmYes": "כן, להירשם",
     "athleteSession.cancelledLateNotice": "הביטול קרוב לזמן האימון — הסטודיו יאשר אם חל חיוב.",
     "athleteSession.cancelledOk": "ההרשמה בוטלה.",
     "screen.managerSessions": "אימונים",

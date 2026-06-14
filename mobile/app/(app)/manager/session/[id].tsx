@@ -1098,7 +1098,11 @@ export default function ManagerSessionDetail() {
     if (!sid) return;
     setDeleteSessionBusy(true);
 
-    const seriesScope: SeriesScope | null = session?.series_id && !session.series_detached && scope ? scope : null;
+    const seriesScope: SeriesScope | null = session?.series_id
+      ? scope === "future" && !session.series_detached
+        ? "future"
+        : "this"
+      : null;
     if (seriesScope) {
       const res = await deleteSessionWithSeriesScope(sid, seriesScope);
       setDeleteSessionBusy(false);
@@ -1161,7 +1165,7 @@ export default function ManagerSessionDetail() {
       cancelLabel: language === "he" ? "ביטול" : "Cancel",
       confirmLabel: language === "he" ? "מחק" : "Delete",
       confirmVariant: "danger",
-      onConfirm: () => void runDeleteWithScope(),
+      onConfirm: () => void runDeleteWithScope(session?.series_id ? "this" : undefined),
     });
   }
 

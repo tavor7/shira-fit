@@ -27,7 +27,7 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
   const staffLabels = item.showStaffSessionLabels === true;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, item.athleteRegistered && styles.cardRegistered]}>
       {accent ? <View style={[styles.accent, { backgroundColor: accent }]} /> : null}
       <Pressable
         onPress={onPress}
@@ -54,7 +54,14 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
               </Text>
             ) : null}
             <View style={[styles.chips, isRTL && styles.chipsRtl]}>
-              {showFill ? (
+              {item.athleteRegistered ? (
+                <View style={styles.registeredBannerSheet}>
+                  <Text style={styles.registeredBannerSheetTxt}>
+                    {language === "he" ? "✓ נרשמת" : "✓ You're in"}
+                  </Text>
+                </View>
+              ) : null}
+              {showFill && !item.athleteRegistered ? (
                 <StatusChip label={`${c}/${m}`} tone={m > 0 && c >= m ? "danger" : "neutral"} />
               ) : null}
               {staffLabels && item.isHidden ? (
@@ -99,6 +106,10 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     overflow: "hidden",
     minHeight: 64,
+  },
+  cardRegistered: {
+    borderWidth: 2,
+    borderColor: theme.colors.cta,
   },
   cardPressed: { opacity: 0.92 },
   bodyPressable: { flex: 1, minWidth: 0 },
@@ -157,6 +168,18 @@ const styles = StyleSheet.create({
   },
   chips: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 },
   chipsRtl: { flexDirection: "row-reverse" },
+  registeredBannerSheet: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.cta,
+  },
+  registeredBannerSheetTxt: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: theme.colors.ctaText,
+    letterSpacing: 0.2,
+  },
   rtl: { textAlign: "right" },
   chevron: {
     fontSize: 18,

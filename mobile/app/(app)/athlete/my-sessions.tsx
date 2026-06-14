@@ -80,6 +80,7 @@ export default function MySessionsScreen() {
           durationMinutes: dm,
           timeLabel: formatSessionTimeRange(ts.start_time, dm),
           subtitle: language === "he" ? "נרשם" : "Registered",
+          athleteRegistered: true,
           isKickbox: !!ts.is_kickbox,
           onPress: () => router.push(`/(app)/athlete/session/${ts.id}`),
         };

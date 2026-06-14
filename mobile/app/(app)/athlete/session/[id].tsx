@@ -1,5 +1,5 @@
-import { useLocalSearchParams, router, Stack } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useLocalSearchParams, router, Stack, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, ActivityIndicator, ScrollView } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../../src/types/database";
@@ -10,6 +10,11 @@ import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { ActionButton } from "../../../../src/components/ActionButton";
 import { useI18n } from "../../../../src/context/I18nContext";
 import { useToast } from "../../../../src/context/ToastContext";
+import { useAppAlert } from "../../../../src/context/AppAlertContext";
+import {
+  confirmSameDaySecondRegistration,
+  fetchSameDayActiveRegistrations,
+} from "../../../../src/lib/athleteSameDayRegistration";
 import { appendNetworkHint } from "../../../../src/lib/networkErrors";
 import { StatusChip } from "../../../../src/components/StatusChip";
 import { scheduleSessionReminders, cancelSessionReminders } from "../../../../src/lib/sessionReminders";
@@ -17,12 +22,22 @@ import { clearWaitlistSpotFlag } from "../../../../src/lib/waitlistSpotNotifier"
 import { fetchActiveSignupCountsBySession } from "../../../../src/lib/sessionSignupCounts";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
+import { embedLtrInMixed, embedRtlInLtr, isRtlScript } from "../../../../src/lib/bidiEmbed";
+
+/** Same visual anchor for Hebrew + Latin names in the participants list. */
+function participantListLabel(name: string, uiRtl: boolean): string {
+  const trimmed = name.trim();
+  if (!trimmed) return trimmed;
+  if (uiRtl) return isRtlScript(trimmed) ? trimmed : embedLtrInMixed(trimmed);
+  return isRtlScript(trimmed) ? embedRtlInLtr(trimmed) : trimmed;
+}
 
 export default function AthleteSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const sessionId = String(id ?? "").trim();
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
+  const { showAlert } = useAppAlert();
   const [session, setSession] = useState<TrainingSessionWithTrainer | null>(null);
   const [count, setCount] = useState(0);
   const [onWaitlist, setOnWaitlist] = useState(false);
@@ -54,55 +69,74 @@ export default function AthleteSessionDetail() {
     setNames(list);
   }
 
-  useEffect(() => {
-    (async () => {
-      if (!sessionId) {
-        setLoadError(language === "he" ? "מזהה אימון חסר" : "Missing session id");
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      setLoadError("");
-
-      const { data: s, error: sErr } = await supabase
-        .from("training_sessions")
-        .select("*, trainer:profiles!coach_id(full_name)")
-        .eq("id", sessionId)
-        .single();
-      if (sErr || !s) {
-        setSession(null);
-        setLoadError(sErr?.message ?? (language === "he" ? "האימון לא נמצא" : "Session not found"));
-        setLoading(false);
-        return;
-      }
-
-      setSession(s as TrainingSessionWithTrainer);
-
-      await refreshCount();
-      const u = (await supabase.auth.getUser()).data.user?.id;
-      if (u) {
-        const { data: r } = await supabase
-          .from("session_registrations")
-          .select("id")
-          .eq("session_id", sessionId)
-          .eq("user_id", u)
-          .eq("status", "active")
-          .maybeSingle();
-        setRegistered(!!r);
-        const { data: w } = await supabase
-          .from("waitlist_requests")
-          .select("id")
-          .eq("session_id", sessionId)
-          .eq("user_id", u)
-          .maybeSingle();
-        setOnWaitlist(!!w);
-      }
-
-      await loadNames();
+  const load = useCallback(async (silent = false) => {
+    if (!sessionId) {
+      setLoadError(language === "he" ? "מזהה אימון חסר" : "Missing session id");
       setLoading(false);
-    })();
+      return;
+    }
+
+    if (!silent) setLoading(true);
+    setLoadError("");
+
+    const { data: s, error: sErr } = await supabase
+      .from("training_sessions")
+      .select("*, trainer:profiles!coach_id(full_name)")
+      .eq("id", sessionId)
+      .single();
+    if (sErr || !s) {
+      setSession(null);
+      setLoadError(sErr?.message ?? (language === "he" ? "האימון לא נמצא" : "Session not found"));
+      if (!silent) setLoading(false);
+      return;
+    }
+
+    setSession(s as TrainingSessionWithTrainer);
+
+    const m = await fetchActiveSignupCountsBySession([sessionId]);
+    setCount(m[sessionId] ?? 0);
+
+    const u = (await supabase.auth.getUser()).data.user?.id;
+    if (u) {
+      const { data: r } = await supabase
+        .from("session_registrations")
+        .select("id")
+        .eq("session_id", sessionId)
+        .eq("user_id", u)
+        .eq("status", "active")
+        .maybeSingle();
+      setRegistered(!!r);
+      const { data: w } = await supabase
+        .from("waitlist_requests")
+        .select("id")
+        .eq("session_id", sessionId)
+        .eq("user_id", u)
+        .maybeSingle();
+      setOnWaitlist(!!w);
+    } else {
+      setRegistered(false);
+      setOnWaitlist(false);
+    }
+
+    const { data: ppl, error: pplErr } = await supabase.rpc("list_session_participants", { p_session_id: sessionId });
+    if (!pplErr) {
+      const list = Array.isArray(ppl) ? (ppl as { full_name: string }[]).map((x) => x.full_name).filter(Boolean) : [];
+      setNames(list);
+    }
+
+    if (!silent) setLoading(false);
   }, [sessionId, language]);
+
+  const isFirstFocus = useRef(true);
+  useEffect(() => {
+    isFirstFocus.current = true;
+  }, [sessionId]);
+  useFocusEffect(
+    useCallback(() => {
+      void load(!isFirstFocus.current);
+      isFirstFocus.current = false;
+    }, [load])
+  );
 
   async function register() {
     if (registering || waitlisting || cancelling) return;
@@ -113,6 +147,19 @@ export default function AthleteSessionDetail() {
         variant: "error",
       });
       return;
+    }
+    const u = (await supabase.auth.getUser()).data.user?.id;
+    if (u) {
+      const others = await fetchSameDayActiveRegistrations(u, session.session_date, sessionId);
+      if (others.length > 0) {
+        const ok = await confirmSameDaySecondRegistration(showAlert, {
+          t,
+          language,
+          sessionDate: session.session_date,
+          others,
+        });
+        if (!ok) return;
+      }
     }
     setRegistering(true);
     const { data, error } = await supabase.rpc("register_for_session", { p_session_id: sessionId });
@@ -215,8 +262,8 @@ export default function AthleteSessionDetail() {
         data.late_cancellation === true ? t("athleteSession.cancelledLateNotice") : t("athleteSession.cancelledOk");
       showToast({ message: cancelMsg, variant: "success" });
       setRegistered(false);
-      setNames([]);
       await refreshCount();
+      await loadNames();
       /* Notify waitlist: configure Supabase Cron or webhook to POST notify-waitlist with CRON_SECRET */
     } else {
       const err = String(data?.error ?? "");
@@ -306,71 +353,100 @@ export default function AthleteSessionDetail() {
         </View>
       </View>
 
+      <View style={styles.actionsBlock}>
+        {!registered ? (
+          <>
+            <PrimaryButton
+              label={registering ? t("common.loading") : language === "he" ? "הרשמה" : "Register"}
+              onPress={register}
+              disabled={full || !regOpen || !sessionNotEnded || registering || waitlisting || cancelling}
+              style={full || !regOpen || !sessionNotEnded ? styles.disabled : undefined}
+            />
+            {(full || onWaitlist) && (
+              <Pressable
+                style={styles.btn2}
+                onPress={onWaitlist ? leaveWaitlist : waitlist}
+                disabled={
+                  waitlisting ||
+                  registering ||
+                  cancelling ||
+                  (!onWaitlist && (!full || !sessionNotEnded))
+                }
+              >
+                <Text style={styles.btnText2}>
+                  {onWaitlist
+                    ? language === "he"
+                      ? "הסרה מרשימת המתנה"
+                      : "Remove from waitlist"
+                    : language === "he"
+                      ? "הרשמה לרשימת המתנה"
+                      : "Register to waitlist"}
+                </Text>
+              </Pressable>
+            )}
+            {!sessionNotEnded ? null : !full && !regOpen ? (
+              <Text style={[styles.closedHint, isRTL && styles.rtlText]}>
+                {language === "he" ? "ההרשמה סגורה כרגע." : "Registration is currently closed."}
+              </Text>
+            ) : null}
+          </>
+        ) : canCancelRegistration ? (
+          <Pressable
+            style={styles.btnDanger}
+            onPress={() => setCancelOpen(true)}
+            disabled={registering || waitlisting || cancelling}
+          >
+            <Text style={styles.btnText}>{language === "he" ? "ביטול הרשמה" : "Cancel registration"}</Text>
+          </Pressable>
+        ) : sessionNotEnded ? (
+          <Text style={[styles.closedHint, isRTL && styles.rtlText]}>{t("athleteSession.sessionStartedNoCancel")}</Text>
+        ) : null}
+      </View>
+
       <View style={styles.partCard}>
-        <Text style={[styles.partTitle, isRTL && styles.rtlText]}>{language === "he" ? "משתתפים" : "Participants"}</Text>
-        {names.length === 0 ? (
+        <View style={[styles.partHeader, isRTL && styles.partHeaderRtl]}>
+          <Text style={[styles.partTitle, isRTL && styles.rtlText]}>
+            {language === "he" ? "משתתפים" : "Participants"}
+          </Text>
+          <View style={styles.partCountBadge}>
+            <Text style={styles.partCountBadgeTxt}>
+              {count}/{session.max_participants}
+            </Text>
+          </View>
+        </View>
+        {names.length === 0 && count === 0 ? (
           <Text style={[styles.partEmpty, isRTL && styles.rtlText]}>
             {language === "he" ? "אין משתתפים רשומים עדיין." : "No registered participants yet."}
           </Text>
+        ) : names.length === 0 ? (
+          <Text style={[styles.partEmpty, isRTL && styles.rtlText]}>
+            {language === "he" ? `${count} נרשמו` : `${count} registered`}
+          </Text>
         ) : (
-          <View style={styles.partList}>
-            {names.slice(0, 24).map((n) => (
-              <Text key={n} style={[styles.partName, isRTL && styles.rtlText]} numberOfLines={1}>
-                {n}
-              </Text>
+          <View style={styles.partListShell}>
+            {names.slice(0, 32).map((n, i) => (
+              <View key={`${n}-${i}`} style={styles.partChip}>
+                <Text
+                  style={[styles.partChipTxt, isRTL ? styles.partChipTxtRtlUi : styles.partChipTxtLtrUi]}
+                  numberOfLines={1}
+                >
+                  {participantListLabel(n, isRTL)}
+                </Text>
+              </View>
             ))}
-            {names.length > 24 ? (
-              <Text style={[styles.partMore, isRTL && styles.rtlText]}>
-                {language === "he" ? `ועוד ${names.length - 24}` : `+${names.length - 24} more`}
+            {count > names.length ? (
+              <Text style={[styles.partRowMore, isRTL && styles.rtlText]}>
+                {language === "he" ? `+${count - names.length} נוספים` : `+${count - names.length} more`}
+              </Text>
+            ) : null}
+            {names.length > 32 ? (
+              <Text style={[styles.partRowMore, isRTL && styles.rtlText]}>
+                {language === "he" ? `ועוד ${names.length - 32}` : `+${names.length - 32} more`}
               </Text>
             ) : null}
           </View>
         )}
       </View>
-
-      {!registered ? (
-        <>
-          <PrimaryButton
-            label={registering ? t("common.loading") : language === "he" ? "הרשמה" : "Register"}
-            onPress={register}
-            disabled={full || !regOpen || !sessionNotEnded || registering || waitlisting || cancelling}
-            style={full || !regOpen || !sessionNotEnded ? styles.disabled : undefined}
-          />
-          {(full || onWaitlist) && (
-            <Pressable
-              style={styles.btn2}
-              onPress={onWaitlist ? leaveWaitlist : waitlist}
-              disabled={
-                waitlisting ||
-                registering ||
-                cancelling ||
-                (!onWaitlist && (!full || !sessionNotEnded))
-              }
-            >
-              <Text style={styles.btnText2}>
-                {onWaitlist
-                  ? language === "he"
-                    ? "הסרה מרשימת המתנה"
-                    : "Remove from waitlist"
-                  : language === "he"
-                    ? "הרשמה לרשימת המתנה"
-                    : "Register to waitlist"}
-              </Text>
-            </Pressable>
-          )}
-          {!sessionNotEnded ? null : !full && !regOpen ? (
-            <Text style={[styles.closedHint, isRTL && styles.rtlText]}>
-              {language === "he" ? "ההרשמה סגורה כרגע." : "Registration is currently closed."}
-            </Text>
-          ) : null}
-        </>
-      ) : canCancelRegistration ? (
-        <Pressable style={styles.btnDanger} onPress={() => setCancelOpen(true)} disabled={registering || waitlisting || cancelling}>
-          <Text style={styles.btnText}>{language === "he" ? "ביטול הרשמה" : "Cancel registration"}</Text>
-        </Pressable>
-      ) : sessionNotEnded ? (
-        <Text style={[styles.closedHint, isRTL && styles.rtlText]}>{t("athleteSession.sessionStartedNoCancel")}</Text>
-      ) : null}
     </ScrollView>
         <SessionAdjacentNav variant="athlete" sessionId={sessionId} />
       </View>
@@ -424,32 +500,99 @@ const styles = StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
   chipsRtl: { flexDirection: "row-reverse" },
   disabled: { opacity: 0.5 },
+  actionsBlock: {
+    marginBottom: theme.spacing.md,
+    gap: 10,
+  },
   btn2: {
-    marginTop: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: theme.radius.md,
     alignItems: "center",
     backgroundColor: theme.colors.surface,
   },
-  closedHint: { marginTop: 10, color: theme.colors.textMuted, fontWeight: "700" },
+  closedHint: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13, textAlign: "center" },
   btnText: { color: "#fff", textAlign: "center", fontWeight: "600" },
   btnText2: { color: theme.colors.cta, fontWeight: "600" },
-  btnDanger: { marginTop: 24, backgroundColor: theme.colors.error, padding: 16, borderRadius: theme.radius.md, alignItems: "center" },
+  btnDanger: {
+    backgroundColor: theme.colors.error,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+  },
   partCard: {
     backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.md,
     borderRadius: theme.radius.lg,
     marginBottom: theme.spacing.lg,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  partTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
-  partEmpty: { marginTop: 8, color: theme.colors.textMuted, fontWeight: "600" },
-  partList: { marginTop: 10, gap: 6 },
-  partName: { color: theme.colors.text, fontWeight: "700" },
-  partMore: { marginTop: 6, color: theme.colors.textMuted, fontWeight: "800" },
+  partHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 8,
+  },
+  partHeaderRtl: { flexDirection: "row-reverse" },
+  partTitle: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
+  partCountBadge: {
+    minWidth: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.backgroundAlt,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    alignItems: "center",
+  },
+  partCountBadgeTxt: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: theme.colors.textMuted,
+    fontVariant: ["tabular-nums"],
+  },
+  partEmpty: { color: theme.colors.textMuted, fontWeight: "600", fontSize: 12 },
+  partListShell: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 6,
+  },
+  partChip: {
+    maxWidth: "100%",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.backgroundAlt,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  partChipTxt: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: theme.colors.text,
+    lineHeight: 15,
+    textAlign: "center",
+  },
+  partChipTxtLtrUi: {
+    writingDirection: "ltr",
+  },
+  partChipTxtRtlUi: {
+    writingDirection: "rtl",
+  },
+  partRowMore: {
+    width: "100%",
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: "700",
+    color: theme.colors.textSoft,
+    textAlign: "center",
+  },
   modal: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.4)" },
   modalCard: {
     backgroundColor: theme.colors.surfaceElevated,

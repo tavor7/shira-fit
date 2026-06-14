@@ -132,10 +132,10 @@ export function DaySessionsSheet({
     const before = await supabase.from("training_sessions").select("*").eq("id", sessionId).single();
     const sessionRow = before.data as unknown as TrainingSessionRow | null;
     let deleteError: { message: string } | null = null;
-    if (scope && sessionRow?.series_id) {
+    if (sessionRow?.series_id) {
       const { data, error } = await supabase.rpc("staff_delete_session_series_scope", {
         p_session_id: sessionId,
-        p_scope: scope,
+        p_scope: scope ?? "this",
       });
       if (error) deleteError = { message: error.message };
       else if (!data?.ok) deleteError = { message: String(data?.error ?? "failed") };

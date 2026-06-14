@@ -64,12 +64,16 @@ export type HomePriorityLabelSegment = {
   role?: "subject" | "body";
 };
 
+export type HomePriorityAlertTone = "cancellation" | "doubleSession";
+
 export type HomePriorityAlertItem = {
   id: string;
   /** Plain string fallback / accessibility; join of segments when segments exist */
   label: string;
   href: Href;
   labelSegments?: HomePriorityLabelSegment[];
+  /** Visual accent — double-session vs cancellation vs default */
+  tone?: HomePriorityAlertTone;
   /** Late cancellation: cancelled within the last hour */
   isNew?: boolean;
   /** Manager: late cancellation — studio charge decision */
@@ -275,6 +279,7 @@ export async function fetchStaffAthleteMultipleSessionsPerDayItems(
         { text: sep + detail, dir: bodyDir, role: "body" },
       ],
       href: staffSessionPath(variant, first.sessionId),
+      tone: "doubleSession",
     };
   });
 }
@@ -372,6 +377,7 @@ export async function fetchStaffLateCancellationItems(
         label: flatLabel,
         labelSegments,
         href: staffSessionPath(variant, sess.id),
+        tone: "cancellation",
         isNew,
         lateCancel:
           variant === "manager" && isLate
@@ -480,6 +486,7 @@ export async function fetchAthleteMultipleSessionsPerDayItems(
         { text: sep + detail, dir: bodyDir, role: "body" },
       ],
       href: `/(app)/athlete/session/${first.id}` as Href,
+      tone: "doubleSession",
     };
   });
 }

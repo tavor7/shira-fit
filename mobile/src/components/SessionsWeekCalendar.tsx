@@ -52,6 +52,8 @@ export type SessionsWeekItem = {
   waitlistJoining?: boolean;
   /** Athlete: already on waitlist for this session (shows confirmation strip when full). */
   athleteOnWaitlist?: boolean;
+  /** Athlete: active registration for this session — calendar shows registered styling, hides spots left. */
+  athleteRegistered?: boolean;
 };
 
 type Props = {
@@ -342,12 +344,15 @@ export function SessionsWeekCalendar({
                       it.maxParticipants !== undefined &&
                       it.maxParticipants > 0 &&
                       (it.signedUpCount ?? 0) >= it.maxParticipants;
+                    const isRegisteredCard =
+                      it.athleteRegistered === true && phase !== "past" && phase !== "live";
                     if (waitlistCta || waitlistJoinedStrip) {
                       return (
                         <View
                           key={it.key}
                           style={[
                             styles.card,
+                            isRegisteredCard && styles.cardRegistered,
                             dimTemporal && phase === "past" && styles.cardPast,
                             dimTemporal && phase === "live" && styles.cardLive,
                             dimTemporal && it.showStaffSessionLabels && it.isHidden ? { opacity: 0.55 } : null,
@@ -380,6 +385,7 @@ export function SessionsWeekCalendar({
                         disabled={!it.onPress}
                         style={({ pressed }) => [
                           styles.card,
+                          isRegisteredCard && styles.cardRegistered,
                           dimTemporal && phase === "past" && styles.cardPast,
                           dimTemporal && phase === "live" && styles.cardLive,
                           dimTemporal && it.showStaffSessionLabels && it.isHidden ? { opacity: 0.55 } : null,
@@ -539,6 +545,12 @@ const styles = StyleSheet.create({
     opacity: 0.52,
     backgroundColor: theme.colors.surfaceElevated,
     borderColor: theme.colors.border,
+  },
+  /** Booked session — white frame (distinct from green live and grey open). */
+  cardRegistered: {
+    borderWidth: 2,
+    borderColor: theme.colors.cta,
+    backgroundColor: theme.colors.surfaceElevated,
   },
   cardLive: {
     opacity: 1,

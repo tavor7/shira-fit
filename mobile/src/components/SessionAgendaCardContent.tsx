@@ -32,6 +32,8 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
   const regOpen = item.isOpenForRegistration !== false;
   const waitlistInvite = typeof item.onJoinWaitlist === "function";
   const onWaitlist = item.athleteOnWaitlist === true;
+  const registered = item.athleteRegistered === true;
+  const showRegistered = registered && temporalPhase !== "past";
 
   const timeStyle =
     temporalPhase === "past"
@@ -40,11 +42,13 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
         ? [styles.time, compact && styles.timeCompact, styles.timeLive]
         : [styles.time, compact && styles.timeCompact];
 
+  const leftAccentWidth = showRegistered ? 4 : 3;
+
   return (
     <View
       style={[
         styles.inner,
-        accent ? { borderLeftWidth: 3, borderLeftColor: accent, paddingLeft: 8 } : null,
+        accent ? { borderLeftWidth: leftAccentWidth, borderLeftColor: accent, paddingLeft: 8 } : null,
       ]}
     >
       <View style={styles.timeRow}>
@@ -81,11 +85,31 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
         ) : null}
       </View>
       {item.trainerName ? (
-        <Text style={[styles.trainer, compact && styles.trainerCompact]} numberOfLines={1}>
+        <Text style={[styles.trainer, compact && styles.trainerCompact, showRegistered && styles.trainerRegistered]} numberOfLines={1}>
           {firstWordOfDisplayName(item.trainerName)}
         </Text>
       ) : null}
-      {showRegState && showFill && !staffLabels && temporalPhase !== "past" && !(full && waitlistInvite) ? (
+      {showRegistered ? (
+        <View
+          style={[styles.registeredBanner, compact && styles.registeredBannerCompact, isRTL && styles.registeredBannerRtl]}
+          accessibilityLabel={t("athleteCalendar.registeredStatus")}
+          accessibilityRole="text"
+        >
+          {compact ? (
+            <>
+              <Text style={styles.registeredBannerCheck}>✓</Text>
+              <Text style={[styles.registeredBannerTxtStacked, isRTL && styles.registeredBannerTxtRtl]}>
+                {t("athleteCalendar.registeredCompact")}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.registeredBannerTxt}>
+              ✓ {t("athleteCalendar.registeredStatus")}
+            </Text>
+          )}
+        </View>
+      ) : null}
+      {showRegState && showFill && !staffLabels && temporalPhase !== "past" && !showRegistered && !(full && waitlistInvite) ? (
         <View style={[styles.chips, isRTL && styles.chipsRtl]}>
           {full && onWaitlist ? (
             <StatusChip
@@ -106,7 +130,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
           )}
         </View>
       ) : null}
-      {showFill && !staffLabels ? (
+      {showFill && !staffLabels && !registered ? (
         <Text style={[styles.fill, compact && styles.fillCompact]}>
           {c} / {m}
         </Text>
@@ -155,6 +179,44 @@ const styles = StyleSheet.create({
     top: 0,
     end: 0,
   },
+  registeredBanner: {
+    marginTop: 6,
+    alignSelf: "stretch",
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.cta,
+  },
+  registeredBannerCompact: {
+    marginTop: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  registeredBannerRtl: { alignSelf: "stretch" },
+  registeredBannerCheck: {
+    color: theme.colors.ctaText,
+    fontSize: 12,
+    fontWeight: "900",
+    lineHeight: 14,
+  },
+  registeredBannerTxtStacked: {
+    color: theme.colors.ctaText,
+    fontSize: 9,
+    fontWeight: "900",
+    lineHeight: 11,
+    textAlign: "center",
+    marginTop: 1,
+  },
+  registeredBannerTxtRtl: { writingDirection: "rtl" },
+  registeredBannerTxt: {
+    color: theme.colors.ctaText,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+    textAlign: "center",
+  },
   time: { fontWeight: "800", color: theme.colors.cta, fontSize: 15, letterSpacing: 0.2, lineHeight: 18 },
   timeCompact: { fontSize: 14, lineHeight: 17 },
   timePast: { color: theme.colors.textSoft, fontWeight: "600" },
@@ -190,6 +252,7 @@ const styles = StyleSheet.create({
   timeBadgeTxtCompact: { fontSize: 10 },
   trainer: { marginTop: 4, color: theme.colors.text, fontSize: 12, fontWeight: "600", lineHeight: 15 },
   trainerCompact: { fontSize: 11, marginTop: 3 },
+  trainerRegistered: { color: theme.colors.cta, fontWeight: "800" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
   chipsRtl: { flexDirection: "row-reverse" },
   fillRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "nowrap" },
