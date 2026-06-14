@@ -69,7 +69,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const [coachLabel, setCoachLabel] = useState(fixedCoachLabel ? `${fixedCoachLabel} — ${coachYouLabel}` : "");
   const [coachColor, setCoachColor] = useState<string | null>(null);
   const [showCoachPicker, setShowCoachPicker] = useState(false);
-  const [max, setMax] = useState("12");
+  const [max, setMax] = useState("1");
   const [durationMinutes, setDurationMinutes] = useState("55");
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [repeatOngoing, setRepeatOngoing] = useState(true);

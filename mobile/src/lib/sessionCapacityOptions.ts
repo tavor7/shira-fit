@@ -13,13 +13,18 @@ export const SESSION_MAX_SIZE_OPTIONS = Array.from(
   (_, i) => SESSION_MAX_PARTICIPANTS_MIN + i
 );
 
+export const SESSION_MAX_PRESETS = [1, 2, 4, 12] as const;
+
+export const SESSION_DEFAULT_DURATION = 55;
+export const SESSION_DEFAULT_MAX_PARTICIPANTS = 1;
+
 export function clampSessionDuration(n: number): number {
-  if (!Number.isFinite(n)) return 55;
+  if (!Number.isFinite(n)) return SESSION_DEFAULT_DURATION;
   return Math.min(SESSION_DURATION_MAX, Math.max(SESSION_DURATION_MIN, Math.round(n)));
 }
 
 export function clampSessionMaxParticipants(n: number): number {
-  if (!Number.isFinite(n)) return 12;
+  if (!Number.isFinite(n)) return SESSION_DEFAULT_MAX_PARTICIPANTS;
   return Math.min(SESSION_MAX_PARTICIPANTS_MAX, Math.max(SESSION_MAX_PARTICIPANTS_MIN, Math.round(n)));
 }
 

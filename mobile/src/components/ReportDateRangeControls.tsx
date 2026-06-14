@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { DatePickerField } from "./DatePickerField";
 import { MonthPickerSheet } from "./MonthPickerSheet";
+import { sessionFormStyles as sf } from "./sessionFormStyles";
 import {
   firstDayOfMonthISOLocal,
   lastNDaysRangeISO,
@@ -214,20 +215,29 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
       ) : null}
 
       {mode === "range" ? (
-        <View style={styles.rangeFields}>
-          <DatePickerField
-            label={t("common.from")}
-            value={start}
-            onChange={(iso) => onChange({ start: iso, end })}
-            maximumDate={parseISODateLocal(end) ?? undefined}
-          />
-          <DatePickerField
-            label={t("common.to")}
-            value={end}
-            onChange={(iso) => onChange({ start, end: iso })}
-            minimumDate={parseISODateLocal(start) ?? undefined}
-            maximumDate={new Date()}
-          />
+        <View style={styles.rangePanel}>
+          <View style={sf.formPanel}>
+            <View style={sf.formPanelCell}>
+              <DatePickerField
+                appearance="embedded"
+                label={t("common.from")}
+                value={start}
+                onChange={(iso) => onChange({ start: iso, end })}
+                maximumDate={parseISODateLocal(end) ?? undefined}
+              />
+            </View>
+            <View style={sf.formPanelDivider} />
+            <View style={sf.formPanelCell}>
+              <DatePickerField
+                appearance="embedded"
+                label={t("common.to")}
+                value={end}
+                onChange={(iso) => onChange({ start, end: iso })}
+                minimumDate={parseISODateLocal(start) ?? undefined}
+                maximumDate={new Date()}
+              />
+            </View>
+          </View>
         </View>
       ) : null}
 
@@ -345,12 +355,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   monthPickChev: { fontSize: 10, color: theme.colors.textMuted, marginTop: 2 },
-  rangeFields: {
+  rangePanel: {
     marginBottom: 4,
     width: "100%",
     maxWidth: "100%",
     minWidth: 0,
-    gap: theme.spacing.sm,
   },
   summary: {
     fontSize: 12,
