@@ -199,7 +199,15 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   touchPressed: { opacity: 0.92 },
-  touchText: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  // Explicit lineHeight prevents baseline clipping/overlap on web + iOS.
+  touchText: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 16,
+    fontWeight: "700",
+    color: theme.colors.text,
+    lineHeight: 22,
+  },
   touchTextAuth: { fontWeight: "500", lineHeight: 22 },
   touchTextPlaceholder: { color: theme.colors.textMuted, fontWeight: "800" },
   rtlTextLight: { textAlign: "right" },
