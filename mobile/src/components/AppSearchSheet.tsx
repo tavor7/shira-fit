@@ -98,6 +98,12 @@ export function AppSearchSheet<T>({
   const keyboardOpen =
     Platform.OS === "web" ? visibleHeight < windowHeight * 0.92 : keyboardInset > 0;
 
+  // iOS Safari (web) often overlays the keyboard accessory bar without shrinking
+  // the visual viewport enough, so the sheet can get clipped. Use the delta as
+  // a practical inset to lift the sheet above the keyboard.
+  const webKeyboardInset = Platform.OS === "web" ? Math.max(0, windowHeight - visibleHeight) : 0;
+  const effectiveKeyboardInset = Platform.OS === "web" ? webKeyboardInset : keyboardInset;
+
   const sheetHeight = useMemo(() => {
     const topRoom = Math.max(insets.top, 8) + 8;
     const cap = Math.round(layoutHeight * sheetHeightPct);
@@ -149,7 +155,7 @@ export function AppSearchSheet<T>({
               {
                 height: sheetHeight,
                 paddingBottom: bottomPad,
-                marginBottom: Platform.OS === "web" ? 0 : keyboardInset,
+                marginBottom: effectiveKeyboardInset,
               },
               cardStyle,
             ]}
