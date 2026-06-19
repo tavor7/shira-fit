@@ -23,6 +23,7 @@ import { fetchActiveSignupCountsBySession } from "../../../../src/lib/sessionSig
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
 import { embedLtrInMixed, embedRtlInLtr, isRtlScript } from "../../../../src/lib/bidiEmbed";
+import { athleteRegisterSessionErrorDetail } from "../../../../src/lib/athleteRegisterSessionError";
 
 /** Same visual anchor for Hebrew + Latin names in the participants list. */
 function participantListLabel(name: string, uiRtl: boolean): string {
@@ -180,7 +181,15 @@ export default function AthleteSessionDetail() {
       }
       await clearWaitlistSpotFlag(sessionId);
       await refreshCount();
-    } else showToast({ message: language === "he" ? "לא ניתן להירשם" : "Could not register", detail: data?.error ?? "", variant: "error" });
+    } else {
+      const err = String(data?.error ?? "");
+      if (err === "already_registered") await load(true);
+      showToast({
+        message: language === "he" ? "לא ניתן להירשם" : "Could not register",
+        detail: athleteRegisterSessionErrorDetail(err, t),
+        variant: "error",
+      });
+    }
   }
 
   async function waitlist() {

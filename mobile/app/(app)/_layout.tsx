@@ -10,6 +10,8 @@ import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
 import { useI18n } from "../../src/context/I18nContext";
 import { ConsentGateModal } from "../../src/components/ConsentGateModal";
 import { getLoginHrefWithOptionalRedirectWeb } from "../../src/lib/webLastRoute";
+import { useManagerAthletePreview } from "../../src/context/ManagerAthletePreviewContext";
+import { canRoleAccessAppPath, getRoleAccessDeniedRedirect } from "../../src/lib/roleRouteAccess";
 
 const headerStyle: ViewStyle = {
   backgroundColor: theme.colors.backgroundAlt,
@@ -28,6 +30,7 @@ export default function AppLayout() {
   const { session, loading, profile, authUnavailable, retryAuthBootstrap } = useAuth();
   const { t } = useI18n();
   const pathname = usePathname() ?? "";
+  const { enabled: managerAthletePreview, storageReady: managerPreviewStorageReady } = useManagerAthletePreview();
   useAndroidSessionsBackHandler(!!session && !loading && !authUnavailable);
 
   /**
@@ -87,6 +90,12 @@ export default function AppLayout() {
   }
   if (pendingAthlete && !isPendingPathname(pathname)) {
     return <Redirect href="/(app)/pending" />;
+  }
+
+  const role = profile?.role;
+  const roleRouteGateReady = role !== "manager" || managerPreviewStorageReady || Platform.OS === "web";
+  if (role && roleRouteGateReady && !canRoleAccessAppPath(role, pathname, { managerAthletePreview })) {
+    return <Redirect href={getRoleAccessDeniedRedirect(role, managerAthletePreview)} />;
   }
 
   return (

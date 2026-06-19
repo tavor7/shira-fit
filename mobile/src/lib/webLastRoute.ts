@@ -1,5 +1,6 @@
 import type { Href } from "expo-router";
 import { Platform } from "react-native";
+import { canRoleAccessAppPath, normalizeAppPathname } from "./roleRouteAccess";
 
 const STORAGE_PREFIX = "shirafit:lastWebAppRoute:";
 /** Same key as ManagerAthletePreviewContext (avoid import cycle). */
@@ -127,24 +128,11 @@ export function canRoleAccessWebPath(
   opts?: { managerAthletePreview?: boolean }
 ): boolean {
   if (!role) return false;
-  const pathname = splitPathAndSearch(pathnameWithOptionalSearch).pathname;
+  const pathname = normalizeAppPathname(splitPathAndSearch(pathnameWithOptionalSearch).pathname);
   if (isAuthOrExcludedPath(pathname)) return false;
   if (!shouldPersistWebRoute(pathname)) return false;
-
-  if (pathname.startsWith("/profile") || pathname.startsWith("/settings/")) return true;
-
-  if (role === "athlete") {
-    return pathname.startsWith("/athlete/");
-  }
-  if (role === "coach") {
-    return pathname.startsWith("/coach/") || pathname.startsWith("/staff/");
-  }
-  if (role === "manager") {
-    const preview = opts?.managerAthletePreview ?? readManagerAthletePreviewSyncWeb();
-    if (preview && pathname.startsWith("/athlete/")) return true;
-    return pathname.startsWith("/manager/") || pathname.startsWith("/staff/");
-  }
-  return false;
+  const preview = opts?.managerAthletePreview ?? readManagerAthletePreviewSyncWeb();
+  return canRoleAccessAppPath(role, pathname, { managerAthletePreview: preview });
 }
 
 export function saveWebLastRoute(userId: string, pathname: string, search: string): void {

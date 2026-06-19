@@ -19,6 +19,7 @@ import {
 import { appendNetworkHint } from "../lib/networkErrors";
 import { scheduleSessionReminders, cancelSessionReminders } from "../lib/sessionReminders";
 import { clearWaitlistSpotFlag } from "../lib/waitlistSpotNotifier";
+import { athleteRegisterSessionErrorDetail } from "../lib/athleteRegisterSessionError";
 
 function sessionStartMs(s: Pick<TrainingSessionWithTrainer, "session_date" | "start_time">): number {
   const t = s.start_time.length >= 5 ? s.start_time.slice(0, 5) : s.start_time;
@@ -125,7 +126,14 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
         message: language === "he" ? "נרשמת לאימון" : "You’re registered",
         variant: "success",
       });
-    } else Alert.alert(language === "he" ? "לא ניתן להירשם" : "Could not register", data?.error ?? "");
+    } else {
+      const err = String(data?.error ?? "");
+      if (err === "already_registered") await loadStatus();
+      Alert.alert(
+        language === "he" ? "לא ניתן להירשם" : "Could not register",
+        athleteRegisterSessionErrorDetail(err, t)
+      );
+    }
   }
 
   async function onWaitlist() {
