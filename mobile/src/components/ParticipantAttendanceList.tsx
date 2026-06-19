@@ -18,6 +18,8 @@ import { RosterSlotRateChip, formatRosterIls, type SessionRateMeta } from "./Ros
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueries";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
+import { hasSessionNotStarted } from "../lib/sessionTime";
+import type { MoveParticipantTarget } from "./MoveParticipantSheet";
 
 type RegRow = {
   user_id: string;
@@ -115,6 +117,8 @@ type Props = {
   showMarkAllArrived?: boolean;
   /** When roster is empty but another session at the same slot has athletes. */
   onDuplicateRosterSession?: (otherSessionId: string | null) => void;
+  /** Staff: open move-to-another-session flow for a roster row. */
+  onMoveParticipant?: (target: MoveParticipantTarget) => void;
 };
 
 export function ParticipantAttendanceList({
@@ -127,6 +131,7 @@ export function ParticipantAttendanceList({
   onRemoveManualParticipant,
   showMarkAllArrived = true,
   onDuplicateRosterSession,
+  onMoveParticipant,
 }: Props) {
   const { language, t, isRTL } = useI18n();
   const pathname = usePathname();
@@ -146,12 +151,30 @@ export function ParticipantAttendanceList({
   const [payChosenMethod, setPayChosenMethod] = useState<string | null>(null);
   const [payAmountDraft, setPayAmountDraft] = useState("");
   const [payMode, setPayMode] = useState<"arrived" | "absent_penalty">("arrived");
+  const [sessionNotStarted, setSessionNotStarted] = useState(false);
 
   function interpolateParticipantName(template: string, name: string) {
     return template.replace(/\{name\}/g, name);
   }
 
   const canOfferDecreaseGroupSize = maxParticipants != null && maxParticipants < 12 && maxParticipants > 1 && rows.length >= maxParticipants;
+
+  function rowCanMove(item: Row): boolean {
+    if (item.attended !== null) return false;
+    if (item.chargeNoShow) return false;
+    if (item.amountPaid != null) return false;
+    if (normalizePaymentMethodKey(item.paymentMethod) !== "(none)") return false;
+    return true;
+  }
+
+  function openMove(item: Row) {
+    if (!onMoveParticipant || !rowCanMove(item)) return;
+    onMoveParticipant(
+      item.kind === "registered"
+        ? { kind: "registered", name: item.name, userId: item.userId }
+        : { kind: "manual", name: item.name, manualId: item.manualId }
+    );
+  }
 
   function confirmRemoveRegistered(item: Extract<Row, { kind: "registered" }>) {
     if (!onRemoveAthlete) return;
@@ -234,10 +257,14 @@ export function ParticipantAttendanceList({
     const sess = s as {
       max_participants?: number;
       session_date?: string;
+      start_time?: string;
       is_kickbox?: boolean;
       custom_slot_price_ils?: number | string | null;
     } | null;
     setMaxParticipants(sess?.max_participants ?? null);
+    setSessionNotStarted(
+      !!(sess?.session_date && sess?.start_time && hasSessionNotStarted(sess.session_date, sess.start_time))
+    );
     if (sess?.max_participants && sess.session_date) {
       const custom = sess.custom_slot_price_ils;
       setSessionMeta({
@@ -785,6 +812,19 @@ export function ParticipantAttendanceList({
                   />
                 ) : null}
                 {busy ? <ActivityIndicator size="small" color={theme.colors.cta} /> : null}
+                {onMoveParticipant && sessionNotStarted && rowCanMove(item) && !busy ? (
+                  <Pressable
+                    onPress={() => openMove(item)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("a11y.moveParticipant")}
+                    style={({ pressed }) => [styles.moveBtn, pressed && styles.moveBtnPressed]}
+                  >
+                    <Text style={styles.moveIcon} importantForAccessibility="no">
+                      {"⇄"}
+                    </Text>
+                  </Pressable>
+                ) : null}
                 {item.kind === "registered" && onRemoveAthlete && !busy ? (
                   <Pressable
                     onPress={() => confirmRemoveRegistered(item)}
@@ -1029,6 +1069,18 @@ const styles = StyleSheet.create({
   paymentOther: { color: "#EAB308" },
   nameRight: { flexDirection: "row", alignItems: "center", gap: 10 },
   nameRightRtl: { flexDirection: "row-reverse" },
+  moveBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.cta,
+  },
+  moveBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  moveIcon: { color: theme.colors.cta, fontWeight: "900", fontSize: 15, lineHeight: 15 },
   removeBtn: {
     width: 28,
     height: 28,

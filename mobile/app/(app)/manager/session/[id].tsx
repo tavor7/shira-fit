@@ -23,6 +23,7 @@ import {
   type SessionAttendanceStats,
 } from "../../../../src/components/ParticipantAttendanceList";
 import { AddParticipantToSessionModal } from "../../../../src/components/AddParticipantToSessionModal";
+import { MoveParticipantSheet, type MoveParticipantTarget } from "../../../../src/components/MoveParticipantSheet";
 import { SessionWhenFields } from "../../../../src/components/SessionWhenFields";
 import { SessionCapacityFields } from "../../../../src/components/SessionCapacityFields";
 import {
@@ -37,7 +38,7 @@ import { isMissingColumnError } from "../../../../src/lib/dbColumnErrors";
 import { isValidISODateString, toISODateLocal } from "../../../../src/lib/isoDate";
 import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay, formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateFormat";
-import { formatSessionStartTime, hasSessionNotEnded, isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
+import { formatSessionStartTime, hasSessionNotEnded, hasSessionNotStarted, isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
 import { useAuth } from "../../../../src/context/AuthContext";
 import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../src/context/ToastContext";
@@ -223,6 +224,8 @@ export default function ManagerSessionDetail() {
   const compact = sessionFormIsCompact(width);
   const [participantsRev, setParticipantsRev] = useState(0);
   const [participantCount, setParticipantCount] = useState(0);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [moveTarget, setMoveTarget] = useState<MoveParticipantTarget | null>(null);
   const [attendanceStats, setAttendanceStats] = useState<SessionAttendanceStats>({
     registered: 0,
     arrived: 0,
@@ -1412,6 +1415,7 @@ export default function ManagerSessionDetail() {
 
   const durationMinutesForEnded = clampSessionDuration(parseInt(durationMin.trim(), 10));
   const sessionHasEnded = !hasSessionNotEnded(date, time, durationMinutesForEnded);
+  const sessionCanMoveParticipants = hasSessionNotStarted(date, time);
   const parsedMaxCap = parseInt(maxP.trim(), 10);
   const maxCap = Number.isFinite(parsedMaxCap)
     ? clampSessionMaxParticipants(parsedMaxCap)
@@ -1785,6 +1789,14 @@ export default function ManagerSessionDetail() {
         onAttendanceStatsChange={handleAttendanceStatsChange}
         onRemoveAthlete={removeAthlete}
         onRemoveManualParticipant={removeManual}
+        onMoveParticipant={
+          sessionCanMoveParticipants
+            ? (target) => {
+                setMoveTarget(target);
+                setMoveOpen(true);
+              }
+            : undefined
+        }
       />
 
       <PrimaryButton
@@ -2133,6 +2145,23 @@ export default function ManagerSessionDetail() {
         onAdded={() => {
           void load();
           setParticipantsRev((n) => n + 1);
+        }}
+      />
+      <MoveParticipantSheet
+        visible={moveOpen}
+        onClose={() => {
+          setMoveOpen(false);
+          setMoveTarget(null);
+        }}
+        fromSessionId={String(id ?? "")}
+        fromSessionDate={date}
+        fromMaxParticipants={maxCap}
+        fromParticipantCount={participantCount}
+        participant={moveTarget}
+        isManager
+        onMoved={() => {
+          setParticipantsRev((n) => n + 1);
+          afterParticipantsChange();
         }}
       />
       {draftDiagPanelEl}

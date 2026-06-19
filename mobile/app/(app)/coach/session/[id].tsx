@@ -6,9 +6,10 @@ import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { ParticipantAttendanceList } from "../../../../src/components/ParticipantAttendanceList";
 import { AddParticipantToSessionModal } from "../../../../src/components/AddParticipantToSessionModal";
+import { MoveParticipantSheet, type MoveParticipantTarget } from "../../../../src/components/MoveParticipantSheet";
 import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay } from "../../../../src/lib/dateFormat";
-import { isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
+import { isCancellationWithinHoursBeforeSession, hasSessionNotStarted } from "../../../../src/lib/sessionTime";
 import { useToast } from "../../../../src/context/ToastContext";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
@@ -52,6 +53,8 @@ export default function CoachSessionDetail() {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteEditDraft, setNoteEditDraft] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [moveTarget, setMoveTarget] = useState<MoveParticipantTarget | null>(null);
   const [coachId, setCoachId] = useState<string | null>(null);
   const [sessionSchedule, setSessionSchedule] = useState<{ session_date: string; start_time: string } | null>(null);
   const [isKickbox, setIsKickbox] = useState(false);
@@ -219,6 +222,9 @@ export default function CoachSessionDetail() {
   }
 
   const canEditSession = !!(myId && coachId && myId === coachId);
+  const sessionCanMoveParticipants =
+    canEditSession &&
+    !!(sessionSchedule && hasSessionNotStarted(sessionSchedule.session_date, sessionSchedule.start_time));
 
   async function quickAddWaitlistedAthlete(userId: string) {
     if (!id || waitlistQuickUserId || !canEditSession) return;
@@ -312,6 +318,14 @@ export default function CoachSessionDetail() {
         onAttendanceStatsChange={preserveScrollPosition}
         onRemoveAthlete={canEditSession ? removeAthlete : undefined}
         onRemoveManualParticipant={canEditSession ? removeManual : undefined}
+        onMoveParticipant={
+          sessionCanMoveParticipants
+            ? (target) => {
+                setMoveTarget(target);
+                setMoveOpen(true);
+              }
+            : undefined
+        }
       />
 
       <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "רשימת המתנה" : "Waitlist"}</Text>
@@ -576,6 +590,24 @@ export default function CoachSessionDetail() {
         onAdded={() => {
           afterParticipantsChange();
           setParticipantsRev((n) => n + 1);
+        }}
+      />
+      <MoveParticipantSheet
+        visible={moveOpen}
+        onClose={() => {
+          setMoveOpen(false);
+          setMoveTarget(null);
+        }}
+        fromSessionId={String(id ?? "")}
+        fromSessionDate={sessionSchedule?.session_date ?? ""}
+        fromMaxParticipants={maxCapCoach}
+        fromParticipantCount={participantCount}
+        participant={moveTarget}
+        coachFilterUserId={coachId}
+        isManager={false}
+        onMoved={() => {
+          setParticipantsRev((n) => n + 1);
+          afterParticipantsChange();
         }}
       />
         </ScrollView>
