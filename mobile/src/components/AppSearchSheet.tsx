@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SearchSheetFocusContext } from "../context/SearchSheetFocusContext";
 import { useKeyboardInset } from "../hooks/useKeyboardInset";
 import { useLockBodyScroll } from "../hooks/useLockBodyScroll";
-import { useVisibleViewportHeight } from "../hooks/useVisibleViewportHeight";
+import { useVisualViewport } from "../hooks/useVisualViewport";
 import { theme } from "../theme";
 import { AppSearchField } from "./AppSearchField";
 
@@ -53,6 +53,7 @@ type Props<T> = {
   searchLabel?: string;
   search?: ReactNode;
   sheetHeightPct?: number;
+  /** Hide headerExtra while the search field is focused (keeps quick-add fields visible when editing them). */
   hideHeaderExtraOnKeyboard?: boolean;
   cardStyle?: StyleProp<ViewStyle>;
 } & (
@@ -83,10 +84,29 @@ export function AppSearchSheet<T>({
 }: Props<T>) {
   const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
-  const visibleHeight = useVisibleViewportHeight();
+  const visualViewport = useVisualViewport();
   const { height: windowHeight } = useWindowDimensions();
+  const [searchFocused, setSearchFocused] = useState(false);
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useLockBodyScroll(visible);
+
+  useEffect(() => {
+    if (!visible) {
+      setSearchFocused(false);
+      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    }
+  }, [visible]);
+
+  function handleSearchFocus() {
+    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    setSearchFocused(true);
+  }
+
+  function handleSearchBlur() {
+    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    blurTimerRef.current = setTimeout(() => setSearchFocused(false), 150);
+  }
 
   useEffect(() => {
     if (!visible || !searchConfig) return;
@@ -94,24 +114,30 @@ export function AppSearchSheet<T>({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once when sheet opens
   }, [visible]);
 
-  const layoutHeight = Platform.OS === "web" ? visibleHeight : windowHeight;
-  const keyboardOpen =
-    Platform.OS === "web" ? visibleHeight < windowHeight * 0.92 : keyboardInset > 0;
+  const isWeb = Platform.OS === "web";
+  const webKeyboardInset = isWeb ? Math.max(0, windowHeight - visualViewport.height) : 0;
+  const keyboardOpen = isWeb
+    ? webKeyboardInset > 48 || visualViewport.height < windowHeight * 0.88 || searchFocused
+    : keyboardInset > 0;
 
-  // iOS Safari (web) often overlays the keyboard accessory bar without shrinking
-  // the visual viewport enough, so the sheet can get clipped. Use the delta as
-  // a practical inset to lift the sheet above the keyboard.
-  const webKeyboardInset = Platform.OS === "web" ? Math.max(0, windowHeight - visibleHeight) : 0;
-  const effectiveKeyboardInset = Platform.OS === "web" ? webKeyboardInset : keyboardInset;
+  const topRoom = Math.max(insets.top, 8) + 8;
+
+  const availableHeight = useMemo(() => {
+    if (isWeb) {
+      return Math.max(220, visualViewport.height - 4);
+    }
+    return Math.max(220, windowHeight - keyboardInset - topRoom);
+  }, [isWeb, visualViewport.height, windowHeight, keyboardInset, topRoom]);
 
   const sheetHeight = useMemo(() => {
-    const topRoom = Math.max(insets.top, 8) + 8;
-    const cap = Math.round(layoutHeight * sheetHeightPct);
-    return Math.max(260, Math.min(cap, layoutHeight - topRoom));
-  }, [layoutHeight, sheetHeightPct, insets.top]);
+    const pct = keyboardOpen ? Math.min(sheetHeightPct, 0.94) : sheetHeightPct;
+    const cap = Math.round((isWeb ? visualViewport.height : windowHeight) * pct);
+    return Math.max(220, Math.min(cap, availableHeight));
+  }, [availableHeight, isWeb, keyboardOpen, sheetHeightPct, visualViewport.height, windowHeight]);
 
   const bottomPad = Math.max(insets.bottom, theme.spacing.md);
-  const showHeaderExtra = headerExtra != null && !(hideHeaderExtraOnKeyboard && keyboardOpen);
+  const showHeaderExtra = headerExtra != null && !(hideHeaderExtraOnKeyboard && searchFocused);
+  const showCompactHeader = keyboardOpen && searchFocused;
 
   const focusContext = useMemo(() => ({ isCompact: keyboardOpen }), [keyboardOpen]);
 
@@ -131,6 +157,9 @@ export function AppSearchSheet<T>({
         editable={searchConfig.editable}
         accessibilityLabel={searchConfig.accessibilityLabel ?? searchConfig.placeholder}
         autoFocus={searchConfig.autoFocus}
+        scrollOnFocus={false}
+        onFocus={handleSearchFocus}
+        onBlur={handleSearchBlur}
       />
     </>
   ) : (
@@ -139,74 +168,89 @@ export function AppSearchSheet<T>({
 
   const listLoading = searchConfig?.loading ?? false;
 
+  const backdropStyle = isWeb
+    ? ({
+        position: "absolute",
+        top: visualViewport.offsetTop,
+        left: visualViewport.offsetLeft,
+        width: visualViewport.width,
+        height: visualViewport.height,
+      } as ViewStyle)
+    : undefined;
+
+  const sheetBody = (
+    <View
+      style={[
+        styles.sheet,
+        {
+          height: sheetHeight,
+          maxHeight: availableHeight,
+          paddingBottom: bottomPad,
+          ...(isWeb ? {} : { marginBottom: keyboardInset }),
+        },
+        cardStyle,
+      ]}
+    >
+      <View style={[styles.header, showCompactHeader && styles.headerCompact, isRTL && styles.headerRtl]}>
+        <View style={styles.headerText}>
+          <Text style={[styles.title, showCompactHeader && styles.titleCompact, isRTL && styles.rtlText]} numberOfLines={2}>
+            {title}
+          </Text>
+          {!showCompactHeader && subtitle?.trim() ? (
+            <Text style={[styles.subtitle, isRTL && styles.rtlText]} numberOfLines={2}>
+              {subtitle.trim()}
+            </Text>
+          ) : null}
+        </View>
+        <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={dismissLabel}>
+          <Text style={styles.dismiss}>{dismissLabel}</Text>
+        </Pressable>
+      </View>
+
+      {showHeaderExtra ? <View style={styles.headerExtra}>{headerExtra}</View> : null}
+
+      {searchNode != null ? <View style={styles.searchWrap}>{searchNode}</View> : null}
+
+      <View style={styles.resultsArea}>
+        {listLoading ? (
+          <ActivityIndicator
+            size="small"
+            color={theme.colors.cta}
+            style={styles.loadingBar}
+            accessibilityLabel="Loading"
+          />
+        ) : null}
+        {results != null ? (
+          <View style={styles.resultsFlexInner}>{results}</View>
+        ) : data != null && keyExtractor != null && renderItem != null ? (
+          <FlatList
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            data={data}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator
+            ListEmptyComponent={ListEmptyComponent != null ? () => <>{ListEmptyComponent}</> : undefined}
+          />
+        ) : null}
+      </View>
+    </View>
+  );
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <SearchSheetFocusContext.Provider value={focusContext}>
-        <View style={styles.backdrop}>
-          <Pressable
-            style={styles.backdropTouch}
-            onPress={onClose}
-            accessibilityRole="button"
-            accessibilityLabel={backdropAccessibilityLabel ?? dismissLabel}
-          />
-          <View
-            style={[
-              styles.sheet,
-              {
-                height: sheetHeight,
-                paddingBottom: bottomPad,
-                marginBottom: effectiveKeyboardInset,
-              },
-              cardStyle,
-            ]}
-          >
-            <View style={[styles.header, isRTL && styles.headerRtl]}>
-              <View style={styles.headerText}>
-                <Text style={[styles.title, isRTL && styles.rtlText]} numberOfLines={2}>
-                  {title}
-                </Text>
-                {subtitle?.trim() ? (
-                  <Text style={[styles.subtitle, isRTL && styles.rtlText]} numberOfLines={2}>
-                    {subtitle.trim()}
-                  </Text>
-                ) : null}
-              </View>
-              <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={dismissLabel}>
-                <Text style={styles.dismiss}>{dismissLabel}</Text>
-              </Pressable>
-            </View>
-
-            {showHeaderExtra ? <View style={styles.headerExtra}>{headerExtra}</View> : null}
-
-            {searchNode != null ? <View style={styles.searchWrap}>{searchNode}</View> : null}
-
-            <View style={styles.resultsArea}>
-              {listLoading ? (
-                <ActivityIndicator
-                  size="small"
-                  color={theme.colors.cta}
-                  style={styles.loadingBar}
-                  accessibilityLabel="Loading"
-                />
-              ) : null}
-              {results != null ? (
-                <View style={styles.resultsFlexInner}>{results}</View>
-              ) : data != null && keyExtractor != null && renderItem != null ? (
-                <FlatList
-                  style={styles.list}
-                  contentContainerStyle={styles.listContent}
-                  data={data}
-                  keyExtractor={keyExtractor}
-                  renderItem={renderItem}
-                  keyboardShouldPersistTaps="handled"
-                  keyboardDismissMode="on-drag"
-                  showsVerticalScrollIndicator
-                  ListEmptyComponent={
-                    ListEmptyComponent != null ? () => <>{ListEmptyComponent}</> : undefined
-                  }
-                />
-              ) : null}
-            </View>
+        <View style={[styles.backdropRoot, isWeb && styles.backdropRootWeb]}>
+          <View style={[styles.backdrop, backdropStyle]}>
+            <Pressable
+              style={styles.backdropTouch}
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel={backdropAccessibilityLabel ?? dismissLabel}
+            />
+            {sheetBody}
           </View>
         </View>
       </SearchSheetFocusContext.Provider>
@@ -215,10 +259,17 @@ export function AppSearchSheet<T>({
 }
 
 const styles = StyleSheet.create({
+  backdropRoot: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  backdropRootWeb: {
+    position: "relative",
+    overflow: "hidden",
+  },
   backdrop: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.55)",
   },
   backdropTouch: { ...StyleSheet.absoluteFillObject },
   sheet: {
@@ -243,6 +294,9 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     gap: theme.spacing.sm,
   },
+  headerCompact: {
+    paddingVertical: theme.spacing.sm,
+  },
   headerRtl: { flexDirection: "row-reverse" },
   headerText: { flex: 1, minWidth: 0 },
   title: {
@@ -250,6 +304,9 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.2,
     color: theme.colors.text,
+  },
+  titleCompact: {
+    fontSize: 15,
   },
   subtitle: {
     marginTop: 4,
@@ -273,13 +330,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.sm,
     gap: theme.spacing.sm,
     zIndex: 2,
-    ...(Platform.OS === "web"
-      ? ({
-          position: "sticky",
-          top: 0,
-          backgroundColor: theme.colors.surface,
-        } as object)
-      : {}),
+    backgroundColor: theme.colors.surface,
   },
   searchLabel: {
     fontWeight: "800",
@@ -290,7 +341,7 @@ const styles = StyleSheet.create({
   },
   resultsArea: {
     flex: 1,
-    minHeight: 0,
+    minHeight: 120,
   },
   resultsFlexInner: {
     flex: 1,
