@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Platform } from "react-native";
 import { router, type Href } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { formatISODateFull } from "../lib/dateFormat";
-import { firstDayOfMonthISOLocal, isValidISODateString, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
+import { firstDayOfMonthISOLocal, isValidISODateString, lastDayOfMonthISOLocal, monthRangeISO, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "../components/StatusChip";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
@@ -27,6 +27,8 @@ import {
   type WeeklyFinanceFamily,
 } from "../lib/managerWeeklyStats";
 
+type PeriodMode = ManagerPeriodMode;
+
 /** Local-calendar Sunday (matches server `public._week_start_sunday`). */
 function startOfWeekSunday(d: Date): string {
   const cal = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0);
@@ -34,7 +36,22 @@ function startOfWeekSunday(d: Date): string {
   return toISODateLocal(cal);
 }
 
-type PeriodMode = ManagerPeriodMode;
+/** Inclusive Sunday–Saturday range for the week containing `anchor` (ISO date). */
+function weekRangeFromAnchor(anchor: string): { start: string; end: string } {
+  const start = startOfWeekSunday(parseISODateLocal(anchor) ?? new Date());
+  const endCal = parseISODateLocal(start) ?? new Date();
+  endCal.setDate(endCal.getDate() + 6);
+  return { start, end: toISODateLocal(endCal) };
+}
+
+function periodRangeFromAnchor(anchor: string, mode: PeriodMode): { start: string; end: string } {
+  if (mode === "month") {
+    const r = monthRangeISO(anchor);
+    if (r) return r;
+    return { start: anchor, end: lastDayOfMonthISOLocal(anchor) };
+  }
+  return weekRangeFromAnchor(anchor);
+}
 
 type StatsPayload = {
   ok?: boolean;
@@ -89,9 +106,21 @@ export default function ManagerDashboardScreen() {
   const [showAthleteList, setShowAthleteList] = useState(false);
   const [addPayAthlete, setAddPayAthlete] = useState<WeeklyFinanceAthlete | null>(null);
   const [addPayFromFamily, setAddPayFromFamily] = useState(false);
+  const loadSeqRef = useRef(0);
+
+  const displayRange = useMemo(() => {
+    if (periodMode === "global") {
+      return {
+        start: data?.week_start ?? GLOBAL_OVERVIEW_START_ISO,
+        end: data?.week_end ?? toISODateLocal(new Date()),
+      };
+    }
+    return periodRangeFromAnchor(anchorDate, periodMode);
+  }, [anchorDate, periodMode, data?.week_start, data?.week_end]);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent === true;
+    const seq = ++loadSeqRef.current;
     if (!silent) setLoading(true);
 
     let raw: unknown = null;
@@ -107,6 +136,8 @@ export default function ManagerDashboardScreen() {
         p_mode: periodMode,
       }),
     ]);
+    if (seq !== loadSeqRef.current) return;
+
     raw = primary.data;
     error = primary.error;
 
@@ -125,6 +156,7 @@ export default function ManagerDashboardScreen() {
       const legacy = await supabase.rpc("manager_weekly_stats", {
         p_week_start: anchorDate,
       });
+      if (seq !== loadSeqRef.current) return;
       raw = legacy.data;
       error = legacy.error;
     }
@@ -146,13 +178,6 @@ export default function ManagerDashboardScreen() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  useEffect(() => {
-    if (periodMode === "global") return;
-    if (data?.ok && data.week_start && data.week_start !== anchorDate) {
-      setAnchorDate(String(data.week_start));
-    }
-  }, [data?.ok, data?.week_start, anchorDate, periodMode]);
 
   function setWeekMode() {
     if (periodMode === "week") return;
@@ -183,31 +208,28 @@ export default function ManagerDashboardScreen() {
   function openFinanceBreakdown() {
     router.push({
       pathname: "/(app)/manager/finance-daily",
-      params: { anchor: data?.week_start ?? anchorDate, periodMode },
+      params: { anchor: displayRange.start, periodMode },
     } as Href);
   }
 
   function openMissingAttendance() {
     router.push({
       pathname: "/(app)/manager/missing-attendance",
-      params: { anchor: data?.week_start ?? anchorDate, periodMode },
+      params: { anchor: displayRange.start, periodMode },
     } as Href);
   }
 
   function openCapacityMismatch() {
     router.push({
       pathname: "/(app)/manager/capacity-mismatch",
-      params: { anchor: data?.week_start ?? anchorDate, periodMode },
+      params: { anchor: displayRange.start, periodMode },
     } as Href);
   }
 
   function openWeeklyDetail(kind: string) {
-    const ws = data?.week_start ?? anchorDate;
-    const we = data?.week_end;
-    if (!ws || !we) return;
     router.push({
       pathname: "/(app)/manager/weekly-detail",
-      params: { weekStart: ws, weekEnd: we, kind },
+      params: { weekStart: displayRange.start, weekEnd: displayRange.end, kind },
     } as Href);
   }
 
@@ -240,24 +262,7 @@ export default function ManagerDashboardScreen() {
   }, [finance]);
 
   function reportDateRangeFromOverview(): { start: string; end: string } {
-    const ws = data?.week_start?.trim();
-    const we = data?.week_end?.trim();
-    if (ws && we) return { start: ws, end: we };
-
-    const anchor = anchorDate;
-    if (periodMode === "month") {
-      const start = firstDayOfMonthISOLocal(parseISODateLocal(anchor) ?? new Date());
-      const monthEnd = parseISODateLocal(shiftMonthAnchorISOLocal(start, 1)) ?? new Date();
-      monthEnd.setDate(monthEnd.getDate() - 1);
-      return { start, end: toISODateLocal(monthEnd) };
-    }
-    if (periodMode === "global") {
-      return { start: GLOBAL_OVERVIEW_START_ISO, end: toISODateLocal(new Date()) };
-    }
-    const weekStart = startOfWeekSunday(parseISODateLocal(anchor) ?? new Date());
-    const weekEnd = parseISODateLocal(weekStart) ?? new Date();
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    return { start: weekStart, end: toISODateLocal(weekEnd) };
+    return { start: displayRange.start, end: displayRange.end };
   }
 
   function openAthleteHistory(a: WeeklyFinanceAthlete) {
@@ -325,9 +330,13 @@ export default function ManagerDashboardScreen() {
     setAddPayAthlete(a);
   }
 
-  const rangeLabelStart = data?.week_start ?? anchorDate;
-  const rangeLabelEnd = data?.week_end;
+  const rangeLabelStart = displayRange.start;
+  const rangeLabelEnd = displayRange.end;
   const isGlobal = periodMode === "global";
+  const statsMatchPeriod =
+    isGlobal ||
+    (data?.week_start === displayRange.start && data?.week_end === displayRange.end);
+  const showStats = !loading && data?.ok && statsMatchPeriod;
   const showMissingAttendanceTile = periodMode === "week" || missingAttendance.count > 0;
   const showAlertRow =
     periodMode === "week" || capacityMismatchCount > 0 || missingAttendance.count > 0;
@@ -419,7 +428,7 @@ export default function ManagerDashboardScreen() {
           <Text style={[styles.rangeDates, isRTL && styles.rtl]} numberOfLines={2}>
             {formatISODateFull(rangeLabelStart, language)}
             <Text style={styles.rangeDash}>{" — "}</Text>
-            {rangeLabelEnd ? formatISODateFull(rangeLabelEnd, language) : "…"}
+            {formatISODateFull(rangeLabelEnd, language)}
           </Text>
         </View>
         <Pressable
@@ -450,7 +459,7 @@ export default function ManagerDashboardScreen() {
         <Text style={styles.err}>{data.error ?? t("common.error")}</Text>
       ) : null}
 
-      {!loading && data?.ok ? (
+      {showStats ? (
         <>
           <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>{t(sectionEyebrowKey(periodMode))}</Text>
           <View style={styles.statsCard}>
@@ -520,11 +529,11 @@ export default function ManagerDashboardScreen() {
         </>
       ) : null}
 
-      {!loading && data?.ok && (data.session_count ?? 0) === 0 ? (
+      {showStats && (data.session_count ?? 0) === 0 ? (
         <Text style={[styles.emptyWeek, isRTL && styles.rtl]}>{t(noSessionsKey(periodMode))}</Text>
       ) : null}
 
-      {!loading && data?.ok && showAlertRow ? (
+      {showStats && showAlertRow ? (
         <View style={[styles.alertRow, isRTL && styles.alertRowRtl]}>
           {showMissingAttendanceTile ? (
             <Pressable
@@ -569,7 +578,7 @@ export default function ManagerDashboardScreen() {
         </View>
       ) : null}
 
-      {!loading && data?.ok && finance ? (
+      {showStats && finance ? (
         <View style={styles.financeBlock}>
           <Text style={[styles.sectionEyebrow, styles.financeEyebrow, isRTL && styles.rtl]}>{t("dashboard.financeTitle")}</Text>
 
