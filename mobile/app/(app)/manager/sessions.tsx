@@ -11,6 +11,7 @@ import { theme } from "../../../src/theme";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { StaffHomeOverview } from "../../../src/components/StaffHomeOverview";
+import { StaffAthleteScheduleLookup } from "../../../src/components/StaffAthleteScheduleLookup";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { useAuth } from "../../../src/context/AuthContext";
 import { useI18n } from "../../../src/context/I18nContext";
@@ -182,6 +183,7 @@ export default function ManagerSessionsScreen() {
           </View>
         ) : null}
         <StaffHomeOverview userId={profile?.user_id} sessions={rows} variant="manager" refreshSeq={refreshSeq} />
+        <StaffAthleteScheduleLookup variant="manager" />
         <SessionsWeekCalendar
           items={items}
           isLoading={loading}
@@ -233,6 +235,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: theme.spacing.lg },
-  alertsWrap: { paddingHorizontal: theme.spacing.xs, paddingTop: theme.spacing.sm },
+  alertsWrap: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm },
   weekActions: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md },
 });

@@ -11,6 +11,7 @@ import { theme } from "../../../src/theme";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { StaffHomeOverview } from "../../../src/components/StaffHomeOverview";
+import { StaffAthleteScheduleLookup } from "../../../src/components/StaffAthleteScheduleLookup";
 import { useAuth } from "../../../src/context/AuthContext";
 import { useI18n } from "../../../src/context/I18nContext";
 import { mergeStaffHomeAlerts, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
@@ -130,7 +131,7 @@ export default function CoachSessionsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
         {showPriorityAlerts ? (
-          <View style={{ paddingHorizontal: theme.spacing.xs, paddingTop: theme.spacing.sm }}>
+          <View style={{ paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm }}>
             <HomePriorityAlerts
               items={homeAlerts}
               dismissStorageUserId={dismissStorageUserId}
@@ -139,6 +140,7 @@ export default function CoachSessionsScreen() {
           </View>
         ) : null}
         <StaffHomeOverview userId={profile?.user_id} sessions={rows} variant="coach" refreshSeq={refreshSeq} />
+        <StaffAthleteScheduleLookup variant="coach" />
         <SessionsWeekCalendar
           items={items}
           isLoading={loading}

@@ -479,16 +479,20 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
         </>
       )}
 
-      <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
-        {language === "he" ? "אימונים שאתה מאמן" : "Sessions you’re training"}
-      </Text>
-      <GroupedSessionList
-        list={teachingNotEnded}
-        emptyText={language === "he" ? "אין" : "None"}
-        alignRight={isRTL}
-        signupBySession={teachingSignupCounts}
-        notePreviewBySession={teachingNotePreview}
-      />
+      {teachingNotEnded.length > 0 ? (
+        <>
+          <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
+            {language === "he" ? "אימונים שאתה מאמן" : "Sessions you’re training"}
+          </Text>
+          <GroupedSessionList
+            list={teachingNotEnded}
+            emptyText={language === "he" ? "אין" : "None"}
+            alignRight={isRTL}
+            signupBySession={teachingSignupCounts}
+            notePreviewBySession={teachingNotePreview}
+          />
+        </>
+      ) : null}
     </View>
   );
 }

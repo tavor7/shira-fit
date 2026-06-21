@@ -74,17 +74,17 @@ function LateCancelChargeRow({ cancellationId, charged }: { cancellationId: stri
 const lateCancelStyles = StyleSheet.create({
   row: {
     flexDirection: "row",
-    gap: 8,
-    marginTop: 10,
-    paddingTop: 10,
+    gap: 6,
+    marginTop: 6,
+    paddingTop: 6,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.colors.borderMuted,
   },
   rowRtl: { flexDirection: "row-reverse" },
   btn: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
     borderRadius: theme.radius.sm,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
@@ -92,7 +92,7 @@ const lateCancelStyles = StyleSheet.create({
     alignItems: "center",
   },
   btnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  btnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
+  btnTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.textMuted },
   btnTxtOn: { color: theme.colors.ctaText },
 });
 
@@ -106,7 +106,7 @@ type Props = {
 };
 
 const wrapBase: ViewStyle = {
-  marginBottom: theme.spacing.sm,
+  marginBottom: theme.spacing.xs,
   backgroundColor: theme.colors.surface,
   borderRadius: theme.radius.md,
   borderWidth: 1,
@@ -318,7 +318,7 @@ export function HomePriorityAlerts({
         style={({ pressed }) => [styles.dismissHit, isRTL && styles.dismissHitRtl, pressed && { opacity: 0.75 }]}
         accessibilityRole="button"
         accessibilityLabel={t("homeAlerts.dismissA11y")}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <Text style={styles.dismissGlyph}>×</Text>
       </Pressable>
@@ -465,14 +465,14 @@ const styles = StyleSheet.create({
   rowOuter: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 10,
+    paddingVertical: 7,
     paddingStart: theme.spacing.sm,
-    paddingEnd: theme.spacing.xs,
+    paddingEnd: 2,
   },
   /** Hebrew / RTL: accent bar on the logical end — keep copy off the thick border + ×. */
   rowOuterRtl: {
-    paddingStart: theme.spacing.md,
-    paddingEnd: theme.spacing.md + 6,
+    paddingStart: theme.spacing.sm,
+    paddingEnd: theme.spacing.sm + 4,
   },
   rowTap: {
     alignSelf: "stretch",
@@ -485,8 +485,8 @@ const styles = StyleSheet.create({
   },
   rowContent: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    alignItems: "flex-start",
+    gap: 6,
     flex: 1,
     minWidth: 0,
   },
@@ -498,9 +498,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   lateCancelReasonLine: {
-    marginTop: 4,
-    fontSize: 13,
-    lineHeight: 18,
+    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 16,
     color: theme.colors.textMuted,
     fontWeight: "600",
   },
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   labelStack: {
     flex: 1,
     minWidth: 0,
-    gap: 3,
+    gap: 1,
   },
   labelStackRtl: {
     alignItems: "flex-end",
@@ -527,25 +527,26 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
   },
   dismissHit: {
-    justifyContent: "center",
-    alignSelf: "stretch",
-    paddingHorizontal: theme.spacing.xs,
-    minWidth: 44,
+    justifyContent: "flex-start",
+    alignSelf: "flex-start",
+    paddingTop: 1,
+    paddingHorizontal: 4,
+    minWidth: 32,
   },
   dismissHitRtl: {
-    paddingStart: theme.spacing.sm,
-    paddingEnd: theme.spacing.xs,
+    paddingStart: 6,
+    paddingEnd: 4,
   },
   dismissGlyph: {
     color: theme.colors.textMuted,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "400",
-    lineHeight: 28,
+    lineHeight: 22,
   },
   newBadge: {
     marginTop: 1,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: theme.radius.sm,
     backgroundColor: theme.colors.successBg,
     borderWidth: 1,
@@ -564,25 +565,24 @@ const styles = StyleSheet.create({
   text: {
     color: theme.colors.text,
     fontWeight: "700",
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 19,
   },
   segSubject: {
     color: theme.colors.alertSubject,
     fontWeight: "800",
-    fontSize: 15,
-    lineHeight: 22,
-    letterSpacing: 0.08,
+    fontSize: 14,
+    lineHeight: 19,
+    letterSpacing: 0.06,
   },
   rtl: { writingDirection: "rtl", textAlign: "right" },
   moreRow: {
-    paddingVertical: theme.spacing.xs,
+    paddingVertical: 6,
     paddingHorizontal: theme.spacing.sm,
-    paddingBottom: theme.spacing.xs,
   },
   moreText: {
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: 12,
   },
   moreTextLink: {
     color: theme.colors.cta,
@@ -654,13 +654,13 @@ const modalStyles = StyleSheet.create({
   sheetRowOuter: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingStart: theme.spacing.sm,
-    paddingEnd: theme.spacing.xs,
+    paddingEnd: 2,
   },
   sheetRowOuterRtl: {
-    paddingStart: theme.spacing.md,
-    paddingEnd: theme.spacing.md + 6,
+    paddingStart: theme.spacing.sm,
+    paddingEnd: theme.spacing.sm + 4,
   },
   sheetRowTap: {
     alignSelf: "stretch",
