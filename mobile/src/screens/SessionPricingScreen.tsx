@@ -21,6 +21,7 @@ import { PricingTierFormFields } from "../components/PricingTierFormFields";
 import { PricingRatePeriodFields } from "../components/PricingRatePeriodFields";
 import { PricingPickerField } from "../components/PricingPickerField";
 import { AppSearchSheet } from "../components/AppSearchSheet";
+import { athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
 import { pricingScreenStyles as ps } from "../components/pricingScreenStyles";
 import type { AthleteSessionCapacityPricingRow, SessionCapacityPricingRow } from "../types/database";
 import { toISODateLocal } from "../lib/isoDate";
@@ -332,7 +333,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     if (item.kind === "athlete") {
       setPickedUserId(item.user_id);
       setPickedManualId("");
-      setPickedAthleteLabel(`${item.full_name} (@${item.username})`);
+      setPickedAthleteLabel(athletePickerLabel(item.full_name, item.phone));
       setPickerOpen(false);
       return;
     }
@@ -904,7 +905,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
             <Text style={[styles.pickerItemName, isRTL && ps.rtl]}>{item.full_name}</Text>
             <Text style={[styles.pickerItemRole, isRTL && ps.rtl]}>
               {item.kind === "athlete"
-                ? `@${item.username}${item.phone ? ` · ${item.phone}` : ""}`
+                ? athleteSearchSubtitle(item.phone)
                 : `${item.phone} · ${t("pricing.quickAddLabel")}${
                     item.linked_user_id ? "" : ` · ${t("pricing.quickAddNoAccount")}`
                   }`}

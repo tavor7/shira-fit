@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { View, Text, Pressable, StyleSheet, FlatList } from "react-native";
 import { router } from "expo-router";
-import { theme } from "../theme";
+import { athleteSearchSubtitle } from "../lib/displayName";
 import { surface } from "../theme/surfaces";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
@@ -40,7 +40,7 @@ export default function StaffSearchScreen() {
           kind: "athlete",
           id: a.user_id,
           title: a.full_name ?? a.user_id,
-          subtitle: `@${a.username ?? ""} · ${a.phone ?? ""}`,
+          subtitle: athleteSearchSubtitle(a.phone),
         });
       }
       const { data: manuals } = await supabase

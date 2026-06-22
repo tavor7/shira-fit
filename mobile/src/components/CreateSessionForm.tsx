@@ -28,7 +28,10 @@ import {
 } from "../lib/sessionCapacityOptions";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
-import { appendNetworkHint } from "../lib/networkErrors";
+import { useAppAlert } from "../context/AppAlertContext";
+import { findExistingParticipantByNameOrPhone } from "../lib/findExistingParticipant";
+import { promptAddExistingParticipant } from "../lib/promptExistingParticipant";
+import { athleteSearchSubtitle } from "../lib/displayName";
 import { useDiscardChangesPrompt } from "../hooks/useDiscardChangesPrompt";
 import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { SessionSlotRateField } from "./SessionSlotRateField";
@@ -61,6 +64,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const { language, t, isRTL } = useI18n();
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showToast } = useToast();
+  const { showAlert } = useAppAlert();
   const navigation = useNavigation();
   const [date, setDate] = useState(() => initialDate?.trim() || toISODateLocal(new Date()));
   const [time, setTime] = useState(DEFAULT_SESSION_START_TIME);
@@ -335,7 +339,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         kind: "athlete" as const,
         key: a.user_id,
         full_name: a.full_name,
-        meta: `@${a.username} · ${a.phone}`,
+        meta: athleteSearchSubtitle(a.phone),
         athlete: a,
       })),
     ];
@@ -374,6 +378,25 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     if (traineesBusy) return;
     setTraineesBusy(true);
     try {
+      const existing = await findExistingParticipantByNameOrPhone(name, phone);
+      if (existing) {
+        const add = await promptAddExistingParticipant(showAlert, t, existing);
+        if (!add) return;
+        if (existing.kind === "app") {
+          addAthletePick({
+            user_id: existing.id,
+            full_name: existing.fullName,
+            username: existing.username,
+            phone: existing.phone,
+          });
+        } else {
+          addManualPick({ id: existing.id, full_name: existing.fullName, phone: existing.phone });
+        }
+        setQuickName("");
+        setQuickPhone("");
+        return;
+      }
+
       const { data, error } = await supabase.rpc("upsert_manual_participant", { p_full_name: name, p_phone: phone });
       if (error) {
         showToast({ message: t("common.error"), detail: error.message, variant: "error" });

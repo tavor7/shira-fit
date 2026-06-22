@@ -189,10 +189,6 @@ export function StaffAthleteScheduleLookup({ variant }: Props) {
               <Text style={[styles.hitMeta, isRTL && styles.rtlText]} numberOfLines={1}>
                 {item.phone}
               </Text>
-            ) : item.kind === "app" && item.username ? (
-              <Text style={[styles.hitMeta, isRTL && styles.rtlText]} numberOfLines={1}>
-                @{item.username}
-              </Text>
             ) : item.kind === "manual" && item.phone ? (
               <Text style={[styles.hitMeta, isRTL && styles.rtlText]} numberOfLines={1}>
                 {item.phone}

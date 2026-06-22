@@ -8,7 +8,7 @@ import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { AppModal } from "../components/AppModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
-import { firstWordOfDisplayName } from "../lib/displayName";
+import { firstWordOfDisplayName, athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
 import { formatSessionStartTime, formatSessionTimeRange } from "../lib/sessionTime";
 import { toISODateLocal, isValidISODateString, lastNDaysRangeISO } from "../lib/isoDate";
 import { formatISODateFull, formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
@@ -600,7 +600,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       }
       setAthleteId(uid);
       setPayeeIsManual(false);
-      setAthleteLabel(`${data.full_name} (@${data.username ?? ""}) · ${data.phone ?? ""}`);
+      setAthleteLabel(athletePickerLabel(data.full_name ?? "", data.phone));
       setPhone((data.phone ?? "").trim());
       setPresetResolved(true);
     })();
@@ -1003,7 +1003,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
               if (item.kind === "athlete") {
                 setAthleteId(item.user_id);
                 setPayeeIsManual(false);
-                setAthleteLabel(`${item.full_name} (@${item.username}) · ${item.phone}`);
+                setAthleteLabel(athletePickerLabel(item.full_name, item.phone));
                 setPhone(item.phone);
               } else {
                 setAthleteId(item.linked_user_id ?? item.id);
@@ -1026,7 +1026,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
           >
             <Text style={styles.pickerItemName}>{item.full_name}</Text>
             <Text style={styles.pickerItemRole}>
-              {item.kind === "athlete" ? `@${item.username} · ${item.phone}` : `${item.phone} · ${language === "he" ? "מהיר" : "Quick Add"}`}
+              {item.kind === "athlete" ? athleteSearchSubtitle(item.phone) : `${item.phone} · ${language === "he" ? "מהיר" : "Quick Add"}`}
             </Text>
           </Pressable>
         )}

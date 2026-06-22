@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { athleteSearchSubtitle } from "../lib/displayName";
 import { useI18n } from "../context/I18nContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { AppSearchField } from "../components/AppSearchField";
@@ -384,7 +385,7 @@ export default function FamilyManagementScreen() {
                         <Text style={[styles.choiceSub, isRTL && styles.rtl]} numberOfLines={1}>
                           {row.kind === "manual"
                             ? `${row.phone ?? ""} · ${language === "he" ? "מהיר" : "Quick Add"}`
-                            : `@${row.username ?? ""} · ${row.phone ?? ""}`}
+                            : athleteSearchSubtitle(row.phone)}
                         </Text>
                       </View>
                     </Pressable>

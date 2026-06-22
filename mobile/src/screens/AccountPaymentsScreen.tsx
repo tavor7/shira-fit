@@ -11,6 +11,7 @@ import {
 import { useRouter, type Href } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useToast } from "../context/ToastContext";
@@ -400,7 +401,7 @@ export default function AccountPaymentsScreen() {
     const id = row.id;
     const label =
       row.kind === "app"
-        ? `${row.full_name}${row.username ? ` (@${row.username})` : ""}`
+        ? athletePickerLabel(row.full_name, row.phone)
         : `${row.full_name}${row.phone ? ` · ${row.phone}` : ""}`;
 
     if (payeePickerMode === "filter") {
@@ -748,7 +749,7 @@ export default function AccountPaymentsScreen() {
                   subtitle = t("accountPayments.kindManual");
                 } else {
                   title = item.full_name;
-                  subtitle = item.username ? `@${item.username}` : t("accountPayments.kindAthlete");
+                  subtitle = athleteSearchSubtitle(item.phone);
                 }
                 return (
                   <Pressable

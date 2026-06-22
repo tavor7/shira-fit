@@ -6,6 +6,10 @@ import { AppSearchSheet } from "./AppSearchSheet";
 import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
+import { useAppAlert } from "../context/AppAlertContext";
+import { findExistingParticipantByNameOrPhone } from "../lib/findExistingParticipant";
+import { promptAddExistingParticipant } from "../lib/promptExistingParticipant";
+import { athleteSearchSubtitle } from "../lib/displayName";
 
 type Props = {
   sessionId: string;
@@ -48,6 +52,7 @@ function addManualParticipantRpcArgs(sid: string, manualId: string, allowOverCap
 export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAdded }: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
+  const { showAlert } = useAppAlert();
   const [maxCap, setMaxCap] = useState<number | null>(null);
   const [currentCount, setCurrentCount] = useState(0);
   const [q, setQ] = useState("");
@@ -189,7 +194,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         kind: "athlete" as const,
         key: `a:${a.user_id}`,
         full_name: a.full_name,
-        meta: `@${a.username} · ${a.phone}`,
+        meta: athleteSearchSubtitle(a.phone),
         user_id: a.user_id,
       })),
     ];
@@ -330,9 +335,29 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     }
   }
 
+  async function addExistingFromMatch(match: Awaited<ReturnType<typeof findExistingParticipantByNameOrPhone>>) {
+    if (!match) return;
+    setQuickName("");
+    setQuickPhone("");
+    if (match.kind === "app") {
+      if (full) await resolveFullAdd({ kind: "athlete", userId: match.id });
+      else await runAddExistingAthleteCore(match.id, false);
+    } else {
+      if (full) await resolveFullAdd({ kind: "manual", manualId: match.id });
+      else await runAddExistingManualCore(match.id, false);
+    }
+  }
+
   async function runQuickAddCore(allowOverCapacity = false) {
     const name = quickName.trim();
     const phone = quickPhone.trim();
+    const existing = await findExistingParticipantByNameOrPhone(name, phone);
+    if (existing) {
+      const add = await promptAddExistingParticipant(showAlert, t, existing);
+      if (!add) return;
+      await addExistingFromMatch(existing);
+      return;
+    }
     setAdding(true);
     try {
       const { data: up, error: upErr } = await supabase.rpc("upsert_manual_participant", {
@@ -429,11 +454,20 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       );
       return;
     }
+    if (adding) return;
+
+    const existing = await findExistingParticipantByNameOrPhone(name, phone);
+    if (existing) {
+      const add = await promptAddExistingParticipant(showAlert, t, existing);
+      if (!add) return;
+      await addExistingFromMatch(existing);
+      return;
+    }
+
     if (full) {
       await resolveFullAdd({ kind: "quick" });
       return;
     }
-    if (adding) return;
     await runQuickAddCore(false);
   }
 
