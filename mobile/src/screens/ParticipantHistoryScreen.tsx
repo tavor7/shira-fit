@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, SectionList, TextInput, StyleSheet, Pressable, FlatList, ActivityIndicator, Platform } from "react-native";
-import { useLocalSearchParams, usePathname } from "expo-router";
+import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-router";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
@@ -217,11 +217,22 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
   const pathname = usePathname();
+  const router = useRouter();
   const isCoachHistory = pathname?.startsWith("/coach/participant-history") ?? false;
   /** Dedicated route or Reports hub athlete tab (embedded via ManagerReportsScreen). */
   const isManagerHistory =
     (pathname?.startsWith("/manager/participant-history") ?? false) ||
     (pathname?.startsWith("/manager/reports") ?? false);
+
+  const openSession = useCallback(
+    (sessionId: string) => {
+      const href = (
+        isCoachHistory ? `/(app)/coach/session/${sessionId}` : `/(app)/manager/session/${sessionId}`
+      ) as Href;
+      router.push(href);
+    },
+    [isCoachHistory, router]
+  );
   const [start, setStart] = useState(() => {
     if (presetStartIso && isValidISODateString(presetStartIso.trim())) return presetStartIso.trim();
     return lastNDaysRangeISO(30).start;
@@ -1508,9 +1519,8 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                 </Text>
               </View>
             ) : null;
-          return (
-            <View style={styles.row}>
-              <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
+          const sessionCardInner = (
+            <>
                 {isRTL ? (
                   <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
                     <View style={[styles.sessionHeadMain, styles.sessionHeadMainRtl]}>
@@ -1577,7 +1587,28 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                     </Text>
                   </View>
                 ) : null}
-              </View>
+            </>
+          );
+
+          return (
+            <View style={styles.row}>
+              {staffCanEdit ? (
+                <Pressable
+                  onPress={() => openSession(reg.session_id)}
+                  style={({ pressed }) => [
+                    styles.sessionCardBody,
+                    isRTL && styles.sessionCardBodyRtl,
+                    pressed && styles.sessionCardBodyPressed,
+                    Platform.OS === "web" && styles.sessionCardBodyWeb,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${formatISODateFullWithWeekdayAfter(reg.session_date, language)} · ${timeCoachPart}`}
+                >
+                  {sessionCardInner}
+                </Pressable>
+              ) : (
+                <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>{sessionCardInner}</View>
+              )}
 
               {reg.reg_status === "active" && staffCanEdit ? (
                 <>
@@ -1943,6 +1974,8 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   sessionCardBodyRtl: { alignItems: "stretch" },
+  sessionCardBodyPressed: { opacity: 0.92, backgroundColor: theme.colors.surfaceElevated },
+  sessionCardBodyWeb: { cursor: "pointer" } as const,
   sessionHeadRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 14 },
   sessionHeadRowRtl: { flexDirection: "row-reverse" },
   sessionHeadMain: { flex: 1, minWidth: 0, gap: 4 },
