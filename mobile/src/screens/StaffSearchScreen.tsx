@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { View, Text, Pressable, StyleSheet, FlatList } from "react-native";
 import { router } from "expo-router";
 import { athleteSearchSubtitle } from "../lib/displayName";
+import { theme } from "../theme";
 import { surface } from "../theme/surfaces";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";

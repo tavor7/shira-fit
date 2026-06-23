@@ -14,9 +14,10 @@ import {
 } from "../lib/isoDate";
 import { formatISODateFull, formatMonthYear } from "../lib/dateFormat";
 import { useI18n } from "../context/I18nContext";
+import { globalOverviewRangeISO, isGlobalOverviewRange } from "../lib/managerPeriodMode";
 
 type QuickPreset = "7" | "30" | "45" | "60";
-type DateMode = "recent" | "month" | "range";
+type DateMode = "recent" | "month" | "global" | "range";
 
 type Props = {
   start: string;
@@ -49,6 +50,9 @@ function detectReportRangeState(start: string, end: string): {
       return { mode: "recent", recentPreset: days, monthAnchor: firstDayOfMonthISOLocal() };
     }
   }
+  if (isGlobalOverviewRange(start)) {
+    return { mode: "global", recentPreset: "30", monthAnchor: firstDayOfMonthISOLocal() };
+  }
   const monthStart = parseISODateLocal(start);
   if (monthStart) {
     const anchor = toISODateLocal(new Date(monthStart.getFullYear(), monthStart.getMonth(), 1));
@@ -74,6 +78,10 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
     setMode(detected.mode);
     setRecentPreset(detected.recentPreset);
     setMonthAnchor(detected.monthAnchor);
+    if (detected.mode === "global") {
+      const fresh = globalOverviewRangeISO();
+      if (end !== fresh.end) onChange(fresh);
+    }
   }, [start, end]);
 
   const recentOptions = useMemo(
@@ -90,10 +98,15 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
     (): { id: DateMode; label: string }[] => [
       { id: "recent", label: t("reports.modeRecent") },
       { id: "month", label: t("reports.modeMonth") },
+      { id: "global", label: t("dashboard.periodGlobal") },
       { id: "range", label: t("reports.modeRange") },
     ],
     [t]
   );
+
+  function applyGlobal() {
+    onChange(globalOverviewRangeISO());
+  }
 
   function applyRecent(days: QuickPreset) {
     setRecentPreset(days);
@@ -111,6 +124,7 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
     setMode(next);
     if (next === "recent") applyRecent(recentPreset);
     else if (next === "month") applyMonthAnchor(monthAnchor);
+    else if (next === "global") applyGlobal();
   }
 
   function shiftMonth(delta: number) {
@@ -214,6 +228,16 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
         </View>
       ) : null}
 
+      {mode === "global" ? (
+        <Text style={[styles.globalSummary, isRTL && styles.rtlText]} numberOfLines={3}>
+          {t("dashboard.rangeAllTime")}
+          {" · "}
+          {formatISODateFull(start, language)}
+          {" — "}
+          {formatISODateFull(end, language)}
+        </Text>
+      ) : null}
+
       {mode === "range" ? (
         <View style={styles.rangePanel}>
           <View style={sf.formPanel}>
@@ -241,7 +265,7 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
         </View>
       ) : null}
 
-      {mode !== "month" ? (
+      {mode !== "month" && mode !== "global" ? (
         <Text style={[styles.summary, isRTL && styles.rtlText]} numberOfLines={2}>
           {summary}
         </Text>
@@ -282,7 +306,7 @@ const styles = StyleSheet.create({
   segmentBtnEnd: {},
   segmentBtnOn: { backgroundColor: theme.colors.cta },
   segmentBtnPressed: { opacity: 0.88 },
-  segmentTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted, textAlign: "center" },
+  segmentTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.textMuted, textAlign: "center" },
   segmentTxtOn: { color: theme.colors.ctaText },
   presetGrid: {
     flexDirection: "row",
@@ -366,5 +390,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: theme.colors.textSoft,
     lineHeight: 17,
+  },
+  globalSummary: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: theme.colors.textMuted,
+    lineHeight: 19,
+    marginBottom: 4,
   },
 });

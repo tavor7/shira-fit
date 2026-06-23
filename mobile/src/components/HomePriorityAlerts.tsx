@@ -115,6 +115,14 @@ const wrapBase: ViewStyle = {
 };
 
 function alertAccent(tone?: HomePriorityAlertTone) {
+  if (tone === "waitlistFreeSpot") {
+    return {
+      border: theme.colors.calendarNoteHoliday,
+      subject: theme.colors.calendarNoteHoliday,
+      rowBg: "rgba(45, 212, 191, 0.12)",
+      text: theme.colors.calendarNoteHoliday,
+    };
+  }
   if (tone === "doubleSession") {
     return { border: theme.colors.calendarNoteHoliday, subject: theme.colors.calendarNoteHoliday };
   }
@@ -141,6 +149,10 @@ function AlertLabel({
   const { isRTL } = useI18n();
   const accent = alertAccent(item.tone);
   const textStyle = variant === "strip" ? styles.text : modalStyles.sheetRowText;
+  const bodyTextStyle =
+    item.tone === "waitlistFreeSpot" && accent.text
+      ? [textStyle, { color: accent.text }]
+      : textStyle;
   const subjectStyle =
     variant === "strip"
       ? [styles.segSubject, { color: accent.subject }]
@@ -161,7 +173,7 @@ function AlertLabel({
             <Text
               key={idx}
               style={[
-                isSubject ? subjectStyle : textStyle,
+                isSubject ? subjectStyle : bodyTextStyle,
                 { writingDirection: seg.dir === "rtl" ? "rtl" : "ltr" },
               ]}
             >
@@ -193,7 +205,7 @@ function AlertLabel({
     return segmentRun(segs, numberOfLines);
   }
   return (
-    <Text style={[textStyle, isRTL && rtlAlign]} numberOfLines={numberOfLines}>
+    <Text style={[bodyTextStyle, isRTL && rtlAlign]} numberOfLines={numberOfLines}>
       {item.label}
     </Text>
   );
@@ -285,6 +297,7 @@ export function HomePriorityAlerts({
     showBottomBorder: boolean;
   }) {
     const accent = alertAccent(it.tone);
+    const rowBgStyle = accent.rowBg ? { backgroundColor: accent.rowBg } : null;
     const a11y = `${it.isNew ? `${t("homeAlerts.newBadge")}. ` : ""}${it.label}`;
     const body = (
       <View style={[styles.rowContent, isRTL && styles.rowContentRtl]}>
@@ -331,6 +344,7 @@ export function HomePriorityAlerts({
             styles.rowOuter,
             showBottomBorder && styles.rowBorder,
             isRTL && styles.rowOuterRtl,
+            rowBgStyle,
             { borderStartWidth: 4, borderStartColor: accent.border },
           ]}
         >
@@ -361,6 +375,7 @@ export function HomePriorityAlerts({
           modalStyles.sheetRowOuter,
           showBottomBorder && modalStyles.sheetRowBorder,
           isRTL && modalStyles.sheetRowOuterRtl,
+          rowBgStyle,
           { borderStartWidth: 4, borderStartColor: accent.border },
         ]}
       >

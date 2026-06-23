@@ -23,3 +23,8 @@ entrypoint = "./functions/generate-document-pdf/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/send-document-email/index.ts"
+
+[functions.dispatch-notifications]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/dispatch-notifications/index.ts"

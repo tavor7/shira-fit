@@ -1,7 +1,18 @@
+import { toISODateLocal } from "./isoDate";
+
 export type ManagerPeriodMode = "week" | "month" | "global";
 
 /** Global overview / reports: fixed range start (1 May 2026). End is today (server). */
 export const GLOBAL_OVERVIEW_START_ISO = "2026-05-01";
+
+/** Same all-time window as manager overview global mode. */
+export function globalOverviewRangeISO(): { start: string; end: string } {
+  return { start: GLOBAL_OVERVIEW_START_ISO, end: toISODateLocal(new Date()) };
+}
+
+export function isGlobalOverviewRange(start: string): boolean {
+  return start.trim() === GLOBAL_OVERVIEW_START_ISO;
+}
 
 export function parseManagerPeriodMode(raw: string | undefined): ManagerPeriodMode {
   if (raw === "month") return "month";

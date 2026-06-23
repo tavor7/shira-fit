@@ -64,7 +64,7 @@ export type HomePriorityLabelSegment = {
   role?: "subject" | "body";
 };
 
-export type HomePriorityAlertTone = "cancellation" | "doubleSession";
+export type HomePriorityAlertTone = "cancellation" | "doubleSession" | "waitlistFreeSpot";
 
 export type HomePriorityAlertItem = {
   id: string;
@@ -134,6 +134,7 @@ export function buildStaffWaitlistFreeSpotItems(
     id: `wl-${r.session.id}`,
     label: r.label,
     href: staffSessionPath(variant, r.session.id),
+    tone: "waitlistFreeSpot" as const,
   }));
 }
 
@@ -610,5 +611,6 @@ export async function fetchAthleteWaitlistOpenSpotItems(
     id: `aw-${r.session.id}`,
     label: r.label,
     href: `/(app)/athlete/session/${r.session.id}` as Href,
+    tone: "waitlistFreeSpot" as const,
   }));
 }

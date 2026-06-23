@@ -23,6 +23,9 @@ export interface Profile {
   disabled_by?: string | null;
   electronic_receipts_consent_version?: number | null;
   electronic_receipts_consented_at?: string | null;
+  whatsapp_notifications_enabled?: boolean;
+  whatsapp_opted_in_at?: string | null;
+  whatsapp_phone_e164?: string | null;
 }
 
 export type ManualParticipant = {

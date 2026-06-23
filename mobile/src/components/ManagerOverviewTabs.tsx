@@ -299,6 +299,12 @@ export function ManagerStudioSetupTabs() {
         href: "/(app)/manager/opening-schedule",
         isActive: (p) => startsWithAny(p, ["/manager/opening-schedule"]),
       },
+      {
+        id: "whatsapp",
+        label: t("menu.whatsappRollout"),
+        href: "/(app)/manager/whatsapp-rollout",
+        isActive: (p) => startsWithAny(p, ["/manager/whatsapp-rollout"]),
+      },
     ],
     [t]
   );
