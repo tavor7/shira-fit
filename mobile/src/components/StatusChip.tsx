@@ -20,9 +20,9 @@ const toneBorder: Record<ChipTone, string> = {
 const toneTxt: Record<ChipTone, string> = {
   neutral: theme.colors.textMuted,
   success: theme.colors.success,
-  warning: "#FBBF24",
+  warning: theme.colors.warning,
   danger: theme.colors.error,
-  info: "#93C5FD",
+  info: theme.colors.info,
 };
 
 export function StatusChip({ label, tone = "neutral" }: { label: string; tone?: ChipTone }) {

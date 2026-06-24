@@ -1138,7 +1138,7 @@ const styles = StyleSheet.create({
   noShowFeeBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   noShowFeeBtnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
   noShowFeeBtnTxtOn: { color: theme.colors.ctaText },
-  payBackdrop: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.45)" },
+  payBackdrop: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: theme.overlay.backdrop },
   payCard: {
     backgroundColor: theme.colors.surfaceElevated,
     borderRadius: theme.radius.lg,

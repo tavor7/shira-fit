@@ -13,7 +13,7 @@ export function AuthHeaderLeft() {
 
 const styles = StyleSheet.create({
   wrap: {
-    paddingLeft: theme.spacing.sm,
+    paddingStart: theme.spacing.sm,
     flexDirection: "row",
     alignItems: "center",
   },

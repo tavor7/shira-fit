@@ -11,7 +11,7 @@ import CoachCapacityPricingScreen from "./CoachCapacityPricingScreen";
 type Tab = "session" | "coach";
 
 export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) {
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   const { profile } = useAuth();
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const initial = (tab === "coach" ? "coach" : "session") as Tab;
@@ -53,7 +53,7 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
                 pressed && !on && { opacity: 0.9 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
+              accessibilityLabel={t("a11y.goToTab").replace("{label}", x.label)}
             >
               <Text style={[styles.slotTxt, on && styles.slotTxtOn]} numberOfLines={1}>
                 {x.label}

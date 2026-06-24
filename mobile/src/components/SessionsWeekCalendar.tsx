@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
+import { EmptyState } from "./EmptyState";
+import { AppText } from "./AppText";
 import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
 import { AthleteWaitlistInviteStripe, AthleteWaitlistJoinedStripe } from "./AthleteWaitlistInviteStripe";
 import { useI18n } from "../context/I18nContext";
@@ -228,9 +230,9 @@ export function SessionsWeekCalendar({
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={styles.loadingText} maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}>
+        <AppText variant="body" muted style={styles.loadingText}>
           {t("common.loading")}
-        </Text>
+        </AppText>
       </View>
     );
   }
@@ -404,13 +406,13 @@ export function SessionsWeekCalendar({
 
         {weekItemsCount === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>{emptyLabel ?? (language === "he" ? "אין אימונים בשבוע זה." : "No sessions this week.")}</Text>
+            <EmptyState title={emptyLabel ?? t("empty.noSessionsWeek")} isRTL={isRTL} style={styles.emptyState} />
             <View style={styles.emptyActions}>
               <Pressable style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.9 }]} onPress={() => bumpWeek(-1)}>
-                <Text style={styles.emptyBtnTxt}>{language === "he" ? "שבוע קודם" : "Prev week"}</Text>
+                <Text style={styles.emptyBtnTxt}>{t("calendar.prevWeek")}</Text>
               </Pressable>
               <Pressable style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.9 }]} onPress={() => bumpWeek(1)}>
-                <Text style={styles.emptyBtnTxt}>{language === "he" ? "שבוע הבא" : "Next week"}</Text>
+                <Text style={styles.emptyBtnTxt}>{t("calendar.nextWeek")}</Text>
               </Pressable>
             </View>
           </View>
@@ -559,7 +561,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.successBg,
   },
   empty: { paddingTop: theme.spacing.md, paddingBottom: theme.spacing.lg, alignItems: "center" },
-  emptyText: { textAlign: "center", color: theme.colors.textSoft, maxWidth: 320 },
+  emptyState: { paddingVertical: theme.spacing.md, paddingHorizontal: theme.spacing.sm },
   emptyActions: { flexDirection: "row", writingDirection: "ltr", gap: 10, marginTop: 14 },
   emptyBtn: {
     paddingVertical: 10,

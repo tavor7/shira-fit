@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Text, Pressable } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl, Pressable } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import { formatSessionTimeRange, hasSessionNotEnded, sessionStartsAt } from "../../../src/lib/sessionTime";
 import { supabase } from "../../../src/lib/supabase";
@@ -22,6 +22,8 @@ import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
 import { useAuth } from "../../../src/context/AuthContext";
 import { appendNetworkHint } from "../../../src/lib/networkErrors";
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
+import { AppText } from "../../../src/components/AppText";
+import { EmptyState } from "../../../src/components/EmptyState";
 
 export default function AthleteSessionsScreen() {
   const { profile, session } = useAuth();
@@ -273,9 +275,15 @@ export default function AthleteSessionsScreen() {
             { marginTop: showPriorityAlerts ? theme.spacing.sm : theme.spacing.md },
           ]}
         >
-          <Text style={styles.myUpcomingTitle}>{language === "he" ? "הסימונים שלך (מתוכנן)" : "Your upcoming sessions"}</Text>
+          <AppText variant="title" isRTL={isRTL} style={styles.myUpcomingTitle}>
+            {t("athleteSessions.upcomingTitle")}
+          </AppText>
           {myUpcoming.length === 0 ? (
-            <Text style={styles.myUpcomingEmpty}>{language === "he" ? "אין עוד אימונים שלך." : "No upcoming sessions."}</Text>
+            <EmptyState
+              title={t("athleteSessions.noUpcoming")}
+              isRTL={isRTL}
+              style={styles.myUpcomingEmpty}
+            />
           ) : (
             <View style={styles.myUpcomingList}>
               {myUpcoming.map((s) => {
@@ -293,12 +301,12 @@ export default function AthleteSessionsScreen() {
                   >
                     {accent ? <View style={[styles.upcomingAccent, { backgroundColor: accent }]} /> : null}
                     <View style={[styles.upcomingBody, isRTL && styles.upcomingBodyRtl]}>
-                      <Text style={[styles.upcomingDay, isRTL && styles.rtlText]}>
+                      <AppText variant="body" isRTL={isRTL} style={styles.upcomingDay}>
                         {formatISODateWeekdayDayMonth(s.session_date, language)}
-                      </Text>
-                      <Text style={[styles.upcomingMeta, isRTL && styles.rtlText]} numberOfLines={1}>
+                      </AppText>
+                      <AppText variant="caption" muted isRTL={isRTL} numberOfLines={1} style={styles.upcomingMeta}>
                         {meta}
-                      </Text>
+                      </AppText>
                     </View>
                   </Pressable>
                 );
@@ -310,7 +318,7 @@ export default function AthleteSessionsScreen() {
         <SessionsWeekCalendar
           items={items}
           isLoading={loading}
-          emptyLabel={language === "he" ? "אין אימונים פתוחים עדיין (חמישי 08:00 פותח את שבוע הבא)." : "No sessions open yet (Thu 08:00 opens next week)."}
+          emptyLabel={t("empty.noSessionsOpenYet")}
           onDayPress={(iso) => setSheetDay(iso)}
           weekOffset={calendarWeekOffset}
           onWeekOffsetChange={setCalendarWeekOffset}
@@ -343,8 +351,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     gap: theme.spacing.sm,
   },
-  myUpcomingTitle: { fontWeight: "900", color: theme.colors.text, fontSize: 16 },
-  myUpcomingEmpty: { color: theme.colors.textMuted, fontWeight: "700" },
+  myUpcomingTitle: { fontWeight: "900" },
+  myUpcomingEmpty: { paddingVertical: theme.spacing.sm },
   myUpcomingList: { gap: theme.spacing.xs },
   upcomingRow: {
     flexDirection: "row",
@@ -357,7 +365,6 @@ const styles = StyleSheet.create({
   upcomingAccent: { width: 3, alignSelf: "stretch" },
   upcomingBody: { flex: 1, paddingVertical: 10, paddingHorizontal: theme.spacing.sm, gap: 2 },
   upcomingBodyRtl: { alignItems: "flex-end" },
-  upcomingDay: { fontSize: 14, fontWeight: "800", color: theme.colors.text, letterSpacing: 0.1 },
-  upcomingMeta: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
-  rtlText: { textAlign: "right", alignSelf: "stretch" },
+  upcomingDay: { letterSpacing: 0.1 },
+  upcomingMeta: {},
 });

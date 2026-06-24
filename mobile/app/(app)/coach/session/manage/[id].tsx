@@ -55,7 +55,7 @@ type EditSnapshot = {
 
 export default function CoachSessionManageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   const { showToast } = useToast();
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [forbidden, setForbidden] = useState(false);
@@ -170,10 +170,7 @@ export default function CoachSessionManageScreen() {
 
   async function executeSaveWithScope(scope?: SeriesScope) {
     if (!isValidISODateString(date.trim())) {
-      Alert.alert(
-        language === "he" ? "תאריך לא תקין" : "Invalid date",
-        language === "he" ? "בחרו תאריך אימון תקין." : "Please choose a valid session date."
-      );
+      Alert.alert(t("sessionDetail.invalidDateTitle"), t("sessionForm.invalidDate"));
       return;
     }
     const customParsed = parseCustomSlotPriceDraft(customSlotPriceDraft);
@@ -185,19 +182,13 @@ export default function CoachSessionManageScreen() {
     const parsedDuration = parseInt(durationMin.trim(), 10);
     const duration = clampSessionDuration(parsedDuration);
     if (!isValidSessionDuration(parsedDuration)) {
-      Alert.alert(
-        language === "he" ? "משך לא תקין" : "Invalid duration",
-        language === "he" ? "בחרו משך בין 30 ל-120 דקות." : "Choose a duration between 30 and 120 minutes."
-      );
+      Alert.alert(t("sessionDetail.invalidDurationTitle"), t("sessionDetail.invalidDurationRange"));
       return;
     }
     const parsedMax = parseInt(maxP.trim(), 10);
     const maxParticipants = clampSessionMaxParticipants(parsedMax);
     if (!isValidSessionMaxParticipants(parsedMax)) {
-      Alert.alert(
-        language === "he" ? "גודל קבוצה לא תקין" : "Invalid group size",
-        language === "he" ? "בחרו גודל קבוצה בין 1 ל-15." : "Choose a group size between 1 and 15."
-      );
+      Alert.alert(t("sessionDetail.invalidGroupSizeTitle"), t("sessionDetail.invalidGroupSizeRange"));
       return;
     }
 
@@ -269,36 +260,24 @@ export default function CoachSessionManageScreen() {
       if (savedWithoutHidden || savedWithoutKickbox) {
         const parts: string[] = [];
         if (savedWithoutHidden) {
-          parts.push(
-            language === "he"
-              ? "סימון מוסתר לא נשמר (עמודה חסרה במסד)"
-              : "Hidden flag was not saved (column missing)"
-          );
+          parts.push(t("sessionDetail.hiddenNotSaved"));
         }
         if (savedWithoutKickbox) {
-          parts.push(
-            language === "he"
-              ? "סימון קיקבוקס לא נשמר (עמודה חסרה במסד)"
-              : "Kickbox flag was not saved (column missing)"
-          );
+          parts.push(t("sessionDetail.kickboxNotSaved"));
         }
-        Alert.alert(language === "he" ? "הערה" : "Note", parts.join("\n"));
+        Alert.alert(t("sessionDetail.dbNoteTitle"), parts.join("\n"));
       }
     }
     if (seriesScope) {
       showToast({
         message:
           seriesScope === "future"
-            ? language === "he"
-              ? "נשמר — אימון זה והבאים בסדרה"
-              : "Saved — this and future sessions"
-            : language === "he"
-              ? "נשמר — רק אימון זה"
-              : "Saved — only this session",
+            ? t("sessionDetail.savedThisAndFuture")
+            : t("sessionDetail.savedThisOnly"),
         variant: "success",
       });
     } else {
-      showToast({ message: language === "he" ? "נשמר — אימון" : "Saved session", variant: "success" });
+      showToast({ message: t("sessionDetail.savedSession"), variant: "success" });
     }
     router.replace("/(app)/coach/sessions");
   }
@@ -341,17 +320,11 @@ export default function CoachSessionManageScreen() {
     if (!session) return;
     const d = dupDate.trim();
     if (!isValidISODateString(d)) {
-      Alert.alert(
-        language === "he" ? "תאריך לא תקין" : "Invalid date",
-        language === "he" ? "בחרו תאריך אימון תקין." : "Please choose a valid session date."
-      );
+      Alert.alert(t("sessionDetail.invalidDateTitle"), t("sessionForm.invalidDate"));
       return;
     }
     if (!dupCoachId) {
-      Alert.alert(
-        language === "he" ? "חסר מאמן" : "Missing trainer",
-        language === "he" ? "בחרו מאמן/ת." : "Please choose a trainer."
-      );
+      Alert.alert(t("sessionDetail.missingTrainerTitle"), t("sessionDetail.chooseTrainer"));
       return;
     }
     setDupBusy(true);
@@ -383,7 +356,7 @@ export default function CoachSessionManageScreen() {
       const errs = await copySessionParticipantsToNewSession(String(id), newId);
       if (errs.length > 0) {
         showToast({
-          message: language === "he" ? "האימון שוכפל — חלק מהמשתתפים לא הועתקו" : "Session copied — some participants were not copied",
+          message: t("sessionDetail.copiedPartialFail"),
           detail: errs.slice(0, 8).join("\n"),
           variant: "error",
         });
@@ -400,11 +373,7 @@ export default function CoachSessionManageScreen() {
       <>
         <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
       <View style={sf.screen}>
-        <Text style={[styles.err, isRTL && styles.rtlText]}>
-          {language === "he"
-            ? "אפשר לערוך רק אימונים שבהם אתה/את המאמן/ת."
-            : "You can only edit sessions where you are the trainer."}
-        </Text>
+        <Text style={[styles.err, isRTL && styles.rtlText]}>{t("sessionDetail.forbiddenEdit")}</Text>
       </View>
       </>
     );
@@ -427,7 +396,7 @@ export default function CoachSessionManageScreen() {
       <>
         <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
         <View style={sf.screen}>
-          <Text style={[styles.err, isRTL && styles.rtlText]}>{language === "he" ? "האימון לא נמצא." : "Session not found."}</Text>
+          <Text style={[styles.err, isRTL && styles.rtlText]}>{t("sessionDetail.notFound")}</Text>
         </View>
       </>
     );
@@ -439,7 +408,7 @@ export default function CoachSessionManageScreen() {
       <ScrollView style={sf.screen} contentContainerStyle={sf.content} keyboardShouldPersistTaps="handled">
       <View style={sf.sections}>
       <View style={sf.card}>
-        <Text style={[sf.cardTitle, isRTL && { textAlign: "right" }]}>{language === "he" ? "מתי" : "When"}</Text>
+        <Text style={[sf.cardTitle, isRTL && { textAlign: "right" }]}>{t("sessionDetail.when")}</Text>
         <SessionWhenFields
           date={date}
           time={time}
@@ -451,13 +420,13 @@ export default function CoachSessionManageScreen() {
             pushUndo();
             setTime(v);
           }}
-          dateLabel={language === "he" ? "תאריך אימון" : "Session date"}
-          timeLabel={language === "he" ? "שעת התחלה" : "Start time"}
+          dateLabel={t("sessionForm.sessionDate")}
+          timeLabel={t("sessionForm.startTime")}
         />
       </View>
 
       <View style={sf.card}>
-        <Text style={sf.cardTitle}>{language === "he" ? "קיבולת" : "Capacity"}</Text>
+        <Text style={sf.cardTitle}>{t("sessionForm.capacity")}</Text>
         <SessionCapacityFields
           duration={durationMin}
           max={maxP}
@@ -539,11 +508,11 @@ export default function CoachSessionManageScreen() {
               undoStack.length === 0 && { opacity: 0.45 },
             ]}
           >
-            <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
+            <Text style={styles.undoBtnTxt}>{t("sessionDetail.undoLastChange")}</Text>
           </Pressable>
           <PrimaryButton label={t("common.save")} onPress={() => void saveSession()} />
           <PrimaryButton
-            label={language === "he" ? "שכפול אימון…" : "Duplicate session…"}
+            label={t("sessionDetail.duplicateSessionEllipsis")}
             onPress={() => void openDuplicateModal()}
             variant="ghost"
           />
@@ -558,14 +527,14 @@ export default function CoachSessionManageScreen() {
         <View style={styles.dupBackdrop}>
           <Pressable style={styles.dupBackdropTouch} onPress={() => (dupBusy ? null : setDupOpen(false))} />
           <View style={styles.dupCard}>
-            <Text style={[styles.dupTitle, isRTL && styles.rtlText]}>{language === "he" ? "שכפול אימון" : "Duplicate session"}</Text>
+            <Text style={[styles.dupTitle, isRTL && styles.rtlText]}>{t("sessionDetail.duplicateSession")}</Text>
             <SessionWhenFields
               date={dupDate}
               time={dupTime}
               onDateChange={setDupDate}
               onTimeChange={setDupTime}
-              dateLabel={language === "he" ? "תאריך חדש" : "New date"}
-              timeLabel={language === "he" ? "שעה חדשה" : "New time"}
+              dateLabel={t("sessionDetail.newDate")}
+              timeLabel={t("sessionDetail.newTime")}
             />
             <SessionCoachPickerField
               coachId={dupCoachId}
@@ -574,7 +543,7 @@ export default function CoachSessionManageScreen() {
               disabled={dupBusy}
             />
             <Text style={[styles.dupSectionLabel, isRTL && styles.rtlText]}>
-              {language === "he" ? "משתתפים" : "Participants"}
+              {t("sessionDetail.participants")}
             </Text>
             <View style={[styles.dupChoiceRow, isRTL && styles.dupChoiceRowRtl]}>
               <Pressable
@@ -588,7 +557,7 @@ export default function CoachSessionManageScreen() {
                 disabled={dupBusy}
               >
                 <Text style={[styles.dupChoiceTxt, !dupIncludeParticipants && styles.dupChoiceTxtOn, isRTL && styles.rtlText]}>
-                  {language === "he" ? "בלי משתתפים" : "Without participants"}
+                  {t("sessionDetail.withoutParticipants")}
                 </Text>
               </Pressable>
               <Pressable
@@ -602,13 +571,13 @@ export default function CoachSessionManageScreen() {
                 disabled={dupBusy}
               >
                 <Text style={[styles.dupChoiceTxt, dupIncludeParticipants && styles.dupChoiceTxtOn, isRTL && styles.rtlText]}>
-                  {language === "he" ? "עם אותם נרשמים" : "With same roster"}
+                  {t("sessionDetail.withSameRoster")}
                 </Text>
               </Pressable>
             </View>
-            <View style={{ height: 12 }} />
+            <View style={{ height: theme.spacing.sm }} />
             <PrimaryButton
-              label={language === "he" ? "צור עותק" : "Create copy"}
+              label={t("sessionDetail.createCopy")}
               onPress={() => void duplicateSession()}
               loading={dupBusy}
               loadingLabel={t("common.loading")}
@@ -648,7 +617,7 @@ const styles = StyleSheet.create({
   err: { color: theme.colors.error, fontSize: 16, fontWeight: "600" },
   cancelEdit: { marginTop: theme.spacing.sm, paddingVertical: 12, alignItems: "center" },
   cancelEditTxt: { color: theme.colors.textSoft, fontWeight: "800", fontSize: 15 },
-  dupBackdrop: { flex: 1, justifyContent: "center", padding: theme.spacing.lg, backgroundColor: "rgba(0,0,0,0.55)" },
+  dupBackdrop: { flex: 1, justifyContent: "center", padding: theme.spacing.lg, backgroundColor: theme.overlay.backdrop },
   dupBackdropTouch: { ...StyleSheet.absoluteFillObject },
   dupCard: {
     backgroundColor: theme.colors.surface,

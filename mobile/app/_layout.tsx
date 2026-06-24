@@ -1,10 +1,11 @@
 import { Stack } from "expo-router";
 import Head from "expo-router/head";
 import { AuthProvider } from "../src/context/AuthContext";
-import { Platform, View, type TextStyle, type ViewStyle } from "react-native";
+import { Platform, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { theme } from "../src/theme";
+import { appHeaderStyle, appHeaderTitleStyle } from "../src/theme/headerStyles";
 import { StudioContactFooter } from "../src/components/StudioContactFooter";
 import { I18nProvider } from "../src/context/I18nContext";
 import { ManagerAthletePreviewProvider } from "../src/context/ManagerAthletePreviewContext";
@@ -20,18 +21,8 @@ import { useAuth } from "../src/context/AuthContext";
 
 initNotificationHandler();
 
-const rootHeaderStyle: ViewStyle = {
-  backgroundColor: theme.colors.backgroundAlt,
-  borderBottomWidth: 1,
-  borderBottomColor: theme.colors.borderMuted,
-};
-
-const rootHeaderTitleStyle: TextStyle = {
-  fontWeight: "600",
-  fontSize: 17,
-  color: theme.colors.text,
-  letterSpacing: 0.2,
-};
+const rootHeaderStyle = appHeaderStyle;
+const rootHeaderTitleStyle = appHeaderTitleStyle;
 
 function StudioContactFooterGate() {
   const { profile } = useAuth();
@@ -114,7 +105,7 @@ export default function RootLayout() {
               <AppErrorBoundary>
                 <ToastProvider>
                   {Platform.OS === "web" ? <WebLastRouteTracker /> : null}
-                  {Platform.OS === "web" ? <RouteRestoreDebugPanel /> : null}
+                  {Platform.OS === "web" && __DEV__ ? <RouteRestoreDebugPanel /> : null}
                   <StatusBar style="light" />
                   <View style={{ flex: 1 }}>
                     <Stack

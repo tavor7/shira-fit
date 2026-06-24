@@ -168,7 +168,7 @@ export function ConsentGateModal() {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.75)",
+    backgroundColor: theme.overlay.backdrop,
     zIndex: 9999,
     justifyContent: "center",
     padding: theme.spacing.lg,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   inputRtl: { textAlign: "right" },
   fieldError: { marginTop: theme.spacing.sm, color: theme.colors.error, fontSize: 13, fontWeight: "600" },
-  declined: { marginTop: theme.spacing.md, color: "#fbbf24", fontSize: 14, fontWeight: "600" },
+  declined: { marginTop: theme.spacing.md, color: theme.colors.warning, fontSize: 14, fontWeight: "600" },
   actions: { marginTop: theme.spacing.lg, gap: theme.spacing.sm },
   actionsRtl: { alignItems: "stretch" },
   declineBtn: { paddingVertical: 12, alignItems: "center" },

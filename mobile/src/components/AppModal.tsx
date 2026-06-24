@@ -130,7 +130,7 @@ export function AppModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: theme.overlay.backdrop,
   },
   backdropPopover: {
     padding: 0,

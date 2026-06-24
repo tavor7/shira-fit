@@ -38,13 +38,22 @@ function AmountPair({
 }) {
   return (
     <View style={[styles.amountPair, isRTL && styles.amountPairRtl, compact && styles.amountPairCompact]}>
-      <View style={styles.amountCol}>
-        <Text style={[styles.amountLbl, isRTL && styles.rtl]}>{t("dashboard.financeBreakdownExpected")}</Text>
-        <Text style={[styles.amountExpected, isRTL && styles.rtl]}>{formatFinanceIls(expected, language)}</Text>
+      <View style={[styles.amountCol, compact ? styles.amountColCompact : styles.amountColBanner]}>
+        <Text style={[styles.amountLbl, compact && styles.amountLblCompact, isRTL && styles.rtl]}>
+          {t("dashboard.financeBreakdownExpected")}
+        </Text>
+        <Text style={[styles.amountExpected, compact && styles.amountExpectedCompact, isRTL && styles.rtl]}>
+          {formatFinanceIls(expected, language)}
+        </Text>
       </View>
-      <View style={styles.amountCol}>
-        <Text style={[styles.amountLbl, isRTL && styles.rtl]}>{t("dashboard.financeBreakdownCollected")}</Text>
-        <Text style={[styles.amountCollected, isRTL && styles.rtl]}>{formatFinanceIls(collected, language)}</Text>
+      {!compact ? <View style={styles.amountDivider} /> : null}
+      <View style={[styles.amountCol, compact ? styles.amountColCompact : styles.amountColBanner]}>
+        <Text style={[styles.amountLbl, compact && styles.amountLblCompact, isRTL && styles.rtl]}>
+          {t("dashboard.financeBreakdownCollected")}
+        </Text>
+        <Text style={[styles.amountCollected, compact && styles.amountCollectedCompact, isRTL && styles.rtl]}>
+          {formatFinanceIls(collected, language)}
+        </Text>
       </View>
     </View>
   );
@@ -282,13 +291,23 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   totalBannerRtl: { alignItems: "stretch" },
-  amountPair: { flexDirection: "row", gap: 16, justifyContent: "space-between" },
+  amountPair: { flexDirection: "row", alignItems: "stretch" },
   amountPairRtl: { flexDirection: "row-reverse" },
-  amountPairCompact: { marginTop: 8 },
+  amountPairCompact: { marginTop: 8, gap: 12 },
   amountCol: { flex: 1, minWidth: 0 },
+  amountColBanner: { alignItems: "center", justifyContent: "center", paddingVertical: 4 },
+  amountColCompact: { alignItems: "flex-start" },
+  amountDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.borderMuted,
+    marginVertical: 2,
+  },
   amountLbl: { fontSize: 10, fontWeight: "800", color: theme.colors.textSoft, textTransform: "uppercase", letterSpacing: 0.5 },
-  amountExpected: { marginTop: 2, fontSize: 16, fontWeight: "900", color: theme.colors.cta, fontVariant: ["tabular-nums"] },
-  amountCollected: { marginTop: 2, fontSize: 16, fontWeight: "900", color: theme.colors.success, fontVariant: ["tabular-nums"] },
+  amountLblCompact: { fontSize: 9 },
+  amountExpected: { marginTop: 4, fontSize: 20, fontWeight: "900", color: theme.colors.text, fontVariant: ["tabular-nums"] },
+  amountExpectedCompact: { marginTop: 2, fontSize: 14, fontWeight: "900", color: theme.colors.cta },
+  amountCollected: { marginTop: 4, fontSize: 20, fontWeight: "900", color: theme.colors.success, fontVariant: ["tabular-nums"] },
+  amountCollectedCompact: { marginTop: 2, fontSize: 14, fontWeight: "900" },
   accountNote: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
   dayWrap: { marginBottom: 8 },
   dayRow: {

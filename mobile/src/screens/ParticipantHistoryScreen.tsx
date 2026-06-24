@@ -2031,11 +2031,11 @@ const styles = StyleSheet.create({
   },
   payPillRtl: { flexDirection: "row-reverse" },
   payPillPaid: { backgroundColor: theme.colors.successBg, borderColor: "rgba(34, 197, 94, 0.35)" },
-  payPillUnpaid: { backgroundColor: "rgba(251, 191, 36, 0.12)", borderColor: "rgba(251, 191, 36, 0.35)" },
+  payPillUnpaid: { backgroundColor: theme.colors.warningBg, borderColor: theme.colors.warningBorder },
   payPillMuted: { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.borderMuted },
   payPillTxt: { fontSize: 12, fontWeight: "800" },
   payPillTxtPaid: { color: theme.colors.success },
-  payPillTxtUnpaid: { color: "#fbbf24" },
+  payPillTxtUnpaid: { color: theme.colors.warning },
   payPillTxtMuted: { color: theme.colors.textMuted },
   payPillAmt: { fontSize: 12, fontWeight: "900", color: theme.colors.success },
   sessionFootnoteRow: {

@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router, Stack, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, ActivityIndicator, ScrollView } from "react-native";
+import { View, Pressable, StyleSheet, Alert, Modal, ActivityIndicator, ScrollView } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../../src/types/database";
 import { formatSessionTimeRange, hasSessionNotEnded, hasSessionNotStarted } from "../../../../src/lib/sessionTime";
@@ -24,6 +24,8 @@ import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNa
 import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
 import { embedLtrInMixed, embedRtlInLtr, isRtlScript } from "../../../../src/lib/bidiEmbed";
 import { athleteRegisterSessionErrorDetail } from "../../../../src/lib/athleteRegisterSessionError";
+import { AppText } from "../../../../src/components/AppText";
+import { AppTextField } from "../../../../src/components/AppTextField";
 
 /** Same visual anchor for Hebrew + Latin names in the participants list. */
 function participantListLabel(name: string, uiRtl: boolean): string {
@@ -72,7 +74,7 @@ export default function AthleteSessionDetail() {
 
   const load = useCallback(async (silent = false) => {
     if (!sessionId) {
-      setLoadError(language === "he" ? "מזהה אימון חסר" : "Missing session id");
+      setLoadError(t("athleteSession.missingId"));
       setLoading(false);
       return;
     }
@@ -87,7 +89,7 @@ export default function AthleteSessionDetail() {
       .single();
     if (sErr || !s) {
       setSession(null);
-      setLoadError(sErr?.message ?? (language === "he" ? "האימון לא נמצא" : "Session not found"));
+      setLoadError(sErr?.message ?? t("athleteSession.notFound"));
       if (!silent) setLoading(false);
       return;
     }
@@ -126,7 +128,7 @@ export default function AthleteSessionDetail() {
     }
 
     if (!silent) setLoading(false);
-  }, [sessionId, language]);
+  }, [sessionId, t]);
 
   const isFirstFocus = useRef(true);
   useEffect(() => {
@@ -143,7 +145,7 @@ export default function AthleteSessionDetail() {
     if (registering || waitlisting || cancelling) return;
     if (!session || !hasSessionNotEnded(session.session_date, session.start_time, session.duration_minutes ?? 60)) {
       showToast({
-        message: language === "he" ? "לא ניתן להירשם" : "Could not register",
+        message: t("athleteSession.couldNotRegister"),
         detail: t("athleteSession.sessionEndedNoRegister"),
         variant: "error",
       });
@@ -167,7 +169,7 @@ export default function AthleteSessionDetail() {
     setRegistering(false);
     if (error) showToast({ message: t("common.error"), detail: error.message, variant: "error" });
     else if (data?.ok) {
-      showToast({ message: language === "he" ? "נרשמת" : "Registered", variant: "success" });
+      showToast({ message: t("athleteSession.registeredToast"), variant: "success" });
       setRegistered(true);
       await loadNames();
       if (session) {
@@ -175,7 +177,7 @@ export default function AthleteSessionDetail() {
           sessionId,
           sessionDate: session.session_date,
           startTime: session.start_time,
-          title: language === "he" ? "תזכורת לאימון" : "Workout reminder",
+          title: t("athleteSession.reminderTitle"),
           bodyNear: `${formatISODateFullWithWeekdayAfter(session.session_date, language)} · ${formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}`,
         });
       }
@@ -185,7 +187,7 @@ export default function AthleteSessionDetail() {
       const err = String(data?.error ?? "");
       if (err === "already_registered") await load(true);
       showToast({
-        message: language === "he" ? "לא ניתן להירשם" : "Could not register",
+        message: t("athleteSession.couldNotRegister"),
         detail: athleteRegisterSessionErrorDetail(err, t),
         variant: "error",
       });
@@ -196,7 +198,7 @@ export default function AthleteSessionDetail() {
     if (registering || waitlisting || cancelling) return;
     if (!session || !hasSessionNotEnded(session.session_date, session.start_time, session.duration_minutes ?? 60)) {
       showToast({
-        message: language === "he" ? "רשימת המתנה" : "Waitlist",
+        message: t("athleteCalendar.waitlistHeading"),
         detail: t("athleteSession.sessionEndedNoRegister"),
         variant: "error",
       });
@@ -208,13 +210,12 @@ export default function AthleteSessionDetail() {
     if (error) showToast({ message: t("common.error"), detail: appendNetworkHint(error, t("network.offlineHint")), variant: "error" });
     else if (data?.ok) {
       showToast({
-        message:
-          language === "he" ? "תקבלו הודעה אם יתפנה מקום" : "You’ll be notified if a spot opens",
+        message: t("athleteCalendar.waitlistJoinedToast"),
         variant: "success",
       });
       setOnWaitlist(true);
       await loadNames();
-    } else showToast({ message: language === "he" ? "רשימת המתנה" : "Waitlist", detail: data?.error ?? "", variant: "error" });
+    } else showToast({ message: t("athleteCalendar.waitlistHeading"), detail: data?.error ?? "", variant: "error" });
   }
 
   async function leaveWaitlist() {
@@ -235,7 +236,7 @@ export default function AthleteSessionDetail() {
       showToast({ message: t("common.error"), detail: appendNetworkHint(error, t("network.offlineHint")), variant: "error" });
       return;
     }
-    showToast({ message: language === "he" ? "הוסרת מרשימת ההמתנה" : "Removed from waitlist", variant: "success" });
+    showToast({ message: t("athleteSession.removedFromWaitlist"), variant: "success" });
     setOnWaitlist(false);
   }
 
@@ -246,14 +247,14 @@ export default function AthleteSessionDetail() {
       !hasSessionNotStarted(session.session_date, session.start_time)
     ) {
       showToast({
-        message: language === "he" ? "לא ניתן לבטל" : "Could not cancel",
+        message: t("athleteSession.couldNotCancel"),
         detail: t("athleteSession.sessionStartedNoCancel"),
         variant: "error",
       });
       return;
     }
     if (!reason.trim()) {
-      Alert.alert(language === "he" ? "נדרשת סיבה" : "Reason required");
+      Alert.alert(t("athleteSession.reasonRequired"));
       return;
     }
     setCancelling(true);
@@ -280,7 +281,7 @@ export default function AthleteSessionDetail() {
         err === "session_started"
           ? t("athleteSession.sessionStartedNoCancel")
           : err || t("common.error");
-      showToast({ message: language === "he" ? "לא ניתן לבטל" : "Could not cancel", detail, variant: "error" });
+      showToast({ message: t("athleteSession.couldNotCancel"), detail, variant: "error" });
     }
   }
 
@@ -289,16 +290,20 @@ export default function AthleteSessionDetail() {
       <View style={styles.box}>
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
         <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={[styles.loadingText, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
+        <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
+          {t("common.loading")}
+        </AppText>
       </View>
     );
   if (loadError)
     return (
       <View style={styles.box}>
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
-        <Text style={[styles.loadingText, isRTL && styles.rtlText]}>{loadError}</Text>
+        <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
+          {loadError}
+        </AppText>
         <View style={{ marginTop: theme.spacing.md }}>
-          <ActionButton label={language === "he" ? "נסו שוב" : "Retry"} onPress={() => router.replace(`/(app)/athlete/session/${sessionId}`)} />
+          <ActionButton label={t("auth.retryConnection")} onPress={() => router.replace(`/(app)/athlete/session/${sessionId}`)} />
         </View>
       </View>
     );
@@ -306,7 +311,9 @@ export default function AthleteSessionDetail() {
     return (
       <View style={styles.box}>
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
-        <Text style={[styles.loadingText, isRTL && styles.rtlText]}>{language === "he" ? "האימון לא נמצא" : "Session not found"}</Text>
+        <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
+          {t("athleteSession.notFound")}
+        </AppText>
       </View>
     );
   const full = count >= session.max_participants;
@@ -333,13 +340,16 @@ export default function AthleteSessionDetail() {
             <KickboxSessionBadge isRTL={isRTL} />
           </View>
         ) : null}
-        <Text style={styles.title}>{formatISODateFullWithWeekdayAfter(session.session_date, language)}</Text>
-        <Text style={styles.sub}>{formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}</Text>
+        <AppText variant="title" isRTL={isRTL} style={styles.title}>
+          {formatISODateFullWithWeekdayAfter(session.session_date, language)}
+        </AppText>
+        <AppText variant="body" muted style={styles.sub}>
+          {formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}
+        </AppText>
         {session.trainer?.full_name ? (
-          <Text style={[styles.sub, isRTL && styles.rtlText]}>
-            {language === "he" ? "מאמן: " : "Trainer: "}
-            {session.trainer.full_name}
-          </Text>
+          <AppText variant="body" muted isRTL={isRTL} style={styles.sub}>
+            {t("athleteSession.trainerLabel")} {session.trainer.full_name}
+          </AppText>
         ) : null}
         <View style={[styles.chips, isRTL && styles.chipsRtl]}>
           {!sessionNotEnded ? (
@@ -347,14 +357,14 @@ export default function AthleteSessionDetail() {
           ) : (
             <>
               {full ? (
-                <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" />
+                <StatusChip label={t("athleteSession.statusFull")} tone="danger" />
               ) : !regOpen ? (
-                <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
+                <StatusChip label={t("athleteSession.statusClosed")} tone="neutral" />
               ) : (
-                <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
+                <StatusChip label={t("athleteSession.statusOpen")} tone="success" />
               )}
               <StatusChip
-                label={language === "he" ? `${spotsLeft} פנוי` : `${spotsLeft} left`}
+                label={t("athleteSession.spotsLeft").replace("{n}", String(spotsLeft))}
                 tone={spotsLeft === 0 ? "danger" : "neutral"}
               />
             </>
@@ -366,7 +376,7 @@ export default function AthleteSessionDetail() {
         {!registered ? (
           <>
             <PrimaryButton
-              label={registering ? t("common.loading") : language === "he" ? "הרשמה" : "Register"}
+              label={registering ? t("common.loading") : t("athleteSession.register")}
               onPress={register}
               disabled={full || !regOpen || !sessionNotEnded || registering || waitlisting || cancelling}
               style={full || !regOpen || !sessionNotEnded ? styles.disabled : undefined}
@@ -382,21 +392,15 @@ export default function AthleteSessionDetail() {
                   (!onWaitlist && (!full || !sessionNotEnded))
                 }
               >
-                <Text style={styles.btnText2}>
-                  {onWaitlist
-                    ? language === "he"
-                      ? "הסרה מרשימת המתנה"
-                      : "Remove from waitlist"
-                    : language === "he"
-                      ? "הרשמה לרשימת המתנה"
-                      : "Register to waitlist"}
-                </Text>
+                <AppText variant="body" style={styles.btnText2}>
+                  {onWaitlist ? t("athleteSession.removeFromWaitlist") : t("athleteSession.joinWaitlist")}
+                </AppText>
               </Pressable>
             )}
             {!sessionNotEnded ? null : !full && !regOpen ? (
-              <Text style={[styles.closedHint, isRTL && styles.rtlText]}>
-                {language === "he" ? "ההרשמה סגורה כרגע." : "Registration is currently closed."}
-              </Text>
+              <AppText variant="caption" muted isRTL={isRTL} style={styles.closedHint}>
+                {t("athleteSession.registrationClosedHint")}
+              </AppText>
             ) : null}
           </>
         ) : canCancelRegistration ? (
@@ -405,53 +409,58 @@ export default function AthleteSessionDetail() {
             onPress={() => setCancelOpen(true)}
             disabled={registering || waitlisting || cancelling}
           >
-            <Text style={styles.btnText}>{language === "he" ? "ביטול הרשמה" : "Cancel registration"}</Text>
+            <AppText variant="body" style={styles.btnText}>
+              {t("athleteSession.cancelRegistration")}
+            </AppText>
           </Pressable>
         ) : sessionNotEnded ? (
-          <Text style={[styles.closedHint, isRTL && styles.rtlText]}>{t("athleteSession.sessionStartedNoCancel")}</Text>
+          <AppText variant="caption" muted isRTL={isRTL} style={styles.closedHint}>
+            {t("athleteSession.sessionStartedNoCancel")}
+          </AppText>
         ) : null}
       </View>
 
       <View style={styles.partCard}>
         <View style={[styles.partHeader, isRTL && styles.partHeaderRtl]}>
-          <Text style={[styles.partTitle, isRTL && styles.rtlText]}>
-            {language === "he" ? "משתתפים" : "Participants"}
-          </Text>
+          <AppText variant="label" isRTL={isRTL} style={styles.partTitle}>
+            {t("athleteSession.participants")}
+          </AppText>
           <View style={styles.partCountBadge}>
-            <Text style={styles.partCountBadgeTxt}>
+            <AppText variant="caption" style={styles.partCountBadgeTxt}>
               {count}/{session.max_participants}
-            </Text>
+            </AppText>
           </View>
         </View>
         {names.length === 0 && count === 0 ? (
-          <Text style={[styles.partEmpty, isRTL && styles.rtlText]}>
-            {language === "he" ? "אין משתתפים רשומים עדיין." : "No registered participants yet."}
-          </Text>
+          <AppText variant="caption" muted isRTL={isRTL} style={styles.partEmpty}>
+            {t("athleteSession.noParticipantsYet")}
+          </AppText>
         ) : names.length === 0 ? (
-          <Text style={[styles.partEmpty, isRTL && styles.rtlText]}>
-            {language === "he" ? `${count} נרשמו` : `${count} registered`}
-          </Text>
+          <AppText variant="caption" muted isRTL={isRTL} style={styles.partEmpty}>
+            {t("athleteSession.registeredCount").replace("{n}", String(count))}
+          </AppText>
         ) : (
           <View style={styles.partListShell}>
             {names.slice(0, 32).map((n, i) => (
               <View key={`${n}-${i}`} style={styles.partChip}>
-                <Text
+                <AppText
+                  variant="caption"
                   style={[styles.partChipTxt, isRTL ? styles.partChipTxtRtlUi : styles.partChipTxtLtrUi]}
                   numberOfLines={1}
                 >
                   {participantListLabel(n, isRTL)}
-                </Text>
+                </AppText>
               </View>
             ))}
             {count > names.length ? (
-              <Text style={[styles.partRowMore, isRTL && styles.rtlText]}>
-                {language === "he" ? `+${count - names.length} נוספים` : `+${count - names.length} more`}
-              </Text>
+              <AppText variant="caption" soft isRTL={isRTL} style={styles.partRowMore}>
+                {t("athleteSession.participantsMore").replace("{n}", String(count - names.length))}
+              </AppText>
             ) : null}
             {names.length > 32 ? (
-              <Text style={[styles.partRowMore, isRTL && styles.rtlText]}>
-                {language === "he" ? `ועוד ${names.length - 32}` : `+${names.length - 32} more`}
-              </Text>
+              <AppText variant="caption" soft isRTL={isRTL} style={styles.partRowMore}>
+                {t("athleteSession.participantsMore").replace("{n}", String(names.length - 32))}
+              </AppText>
             ) : null}
           </View>
         )}
@@ -462,23 +471,27 @@ export default function AthleteSessionDetail() {
       <Modal visible={cancelOpen} transparent animationType="slide">
         <View style={styles.modal}>
           <View style={styles.modalCard}>
-            <Text style={[styles.mTitle, isRTL && styles.rtlText]}>{language === "he" ? "סיבת ביטול" : "Cancellation reason"}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={language === "he" ? "סיבה" : "Reason"}
-              placeholderTextColor={theme.colors.textSoft}
+            <AppText variant="title" isRTL={isRTL} style={styles.mTitle}>
+              {t("athleteSession.cancelReasonTitle")}
+            </AppText>
+            <AppTextField
+              isRTL={isRTL}
+              placeholder={t("athleteSession.cancelReasonPlaceholder")}
               value={reason}
               onChangeText={setReason}
               multiline
+              style={styles.cancelReasonInput}
+              containerStyle={styles.cancelReasonField}
+              accessibilityLabel={t("athleteSession.cancelReasonPlaceholder")}
             />
             <PrimaryButton
-              label={cancelling ? t("common.loading") : language === "he" ? "אישור ביטול" : "Confirm cancel"}
+              label={cancelling ? t("common.loading") : t("athleteSession.confirmCancel")}
               onPress={cancel}
               loading={cancelling}
               loadingLabel={t("common.loading")}
             />
             <ActionButton
-              label={language === "he" ? "סגור" : "Close"}
+              label={t("common.cancel")}
               onPress={() => setCancelOpen(false)}
               style={{ marginTop: 16, alignSelf: "center" }}
             />
@@ -602,7 +615,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textSoft,
     textAlign: "center",
   },
-  modal: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.4)" },
+  modal: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: theme.overlay.backdrop },
   modalCard: {
     backgroundColor: theme.colors.surfaceElevated,
     borderRadius: theme.radius.lg,
@@ -610,16 +623,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  mTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12, color: theme.colors.text },
-  input: {
-    backgroundColor: theme.colors.backgroundAlt,
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.sm,
-    padding: 12,
+  mTitle: { marginBottom: 12 },
+  cancelReasonField: { marginBottom: theme.spacing.md },
+  cancelReasonInput: {
     minHeight: 80,
-    marginBottom: 16,
-    fontSize: 16,
-    color: theme.colors.text,
+    textAlignVertical: "top",
   },
 });

@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   StyleSheet,
   ScrollView,
@@ -14,6 +13,8 @@ import * as Linking from "expo-linking";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ActionButton } from "../../src/components/ActionButton";
+import { AppTextField } from "../../src/components/AppTextField";
+import { AppText } from "../../src/components/AppText";
 import { theme } from "../../src/theme";
 import { parseISODateLocal, toISODateLocal, isValidISODateString } from "../../src/lib/isoDate";
 import { useI18n } from "../../src/context/I18nContext";
@@ -149,24 +150,26 @@ export default function SignupScreen() {
     <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <LanguageToggleChip />
-        <Text style={[styles.title, isRTL && styles.rtlText]}>{t("auth.register")}</Text>
-        <Text style={[styles.hint, isRTL && styles.rtlText]}>
-          {language === "he"
-            ? "חשבון מתאמן — נדרש אישור לפני הזמנת אימונים."
-            : "Athlete account — approval required before booking."}
-        </Text>
+        <AppText variant="display" isRTL={isRTL} style={styles.title}>
+          {t("auth.register")}
+        </AppText>
+        <AppText variant="body" muted isRTL={isRTL} style={styles.hint}>
+          {t("auth.signupHint")}
+        </AppText>
         {errorMessage ? (
           <View style={styles.errorBox}>
-            <Text style={[styles.errorText, isRTL && styles.rtlText]}>{errorMessage}</Text>
+            <AppText variant="caption" isRTL={isRTL} style={styles.errorText}>
+              {errorMessage}
+            </AppText>
           </View>
         ) : null}
 
         <View style={styles.formCard}>
-          <Text style={[styles.fieldLabel, styles.fieldLabelFirst, isRTL && styles.rtlText]}>{t("auth.email")}</Text>
-          <TextInput
-            style={[styles.input, isRTL && styles.inputRtl]}
+          <AppTextField
+            variant="dark"
+            label={t("auth.email")}
+            isRTL={isRTL}
             placeholder={t("auth.email")}
-            placeholderTextColor={theme.colors.textSoft}
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
@@ -174,49 +177,55 @@ export default function SignupScreen() {
               setEmail(v);
               setErrorMessage("");
             }}
+            containerStyle={styles.field}
           />
-          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("auth.passwordMin6")}</Text>
-          <TextInput
-            style={[styles.input, isRTL && styles.inputRtl]}
+          <AppTextField
+            variant="dark"
+            label={t("auth.passwordMin6")}
+            isRTL={isRTL}
             placeholder={t("auth.passwordMin6")}
-            placeholderTextColor={theme.colors.textSoft}
             secureTextEntry
             value={password}
             onChangeText={setPassword}
+            containerStyle={styles.field}
           />
-          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("profile.fullName")}</Text>
-          <TextInput
-            style={[styles.input, isRTL && styles.inputRtl]}
+          <AppTextField
+            variant="dark"
+            label={t("profile.fullName")}
+            isRTL={isRTL}
             placeholder={t("profile.fullName")}
-            placeholderTextColor={theme.colors.textSoft}
             value={fullName}
             onChangeText={setFullName}
+            containerStyle={styles.field}
           />
-          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("profile.phone")}</Text>
-          <TextInput
-            style={[styles.input, isRTL && styles.inputRtl]}
+          <AppTextField
+            variant="dark"
+            label={t("profile.phone")}
+            isRTL={isRTL}
             placeholder={t("profile.phone")}
-            placeholderTextColor={theme.colors.textSoft}
             keyboardType="phone-pad"
             value={phone}
             onChangeText={setPhone}
+            containerStyle={styles.field}
           />
-          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("profile.address")}</Text>
-          <TextInput
-            style={[styles.input, isRTL && styles.inputRtl]}
+          <AppTextField
+            variant="dark"
+            label={t("profile.address")}
+            isRTL={isRTL}
             placeholder={t("profile.address")}
-            placeholderTextColor={theme.colors.textSoft}
             value={address}
             onChangeText={setAddress}
+            containerStyle={styles.field}
           />
-          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("profile.zipCode")}</Text>
-          <TextInput
-            style={[styles.input, isRTL && styles.inputRtl]}
+          <AppTextField
+            variant="dark"
+            label={t("profile.zipCode")}
+            isRTL={isRTL}
             placeholder={t("profile.zipCode")}
-            placeholderTextColor={theme.colors.textSoft}
             keyboardType="number-pad"
             value={zipCode}
             onChangeText={setZipCode}
+            containerStyle={styles.field}
           />
 
           <DatePickerField
@@ -246,7 +255,7 @@ export default function SignupScreen() {
                 accessibilityState={{ selected: gender === g }}
               >
                 <Text style={[styles.genderTxt, gender === g && styles.genderTxtOn]}>
-                  {g === "male" ? (language === "he" ? "זכר" : "Male") : language === "he" ? "נקבה" : "Female"}
+                  {g === "male" ? t("profile.male") : t("profile.female")}
                 </Text>
               </Pressable>
             ))}
@@ -348,6 +357,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
   },
+  field: { marginBottom: theme.spacing.sm },
   fieldLabel: {
     fontWeight: "700",
     fontSize: 12,

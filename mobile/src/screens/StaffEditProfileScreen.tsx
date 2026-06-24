@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { AppTextField } from "../components/AppTextField";
+import { AppText } from "../components/AppText";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
@@ -195,7 +197,7 @@ export default function StaffEditProfileScreen() {
       return;
     }
     showToast({
-      message: language === "he" ? "האימייל אושר" : "Email confirmed",
+      message: t("profile.emailConfirmed"),
       variant: "success",
     });
   }
@@ -207,58 +209,79 @@ export default function StaffEditProfileScreen() {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, isRTL && styles.rtlText]}>{t("profile.editUser")}</Text>
-      {loading ? <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("common.loading")}</Text> : null}
+      <AppText variant="headline" isRTL={isRTL} style={styles.title}>
+        {t("profile.editUser")}
+      </AppText>
+      {loading ? (
+        <AppText muted isRTL={isRTL} style={styles.muted}>
+          {t("common.loading")}
+        </AppText>
+      ) : null}
 
       {userId ? (
         <View style={styles.metaCard}>
           {username ? (
             <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
-              <Text style={[styles.metaLabel, isRTL && styles.rtlText]}>{t("profile.username")}</Text>
-              <Text style={[styles.metaValue, isRTL && styles.rtlText]} selectable numberOfLines={2}>
+              <AppText variant="label" soft isRTL={isRTL}>
+                {t("profile.username")}
+              </AppText>
+              <AppText isRTL={isRTL} selectable numberOfLines={2}>
                 @{username}
-              </Text>
+              </AppText>
             </View>
           ) : null}
           <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
-            <Text style={[styles.metaLabel, isRTL && styles.rtlText]}>{t("auth.email")}</Text>
-            <Text style={[styles.metaValue, isRTL && styles.rtlText]} selectable numberOfLines={2}>
+            <AppText variant="label" soft isRTL={isRTL}>
+              {t("auth.email")}
+            </AppText>
+            <AppText isRTL={isRTL} selectable numberOfLines={2}>
               {metaLoading ? t("common.loading") : email.trim() || "—"}
-            </Text>
+            </AppText>
           </View>
           <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
-            <Text style={[styles.metaLabel, isRTL && styles.rtlText]}>{t("profile.lastLogin")}</Text>
-            <Text style={[styles.metaValue, isRTL && styles.rtlText]} numberOfLines={2}>
+            <AppText variant="label" soft isRTL={isRTL}>
+              {t("profile.lastLogin")}
+            </AppText>
+            <AppText isRTL={isRTL} numberOfLines={2}>
               {metaLoading
                 ? t("common.loading")
                 : lastSignInAt
                   ? formatDateTimeForDisplay(lastSignInAt, language)
                   : t("profile.neverLoggedIn")}
-            </Text>
+            </AppText>
           </View>
           {isDisabled ? (
             <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
-              <Text style={[styles.metaLabel, isRTL && styles.rtlText]}>{t("profile.accountStatus")}</Text>
-              <Text style={[styles.metaValue, styles.metaDisabled, isRTL && styles.rtlText]} numberOfLines={2}>
+              <AppText variant="label" soft isRTL={isRTL}>
+                {t("profile.accountStatus")}
+              </AppText>
+              <AppText isRTL={isRTL} style={styles.metaDisabled} numberOfLines={2}>
                 {t("profile.accountDisabledSince").replace(
                   "{date}",
                   formatDateTimeForDisplay(disabledAt!, language)
                 )}
-              </Text>
+              </AppText>
             </View>
           ) : null}
         </View>
       ) : null}
 
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.fullName")}</Text>
-      <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholderTextColor={theme.colors.textSoft} />
+      <AppTextField
+        label={t("profile.fullName")}
+        value={fullName}
+        onChangeText={setFullName}
+        isRTL={isRTL}
+        containerStyle={styles.field}
+      />
       {duplicateNamesLoading ? (
-        <Text style={[styles.duplicateHint, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
+        <AppText variant="caption" muted isRTL={isRTL} style={styles.duplicateHint}>
+          {t("common.loading")}
+        </AppText>
       ) : duplicateNames.length > 0 ? (
         <View style={styles.duplicateCard}>
-          <Text style={[styles.duplicateTitle, isRTL && styles.rtlText]}>
+          <AppText variant="caption" isRTL={isRTL} style={styles.duplicateTitle}>
             {t("profile.duplicateNameTitle").replace("{n}", String(duplicateNames.length))}
-          </Text>
+          </AppText>
           {duplicateNames.map((row) => (
             <Pressable
               key={row.user_id}
@@ -266,60 +289,62 @@ export default function StaffEditProfileScreen() {
               style={({ pressed }) => [styles.duplicateRow, pressed && { opacity: 0.88 }]}
               accessibilityRole="button"
             >
-              <Text style={[styles.duplicateRowTxt, isRTL && styles.rtlText]} numberOfLines={2}>
+              <AppText variant="caption" isRTL={isRTL} style={styles.duplicateRowTxt} numberOfLines={2}>
                 {t("profile.duplicateNameLine")
                   .replace("{username}", row.username)
                   .replace("{phone}", row.phone || "—")
                   .replace("{role}", row.role)}
-              </Text>
+              </AppText>
             </Pressable>
           ))}
         </View>
       ) : null}
 
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.phone")}</Text>
-      <TextInput
-        style={[styles.input, isRTL && styles.inputRtl]}
+      <AppTextField
+        label={t("profile.phone")}
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"
-        placeholderTextColor={theme.colors.textSoft}
+        isRTL={isRTL}
+        containerStyle={styles.field}
       />
 
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.address")}</Text>
-      <TextInput
-        style={[styles.input, isRTL && styles.inputRtl]}
+      <AppTextField
+        label={t("profile.address")}
         value={address}
         onChangeText={setAddress}
         placeholder={t("profile.address")}
-        placeholderTextColor={theme.colors.textSoft}
+        isRTL={isRTL}
+        containerStyle={styles.field}
       />
 
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.zipCode")}</Text>
-      <TextInput
-        style={[styles.input, isRTL && styles.inputRtl]}
+      <AppTextField
+        label={t("profile.zipCode")}
         value={zipCode}
         onChangeText={setZipCode}
         keyboardType="number-pad"
         placeholder={t("profile.zipCode")}
-        placeholderTextColor={theme.colors.textSoft}
+        isRTL={isRTL}
+        containerStyle={styles.field}
       />
 
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.gender")}</Text>
+      <AppText variant="label" muted isRTL={isRTL} style={styles.genderLabel}>
+        {t("profile.gender")}
+      </AppText>
       <View style={[styles.genderRow, isRTL && styles.genderRowRtl]}>
         <Pressable
           onPress={() => setGender("male")}
           style={({ pressed }) => [styles.genderBtn, gender === "male" && styles.genderBtnOn, pressed && { opacity: 0.9 }]}
           accessibilityRole="button"
         >
-          <Text style={[styles.genderTxt, gender === "male" && styles.genderTxtOn]}>{language === "he" ? "זכר" : "Male"}</Text>
+          <AppText style={[styles.genderTxt, gender === "male" && styles.genderTxtOn]}>{t("profile.male")}</AppText>
         </Pressable>
         <Pressable
           onPress={() => setGender("female")}
           style={({ pressed }) => [styles.genderBtn, gender === "female" && styles.genderBtnOn, pressed && { opacity: 0.9 }]}
           accessibilityRole="button"
         >
-          <Text style={[styles.genderTxt, gender === "female" && styles.genderTxtOn]}>{language === "he" ? "נקבה" : "Female"}</Text>
+          <AppText style={[styles.genderTxt, gender === "female" && styles.genderTxtOn]}>{t("profile.female")}</AppText>
         </Pressable>
       </View>
 
@@ -337,13 +362,13 @@ export default function StaffEditProfileScreen() {
         ]}
         accessibilityRole="button"
       >
-        <Text style={[isDisabled ? styles.enableAccountTxt : styles.disableAccountTxt, isRTL && styles.rtlText]}>
+        <AppText style={[isDisabled ? styles.enableAccountTxt : styles.disableAccountTxt, isRTL && styles.rtlText]}>
           {togglingDisabled
             ? t("common.loading")
             : isDisabled
               ? t("profile.enableAccountConfirm")
               : t("profile.disableAccountConfirm")}
-        </Text>
+        </AppText>
       </Pressable>
 
       {isManager ? (
@@ -356,11 +381,11 @@ export default function StaffEditProfileScreen() {
             pressed && !confirmingEmail && { opacity: 0.9 },
           ]}
           accessibilityRole="button"
-          accessibilityLabel={language === "he" ? "אישור אימייל" : "Confirm email"}
+          accessibilityLabel={t("profile.confirmEmail")}
         >
-          <Text style={styles.confirmEmailTxt}>
-            {confirmingEmail ? t("common.loading") : language === "he" ? "אישור אימייל" : "Confirm email"}
-          </Text>
+          <AppText style={styles.confirmEmailTxt}>
+            {confirmingEmail ? t("common.loading") : t("profile.confirmEmail")}
+          </AppText>
         </Pressable>
       ) : null}
 
@@ -368,11 +393,13 @@ export default function StaffEditProfileScreen() {
         onPress={() => router.replace("/(app)/staff/users")}
         style={({ pressed }) => [styles.backToList, pressed && { opacity: 0.9 }]}
       >
-        <Text style={styles.backToListTxt}>{t("common.backToUsers")}</Text>
+        <AppText style={styles.backToListTxt}>{t("common.backToUsers")}</AppText>
       </Pressable>
 
       <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancel, pressed && { opacity: 0.9 }]}>
-        <Text style={styles.cancelTxt}>{t("common.cancel")}</Text>
+        <AppText muted style={styles.cancelTxt}>
+          {t("common.cancel")}
+        </AppText>
       </Pressable>
     </ScrollView>
   );
@@ -384,8 +411,10 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     paddingBottom: theme.spacing.xl * 2,
   },
-  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
-  muted: { color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
+  title: { marginBottom: theme.spacing.sm },
+  muted: { marginBottom: theme.spacing.sm },
+  field: { marginTop: theme.spacing.sm },
+  genderLabel: { marginTop: theme.spacing.sm, marginBottom: theme.spacing.xs },
   metaCard: {
     marginBottom: theme.spacing.md,
     padding: theme.spacing.md,
@@ -397,14 +426,6 @@ const styles = StyleSheet.create({
   },
   metaRow: { gap: 4 },
   metaRowRtl: { alignItems: "flex-end" },
-  metaLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: theme.colors.textSoft,
-    textTransform: "uppercase",
-    letterSpacing: 0.35,
-  },
-  metaValue: { fontSize: 14, fontWeight: "700", color: theme.colors.text, lineHeight: 20 },
   metaDisabled: { color: theme.colors.error },
   disableAccountBtn: {
     marginTop: theme.spacing.sm,
@@ -428,9 +449,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   enableAccountTxt: { color: theme.colors.text, fontWeight: "900", letterSpacing: 0.2 },
-  label: { marginTop: theme.spacing.sm, fontWeight: "700", color: theme.colors.text, fontSize: 13 },
   rtlText: { textAlign: "right" },
-  inputRtl: { textAlign: "right" },
   genderRow: { flexDirection: "row", gap: 10, marginTop: 6 },
   genderRowRtl: { flexDirection: "row-reverse" },
   genderBtn: {
@@ -449,16 +468,7 @@ const styles = StyleSheet.create({
   },
   genderTxt: { fontWeight: "900", color: theme.colors.textMuted, letterSpacing: 0.2 },
   genderTxtOn: { color: theme.colors.ctaText },
-  input: {
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
-  },
-  duplicateHint: { marginTop: 6, fontSize: 12, fontWeight: "600", color: theme.colors.textMuted },
+  duplicateHint: { marginTop: 6 },
   duplicateCard: {
     marginTop: 8,
     padding: theme.spacing.sm,
@@ -468,9 +478,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(96, 165, 250, 0.1)",
     gap: 6,
   },
-  duplicateTitle: { fontSize: 12, fontWeight: "800", color: theme.colors.text, lineHeight: 17 },
+  duplicateTitle: { lineHeight: 17 },
   duplicateRow: { paddingVertical: 4 },
-  duplicateRowTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.cta, lineHeight: 18 },
+  duplicateRowTxt: { color: theme.colors.cta, lineHeight: 18 },
   confirmEmailBtn: {
     marginTop: theme.spacing.sm,
     borderWidth: 1,

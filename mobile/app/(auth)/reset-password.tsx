@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react";
 import {
   View,
-  Text,
-  TextInput,
-  Pressable,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
+import { AppTextField } from "../../src/components/AppTextField";
+import { AppText } from "../../src/components/AppText";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
@@ -22,7 +22,7 @@ import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
  * Supabase must have this redirect URL allowlisted.
  */
 export default function ResetPasswordScreen() {
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   const [ready, setReady] = useState(false);
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -32,9 +32,6 @@ export default function ResetPasswordScreen() {
     let cancelled = false;
     (async () => {
       if (Platform.OS === "web" && typeof window !== "undefined") {
-        // Supabase recovery links can be either:
-        // - legacy implicit: tokens in hash (#access_token=...&refresh_token=...)
-        // - PKCE: code in query (?code=...)
         const url = new URL(window.location.href);
         const code = url.searchParams.get("code");
         if (code) {
@@ -61,30 +58,21 @@ export default function ResetPasswordScreen() {
       const { data } = await supabase.auth.getSession();
       if (!cancelled) setReady(true);
       if (!data.session) {
-        Alert.alert(
-          language === "he" ? "קישור לא תקין או שפג תוקפו" : "Invalid or expired link",
-          language === "he" ? "בקשו אימייל איפוס חדש מ״שכחתי סיסמה״." : "Request a new reset email from Forgot password."
-        );
+        Alert.alert(t("auth.resetLinkInvalidTitle"), t("auth.resetLinkInvalidBody"));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   async function save() {
     if (password.length < 6) {
-      Alert.alert(
-        language === "he" ? "סיסמה קצרה מדי" : "Password too short",
-        language === "he" ? "השתמשו בלפחות 6 תווים." : "Use at least 6 characters."
-      );
+      Alert.alert(t("auth.passwordTooShortTitle"), t("auth.passwordTooShortBody"));
       return;
     }
     if (password !== password2) {
-      Alert.alert(
-        language === "he" ? "אי התאמה" : "Mismatch",
-        language === "he" ? "הסיסמאות אינן תואמות." : "Passwords do not match."
-      );
+      Alert.alert(t("auth.passwordMismatchTitle"), t("auth.passwordMismatchBody"));
       return;
     }
     setBusy(true);
@@ -96,37 +84,46 @@ export default function ResetPasswordScreen() {
 
   if (!ready)
     return (
-      <View style={[styles.container, { justifyContent: "center" }]}>
+      <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={[styles.loadingText, isRTL && { textAlign: "right" }]}>{t("common.loading")}</Text>
+        <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
+          {t("common.loading")}
+        </AppText>
       </View>
     );
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
       <LanguageToggleChip />
-      <Text style={[styles.title, isRTL && { textAlign: "right" }]}>{language === "he" ? "סיסמה חדשה" : "New password"}</Text>
-      <Text style={[styles.hint, isRTL && { textAlign: "right" }]}>
-        {language === "he" ? "בחרו סיסמה חדשה לחשבון שלכם." : "Choose a new password for your account."}
-      </Text>
-      <TextInput
-        style={styles.input}
-        placeholder={language === "he" ? "סיסמה חדשה (מינימום 6)" : "New password (min 6)"}
-        placeholderTextColor={theme.colors.textSoft}
+      <View style={styles.logoWrap}>
+        <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" accessibilityLabel={t("a11y.appLogo")} />
+      </View>
+      <AppText variant="display" isRTL={isRTL} style={styles.title}>
+        {t("auth.resetPasswordNewTitle")}
+      </AppText>
+      <AppText variant="body" muted isRTL={isRTL} style={styles.hint}>
+        {t("auth.resetPasswordHint")}
+      </AppText>
+      <AppTextField
+        variant="dark"
+        isRTL={isRTL}
+        placeholder={t("auth.resetPasswordNewPlaceholder")}
         secureTextEntry
         value={password}
         onChangeText={setPassword}
+        containerStyle={styles.field}
       />
-      <TextInput
-        style={styles.input}
-        placeholder={language === "he" ? "אישור סיסמה" : "Confirm password"}
-        placeholderTextColor={theme.colors.textSoft}
+      <AppTextField
+        variant="dark"
+        isRTL={isRTL}
+        placeholder={t("auth.resetPasswordConfirmPlaceholder")}
         secureTextEntry
         value={password2}
         onChangeText={setPassword2}
+        containerStyle={styles.field}
       />
       <PrimaryButton
-        label={language === "he" ? "עדכון סיסמה" : "Update password"}
+        label={t("auth.resetPasswordUpdate")}
         loadingLabel={t("common.loading")}
         loading={busy}
         onPress={save}
@@ -137,17 +134,11 @@ export default function ResetPasswordScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.backgroundAlt },
-  loadingText: { textAlign: "center", marginTop: 12, color: theme.colors.textMuted },
-  title: { fontSize: 22, fontWeight: "800", marginBottom: 8, color: theme.colors.text },
-  hint: { color: theme.colors.textMuted, marginBottom: 20 },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 14,
-    marginBottom: theme.spacing.sm,
-    fontSize: 16,
-    backgroundColor: theme.colors.backgroundAlt,
-    color: theme.colors.text,
-  },
+  centered: { justifyContent: "center" },
+  loadingText: { textAlign: "center", marginTop: theme.spacing.sm },
+  logoWrap: { alignItems: "center", marginBottom: theme.spacing.md },
+  logo: { width: 200, height: 200 },
+  title: { marginBottom: theme.spacing.sm },
+  hint: { marginBottom: theme.spacing.lg },
+  field: { marginBottom: theme.spacing.sm },
 });

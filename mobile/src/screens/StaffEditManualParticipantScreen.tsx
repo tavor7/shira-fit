@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { AppTextField } from "../components/AppTextField";
+import { AppText } from "../components/AppText";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 
 export default function StaffEditManualParticipantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const manualId = String(id ?? "");
-  const { t, isRTL, language } = useI18n();
+  const { t, isRTL } = useI18n();
   const { showToast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,7 @@ export default function StaffEditManualParticipantScreen() {
     if (!data?.length) {
       showToast({
         message: t("common.failed"),
-        detail: language === "he" ? "לא נמצא רשומה או אין הרשאה." : "Record not found or no permission.",
+        detail: t("manualParticipant.notFoundOrNoPermission"),
         variant: "error",
       });
       return;
@@ -84,30 +86,65 @@ export default function StaffEditManualParticipantScreen() {
   }
 
   return (
-    <View style={styles.screen}>
-      <Text style={[styles.title, isRTL && styles.rtlText]}>{language === "he" ? "עריכת מתאמן" : "Edit participant"}</Text>
-      {loading ? <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("common.loading")}</Text> : null}
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <AppText variant="headline" isRTL={isRTL} style={styles.title}>
+        {t("manualParticipant.editTitle")}
+      </AppText>
+      {loading ? (
+        <AppText muted isRTL={isRTL} style={styles.muted}>
+          {t("common.loading")}
+        </AppText>
+      ) : null}
 
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.fullName")}</Text>
-      <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholderTextColor={theme.colors.textSoft} />
+      <AppTextField
+        label={t("profile.fullName")}
+        value={fullName}
+        onChangeText={setFullName}
+        isRTL={isRTL}
+        containerStyle={styles.field}
+      />
 
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.phone")}</Text>
-      <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholderTextColor={theme.colors.textSoft} />
+      <AppTextField
+        label={t("profile.phone")}
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
+        isRTL={isRTL}
+        containerStyle={styles.field}
+      />
 
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.gender")}</Text>
-      <TextInput style={styles.input} value={gender} onChangeText={setGender} placeholder="male / female" placeholderTextColor={theme.colors.textSoft} />
+      <AppTextField
+        label={t("profile.gender")}
+        value={gender}
+        onChangeText={setGender}
+        placeholder={t("manualParticipant.genderPlaceholder")}
+        isRTL={isRTL}
+        containerStyle={styles.field}
+      />
 
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{t("profile.dob")}</Text>
-      <TextInput style={styles.input} value={dob} onChangeText={setDob} placeholder="2000-01-15" placeholderTextColor={theme.colors.textSoft} />
+      <AppTextField
+        label={t("profile.dob")}
+        value={dob}
+        onChangeText={setDob}
+        placeholder={t("manualParticipant.dobPlaceholder")}
+        isRTL={isRTL}
+        containerStyle={styles.field}
+      />
 
-      <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "הערות" : "Notes"}</Text>
-      <TextInput
-        style={[styles.input, { minHeight: 90, textAlignVertical: "top" }, isRTL && { textAlign: "right" }]}
+      <AppTextField
+        label={t("manualParticipant.notes")}
         value={notes}
         onChangeText={setNotes}
-        placeholder={language === "he" ? "אופציונלי" : "Optional"}
-        placeholderTextColor={theme.colors.textSoft}
+        placeholder={t("manualParticipant.notesOptional")}
+        isRTL={isRTL}
         multiline
+        containerStyle={styles.field}
+        style={styles.notesInput}
       />
 
       <PrimaryButton label={t("common.save")} onPress={save} loading={saving} loadingLabel={t("common.loading")} />
@@ -117,28 +154,24 @@ export default function StaffEditManualParticipantScreen() {
         }}
         style={({ pressed }) => [styles.cancel, pressed && { opacity: 0.9 }]}
       >
-        <Text style={styles.cancelTxt}>{t("common.cancel")}</Text>
+        <AppText muted style={styles.cancelTxt}>
+          {t("common.cancel")}
+        </AppText>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt, padding: theme.spacing.md },
-  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
-  muted: { color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
-  label: { marginTop: theme.spacing.sm, fontWeight: "700", color: theme.colors.text, fontSize: 13 },
-  rtlText: { textAlign: "right" },
-  input: {
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 12,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+  screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  scrollContent: {
+    padding: theme.spacing.md,
+    paddingBottom: theme.spacing.xl * 2,
   },
-  cancel: { marginTop: theme.spacing.md, alignSelf: "center" },
-  cancelTxt: { color: theme.colors.textMuted, fontWeight: "800" },
+  title: { marginBottom: theme.spacing.sm },
+  muted: { marginBottom: theme.spacing.sm },
+  field: { marginTop: theme.spacing.sm },
+  notesInput: { minHeight: 90, textAlignVertical: "top" },
+  cancel: { marginTop: theme.spacing.md, alignSelf: "center", minHeight: 44, justifyContent: "center" },
+  cancelTxt: { fontWeight: "800" },
 });
-

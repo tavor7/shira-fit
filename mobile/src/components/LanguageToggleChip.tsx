@@ -24,7 +24,7 @@ export function LanguageToggleChip() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: "absolute", top: theme.spacing.md, right: theme.spacing.md, zIndex: 10 },
+  wrap: { position: "absolute", top: theme.spacing.md, end: theme.spacing.md, zIndex: 10 },
   chip: {
     height: 36,
     minWidth: 44,

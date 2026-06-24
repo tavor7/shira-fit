@@ -64,7 +64,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: {
     padding: theme.spacing.md,
-    paddingBottom: theme.spacing.lg + theme.spacing.md,
+    paddingBottom: theme.spacing.xl,
+    gap: theme.spacing.sm,
   },
   rtl: { textAlign: "right", alignSelf: "stretch" },
   title: {
@@ -73,7 +74,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     letterSpacing: 0.2,
     lineHeight: 26,
-    marginBottom: theme.spacing.sm,
   },
 
   track: {
@@ -85,7 +85,6 @@ const styles = StyleSheet.create({
     padding: theme.spacing.xs,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
-    marginBottom: theme.spacing.md,
   },
   trackRtl: { flexDirection: "row-reverse" },
   slot: {
@@ -112,6 +111,6 @@ const styles = StyleSheet.create({
   },
   slotTxtOn: { color: theme.colors.ctaText },
 
-  body: { marginTop: theme.spacing.xs },
+  body: { marginTop: theme.spacing.sm },
 });
 

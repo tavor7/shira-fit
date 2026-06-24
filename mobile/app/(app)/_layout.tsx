@@ -1,9 +1,10 @@
 import { Stack, Redirect, usePathname, type Href } from "expo-router";
-import { ActivityIndicator, Platform, Pressable, Text, View, type TextStyle, type ViewStyle } from "react-native";
+import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
 import { AppHeaderRight } from "../../src/components/AppHeaderRight";
 import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
 import { theme } from "../../src/theme";
+import { appHeaderStyle, appHeaderTitleStyle } from "../../src/theme/headerStyles";
 import { useAndroidSessionsBackHandler } from "../../src/hooks/useAndroidSessionsBackHandler";
 import { isPendingPathname, isDisabledPathname } from "../../src/lib/sessionsHomeNavigation";
 import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
@@ -13,18 +14,8 @@ import { getLoginHrefWithOptionalRedirectWeb } from "../../src/lib/webLastRoute"
 import { useManagerAthletePreview } from "../../src/context/ManagerAthletePreviewContext";
 import { canRoleAccessAppPath, getRoleAccessDeniedRedirect } from "../../src/lib/roleRouteAccess";
 
-const headerStyle: ViewStyle = {
-  backgroundColor: theme.colors.backgroundAlt,
-  borderBottomWidth: 1,
-  borderBottomColor: theme.colors.borderMuted,
-};
-
-const headerTitleStyle: TextStyle = {
-  fontWeight: "600",
-  fontSize: 17,
-  color: theme.colors.text,
-  letterSpacing: 0.2,
-};
+const headerStyle = appHeaderStyle;
+const headerTitleStyle = appHeaderTitleStyle;
 
 export default function AppLayout() {
   const { session, loading, profile, authUnavailable, retryAuthBootstrap } = useAuth();

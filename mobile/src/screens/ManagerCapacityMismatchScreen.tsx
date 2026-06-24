@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   statsRowRtl: { flexDirection: "row-reverse" },
   diffLine: { flexShrink: 1, fontSize: 14, fontWeight: "800" },
   diffOver: { color: theme.colors.error },
-  diffUnder: { color: "#93C5FD" },
+  diffUnder: { color: theme.colors.info },
   cardCounts: {
     flexShrink: 0,
     fontSize: 12,

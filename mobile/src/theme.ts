@@ -39,6 +39,12 @@ export const theme = {
     errorBorder: "#7f1d1d",
     success: "#22c55e",
     successBg: "#142818",
+    warning: "#fbbf24",
+    warningBg: "rgba(245,158,11,0.14)",
+    warningBorder: "rgba(245,158,11,0.4)",
+    info: "#93c5fd",
+    infoBg: "rgba(96,165,250,0.14)",
+    infoBorder: "rgba(96,165,250,0.4)",
     /** Studio calendar note kinds — teal/violet so notes never read as “live session” green. */
     calendarNoteHoliday: "#2dd4bf",
     calendarNoteInfo: "#c084fc",
@@ -57,6 +63,51 @@ export const theme = {
     xl: 28,
     full: 9999,
   },
+  typography: {
+    display: {
+      fontSize: 22,
+      fontWeight: "800" as const,
+      lineHeight: 25,
+      letterSpacing: 0.2,
+    },
+    headline: {
+      fontSize: 18,
+      fontWeight: "800" as const,
+      lineHeight: 22,
+      letterSpacing: 0.2,
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: "700" as const,
+      lineHeight: 20,
+      letterSpacing: 0.2,
+    },
+    body: {
+      fontSize: 16,
+      fontWeight: "500" as const,
+      lineHeight: 23,
+      letterSpacing: 0.15,
+    },
+    label: {
+      fontSize: 12,
+      fontWeight: "700" as const,
+      lineHeight: 14,
+      letterSpacing: 0.3,
+    },
+    caption: {
+      fontSize: 13,
+      fontWeight: "600" as const,
+      lineHeight: 18,
+      letterSpacing: 0.15,
+    },
+  },
+  overlay: {
+    backdrop: "rgba(0,0,0,0.55)",
+  },
+  motion: {
+    fast: 200,
+    normal: 280,
+  },
   fontWeights: {
     normal: "500" as const,
     semibold: "600" as const,
@@ -69,3 +120,5 @@ export const theme = {
     bodyMaxFontMultiplier: 1.6,
   },
 };
+
+export type TypographyVariant = keyof typeof theme.typography;

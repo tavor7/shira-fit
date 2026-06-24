@@ -144,7 +144,7 @@ export default function CoachSessionsScreen() {
         <SessionsWeekCalendar
           items={items}
           isLoading={loading}
-          emptyLabel={language === "he" ? "לא נמצאו אימונים." : "No sessions found."}
+          emptyLabel={t("empty.noSessionsFound")}
           onDayPress={(iso) => setSheetDay(iso)}
           weekOffset={calendarWeekOffset}
           onWeekOffsetChange={setCalendarWeekOffset}

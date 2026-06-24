@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { formatISODateFull } from "../lib/dateFormat";
 import { firstDayOfMonthISOLocal, isValidISODateString, lastDayOfMonthISOLocal, monthRangeISO, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
+import { AppText } from "../components/AppText";
 import { StatusChip } from "../components/StatusChip";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
@@ -26,6 +27,7 @@ import {
   type WeeklyFinanceAthlete,
   type WeeklyFinanceFamily,
 } from "../lib/managerWeeklyStats";
+import { fetchActiveAccountCounts, type ActiveAccountCounts } from "../lib/activeAccountCounts";
 
 type PeriodMode = ManagerPeriodMode;
 
@@ -106,6 +108,8 @@ export default function ManagerDashboardScreen() {
   const [showAthleteList, setShowAthleteList] = useState(false);
   const [addPayAthlete, setAddPayAthlete] = useState<WeeklyFinanceAthlete | null>(null);
   const [addPayFromFamily, setAddPayFromFamily] = useState(false);
+  const [accountCounts, setAccountCounts] = useState<ActiveAccountCounts | null>(null);
+  const [accountCountsLoading, setAccountCountsLoading] = useState(false);
   const loadSeqRef = useRef(0);
 
   const displayRange = useMemo(() => {
@@ -178,6 +182,25 @@ export default function ManagerDashboardScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (periodMode !== "global") {
+      setAccountCounts(null);
+      setAccountCountsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setAccountCountsLoading(true);
+    void (async () => {
+      const counts = await fetchActiveAccountCounts();
+      if (cancelled) return;
+      setAccountCounts(counts);
+      setAccountCountsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [periodMode]);
 
   function setWeekMode() {
     if (periodMode === "week") return;
@@ -471,8 +494,8 @@ export default function ManagerDashboardScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={t("dashboard.a11yAvgFill")}
                 >
-                  <Text style={styles.tileL}>{t("dashboard.tileAvgFill")}</Text>
-                  <Text style={styles.tileV}>{pct(data.utilization_avg_pct)}%</Text>
+                  <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileAvgFill")}</AppText>
+                  <AppText variant="display" style={styles.tileV}>{pct(data.utilization_avg_pct)}%</AppText>
                 </Pressable>
                 <Pressable
                   onPress={() => openWeeklyDetail("cancellations")}
@@ -480,8 +503,8 @@ export default function ManagerDashboardScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={t("dashboard.a11yCancellations")}
                 >
-                  <Text style={styles.tileL}>{t("dashboard.tileCancellations")}</Text>
-                  <Text style={styles.tileV}>{data.cancellations ?? 0}</Text>
+                  <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileCancellations")}</AppText>
+                  <AppText variant="display" style={styles.tileV}>{data.cancellations ?? 0}</AppText>
                 </Pressable>
               </View>
               <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
@@ -491,8 +514,8 @@ export default function ManagerDashboardScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={t("dashboard.a11yNoShows")}
                 >
-                  <Text style={styles.tileL}>{t("dashboard.tileNoShows")}</Text>
-                  <Text style={styles.tileV}>{data.no_shows ?? 0}</Text>
+                  <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileNoShows")}</AppText>
+                  <AppText variant="display" style={styles.tileV}>{data.no_shows ?? 0}</AppText>
                 </Pressable>
                 <Pressable
                   onPress={() => openWeeklyDetail("sessions")}
@@ -500,8 +523,8 @@ export default function ManagerDashboardScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={t("dashboard.a11ySessions")}
                 >
-                  <Text style={styles.tileL}>{t("dashboard.tileSessions")}</Text>
-                  <Text style={styles.tileV}>{data.session_count ?? 0}</Text>
+                  <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileSessions")}</AppText>
+                  <AppText variant="display" style={styles.tileV}>{data.session_count ?? 0}</AppText>
                 </Pressable>
               </View>
               <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
@@ -511,8 +534,8 @@ export default function ManagerDashboardScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={t("dashboard.a11yWaitlist")}
                 >
-                  <Text style={styles.tileL}>{t("dashboard.waitlist")}</Text>
-                  <Text style={styles.tileV}>{data.waitlist_count ?? 0}</Text>
+                  <AppText variant="label" soft style={styles.tileL}>{t("dashboard.waitlist")}</AppText>
+                  <AppText variant="display" style={styles.tileV}>{data.waitlist_count ?? 0}</AppText>
                 </Pressable>
                 <Pressable
                   onPress={() => openWeeklyDetail("checked_in")}
@@ -520,8 +543,8 @@ export default function ManagerDashboardScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={t("dashboard.a11yCheckedIn")}
                 >
-                  <Text style={styles.tileL}>{t("dashboard.checkedIn")}</Text>
-                  <Text style={styles.tileV}>{data.checked_in_count ?? 0}</Text>
+                  <AppText variant="label" soft style={styles.tileL}>{t("dashboard.checkedIn")}</AppText>
+                  <AppText variant="display" style={styles.tileV}>{data.checked_in_count ?? 0}</AppText>
                 </Pressable>
               </View>
             </View>
@@ -805,6 +828,27 @@ export default function ManagerDashboardScreen() {
         </View>
       ) : null}
 
+      {isGlobal ? (
+        <View style={styles.accountsSummary}>
+          <Text style={[styles.accountsSummaryEyebrow, isRTL && styles.rtl]}>{t("dashboard.globalAccountsEyebrow")}</Text>
+          {accountCountsLoading ? (
+            <ActivityIndicator color={theme.colors.textSoft} size="small" />
+          ) : accountCounts ? (
+            <>
+              <Text style={[styles.accountsSummaryLine, isRTL && styles.rtl]}>
+                {t("dashboard.globalAccountsSummary")
+                  .replace("{total}", String(accountCounts.total))
+                  .replace("{app}", String(accountCounts.appAthletes))
+                  .replace("{quick}", String(accountCounts.quickAddOnly))}
+              </Text>
+              <Text style={[styles.accountsSummaryHint, isRTL && styles.rtl]}>{t("dashboard.globalAccountsHint")}</Text>
+            </>
+          ) : (
+            <Text style={[styles.accountsSummaryHint, isRTL && styles.rtl]}>{t("common.error")}</Text>
+          )}
+        </View>
+      ) : null}
+
       <AddAccountPaymentModal
         visible={addPayAthlete != null}
         onClose={() => {
@@ -937,19 +981,11 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   tileL: {
-    fontSize: 10,
-    color: theme.colors.textSoft,
-    fontWeight: "800",
     textTransform: "uppercase",
-    letterSpacing: 1.05,
     textAlign: "center",
   },
   tileV: {
-    marginTop: 8,
-    fontSize: 24,
-    fontWeight: "800",
-    color: theme.colors.text,
-    letterSpacing: -0.5,
+    marginTop: theme.spacing.sm,
     fontVariant: ["tabular-nums"],
     textAlign: "center",
   },
@@ -1178,4 +1214,30 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.cta,
   },
   athleteAddPayBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 12 },
+  accountsSummary: {
+    marginTop: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+    gap: 4,
+  },
+  accountsSummaryEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: theme.colors.textSoft,
+    textTransform: "uppercase",
+    letterSpacing: 1.1,
+  },
+  accountsSummaryLine: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: theme.colors.textMuted,
+    lineHeight: 20,
+  },
+  accountsSummaryHint: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: theme.colors.textSoft,
+    lineHeight: 17,
+  },
 });

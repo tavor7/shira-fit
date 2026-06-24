@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, TextInput, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from "react-native";
 import { useLocalSearchParams, Stack } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../src/context/AuthContext";
 import { theme } from "../../src/theme";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
+import { AppTextField } from "../../src/components/AppTextField";
+import { AppText } from "../../src/components/AppText";
 import { useI18n } from "../../src/context/I18nContext";
 import { NotificationSettingsPanel } from "../../src/components/NotificationSettingsPanel";
 
-function getUpdateErrorMessage(message: string) {
+function getUpdateErrorMessage(message: string, t: (key: string) => string) {
   const msg = (message || "").toLowerCase();
   if (msg.includes("already registered") || msg.includes("already exists") || msg.includes("already in use")) {
-    return "This email is already in use. Try another one.";
+    return t("profile.emailInUse");
   }
-  if (msg.includes("invalid") && msg.includes("email")) return "Invalid email format.";
-  return message || "Update failed. Please try again.";
+  if (msg.includes("invalid") && msg.includes("email")) return t("profile.emailInvalid");
+  return message || t("profile.updateFailed");
 }
 
 type Segment = "account" | "notifications";
@@ -22,7 +24,7 @@ type Segment = "account" | "notifications";
 export default function ProfileScreen() {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const { session, profile, refreshProfile } = useAuth();
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
 
   const [segment, setSegment] = useState<Segment>(() => (tab === "notifications" ? "notifications" : "account"));
 
@@ -54,7 +56,7 @@ export default function ProfileScreen() {
 
     const uid = session?.user?.id;
     if (!uid) {
-      setError(language === "he" ? "לא מחובר/ת." : "Not authenticated.");
+      setError(t("profile.notAuthenticated"));
       return;
     }
 
@@ -62,11 +64,11 @@ export default function ProfileScreen() {
     const phoneTrim = phone.trim();
 
     if (!emailTrim) {
-      setError(language === "he" ? "נדרש אימייל." : "Email is required.");
+      setError(t("profile.emailRequired"));
       return;
     }
     if (!phoneTrim) {
-      setError(language === "he" ? "נדרש טלפון." : "Phone is required.");
+      setError(t("profile.phoneRequired"));
       return;
     }
 
@@ -75,7 +77,7 @@ export default function ProfileScreen() {
       if (emailTrim !== (session?.user?.email ?? "")) {
         const { error: emailErr } = await supabase.auth.updateUser({ email: emailTrim });
         if (emailErr) {
-          setError(getUpdateErrorMessage(emailErr.message));
+          setError(getUpdateErrorMessage(emailErr.message, t));
           return;
         }
       }
@@ -88,7 +90,7 @@ export default function ProfileScreen() {
       }
 
       await refreshProfile();
-      setSuccess(language === "he" ? "נשמר!" : "Saved!");
+      setSuccess(t("common.saved"));
     } finally {
       setBusy(false);
     }
@@ -100,14 +102,14 @@ export default function ProfileScreen() {
       <View style={styles.loadingWrap}>
         <Stack.Screen options={{ title: t("screen.profile") }} />
         <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={[styles.loadingText, isRTL && { textAlign: "right" }]}>{t("common.loading")}</Text>
+        <AppText muted isRTL={isRTL} style={styles.loadingText}>
+          {t("common.loading")}
+        </AppText>
       </View>
     );
   }
 
   const rtl = isRTL;
-  const accountLabel = language === "he" ? "פרטים" : "Account";
-  const notifLabel = language === "he" ? "התראות" : "Notifications";
 
   return (
     <KeyboardAvoidingView
@@ -116,14 +118,14 @@ export default function ProfileScreen() {
     >
       <Stack.Screen options={{ title: t("screen.profile") }} />
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.title, rtl && { textAlign: "right" }]}>
-          {language === "he" ? "פרופיל" : "Profile"}
-        </Text>
-        <Text style={[styles.subtitle, rtl && { textAlign: "right" }]}>
-          {language === "he" ? `חשבון (${profile.role}).` : `Account (${profile.role}).`}
-        </Text>
+        <AppText variant="display" isRTL={rtl}>
+          {t("profile.selfTitle")}
+        </AppText>
+        <AppText muted isRTL={rtl} style={styles.subtitle}>
+          {t("profile.selfSubtitle").replace("{role}", profile.role)}
+        </AppText>
 
-        <View style={[styles.segmentTrack, rtl && styles.segmentTrackRtl]}>
+        <View style={[styles.segmentTrack, rtl && styles.segmentTrackRtl]} accessibilityRole="tablist">
           <Pressable
             onPress={() => setSegment("account")}
             style={({ pressed }) => [
@@ -131,10 +133,17 @@ export default function ProfileScreen() {
               segment === "account" && styles.segmentSlotActive,
               pressed && segment !== "account" && styles.segmentSlotPressed,
             ]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: segment === "account" }}
           >
-            <Text style={[styles.segmentTxt, segment === "account" && styles.segmentTxtActive]} numberOfLines={1}>
-              {accountLabel}
-            </Text>
+            <AppText
+              variant="caption"
+              style={[styles.segmentTxt, segment === "account" && styles.segmentTxtActive]}
+              numberOfLines={1}
+              maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}
+            >
+              {t("profile.tabAccount")}
+            </AppText>
           </Pressable>
           <Pressable
             onPress={() => setSegment("notifications")}
@@ -143,54 +152,67 @@ export default function ProfileScreen() {
               segment === "notifications" && styles.segmentSlotActive,
               pressed && segment !== "notifications" && styles.segmentSlotPressed,
             ]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: segment === "notifications" }}
           >
-            <Text style={[styles.segmentTxt, segment === "notifications" && styles.segmentTxtActive]} numberOfLines={1}>
-              {notifLabel}
-            </Text>
+            <AppText
+              variant="caption"
+              style={[styles.segmentTxt, segment === "notifications" && styles.segmentTxtActive]}
+              numberOfLines={1}
+              maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}
+            >
+              {t("profile.tabNotifications")}
+            </AppText>
           </Pressable>
         </View>
 
         {segment === "account" ? (
           <>
-            {success ? <Text style={styles.success}>{success}</Text> : null}
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {success ? (
+              <AppText isRTL={rtl} style={styles.success}>
+                {success}
+              </AppText>
+            ) : null}
+            {error ? (
+              <AppText isRTL={rtl} style={styles.error}>
+                {error}
+              </AppText>
+            ) : null}
 
-            <View style={styles.field}>
-              <Text style={[styles.label, rtl && { textAlign: "right" }]}>{t("auth.email")}</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={(v) => {
-                  setEmail(v);
-                  setError(null);
-                  setSuccess(null);
-                }}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                placeholder={t("auth.email")}
-                placeholderTextColor={theme.colors.textSoft}
-              />
-            </View>
+            <AppTextField
+              label={t("auth.email")}
+              value={email}
+              onChangeText={(v) => {
+                setEmail(v);
+                setError(null);
+                setSuccess(null);
+              }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholder={t("auth.email")}
+              isRTL={rtl}
+              variant="dark"
+              containerStyle={styles.field}
+            />
 
-            <View style={styles.field}>
-              <Text style={[styles.label, rtl && { textAlign: "right" }]}>{t("profile.phone")}</Text>
-              <TextInput
-                style={styles.input}
-                value={phone}
-                onChangeText={(v) => {
-                  setPhone(v);
-                  setError(null);
-                  setSuccess(null);
-                }}
-                keyboardType="phone-pad"
-                autoCapitalize="none"
-                placeholder={t("profile.phone")}
-                placeholderTextColor={theme.colors.textSoft}
-              />
-            </View>
+            <AppTextField
+              label={t("profile.phone")}
+              value={phone}
+              onChangeText={(v) => {
+                setPhone(v);
+                setError(null);
+                setSuccess(null);
+              }}
+              keyboardType="phone-pad"
+              autoCapitalize="none"
+              placeholder={t("profile.phone")}
+              isRTL={rtl}
+              variant="dark"
+              containerStyle={styles.field}
+            />
 
             <PrimaryButton
-              label={language === "he" ? "שמירת שינויים" : "Save changes"}
+              label={t("profile.saveChanges")}
               onPress={save}
               loading={busy}
               disabled={!canSave}
@@ -208,10 +230,9 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.colors.backgroundAlt },
-  loadingText: { marginTop: 12, color: theme.colors.textMuted },
+  loadingText: { marginTop: theme.spacing.sm },
   scrollContent: { flexGrow: 1, padding: theme.spacing.lg, paddingBottom: theme.spacing.xl },
-  title: { fontSize: 22, fontWeight: "800", color: theme.colors.text },
-  subtitle: { marginTop: 6, color: theme.colors.textMuted, marginBottom: theme.spacing.md },
+  subtitle: { marginTop: theme.spacing.xs, marginBottom: theme.spacing.md },
   segmentTrack: {
     flexDirection: "row",
     backgroundColor: theme.colors.surface,
@@ -226,10 +247,11 @@ const styles = StyleSheet.create({
   segmentSlot: {
     flex: 1,
     paddingVertical: 11,
-    paddingHorizontal: 12,
+    paddingHorizontal: theme.spacing.sm,
     borderRadius: theme.radius.full,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 44,
   },
   segmentSlotActive: {
     backgroundColor: theme.colors.cta,
@@ -238,7 +260,6 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   segmentTxt: {
-    fontSize: 13,
     fontWeight: "800",
     color: theme.colors.textSoft,
     letterSpacing: 0.2,
@@ -247,16 +268,6 @@ const styles = StyleSheet.create({
     color: theme.colors.ctaText,
   },
   field: { marginBottom: theme.spacing.md },
-  label: { fontWeight: "700", color: theme.colors.textSoft, marginBottom: 8 },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 14,
-    fontSize: 16,
-    backgroundColor: theme.colors.backgroundAlt,
-    color: theme.colors.text,
-  },
   error: { color: theme.colors.error, marginBottom: theme.spacing.md, fontWeight: "600" },
   success: { color: theme.colors.success, marginBottom: theme.spacing.md, fontWeight: "700" },
 });

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View, Text, Pressable, StyleSheet, FlatList } from "react-native";
+import { View, Pressable, StyleSheet, FlatList } from "react-native";
 import { router } from "expo-router";
 import { athleteSearchSubtitle } from "../lib/displayName";
 import { theme } from "../theme";
@@ -8,13 +8,15 @@ import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { AppSearchField } from "../components/AppSearchField";
+import { EmptyState } from "../components/EmptyState";
 import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
+import { AppText } from "../components/AppText";
 
 type AthleteRow = { kind: "athlete"; id: string; title: string; subtitle: string };
 type ManualRow = { kind: "manual"; id: string; title: string; subtitle: string };
 
 export default function StaffSearchScreen() {
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   const { profile } = useAuth();
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
@@ -63,14 +65,19 @@ export default function StaffSearchScreen() {
     setLoading(false);
   }, []);
 
+  const trimmedQ = q.trim();
+  const showEmpty = !loading;
+
   return (
     <View style={styles.screen}>
-      <Text style={[styles.h, isRTL && styles.rtl]}>{language === "he" ? "חיפוש מהיר" : "Staff search"}</Text>
+      <AppText variant="headline" isRTL={isRTL} style={styles.h}>
+        {t("staffSearch.title")}
+      </AppText>
       <AppSearchField
         value={q}
         onChangeText={setQ}
         onSearch={(term) => void runSearch(term)}
-        placeholder={language === "he" ? "שם / טלפון / משתמש…" : "Name / phone / username…"}
+        placeholder={t("staffSearch.placeholder")}
         isRTL={isRTL}
         loading={loading}
         style={styles.searchField}
@@ -82,22 +89,26 @@ export default function StaffSearchScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[styles.list, { paddingBottom: listBottomPad }]}
         ListEmptyComponent={
-          !loading ? (
-            <Text style={[styles.empty, isRTL && styles.rtl]}>
-              {q.trim().length < 1
-                ? language === "he"
-                  ? "הקלידו לפחות תו אחד."
-                  : "Type at least one character."
-                : language === "he"
-                  ? "אין תוצאות."
-                  : "No results."}
-            </Text>
+          showEmpty ? (
+            <EmptyState
+              icon={trimmedQ.length < 1 ? "🔍" : "∅"}
+              title={trimmedQ.length < 1 ? t("empty.typeAtLeastOne") : t("empty.noResults")}
+              body={trimmedQ.length < 1 ? t("staffSearch.placeholder") : undefined}
+              isRTL={isRTL}
+              style={styles.empty}
+            />
           ) : null
         }
         renderItem={({ item }) => (
           <View style={[styles.card, surface.card]}>
-            <Text style={[styles.name, isRTL && styles.rtl]}>{item.title}</Text>
-            <Text style={[styles.sub, isRTL && styles.rtl]}>{item.subtitle}</Text>
+            <AppText variant="title" isRTL={isRTL}>
+              {item.title}
+            </AppText>
+            {item.subtitle ? (
+              <AppText variant="caption" muted isRTL={isRTL} style={styles.sub}>
+                {item.subtitle}
+              </AppText>
+            ) : null}
             <View style={[styles.actions, isRTL && styles.actionsRtl]}>
               {item.kind === "athlete" ? (
                 <>
@@ -105,18 +116,24 @@ export default function StaffSearchScreen() {
                     style={styles.link}
                     onPress={() => router.push(`/(app)/staff/profile/${item.id}` as never)}
                   >
-                    <Text style={styles.linkTxt}>{language === "he" ? "פרופיל" : "Profile"}</Text>
+                    <AppText variant="caption" style={styles.linkTxt}>
+                      {t("staffSearch.profileLink")}
+                    </AppText>
                   </Pressable>
                   <Pressable
                     style={styles.link}
                     onPress={() => router.push(`${historyPath}?presetUserId=${encodeURIComponent(item.id)}` as never)}
                   >
-                    <Text style={styles.linkTxt}>{t("menu.athleteActivity")}</Text>
+                    <AppText variant="caption" style={styles.linkTxt}>
+                      {t("menu.athleteActivity")}
+                    </AppText>
                   </Pressable>
                 </>
               ) : (
                 <Pressable style={styles.link} onPress={() => router.push(`/(app)/staff/manual/${item.id}` as never)}>
-                  <Text style={styles.linkTxt}>{language === "he" ? "משתתף ידני" : "Manual"}</Text>
+                  <AppText variant="caption" style={styles.linkTxt}>
+                    {t("staffSearch.manualLink")}
+                  </AppText>
                 </Pressable>
               )}
             </View>
@@ -129,16 +146,14 @@ export default function StaffSearchScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt, padding: theme.spacing.md },
-  h: { fontSize: 20, fontWeight: "900", color: theme.colors.text, marginBottom: 12 },
-  rtl: { textAlign: "right", alignSelf: "stretch" },
+  h: { marginBottom: theme.spacing.sm },
   searchField: { marginBottom: theme.spacing.sm },
-  list: { paddingTop: 12, paddingBottom: 32, gap: 10 },
-  card: { marginBottom: 4 },
-  name: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
-  sub: { marginTop: 4, fontSize: 13, color: theme.colors.textMuted },
-  actions: { flexDirection: "row", gap: 16, marginTop: 12 },
+  list: { paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
+  card: { marginBottom: theme.spacing.xs },
+  sub: { marginTop: theme.spacing.xs },
+  actions: { flexDirection: "row", gap: theme.spacing.md, marginTop: theme.spacing.sm },
   actionsRtl: { flexDirection: "row-reverse" },
-  link: { alignSelf: "flex-start" },
-  linkTxt: { color: theme.colors.cta, fontWeight: "800", fontSize: 14 },
-  empty: { marginTop: 24, color: theme.colors.textSoft, textAlign: "center" },
+  link: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
+  linkTxt: { color: theme.colors.cta, fontWeight: "800" },
+  empty: { marginTop: theme.spacing.lg },
 });

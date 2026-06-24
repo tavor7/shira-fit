@@ -1,26 +1,34 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
+import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from "react-native";
+import { theme } from "../theme";
 
 type Props = {
   open: boolean;
   children: ReactNode;
 };
 
-const DURATION_MS = 280;
 const EASE = Easing.out(Easing.cubic);
 
 export function AnimatedOptionExpand({ open, children }: Props) {
   const [measuredH, setMeasuredH] = useState(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const progress = useRef(new Animated.Value(open ? 1 : 0)).current;
 
   useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    const duration = reduceMotion ? 0 : theme.motion.normal;
     Animated.timing(progress, {
       toValue: open ? 1 : 0,
-      duration: DURATION_MS,
+      duration,
       easing: EASE,
       useNativeDriver: false,
     }).start();
-  }, [open, progress]);
+  }, [open, progress, reduceMotion]);
 
   const height =
     measuredH > 0

@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, ActivityIndicator } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
+import { EmptyState } from "../../../src/components/EmptyState";
+import { AppText } from "../../../src/components/AppText";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
 import { useI18n } from "../../../src/context/I18nContext";
 
@@ -19,7 +21,7 @@ type TsNested = {
 type Row = { session_id: string; training_sessions: TsNested };
 
 export default function MySessionsScreen() {
-  const { language, t } = useI18n();
+  const { t, isRTL } = useI18n();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
@@ -79,39 +81,71 @@ export default function MySessionsScreen() {
           start_time: ts.start_time,
           durationMinutes: dm,
           timeLabel: formatSessionTimeRange(ts.start_time, dm),
-          subtitle: language === "he" ? "נרשם" : "Registered",
+          subtitle: t("athleteMySessions.registeredBadge"),
           athleteRegistered: true,
           isKickbox: !!ts.is_kickbox,
           onPress: () => router.push(`/(app)/athlete/session/${ts.id}`),
         };
       }),
-    [rows]
+    [rows, t]
   );
 
   const sheetItems = useMemo(() => (sheetDay ? items.filter((i) => i.session_date === sheetDay) : []), [items, sheetDay]);
 
+  const hasRegistrations = rows.length > 0;
+
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ title: t("screen.athleteMySessions") }} />
-      <SessionsWeekCalendar
-        items={items}
-        isLoading={loading}
-        emptyLabel={language === "he" ? "אין הרשמות פעילות." : "No active registrations."}
-        onDayPress={(iso) => setSheetDay(iso)}
-        weekOffset={calendarWeekOffset}
-        onWeekOffsetChange={setCalendarWeekOffset}
-      />
-      <DaySessionsSheet
-        visible={sheetDay !== null}
-        onClose={() => setSheetDay(null)}
-        dateIso={sheetDay ?? ""}
-        items={sheetItems}
-        variant="athlete"
-      />
+      {loading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="large" color={theme.colors.cta} />
+          <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
+            {t("common.loading")}
+          </AppText>
+        </View>
+      ) : !hasRegistrations ? (
+        <EmptyState
+          title={t("empty.noActiveRegistrations")}
+          body={t("athleteMySessions.emptyBody")}
+          icon="📅"
+          actionLabel={t("athleteMySessions.browseSessions")}
+          onAction={() => router.push("/(app)/athlete/sessions")}
+          isRTL={isRTL}
+          style={styles.emptyPage}
+        />
+      ) : (
+        <>
+          <SessionsWeekCalendar
+            items={items}
+            isLoading={false}
+            emptyLabel={t("empty.noSessionsWeek")}
+            onDayPress={(iso) => setSheetDay(iso)}
+            weekOffset={calendarWeekOffset}
+            onWeekOffsetChange={setCalendarWeekOffset}
+          />
+          <DaySessionsSheet
+            visible={sheetDay !== null}
+            onClose={() => setSheetDay(null)}
+            dateIso={sheetDay ?? ""}
+            items={sheetItems}
+            variant="athlete"
+          />
+        </>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  loadingBox: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing.sm,
+    padding: theme.spacing.lg,
+  },
+  loadingText: { marginTop: theme.spacing.xs },
+  emptyPage: { flex: 1 },
 });

@@ -18,6 +18,7 @@ import { supabase } from "../../../src/lib/supabase";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 import { logRedirectToManagerSessions } from "../../../src/lib/managerSessionsRedirectLog";
 import { isSessionInActiveSeries } from "../../../src/lib/sessionSeries";
+import { EmptyState } from "../../../src/components/EmptyState";
 
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
@@ -132,9 +133,7 @@ export default function ManagerRosterCalendarScreen() {
           const subtitle =
             roster.length > 0
               ? roster.map((r) => r.name).join(", ")
-              : language === "he"
-                ? "אין נרשמים"
-                : "No registrations";
+              : t("empty.noRegistrations");
           return {
             key: s.id,
             session_date: s.session_date,
@@ -177,7 +176,7 @@ export default function ManagerRosterCalendarScreen() {
           onPress: () => router.push(`/(app)/manager/session/${s.id}`),
         } satisfies SessionsWeekItem;
       }),
-    [filteredRows, signupBySession, waitlistBySession, showBig, showSmall, rosterBySession, language, filtersOn]
+    [filteredRows, signupBySession, waitlistBySession, showBig, showSmall, rosterBySession, t, filtersOn]
   );
 
   const itemsAll = useMemo<SessionsWeekItem[]>(
@@ -327,14 +326,8 @@ export default function ManagerRosterCalendarScreen() {
         }
       >
         <View style={styles.headerRow}>
-          <Text style={[styles.h1, isRTL && styles.rtlText]}>
-            {language === "he" ? "יומן משתתפים (מנהל)" : "Roster calendar (manager)"}
-          </Text>
-          <Text style={[styles.hint, isRTL && styles.rtlText]}>
-            {language === "he"
-              ? "בחרו שבוע כדי לראות את רשימות המשתתפים לכל אימון."
-              : "Pick a week to see the participant roster for each session."}
-          </Text>
+          <Text style={[styles.h1, isRTL && styles.rtlText]}>{t("rosterCalendar.title")}</Text>
+          <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("rosterCalendar.hint")}</Text>
           <View style={[styles.modeWrap, isRTL && styles.modeWrapRtl]}>
             <Pressable
               onPress={() => setShowSmall((v) => !v)}
@@ -345,10 +338,10 @@ export default function ManagerRosterCalendarScreen() {
               ]}
               accessibilityRole="button"
               accessibilityState={{ selected: showSmall }}
-              accessibilityLabel={language === "he" ? "סינון: קבוצות קטנות" : "Filter: small groups"}
+              accessibilityLabel={t("rosterCalendar.filterSmallA11y")}
             >
               <Text style={[styles.filterTxt, showSmall && styles.filterTxtOn]} numberOfLines={1}>
-                {language === "he" ? "קטנים (≤6)" : "Small (≤6)"}
+                {t("rosterCalendar.filterSmall")}
               </Text>
               <View style={[styles.filterPill, showSmall && styles.filterPillOn]}>
                 <Text style={[styles.filterPillTxt, showSmall && styles.filterPillTxtOn]}>
@@ -366,10 +359,10 @@ export default function ManagerRosterCalendarScreen() {
               ]}
               accessibilityRole="button"
               accessibilityState={{ selected: showBig }}
-              accessibilityLabel={language === "he" ? "סינון: קבוצות גדולות" : "Filter: big groups"}
+              accessibilityLabel={t("rosterCalendar.filterBigA11y")}
             >
               <Text style={[styles.filterTxt, showBig && styles.filterTxtOn]} numberOfLines={1}>
-                {language === "he" ? "גדולים (≥7)" : "Big (≥7)"}
+                {t("rosterCalendar.filterBig")}
               </Text>
               <View style={[styles.filterPill, showBig && styles.filterPillOn]}>
                 <Text style={[styles.filterPillTxt, showBig && styles.filterPillTxtOn]}>
@@ -383,7 +376,7 @@ export default function ManagerRosterCalendarScreen() {
         <SessionsWeekCalendar
           items={items}
           isLoading={loading}
-          emptyLabel={language === "he" ? "לא נמצאו אימונים." : "No sessions found."}
+          emptyLabel={t("empty.noSessionsFound")}
           onDayPress={(iso) => setSheetDay(iso)}
           weekOffset={calendarWeekOffset}
           onWeekOffsetChange={setCalendarWeekOffset}
@@ -396,20 +389,14 @@ export default function ManagerRosterCalendarScreen() {
         <View style={styles.rosterHeader}>
           <Text style={[styles.rosterTitle, isRTL && styles.rtlText]}>
             {groupMode
-              ? language === "he"
-                ? "השמות מוצגים על גבי היומן"
-                : "Names are shown on the calendar cards"
-              : language === "he"
-                ? "רשימות לשבוע המוצג"
-                : "Rosters for shown week"}
+              ? t("rosterCalendar.namesOnCalendar")
+              : t("rosterCalendar.rostersForWeek")}
           </Text>
           {groupMode && namesLoading ? <ActivityIndicator size="small" color={theme.colors.cta} /> : null}
         </View>
 
         {!groupMode && grouped.length === 0 ? (
-          <Text style={[styles.muted, isRTL && styles.rtlText]}>
-            {language === "he" ? "אין אימונים בשבוע הזה." : "No sessions in this week."}
-          </Text>
+          <EmptyState title={t("empty.noSessionsWeek")} isRTL={isRTL} style={styles.rosterEmpty} />
         ) : !groupMode ? (
           grouped.map((g) => (
             <View key={g.date} style={styles.dayGroup}>
@@ -438,11 +425,11 @@ export default function ManagerRosterCalendarScreen() {
                           </Text>
                         </View>
                         <Text style={[styles.trainer, isRTL && styles.rtlText]} numberOfLines={1}>
-                          {s.trainer?.full_name ?? (language === "he" ? "ללא מאמן" : "No trainer")}
+                          {s.trainer?.full_name ?? t("rosterCalendar.noTrainer")}
                         </Text>
                         {roster.length === 0 ? (
                           <Text style={[styles.namesEmpty, isRTL && styles.rtlText]}>
-                            {language === "he" ? "אין נרשמים." : "No registrations."}
+                            {t("empty.noRegistrations")}
                           </Text>
                         ) : (
                           <View style={styles.namesList}>
@@ -461,7 +448,7 @@ export default function ManagerRosterCalendarScreen() {
                         {noteText.length > 0 ? (
                           <View style={styles.notesBlock}>
                             <Text style={[styles.notesLabel, isRTL && styles.rtlText]}>
-                              {language === "he" ? "הערות" : "Notes"}
+                              {t("rosterCalendar.notes")}
                             </Text>
                             <Text style={[styles.notesBody, isRTL && styles.rtlText]}>{noteText}</Text>
                           </View>
@@ -482,7 +469,7 @@ export default function ManagerRosterCalendarScreen() {
         onPress={() => router.push("/(app)/manager/sessions")}
         style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
       >
-        <Text style={styles.backBtnTxt}>{language === "he" ? "חזרה ליומן" : "Back to calendar"}</Text>
+        <Text style={styles.backBtnTxt}>{t("rosterCalendar.backToCalendar")}</Text>
       </Pressable>
 
       <DaySessionsSheet
@@ -596,6 +583,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     flexShrink: 1,
   },
+  rosterEmpty: { paddingHorizontal: theme.spacing.md },
   muted: {
     paddingHorizontal: theme.spacing.md,
     color: theme.colors.textMuted,

@@ -5,6 +5,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { AppSearchField } from "../components/AppSearchField";
+import { EmptyState } from "../components/EmptyState";
 import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 
 type Role = "athlete" | "coach" | "manager";
@@ -99,9 +100,11 @@ export default function RoleManagementScreen() {
           </View>
         }
         ListEmptyComponent={
-          <Text style={[styles.empty, isRTL && styles.rtlText]}>
-            {loading ? t("common.loading") : language === "he" ? "לא נמצאו משתמשים." : "No users found."}
-          </Text>
+          loading ? (
+            <EmptyState title={t("common.loading")} isRTL={isRTL} />
+          ) : (
+            <EmptyState title={t("staffUsers.noUsers")} isRTL={isRTL} />
+          )
         }
         renderItem={({ item }) => (
           <View style={styles.card}>
@@ -150,8 +153,8 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.xl,
     gap: theme.spacing.sm,
+    flexGrow: 1,
   },
-  empty: { textAlign: "center", marginTop: 32, color: theme.colors.textSoft },
   card: {
     padding: theme.spacing.md,
     backgroundColor: theme.colors.surface,

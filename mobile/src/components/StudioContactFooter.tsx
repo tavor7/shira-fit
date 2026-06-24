@@ -1,8 +1,10 @@
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "../theme";
 import { STUDIO_CONTACT } from "../constants/studioContact";
 import { useAppAlert } from "../context/AppAlertContext";
+import { useI18n } from "../context/I18nContext";
+import { AppText } from "./AppText";
 
 type CellProps = {
   title: string;
@@ -18,10 +20,12 @@ function Cell({ title, subtitle, onPress }: CellProps) {
       accessibilityRole="link"
       accessibilityLabel={`${title}: ${subtitle}`}
     >
-      <Text style={styles.cellTitle}>{title}</Text>
-      <Text style={styles.cellSub} numberOfLines={1}>
+      <AppText variant="label" style={styles.cellTitle}>
+        {title}
+      </AppText>
+      <AppText variant="caption" muted numberOfLines={1} style={styles.cellSub}>
         {subtitle}
-      </Text>
+      </AppText>
     </Pressable>
   );
 }
@@ -30,6 +34,7 @@ export function StudioContactFooter() {
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, 10);
   const { showOk } = useAppAlert();
+  const { t } = useI18n();
 
   async function openUrl(url: string) {
     try {
@@ -45,21 +50,21 @@ export function StudioContactFooter() {
       window.open(url, "_blank", "noopener,noreferrer");
       return;
     }
-    showOk("Cannot open link", "Try again from your phone browser.");
+    showOk(t("footer.cannotOpenTitle"), t("footer.cannotOpenBody"));
   }
 
   return (
     <View style={[styles.wrap, { paddingBottom: bottom }]}>
       <View style={styles.row}>
         <Cell
-          title="Instagram"
+          title={t("footer.instagram")}
           subtitle="@shira.fit.studio"
           onPress={() => void openUrl(STUDIO_CONTACT.instagramUrl)}
         />
         <View style={styles.divider} />
-        <Cell title="Website" subtitle="shira-fit" onPress={() => void openUrl(STUDIO_CONTACT.websiteUrl)} />
+        <Cell title={t("footer.website")} subtitle="shira-fit" onPress={() => void openUrl(STUDIO_CONTACT.websiteUrl)} />
         <View style={styles.divider} />
-        <Cell title="Call" subtitle={STUDIO_CONTACT.phoneDisplay} onPress={() => void openUrl(STUDIO_CONTACT.phoneTel)} />
+        <Cell title={t("footer.call")} subtitle={STUDIO_CONTACT.phoneDisplay} onPress={() => void openUrl(STUDIO_CONTACT.phoneTel)} />
       </View>
     </View>
   );
@@ -84,21 +89,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 4,
     borderRadius: theme.radius.md,
+    minHeight: 44,
   },
   cellPressed: { opacity: 0.75 },
   cellTitle: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: theme.colors.text,
-    letterSpacing: 0.6,
     textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   cellSub: {
     marginTop: 4,
-    fontSize: 11,
-    fontWeight: "600",
-    color: theme.colors.textMuted,
-    letterSpacing: 0.2,
   },
   divider: {
     width: StyleSheet.hairlineWidth,

@@ -35,7 +35,7 @@ type Row = ProfileRow | ManualRow;
 export default function StaffUsersScreen() {
   const { profile } = useAuth();
   const isManager = profile?.role === "manager";
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
 
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
@@ -140,9 +140,8 @@ export default function StaffUsersScreen() {
   );
 
   const subtitle = useMemo(() => {
-    if (isManager) return language === "he" ? "חיפוש מתאמנים ומאמנים (מנהלים מוסתרים). לחצו על משתמש לעריכה." : "Search athletes and coaches (managers hidden). Tap a user to edit.";
-    return language === "he" ? "חיפוש מתאמנים. לחצו על משתמש לעריכה." : "Search athletes. Tap a user to edit.";
-  }, [isManager, language]);
+    return isManager ? t("staffUsers.hintManager") : t("staffUsers.hintCoach");
+  }, [isManager, t]);
 
   return (
     <View style={styles.screen}>
@@ -154,13 +153,13 @@ export default function StaffUsersScreen() {
         ListHeaderComponent={
           <View style={styles.top}>
             {isManager ? <ManagerStudioSetupTabs /> : null}
-            <Text style={[styles.title, isRTL && styles.rtlText]}>{language === "he" ? "משתמשים" : "Users"}</Text>
+            <Text style={[styles.title, isRTL && styles.rtlText]}>{t("screen.staffUsers")}</Text>
             <Text style={[styles.hint, isRTL && styles.rtlText]}>{subtitle}</Text>
             <AppSearchField
               value={q}
               onChangeText={setQ}
               onSearch={(term) => void load(term)}
-              placeholder={language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…"}
+              placeholder={t("staffUsers.searchPlaceholder")}
               isRTL={isRTL}
               loading={loading}
             />
@@ -168,7 +167,7 @@ export default function StaffUsersScreen() {
         }
         ListEmptyComponent={
           <Text style={[styles.empty, isRTL && styles.rtlText]}>
-            {loading ? t("common.loading") : language === "he" ? "לא נמצאו משתמשים." : "No users found."}
+            {loading ? t("common.loading") : t("staffUsers.noUsers")}
           </Text>
         }
         renderItem={({ item }) => {
@@ -209,7 +208,7 @@ export default function StaffUsersScreen() {
                 ? `${t("profile.username")}: @${item.username} · ${item.phone} · ${item.role} · ${item.approval_status}${
                     item.disabled_at ? ` · ${t("profile.accountDisabledBadge")}` : ""
                   }`
-                : `${item.phone} · ${language === "he" ? "מהיר" : "Quick Add"}`}
+                : `${item.phone} · ${t("pricing.quickAddLabel")}`}
             </Text>
           </Pressable>
           );
@@ -240,6 +239,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     marginBottom: theme.spacing.sm,
+    minHeight: 44,
+    justifyContent: "center",
   },
   cardDuplicateName: {
     borderColor: theme.colors.cta,

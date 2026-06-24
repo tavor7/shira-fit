@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Pressable, ActivityIndicator, Text } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl, Pressable } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
@@ -23,10 +23,11 @@ import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRe
 import { isSessionInActiveSeries, maintainSessionSeriesHorizon } from "../../../src/lib/sessionSeries";
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
 import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySlot";
+import { EmptyState } from "../../../src/components/EmptyState";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
-  const { language, t } = useI18n();
+  const { language, t, isRTL } = useI18n();
   const { showOk, showConfirm } = useAppAlert();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
@@ -131,35 +132,32 @@ export default function ManagerSessionsScreen() {
 
   async function openSelectedWeek() {
     if (!weekStartIso) return;
-    const msg =
-      language === "he"
-        ? "לפתוח להרשמה את כל האימונים בשבוע הזה (א׳–ש׳), שאינם מוסתרים?"
-        : "Open registration for all non-hidden sessions in this week (Sun–Sat)?";
-    const title = language === "he" ? "פתיחת שבוע" : "Open week";
+    const msg = t("managerSessions.openWeekMessage");
+    const title = t("managerSessions.openWeekTitle");
 
     const run = async () => {
       setOpenWeekBusy(true);
       const { data, error } = await supabase.rpc("open_sessions_for_week", { p_week_start: weekStartIso });
       setOpenWeekBusy(false);
       if (error) {
-        showOk(language === "he" ? "שגיאה" : "Error", error.message);
+        showOk(t("common.error"), error.message);
         return;
       }
       if (!data?.ok) {
         const m = data?.error ?? "";
-        showOk(language === "he" ? "נכשל" : "Failed", m);
+        showOk(t("common.failed"), m);
         return;
       }
-      const doneMsg = language === "he" ? `נפתחו ${data.opened ?? 0} אימונים.` : `Opened ${data.opened ?? 0} sessions.`;
-      showOk(language === "he" ? "נפתח" : "Opened", doneMsg);
+      const doneMsg = t("managerSessions.openedCount").replace("{n}", String(data.opened ?? 0));
+      showOk(t("managerSessions.openedTitle"), doneMsg);
       load(true);
     };
 
     showConfirm({
       title,
       message: msg,
-      cancelLabel: language === "he" ? "ביטול" : "Cancel",
-      confirmLabel: language === "he" ? "פתיחה" : "Open",
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("managerSessions.openWeekConfirm"),
       confirmVariant: "primary",
       onConfirm: () => void run(),
     });
@@ -184,10 +182,13 @@ export default function ManagerSessionsScreen() {
         ) : null}
         <StaffHomeOverview userId={profile?.user_id} sessions={rows} variant="manager" refreshSeq={refreshSeq} />
         <StaffAthleteScheduleLookup variant="manager" />
+        {loading && rows.length === 0 ? (
+          <EmptyState title={t("common.loading")} isRTL={isRTL} style={styles.initialLoading} />
+        ) : (
         <SessionsWeekCalendar
           items={items}
           isLoading={loading}
-          emptyLabel={language === "he" ? "לא נמצאו אימונים." : "No sessions found."}
+          emptyLabel={t("empty.noSessionsFound")}
           onDayPress={(iso) => setSheetDay(iso)}
           weekOffset={calendarWeekOffset}
           onWeekOffsetChange={setCalendarWeekOffset}
@@ -197,10 +198,11 @@ export default function ManagerSessionsScreen() {
           }}
           calendarNotes={studioNotes}
         />
+        )}
         {weekStartIso ? (
           <View style={styles.weekActions}>
             <PrimaryButton
-              label={language === "he" ? "פתיחת הרשמה לשבוע המוצג" : "Open registration for shown week"}
+              label={t("managerSessions.openWeekBtn")}
               onPress={() => void openSelectedWeek()}
               loading={openWeekBusy}
               loadingLabel={t("common.loading")}
@@ -237,4 +239,5 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1, paddingBottom: theme.spacing.lg },
   alertsWrap: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm },
   weekActions: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md },
+  initialLoading: { paddingVertical: theme.spacing.xl },
 });

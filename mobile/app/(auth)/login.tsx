@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   View,
-  Text,
-  TextInput,
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
@@ -13,6 +11,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ActionButton } from "../../src/components/ActionButton";
+import { AppTextField } from "../../src/components/AppTextField";
+import { AppText } from "../../src/components/AppText";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
@@ -165,7 +165,9 @@ export default function LoginScreen() {
             accessibilityRole="image"
           />
         </View>
-        <Text style={[styles.sub, isRTL && styles.subRtl]}>{t("auth.loginSubtitle")}</Text>
+        <AppText variant="body" muted isRTL={isRTL} style={styles.sub}>
+          {t("auth.loginSubtitle")}
+        </AppText>
         {errorMessage ? (
           <View
             style={styles.errorBox}
@@ -173,13 +175,15 @@ export default function LoginScreen() {
             accessibilityLabel={t("a11y.loginError")}
             accessibilityLiveRegion="polite"
           >
-            <Text style={[styles.errorText, isRTL && styles.rtlText]}>{errorMessage}</Text>
+            <AppText variant="caption" isRTL={isRTL} style={styles.errorText}>
+              {errorMessage}
+            </AppText>
           </View>
         ) : null}
-        <TextInput
-          style={[styles.input, isRTL && styles.inputRtl, errorMessage ? styles.inputError : null]}
+        <AppTextField
+          variant="dark"
+          isRTL={isRTL}
           placeholder={t("auth.email")}
-          placeholderTextColor={theme.colors.textSoft}
           autoCapitalize="none"
           keyboardType="email-address"
           autoComplete="email"
@@ -192,11 +196,13 @@ export default function LoginScreen() {
             setErrorMessage("");
           }}
           accessibilityLabel={t("auth.email")}
+          error={!!errorMessage}
+          containerStyle={styles.field}
         />
-        <TextInput
-          style={[styles.input, isRTL && styles.inputRtl, errorMessage ? styles.inputError : null]}
+        <AppTextField
+          variant="dark"
+          isRTL={isRTL}
           placeholder={t("auth.password")}
-          placeholderTextColor={theme.colors.textSoft}
           secureTextEntry
           autoComplete="password"
           textContentType="password"
@@ -207,6 +213,8 @@ export default function LoginScreen() {
             setErrorMessage("");
           }}
           accessibilityLabel={t("auth.password")}
+          error={!!errorMessage}
+          containerStyle={styles.field}
         />
         <PrimaryButton
           label={t("auth.signIn")}
@@ -244,15 +252,9 @@ const styles = StyleSheet.create({
     height: 200,
   },
   sub: {
-    fontSize: 15,
-    fontWeight: "500",
-    lineHeight: 22,
-    letterSpacing: 0.15,
-    color: theme.colors.textMuted,
     textAlign: "center",
     marginBottom: theme.spacing.lg,
   },
-  subRtl: { textAlign: "center" },
   errorBox: {
     backgroundColor: theme.colors.errorBg,
     borderWidth: 1,
@@ -261,20 +263,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.sm,
     marginBottom: theme.spacing.md,
   },
-  errorText: { color: theme.colors.error, fontSize: 14, lineHeight: 20, fontWeight: "600" },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
-    fontSize: 16,
-    lineHeight: 22,
-    backgroundColor: theme.colors.backgroundAlt,
-    color: theme.colors.text,
-  },
-  inputRtl: { textAlign: "right", writingDirection: "rtl" },
-  inputError: { borderColor: theme.colors.error },
+  errorText: { color: theme.colors.error },
+  field: { marginBottom: theme.spacing.sm },
   navBtn: { marginTop: theme.spacing.md, alignSelf: "center", width: "100%" },
 });

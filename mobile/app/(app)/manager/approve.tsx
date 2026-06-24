@@ -1,14 +1,16 @@
 import { useCallback, useState } from "react";
-import { FlatList, Text, View, Pressable, StyleSheet, Alert } from "react-native";
+import { FlatList, View, Pressable, StyleSheet, Alert } from "react-native";
 import { useFocusEffect, Stack } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
 import { useI18n } from "../../../src/context/I18nContext";
+import { AppText } from "../../../src/components/AppText";
+import { EmptyState } from "../../../src/components/EmptyState";
 
 type Row = { user_id: string; username: string; full_name: string; phone: string };
 
 export default function ApproveAthletesScreen() {
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   const [rows, setRows] = useState<Row[]>([]);
 
   const load = useCallback(async () => {
@@ -35,21 +37,23 @@ export default function ApproveAthletesScreen() {
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ title: t("screen.managerApprove") }} />
-      <Text style={[styles.title, isRTL && { textAlign: "right" }]}>
-        {language === "he" ? "מתאמנים בהמתנה" : "Pending athletes"}
-      </Text>
+      <AppText variant="headline" isRTL={isRTL} style={styles.title}>
+        {t("approve.title")}
+      </AppText>
       <FlatList
         data={rows}
         keyExtractor={(i) => i.user_id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>{language === "he" ? "אין ממתינים" : "No pending"}</Text>}
+        ListEmptyComponent={<EmptyState title={t("approve.empty")} isRTL={isRTL} />}
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <Text style={styles.n}>{item.full_name}</Text>
-            <Text style={styles.m}>{item.username} · {item.phone}</Text>
+            <AppText variant="title">{item.full_name}</AppText>
+            <AppText variant="caption" muted style={styles.meta}>
+              {item.username} · {item.phone}
+            </AppText>
             <View style={styles.actions}>
               <Pressable style={({ pressed }) => [styles.ok, pressed && { opacity: 0.9 }]} onPress={() => approveAthlete(item.user_id)}>
-                <Text style={styles.okT}>{language === "he" ? "אישור" : "Approve"}</Text>
+                <AppText variant="label" style={styles.okT}>{t("approve.approveBtn")}</AppText>
               </Pressable>
             </View>
           </View>
@@ -61,8 +65,8 @@ export default function ApproveAthletesScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  title: { fontSize: 18, fontWeight: "700", padding: theme.spacing.md, color: theme.colors.text },
-  list: { paddingBottom: theme.spacing.xl },
+  title: { padding: theme.spacing.md },
+  list: { paddingBottom: theme.spacing.xl, flexGrow: 1 },
   card: {
     marginHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.sm,
@@ -72,10 +76,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  n: { fontWeight: "700", color: theme.colors.text },
-  m: { color: theme.colors.textMuted, marginTop: 4 },
+  meta: { marginTop: theme.spacing.xs },
   actions: { flexDirection: "row", gap: theme.spacing.sm, marginTop: theme.spacing.sm },
-  ok: { flex: 1, backgroundColor: theme.colors.success, padding: 12, borderRadius: theme.radius.md, alignItems: "center" },
-  okT: { color: "#fff", fontWeight: "600" },
-  empty: { textAlign: "center", marginTop: 48, color: theme.colors.textSoft },
+  ok: { flex: 1, backgroundColor: theme.colors.success, padding: theme.spacing.sm, borderRadius: theme.radius.md, alignItems: "center" },
+  okT: { color: theme.colors.white },
 });

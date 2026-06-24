@@ -18,6 +18,7 @@ import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { AppSearchField } from "../components/AppSearchField";
 import { AppModal } from "../components/AppModal";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { EmptyState } from "../components/EmptyState";
 import { useToast } from "../context/ToastContext";
 import {
   type AthleteFamilyListItem,
@@ -294,9 +295,7 @@ export default function FamilyManagementScreen() {
           </View>
         )}
         ListEmptyComponent={
-          !loading ? (
-            <Text style={[styles.empty, isRTL && styles.rtl]}>{t("families.empty")}</Text>
-          ) : null
+          !loading ? <EmptyState title={t("families.empty")} isRTL={isRTL} /> : null
         }
       />
 
@@ -347,9 +346,7 @@ export default function FamilyManagementScreen() {
             {candidatesLoading && candidateRows.length === 0 ? (
               <ActivityIndicator color={theme.colors.cta} style={styles.choicesLoader} />
             ) : candidateRows.length === 0 ? (
-              <Text style={[styles.choicesEmpty, isRTL && styles.rtl]}>
-                {language === "he" ? "אין תוצאות" : "No results"}
-              </Text>
+              <EmptyState title={t("empty.noResults")} isRTL={isRTL} style={styles.choicesEmptyState} />
             ) : (
               <ScrollView
                 style={styles.choicesScroll}
@@ -455,7 +452,6 @@ const styles = StyleSheet.create({
   },
   deleteBtnPressed: { opacity: 0.88 },
   deleteBtnTxt: { color: theme.colors.error, fontWeight: "800", fontSize: 13 },
-  empty: { textAlign: "center", color: theme.colors.textMuted, marginTop: theme.spacing.lg, fontStyle: "italic" },
   editorCard: { maxWidth: 480, width: "100%" },
   editorBody: { padding: theme.spacing.md, paddingBottom: theme.spacing.lg, gap: 4 },
   editorSave: { marginTop: theme.spacing.md },
@@ -477,13 +473,7 @@ const styles = StyleSheet.create({
   choicesScroll: { flexGrow: 0 },
   choicesScrollContent: { paddingVertical: 4 },
   choicesLoader: { marginVertical: theme.spacing.lg },
-  choicesEmpty: {
-    padding: theme.spacing.lg,
-    textAlign: "center",
-    color: theme.colors.textMuted,
-    fontStyle: "italic",
-    fontSize: 13,
-  },
+  choicesEmptyState: { paddingVertical: theme.spacing.md },
   choiceRow: {
     flexDirection: "row",
     alignItems: "center",

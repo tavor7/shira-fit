@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
 import { CreateSessionForm } from "../../../src/components/CreateSessionForm";
+import { AppText } from "../../../src/components/AppText";
 import { useI18n } from "../../../src/context/I18nContext";
 
 export default function CoachCreateSessionScreen() {
@@ -28,7 +29,9 @@ export default function CoachCreateSessionScreen() {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={[styles.muted, isRTL && { textAlign: "right" }]}>{t("common.loading")}</Text>
+        <AppText muted isRTL={isRTL}>
+          {t("common.loading")}
+        </AppText>
       </View>
     );
   }
@@ -42,6 +45,12 @@ export default function CoachCreateSessionScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.colors.backgroundAlt },
-  muted: { marginTop: 12, color: theme.colors.textMuted },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: theme.colors.backgroundAlt,
+    gap: theme.spacing.sm,
+    padding: theme.spacing.lg,
+  },
 });

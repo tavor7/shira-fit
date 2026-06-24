@@ -1347,69 +1347,12 @@ export default function ManagerSessionDetail() {
     participantsRev,
   ]);
 
-  const draftDiagPanelEl = (() => {
-    if (!MANAGER_SESSION_DRAFT_DIAGNOSTICS) return null;
-    let lsPresent = false;
-    let lsRaw: string | null = null;
-    if (Platform.OS === "web" && typeof localStorage !== "undefined") {
-      try {
-        lsRaw = localStorage.getItem(draftStorageKey);
-        lsPresent = lsRaw != null && lsRaw !== "";
-      } catch {
-        lsRaw = "(localStorage read error)";
-      }
-    }
-    const lsHasTest = (lsRaw ?? "").includes("TEST123");
-    const rawTrunc =
-      lsRaw == null
-        ? Platform.OS === "web"
-          ? "(null)"
-          : "(N/A: not web)"
-        : lsRaw.length > 320
-          ? `${lsRaw.slice(0, 320)}…`
-          : lsRaw;
-    const uiNoteSnippet = JSON.stringify(String(uiDraft.noteDraft ?? "").slice(0, 64));
-    const inputNoteSnippet = JSON.stringify(String(noteDraft ?? "").slice(0, 64));
-    const logText = diagLogRef.current.join("\n");
-
-    return (
-      <View style={styles.draftDiag}>
-        <Text style={styles.draftDiagTitle}>Draft diagnostics (manager session — temporary)</Text>
-        <Text style={styles.draftDiagLine} selectable>
-          1) draftStorageKey: {draftStorageKey}
-        </Text>
-        <Text style={styles.draftDiagLine} selectable>
-          2) localStorage has key: {Platform.OS === "web" ? String(lsPresent) : "N/A (native)"} · raw includes TEST123: {String(lsHasTest)}
-        </Text>
-        <Text style={styles.draftDiagLine} selectable>
-          3) raw localStorage (trunc): {rawTrunc}
-        </Text>
-        <Text style={styles.draftDiagLine} selectable>
-          4) uiDraft (hook state) noteDraft {uiNoteSnippet} · noteComposerOpen={String(uiDraft.noteComposerOpen)} · hydrated=
-          {String(persistDraft.hydrated)}
-        </Text>
-        <Text style={styles.draftDiagLine} selectable>
-          5) Input state noteDraft {inputNoteSnippet} · noteComposerOpen={String(noteComposerOpen)} · match uiDraft.note?{" "}
-          {String(uiDraft.noteDraft === noteDraft)}
-        </Text>
-        <Text style={styles.draftDiagLine} selectable>
-          6) server: serverFormReady={String(serverFormReady)} · load#={loadCountRef.current} · lastLoadAt=
-          {loadFinishedAtRef.current ?? "—"} · draftMergedRef={String(draftMergedIntoLocalRef.current)}
-        </Text>
-        <Text style={styles.draftDiagLine} selectable>
-          7) Event log (newest first):{"\n"}
-          {logText || "—"}
-        </Text>
-      </View>
-    );
-  })();
 
   if (!session)
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.backgroundAlt }}>
         <Stack.Screen options={{ title: t("screen.managerSession") }} />
         <Text style={[styles.loading, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
-        {draftDiagPanelEl}
       </View>
     );
 
@@ -2164,7 +2107,6 @@ export default function ManagerSessionDetail() {
           afterParticipantsChange();
         }}
       />
-      {draftDiagPanelEl}
     </ScrollView>
         {!editingSession ? <SessionAdjacentNav variant="manager" sessionId={String(id ?? "")} /> : null}
       </View>
@@ -2184,22 +2126,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
   loading: { padding: theme.spacing.lg, color: theme.colors.textMuted },
-  draftDiag: {
-    marginTop: theme.spacing.md,
-    padding: 10,
-    backgroundColor: "#121212",
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: "#333",
-  },
-  draftDiagTitle: { color: "#ffcc00", fontWeight: "900", marginBottom: 8, fontSize: 12 },
-  draftDiagLine: {
-    color: "#e8e8e8",
-    fontSize: 10,
-    fontFamily: Platform.OS === "web" ? "monospace" : Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }),
-    marginBottom: 6,
-    lineHeight: 14,
-  },
   rtlText: { textAlign: "right" },
   /** Session hero: tonal surface + border (DESIGN § cards). */
   summaryCard: {

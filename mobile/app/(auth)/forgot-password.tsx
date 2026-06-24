@@ -1,8 +1,6 @@
 import { useState } from "react";
 import {
   View,
-  Text,
-  TextInput,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
@@ -14,6 +12,8 @@ import { router } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ActionButton } from "../../src/components/ActionButton";
+import { AppTextField } from "../../src/components/AppTextField";
+import { AppText } from "../../src/components/AppText";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
@@ -69,12 +69,16 @@ export default function ForgotPasswordScreen() {
             accessibilityRole="image"
           />
         </View>
-        <Text style={[styles.title, isRTL && styles.rtlText]}>{t("auth.forgotPassword")}</Text>
-        <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("auth.forgotPasswordHint")}</Text>
-        <TextInput
-          style={[styles.input, isRTL && styles.inputRtl]}
+        <AppText variant="display" isRTL={isRTL} style={styles.title}>
+          {t("auth.forgotPassword")}
+        </AppText>
+        <AppText variant="body" muted isRTL={isRTL} style={styles.hint}>
+          {t("auth.forgotPasswordHint")}
+        </AppText>
+        <AppTextField
+          variant="dark"
+          isRTL={isRTL}
           placeholder={t("auth.email")}
-          placeholderTextColor={theme.colors.textSoft}
           autoCapitalize="none"
           keyboardType="email-address"
           autoComplete="email"
@@ -84,6 +88,7 @@ export default function ForgotPasswordScreen() {
           maxLength={MAX_EMAIL_LEN}
           onChangeText={setEmail}
           accessibilityLabel={t("auth.email")}
+          containerStyle={styles.field}
         />
         <PrimaryButton
           label={t("auth.sendResetLink")}
@@ -110,37 +115,10 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xl + theme.spacing.md,
     backgroundColor: theme.colors.backgroundAlt,
   },
-  rtlText: { textAlign: "right" },
   logoWrap: { alignItems: "center", marginBottom: theme.spacing.md },
   logo: { width: 200, height: 200 },
-  title: {
-    fontSize: 22,
-    fontWeight: "800",
-    marginBottom: theme.spacing.sm,
-    color: theme.colors.text,
-    letterSpacing: 0.2,
-    lineHeight: 26,
-  },
-  hint: {
-    color: theme.colors.textMuted,
-    marginBottom: theme.spacing.md,
-    lineHeight: 22,
-    fontSize: 15,
-    fontWeight: "500",
-    letterSpacing: 0.15,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
-    fontSize: 16,
-    lineHeight: 22,
-    backgroundColor: theme.colors.backgroundAlt,
-    color: theme.colors.text,
-  },
-  inputRtl: { textAlign: "right", writingDirection: "rtl" },
+  title: { marginBottom: theme.spacing.sm },
+  hint: { marginBottom: theme.spacing.md },
+  field: { marginBottom: theme.spacing.sm },
   navBtn: { marginTop: theme.spacing.md, alignSelf: "center", width: "100%" },
 });
