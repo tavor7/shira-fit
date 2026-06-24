@@ -64,6 +64,8 @@ type Props = {
   emptyLabel?: string;
   /** Tap a day column (header or empty area; session chips still open the session). */
   onDayPress?: (isoDate: string) => void;
+  /** When true, hide prev/next week controls (e.g. athlete browse is a single fixed week). */
+  hideWeekNavigation?: boolean;
   /** Reports the currently displayed week range (Sun–Sat), in ISO dates. */
   onWeekChange?: (weekStartIso: string, weekEndIso: string) => void;
   /**
@@ -73,6 +75,10 @@ type Props = {
    */
   weekOffset?: number;
   onWeekOffsetChange?: (next: number) => void;
+  /** When set, prev week is disabled at this offset (inclusive). */
+  minWeekOffset?: number;
+  /** When set, next week is disabled at this offset (inclusive). */
+  maxWeekOffset?: number;
   /** Studio-wide notes overlapping the visible week (from parent fetch). */
   calendarNotes?: StudioCalendarNote[];
 };
@@ -121,17 +127,26 @@ export function SessionsWeekCalendar({
   onWeekChange,
   weekOffset: weekOffsetProp,
   onWeekOffsetChange,
+  hideWeekNavigation,
+  minWeekOffset,
+  maxWeekOffset,
   calendarNotes,
 }: Props) {
   const [internalWeekOffset, setInternalWeekOffset] = useState(0);
   const controlled = onWeekOffsetChange != null;
   const weekOffset = controlled ? (weekOffsetProp ?? 0) : internalWeekOffset;
 
+  const canGoPrev = minWeekOffset == null || weekOffset > minWeekOffset;
+  const canGoNext = maxWeekOffset == null || weekOffset < maxWeekOffset;
+
   function bumpWeek(delta: number) {
+    const next = weekOffset + delta;
+    if (minWeekOffset != null && next < minWeekOffset) return;
+    if (maxWeekOffset != null && next > maxWeekOffset) return;
     if (controlled) {
-      onWeekOffsetChange?.((weekOffsetProp ?? 0) + delta);
+      onWeekOffsetChange?.(next);
     } else {
-      setInternalWeekOffset((o) => o + delta);
+      setInternalWeekOffset(next);
     }
   }
 
@@ -244,28 +259,49 @@ export function SessionsWeekCalendar({
         which swaps the two buttons. Isolate this bar as LTR so prev stays screen-left with `<`.
       */}
       <View style={styles.header}>
-        <Pressable
-          onPress={() => bumpWeek(-1)}
-          style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
-          accessibilityRole="button"
-          accessibilityLabel={t("dashboard.a11yPrevWeek")}
-        >
-          <Text style={styles.navChevron}>{"←"}</Text>
-        </Pressable>
-        <Text style={styles.weekTitle} numberOfLines={1}>
-          {weekLabel}
-        </Text>
-        <Pressable
-          onPress={() => {
-            if (Platform.OS === "ios" || Platform.OS === "android") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            bumpWeek(1);
-          }}
-          style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
-          accessibilityRole="button"
-          accessibilityLabel={t("dashboard.a11yNextWeek")}
-        >
-          <Text style={styles.navChevron}>{"→"}</Text>
-        </Pressable>
+        {hideWeekNavigation ? (
+          <Text style={[styles.weekTitle, styles.weekTitleStatic]} numberOfLines={1}>
+            {weekLabel}
+          </Text>
+        ) : (
+          <>
+            <Pressable
+              onPress={() => bumpWeek(-1)}
+              disabled={!canGoPrev}
+              style={({ pressed }) => [
+                styles.navBtn,
+                !canGoPrev && styles.navBtnDisabled,
+                pressed && canGoPrev && styles.navBtnPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t("dashboard.a11yPrevWeek")}
+              accessibilityState={{ disabled: !canGoPrev }}
+            >
+              <Text style={[styles.navChevron, !canGoPrev && styles.navChevronDisabled]}>{"←"}</Text>
+            </Pressable>
+            <Text style={styles.weekTitle} numberOfLines={1}>
+              {weekLabel}
+            </Text>
+            <Pressable
+              onPress={() => {
+                if (!canGoNext) return;
+                if (Platform.OS === "ios" || Platform.OS === "android") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                bumpWeek(1);
+              }}
+              disabled={!canGoNext}
+              style={({ pressed }) => [
+                styles.navBtn,
+                !canGoNext && styles.navBtnDisabled,
+                pressed && canGoNext && styles.navBtnPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t("dashboard.a11yNextWeek")}
+              accessibilityState={{ disabled: !canGoNext }}
+            >
+              <Text style={[styles.navChevron, !canGoNext && styles.navChevronDisabled]}>{"→"}</Text>
+            </Pressable>
+          </>
+        )}
       </View>
 
       <View style={styles.body}>
@@ -442,6 +478,10 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     letterSpacing: 0.2,
   },
+  weekTitleStatic: {
+    flex: 0,
+    width: "100%",
+  },
   navBtn: {
     paddingHorizontal: 12,
     paddingVertical: 9,
@@ -449,6 +489,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
   },
   navBtnPressed: { opacity: 0.88 },
+  navBtnDisabled: { opacity: 0.35 },
   /** LTR glyphs so `<` / `>` are not bidi-mirrored inside Hebrew UI. */
   navChevron: {
     color: theme.colors.text,
@@ -456,6 +497,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     writingDirection: "ltr",
   },
+  navChevronDisabled: { color: theme.colors.textMuted },
   body: { width: "100%", alignItems: "stretch" },
   /** When the 7 day columns are narrower than the screen, center them; when wider (small phones), scroll still works. */
   scroller: { width: "100%" },

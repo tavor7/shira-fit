@@ -24,6 +24,11 @@ import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNa
 import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
 import { embedLtrInMixed, embedRtlInLtr, isRtlScript } from "../../../../src/lib/bidiEmbed";
 import { athleteRegisterSessionErrorDetail } from "../../../../src/lib/athleteRegisterSessionError";
+import {
+  fetchSessionRegistrationOpenState,
+  sessionRegistrationClosedHint,
+  type SessionRegistrationOpenState,
+} from "../../../../src/lib/registrationOpeningSchedule";
 import { AppText } from "../../../../src/components/AppText";
 import { AppTextField } from "../../../../src/components/AppTextField";
 
@@ -53,6 +58,7 @@ export default function AthleteSessionDetail() {
   const [registering, setRegistering] = useState(false);
   const [waitlisting, setWaitlisting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [regOpenState, setRegOpenState] = useState<SessionRegistrationOpenState | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -95,6 +101,12 @@ export default function AthleteSessionDetail() {
     }
 
     setSession(s as TrainingSessionWithTrainer);
+
+    if ((s as TrainingSessionWithTrainer).is_open_for_registration) {
+      setRegOpenState({ ok: true, status: "open" });
+    } else {
+      setRegOpenState(await fetchSessionRegistrationOpenState(sessionId));
+    }
 
     const m = await fetchActiveSignupCountsBySession([sessionId]);
     setCount(m[sessionId] ?? 0);
@@ -399,7 +411,7 @@ export default function AthleteSessionDetail() {
             )}
             {!sessionNotEnded ? null : !full && !regOpen ? (
               <AppText variant="caption" muted isRTL={isRTL} style={styles.closedHint}>
-                {t("athleteSession.registrationClosedHint")}
+                {sessionRegistrationClosedHint(regOpenState, t, language)}
               </AppText>
             ) : null}
           </>

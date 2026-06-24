@@ -20,6 +20,11 @@ import { appendNetworkHint } from "../lib/networkErrors";
 import { scheduleSessionReminders, cancelSessionReminders } from "../lib/sessionReminders";
 import { clearWaitlistSpotFlag } from "../lib/waitlistSpotNotifier";
 import { athleteRegisterSessionErrorDetail } from "../lib/athleteRegisterSessionError";
+import {
+  fetchSessionRegistrationOpenState,
+  sessionRegistrationClosedHint,
+  type SessionRegistrationOpenState,
+} from "../lib/registrationOpeningSchedule";
 
 function sessionStartMs(s: Pick<TrainingSessionWithTrainer, "session_date" | "start_time">): number {
   const t = s.start_time.length >= 5 ? s.start_time.slice(0, 5) : s.start_time;
@@ -42,6 +47,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
   const [busy, setBusy] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [regOpenState, setRegOpenState] = useState<SessionRegistrationOpenState | null>(null);
 
   const next = useMemo(() => {
     const now = Date.now();
@@ -81,6 +87,20 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
   useEffect(() => {
     void loadStatus();
   }, [loadStatus]);
+
+  useEffect(() => {
+    if (!next || next.is_open_for_registration) {
+      setRegOpenState(next?.is_open_for_registration ? { ok: true, status: "open" } : null);
+      return;
+    }
+    let cancelled = false;
+    void fetchSessionRegistrationOpenState(next.id).then((state) => {
+      if (!cancelled) setRegOpenState(state);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [next?.id, next?.is_open_for_registration]);
 
   const count = next ? signupBySession[next.id] ?? 0 : 0;
   const max = next?.max_participants ?? 0;
@@ -276,7 +296,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
 
       {!regOpen && !regId ? (
         <Text style={[styles.closedHint, isRTL && styles.rtl]}>
-          {language === "he" ? "ההרשמה סגורה כרגע." : "Registration is currently closed."}
+          {sessionRegistrationClosedHint(regOpenState, t, language)}
         </Text>
       ) : null}
 

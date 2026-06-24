@@ -22,6 +22,11 @@ import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
 import { useAuth } from "../../../src/context/AuthContext";
 import { appendNetworkHint } from "../../../src/lib/networkErrors";
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
+import {
+  weekBoundsSunday,
+  studioTodayIso,
+  ATHLETE_BROWSE_MAX_WEEK_OFFSET,
+} from "../../../src/lib/studioWeek";
 import { AppText } from "../../../src/components/AppText";
 import { EmptyState } from "../../../src/components/EmptyState";
 
@@ -39,6 +44,7 @@ export default function AthleteSessionsScreen() {
   const [loading, setLoading] = useState(true);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
+  const defaultWeek = useMemo(() => weekBoundsSunday(studioTodayIso()), []);
   const [myUpcoming, setMyUpcoming] = useState<TrainingSessionWithTrainer[]>([]);
   const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
   const [priorityAlertsVisibleCount, setPriorityAlertsVisibleCount] = useState<number | null>(null);
@@ -87,11 +93,13 @@ export default function AthleteSessionsScreen() {
     const w = weekRangeRef.current;
     if (w.start && w.end) {
       setStudioNotes(await fetchStudioCalendarNotesForRange(w.start, w.end));
+    } else {
+      setStudioNotes(await fetchStudioCalendarNotesForRange(defaultWeek.start, defaultWeek.end));
     }
 
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
-  }, [language]);
+  }, [language, defaultWeek.start, defaultWeek.end]);
 
   useEffect(() => {
     if (!weekRange.start || !weekRange.end) return;
@@ -318,10 +326,11 @@ export default function AthleteSessionsScreen() {
         <SessionsWeekCalendar
           items={items}
           isLoading={loading}
-          emptyLabel={t("empty.noSessionsOpenYet")}
+          emptyLabel={t("dashboard.noSessionsThisWeek")}
           onDayPress={(iso) => setSheetDay(iso)}
           weekOffset={calendarWeekOffset}
           onWeekOffsetChange={setCalendarWeekOffset}
+          maxWeekOffset={ATHLETE_BROWSE_MAX_WEEK_OFFSET}
           onWeekChange={(startIso, endIso) => setWeekRange({ start: startIso, end: endIso })}
           calendarNotes={studioNotes}
         />
