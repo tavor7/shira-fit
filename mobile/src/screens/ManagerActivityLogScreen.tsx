@@ -7,7 +7,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
-import { DatePickerField } from "../components/DatePickerField";
+import { DateRangeFormPanel } from "../components/DateRangeFormPanel";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import { activityEventLooksRevertible, activityRevertReasonLabel } from "../lib/activityLogRevert";
@@ -480,30 +480,24 @@ export default function ManagerActivityLogScreen() {
         </View>
         {datePreset === "custom" ? (
           <View style={styles.customDates}>
-            <View style={styles.dateField}>
-              <DatePickerField
-                label={t("common.from")}
-                value={dateFrom}
-                onChange={(v) => {
-                  setPageIndex(0);
-                  setDateFrom(v);
-                  setDatePreset("custom");
-                }}
-                maximumDate={parseISODateLocal(dateTo) ?? undefined}
-              />
-            </View>
-            <View style={styles.dateField}>
-              <DatePickerField
-                label={t("common.to")}
-                value={dateTo}
-                onChange={(v) => {
-                  setPageIndex(0);
-                  setDateTo(v);
-                  setDatePreset("custom");
-                }}
-                minimumDate={parseISODateLocal(dateFrom) ?? undefined}
-              />
-            </View>
+            <DateRangeFormPanel
+              fromLabel={t("common.from")}
+              toLabel={t("common.to")}
+              start={dateFrom}
+              end={dateTo}
+              onStartChange={(v) => {
+                setPageIndex(0);
+                setDateFrom(v);
+                setDatePreset("custom");
+              }}
+              onEndChange={(v) => {
+                setPageIndex(0);
+                setDateTo(v);
+                setDatePreset("custom");
+              }}
+              maximumStart={parseISODateLocal(dateTo) ?? undefined}
+              minimumEnd={parseISODateLocal(dateFrom) ?? undefined}
+            />
           </View>
         ) : null}
 
@@ -797,12 +791,12 @@ const styles = StyleSheet.create({
   chipLabelCompact: { fontSize: 12 },
   chipLabelActive: { color: theme.colors.ctaText },
   customDates: {
-    flexDirection: "row",
-    gap: theme.spacing.sm,
     marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.xs,
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
   },
-  dateField: { flex: 1, minWidth: 0 },
   retentionShell: {
     marginTop: theme.spacing.md,
     borderRadius: theme.radius.lg,

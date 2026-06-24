@@ -54,11 +54,22 @@ export const sessionFormStyles = StyleSheet.create({
     backgroundColor: theme.colors.borderMuted,
     marginHorizontal: 14,
   },
+  /** Bordered control inside a formPanel (contrasts with panel background). */
+  formPanelField: {
+    minHeight: 48,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
   embeddedInput: {
-    borderWidth: 0,
-    backgroundColor: "transparent",
-    paddingHorizontal: 0,
-    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     minHeight: 44,
   },
   sectionHeaderRow: {

@@ -43,7 +43,13 @@ export function DatePickerField({
 
 const styles = StyleSheet.create({
   wrap: { marginTop: theme.spacing.sm, alignSelf: "stretch", minWidth: 0, width: "100%", maxWidth: "100%" },
-  inputShell: { width: "100%", maxWidth: "100%", minWidth: 0, overflow: "hidden" },
+  inputShell: {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflow: "hidden",
+    alignSelf: "stretch",
+  },
   wrapEmbedded: { marginTop: 0 },
   wrapAuth: { marginTop: 0, marginBottom: theme.spacing.sm },
   label: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },

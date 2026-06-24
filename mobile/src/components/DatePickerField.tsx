@@ -181,10 +181,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   touchEmbedded: {
-    borderWidth: 0,
-    backgroundColor: "transparent",
-    paddingHorizontal: 0,
-    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     minHeight: 44,
   },
   touchAuth: {

@@ -35,7 +35,7 @@ export function SessionCapacityFields({
         <View style={styles.col}>
           <Text style={[sf.label, isRTL && sf.labelRtl]}>{durationLabel}</Text>
           <TextInput
-            style={[sf.control, sf.controlInput, styles.input, isRTL && styles.inputRtl]}
+            style={[sf.formPanelField, sf.controlInput, styles.input, isRTL && styles.inputRtl]}
             value={duration}
             onChangeText={(v) => onDurationChange(digitsOnly(v).slice(0, 3))}
             keyboardType="number-pad"
@@ -50,7 +50,7 @@ export function SessionCapacityFields({
         <View style={styles.col}>
           <Text style={[sf.label, isRTL && sf.labelRtl]}>{maxLabel}</Text>
           <TextInput
-            style={[sf.control, sf.controlInput, styles.input, isRTL && styles.inputRtl]}
+            style={[sf.formPanelField, sf.controlInput, styles.input, isRTL && styles.inputRtl]}
             value={max}
             onChangeText={(v) => onMaxChange(digitsOnly(v).slice(0, 2))}
             keyboardType="number-pad"

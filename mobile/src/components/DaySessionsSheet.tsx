@@ -24,6 +24,7 @@ import { appendNetworkHint } from "../lib/networkErrors";
 import { isSessionInActiveSeries, type SeriesScope } from "../lib/sessionSeries";
 import { useAppAlert } from "../context/AppAlertContext";
 import { DatePickerField } from "./DatePickerField";
+import { DateRangeFormPanel } from "./DateRangeFormPanel";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import type { StudioCalendarNote } from "../lib/studioCalendarNotes";
 import { studioNoteCoversDate } from "../lib/studioCalendarNotes";
@@ -639,8 +640,14 @@ export function DaySessionsSheet({
                   placeholderTextColor={theme.colors.placeholderOnLight}
                   editable={!noteBusy}
                 />
-                <DatePickerField label={t("calendarNotes.fieldStart")} value={nfStart} onChange={setNfStart} />
-                <DatePickerField label={t("calendarNotes.fieldEnd")} value={nfEnd} onChange={setNfEnd} />
+                <DateRangeFormPanel
+                  fromLabel={t("calendarNotes.fieldStart")}
+                  toLabel={t("calendarNotes.fieldEnd")}
+                  start={nfStart}
+                  end={nfEnd}
+                  onStartChange={setNfStart}
+                  onEndChange={setNfEnd}
+                />
                 <Text style={[styles.studioNoteFormLabel, isRTL && styles.rtlText]}>{t("calendarNotes.fieldKind")}</Text>
                 <View style={[styles.chipRow, isRTL && styles.chipRowRtl]}>
                   {(["holiday", "closure", "info"] as const).map((k) => {

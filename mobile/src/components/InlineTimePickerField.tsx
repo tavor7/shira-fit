@@ -59,8 +59,9 @@ const styles = StyleSheet.create({
     minHeight: Platform.OS === "ios" ? 196 : 160,
   },
   pickerShellEmbedded: {
-    borderWidth: 0,
-    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
     minHeight: Platform.OS === "ios" ? 168 : 140,
   },
   picker: {
