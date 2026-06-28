@@ -9,6 +9,7 @@ import { AppTextField } from "../../src/components/AppTextField";
 import { AppText } from "../../src/components/AppText";
 import { useI18n } from "../../src/context/I18nContext";
 import { NotificationSettingsPanel } from "../../src/components/NotificationSettingsPanel";
+import { ManagerSendMessagePanel } from "../../src/components/ManagerSendMessagePanel";
 
 function getUpdateErrorMessage(message: string, t: (key: string) => string) {
   const msg = (message || "").toLowerCase();
@@ -19,17 +20,22 @@ function getUpdateErrorMessage(message: string, t: (key: string) => string) {
   return message || t("profile.updateFailed");
 }
 
-type Segment = "account" | "notifications";
+type Segment = "account" | "notifications" | "messages";
 
 export default function ProfileScreen() {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const { session, profile, refreshProfile } = useAuth();
   const { t, isRTL } = useI18n();
 
-  const [segment, setSegment] = useState<Segment>(() => (tab === "notifications" ? "notifications" : "account"));
+  const [segment, setSegment] = useState<Segment>(() => {
+    if (tab === "notifications") return "notifications";
+    if (tab === "messages") return "messages";
+    return "account";
+  });
 
   useEffect(() => {
     if (tab === "notifications") setSegment("notifications");
+    else if (tab === "messages") setSegment("messages");
   }, [tab]);
 
   const initialEmail = session?.user?.email ?? "";
@@ -110,6 +116,7 @@ export default function ProfileScreen() {
   }
 
   const rtl = isRTL;
+  const isManager = profile.role === "manager";
 
   return (
     <KeyboardAvoidingView
@@ -164,6 +171,27 @@ export default function ProfileScreen() {
               {t("profile.tabNotifications")}
             </AppText>
           </Pressable>
+          {isManager ? (
+            <Pressable
+              onPress={() => setSegment("messages")}
+              style={({ pressed }) => [
+                styles.segmentSlot,
+                segment === "messages" && styles.segmentSlotActive,
+                pressed && segment !== "messages" && styles.segmentSlotPressed,
+              ]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: segment === "messages" }}
+            >
+              <AppText
+                variant="caption"
+                style={[styles.segmentTxt, segment === "messages" && styles.segmentTxtActive]}
+                numberOfLines={1}
+                maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}
+              >
+                {t("profile.tabMessages")}
+              </AppText>
+            </Pressable>
+          ) : null}
         </View>
 
         {segment === "account" ? (
@@ -219,7 +247,10 @@ export default function ProfileScreen() {
               loadingLabel={t("common.loading")}
               style={{ marginTop: theme.spacing.lg }}
             />
+
           </>
+        ) : segment === "messages" && isManager ? (
+          <ManagerSendMessagePanel />
         ) : (
           <NotificationSettingsPanel variant="embedded" />
         )}

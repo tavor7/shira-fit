@@ -10,6 +10,7 @@ import { isPendingPathname, isDisabledPathname } from "../../src/lib/sessionsHom
 import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
 import { useI18n } from "../../src/context/I18nContext";
 import { ConsentGateModal } from "../../src/components/ConsentGateModal";
+import { ManagerDirectMessageModal } from "../../src/components/ManagerDirectMessageModal";
 import { getLoginHrefWithOptionalRedirectWeb } from "../../src/lib/webLastRoute";
 import { useManagerAthletePreview } from "../../src/context/ManagerAthletePreviewContext";
 import { canRoleAccessAppPath, getRoleAccessDeniedRedirect } from "../../src/lib/roleRouteAccess";
@@ -92,6 +93,7 @@ export default function AppLayout() {
   return (
     <>
       <ConsentGateModal />
+      <ManagerDirectMessageModal />
       <Stack
       screenOptions={{
         headerShown: true,
