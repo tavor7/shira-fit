@@ -42,15 +42,19 @@ export async function searchMessageRecipients(termRaw: string, limit = 30): Prom
   const term = termRaw.trim();
   const safe = escapeIlike(term);
 
+  const me = (await supabase.auth.getUser()).data.user?.id ?? null;
+
   let query = supabase
     .from("profiles")
     .select("user_id, full_name, username, role")
-    .in("role", ["athlete", "coach"])
+    .in("role", ["athlete", "coach", "manager"])
     .order("full_name", { ascending: true })
     .limit(limit);
 
+  if (me) query = query.neq("user_id", me);
+
   if (term.length > 0) {
-    query = query.or(`full_name.ilike.%${safe}%,username.ilike.%${safe}%`);
+    query = query.or(`full_name.ilike.%${safe}%,username.ilike.%${safe}%,phone.ilike.%${safe}%`);
   }
 
   const { data, error } = await query;
