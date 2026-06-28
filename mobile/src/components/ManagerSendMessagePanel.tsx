@@ -3,12 +3,15 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "reac
 import { useFocusEffect } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { AppText } from "./AppText";
 import { AppTextField } from "./AppTextField";
 import { PrimaryButton } from "./PrimaryButton";
 import { ActionButton } from "./ActionButton";
+import { AppModal } from "./AppModal";
+import { ManagerMessageCard } from "./ManagerMessageCard";
 import {
   cancelManagerDirectMessage,
   fetchSentManagerDirectMessages,
@@ -17,7 +20,13 @@ import {
   sendManagerDirectMessage,
   type MessageRecipient,
   type SentManagerMessage,
+  type ManagerMessageTheme,
 } from "../lib/managerDirectMessages";
+import {
+  MANAGER_MESSAGE_THEMES,
+  getManagerMessageThemeStyle,
+  managerMessageThemeLabelKey,
+} from "../lib/managerMessageThemes";
 import { formatISODateDayMonthWithWeekday, parseInstantIso } from "../lib/dateFormat";
 import { appLocale } from "../lib/appLocale";
 
@@ -41,9 +50,11 @@ type Step = "pick" | "compose";
 
 export function ManagerSendMessagePanel() {
   const { t, isRTL, language } = useI18n();
+  const { profile } = useAuth();
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
   const [step, setStep] = useState<Step>("pick");
+  const [messageTheme, setMessageTheme] = useState<ManagerMessageTheme>("love");
   const [search, setSearch] = useState("");
   const [hits, setHits] = useState<MessageRecipient[]>([]);
   const [searching, setSearching] = useState(false);
@@ -54,6 +65,7 @@ export function ManagerSendMessagePanel() {
   const [sent, setSent] = useState<SentManagerMessage[]>([]);
   const [loadingSent, setLoadingSent] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [previewSent, setPreviewSent] = useState<SentManagerMessage | null>(null);
 
   const loadSent = useCallback(async () => {
     setLoadingSent(true);
@@ -107,14 +119,17 @@ export function ManagerSendMessagePanel() {
     setStep("pick");
     setSelected(null);
     setBody("");
+    setMessageTheme("love");
     setError(null);
   }
+
+  const previewSenderName = profile?.full_name?.trim() || t("managerMessage.studioFallback");
 
   async function onSend() {
     if (!selected || !canSend) return;
     setError(null);
     setSending(true);
-    const res = await sendManagerDirectMessage(selected.user_id, body);
+    const res = await sendManagerDirectMessage(selected.user_id, body, messageTheme);
     setSending(false);
     if (!res.ok) {
       setError(res.error);
@@ -123,6 +138,7 @@ export function ManagerSendMessagePanel() {
     showToast({ message: t("managerMessage.sentOk"), variant: "success" });
     setBody("");
     setSelected(null);
+    setMessageTheme("love");
     setStep("pick");
     void loadSent();
   }
@@ -158,6 +174,40 @@ export function ManagerSendMessagePanel() {
 
   return (
     <View style={styles.wrap}>
+      <AppModal
+        visible={previewSent !== null}
+        onClose={() => setPreviewSent(null)}
+        variant="dialog"
+        animationType="fade"
+        backdropAccessibilityLabel={t("common.close")}
+        backdropStyle={styles.previewModalBackdrop}
+        cardStyle={styles.previewModalCard}
+      >
+        {previewSent ? (
+          <View style={styles.previewModalBody}>
+            <ManagerMessageCard
+              messageTheme={previewSent.message_theme}
+              senderName={previewSenderName}
+              body={previewSent.body}
+              inboxKicker={t("managerMessage.inboxKicker")}
+              isRTL={isRTL}
+              previewLabel={t("managerMessage.sentPreviewTitle")}
+            />
+            <View style={[styles.previewModalMeta, isRTL && styles.sentMetaRtl]}>
+              <AppText variant="caption" soft isRTL={isRTL}>
+                {t("managerMessage.sentAt").replace("{when}", formatSentWhen(previewSent.created_at, language))}
+              </AppText>
+              {previewSent.read_at ? (
+                <AppText variant="caption" soft isRTL={isRTL}>
+                  {t("managerMessage.readAt").replace("{when}", formatSentWhen(previewSent.read_at, language))}
+                </AppText>
+              ) : null}
+            </View>
+            <ActionButton label={t("common.close")} onPress={() => setPreviewSent(null)} />
+          </View>
+        ) : null}
+      </AppModal>
+
       <View style={styles.composeCard}>
         <AppText variant="title" isRTL={isRTL} style={styles.cardTitle}>
           {t("managerMessage.composeTitle")}
@@ -239,6 +289,39 @@ export function ManagerSendMessagePanel() {
               </View>
             </View>
 
+            <AppText variant="label" muted isRTL={isRTL} style={styles.themeLabel}>
+              {t("managerMessage.themeLabel")}
+            </AppText>
+            <View style={[styles.themeRow, isRTL && styles.themeRowRtl]}>
+              {MANAGER_MESSAGE_THEMES.map((key) => {
+                const active = messageTheme === key;
+                const palette = getManagerMessageThemeStyle(key);
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => setMessageTheme(key)}
+                    style={({ pressed }) => [
+                      styles.themeChip,
+                      active && { borderColor: palette.avatarBg, backgroundColor: palette.bubbleBg },
+                      pressed && { opacity: 0.9 },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <AppText variant="body" style={styles.themeEmoji}>
+                      {palette.emoji}
+                    </AppText>
+                    <AppText
+                      variant="caption"
+                      style={[styles.themeChipTxt, active && { color: palette.bubbleText, fontWeight: "800" }]}
+                    >
+                      {t(managerMessageThemeLabelKey(key))}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+
             <AppTextField
               isRTL={isRTL}
               value={body}
@@ -252,6 +335,17 @@ export function ManagerSendMessagePanel() {
               containerStyle={styles.field}
               style={styles.messageInput}
             />
+
+            <View style={styles.previewShell}>
+              <ManagerMessageCard
+                messageTheme={messageTheme}
+                senderName={previewSenderName}
+                body={body}
+                inboxKicker={t("managerMessage.inboxKicker")}
+                isRTL={isRTL}
+                previewLabel={t("managerMessage.livePreview")}
+              />
+            </View>
 
             {error ? (
               <AppText isRTL={isRTL} style={styles.error}>
@@ -287,54 +381,61 @@ export function ManagerSendMessagePanel() {
               const read = !!row.read_at;
               return (
                 <View key={row.id} style={[styles.sentRow, isRTL && styles.sentRowRtl]}>
-                  <View style={styles.sentAvatar}>
-                    <AppText variant="caption" style={styles.sentAvatarTxt}>
-                      {initialsFromName(row.recipient_name)}
-                    </AppText>
-                  </View>
-                  <View style={[styles.sentBody, isRTL && styles.sentBodyRtl]}>
-                    <View style={[styles.sentTop, isRTL && styles.sentTopRtl]}>
-                      <AppText variant="body" isRTL={isRTL} numberOfLines={1} style={styles.sentName}>
-                        {row.recipient_name}
+                  <Pressable
+                    onPress={() => setPreviewSent(row)}
+                    style={({ pressed }) => [styles.sentRowMain, isRTL && styles.sentRowRtl, pressed && styles.sentRowPressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("managerMessage.sentPreviewTitle")}
+                  >
+                    <View style={styles.sentAvatar}>
+                      <AppText variant="caption" style={styles.sentAvatarTxt}>
+                        {initialsFromName(row.recipient_name)}
                       </AppText>
-                      <View style={[styles.statusPill, read ? styles.statusRead : styles.statusPending]}>
-                        <AppText variant="caption" style={read ? styles.statusReadTxt : styles.statusPendingTxt}>
-                          {read ? t("managerMessage.statusRead") : t("managerMessage.statusPending")}
+                    </View>
+                    <View style={[styles.sentBody, isRTL && styles.sentBodyRtl]}>
+                      <View style={[styles.sentTop, isRTL && styles.sentTopRtl]}>
+                        <AppText variant="body" isRTL={isRTL} numberOfLines={1} style={styles.sentName}>
+                          {getManagerMessageThemeStyle(row.message_theme).emoji} {row.recipient_name}
                         </AppText>
+                        <View style={[styles.statusPill, read ? styles.statusRead : styles.statusPending]}>
+                          <AppText variant="caption" style={read ? styles.statusReadTxt : styles.statusPendingTxt}>
+                            {read ? t("managerMessage.statusRead") : t("managerMessage.statusPending")}
+                          </AppText>
+                        </View>
+                      </View>
+                      <AppText variant="caption" muted isRTL={isRTL} numberOfLines={2}>
+                        {row.body}
+                      </AppText>
+                      <View style={[styles.sentMeta, isRTL && styles.sentMetaRtl]}>
+                        <AppText variant="caption" soft isRTL={isRTL}>
+                          {t("managerMessage.sentAt").replace("{when}", formatSentWhen(row.created_at, language))}
+                        </AppText>
+                        {read && row.read_at ? (
+                          <AppText variant="caption" soft isRTL={isRTL} style={styles.readAt}>
+                            {t("managerMessage.readAt").replace("{when}", formatSentWhen(row.read_at, language))}
+                          </AppText>
+                        ) : null}
                       </View>
                     </View>
-                    <AppText variant="caption" muted isRTL={isRTL} numberOfLines={2}>
-                      {row.body}
-                    </AppText>
-                    <View style={[styles.sentMeta, isRTL && styles.sentMetaRtl]}>
-                      <AppText variant="caption" soft isRTL={isRTL}>
-                        {t("managerMessage.sentAt").replace("{when}", formatSentWhen(row.created_at, language))}
+                  </Pressable>
+                  {!read ? (
+                    <Pressable
+                      onPress={() => confirmCancel(row)}
+                      disabled={cancellingId === row.id}
+                      style={({ pressed }) => [
+                        styles.cancelBtn,
+                        isRTL && styles.cancelBtnRtl,
+                        pressed && { opacity: 0.85 },
+                        cancellingId === row.id && { opacity: 0.5 },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("managerMessage.cancelAction")}
+                    >
+                      <AppText variant="caption" style={styles.cancelBtnTxt}>
+                        {cancellingId === row.id ? t("common.loading") : t("managerMessage.cancelAction")}
                       </AppText>
-                      {read && row.read_at ? (
-                        <AppText variant="caption" soft isRTL={isRTL} style={styles.readAt}>
-                          {t("managerMessage.readAt").replace("{when}", formatSentWhen(row.read_at, language))}
-                        </AppText>
-                      ) : null}
-                    </View>
-                    {!read ? (
-                      <Pressable
-                        onPress={() => confirmCancel(row)}
-                        disabled={cancellingId === row.id}
-                        style={({ pressed }) => [
-                          styles.cancelBtn,
-                          isRTL && styles.cancelBtnRtl,
-                          pressed && { opacity: 0.85 },
-                          cancellingId === row.id && { opacity: 0.5 },
-                        ]}
-                        accessibilityRole="button"
-                        accessibilityLabel={t("managerMessage.cancelAction")}
-                      >
-                        <AppText variant="caption" style={styles.cancelBtnTxt}>
-                          {cancellingId === row.id ? t("common.loading") : t("managerMessage.cancelAction")}
-                        </AppText>
-                      </Pressable>
-                    ) : null}
-                  </View>
+                    </Pressable>
+                  ) : null}
                 </View>
               );
             })}
@@ -424,19 +525,47 @@ const styles = StyleSheet.create({
   selectedMeta: { flex: 1, minWidth: 0 },
   selectedMetaRtl: { alignItems: "flex-end" },
   selectedName: { fontWeight: "800" },
+  themeLabel: { marginTop: theme.spacing.sm, marginBottom: theme.spacing.xs, textTransform: "uppercase" },
+  themeRow: { flexDirection: "row", gap: 8, marginBottom: theme.spacing.md },
+  themeRowRtl: { flexDirection: "row-reverse" },
+  themeChip: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.backgroundAlt,
+    gap: 2,
+  },
+  themeEmoji: { fontSize: 18, lineHeight: 22 },
+  themeChipTxt: { color: theme.colors.textMuted, fontWeight: "700" },
+  previewShell: {
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.sm,
+    borderRadius: theme.radius.lg,
+    backgroundColor: "rgba(8, 8, 12, 0.55)",
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
   messageInput: { minHeight: 120, textAlignVertical: "top" },
   error: { color: theme.colors.error, fontWeight: "600", marginBottom: theme.spacing.sm },
   emptySent: { marginTop: theme.spacing.sm },
   sentList: { gap: theme.spacing.sm, marginTop: theme.spacing.sm },
   sentRow: {
-    flexDirection: "row",
-    gap: theme.spacing.sm,
-    padding: theme.spacing.sm,
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.backgroundAlt,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
+    overflow: "hidden",
   },
+  sentRowMain: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    padding: theme.spacing.sm,
+  },
+  sentRowPressed: { opacity: 0.88 },
   sentRowRtl: { flexDirection: "row-reverse" },
   sentAvatar: {
     width: 40,
@@ -476,7 +605,9 @@ const styles = StyleSheet.create({
   readAt: {},
   cancelBtn: {
     alignSelf: "flex-start",
-    marginTop: theme.spacing.sm,
+    marginTop: 0,
+    marginHorizontal: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: theme.radius.full,
@@ -486,4 +617,14 @@ const styles = StyleSheet.create({
   },
   cancelBtnRtl: { alignSelf: "flex-end" },
   cancelBtnTxt: { color: theme.colors.error, fontWeight: "800" },
+  previewModalBackdrop: { backgroundColor: "rgba(8, 8, 12, 0.72)" },
+  previewModalCard: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    padding: 0,
+    maxWidth: 420,
+    width: "100%",
+  },
+  previewModalBody: { gap: theme.spacing.md, width: "100%" },
+  previewModalMeta: { gap: 4, paddingHorizontal: theme.spacing.xs },
 });

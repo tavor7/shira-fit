@@ -1,5 +1,11 @@
 import { supabase } from "./supabase";
 import { escapeIlike } from "./staffAthleteSearch";
+import {
+  normalizeManagerMessageTheme,
+  type ManagerMessageTheme,
+} from "./managerMessageThemes";
+
+export type { ManagerMessageTheme };
 
 export type MessageRecipient = {
   user_id: string;
@@ -13,6 +19,7 @@ export type PendingManagerMessage = {
   body: string;
   created_at: string;
   sender_name: string;
+  message_theme: ManagerMessageTheme;
 };
 
 export type SentManagerMessage = {
@@ -23,6 +30,7 @@ export type SentManagerMessage = {
   recipient_id: string;
   recipient_name: string;
   recipient_role: string;
+  message_theme: ManagerMessageTheme;
 };
 
 function parseRpcObject(raw: unknown): Record<string, unknown> | null {
@@ -58,11 +66,13 @@ export async function searchMessageRecipients(termRaw: string, limit = 30): Prom
 
 export async function sendManagerDirectMessage(
   recipientId: string,
-  body: string
+  body: string,
+  messageTheme: ManagerMessageTheme = "love"
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const { data, error } = await supabase.rpc("send_manager_direct_message", {
     p_recipient_id: recipientId,
     p_body: body.trim(),
+    p_theme: messageTheme,
   });
   if (error) return { ok: false, error: error.message };
   const o = parseRpcObject(data);
@@ -85,6 +95,7 @@ export async function fetchPendingManagerDirectMessage(): Promise<PendingManager
     body: String(m.body ?? ""),
     created_at: String(m.created_at ?? ""),
     sender_name: String(m.sender_name ?? ""),
+    message_theme: normalizeManagerMessageTheme(m.message_theme),
   };
 }
 
@@ -112,7 +123,7 @@ export async function cancelManagerDirectMessage(
 export async function fetchSentManagerDirectMessages(limit = 40): Promise<SentManagerMessage[]> {
   const { data, error } = await supabase
     .from("manager_direct_messages")
-    .select("id, body, created_at, read_at, recipient_id")
+    .select("id, body, created_at, read_at, recipient_id, message_theme")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -128,7 +139,7 @@ export async function fetchSentManagerDirectMessages(limit = 40): Promise<SentMa
     ((profiles ?? []) as { user_id: string; full_name: string; role: string }[]).map((p) => [p.user_id, p])
   );
 
-  return (data as { id: string; body: string; created_at: string; read_at: string | null; recipient_id: string }[]).map(
+  return (data as { id: string; body: string; created_at: string; read_at: string | null; recipient_id: string; message_theme?: string }[]).map(
     (row) => {
       const rec = byId.get(row.recipient_id);
       return {
@@ -139,6 +150,7 @@ export async function fetchSentManagerDirectMessages(limit = 40): Promise<SentMa
         recipient_id: row.recipient_id,
         recipient_name: rec?.full_name ?? "—",
         recipient_role: rec?.role ?? "",
+        message_theme: normalizeManagerMessageTheme(row.message_theme),
       };
     }
   );
