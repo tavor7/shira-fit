@@ -525,6 +525,14 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "manualParticipant.genderPlaceholder": "male / female",
     "manualParticipant.dobPlaceholder": "2000-01-15",
     "manualParticipant.notFoundOrNoPermission": "Record not found or no permission.",
+    "manualParticipant.lastSession": "Last session",
+    "manualParticipant.lastSessionAdded": "Last added to session",
+    "manualParticipant.neverInSession": "Never added to a session",
+    "manualParticipant.duplicatePhoneBadge": "Duplicate phone · {n} records",
+    "manualParticipant.duplicateRecordsTitle": "{n} other quick-add record(s) with the same name or phone",
+    "manualParticipant.duplicateRecordLine": "{name} · {phone}",
+    "manualParticipant.disableMessage":
+      "They will be hidden from registration and reports. Existing session history is kept.",
 
     "pending.title": "Pending approval",
     "pending.body": "Hi {name}. A manager will contact you by phone before you can book sessions.",
@@ -1598,6 +1606,14 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "manualParticipant.genderPlaceholder": "male / female",
     "manualParticipant.dobPlaceholder": "2000-01-15",
     "manualParticipant.notFoundOrNoPermission": "לא נמצא רשומה או אין הרשאה.",
+    "manualParticipant.lastSession": "אימון אחרון",
+    "manualParticipant.lastSessionAdded": "נוסף לאימון לאחרונה",
+    "manualParticipant.neverInSession": "מעולם לא נוסף לאימון",
+    "manualParticipant.duplicatePhoneBadge": "טלפון כפול · {n} רשומות",
+    "manualParticipant.duplicateRecordsTitle": "עוד {n} רשומות quick-add עם אותו שם או טלפון",
+    "manualParticipant.duplicateRecordLine": "{name} · {phone}",
+    "manualParticipant.disableMessage":
+      "לא יופיעו ברישום לדוחות. היסטוריית האימונים נשמרת.",
 
     "pending.title": "ממתין לאישור",
     "pending.body": "שלום {name}. מנהל יצור איתך קשר בטלפון לפני שתוכל/י להזמין אימונים.",

@@ -8,6 +8,13 @@ import { useI18n } from "../context/I18nContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { AppSearchField } from "../components/AppSearchField";
 import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
+import {
+  buildManualDuplicateIndexes,
+  manualHasDuplicateName,
+  manualHasDuplicatePhone,
+  normalizeParticipantName,
+  type ManualDuplicateIndexes,
+} from "../lib/participantIdentity";
 
 type ProfileRow = {
   kind: "profile";
@@ -28,6 +35,7 @@ type ManualRow = {
   phone: string;
   gender?: string | null;
   date_of_birth?: string | null;
+  disabled_at?: string | null;
 };
 
 type Row = ProfileRow | ManualRow;
@@ -41,11 +49,11 @@ export default function StaffUsersScreen() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [duplicateNameCounts, setDuplicateNameCounts] = useState<Record<string, number>>({});
+  const [manualDuplicateIndexes, setManualDuplicateIndexes] = useState<ManualDuplicateIndexes>({
+    nameCounts: {},
+    phoneCounts: {},
+  });
   const listBottomPad = useSearchListBottomPadding();
-
-  function normalizeFullName(name: string): string {
-    return name.trim().toLowerCase();
-  }
 
   const loadDuplicateNameCounts = useCallback(async () => {
     let query = supabase.from("profiles").select("full_name");
@@ -57,12 +65,21 @@ export default function StaffUsersScreen() {
     }
     const counts: Record<string, number> = {};
     for (const row of (data as { full_name?: string }[]) ?? []) {
-      const key = normalizeFullName(row.full_name ?? "");
+      const key = normalizeParticipantName(row.full_name ?? "");
       if (!key) continue;
       counts[key] = (counts[key] ?? 0) + 1;
     }
     setDuplicateNameCounts(counts);
   }, [isManager]);
+
+  const loadManualDuplicateIndexes = useCallback(async () => {
+    const { data, error } = await supabase.from("manual_participants").select("id, full_name, phone");
+    if (error) {
+      setManualDuplicateIndexes({ nameCounts: {}, phoneCounts: {} });
+      return;
+    }
+    setManualDuplicateIndexes(buildManualDuplicateIndexes((data as ManualRow[]) ?? []));
+  }, []);
 
   const load = useCallback(async (termRaw?: string) => {
     const qTrim = (termRaw ?? q).trim();
@@ -73,8 +90,6 @@ export default function StaffUsersScreen() {
       .order("full_name", { ascending: true })
       .limit(200);
 
-    // Coaches: only athletes (by requirement: can't edit managers; and coaches shouldn't edit other coaches)
-    // Managers: athletes + coaches (but not managers).
     query = isManager ? query.in("role", ["athlete", "coach"]) : query.eq("role", "athlete");
 
     if (qTrim.length > 0) {
@@ -91,11 +106,10 @@ export default function StaffUsersScreen() {
 
     const { data: manuals, error: mErr } = await supabase
       .from("manual_participants")
-      .select("id, full_name, phone, gender, date_of_birth")
+      .select("id, full_name, phone, gender, date_of_birth, disabled_at")
       .limit(200);
 
     if (mErr) {
-      // If manual participants query fails, still show profiles.
       setRows(((data as any[]) ?? []).map((p) => ({ kind: "profile", ...p })) as Row[]);
       setLoading(false);
       return;
@@ -119,6 +133,7 @@ export default function StaffUsersScreen() {
           phone: m.phone,
           gender: m.gender,
           date_of_birth: m.date_of_birth,
+          disabled_at: m.disabled_at,
         }) as ManualRow
     );
 
@@ -131,12 +146,14 @@ export default function StaffUsersScreen() {
   useEffect(() => {
     void load(q);
     void loadDuplicateNameCounts();
+    void loadManualDuplicateIndexes();
   }, [isManager]);
 
   useFocusEffect(
     useCallback(() => {
       void loadDuplicateNameCounts();
-    }, [loadDuplicateNameCounts])
+      void loadManualDuplicateIndexes();
+    }, [loadDuplicateNameCounts, loadManualDuplicateIndexes])
   );
 
   const subtitle = useMemo(() => {
@@ -171,46 +188,64 @@ export default function StaffUsersScreen() {
           </Text>
         }
         renderItem={({ item }) => {
-          const nameKey = normalizeFullName(item.full_name ?? "");
-          const sameNameCount = item.kind === "profile" ? (duplicateNameCounts[nameKey] ?? 0) : 0;
-          const hasDuplicateName = sameNameCount > 1;
+          const nameKey = normalizeParticipantName(item.full_name ?? "");
+          const profileDuplicateName = item.kind === "profile" ? (duplicateNameCounts[nameKey] ?? 0) > 1 : false;
+          const manualDuplicateName =
+            item.kind === "manual" ? manualHasDuplicateName(item, manualDuplicateIndexes) : false;
+          const manualDuplicatePhone =
+            item.kind === "manual" ? manualHasDuplicatePhone(item, manualDuplicateIndexes) : false;
+          const hasDuplicateHighlight = profileDuplicateName || manualDuplicateName || manualDuplicatePhone;
+          const nameCount =
+            item.kind === "profile" ? duplicateNameCounts[nameKey] ?? 0 : manualDuplicateIndexes.nameCounts[nameKey] ?? 0;
+          const phoneCount =
+            item.kind === "manual"
+              ? manualDuplicateIndexes.phoneCounts[item.phone.replace(/\D/g, "")] ?? 0
+              : 0;
+
           return (
-          <Pressable
-            onPress={() => {
-              if (item.kind === "profile") router.push(`/(app)/staff/profile/${item.user_id}` as never);
-              else router.push(`/(app)/staff/manual/${item.id}` as never);
-            }}
-            style={({ pressed }) => [
-              styles.card,
-              hasDuplicateName && styles.cardDuplicateName,
-              pressed && { opacity: 0.9 },
-            ]}
-            accessibilityRole="button"
-          >
-            <Text style={styles.name}>
-              {item.full_name}
-              {(() => {
-                const dob = (item as any).date_of_birth as string | null | undefined;
-                if (!dob || dob.length < 10) return null;
-                const md = dob.slice(5, 10);
-                const now = new Date();
-                const tmd = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-                return md === tmd ? <Text style={styles.bday}>{"  "}🎂</Text> : null;
-              })()}
-            </Text>
-            {hasDuplicateName ? (
-              <Text style={[styles.duplicateBadge, isRTL && styles.rtlText]}>
-                {t("profile.duplicateNameBadge").replace("{n}", String(sameNameCount))}
+            <Pressable
+              onPress={() => {
+                if (item.kind === "profile") router.push(`/(app)/staff/profile/${item.user_id}` as never);
+                else router.push(`/(app)/staff/manual/${item.id}` as never);
+              }}
+              style={({ pressed }) => [
+                styles.card,
+                hasDuplicateHighlight && styles.cardDuplicateName,
+                pressed && { opacity: 0.9 },
+              ]}
+              accessibilityRole="button"
+            >
+              <Text style={styles.name}>
+                {item.full_name}
+                {(() => {
+                  const dob = (item as any).date_of_birth as string | null | undefined;
+                  if (!dob || dob.length < 10) return null;
+                  const md = dob.slice(5, 10);
+                  const now = new Date();
+                  const tmd = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+                  return md === tmd ? <Text style={styles.bday}>{"  "}🎂</Text> : null;
+                })()}
               </Text>
-            ) : null}
-            <Text style={styles.meta}>
-              {item.kind === "profile"
-                ? `${t("profile.username")}: @${item.username} · ${item.phone} · ${item.role} · ${item.approval_status}${
-                    item.disabled_at ? ` · ${t("profile.accountDisabledBadge")}` : ""
-                  }`
-                : `${item.phone} · ${t("pricing.quickAddLabel")}`}
-            </Text>
-          </Pressable>
+              {profileDuplicateName || manualDuplicateName ? (
+                <Text style={[styles.duplicateBadge, isRTL && styles.rtlText]}>
+                  {t("profile.duplicateNameBadge").replace("{n}", String(nameCount))}
+                </Text>
+              ) : null}
+              {manualDuplicatePhone ? (
+                <Text style={[styles.duplicateBadge, isRTL && styles.rtlText]}>
+                  {t("manualParticipant.duplicatePhoneBadge").replace("{n}", String(phoneCount))}
+                </Text>
+              ) : null}
+              <Text style={styles.meta}>
+                {item.kind === "profile"
+                  ? `${t("profile.username")}: @${item.username} · ${item.phone} · ${item.role} · ${item.approval_status}${
+                      item.disabled_at ? ` · ${t("profile.accountDisabledBadge")}` : ""
+                    }`
+                  : `${item.phone} · ${t("pricing.quickAddLabel")}${
+                      item.disabled_at ? ` · ${t("profile.accountDisabledBadge")}` : ""
+                    }`}
+              </Text>
+            </Pressable>
           );
         }}
       />
@@ -257,4 +292,3 @@ const styles = StyleSheet.create({
   bday: { color: theme.colors.cta, fontWeight: "900" },
   meta: { marginTop: 4, color: theme.colors.textMuted, fontSize: 12 },
 });
-

@@ -1,0 +1,13 @@
+{
+  "name": "shira-fit",
+  "private": true,
+  "scripts": {
+    "start": "npm run start --prefix mobile",
+    "web": "npm run web --prefix mobile",
+    "start:lan": "npm run start:lan --prefix mobile",
+    "start:tunnel": "npm run start:tunnel --prefix mobile",
+    "android": "npm run android --prefix mobile",
+    "ios": "npm run ios --prefix mobile",
+    "install:mobile": "npm install --prefix mobile"
+  }
+}

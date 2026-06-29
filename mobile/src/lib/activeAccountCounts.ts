@@ -17,7 +17,8 @@ export async function fetchActiveAccountCounts(): Promise<ActiveAccountCounts | 
     supabase
       .from("manual_participants")
       .select("id", { count: "exact", head: true })
-      .is("linked_user_id", null),
+      .is("linked_user_id", null)
+      .is("disabled_at", null),
   ]);
 
   if (appRes.error || quickRes.error) return null;

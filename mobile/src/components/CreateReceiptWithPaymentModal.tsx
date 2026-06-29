@@ -74,6 +74,7 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
       let manualQuery = supabase
         .from("manual_participants")
         .select("id, full_name, phone, linked_user_id")
+        .is("disabled_at", null)
         .order("full_name", { ascending: true })
         .limit(60);
       if (q) manualQuery = manualQuery.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`);

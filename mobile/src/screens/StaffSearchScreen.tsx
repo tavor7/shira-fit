@@ -49,6 +49,7 @@ export default function StaffSearchScreen() {
       const { data: manuals } = await supabase
         .from("manual_participants")
         .select("id, full_name, phone")
+        .is("disabled_at", null)
         .or(`full_name.ilike.%${term}%,phone.ilike.%${term}%`)
         .order("full_name", { ascending: true })
         .limit(40);

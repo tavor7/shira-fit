@@ -1,5 +1,11 @@
 import { escapeIlike } from "./staffAthleteSearch";
 import { supabase } from "./supabase";
+import {
+  normalizeParticipantName,
+  normalizePhoneDigits,
+  participantNamesMatch,
+  participantPhonesMatch,
+} from "./participantIdentity";
 
 export type ExistingParticipantMatch =
   | {
@@ -19,24 +25,15 @@ export type ExistingParticipantMatch =
     };
 
 function normalizeName(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function normalizePhoneDigits(value: string): string {
-  return value.replace(/\D/g, "");
+  return normalizeParticipantName(value);
 }
 
 function phonesMatch(a: string, b: string): boolean {
-  const da = normalizePhoneDigits(a);
-  const db = normalizePhoneDigits(b);
-  if (da.length >= 3 && db.length >= 3 && da === db) return true;
-  return a.trim() === b.trim();
+  return participantPhonesMatch(a, b);
 }
 
 function namesMatch(a: string, b: string): boolean {
-  const na = normalizeName(a);
-  const nb = normalizeName(b);
-  return na.length >= 2 && na === nb;
+  return participantNamesMatch(a, b);
 }
 
 async function findByPhone(phoneRaw: string): Promise<ExistingParticipantMatch | null> {
@@ -50,7 +47,7 @@ async function findByPhone(phoneRaw: string): Promise<ExistingParticipantMatch |
       .eq("role", "athlete")
       .eq("phone", phone)
       .limit(5),
-    supabase.from("manual_participants").select("id, full_name, phone").eq("phone", phone).limit(5),
+    supabase.from("manual_participants").select("id, full_name, phone").is("disabled_at", null).eq("phone", phone).limit(5),
   ]);
 
   for (const row of (profiles ?? []) as { user_id: string; full_name: string; phone: string; username: string }[]) {
@@ -89,7 +86,7 @@ async function findByPhone(phoneRaw: string): Promise<ExistingParticipantMatch |
       .eq("role", "athlete")
       .ilike("phone", `%${tail}%`)
       .limit(15),
-    supabase.from("manual_participants").select("id, full_name, phone").ilike("phone", `%${tail}%`).limit(15),
+    supabase.from("manual_participants").select("id, full_name, phone").is("disabled_at", null).ilike("phone", `%${tail}%`).limit(15),
   ]);
 
   for (const row of (profilesFuzzy ?? []) as { user_id: string; full_name: string; phone: string; username: string }[]) {
@@ -132,7 +129,7 @@ async function findByName(nameRaw: string): Promise<ExistingParticipantMatch | n
       .eq("role", "athlete")
       .ilike("full_name", safe)
       .limit(10),
-    supabase.from("manual_participants").select("id, full_name, phone").ilike("full_name", safe).limit(10),
+    supabase.from("manual_participants").select("id, full_name, phone").is("disabled_at", null).ilike("full_name", safe).limit(10),
   ]);
 
   for (const row of (profiles ?? []) as { user_id: string; full_name: string; phone: string; username: string }[]) {

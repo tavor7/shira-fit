@@ -654,6 +654,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
       .from("profiles")
       .select("user_id, full_name, username, phone")
       .eq("role", "athlete")
+      .is("disabled_at", null)
       .order("full_name", { ascending: true })
       .limit(200);
     if (q.length > 0) {
@@ -664,6 +665,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     let mQuery = supabase
       .from("manual_participants")
       .select("id, full_name, phone, linked_user_id")
+      .is("disabled_at", null)
       .order("full_name", { ascending: true })
       .limit(200);
     if (q.length > 0) {

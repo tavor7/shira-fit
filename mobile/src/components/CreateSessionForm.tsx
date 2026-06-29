@@ -309,6 +309,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       let mQuery = supabase
         .from("manual_participants")
         .select("id, full_name, phone")
+        .is("disabled_at", null)
         .order("full_name", { ascending: true })
         .limit(50);
       if (term.length > 0) {

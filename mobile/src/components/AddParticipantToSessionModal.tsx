@@ -147,7 +147,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       }
       const { data, error: pErr } = await pQuery;
 
-      let mQuery = supabase.from("manual_participants").select("id, full_name, phone").order("full_name", { ascending: true }).limit(50);
+      let mQuery = supabase.from("manual_participants").select("id, full_name, phone").is("disabled_at", null).order("full_name", { ascending: true }).limit(50);
       if (term.length > 0) {
         mQuery = mQuery.or(`full_name.ilike.%${safe}%,phone.ilike.%${safe}%`);
       }

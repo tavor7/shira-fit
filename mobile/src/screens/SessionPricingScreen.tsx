@@ -184,6 +184,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
     let mQuery = supabase
       .from("manual_participants")
       .select("id, full_name, phone, linked_user_id")
+      .is("disabled_at", null)
       .order("full_name", { ascending: true })
       .limit(200);
     if (q.length > 0) {

@@ -25,6 +25,7 @@ export async function searchStaffAthletes(termRaw: string, limit = 50): Promise<
   let mQuery = supabase
     .from("manual_participants")
     .select("id, full_name, phone")
+    .is("disabled_at", null)
     .order("full_name", { ascending: true })
     .limit(limit);
   if (term.length > 0) {
