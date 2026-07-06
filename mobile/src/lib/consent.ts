@@ -2,6 +2,20 @@ import { Platform } from "react-native";
 import { supabase } from "./supabase";
 import type { RequiredConsent } from "./documents";
 
+export async function fetchCurrentElectronicReceiptsConsentVersion(): Promise<number> {
+  const { data, error } = await supabase.rpc("get_current_electronic_receipts_consent_version");
+  if (error) throw error;
+  const row = data as { ok?: boolean; version?: number } | null;
+  return row?.version ?? 1;
+}
+
+export async function syncPendingSignupConsent(): Promise<void> {
+  const { data, error } = await supabase.rpc("sync_signup_electronic_receipts_consent");
+  if (error) throw error;
+  const row = data as { ok?: boolean; error?: string } | null;
+  if (!row?.ok) throw new Error(row?.error ?? "consent_sync_failed");
+}
+
 export async function fetchRequiredConsents(): Promise<RequiredConsent[]> {
   const { data, error } = await supabase.rpc("get_required_consents");
   if (error) throw error;

@@ -86,8 +86,8 @@ export function GoLiveReadinessSection({ isRTL, language }: Props) {
         </Text>
         <Text style={[styles.hint, isRTL && styles.rtl]}>
           {language === "he"
-            ? "ספירת מתאמנים ומנהלים פעילים שחסרים פרטים. לחצו על מספר לרשימה."
-            : "Active athletes and managers missing details. Tap a count to see the list."}
+            ? "ספירת מתאמנים (ממתינים ומאושרים) ומנהלים שחסרים פרטים. לחצו על מספר לרשימה."
+            : "Pending and approved athletes and managers missing details. Tap a count to see the list."}
         </Text>
         <View style={[styles.statsRow, isRTL && styles.statsRowRtl]}>
           {items.map((item) => (
@@ -107,58 +107,72 @@ export function GoLiveReadinessSection({ isRTL, language }: Props) {
         visible={activeGap != null}
         onClose={closeGap}
         variant="sheet"
+        maxHeightPct={0.92}
         backdropAccessibilityLabel={language === "he" ? "סגור" : "Close"}
       >
-        <View style={styles.modalHead}>
-          <Text style={[styles.modalTitle, isRTL && styles.rtl]}>
-            {activeGap ? gapTitle(activeGap, language) : ""}
-          </Text>
-        </View>
-        {gapLoading ? (
-          <ActivityIndicator color={theme.colors.cta} style={styles.modalLoader} />
-        ) : (
-          <FlatList
-            data={gapRows}
-            keyExtractor={(x) => x.user_id}
-            contentContainerStyle={styles.modalList}
-            ListEmptyComponent={
-              <Text style={[styles.empty, isRTL && styles.rtl]}>
-                {language === "he" ? "אין משתמשים ברשימה" : "No users in this list"}
+        <View style={styles.modalBody}>
+          <View style={styles.modalHead}>
+            <Text style={[styles.modalTitle, isRTL && styles.rtl]}>
+              {activeGap ? gapTitle(activeGap, language) : ""}
+            </Text>
+            {!gapLoading && gapRows.length > 0 ? (
+              <Text style={[styles.modalCount, isRTL && styles.rtl]}>
+                {language === "he" ? `${gapRows.length} משתמשים` : `${gapRows.length} users`}
               </Text>
-            }
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => {
-                  closeGap();
-                  router.push(`/(app)/staff/profile/${item.user_id}` as never);
-                }}
-                style={({ pressed }) => [styles.gapRow, pressed && styles.gapRowPressed]}
-              >
-                <Text style={[styles.gapName, isRTL && styles.rtl]}>{item.full_name}</Text>
+            ) : null}
+          </View>
+          {gapLoading ? (
+            <ActivityIndicator color={theme.colors.cta} style={styles.modalLoader} />
+          ) : (
+            <FlatList
+              data={gapRows}
+              keyExtractor={(x) => x.user_id}
+              style={styles.modalList}
+              contentContainerStyle={styles.modalListContent}
+              keyboardShouldPersistTaps="handled"
+              ListEmptyComponent={
+                <Text style={[styles.empty, isRTL && styles.rtl]}>
+                  {language === "he" ? "אין משתמשים ברשימה" : "No users in this list"}
+                </Text>
+              }
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    closeGap();
+                    router.push(`/(app)/staff/profile/${item.user_id}` as never);
+                  }}
+                  style={({ pressed }) => [styles.gapRow, pressed && styles.gapRowPressed]}
+                >
+                  <Text style={[styles.gapName, isRTL && styles.rtl]}>{item.full_name}</Text>
                 {item.role ? (
                   <Text style={[styles.gapMeta, isRTL && styles.rtl]}>
                     {item.role === "manager"
                       ? language === "he"
                         ? "מנהל/ת"
                         : "Manager"
-                      : language === "he"
-                        ? "מתאמן/ת"
-                        : "Athlete"}
+                      : item.approval_status === "pending"
+                        ? language === "he"
+                          ? "מתאמן/ת · ממתין/ה לאישור"
+                          : "Athlete · pending approval"
+                        : language === "he"
+                          ? "מתאמן/ת"
+                          : "Athlete"}
                   </Text>
                 ) : null}
-                {item.username ? (
-                  <Text style={[styles.gapMeta, isRTL && styles.rtl]}>@{item.username}</Text>
-                ) : null}
-                {item.phone ? (
-                  <Text style={[styles.gapMeta, isRTL && styles.rtl]}>{item.phone}</Text>
-                ) : null}
-                {item.email ? (
-                  <Text style={[styles.gapMeta, isRTL && styles.rtl]}>{item.email}</Text>
-                ) : null}
-              </Pressable>
-            )}
-          />
-        )}
+                  {item.username ? (
+                    <Text style={[styles.gapMeta, isRTL && styles.rtl]}>@{item.username}</Text>
+                  ) : null}
+                  {item.phone ? (
+                    <Text style={[styles.gapMeta, isRTL && styles.rtl]}>{item.phone}</Text>
+                  ) : null}
+                  {item.email ? (
+                    <Text style={[styles.gapMeta, isRTL && styles.rtl]}>{item.email}</Text>
+                  ) : null}
+                </Pressable>
+              )}
+            />
+          )}
+        </View>
       </AppModal>
     </>
   );
@@ -196,10 +210,13 @@ const styles = StyleSheet.create({
   statCount: { fontSize: 24, fontWeight: "900", color: theme.colors.text },
   statCountWarn: { color: theme.colors.error },
   statLabel: { marginTop: 4, fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
-  modalHead: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.sm },
+  modalBody: { flex: 1, minHeight: 320 },
+  modalHead: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.sm, gap: 4 },
   modalTitle: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
+  modalCount: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
   modalLoader: { marginVertical: 32 },
-  modalList: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
+  modalList: { flex: 1 },
+  modalListContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
   gapRow: {
     padding: theme.spacing.md,
     borderRadius: theme.radius.md,

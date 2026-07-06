@@ -3,12 +3,12 @@ import { AppState, Modal, StyleSheet, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
-import { fetchRequiredConsents } from "../lib/consent";
 import {
   fetchPendingManagerDirectMessage,
   markManagerDirectMessageRead,
   type PendingManagerMessage,
 } from "../lib/managerDirectMessages";
+import { fetchReceiptRequirementsSnapshot, receiptRequirementsMode } from "../lib/receiptRequirements";
 import { AppText } from "./AppText";
 import { PrimaryButton } from "./PrimaryButton";
 import { ManagerMessageCard } from "./ManagerMessageCard";
@@ -17,7 +17,7 @@ import { ManagerMessageCard } from "./ManagerMessageCard";
 export function ManagerDirectMessageModal() {
   const { session, profile } = useAuth();
   const { t, isRTL } = useI18n();
-  const [blockedByConsent, setBlockedByConsent] = useState(true);
+  const [blockedByRequirements, setBlockedByRequirements] = useState(true);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<PendingManagerMessage | null>(null);
   const [dismissing, setDismissing] = useState(false);
@@ -30,10 +30,10 @@ export function ManagerDirectMessageModal() {
     }
     setLoading(true);
     try {
-      const required = await fetchRequiredConsents();
-      const needsConsent = required.some((c) => c.consent_type === "electronic_receipts");
-      setBlockedByConsent(needsConsent);
-      if (needsConsent) {
+      const snapshot = await fetchReceiptRequirementsSnapshot();
+      const blocked = receiptRequirementsMode(snapshot) !== "none";
+      setBlockedByRequirements(blocked);
+      if (blocked) {
         setMessage(null);
         return;
       }
@@ -43,7 +43,12 @@ export function ManagerDirectMessageModal() {
     } finally {
       setLoading(false);
     }
-  }, [session?.user?.id, profile?.electronic_receipts_consent_version]);
+  }, [
+    session?.user?.id,
+    profile?.electronic_receipts_consent_version,
+    profile?.address,
+    profile?.zip_code,
+  ]);
 
   useEffect(() => {
     void load();
@@ -67,7 +72,7 @@ export function ManagerDirectMessageModal() {
     setMessage(next);
   }
 
-  if (!session || loading || blockedByConsent || !message) return null;
+  if (!session || loading || blockedByRequirements || !message) return null;
 
   const senderLabel = message.sender_name.trim() || t("managerMessage.studioFallback");
 

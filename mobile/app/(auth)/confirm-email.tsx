@@ -3,6 +3,8 @@ import { View, StyleSheet, ActivityIndicator, ScrollView, Image, Platform } from
 import { router } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { logUserActivity } from "../../src/lib/logUserActivity";
+import { syncPendingSignupConsent } from "../../src/lib/consent";
+import { syncSignupProfileFromMetadata } from "../../src/lib/signupOnboarding";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
@@ -69,6 +71,12 @@ export default function ConfirmEmailScreen() {
           if (verificationOk && hasSession) {
             setState("ok");
             await logUserActivity("email_confirmed");
+            try {
+              await syncSignupProfileFromMetadata();
+              await syncPendingSignupConsent();
+            } catch {
+              /* AuthContext retries on login */
+            }
           } else {
             setState("error");
           }

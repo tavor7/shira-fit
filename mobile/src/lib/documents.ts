@@ -94,6 +94,7 @@ export type GoLiveGapRow = {
   phone: string | null;
   email: string | null;
   role?: string | null;
+  approval_status?: string | null;
   address: string | null;
   zip_code: string | null;
   consent_version: number | null;

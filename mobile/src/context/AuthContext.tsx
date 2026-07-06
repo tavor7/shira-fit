@@ -9,6 +9,8 @@ import {
   isInvalidRefreshTokenMessage,
   refreshSupabaseSessionOnce,
 } from "../lib/sessionAuth";
+import { syncPendingSignupConsent } from "../lib/consent";
+import { syncSignupProfileFromMetadata } from "../lib/signupOnboarding";
 import type { Profile } from "../types/database";
 
 type AuthCtx = {
@@ -61,8 +63,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq("user_id", uid)
       .single();
     if (!mountedRef.current) return;
-    if (!error && data) setProfile(data as Profile);
-    else setProfile(null);
+    if (!error && data) {
+      setProfile(data as Profile);
+      try {
+        await syncSignupProfileFromMetadata();
+        await syncPendingSignupConsent();
+        const { data: refreshed } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", uid)
+          .single();
+        if (!mountedRef.current) return;
+        if (refreshed) setProfile(refreshed as Profile);
+      } catch {
+        /* non-blocking; ConsentGateModal may still prompt */
+      }
+    } else {
+      setProfile(null);
+    }
   }
 
   const refreshProfile = useCallback(async () => {

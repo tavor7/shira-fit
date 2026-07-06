@@ -21,7 +21,11 @@ import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { DatePickerField } from "../../src/components/DatePickerField";
 import { buildAuthRedirectUrl } from "../../src/lib/authRedirect";
-import { recordUserConsent } from "../../src/lib/consent";
+import {
+  fetchCurrentElectronicReceiptsConsentVersion,
+  syncPendingSignupConsent,
+} from "../../src/lib/consent";
+import { syncSignupProfileFromMetadata } from "../../src/lib/signupOnboarding";
 
 const today = new Date();
 const minDob = new Date(1900, 0, 1);
@@ -97,6 +101,12 @@ export default function SignupScreen() {
     }
     const dobIso = toISODateLocal(dobFinal);
     setBusy(true);
+    let consentVersion = 1;
+    try {
+      consentVersion = await fetchCurrentElectronicReceiptsConsentVersion();
+    } catch {
+      /* fallback version 1; sync RPC resolves current on login */
+    }
     const emailRedirectTo = buildAuthRedirectUrl("/(auth)/confirm-email");
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
@@ -108,6 +118,11 @@ export default function SignupScreen() {
           phone: phone.trim(),
           date_of_birth: dobIso,
           gender,
+          address: address.trim(),
+          zip_code: zipCode.trim(),
+          health_declaration_confirmed: true,
+          electronic_receipts_consent_pending: true,
+          electronic_receipts_consent_version: consentVersion,
         },
       },
     });
@@ -131,13 +146,10 @@ export default function SignupScreen() {
         })
         .eq("user_id", data.user.id);
       try {
-        await recordUserConsent({
-          consent_type: "electronic_receipts",
-          status: "accepted",
-          consent_version: 1,
-        });
+        await syncSignupProfileFromMetadata();
+        await syncPendingSignupConsent();
       } catch {
-        /* ConsentGateModal handles missing session */
+        /* AuthContext syncs on first login if email confirmation delayed session */
       }
     }
     setBusy(false);

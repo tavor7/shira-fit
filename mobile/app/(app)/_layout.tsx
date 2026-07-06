@@ -9,8 +9,7 @@ import { useAndroidSessionsBackHandler } from "../../src/hooks/useAndroidSession
 import { isPendingPathname, isDisabledPathname } from "../../src/lib/sessionsHomeNavigation";
 import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
 import { useI18n } from "../../src/context/I18nContext";
-import { ConsentGateModal } from "../../src/components/ConsentGateModal";
-import { AddressGateModal } from "../../src/components/AddressGateModal";
+import { ReceiptRequirementsGateModal } from "../../src/components/ReceiptRequirementsGateModal";
 import { ManagerDirectMessageModal } from "../../src/components/ManagerDirectMessageModal";
 import { getLoginHrefWithOptionalRedirectWeb } from "../../src/lib/webLastRoute";
 import { useManagerAthletePreview } from "../../src/context/ManagerAthletePreviewContext";
@@ -93,8 +92,7 @@ export default function AppLayout() {
 
   return (
     <>
-      <ConsentGateModal />
-      <AddressGateModal />
+      <ReceiptRequirementsGateModal />
       <ManagerDirectMessageModal />
       <Stack
       screenOptions={{
