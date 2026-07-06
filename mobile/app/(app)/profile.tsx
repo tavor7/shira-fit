@@ -40,9 +40,13 @@ export default function ProfileScreen() {
 
   const initialEmail = session?.user?.email ?? "";
   const initialPhone = profile?.phone ?? "";
+  const initialAddress = profile?.address ?? "";
+  const initialZipCode = profile?.zip_code ?? "";
 
   const [email, setEmail] = useState(initialEmail);
   const [phone, setPhone] = useState(initialPhone);
+  const [address, setAddress] = useState(initialAddress);
+  const [zipCode, setZipCode] = useState(initialZipCode);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -50,11 +54,20 @@ export default function ProfileScreen() {
   useEffect(() => {
     setEmail(initialEmail);
     setPhone(initialPhone);
-  }, [initialEmail, initialPhone]);
+    setAddress(initialAddress);
+    setZipCode(initialZipCode);
+  }, [initialEmail, initialPhone, initialAddress, initialZipCode]);
 
   const canSave = useMemo(() => {
-    return !!session?.user?.id && email.trim().length > 0 && phone.trim().length > 0 && !busy;
-  }, [session?.user?.id, email, phone, busy]);
+    return (
+      !!session?.user?.id &&
+      email.trim().length > 0 &&
+      phone.trim().length > 0 &&
+      address.trim().length > 0 &&
+      zipCode.trim().length > 0 &&
+      !busy
+    );
+  }, [session?.user?.id, email, phone, address, zipCode, busy]);
 
   async function save() {
     setError(null);
@@ -68,6 +81,8 @@ export default function ProfileScreen() {
 
     const emailTrim = email.trim();
     const phoneTrim = phone.trim();
+    const addressTrim = address.trim();
+    const zipTrim = zipCode.trim();
 
     if (!emailTrim) {
       setError(t("profile.emailRequired"));
@@ -75,6 +90,14 @@ export default function ProfileScreen() {
     }
     if (!phoneTrim) {
       setError(t("profile.phoneRequired"));
+      return;
+    }
+    if (!addressTrim) {
+      setError(t("profile.addressRequired"));
+      return;
+    }
+    if (!zipTrim) {
+      setError(t("profile.zipCodeRequired"));
       return;
     }
 
@@ -88,10 +111,13 @@ export default function ProfileScreen() {
         }
       }
 
-      const { error: phoneErr } = await supabase.from("profiles").update({ phone: phoneTrim }).eq("user_id", uid);
+      const { error: profileErr } = await supabase
+        .from("profiles")
+        .update({ phone: phoneTrim, address: addressTrim, zip_code: zipTrim })
+        .eq("user_id", uid);
 
-      if (phoneErr) {
-        setError(phoneErr.message);
+      if (profileErr) {
+        setError(profileErr.message);
         return;
       }
 
@@ -234,6 +260,36 @@ export default function ProfileScreen() {
               keyboardType="phone-pad"
               autoCapitalize="none"
               placeholder={t("profile.phone")}
+              isRTL={rtl}
+              variant="dark"
+              containerStyle={styles.field}
+            />
+
+            <AppTextField
+              label={t("profile.address")}
+              value={address}
+              onChangeText={(v) => {
+                setAddress(v);
+                setError(null);
+                setSuccess(null);
+              }}
+              autoCapitalize="words"
+              placeholder={t("profile.address")}
+              isRTL={rtl}
+              variant="dark"
+              containerStyle={styles.field}
+            />
+
+            <AppTextField
+              label={t("profile.zipCode")}
+              value={zipCode}
+              onChangeText={(v) => {
+                setZipCode(v);
+                setError(null);
+                setSuccess(null);
+              }}
+              keyboardType="number-pad"
+              placeholder={t("profile.zipCode")}
               isRTL={rtl}
               variant="dark"
               containerStyle={styles.field}
