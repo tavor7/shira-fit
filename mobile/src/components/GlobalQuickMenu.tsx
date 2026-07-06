@@ -118,6 +118,7 @@ export function GlobalQuickMenu() {
               "/manager/trainer-colors",
               "/manager/roles",
               "/manager/opening-schedule",
+              "/manager/birthday-messages",
               "/manager/whatsapp-rollout",
             ]),
         },

@@ -300,6 +300,12 @@ export function ManagerStudioSetupTabs() {
         isActive: (p) => startsWithAny(p, ["/manager/opening-schedule"]),
       },
       {
+        id: "birthdays",
+        label: t("menu.birthdayMessages"),
+        href: "/(app)/manager/birthday-messages",
+        isActive: (p) => startsWithAny(p, ["/manager/birthday-messages"]),
+      },
+      {
         id: "whatsapp",
         label: t("menu.whatsappRollout"),
         href: "/(app)/manager/whatsapp-rollout",
