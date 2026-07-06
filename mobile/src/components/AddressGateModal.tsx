@@ -19,7 +19,7 @@ export function AddressGateModal() {
   const [fieldError, setFieldError] = useState("");
 
   const load = useCallback(async () => {
-    if (!session?.user?.id || profile?.role !== "athlete") {
+    if (!session?.user?.id) {
       setRequired(false);
       setLoading(false);
       return;
@@ -37,7 +37,7 @@ export function AddressGateModal() {
     } finally {
       setLoading(false);
     }
-  }, [session?.user?.id, profile?.role]);
+  }, [session?.user?.id]);
 
   useEffect(() => {
     void load();

@@ -17,6 +17,7 @@ export type ReceiptSettings = {
   staff_can_cancel_documents: boolean;
   is_operational: boolean;
   request_address_from_existing_users: boolean;
+  request_consent_from_existing_users: boolean;
   updated_by: string | null;
   created_at: string;
   updated_at: string;
@@ -92,6 +93,7 @@ export type GoLiveGapRow = {
   username: string | null;
   phone: string | null;
   email: string | null;
+  role?: string | null;
   address: string | null;
   zip_code: string | null;
   consent_version: number | null;
@@ -135,6 +137,7 @@ export async function updateReceiptSettings(patch: Partial<{
   staff_can_cancel_documents: boolean;
   is_operational: boolean;
   request_address_from_existing_users: boolean;
+  request_consent_from_existing_users: boolean;
 }>): Promise<ReceiptSettings> {
   const { data, error } = await supabase.rpc("update_receipt_settings", {
     p_business_id: patch.business_id ?? null,
@@ -149,6 +152,7 @@ export async function updateReceiptSettings(patch: Partial<{
     p_staff_can_cancel_documents: patch.staff_can_cancel_documents ?? null,
     p_is_operational: patch.is_operational ?? null,
     p_request_address_from_existing_users: patch.request_address_from_existing_users ?? null,
+    p_request_consent_from_existing_users: patch.request_consent_from_existing_users ?? null,
   });
   if (error) throw error;
   const parsed = parseRpc<{ settings: ReceiptSettings }>(data);

@@ -204,6 +204,7 @@ export default function DocumentsInvoicesScreen() {
           staff_can_cancel_documents: s.staff_can_cancel_documents,
           is_operational: s.is_operational,
           request_address_from_existing_users: s.request_address_from_existing_users ?? false,
+          request_consent_from_existing_users: s.request_consent_from_existing_users ?? false,
         });
       }
       const startIso = `${dateStart}T00:00:00.000Z`;
@@ -271,6 +272,7 @@ export default function DocumentsInvoicesScreen() {
         staff_can_cancel_documents: settingsForm.staff_can_cancel_documents,
         is_operational: settingsForm.is_operational,
         request_address_from_existing_users: settingsForm.request_address_from_existing_users,
+        request_consent_from_existing_users: settingsForm.request_consent_from_existing_users,
       });
       setSettings(updated);
       showToast({ message: language === "he" ? "ההגדרות נשמרו" : "Settings saved", variant: "success" });
@@ -676,8 +678,8 @@ export default function DocumentsInvoicesScreen() {
           title={language === "he" ? "מערכת פעילה" : "Operational mode"}
           subtitle={
             language === "he"
-              ? "PDFים הופכים לבלתי ניתנים לשינוי; ביטול קבלות נחסם; מתאמנים ישנים יתבקשו לאשר הסכמה לקבלות"
-              : "Locks PDFs, blocks voiding receipts, and prompts existing users for electronic receipt consent"
+              ? "PDFים הופכים לבלתי ניתנים לשינוי; ביטול קבלות נחסם"
+              : "Locks PDFs and blocks voiding receipts"
           }
           value={!!settingsForm.is_operational}
           onChange={(v) => setSettingsForm((s) => ({ ...s, is_operational: v }))}
@@ -685,11 +687,23 @@ export default function DocumentsInvoicesScreen() {
         <View style={styles.cardDivider} />
         <ToggleRow
           isRTL={isRTL}
+          title={language === "he" ? "בקשת הסכמה לקבלות ממשתמשים קיימים" : "Request electronic receipt consent"}
+          subtitle={
+            language === "he"
+              ? "מתאמנים ומנהלים יתבקשו לאשר את הסכמת הקבלות האלקטרוניות בעת כניסה"
+              : "Existing athletes and managers are prompted to accept electronic receipt consent when they open the app"
+          }
+          value={!!settingsForm.request_consent_from_existing_users}
+          onChange={(v) => setSettingsForm((s) => ({ ...s, request_consent_from_existing_users: v }))}
+        />
+        <View style={styles.cardDivider} />
+        <ToggleRow
+          isRTL={isRTL}
           title={language === "he" ? "בקשת כתובת ממשתמשים קיימים" : "Request address from existing users"}
           subtitle={
             language === "he"
-              ? "מתאמנים שנרשמו לפני שנדרשה כתובת יתבקשו למלא כתובת ומיקוד בעת כניסה"
-              : "Athletes who signed up before address was required are prompted for street address and zip on login"
+              ? "מתאמנים ומנהלים שנרשמו לפני שנדרשה כתובת יתבקשו למלא כתובת ומיקוד בעת כניסה"
+              : "Existing athletes and managers are prompted for street address and zip when they open the app"
           }
           value={!!settingsForm.request_address_from_existing_users}
           onChange={(v) => setSettingsForm((s) => ({ ...s, request_address_from_existing_users: v }))}
@@ -749,8 +763,8 @@ export default function DocumentsInvoicesScreen() {
       <SectionCard label={language === "he" ? "הסכמה לקבלות אלקטרוניות" : "Electronic receipt consent"}>
         <Text style={[styles.fieldHint, isRTL && styles.rtl]}>
           {language === "he"
-            ? "טקסט זה מוצג למשתמשים קיימים כשמערכת פעילה מופעלת. פרסום גרסה חדשה תחייב הסכמה מחדש."
-            : "Shown to existing users when operational mode is on. Publishing a new version requires re-consent."}
+            ? "טקסט זה מוצג כשבקשת הסכמה ממשתמשים קיימים פעילה. פרסום גרסה חדשה תחייב הסכמה מחדש."
+            : "Shown when request consent from existing users is on. Publishing a new version requires re-consent."}
         </Text>
         <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{language === "he" ? "כותרת" : "Title"}</Text>
         <TextInput value={consentTitle} onChangeText={setConsentTitle} style={[styles.input, isRTL && styles.rtlInput]} />

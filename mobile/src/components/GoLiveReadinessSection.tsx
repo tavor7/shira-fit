@@ -86,8 +86,8 @@ export function GoLiveReadinessSection({ isRTL, language }: Props) {
         </Text>
         <Text style={[styles.hint, isRTL && styles.rtl]}>
           {language === "he"
-            ? "ספורת מתאמנים פעילים שחסרים פרטים. לחצו על מספר לרשימה."
-            : "Active athletes missing details. Tap a count to see the list."}
+            ? "ספירת מתאמנים ומנהלים פעילים שחסרים פרטים. לחצו על מספר לרשימה."
+            : "Active athletes and managers missing details. Tap a count to see the list."}
         </Text>
         <View style={[styles.statsRow, isRTL && styles.statsRowRtl]}>
           {items.map((item) => (
@@ -123,7 +123,7 @@ export function GoLiveReadinessSection({ isRTL, language }: Props) {
             contentContainerStyle={styles.modalList}
             ListEmptyComponent={
               <Text style={[styles.empty, isRTL && styles.rtl]}>
-                {language === "he" ? "אין מתאמנים ברשימה" : "No athletes in this list"}
+                {language === "he" ? "אין משתמשים ברשימה" : "No users in this list"}
               </Text>
             }
             renderItem={({ item }) => (
@@ -135,6 +135,17 @@ export function GoLiveReadinessSection({ isRTL, language }: Props) {
                 style={({ pressed }) => [styles.gapRow, pressed && styles.gapRowPressed]}
               >
                 <Text style={[styles.gapName, isRTL && styles.rtl]}>{item.full_name}</Text>
+                {item.role ? (
+                  <Text style={[styles.gapMeta, isRTL && styles.rtl]}>
+                    {item.role === "manager"
+                      ? language === "he"
+                        ? "מנהל/ת"
+                        : "Manager"
+                      : language === "he"
+                        ? "מתאמן/ת"
+                        : "Athlete"}
+                  </Text>
+                ) : null}
                 {item.username ? (
                   <Text style={[styles.gapMeta, isRTL && styles.rtl]}>@{item.username}</Text>
                 ) : null}
