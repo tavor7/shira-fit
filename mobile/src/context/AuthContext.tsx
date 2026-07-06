@@ -1,8 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
-import { clearSupabaseAuthStorage, supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 import { clearAllUiDraftsForUser } from "../lib/uiDraftStorage";
 import { clearWebLastRoute } from "../lib/webLastRoute";
+import {
+  ensureFreshSessionOnColdStart,
+  handleDeadSession,
+  isInvalidRefreshTokenMessage,
+  refreshSupabaseSessionOnce,
+} from "../lib/sessionAuth";
 import type { Profile } from "../types/database";
 
 type AuthCtx = {
@@ -80,9 +86,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!mountedRef.current) return;
 
         if (!error) {
-          setSession(s);
-          if (s?.user?.id) {
-            await loadProfile(s.user.id);
+          let activeSession = await ensureFreshSessionOnColdStart(s);
+          if (!mountedRef.current) return;
+          if (s && !activeSession) {
+            await handleDeadSession();
+            setSession(null);
+            setProfile(null);
+            setLoading(false);
+            return;
+          }
+          setSession(activeSession);
+          if (activeSession?.user?.id) {
+            await loadProfile(activeSession.user.id);
             if (!mountedRef.current) return;
           } else {
             setProfile(null);
@@ -92,10 +107,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         lastMessage = error.message || "Unknown error";
-        const msg = lastMessage.toLowerCase();
-        if (msg.includes("refresh token") && msg.includes("not found")) {
-          clearSupabaseAuthStorage();
-          void supabase.auth.signOut({ scope: "local" });
+        if (isInvalidRefreshTokenMessage(lastMessage)) {
+          await handleDeadSession();
           setSession(null);
           setProfile(null);
           setLoading(false);
@@ -128,22 +141,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if ((event as unknown as string) === "TOKEN_REFRESH_FAILED") {
           void (async () => {
-            const { data: refData, error: refErr } = await supabase.auth.refreshSession();
+            const refreshed = await refreshSupabaseSessionOnce();
             if (!mountedRef.current) return;
-            if (!refErr && refData.session) {
-              setSession(refData.session);
+            if (refreshed) {
+              setSession(refreshed);
               setAuthUnavailable(false);
               setAuthUnavailableMessage(null);
-              if (refData.session.user?.id) {
-                // Same as `onAuthStateChange`: do not set global `loading` here — keep the Stack mounted (web + native).
-                await loadProfile(refData.session.user.id);
+              if (refreshed.user?.id) {
+                await loadProfile(refreshed.user.id);
               } else {
                 setProfile(null);
               }
               return;
             }
-            clearSupabaseAuthStorage();
-            void supabase.auth.signOut({ scope: "local" });
+            await handleDeadSession();
             setSession(null);
             setProfile(null);
             setLoading(false);

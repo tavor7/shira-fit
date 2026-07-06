@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
@@ -102,6 +102,37 @@ export function clearSupabaseAuthStorage() {
 // Must run before createClient() on web.
 pruneInvalidWebAuthState();
 
+let supabaseClient: SupabaseClient | null = null;
+let refreshInFlight: Promise<boolean> | null = null;
+
+function createAuthAwareFetch(projectUrl: string) {
+  const baseFetch = fetch.bind(globalThis) as typeof fetch;
+
+  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const response = await baseFetch(input, init);
+    if (response.status !== 401 || !projectUrl) return response;
+
+    const reqUrl =
+      typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!reqUrl.startsWith(projectUrl) || reqUrl.includes("/auth/v1/")) return response;
+
+    if (!refreshInFlight) {
+      refreshInFlight = supabaseClient!
+        .auth.refreshSession()
+        .then(({ data, error }) => !error && !!data.session)
+        .finally(() => {
+          refreshInFlight = null;
+        });
+    }
+
+    const refreshed = await refreshInFlight;
+    if (!refreshed) return response;
+    return baseFetch(input, init);
+  };
+}
+
+const authAwareFetch = createAuthAwareFetch(url);
+
 export const supabase = createClient(url, key, {
   auth: {
     storage: createAuthStorage(),
@@ -110,4 +141,9 @@ export const supabase = createClient(url, key, {
     // Web: recovery links put tokens in hash; parsed on reset-password screen
     detectSessionInUrl: Platform.OS === "web",
   },
+  global: {
+    fetch: authAwareFetch,
+  },
 });
+
+supabaseClient = supabase;
