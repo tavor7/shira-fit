@@ -1,25 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { fetchRequiredConsents, recordUserConsent } from "../lib/consent";
 import type { RequiredConsent } from "../lib/documents";
-import { supabase } from "../lib/supabase";
 import { PrimaryButton } from "./PrimaryButton";
 
 export function ConsentGateModal() {
   const { session, profile, refreshProfile } = useAuth();
-  const { language, t, isRTL } = useI18n();
+  const { language, isRTL } = useI18n();
   const [loading, setLoading] = useState(true);
   const [consent, setConsent] = useState<RequiredConsent | null>(null);
   const [busy, setBusy] = useState(false);
   const [declined, setDeclined] = useState(false);
-  const [address, setAddress] = useState("");
-  const [zipCode, setZipCode] = useState("");
-  const [fieldError, setFieldError] = useState("");
-
-  const needsAddress = !profile?.address?.trim() || !profile?.zip_code?.trim();
 
   const load = useCallback(async () => {
     if (!session?.user?.id) {
@@ -44,41 +38,12 @@ export function ConsentGateModal() {
     void load();
   }, [load, profile?.electronic_receipts_consent_version]);
 
-  useEffect(() => {
-    setAddress(profile?.address?.trim() ?? "");
-    setZipCode(profile?.zip_code?.trim() ?? "");
-  }, [profile?.address, profile?.zip_code]);
-
   if (!session || loading) return null;
   if (!consent) return null;
 
-  async function saveAddressIfNeeded(): Promise<boolean> {
-    if (!needsAddress) return true;
-    const addr = address.trim();
-    const zip = zipCode.trim();
-    if (!addr || !zip) {
-      setFieldError(
-        language === "he" ? "יש למלא כתובת ומיקוד לפני המשך." : "Please enter your address and zip code to continue.",
-      );
-      return false;
-    }
-    const { error } = await supabase
-      .from("profiles")
-      .update({ address: addr, zip_code: zip })
-      .eq("user_id", session!.user.id);
-    if (error) {
-      setFieldError(error.message);
-      return false;
-    }
-    await refreshProfile();
-    return true;
-  }
-
   async function accept() {
-    setFieldError("");
     setBusy(true);
     try {
-      if (!(await saveAddressIfNeeded())) return;
       await recordUserConsent({
         consent_type: "electronic_receipts",
         status: "accepted",
@@ -113,35 +78,7 @@ export function ConsentGateModal() {
         <Text style={[styles.title, isRTL && styles.rtl]}>{consent.title}</Text>
         <ScrollView style={styles.bodyScroll} contentContainerStyle={styles.bodyContent}>
           <Text style={[styles.body, isRTL && styles.rtl]}>{consent.body_text}</Text>
-          {needsAddress ? (
-            <View style={styles.addressBlock}>
-              <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("profile.address")}</Text>
-              <TextInput
-                style={[styles.input, isRTL && styles.inputRtl]}
-                value={address}
-                onChangeText={(v) => {
-                  setAddress(v);
-                  setFieldError("");
-                }}
-                placeholder={t("profile.address")}
-                placeholderTextColor={theme.colors.textSoft}
-              />
-              <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("profile.zipCode")}</Text>
-              <TextInput
-                style={[styles.input, isRTL && styles.inputRtl]}
-                value={zipCode}
-                onChangeText={(v) => {
-                  setZipCode(v);
-                  setFieldError("");
-                }}
-                placeholder={t("profile.zipCode")}
-                placeholderTextColor={theme.colors.textSoft}
-                keyboardType="number-pad"
-              />
-            </View>
-          ) : null}
         </ScrollView>
-        {fieldError ? <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldError}</Text> : null}
         {declined ? (
           <Text style={[styles.declined, isRTL && styles.rtl]}>
             {language === "he"
@@ -185,20 +122,6 @@ const styles = StyleSheet.create({
   bodyScroll: { maxHeight: 360 },
   bodyContent: { paddingBottom: theme.spacing.sm },
   body: { fontSize: 15, lineHeight: 22, color: theme.colors.textMuted },
-  addressBlock: { marginTop: theme.spacing.md, gap: theme.spacing.xs },
-  fieldLabel: { fontSize: 13, fontWeight: "700", color: theme.colors.text, marginTop: theme.spacing.sm },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: theme.colors.text,
-    backgroundColor: theme.colors.backgroundAlt,
-  },
-  inputRtl: { textAlign: "right" },
-  fieldError: { marginTop: theme.spacing.sm, color: theme.colors.error, fontSize: 13, fontWeight: "600" },
   declined: { marginTop: theme.spacing.md, color: theme.colors.warning, fontSize: 14, fontWeight: "600" },
   actions: { marginTop: theme.spacing.lg, gap: theme.spacing.sm },
   actionsRtl: { alignItems: "stretch" },

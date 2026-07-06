@@ -203,6 +203,7 @@ export default function DocumentsInvoicesScreen() {
           document_prefix: s.document_prefix,
           staff_can_cancel_documents: s.staff_can_cancel_documents,
           is_operational: s.is_operational,
+          request_address_from_existing_users: s.request_address_from_existing_users ?? false,
         });
       }
       const startIso = `${dateStart}T00:00:00.000Z`;
@@ -269,6 +270,7 @@ export default function DocumentsInvoicesScreen() {
         document_prefix: settingsForm.document_prefix,
         staff_can_cancel_documents: settingsForm.staff_can_cancel_documents,
         is_operational: settingsForm.is_operational,
+        request_address_from_existing_users: settingsForm.request_address_from_existing_users,
       });
       setSettings(updated);
       showToast({ message: language === "he" ? "ההגדרות נשמרו" : "Settings saved", variant: "success" });
@@ -674,11 +676,23 @@ export default function DocumentsInvoicesScreen() {
           title={language === "he" ? "מערכת פעילה" : "Operational mode"}
           subtitle={
             language === "he"
-              ? "PDFים הופכים לבלתי ניתנים לשינוי; ביטול קבלות נחסם; משתמשים ישנים יקבלו בקשת הסכמה וכתובת"
-              : "Locks PDFs, blocks voiding receipts, and prompts existing users for consent and address"
+              ? "PDFים הופכים לבלתי ניתנים לשינוי; ביטול קבלות נחסם; מתאמנים ישנים יתבקשו לאשר הסכמה לקבלות"
+              : "Locks PDFs, blocks voiding receipts, and prompts existing users for electronic receipt consent"
           }
           value={!!settingsForm.is_operational}
           onChange={(v) => setSettingsForm((s) => ({ ...s, is_operational: v }))}
+        />
+        <View style={styles.cardDivider} />
+        <ToggleRow
+          isRTL={isRTL}
+          title={language === "he" ? "בקשת כתובת ממשתמשים קיימים" : "Request address from existing users"}
+          subtitle={
+            language === "he"
+              ? "מתאמנים שנרשמו לפני שנדרשה כתובת יתבקשו למלא כתובת ומיקוד בעת כניסה"
+              : "Athletes who signed up before address was required are prompted for street address and zip on login"
+          }
+          value={!!settingsForm.request_address_from_existing_users}
+          onChange={(v) => setSettingsForm((s) => ({ ...s, request_address_from_existing_users: v }))}
         />
         <View style={styles.cardDivider} />
         <ToggleRow
