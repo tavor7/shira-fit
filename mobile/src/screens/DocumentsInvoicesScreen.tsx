@@ -24,6 +24,7 @@ import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { PendingReceiptsPanel } from "../components/PendingReceiptsPanel";
 import { GoLiveReadinessSection } from "../components/GoLiveReadinessSection";
+import { ReceiptRequirementsTestingSection } from "../components/ReceiptRequirementsTestingSection";
 import { EditCustomerEmailModal } from "../components/EditCustomerEmailModal";
 import { lastNDaysRangeISO } from "../lib/isoDate";
 import {
@@ -663,6 +664,14 @@ export default function DocumentsInvoicesScreen() {
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       {pageHeader}
       <GoLiveReadinessSection isRTL={isRTL} language={lang} />
+      <ReceiptRequirementsTestingSection
+        isRTL={isRTL}
+        language={lang}
+        addressLabel={t("profile.address")}
+        zipLabel={t("profile.zipCode")}
+        consentEnabled={!!settingsForm.request_consent_from_existing_users}
+        addressEnabled={!!settingsForm.request_address_from_existing_users}
+      />
 
       <SectionCard label={language === "he" ? "מערכת" : "System"}>
         <ToggleRow
