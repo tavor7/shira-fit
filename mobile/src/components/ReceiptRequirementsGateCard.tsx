@@ -44,7 +44,7 @@ export function ReceiptRequirementsGateCard({
 }: Props) {
   const { height: windowHeight } = useWindowDimensions();
   const addressSectionRef = useRef<View>(null);
-  const outerScrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const [busy, setBusy] = useState(false);
   const [declined, setDeclined] = useState(false);
   const [address, setAddress] = useState(initialAddress);
@@ -64,7 +64,7 @@ export function ReceiptRequirementsGateCard({
   const showConsent = mode === "consent_only" || mode === "both";
   const showAddress = mode === "address_only" || mode === "both";
   const addressFirst = mode === "both";
-  const consentScrollMax = Math.max(120, Math.min(200, Math.round(windowHeight * 0.22)));
+  const cardMaxHeight = Math.round(windowHeight * 0.9);
 
   const title =
     mode === "both"
@@ -89,10 +89,10 @@ export function ReceiptRequirementsGateCard({
         : null;
 
   function focusAddressSection() {
-    outerScrollRef.current?.scrollTo({ y: 0, animated: true });
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
     if (Platform.OS === "web" && typeof document !== "undefined") {
       const node = addressSectionRef.current as unknown as { scrollIntoView?: (opts?: ScrollIntoViewOptions) => void };
-      node?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+      node?.scrollIntoView?.({ behavior: "smooth", block: "start" });
     }
   }
 
@@ -183,11 +183,11 @@ export function ReceiptRequirementsGateCard({
     );
   }
 
-  function renderConsentBlock(cappedScroll: boolean) {
+  function renderConsentBlock() {
     if (!showConsent || !consent) return null;
 
-    const content = (
-      <>
+    return (
+      <View style={mode === "both" ? styles.section : undefined}>
         {mode === "both" ? (
           <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>
             {language === "he" ? "הסכמה לקבלת מסמכים" : "Electronic receipt consent"}
@@ -197,69 +197,51 @@ export function ReceiptRequirementsGateCard({
           <Text style={[styles.consentTitle, isRTL && styles.rtl]}>{consent.title}</Text>
         )}
         <Text style={[styles.body, isRTL && styles.rtl]}>{consent.body_text}</Text>
-      </>
+      </View>
     );
-
-    if (cappedScroll) {
-      return (
-        <View style={styles.section}>
-          <ScrollView
-            style={[styles.consentScroll, { maxHeight: consentScrollMax }]}
-            contentContainerStyle={styles.consentScrollContent}
-            nestedScrollEnabled
-            showsVerticalScrollIndicator
-          >
-            {content}
-          </ScrollView>
-        </View>
-      );
-    }
-
-    return <View style={mode === "both" ? styles.section : undefined}>{content}</View>;
   }
 
   return (
-    <View style={[styles.card, { maxHeight: Math.round(windowHeight * 0.9) }]}>
-      {preview ? (
-        <Text style={[styles.previewBanner, isRTL && styles.rtl]}>
-          {language === "he" ? "תצוגה מקדימה בלבד — לא נשמר" : "Preview only — nothing is saved"}
-        </Text>
-      ) : null}
-      <Text style={[styles.title, isRTL && styles.rtl]}>{title}</Text>
+    <View style={[styles.card, { maxHeight: cardMaxHeight }]}>
       <ScrollView
-        ref={outerScrollRef}
-        style={styles.bodyScroll}
-        contentContainerStyle={styles.bodyContent}
+        ref={scrollRef}
+        style={[styles.scroll, { maxHeight: cardMaxHeight }]}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled
         showsVerticalScrollIndicator
       >
+        {preview ? (
+          <Text style={[styles.previewBanner, isRTL && styles.rtl]}>
+            {language === "he" ? "תצוגה מקדימה בלבד — לא נשמר" : "Preview only — nothing is saved"}
+          </Text>
+        ) : null}
+        <Text style={[styles.title, isRTL && styles.rtl]}>{title}</Text>
         {intro ? <Text style={[styles.body, isRTL && styles.rtl]}>{intro}</Text> : null}
         {addressFirst && showAddress ? renderAddressBlock(true) : null}
-        {!addressFirst ? renderConsentBlock(false) : renderConsentBlock(true)}
-        {!addressFirst && showAddress ? renderAddressBlock(mode === "both") : null}
-      </ScrollView>
-      {declined ? (
-        <Text style={[styles.declined, isRTL && styles.rtl]}>
-          {language === "he"
-            ? "הסכמה לקבלת מסמכים אלקטרוניים נדרשת לשימוש במערכת. אנא אשר/י את ההסכמה כדי להמשיך."
-            : "Electronic receipt consent is required to use the app. Please accept to continue."}
-        </Text>
-      ) : null}
-      {fieldError ? <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldError}</Text> : null}
-      <View style={[styles.actions, isRTL && styles.actionsRtl]}>
-        <PrimaryButton label={primaryLabel} onPress={() => void saveAll()} disabled={busy || declined} />
-        {showConsent ? (
-          <Pressable
-            onPress={() => void decline()}
-            disabled={busy}
-            style={({ pressed }) => [styles.declineBtn, pressed && { opacity: 0.7 }]}
-          >
-            <Text style={styles.declineText}>{language === "he" ? "לא מסכים/ה" : "Decline"}</Text>
-          </Pressable>
+        {renderConsentBlock()}
+        {!addressFirst && showAddress ? renderAddressBlock(false) : null}
+        {declined ? (
+          <Text style={[styles.declined, isRTL && styles.rtl]}>
+            {language === "he"
+              ? "הסכמה לקבלת מסמכים אלקטרוניים נדרשת לשימוש במערכת. אנא אשר/י את ההסכמה כדי להמשיך."
+              : "Electronic receipt consent is required to use the app. Please accept to continue."}
+          </Text>
         ) : null}
-      </View>
-      {busy ? <ActivityIndicator style={{ marginTop: 12 }} color={theme.colors.cta} /> : null}
+        {fieldError ? <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldError}</Text> : null}
+        <View style={[styles.actions, isRTL && styles.actionsRtl]}>
+          <PrimaryButton label={primaryLabel} onPress={() => void saveAll()} disabled={busy || declined} />
+          {showConsent ? (
+            <Pressable
+              onPress={() => void decline()}
+              disabled={busy}
+              style={({ pressed }) => [styles.declineBtn, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.declineText}>{language === "he" ? "לא מסכים/ה" : "Decline"}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        {busy ? <ActivityIndicator style={styles.loader} color={theme.colors.cta} /> : null}
+      </ScrollView>
     </View>
   );
 }
@@ -268,24 +250,27 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
-    padding: theme.spacing.lg,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     width: "100%",
     maxWidth: 480,
     alignSelf: "center",
+    overflow: "hidden",
+  },
+  scroll: { flexGrow: 0, flexShrink: 1 },
+  scrollContent: {
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    paddingBottom: theme.spacing.xl,
   },
   previewBanner: {
-    marginBottom: theme.spacing.sm,
     fontSize: 12,
     fontWeight: "800",
     color: theme.colors.warning,
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
-  title: { fontSize: 18, fontWeight: "800", color: theme.colors.text, marginBottom: theme.spacing.md },
-  bodyScroll: { flexGrow: 0, flexShrink: 1 },
-  bodyContent: { paddingBottom: theme.spacing.sm, gap: theme.spacing.md },
+  title: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
   body: { fontSize: 15, lineHeight: 22, color: theme.colors.textMuted },
   section: {
     marginTop: theme.spacing.sm,
@@ -296,8 +281,6 @@ const styles = StyleSheet.create({
   },
   sectionLabel: { fontSize: 13, fontWeight: "800", color: theme.colors.text, textTransform: "uppercase", letterSpacing: 0.3 },
   consentTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
-  consentScroll: { borderRadius: theme.radius.md },
-  consentScrollContent: { paddingBottom: theme.spacing.xs },
   addressBlock: { gap: theme.spacing.xs },
   fieldLabel: { fontSize: 13, fontWeight: "700", color: theme.colors.text, marginTop: theme.spacing.sm },
   input: {
@@ -312,11 +295,12 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
   },
   inputRtl: { textAlign: "right" },
-  fieldError: { marginTop: theme.spacing.sm, color: theme.colors.error, fontSize: 13, fontWeight: "600" },
-  declined: { marginTop: theme.spacing.md, color: theme.colors.warning, fontSize: 14, fontWeight: "600" },
-  actions: { marginTop: theme.spacing.lg, gap: theme.spacing.sm },
+  fieldError: { color: theme.colors.error, fontSize: 13, fontWeight: "600" },
+  declined: { color: theme.colors.warning, fontSize: 14, fontWeight: "600" },
+  actions: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
   actionsRtl: { alignItems: "stretch" },
   declineBtn: { paddingVertical: 12, alignItems: "center" },
   declineText: { color: theme.colors.textMuted, fontWeight: "700" },
+  loader: { marginTop: theme.spacing.sm },
   rtl: { textAlign: "right", writingDirection: "rtl" },
 });

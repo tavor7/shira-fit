@@ -1,4 +1,4 @@
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
@@ -20,12 +20,7 @@ export function ReceiptRequirementsGateModal() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.keyboard}
       >
-        <ScrollView
-          contentContainerStyle={styles.overlayScroll}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-          centerContent={Platform.OS === "ios"}
-        >
+        <View style={styles.cardWrap}>
           <ReceiptRequirementsGateCard
             mode={mode}
             consent={consent}
@@ -62,7 +57,7 @@ export function ReceiptRequirementsGateModal() {
               await reload();
             }}
           />
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -74,10 +69,14 @@ const styles = StyleSheet.create({
     backgroundColor: theme.overlay.backdrop,
     zIndex: 9999,
   },
-  keyboard: { flex: 1 },
-  overlayScroll: {
-    flexGrow: 1,
+  keyboard: {
+    flex: 1,
     justifyContent: "center",
     padding: theme.spacing.lg,
+  },
+  cardWrap: {
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
   },
 });
