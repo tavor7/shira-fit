@@ -1,7 +1,5 @@
 # Shira Fit — Project Summary
 
-Use this document for resumes, portfolios, and interviews. For setup and development, see [README.md](./README.md).
-
 ## One-liner
 
 Bilingual (English/Hebrew, RTL) fitness-studio operations platform — session registration, billing, Israeli digital receipts, and staff tooling — built with **React Native (Expo) + Supabase**.
