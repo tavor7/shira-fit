@@ -88,8 +88,39 @@ Use it as a checklist when changing navigation, permissions, or database logic.
 
 ### Weekly opening automation (registrations)
 
-- Sessions for the next calendar week (Sun–Sat) are opened at the configured opening weekday/time (UTC).
+- Sessions for the next calendar week (Sun–Sat) are opened at the configured opening weekday/time (studio timezone: Asia/Jerusalem).
 - Source(s):
-  - Edge Function `supabase/functions/open-weekly-registrations`
-  - SQL helper `open_next_week_sessions_if_due()` (should not be callable broadly if it mutates rows)
+  - Edge Function `supabase/functions/open-weekly-registrations` (polled by cron; opens only when due)
+  - SQL helper `open_next_week_sessions_if_due()`
+
+### Finance & payments
+
+1. **Session payments** — coach/manager records payment method and amount on attendance.
+2. **Account payments** → `/(app)/manager/account-payments` — payments not tied to a specific session.
+3. **Pricing** → `/(app)/manager/pricing`, `coach-capacity-pricing` — capacity-tier billing and coach payout tiers.
+4. **Finance dashboard** → `/(app)/manager/dashboard`, `finance-daily`, `finance-expected` — weekly/monthly/global stats via `manager_weekly_stats` RPC.
+5. **Late cancel / no-show** — 24-hour rule enforced in DB; charges appear in finance reports.
+
+### Digital receipts & documents
+
+1. **Documents hub** → `/(app)/manager/documents-invoices`
+   - Receipt settings, VAT, go-live readiness, pending receipts workflow.
+2. **PDF generation** — Edge Function `generate-document-pdf` (Hebrew RTL, pdf-lib → Storage).
+3. **Email delivery** — Edge Function `send-document-email` (Resend: customer, accountant batch).
+4. **Consent gates** — athletes must accept versioned terms/privacy/electronic-receipt consents (`user_consents` table).
+5. **Address collection** — required for receipt compliance when enabled.
+
+### WhatsApp notifications
+
+1. **Rollout config** → `/(app)/manager/whatsapp-rollout` — off / testing / live modes.
+2. **Queue** — `notification_deliveries` table; Edge Function `dispatch-notifications` processes pending rows.
+3. **Templates** — session reminders (3h/24h), weekly open announcements, manager test messages.
+
+### Staff & operations
+
+1. **Activity log** → `/(app)/manager/activity-log` — audit trail with revert actions.
+2. **Families** → `/(app)/manager/families` — shared billing/history for athlete groups.
+3. **Direct messages** — manager → athlete themed messages.
+4. **Birthday messages** → `/(app)/manager/birthday-messages` — studio-global auto-message settings.
+5. **Staff email** — Edge Functions `staff-user-email`, `staff-confirm-email` for auth email management.
 

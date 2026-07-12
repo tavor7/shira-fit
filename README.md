@@ -1,6 +1,8 @@
 # Shira Fit — Fitness studio training app
 
-React Native (Expo) + Supabase + TypeScript. See **`app description.txt`** (source of truth) and **`PROGRESS.md`**.
+React Native (Expo) + Supabase + TypeScript. Bilingual (English/Hebrew, RTL) studio operations: sessions, registration, billing, Israeli digital receipts, and staff tooling.
+
+**Docs:** [PROJECT.md](./PROJECT.md) (resume/portfolio summary) · [PRODUCT.md](./PRODUCT.md) · [WORKFLOWS.md](./WORKFLOWS.md) · [PROGRESS.md](./PROGRESS.md) · [DESIGN.md](./DESIGN.md)
 
 ## Accounts
 
@@ -8,7 +10,7 @@ React Native (Expo) + Supabase + TypeScript. See **`app description.txt`** (sour
 
 | Account | Why |
 |--------|-----|
-| **Supabase** | Database, Auth, Row Level Security, Edge Functions, Cron |
+| **Supabase** | Database, Auth, Row Level Security, Edge Functions, Storage, Cron |
 
 ### Can wait
 
@@ -17,15 +19,22 @@ React Native (Expo) + Supabase + TypeScript. See **`app description.txt`** (sour
 | **Expo** (EAS) | Production builds & OTA |
 | **Apple Developer / Google Play** | Store releases |
 | **Expo push** | Works in dev with Expo Go; production needs EAS + credentials |
+| **Resend** | Email delivery for receipts/documents |
+| **Meta WhatsApp Business** | WhatsApp template notifications (optional rollout) |
 
 ---
 
-## Supabase setup (exact steps)
+## Supabase setup
 
 1. **Create project** at [supabase.com](https://supabase.com) → New project → note **Project URL** and **anon key** (Settings → API).
 
-2. **Run SQL**  
-   Open SQL Editor → paste contents of `supabase/migrations/20250314000000_initial.sql` → Run.
+2. **Run migrations** (all files in `supabase/migrations/`):
+   ```bash
+   supabase login
+   supabase link --project-ref YOUR_REF
+   supabase db push
+   ```
+   Or paste migrations in order via SQL Editor (not recommended for ongoing work).
 
 3. **Auth**  
    Authentication → Providers → Email enabled (default).  
@@ -35,11 +44,7 @@ React Native (Expo) + Supabase + TypeScript. See **`app description.txt`** (sour
    Production: `https://yourdomain.com/--/(auth)/reset-password`  
    Same URLs under **Redirect URLs**. Save.
 
-4. **Run migration updates (signup: DOB + gender)**  
-   After the initial migration, run `supabase/migrations/20250315000000_dob_gender_reset.sql` in SQL Editor once.  
-   Optionally disable public signups later and invite only.
-
-5. **First manager**  
+4. **First manager**  
    - Sign up once in the app (athlete).  
    - Dashboard → Authentication → copy user UUID.  
    - SQL:
@@ -52,37 +57,41 @@ React Native (Expo) + Supabase + TypeScript. See **`app description.txt`** (sour
      ```sql
      update public.profiles set role = 'coach', approval_status = 'approved' where user_id = 'COACH_UUID';
      ```
-   - **Training sessions** need a valid `coach_id` (that coach’s `user_id`).
+   - **Training sessions** need a valid `coach_id` (that coach's `user_id`).
 
-6. **Edge Functions**  
+5. **Edge Functions** — deploy all:
    ```bash
-   supabase login
-   supabase link --project-ref YOUR_REF
    supabase secrets set CRON_SECRET=your-long-random-string
+   # Optional — for receipts/email:
+   supabase secrets set RESEND_API_KEY=re_...
+   # Optional — for WhatsApp:
+   supabase secrets set WHATSAPP_ACCESS_TOKEN=...
+   supabase secrets set WHATSAPP_PHONE_NUMBER_ID=...
+
    supabase functions deploy open-weekly-registrations
    supabase functions deploy notify-waitlist
+   supabase functions deploy dispatch-notifications
+   supabase functions deploy generate-document-pdf
+   supabase functions deploy send-document-email
+   supabase functions deploy staff-user-email
+   supabase functions deploy staff-confirm-email
    ```
 
-7. **Thursday 08:00 cron**  
-   Dashboard → Edge Functions → Schedules (or use external cron):  
+6. **Weekly registration open (cron)**  
+   Poll `open-weekly-registrations` on a schedule (e.g. every 15 minutes). The function checks studio timezone (Asia/Jerusalem) and only opens sessions when due.  
    `POST https://YOUR_REF.supabase.co/functions/v1/open-weekly-registrations`  
-   Header: `Authorization: Bearer YOUR_CRON_SECRET`  
-   Schedule: `0 8 * * 4` (Thursday 08:00 UTC — adjust timezone if needed).
+   Header: `Authorization: Bearer YOUR_CRON_SECRET`
 
 7. **Waitlist push when spot opens**  
-   After a cancellation, call:
-   `POST .../functions/v1/notify-waitlist`  
-   Body: `{"session_id":"<uuid>"}`  
-   Same `Authorization: Bearer CRON_SECRET`.  
-   Optional: Database Webhook on `session_registrations` UPDATE → invoke this function (document your URL + secret).
+   After migrations, database triggers call `notify-waitlist` automatically via pg_net when a registration is cancelled or a manual participant is removed. See [Waitlist automation](#waitlist-push-when-a-spot-opens-automatic) below for Vault secrets.
 
-9. **Keys in the project**  
-   - Copy **URL** + **anon key** into `mobile/.env`:
-     ```
-     EXPO_PUBLIC_SUPABASE_URL=...
-     EXPO_PUBLIC_SUPABASE_ANON_KEY=...
-     ```
-   - Same for `admin/.env` as `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
+8. **Keys in the project**  
+   Copy **URL** + **anon key** into `mobile/.env`:
+   ```
+   EXPO_PUBLIC_SUPABASE_URL=...
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+   EXPO_PUBLIC_AUTH_REDIRECT_ORIGIN=https://your-hosted-web-url
+   ```
 
 ---
 
@@ -102,7 +111,7 @@ Use **email + password** (Supabase). Username is stored on `profiles`.
 1. Install **[Expo Go](https://expo.dev/go)** on the phone (iOS App Store or Google Play).
 2. On your Mac, from `mobile/`, run `npm run start` (or `npm run start:lan` if the QR uses the wrong interface).
 3. **Same Wi‑Fi as the computer:** open Expo Go → scan the QR from the terminal or browser Dev Tools page.
-4. **Different network / QR won’t connect:** run `npm run start:tunnel` and scan again (slower, needs internet; first run may prompt to install `@expo/ngrok`).
+4. **Different network / QR won't connect:** run `npm run start:tunnel` and scan again (slower, needs internet; first run may prompt to install `@expo/ngrok`).
 
 The JavaScript bundle still comes from your machine, so the computer must stay on while others test.
 
@@ -110,7 +119,7 @@ The JavaScript bundle still comes from your machine, so the computer must stay o
 
 ### Hosted web (works when your Mac is off)
 
-The mobile app also runs in the **phone browser** from a static host. Build embeds `EXPO_PUBLIC_*` from the environment at build time.
+The mobile app also runs in the **phone browser** as a static PWA. Build embeds `EXPO_PUBLIC_*` from the environment at build time.
 
 ```bash
 cd mobile
@@ -143,13 +152,13 @@ Output is **`mobile/dist/`**. You can upload `dist/` manually, or let a host (e.
 5. **Environment** → add `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
 6. **Redirects / Rewrites** (required for Expo Router — deep links must not 404):
    - **Rewrite:** Source `/*` → Destination `/index.html` (action **Rewrite**, not redirect).  
-   Same rule as in [Render’s client-side routing docs](https://render.com/docs/redirects-rewrites).
+   Same rule as in [Render's client-side routing docs](https://render.com/docs/redirects-rewrites).
 
 **Supabase:** Dashboard → **Authentication** → **URL Configuration**  
 Set **Site URL** to your Render URL (e.g. `https://shira-fit-mobile-web.onrender.com`). Under **Redirect URLs**, add:
 
 - `https://YOUR_RENDER_HOST/--/(auth)/reset-password`  
-  (repeat for a custom domain if you add one under the static site’s **Settings → Custom Domains**.)
+  (repeat for a custom domain if you add one under the static site's **Settings → Custom Domains**.)
 
 **Other hosts:** **Vercel** — root `mobile`, env vars as above, `mobile/vercel.json` sets build + SPA rewrite. **Netlify** — see `mobile/netlify.toml`.
 
@@ -160,11 +169,30 @@ On a phone: open the URL in Safari/Chrome and use **Share → Add to Home Screen
 ## Repo layout
 
 ```
-mobile/           Expo app (expo-router)
+mobile/              Expo app (expo-router) — athletes, coaches, managers (web PWA)
+  app/               58 route files (auth, athlete, coach, manager, staff)
+  src/screens/       25 screen components
+  src/lib/           82 domain/API modules
+  src/components/    ~95 reusable UI components
+  src/i18n/          English + Hebrew translations
 supabase/
-  migrations/     PostgreSQL + RLS + RPCs
-  functions/      open-weekly-registrations, notify-waitlist
+  migrations/        166 PostgreSQL migrations (RLS + RPCs)
+  functions/         7 Edge Functions (see below)
+render.yaml          Render Blueprint for static web deploy
+PROJECT.md           Resume/portfolio project summary
 ```
+
+### Edge Functions
+
+| Function | Auth | Purpose |
+|----------|------|---------|
+| `open-weekly-registrations` | `CRON_SECRET` | Opens next-week sessions when due (Asia/Jerusalem) |
+| `notify-waitlist` | `CRON_SECRET` | Expo push to first waitlisted user when spot opens |
+| `dispatch-notifications` | `CRON_SECRET` | Processes pending WhatsApp rows in `notification_deliveries` |
+| `generate-document-pdf` | JWT | Hebrew RTL PDF via pdf-lib → Supabase Storage |
+| `send-document-email` | JWT | Email PDFs via Resend (customer, accountant batch) |
+| `staff-user-email` | JWT | Staff get/update user auth email |
+| `staff-confirm-email` | JWT | Manager confirm user email |
 
 ---
 
@@ -223,8 +251,10 @@ If Vault secrets are missing, **`invoke_notify_waitlist_edge`** does nothing (no
 
 ---
 
-## Assumptions (see PROGRESS.md)
+## Assumptions
 
 - Login identifier: **email** (Supabase); **username** on profile.  
-- Registration window: Edge Function opens **Sun–Sat** of the week starting the **next Sunday** from run date (aligned with “Thursday opens next week”).  
-- Push: athletes should register device token into `profiles.expo_push_token` (optional hook in app).
+- Registration window: Edge Function opens **Sun–Sat** of the week starting the **next Sunday** from run date (studio timezone: Asia/Jerusalem).  
+- Late cancellation charge: **24 hours** before session start.  
+- Push: athletes register device token into `profiles.expo_push_token` when notification prefs are on.  
+- Manager UI: same Expo app, web PWA (no separate admin app).

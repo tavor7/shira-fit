@@ -28,3 +28,8 @@ entrypoint = "./functions/send-document-email/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/dispatch-notifications/index.ts"
+
+[functions.staff-confirm-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/staff-confirm-email/index.ts"
