@@ -49,11 +49,7 @@ import {
   type DocumentReportRow,
   type ReceiptSettings,
 } from "../lib/documents";
-import {
-  DOCUMENT_PAYMENT_METHOD_KEYS,
-  documentPaymentMethodLabel,
-  type DocumentPaymentMethodKey,
-} from "../lib/documentPaymentMethod";
+import { DOCUMENT_PAYMENT_METHOD_KEYS, documentPaymentMethodLabel } from "../lib/documentPaymentMethod";
 import { documentServiceTypeLabel } from "../lib/documentServiceTypes";
 import { buildCsv, downloadCsvWeb } from "../lib/csvExport";
 import { supabase } from "../lib/supabase";

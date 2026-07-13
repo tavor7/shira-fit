@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { DatePickerField } from "./DatePickerField";
 import { InlineTimePickerField } from "./InlineTimePickerField";

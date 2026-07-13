@@ -35,8 +35,6 @@ import {
   type PricingIssue,
 } from "../lib/pricingIssues";
 
-type Trainer = { user_id: string; full_name: string; username: string; role: string };
-
 type Props = {
   /** Manager: show coach picker. Ignored when lockedCoachId is set. */
   allowCoachPicker?: boolean;

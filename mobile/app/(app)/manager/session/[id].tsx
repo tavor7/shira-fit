@@ -12,7 +12,6 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
-  useWindowDimensions,
 } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSession } from "../../../../src/types/database";
@@ -40,7 +39,7 @@ import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay, formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateFormat";
 import { formatSessionStartTime, hasSessionNotEnded, hasSessionNotStarted, isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
 import { useAuth } from "../../../../src/context/AuthContext";
-import { sessionFormIsCompact, sessionFormStyles as sf } from "../../../../src/components/sessionFormStyles";
+import { sessionFormStyles as sf } from "../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../src/context/ToastContext";
 import { copySessionParticipantsToNewSession } from "../../../../src/lib/copySessionParticipants";
 import { useDiscardChangesPrompt } from "../../../../src/hooks/useDiscardChangesPrompt";
@@ -220,8 +219,6 @@ export default function ManagerSessionDetail() {
   const consumeEditAfterLoadRef = useRef<ManagerSessionUiDraft | null>(null);
   const [serverFormReady, setServerFormReady] = useState(false);
   const { showToast } = useToast();
-  const { width } = useWindowDimensions();
-  const compact = sessionFormIsCompact(width);
   const [participantsRev, setParticipantsRev] = useState(0);
   const [participantCount, setParticipantCount] = useState(0);
   const [moveOpen, setMoveOpen] = useState(false);

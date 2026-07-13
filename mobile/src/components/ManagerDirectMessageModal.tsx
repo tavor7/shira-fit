@@ -9,7 +9,6 @@ import {
   type PendingManagerMessage,
 } from "../lib/managerDirectMessages";
 import { fetchReceiptRequirementsSnapshot, receiptRequirementsMode } from "../lib/receiptRequirements";
-import { AppText } from "./AppText";
 import { PrimaryButton } from "./PrimaryButton";
 import { ManagerMessageCard } from "./ManagerMessageCard";
 

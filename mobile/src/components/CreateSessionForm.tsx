@@ -12,7 +12,7 @@ import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
-import { addDaysToISODate, DEFAULT_SESSION_START_TIME, suggestNextSessionStartTime } from "../lib/sessionTime";
+import { DEFAULT_SESSION_START_TIME, suggestNextSessionStartTime } from "../lib/sessionTime";
 import { isMissingSessionSeriesRpc, staffCreateSessionSeries } from "../lib/sessionSeries";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { toISODateLocal, isValidISODateString } from "../lib/isoDate";

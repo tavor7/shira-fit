@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { View, Text, Switch, Pressable, StyleSheet, type ViewStyle } from "react-native";
 import { theme } from "../theme";
 import { sessionFormStyles as sf } from "./sessionFormStyles";
-import { KICKBOX_SESSION_ACCENT, KICKBOX_SESSION_BG, KICKBOX_SESSION_BORDER } from "../lib/kickboxSessionStyle";
+import { KICKBOX_SESSION_ACCENT, KICKBOX_SESSION_BG } from "../lib/kickboxSessionStyle";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
 /** Visual cue when the toggle is on (off rows share the same neutral look). */

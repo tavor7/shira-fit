@@ -3,7 +3,6 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "
 import { useRouter } from "expo-router";
 import { theme } from "../theme";
 import { AppModal } from "./AppModal";
-import { useI18n } from "../context/I18nContext";
 import {
   fetchGoLiveStats,
   listGoLiveGaps,

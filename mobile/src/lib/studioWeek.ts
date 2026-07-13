@@ -36,7 +36,7 @@ export function athleteBrowseWeekEnd(now = new Date()): string {
 
 /** @deprecated Use athleteBrowseWeekEnd(); browse has no start cap. */
 export function athleteBrowseWeekBounds(now = new Date()): { start: string; end: string } {
-  const { start, end } = weekBoundsSunday(studioTodayIso(now));
+  const { start } = weekBoundsSunday(studioTodayIso(now));
   return { start, end: athleteBrowseWeekEnd(now) };
 }
 

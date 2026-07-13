@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Text, Pressable, StyleSheet } from "react-native";
 import { AppModal } from "./AppModal";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";

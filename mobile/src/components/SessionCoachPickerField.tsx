@@ -27,7 +27,7 @@ type Props = {
 };
 
 export function SessionCoachPickerField({ coachId, coachLabel, onSelect, disabled, label }: Props) {
-  const { language, t, isRTL } = useI18n();
+  const { language, isRTL } = useI18n();
   const [open, setOpen] = useState(false);
 
   const fieldLabel = label ?? (language === "he" ? "מאמן" : "Trainer");

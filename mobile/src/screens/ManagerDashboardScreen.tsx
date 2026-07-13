@@ -4,7 +4,7 @@ import { router, type Href } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { formatISODateFull } from "../lib/dateFormat";
-import { firstDayOfMonthISOLocal, isValidISODateString, lastDayOfMonthISOLocal, monthRangeISO, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
+import { firstDayOfMonthISOLocal, lastDayOfMonthISOLocal, monthRangeISO, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "../components/AppText";
 import { StatusChip } from "../components/StatusChip";
@@ -23,7 +23,6 @@ import {
   parseCapacityMismatch,
   parseFinance,
   parseMissingAttendance,
-  type WeeklyFinance,
   type WeeklyFinanceAthlete,
   type WeeklyFinanceFamily,
 } from "../lib/managerWeeklyStats";

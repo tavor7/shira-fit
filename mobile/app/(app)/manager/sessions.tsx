@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Pressable } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";

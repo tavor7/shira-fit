@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, SectionList, TextInput, StyleSheet, Pressable, FlatList, ActivityIndicator, Platform } from "react-native";
+import { View, Text, SectionList, TextInput, StyleSheet, Pressable, ActivityIndicator, Platform } from "react-native";
 import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-router";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -10,7 +10,7 @@ import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
 import { firstWordOfDisplayName, athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
 import { formatSessionStartTime, formatSessionTimeRange } from "../lib/sessionTime";
-import { toISODateLocal, isValidISODateString, lastNDaysRangeISO } from "../lib/isoDate";
+import { isValidISODateString, lastNDaysRangeISO } from "../lib/isoDate";
 import { formatISODateFull, formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
 import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/database";
 import { useI18n } from "../context/I18nContext";

@@ -7,7 +7,6 @@ import { DatePickerField } from "./DatePickerField";
 import { PrimaryButton } from "./PrimaryButton";
 import { ServiceTypePickerField } from "./ServiceTypePickerField";
 import { useI18n } from "../context/I18nContext";
-import { useToast } from "../context/ToastContext";
 import { supabase } from "../lib/supabase";
 import { toISODateLocal } from "../lib/isoDate";
 import {
@@ -42,7 +41,6 @@ function sessionToDocumentMethod(method: SessionPaymentMethodKey): DocumentPayme
 
 export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: Props) {
   const { language, t, isRTL } = useI18n();
-  const { showToast } = useToast();
   const [step, setStep] = useState<"payee" | "form">("payee");
   const [payeeQ, setPayeeQ] = useState("");
   const [payeeRows, setPayeeRows] = useState<PayeeRow[]>([]);

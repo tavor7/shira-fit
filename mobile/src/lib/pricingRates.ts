@@ -1,5 +1,5 @@
 import type { LanguageCode } from "../i18n/translations";
-import { formatISODatePricing, isValidISODateString, parseISODateLocal, toISODateLocal } from "./isoDate";
+import { formatISODatePricing, isValidISODateString, toISODateLocal } from "./isoDate";
 
 export type PricingRatePeriod = {
   id?: string;

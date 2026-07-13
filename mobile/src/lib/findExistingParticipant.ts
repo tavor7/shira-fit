@@ -1,7 +1,6 @@
 import { escapeIlike } from "./staffAthleteSearch";
 import { supabase } from "./supabase";
 import {
-  normalizeParticipantName,
   normalizePhoneDigits,
   participantNamesMatch,
   participantPhonesMatch,
@@ -23,10 +22,6 @@ export type ExistingParticipantMatch =
       phone: string;
       matchedBy: "name" | "phone";
     };
-
-function normalizeName(value: string): string {
-  return normalizeParticipantName(value);
-}
 
 function phonesMatch(a: string, b: string): boolean {
   return participantPhonesMatch(a, b);

@@ -45,22 +45,6 @@ export default function ManagerRosterCalendarScreen() {
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [notesBySession, setNotesBySession] = useState<Record<string, string>>({});
 
-  if (authLoading || (user && !profile)) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", backgroundColor: theme.colors.background }}>
-        <ActivityIndicator size="large" color={theme.colors.cta} />
-      </View>
-    );
-  }
-  if (profile && profile.role !== "manager") {
-    logRedirectToManagerSessions("app/(app)/manager/roster-calendar.tsx", "roster_calendar_wrong_role", {
-      authLoading,
-      authUserId: user?.id ?? null,
-      profileRole: profile.role,
-    });
-    return <Redirect href="/(app)/manager/sessions" />;
-  }
-
   const groupMode = showBig && !showSmall;
   const filtersOn = showSmall || showBig;
 
@@ -112,11 +96,6 @@ export default function ManagerRosterCalendarScreen() {
     );
     return filtered;
   }, [filteredRows, weekStartIso, weekEndIso]);
-
-  const smallWeekSessions = useMemo(
-    () => weekSessionsAll.filter((s) => (s.max_participants ?? 0) <= 6),
-    [weekSessionsAll]
-  );
 
   const items = useMemo<SessionsWeekItem[]>(
     () =>
@@ -220,21 +199,6 @@ export default function ManagerRosterCalendarScreen() {
     }));
   }, [weekSessions, language]);
 
-  const smallGrouped = useMemo(() => {
-    const byDate: Record<string, TrainingSessionWithTrainer[]> = {};
-    for (const s of smallWeekSessions) (byDate[s.session_date] ??= []).push(s);
-    const dates = Object.keys(byDate).sort();
-    return dates.map((d) => ({
-      date: d,
-      title: formatISODateLong(d, language),
-      items: byDate[d].sort(
-        (a, b) =>
-          sessionStartsAt(a.session_date, a.start_time).getTime() -
-          sessionStartsAt(b.session_date, b.start_time).getTime()
-      ),
-    }));
-  }, [smallWeekSessions, language]);
-
   const sheetItems = useMemo(
     () => (sheetDay ? (groupMode ? itemsAll : items).filter((i) => i.session_date === sheetDay) : []),
     [items, itemsAll, sheetDay, groupMode]
@@ -309,6 +273,22 @@ export default function ManagerRosterCalendarScreen() {
       cancelled = true;
     };
   }, [weekSessionsAll]);
+
+  if (authLoading || (user && !profile)) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.cta} />
+      </View>
+    );
+  }
+  if (profile && profile.role !== "manager") {
+    logRedirectToManagerSessions("app/(app)/manager/roster-calendar.tsx", "roster_calendar_wrong_role", {
+      authLoading,
+      authUserId: user?.id ?? null,
+      profileRole: profile.role,
+    });
+    return <Redirect href="/(app)/manager/sessions" />;
+  }
 
   return (
     <View style={styles.screen}>

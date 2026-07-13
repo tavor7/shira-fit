@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
-import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { AppModal } from "./AppModal";
 import {
   ACCOUNT_PAYMENT_SERVICE_TYPE_KEYS,
