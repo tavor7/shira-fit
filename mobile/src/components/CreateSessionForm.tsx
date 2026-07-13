@@ -171,9 +171,18 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     let cancelled = false;
     const asOf = isValidISODateString(date.trim()) ? date.trim() : toISODateLocal(new Date());
     void (async () => {
-      const tierP = await fetchActiveGlobalTierPrice(supabase, cap, { isKickbox, asOf });
-      if (cancelled) return;
-      setTierSlotPriceIls(tierP);
+      try {
+        const tierP = await fetchActiveGlobalTierPrice(supabase, cap, { isKickbox, asOf });
+        if (cancelled) return;
+        setTierSlotPriceIls(tierP);
+      } catch (error) {
+        if (cancelled) return;
+        showToast({
+          message: t("common.error"),
+          detail: error instanceof Error ? error.message : undefined,
+          variant: "error",
+        });
+      }
     })();
     return () => {
       cancelled = true;

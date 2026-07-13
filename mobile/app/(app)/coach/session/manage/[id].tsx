@@ -142,10 +142,19 @@ export default function CoachSessionManageScreen() {
       const customRaw = (s as TrainingSession).custom_slot_price_ils;
       const customNum = customRaw != null && Number.isFinite(Number(customRaw)) ? Number(customRaw) : null;
       setCustomSlotPriceDraft(customNum != null ? String(customNum) : "");
-      const tierP = await fetchActiveGlobalTierPrice(supabase, s.max_participants, {
-        isKickbox: !!(s as TrainingSession).is_kickbox,
-        asOf: s.session_date,
-      });
+      let tierP: number | null = null;
+      try {
+        tierP = await fetchActiveGlobalTierPrice(supabase, s.max_participants, {
+          isKickbox: !!(s as TrainingSession).is_kickbox,
+          asOf: s.session_date,
+        });
+      } catch (error) {
+        showToast({
+          message: t("common.error"),
+          detail: error instanceof Error ? error.message : undefined,
+          variant: "error",
+        });
+      }
       setTierSlotPriceIls(tierP);
       setUndoStack([]);
       setForbidden(false);
@@ -159,9 +168,18 @@ export default function CoachSessionManageScreen() {
     let cancelled = false;
     const asOf = isValidISODateString(date.trim()) ? date.trim() : toISODateLocal(new Date());
     void (async () => {
-      const tierP = await fetchActiveGlobalTierPrice(supabase, cap, { isKickbox, asOf });
-      if (cancelled) return;
-      setTierSlotPriceIls(tierP);
+      try {
+        const tierP = await fetchActiveGlobalTierPrice(supabase, cap, { isKickbox, asOf });
+        if (cancelled) return;
+        setTierSlotPriceIls(tierP);
+      } catch (error) {
+        if (cancelled) return;
+        showToast({
+          message: t("common.error"),
+          detail: error instanceof Error ? error.message : undefined,
+          variant: "error",
+        });
+      }
     })();
     return () => {
       cancelled = true;

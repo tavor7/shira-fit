@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveTierPriceForDate, type PricingRateTierRow } from "./pricingRates";
+import { unwrap } from "./supabaseErrors";
 
 /** Parse custom session rate draft; empty string clears override. */
 export function parseCustomSlotPriceDraft(
@@ -77,7 +78,7 @@ export async function fetchActiveGlobalTierPrice(
   cap: number,
   opts: { isKickbox?: boolean; asOf: string }
 ): Promise<number | null> {
-  const { data, error } = await supabase
+  const result = await supabase
     .from("session_capacity_pricing")
     .select("price_ils")
     .eq("max_participants", cap)
@@ -87,7 +88,8 @@ export async function fetchActiveGlobalTierPrice(
     .order("effective_from", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (error || !data) return null;
+  const data = unwrap(result, "fetchActiveGlobalTierPrice");
+  if (!data) return null;
   const n = Number(data.price_ils);
   return Number.isFinite(n) ? n : null;
 }
@@ -104,12 +106,12 @@ export async function fetchSessionBillingPriceIls(
   userId: string | null,
   manualParticipantId?: string | null
 ): Promise<number> {
-  const { data, error } = await supabase.rpc("session_billing_price_ils", {
+  const result = await supabase.rpc("session_billing_price_ils", {
     p_session_id: sessionId,
     p_user_id: userId,
     p_manual_participant_id: manualParticipantId ?? null,
   });
-  if (error) return 0;
+  const data = unwrap(result, "fetchSessionBillingPriceIls");
   const n = Number(data);
   return Number.isFinite(n) ? n : 0;
 }
@@ -144,14 +146,15 @@ export async function resolveRowBillingPriceIls(
     return sessionCustom;
   }
 
-  const { data, error } = await supabase.rpc("participant_capacity_price_ils", {
+  const result = await supabase.rpc("participant_capacity_price_ils", {
     p_user_id: userId,
     p_manual_participant_id: manualParticipantId,
     p_max_participants: sessionMeta.max_participants,
     p_is_kickbox: sessionMeta.is_kickbox,
     p_as_of: sessionMeta.session_date,
   });
-  if (!error && data != null) {
+  const data = unwrap(result, "resolveRowBillingPriceIls:participant_capacity_price_ils");
+  if (data != null) {
     const tier = Number(data);
     if (Number.isFinite(tier) && tier > 0) return tier;
   }

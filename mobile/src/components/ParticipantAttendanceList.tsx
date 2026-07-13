@@ -388,6 +388,7 @@ export function ParticipantAttendanceList({
           }
         : null;
 
+    let priceFetchFailed = false;
     for (const r of all) {
       if (normalizePaymentMethodKey(r.paymentMethod) !== "(none)") withPaymentMethod += 1;
       if (r.amountPaid != null && r.amountPaid > 0) totalPaidIls += r.amountPaid;
@@ -399,17 +400,22 @@ export function ParticipantAttendanceList({
       const userId = r.kind === "registered" ? r.userId : null;
       const manualParticipantId = r.kind === "manual" ? r.manualId : null;
       const rosterOverride = rosterMap[r.id] ?? null;
-      // eslint-disable-next-line no-await-in-loop
-      const price = metaForBilling
-        ? await resolveRowBillingPriceIls(
-            supabase,
-            sessionId,
-            userId,
-            manualParticipantId,
-            metaForBilling,
-            rosterOverride
-          )
-        : await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
+      let price = 0;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        price = metaForBilling
+          ? await resolveRowBillingPriceIls(
+              supabase,
+              sessionId,
+              userId,
+              manualParticipantId,
+              metaForBilling,
+              rosterOverride
+            )
+          : await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
+      } catch {
+        priceFetchFailed = true;
+      }
       effectiveMap[r.id] = price;
 
       const owes = r.attended === true || (r.attended === false && r.chargeNoShow);
@@ -417,6 +423,10 @@ export function ParticipantAttendanceList({
         expectedPaymentSlots += 1;
         expectedPaymentsIls += price;
       }
+    }
+    if (priceFetchFailed) {
+      const msg = language === "he" ? "טעינת חלק מהמחירים נכשלה" : "Failed to load some prices";
+      setLoadError((prev) => (prev ? `${prev} · ${msg}` : msg));
     }
     setRosterPriceByRowId(rosterMap);
     setEffectivePriceByRowId(effectiveMap);
@@ -475,21 +485,25 @@ export function ParticipantAttendanceList({
     const userId = row.kind === "registered" ? row.userId : null;
     const manualParticipantId = row.kind === "manual" ? row.manualId : null;
     const cached = effectivePriceByRowId[row.id];
-    const price =
-      cached != null && cached > 0
-        ? cached
-        : sessionMeta
-          ? await resolveRowBillingPriceIls(
-              supabase,
-              sessionId,
-              userId,
-              manualParticipantId,
-              sessionMeta,
-              rosterPriceByRowId[row.id] ?? null
-            )
-          : await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
-    if (price <= 0) return "";
-    return formatBillingAmountDraft(price);
+    if (cached != null && cached > 0) return formatBillingAmountDraft(cached);
+    try {
+      const price = sessionMeta
+        ? await resolveRowBillingPriceIls(
+            supabase,
+            sessionId,
+            userId,
+            manualParticipantId,
+            sessionMeta,
+            rosterPriceByRowId[row.id] ?? null
+          )
+        : await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
+      if (price <= 0) return "";
+      return formatBillingAmountDraft(price);
+    } catch {
+      const msg = language === "he" ? "טעינת המחיר נכשלה" : "Failed to load price";
+      setLoadError(msg);
+      return "";
+    }
   }
 
   async function goToPaymentAmountPhase(method: string) {

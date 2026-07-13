@@ -470,12 +470,21 @@ export default function ManagerSessionDetail() {
     const asOf =
       isValidISODateString(date.trim()) ? date.trim() : session?.session_date ?? toISODateLocal(new Date());
     void (async () => {
-      const tierNum = await fetchActiveGlobalTierPrice(supabase, cap, {
-        isKickbox: !!isKickbox,
-        asOf,
-      });
-      if (cancelled) return;
-      setTierSlotPriceIls(tierNum);
+      try {
+        const tierNum = await fetchActiveGlobalTierPrice(supabase, cap, {
+          isKickbox: !!isKickbox,
+          asOf,
+        });
+        if (cancelled) return;
+        setTierSlotPriceIls(tierNum);
+      } catch (error) {
+        if (cancelled) return;
+        showToast({
+          message: t("common.error"),
+          detail: error instanceof Error ? error.message : undefined,
+          variant: "error",
+        });
+      }
     })();
     return () => {
       cancelled = true;
@@ -662,7 +671,13 @@ export default function ManagerSessionDetail() {
   }
 
   async function markCancellationPenaltyFull(cancellationId: string, userId: string) {
-    const amount = await fetchSessionBillingPriceIls(supabase, String(id), userId);
+    let amount: number;
+    try {
+      amount = await fetchSessionBillingPriceIls(supabase, String(id), userId);
+    } catch (error) {
+      showOk(t("common.error"), error instanceof Error ? error.message : t("common.failed"));
+      return;
+    }
     if (amount <= 0) return;
     await setCancellationPenaltyCollected(cancellationId, amount);
   }
@@ -698,11 +713,19 @@ export default function ManagerSessionDetail() {
       setOpen(s.is_open_for_registration);
       setHidden(!!(s as { is_hidden?: boolean }).is_hidden);
       setIsKickbox(!!(s as TrainingSession).is_kickbox);
-      const tierNum = await fetchActiveGlobalTierPrice(supabase, s.max_participants, {
-        isKickbox: !!(s as TrainingSession).is_kickbox,
-        asOf: s.session_date,
-      });
-      setTierSlotPriceIls(tierNum);
+      try {
+        const tierNum = await fetchActiveGlobalTierPrice(supabase, s.max_participants, {
+          isKickbox: !!(s as TrainingSession).is_kickbox,
+          asOf: s.session_date,
+        });
+        setTierSlotPriceIls(tierNum);
+      } catch (error) {
+        showToast({
+          message: t("common.error"),
+          detail: error instanceof Error ? error.message : undefined,
+          variant: "error",
+        });
+      }
       const customRaw = (s as TrainingSession).custom_slot_price_ils;
       const customNum = customRaw != null && Number.isFinite(Number(customRaw)) ? Number(customRaw) : null;
       setCustomSlotPriceDraft(customNum != null ? String(customNum) : "");
