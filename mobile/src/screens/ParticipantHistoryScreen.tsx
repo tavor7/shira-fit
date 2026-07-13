@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, SectionList, TextInput, Pressable, ActivityIndicator, Platform } from "react-native";
+import { View, Text, SectionList, Pressable, ActivityIndicator, Platform } from "react-native";
 import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-router";
 import { theme } from "../theme";
-import { PrimaryButton } from "../components/PrimaryButton";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
-import { AppModal } from "../components/AppModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
 import { athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
@@ -21,7 +19,6 @@ import {
   normalizePaymentMethodKey,
   paymentMethodHistoryLabel,
   isSessionPaymentRecorded,
-  SESSION_PAYMENT_METHOD_KEYS,
   type SessionPaymentMethodKey,
 } from "../lib/paymentMethod";
 import {
@@ -43,6 +40,7 @@ import {
 import { participantHistoryStyles as styles } from "./participantHistoryStyles";
 import { PaymentHistoryRow } from "../components/PaymentHistoryRow";
 import { SessionHistoryRow } from "../components/SessionHistoryRow";
+import { EditSessionAmountModal } from "../components/EditSessionAmountModal";
 
 export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTitle?: boolean } = {}) {
   const { presetUserId, presetManualId, presetStart, presetEnd } = useLocalSearchParams<{
@@ -913,81 +911,24 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         onSaved={() => load({ silent: true })}
       />
 
-      <AppModal
+      <EditSessionAmountModal
         visible={editAmountOpen}
         onClose={() => {
           if (editAmountBusy) return;
           setEditAmountOpen(false);
           setEditReg(null);
         }}
-        variant="sheet"
-        backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
-        cardStyle={styles.modalBox}
-      >
-        <View style={styles.modalHeader}>
-          <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-            {language === "he" ? "עדכון סכום לאימון" : "Edit session amount"}
-          </Text>
-          <Pressable
-            onPress={() => {
-              if (editAmountBusy) return;
-              setEditAmountOpen(false);
-              setEditReg(null);
-            }}
-          >
-            <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
-          </Pressable>
-        </View>
-        <View style={styles.addPayBody}>
-          {editReg ? (
-            <>
-              <Text style={[styles.hint, isRTL && styles.rtlText]}>
-                {formatISODateFull(editReg.session_date, language)} ·{" "}
-                {formatSessionTimeRange(editReg.start_time, editReg.duration_minutes ?? 60)}
-              </Text>
-            </>
-          ) : null}
-          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "אמצעי תשלום" : "Payment method"}</Text>
-          <View style={styles.methodRow}>
-            {(["", ...SESSION_PAYMENT_METHOD_KEYS] as const).map((m) => {
-              const on = editMethod === m;
-              const label = m === "" ? (language === "he" ? "ללא" : "None") : paymentMethodHistoryLabel(m, language);
-              return (
-                <Pressable
-                  key={`editm:${m}`}
-                  onPress={() => setEditMethod(m)}
-                  disabled={editAmountBusy}
-                  style={({ pressed }) => [
-                    styles.methodChip,
-                    on && styles.methodChipOn,
-                    pressed && !on && { opacity: 0.9 },
-                    editAmountBusy && { opacity: 0.7 },
-                  ]}
-                >
-                  <Text style={[styles.methodChipTxt, on && styles.methodChipTxtOn]}>{label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "סכום ששולם (₪)" : "Amount paid (₪)"}</Text>
-          <TextInput
-            value={editAmountStr}
-            onChangeText={setEditAmountStr}
-            keyboardType="decimal-pad"
-            placeholder={language === "he" ? "למשל 90" : "e.g. 90"}
-            placeholderTextColor={theme.colors.placeholderOnLight}
-            style={styles.inputLight}
-            editable={!editAmountBusy && editMethod !== ""}
-          />
-          <PrimaryButton
-            label={t("common.save")}
-            onPress={() => void saveEditAmount()}
-            loading={editAmountBusy}
-            loadingLabel={t("common.loading")}
-          />
-        </View>
-      </AppModal>
+        busy={editAmountBusy}
+        reg={editReg}
+        method={editMethod}
+        onMethodChange={setEditMethod}
+        amountStr={editAmountStr}
+        onAmountStrChange={setEditAmountStr}
+        onSave={() => void saveEditAmount()}
+        language={language}
+        isRTL={isRTL}
+        t={t}
+      />
 
       <SectionList
         style={styles.list}
