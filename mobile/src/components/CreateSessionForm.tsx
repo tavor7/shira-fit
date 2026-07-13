@@ -15,6 +15,7 @@ import { PrimaryButton } from "./PrimaryButton";
 import { DEFAULT_SESSION_START_TIME, suggestNextSessionStartTime } from "../lib/sessionTime";
 import { isMissingSessionSeriesRpc, staffCreateSessionSeries } from "../lib/sessionSeries";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
+import { appendNetworkHint } from "../lib/networkErrors";
 import { toISODateLocal, isValidISODateString } from "../lib/isoDate";
 import { SessionWhenFields } from "./SessionWhenFields";
 import { SessionCapacityFields } from "./SessionCapacityFields";

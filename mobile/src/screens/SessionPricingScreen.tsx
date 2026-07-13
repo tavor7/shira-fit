@@ -532,7 +532,14 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
       return;
     }
     setOverrideSaving(true);
-    const row = isManual
+    const row: {
+      user_id: string | null;
+      manual_participant_id: string | null;
+      max_participants: number;
+      price_ils: number;
+      effective_from: string;
+      effective_to: string | null;
+    } = isManual
       ? {
           user_id: null,
           manual_participant_id: pickedManualId,

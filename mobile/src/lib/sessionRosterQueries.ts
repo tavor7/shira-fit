@@ -37,7 +37,10 @@ export async function fetchSessionRegistrationsWithProfiles(
     .in("user_id", userIds);
 
   if (profRes.error && isMissingColumnError(profRes.error.message, "date_of_birth")) {
-    profRes = await supabase.from("profiles").select("user_id, full_name, username, phone").in("user_id", userIds);
+    profRes = (await supabase
+      .from("profiles")
+      .select("user_id, full_name, username, phone")
+      .in("user_id", userIds)) as typeof profRes;
   }
 
   if (profRes.error) return { rows: [], error: profRes.error.message };

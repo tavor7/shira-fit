@@ -67,6 +67,7 @@ export type PricingIssue = {
 type PeriodRow = PricingRatePeriod & {
   id?: string;
   max_participants: number;
+  price_ils: number | string;
   user_id?: string | null;
   manual_participant_id?: string | null;
 };

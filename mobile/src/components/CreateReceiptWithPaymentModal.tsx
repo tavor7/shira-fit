@@ -209,6 +209,8 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
             <AppSearchField
               value={payeeQ}
               onChangeText={setPayeeQ}
+              // loadPayees already re-runs via the effect watching payeeQ above.
+              onSearch={() => {}}
               placeholder={language === "he" ? "חיפוש מתאמן/ת או quick-add…" : "Search athlete or quick-add…"}
             />
             {payeeLoading ? (
@@ -297,10 +299,11 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
               ))}
             </View>
 
-            <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>
-              {language === "he" ? "תאריך תשלום" : "Payment date"}
-            </Text>
-            <DatePickerField value={paidAt} onChange={setPaidAt} />
+            <DatePickerField
+              label={language === "he" ? "תאריך תשלום" : "Payment date"}
+              value={paidAt}
+              onChange={setPaidAt}
+            />
 
             <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>
               {language === "he" ? "הערה" : "Note"}

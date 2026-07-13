@@ -10,6 +10,14 @@ export function isSessionPaymentMethodKey(k: string): k is SessionPaymentMethodK
 
 export function coerceSessionPaymentMethodKey(
   raw: string | null | undefined,
+  fallback: SessionPaymentMethodKey
+): SessionPaymentMethodKey;
+export function coerceSessionPaymentMethodKey(
+  raw: string | null | undefined,
+  fallback?: ""
+): SessionPaymentMethodKey | "";
+export function coerceSessionPaymentMethodKey(
+  raw: string | null | undefined,
   fallback: SessionPaymentMethodKey | "" = ""
 ): SessionPaymentMethodKey | "" {
   const k = normalizePaymentMethodKey(raw);

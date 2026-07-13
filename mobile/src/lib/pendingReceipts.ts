@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import type { DocumentStatus } from "./documents";
 
 export type PendingReceiptRowKind = "account" | "session_reg" | "session_manual" | "cancellation";
 
@@ -31,15 +32,15 @@ export type CreateDocumentsFromPaymentsResult = {
     row_id: string;
     document_id: string;
     document_number: string;
-    status: string;
+    status: DocumentStatus;
     needs_pdf: boolean;
   }>;
   failed: Array<{ row_id?: string; error?: string }>;
 };
 
-function parseRpc<T extends { ok?: boolean; error?: string }>(raw: unknown): T {
+function parseRpc<T extends Record<string, unknown>>(raw: unknown): T {
   if (!raw || typeof raw !== "object") throw new Error("invalid_response");
-  const o = raw as T;
+  const o = raw as T & { ok?: boolean; error?: string };
   if (o.ok === false) throw new Error(o.error ?? "unknown_error");
   return o;
 }
@@ -134,7 +135,7 @@ export async function createDocumentsFromPayments(rowIds: string[]): Promise<Cre
         row_id: String(o.row_id ?? ""),
         document_id: String(o.document_id ?? ""),
         document_number: String(o.document_number ?? ""),
-        status: String(o.status ?? ""),
+        status: String(o.status ?? "") as DocumentStatus,
         needs_pdf: Boolean(o.needs_pdf),
       });
     }

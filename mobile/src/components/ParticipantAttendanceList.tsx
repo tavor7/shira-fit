@@ -296,10 +296,10 @@ export function ParticipantAttendanceList({
       .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone, date_of_birth)")
       .eq("session_id", sessionId);
     if (manRes.error && isMissingColumnError(manRes.error.message, "date_of_birth")) {
-      manRes = await supabase
+      manRes = (await supabase
         .from("session_manual_participants")
         .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone)")
-        .eq("session_id", sessionId);
+        .eq("session_id", sessionId)) as typeof manRes;
     }
 
     const { data, error } = { data: regRes.rows, error: regRes.error ? { message: regRes.error } : null };

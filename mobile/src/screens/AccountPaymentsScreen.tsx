@@ -33,6 +33,7 @@ import {
 import { type FamilyMemberKind, memberPayeeKey, parseFamilyMembers } from "../lib/athleteFamilies";
 import { CreateDocumentModal, type CreateDocumentPrefill } from "../components/CreateDocumentModal";
 import { fetchReceiptSettings } from "../lib/documents";
+import type { AthleteAccountPayment } from "../types/database";
 
 type DateMode = "all" | "range";
 type PaymentMethodFilter = "all" | SessionPaymentMethodKey;
@@ -325,7 +326,7 @@ export default function AccountPaymentsScreen() {
       phone: p.phone,
     }));
 
-    const manuals: PickerRow[] = ((manualRes.data ?? []) as { id: string; full_name: string; phone?: string; linked_user_id?: string | null }[]).map(
+    const manuals = ((manualRes.data ?? []) as { id: string; full_name: string; phone?: string; linked_user_id?: string | null }[]).map(
       (m) => ({ kind: "manual" as const, ...m })
     );
 
@@ -729,7 +730,13 @@ export default function AccountPaymentsScreen() {
           </Pressable>
         </View>
         <View style={styles.pickerBody}>
-          <AppSearchField value={pickerQ} onChangeText={setPickerQ} placeholder={t("accountPayments.searchPayees")} />
+          <AppSearchField
+            value={pickerQ}
+            onChangeText={setPickerQ}
+            // loadPickerRows already re-runs via the effect watching pickerQ above.
+            onSearch={() => {}}
+            placeholder={t("accountPayments.searchPayees")}
+          />
           {pickerLoading ? (
             <ActivityIndicator style={styles.pickerLoading} color={theme.colors.cta} />
           ) : (

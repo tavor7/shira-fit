@@ -18,7 +18,9 @@ export async function fetchReceiptRequirementsSnapshot(): Promise<ReceiptRequire
   };
 }
 
-export function receiptRequirementsMode(snapshot: ReceiptRequirementsSnapshot): "none" | "consent_only" | "address_only" | "both" {
+export type ReceiptRequirementsMode = "none" | "consent_only" | "address_only" | "both";
+
+export function receiptRequirementsMode(snapshot: ReceiptRequirementsSnapshot): ReceiptRequirementsMode {
   const needsConsent = snapshot.consent != null;
   if (needsConsent && snapshot.needsAddress) return "both";
   if (needsConsent) return "consent_only";

@@ -13,6 +13,7 @@ import { Stack, useLocalSearchParams, router, type Href } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
+import type { LanguageCode } from "../i18n/translations";
 import type { TrainingSessionWithTrainer } from "../types/database";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import {
@@ -128,7 +129,7 @@ function NoShowRowCard({
   t,
 }: {
   row: NoShowRow;
-  language: string;
+  language: LanguageCode;
   isRTL: boolean;
   t: (key: string) => string;
 }) {

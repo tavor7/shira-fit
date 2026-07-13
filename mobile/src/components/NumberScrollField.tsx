@@ -111,7 +111,6 @@ export function NumberScrollField({ label, value, onChange, options, formatOptio
           onScroll={onScroll}
           onMomentumScrollEnd={onScrollEnd}
           onScrollEndDrag={onScrollEnd}
-          // @ts-expect-error RN Web className
           className={Platform.OS === "web" ? "wheel-picker-scroll" : undefined}
           style={styles.scroll}
         >

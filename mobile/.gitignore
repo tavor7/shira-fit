@@ -7,7 +7,8 @@ node_modules/
 .expo/
 dist/
 web-build/
-expo-env.d.ts
+# expo-env.d.ts is committed (see below) so `tsc` type-checks the same way
+# in CI as in local dev — it's static content, safe to track.
 
 # Native
 .kotlin/
