@@ -12,9 +12,9 @@ type Row = { user_id: string; username: string; full_name: string; phone: string
 
 export default function ApproveAthletesScreen() {
   const { t, isRTL } = useI18n();
-  const { showOk } = useAppAlert();
+  const { showOk, showConfirm } = useAppAlert();
   const [rows, setRows] = useState<Row[]>([]);
-  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -27,17 +27,28 @@ export default function ApproveAthletesScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  async function approveAthlete(uid: string) {
-    if (approvingId) return;
-    setApprovingId(uid);
+  async function setApproval(uid: string, status: "approved" | "rejected") {
+    if (busyId) return;
+    setBusyId(uid);
     const { data, error } = await supabase.rpc("set_athlete_approval", {
       p_user_id: uid,
-      p_status: "approved",
+      p_status: status,
     });
-    setApprovingId(null);
+    setBusyId(null);
     if (error) showOk(t("common.error"), error.message);
     else if (data?.ok) load();
     else showOk(t("common.failed"), data?.error ?? "");
+  }
+
+  function confirmReject(row: Row) {
+    showConfirm({
+      title: t("approve.rejectConfirmTitle"),
+      message: t("approve.rejectConfirmMessage").replace("{name}", row.full_name),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("approve.rejectBtn"),
+      confirmVariant: "danger",
+      onConfirm: () => void setApproval(row.user_id, "rejected"),
+    });
   }
 
   return (
@@ -59,12 +70,21 @@ export default function ApproveAthletesScreen() {
             </AppText>
             <View style={styles.actions}>
               <Pressable
-                style={({ pressed }) => [styles.ok, pressed && { opacity: 0.9 }, approvingId === item.user_id && { opacity: 0.6 }]}
-                onPress={() => approveAthlete(item.user_id)}
-                disabled={approvingId !== null}
+                style={({ pressed }) => [styles.ok, pressed && { opacity: 0.9 }, busyId === item.user_id && { opacity: 0.6 }]}
+                onPress={() => void setApproval(item.user_id, "approved")}
+                disabled={busyId !== null}
               >
                 <AppText variant="label" style={styles.okT}>
-                  {approvingId === item.user_id ? t("common.loading") : t("approve.approveBtn")}
+                  {busyId === item.user_id ? t("common.loading") : t("approve.approveBtn")}
+                </AppText>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.reject, pressed && { opacity: 0.9 }, busyId === item.user_id && { opacity: 0.6 }]}
+                onPress={() => confirmReject(item)}
+                disabled={busyId !== null}
+              >
+                <AppText variant="label" style={styles.rejectT}>
+                  {t("approve.rejectBtn")}
                 </AppText>
               </Pressable>
             </View>
@@ -92,4 +112,14 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: theme.spacing.sm, marginTop: theme.spacing.sm },
   ok: { flex: 1, backgroundColor: theme.colors.success, padding: theme.spacing.sm, borderRadius: theme.radius.md, alignItems: "center" },
   okT: { color: theme.colors.white },
+  reject: {
+    flex: 1,
+    backgroundColor: theme.colors.errorBg,
+    borderWidth: 1,
+    borderColor: theme.colors.errorBorder,
+    padding: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+  },
+  rejectT: { color: theme.colors.error },
 });

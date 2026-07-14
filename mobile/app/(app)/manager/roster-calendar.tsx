@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Text, ActivityIndicator, Pressable } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl, Text, ActivityIndicator, Pressable, Linking } from "react-native";
 import { Redirect, router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { useAuth } from "../../../src/context/AuthContext";
@@ -40,13 +40,12 @@ export default function ManagerRosterCalendarScreen() {
   const [weekStartIso, setWeekStartIso] = useState<string>("");
   const [weekEndIso, setWeekEndIso] = useState<string>("");
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
-  const [showSmall, setShowSmall] = useState(false);
-  const [showBig, setShowBig] = useState(false);
+  const [groupFilter, setGroupFilter] = useState<"all" | "small" | "big">("all");
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [notesBySession, setNotesBySession] = useState<Record<string, string>>({});
 
-  const groupMode = showBig && !showSmall;
-  const filtersOn = showSmall || showBig;
+  const groupMode = groupFilter === "big";
+  const filtersOn = groupFilter !== "all";
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
@@ -71,11 +70,10 @@ export default function ManagerRosterCalendarScreen() {
   );
 
   const filteredRows = useMemo(() => {
-    if (!showSmall && !showBig) return rows; // regular calendar
-    if (showSmall && showBig) return rows; // both toggles on
-    if (showBig) return rows.filter((s) => (s.max_participants ?? 0) > 6);
-    return rows.filter((s) => (s.max_participants ?? 0) <= 6);
-  }, [rows, showSmall, showBig]);
+    if (groupFilter === "big") return rows.filter((s) => (s.max_participants ?? 0) > 6);
+    if (groupFilter === "small") return rows.filter((s) => (s.max_participants ?? 0) <= 6);
+    return rows;
+  }, [rows, groupFilter]);
 
   const weekSessionsAll = useMemo(() => {
     const filtered = rows.filter((s) => inWeek(s.session_date, weekStartIso, weekEndIso));
@@ -103,7 +101,7 @@ export default function ManagerRosterCalendarScreen() {
         const accentColor = resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id);
         const isBig = (s.max_participants ?? 0) > 6;
         // When a filter is enabled, show roster names on the calendar cards for that group size.
-        if ((showBig && isBig) || (showSmall && !isBig)) {
+        if ((groupFilter === "big" && isBig) || (groupFilter === "small" && !isBig)) {
           const roster = rosterBySession[s.id] ?? [];
           const c = signupBySession[s.id] ?? 0;
           const m = s.max_participants ?? 0;
@@ -155,7 +153,7 @@ export default function ManagerRosterCalendarScreen() {
           onPress: () => router.push(`/(app)/manager/session/${s.id}`),
         } satisfies SessionsWeekItem;
       }),
-    [filteredRows, signupBySession, waitlistBySession, showBig, showSmall, rosterBySession, t, filtersOn]
+    [filteredRows, signupBySession, waitlistBySession, groupFilter, rosterBySession, t, filtersOn]
   );
 
   const itemsAll = useMemo<SessionsWeekItem[]>(
@@ -309,47 +307,29 @@ export default function ManagerRosterCalendarScreen() {
           <Text style={[styles.h1, isRTL && styles.rtlText]}>{t("rosterCalendar.title")}</Text>
           <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("rosterCalendar.hint")}</Text>
           <View style={[styles.modeWrap, isRTL && styles.modeWrapRtl]}>
-            <Pressable
-              onPress={() => setShowSmall((v) => !v)}
-              style={({ pressed }) => [
-                styles.filterBtn,
-                showSmall && styles.filterBtnOn,
-                pressed && !showSmall && styles.filterBtnPressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: showSmall }}
-              accessibilityLabel={t("rosterCalendar.filterSmallA11y")}
-            >
-              <Text style={[styles.filterTxt, showSmall && styles.filterTxtOn]} numberOfLines={1}>
-                {t("rosterCalendar.filterSmall")}
-              </Text>
-              <View style={[styles.filterPill, showSmall && styles.filterPillOn]}>
-                <Text style={[styles.filterPillTxt, showSmall && styles.filterPillTxtOn]}>
-                  {showSmall ? t("common.on") : t("common.off")}
-                </Text>
-              </View>
-            </Pressable>
-
-            <Pressable
-              onPress={() => setShowBig((v) => !v)}
-              style={({ pressed }) => [
-                styles.filterBtn,
-                showBig && styles.filterBtnOn,
-                pressed && !showBig && styles.filterBtnPressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: showBig }}
-              accessibilityLabel={t("rosterCalendar.filterBigA11y")}
-            >
-              <Text style={[styles.filterTxt, showBig && styles.filterTxtOn]} numberOfLines={1}>
-                {t("rosterCalendar.filterBig")}
-              </Text>
-              <View style={[styles.filterPill, showBig && styles.filterPillOn]}>
-                <Text style={[styles.filterPillTxt, showBig && styles.filterPillTxtOn]}>
-                  {showBig ? t("common.on") : t("common.off")}
-                </Text>
-              </View>
-            </Pressable>
+            {(["all", "small", "big"] as const).map((mode) => {
+              const on = groupFilter === mode;
+              const label =
+                mode === "all"
+                  ? t("rosterCalendar.filterAll")
+                  : mode === "small"
+                    ? t("rosterCalendar.filterSmall")
+                    : t("rosterCalendar.filterBig");
+              return (
+                <Pressable
+                  key={mode}
+                  onPress={() => setGroupFilter(mode)}
+                  style={({ pressed }) => [styles.filterBtn, on && styles.filterBtnOn, pressed && !on && styles.filterBtnPressed]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={label}
+                >
+                  <Text style={[styles.filterTxt, on && styles.filterTxtOn]} numberOfLines={1}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
@@ -420,7 +400,17 @@ export default function ManagerRosterCalendarScreen() {
                                 numberOfLines={2}
                               >
                                 {r.name}
-                                {r.phone ? (language === "he" ? ` · ${r.phone}` : ` · ${r.phone}`) : ""}
+                                {r.phone ? (
+                                  <Text
+                                    onPress={(e) => {
+                                      e.stopPropagation();
+                                      void Linking.openURL(`tel:${r.phone}`);
+                                    }}
+                                    style={styles.namePhone}
+                                  >
+                                    {` · ${r.phone}`}
+                                  </Text>
+                                ) : null}
                               </Text>
                             ))}
                           </View>
@@ -444,13 +434,6 @@ export default function ManagerRosterCalendarScreen() {
 
         <View style={styles.scrollBottomSpacer} />
       </ScrollView>
-
-      <Pressable
-        onPress={() => router.push("/(app)/manager/sessions")}
-        style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
-      >
-        <Text style={styles.backBtnTxt}>{t("rosterCalendar.backToCalendar")}</Text>
-      </Pressable>
 
       <DaySessionsSheet
         visible={sheetDay !== null}
@@ -534,17 +517,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   filterTxtOn: { color: theme.colors.cta },
-  filterPill: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.backgroundAlt,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-  },
-  filterPillOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  filterPillTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 12, letterSpacing: 0.15 },
-  filterPillTxtOn: { color: theme.colors.ctaText },
 
   rosterHeader: {
     paddingHorizontal: theme.spacing.md,
@@ -608,6 +580,7 @@ const styles = StyleSheet.create({
   namesEmpty: { color: theme.colors.textSoft, fontWeight: "600", marginTop: theme.spacing.xs, fontSize: 14 },
   namesList: { marginTop: theme.spacing.xs, gap: theme.spacing.xs },
   name: { color: theme.colors.text, fontWeight: "700", fontSize: 14, lineHeight: 20 },
+  namePhone: { color: theme.colors.cta, textDecorationLine: "underline" },
   notesBlock: {
     marginTop: theme.spacing.sm,
     paddingTop: theme.spacing.sm,
@@ -623,20 +596,5 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xs,
   },
   notesBody: { color: theme.colors.textMuted, fontWeight: "600", fontSize: 13, lineHeight: 18 },
-
-  backBtn: {
-    position: "absolute",
-    left: theme.spacing.md,
-    right: theme.spacing.md,
-    bottom: theme.spacing.md,
-    backgroundColor: theme.colors.cta,
-    borderRadius: theme.radius.full,
-    paddingVertical: theme.spacing.md,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: theme.colors.cta,
-  },
-  backBtnPressed: { opacity: 0.9 },
-  backBtnTxt: { color: theme.colors.ctaText, fontWeight: "800", letterSpacing: 0.15, fontSize: 15 },
 });
 

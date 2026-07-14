@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
@@ -25,48 +25,54 @@ export default function ManagerReportsScreen() {
   );
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <ManagerOverviewHubTabs />
-      <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.reports")}</Text>
+    <View style={styles.screen}>
+      <View style={styles.header}>
+        <ManagerOverviewHubTabs />
+        <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.reports")}</Text>
+        <Text style={[styles.subtitle, isRTL && styles.rtl]}>
+          {active === "athlete" ? t("reports.athleteTabHint") : t("reports.coachTabHint")}
+        </Text>
 
-      <View style={[styles.track, isRTL && styles.trackRtl]}>
-        {tabs.map((x) => {
-          const on = x.id === active;
-          return (
-            <Pressable
-              key={x.id}
-              onPress={() => setActive(x.id)}
-              style={({ pressed }) => [
-                styles.slot,
-                on && styles.slotOn,
-                pressed && !on && styles.slotPressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-              accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
-            >
-              <Text style={[styles.slotTxt, on && styles.slotTxtOn]} numberOfLines={1}>
-                {x.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+        <View style={[styles.track, isRTL && styles.trackRtl]}>
+          {tabs.map((x) => {
+            const on = x.id === active;
+            return (
+              <Pressable
+                key={x.id}
+                onPress={() => setActive(x.id)}
+                style={({ pressed }) => [
+                  styles.slot,
+                  on && styles.slotOn,
+                  pressed && !on && styles.slotPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
+              >
+                <Text style={[styles.slotTxt, on && styles.slotTxtOn]} numberOfLines={1}>
+                  {x.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <View style={styles.body}>
         {active === "athlete" ? <ParticipantHistoryScreen hideTitle /> : <ManagerCoachSessionsReportScreen hideTitle />}
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  content: {
+  header: {
     padding: theme.spacing.md,
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: theme.spacing.sm,
     gap: theme.spacing.sm,
   },
+  subtitle: { fontSize: 12, color: theme.colors.textMuted, lineHeight: 17, marginTop: -theme.spacing.xs },
   rtl: { textAlign: "right", alignSelf: "stretch" },
   title: {
     fontSize: 22,
@@ -111,6 +117,6 @@ const styles = StyleSheet.create({
   },
   slotTxtOn: { color: theme.colors.ctaText },
 
-  body: { marginTop: theme.spacing.sm },
+  body: { flex: 1 },
 });
 
