@@ -1,7 +1,18 @@
-import { ReactNode, useMemo } from "react";
-import { Modal, Pressable, StyleProp, StyleSheet, View, ViewStyle, useWindowDimensions } from "react-native";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
+  Modal,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle,
+  useWindowDimensions,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "../theme";
+import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
 type Variant = "popover" | "sheet" | "dialog";
 
@@ -40,6 +51,33 @@ export function AppModal({
 }: Props) {
   const insets = useSafeAreaInsets();
   const { height, width: screenW } = useWindowDimensions();
+  const isPopover = variant === "popover";
+
+  // Popover gets its own scale+fade animation (menu "pop"); sheet/dialog keep the native
+  // Modal animationType, which already looks right for those (slide-up / center-fade).
+  const [popoverMounted, setPopoverMounted] = useState(visible);
+  const popoverProgress = useRef(new Animated.Value(0)).current;
+  const reduceMotionRef = useReduceMotionRef();
+
+  useEffect(() => {
+    if (!isPopover) return;
+    if (visible) {
+      setPopoverMounted(true);
+      Animated.timing(popoverProgress, {
+        toValue: 1,
+        duration: reduceMotionRef.current ? 0 : theme.motion.normal,
+        easing: Easing.out(Easing.back(1.15)),
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(popoverProgress, {
+        toValue: 0,
+        duration: reduceMotionRef.current ? 0 : theme.motion.fast,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(() => setPopoverMounted(false));
+    }
+  }, [visible, isPopover, popoverProgress, reduceMotionRef]);
 
   const isDialog = variant === "dialog";
   const effectiveMaxHeightPct = maxHeightPct ?? (variant === "sheet" ? 0.8 : isDialog ? 0.85 : 0.88);
@@ -80,17 +118,36 @@ export function AppModal({
     return { top, left, width: cardW };
   }, [anchorRect, variant, width, height, screenW]);
 
+  const cardContentStyle = [
+    styles.card,
+    cardBase,
+    variant === "sheet" ? styles.cardSheet : isDialog ? styles.cardDialog : styles.cardPopover,
+    { maxHeight: maxH },
+    isDialog ? { width: dialogWidth } : width && !popoverPos ? { width } : null,
+    popoverPos
+      ? {
+          position: "absolute" as const,
+          top: popoverPos.top,
+          left: popoverPos.left,
+          width: popoverPos.width,
+          marginTop: 0,
+        }
+      : null,
+    cardStyle,
+  ];
+
   return (
     <Modal
-      visible={visible}
+      visible={isPopover ? popoverMounted : visible}
       transparent
-      animationType={animationType ?? (variant === "sheet" ? "slide" : "fade")}
+      animationType={isPopover ? "none" : (animationType ?? (variant === "sheet" ? "slide" : "fade"))}
       onRequestClose={onClose}
     >
-      <View
+      <Animated.View
         style={[
           styles.backdrop,
           variant === "sheet" ? styles.backdropSheet : isDialog ? styles.backdropDialog : styles.backdropPopover,
+          isPopover ? { opacity: popoverProgress } : null,
           backdropStyle,
         ]}
       >
@@ -101,28 +158,25 @@ export function AppModal({
           accessibilityRole="button"
           accessibilityLabel={backdropAccessibilityLabel}
         />
-        <View
-          style={[
-            styles.card,
-            cardBase,
-            variant === "sheet" ? styles.cardSheet : isDialog ? styles.cardDialog : styles.cardPopover,
-            { maxHeight: maxH },
-            isDialog ? { width: dialogWidth } : width && !popoverPos ? { width } : null,
-            popoverPos
-              ? {
-                  position: "absolute",
-                  top: popoverPos.top,
-                  left: popoverPos.left,
-                  width: popoverPos.width,
-                  marginTop: 0,
-                }
-              : null,
-            cardStyle,
-          ]}
-        >
-          {children}
-        </View>
-      </View>
+        {isPopover ? (
+          <Animated.View
+            style={[
+              ...cardContentStyle,
+              {
+                opacity: popoverProgress,
+                transform: [
+                  { scale: popoverProgress.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) },
+                  { translateY: popoverProgress.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) },
+                ],
+              },
+            ]}
+          >
+            {children}
+          </Animated.View>
+        ) : (
+          <View style={cardContentStyle}>{children}</View>
+        )}
+      </Animated.View>
     </Modal>
   );
 }

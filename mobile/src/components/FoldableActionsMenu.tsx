@@ -1,8 +1,9 @@
-import { ReactNode, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { theme } from "../theme";
 import { ActionButton } from "./ActionButton";
 import { AppModal } from "./AppModal";
+import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
 export type FoldableActionsMenuItem = {
   label: string;
@@ -40,24 +41,68 @@ export function FoldableActionsMenu({
   closeOnKey,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const triggerRef = useRef<View>(null);
   const { width } = useWindowDimensions();
   const cardWidth = Math.min(280, Math.max(200, Math.round(width * 0.78)));
 
   const safeItems = useMemo(() => items.filter((i) => i.label.trim().length > 0), [items]);
+
+  const stagger = useRef(new Animated.Value(0)).current;
+  const reduceMotionRef = useReduceMotionRef();
+
+  function openMenu() {
+    triggerRef.current?.measureInWindow((x, y, w, h) => {
+      setAnchor({ x, y, width: w, height: h });
+      setOpen(true);
+    });
+  }
 
   useEffect(() => {
     // Close on navigation changes so the modal backdrop doesn't "freeze" the UI.
     setOpen(false);
   }, [closeOnKey]);
 
+  useEffect(() => {
+    if (!open) return;
+    stagger.setValue(0);
+    Animated.timing(stagger, {
+      toValue: 1,
+      duration: reduceMotionRef.current ? 0 : theme.motion.normal + 80,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [open, stagger, reduceMotionRef]);
+
+  // Reveal items in a soft cascade rather than all at once; each item's slice of the
+  // shared timeline is derived from its index so this needs one driver, not N.
+  const n = Math.max(safeItems.length, 1);
+  const staggerStep = Math.min(0.06, 0.5 / n);
+  const staggerSpan = Math.max(0.35, 1 - (n - 1) * staggerStep);
+  const itemAnimatedStyle = (index: number) => {
+    const start = index * staggerStep;
+    const end = Math.min(start + staggerSpan, 1);
+    return {
+      opacity: stagger.interpolate({ inputRange: [start, end], outputRange: [0, 1], extrapolate: "clamp" as const }),
+      transform: [
+        {
+          translateY: stagger.interpolate({ inputRange: [start, end], outputRange: [10, 0], extrapolate: "clamp" as const }),
+        },
+      ],
+    };
+  };
+
   return (
     <>
-      {renderTrigger ? renderTrigger(() => setOpen(true)) : <ActionButton label={menuTitle} onPress={() => setOpen(true)} />}
+      <View ref={triggerRef} collapsable={false}>
+        {renderTrigger ? renderTrigger(openMenu) : <ActionButton label={menuTitle} onPress={openMenu} />}
+      </View>
       <AppModal
         visible={open}
         onClose={() => setOpen(false)}
         variant="popover"
         width={cardWidth}
+        anchorRect={anchor ?? undefined}
         backdropAccessibilityLabel={backdropAccessibilityLabel}
       >
         {!hideHeader ? (
@@ -79,9 +124,9 @@ export function FoldableActionsMenu({
             ) : null}
           </View>
         ) : null}
-        {safeItems.map((item) => (
+        {safeItems.map((item, index) => (
+          <Animated.View key={item.label} style={itemAnimatedStyle(index)}>
           <Pressable
-            key={item.label}
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
             onPress={() => {
               setOpen(false);
@@ -103,6 +148,7 @@ export function FoldableActionsMenu({
               ) : null}
             </View>
           </Pressable>
+          </Animated.View>
         ))}
       </AppModal>
     </>
