@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import {
   View,
+  Pressable,
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Image,
+  type TextInput,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
@@ -71,6 +74,7 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const mountedRef = useRef(true);
+  const passwordRef = useRef<TextInput>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -103,6 +107,9 @@ export default function LoginScreen() {
       });
       if (!mountedRef.current) return;
       if (error) {
+        if (Platform.OS === "ios" || Platform.OS === "android") {
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
         const kind = classifyLoginError(error);
         if (kind === "invalid_credentials") {
           setErrorMessage(t("auth.loginErrorBadCreds"));
@@ -180,42 +187,50 @@ export default function LoginScreen() {
             </AppText>
           </View>
         ) : null}
-        <AppTextField
-          variant="dark"
-          isRTL={isRTL}
-          placeholder={t("auth.email")}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoComplete="email"
-          textContentType="emailAddress"
-          autoCorrect={false}
-          value={email}
-          maxLength={MAX_EMAIL_LEN}
-          onChangeText={(txt) => {
-            setEmail(txt);
-            setErrorMessage("");
-          }}
-          accessibilityLabel={t("auth.email")}
-          error={!!errorMessage}
-          containerStyle={styles.field}
-        />
-        <AppTextField
-          variant="dark"
-          isRTL={isRTL}
-          placeholder={t("auth.password")}
-          secureTextEntry
-          autoComplete="password"
-          textContentType="password"
-          value={password}
-          maxLength={MAX_PASSWORD_LEN}
-          onChangeText={(txt) => {
-            setPassword(txt);
-            setErrorMessage("");
-          }}
-          accessibilityLabel={t("auth.password")}
-          error={!!errorMessage}
-          containerStyle={styles.field}
-        />
+        <View style={styles.formCard}>
+          <AppTextField
+            variant="dark"
+            isRTL={isRTL}
+            placeholder={t("auth.email")}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
+            autoCorrect={false}
+            value={email}
+            maxLength={MAX_EMAIL_LEN}
+            onChangeText={(txt) => {
+              setEmail(txt);
+              setErrorMessage("");
+            }}
+            accessibilityLabel={t("auth.email")}
+            error={!!errorMessage}
+            containerStyle={styles.field}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            blurOnSubmit={false}
+          />
+          <AppTextField
+            ref={passwordRef}
+            variant="dark"
+            isRTL={isRTL}
+            placeholder={t("auth.password")}
+            secureTextEntry
+            autoComplete="password"
+            textContentType="password"
+            value={password}
+            maxLength={MAX_PASSWORD_LEN}
+            onChangeText={(txt) => {
+              setPassword(txt);
+              setErrorMessage("");
+            }}
+            accessibilityLabel={t("auth.password")}
+            error={!!errorMessage}
+            containerStyle={styles.lastField}
+            returnKeyType="go"
+            onSubmitEditing={onLogin}
+          />
+        </View>
         <PrimaryButton
           label={t("auth.signIn")}
           loadingLabel={t("common.loading")}
@@ -223,7 +238,14 @@ export default function LoginScreen() {
           onPress={onLogin}
         />
         <ActionButton label={t("auth.forgotPassword") + "?"} onPress={() => router.push("/(auth)/forgot-password")} style={styles.navBtn} />
-        <ActionButton label={t("auth.createAccount")} onPress={() => router.push("/(auth)/signup")} style={styles.navBtn} />
+        <Pressable
+          onPress={() => router.push("/(auth)/signup")}
+          style={({ pressed }) => [styles.createAccountLink, pressed && { opacity: 0.7 }]}
+        >
+          <AppText variant="caption" isRTL={isRTL} style={styles.createAccountTxt}>
+            {t("auth.createAccount")}
+          </AppText>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -264,6 +286,17 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   errorText: { color: theme.colors.error },
+  formCard: {
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
   field: { marginBottom: theme.spacing.sm },
+  lastField: { marginBottom: 0 },
   navBtn: { marginTop: theme.spacing.md, alignSelf: "center", width: "100%" },
+  createAccountLink: { marginTop: theme.spacing.lg, alignSelf: "center", padding: theme.spacing.sm },
+  createAccountTxt: { color: theme.colors.cta, fontWeight: "700" },
 });

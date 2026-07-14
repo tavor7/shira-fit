@@ -46,7 +46,7 @@ export default function SignupScreen() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [zipCode, setZipCode] = useState("");
-  const [dobText, setDobText] = useState("2000-01-15");
+  const [dobText, setDobText] = useState("");
   const [gender, setGender] = useState<"male" | "female">("male");
   const [healthConfirmed, setHealthConfirmed] = useState(false);
   const [receiptConsent, setReceiptConsent] = useState(false);

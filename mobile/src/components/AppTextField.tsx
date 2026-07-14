@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { TextInput, View, StyleSheet, type TextInputProps, type StyleProp, type ViewStyle } from "react-native";
 import { theme } from "../theme";
 import { AppText } from "./AppText";
@@ -11,17 +12,10 @@ type Props = TextInputProps & {
   variant?: "paper" | "dark";
 };
 
-export function AppTextField({
-  label,
-  error,
-  containerStyle,
-  isRTL,
-  variant = "paper",
-  style,
-  placeholderTextColor,
-  accessibilityLabel,
-  ...rest
-}: Props) {
+export const AppTextField = forwardRef<TextInput, Props>(function AppTextField(
+  { label, error, containerStyle, isRTL, variant = "paper", style, placeholderTextColor, accessibilityLabel, ...rest },
+  ref
+) {
   const isDark = variant === "dark";
   const a11yLabel = accessibilityLabel ?? label;
 
@@ -33,6 +27,7 @@ export function AppTextField({
         </AppText>
       ) : null}
       <TextInput
+        ref={ref}
         style={[
           styles.input,
           isDark ? styles.inputDark : styles.inputPaper,
@@ -46,7 +41,7 @@ export function AppTextField({
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   label: {
