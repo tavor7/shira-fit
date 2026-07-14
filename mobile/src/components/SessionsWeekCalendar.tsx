@@ -139,10 +139,15 @@ export function SessionsWeekCalendar({
   const canGoPrev = minWeekOffset == null || weekOffset > minWeekOffset;
   const canGoNext = maxWeekOffset == null || weekOffset < maxWeekOffset;
 
+  const scrollRef = useRef<ScrollView>(null);
+  /** Set by bumpWeek, consumed by the effect below once the new week's days are in place. */
+  const pendingScrollDirRef = useRef<1 | -1 | null>(null);
+
   function bumpWeek(delta: number) {
     const next = weekOffset + delta;
     if (minWeekOffset != null && next < minWeekOffset) return;
     if (maxWeekOffset != null && next > maxWeekOffset) return;
+    pendingScrollDirRef.current = delta > 0 ? 1 : -1;
     if (controlled) {
       onWeekOffsetChange?.(next);
     } else {
@@ -158,6 +163,19 @@ export function SessionsWeekCalendar({
 
   /** Recomputed each render so “today” stays correct if the week view stays open past midnight. */
   const todayIso = dateToISODate(new Date());
+
+  useEffect(() => {
+    const dir = pendingScrollDirRef.current;
+    if (dir == null) return;
+    pendingScrollDirRef.current = null;
+    // Column order is row-reversed under RTL, so "start of row" and "start of week" swap sides.
+    const scrollToWeekStart = dir > 0 ? !isRTL : isRTL;
+    if (scrollToWeekStart) {
+      scrollRef.current?.scrollTo({ x: 0, animated: true });
+    } else {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }
+  }, [weekOffset, isRTL]);
 
   const weekStart = useMemo(() => {
     const base = startOfWeekSunday(new Date());
@@ -305,6 +323,7 @@ export function SessionsWeekCalendar({
 
       <View style={styles.body}>
         <ScrollView
+          ref={scrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={[styles.scrollerContent, isRTL && styles.scrollerContentRtl]}
