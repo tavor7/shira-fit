@@ -122,6 +122,7 @@ export default function StaffEditManualParticipantScreen() {
 
   async function save() {
     if (!baseline) return;
+    const blankedRequiredField = !fullName.trim() || !phone.trim();
     setSaving(true);
     const patch = {
       full_name: fullName.trim() || baseline.full_name,
@@ -144,7 +145,11 @@ export default function StaffEditManualParticipantScreen() {
       });
       return;
     }
-    showToast({ message: t("common.saved"), variant: "success" });
+    showToast({
+      message: t("common.saved"),
+      detail: blankedRequiredField ? t("manualParticipant.blankFieldsKept") : undefined,
+      variant: blankedRequiredField ? "info" : "success",
+    });
     router.back();
   }
 
@@ -378,7 +383,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.cta,
-    backgroundColor: "rgba(96, 165, 250, 0.08)",
+    backgroundColor: theme.colors.infoBg,
     gap: theme.spacing.xs,
   },
   duplicateTitle: { fontWeight: "800", color: theme.colors.cta },
@@ -389,14 +394,14 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
     paddingVertical: 14,
     borderRadius: theme.radius.lg,
-    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    backgroundColor: theme.colors.errorBg,
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.35)",
+    borderColor: theme.colors.errorBorder,
     alignItems: "center",
     minHeight: 48,
     justifyContent: "center",
   },
-  disableAccountTxt: { color: "#f87171", fontWeight: "900" },
+  disableAccountTxt: { color: theme.colors.error, fontWeight: "900" },
   enableAccountBtn: {
     marginTop: theme.spacing.md,
     paddingVertical: 14,

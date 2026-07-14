@@ -16,6 +16,7 @@ import { useAuth } from "../../../src/context/AuthContext";
 import { useI18n } from "../../../src/context/I18nContext";
 import { mergeStaffHomeAlerts, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
+import { AppText } from "../../../src/components/AppText";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 import { isSessionInActiveSeries, maintainSessionSeriesHorizon } from "../../../src/lib/sessionSeries";
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
@@ -23,8 +24,9 @@ import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySl
 
 export default function CoachSessionsScreen() {
   const { profile } = useAuth();
-  const { language, t } = useI18n();
+  const { language, t, isRTL } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
+  const [loadError, setLoadError] = useState(false);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
   const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
@@ -56,6 +58,7 @@ export default function CoachSessionsScreen() {
     void touchWeeklyRegistrationOpenIfDue();
     void maintainSessionSeriesHorizon();
     const { data, error } = await fetchStaffTrainingSessionsForCalendar();
+    setLoadError(!!error);
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);
     const ids = list.map((s) => s.id);
@@ -133,6 +136,13 @@ export default function CoachSessionsScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
+        {loadError ? (
+          <View style={styles.errorBanner}>
+            <AppText variant="caption" isRTL={isRTL} style={styles.errorBannerTxt}>
+              {t("coachSessions.loadError")}
+            </AppText>
+          </View>
+        ) : null}
         {showPriorityAlerts ? (
           <View style={{ paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm }}>
             <HomePriorityAlerts
@@ -178,4 +188,14 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: theme.spacing.lg },
+  errorBanner: {
+    marginHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+    backgroundColor: theme.colors.errorBg,
+    borderWidth: 1,
+    borderColor: theme.colors.errorBorder,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.sm,
+  },
+  errorBannerTxt: { color: theme.colors.error },
 });

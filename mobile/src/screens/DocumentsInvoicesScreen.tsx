@@ -20,6 +20,7 @@ import { useAuth } from "../context/AuthContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useToast } from "../context/ToastContext";
 import { ManagerMoneyHubTabs, ManagerStatePillTabBar } from "../components/ManagerOverviewTabs";
+import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { PendingReceiptsPanel } from "../components/PendingReceiptsPanel";
@@ -865,7 +866,11 @@ export default function DocumentsInvoicesScreen() {
       <View style={styles.screen}>
         <Stack.Screen options={{ title: t("menu.documentsInvoices") }} />
         <ManagerMoneyHubTabs />
-        <ActivityIndicator style={styles.loader} color={theme.colors.cta} />
+        <View style={styles.loaderSkeletonList}>
+          <ListRowSkeleton />
+          <ListRowSkeleton />
+          <ListRowSkeleton />
+        </View>
       </View>
     );
   }
@@ -938,7 +943,7 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
   scrollContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.md },
-  loader: { marginTop: 48 },
+  loaderSkeletonList: { padding: theme.spacing.md, gap: theme.spacing.sm },
   headerBlock: { paddingTop: theme.spacing.sm, gap: theme.spacing.xs, marginBottom: theme.spacing.sm },
   pageTitle: { fontSize: 22, fontWeight: "800", color: theme.colors.text, letterSpacing: 0.2 },
   pageHint: { fontSize: 14, fontWeight: "500", color: theme.colors.textMuted, lineHeight: 20, marginBottom: theme.spacing.sm },

@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.cta,
-    backgroundColor: "rgba(96, 165, 250, 0.1)",
+    backgroundColor: theme.colors.infoBg,
     gap: 6,
   },
   duplicateTitle: { lineHeight: 17 },

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, Image } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
@@ -13,14 +13,21 @@ import { surface } from "../../src/theme/surfaces";
 export default function SignupSuccessScreen() {
   const { email } = useLocalSearchParams<{ email?: string }>();
   const { t, isRTL } = useI18n();
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     void logUserActivity("signup_completed");
   }, []);
 
   async function goLogin() {
-    await supabase.auth.signOut();
-    router.replace("/(auth)/login");
+    if (busy) return;
+    setBusy(true);
+    try {
+      await supabase.auth.signOut();
+      router.replace("/(auth)/login");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -52,7 +59,13 @@ export default function SignupSuccessScreen() {
         <AppText variant="caption" soft isRTL={isRTL} style={styles.note}>
           {t("auth.signupSuccessEmailNote")}
         </AppText>
-        <PrimaryButton label={t("auth.backToSignIn")} onPress={goLogin} style={styles.btn} />
+        <PrimaryButton
+          label={t("auth.backToSignIn")}
+          loadingLabel={t("common.loading")}
+          loading={busy}
+          onPress={goLogin}
+          style={styles.btn}
+        />
       </View>
     </ScrollView>
   );

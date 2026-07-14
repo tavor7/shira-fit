@@ -24,22 +24,31 @@ export default function MySessionsScreen() {
   const { t, isRTL } = useI18n();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     const u = (await supabase.auth.getUser()).data.user?.id;
     if (!u) {
       setRows([]);
       setLoading(false);
       return;
     }
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("session_registrations")
       .select("session_id")
       .eq("user_id", u)
       .eq("status", "active");
+
+    if (error) {
+      setRows([]);
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
 
     const sessionIds = (data ?? []).map((r) => String((r as any).session_id)).filter(Boolean);
     if (sessionIds.length === 0) {
@@ -50,10 +59,16 @@ export default function MySessionsScreen() {
 
     // Fetch sessions separately so hidden sessions still appear for already-registered athletes,
     // even if the foreign-table join is affected by RLS filtering.
-    const { data: sessData } = await supabase
+    const { data: sessData, error: sessError } = await supabase
       .from("training_sessions")
       .select("id, session_date, start_time, duration_minutes, is_kickbox")
       .in("id", sessionIds);
+    if (sessError) {
+      setRows([]);
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
     const sessions = ((sessData as TsNested[]) ?? []).filter((x) => !!x?.id);
     const byId = new Map(sessions.map((s) => [s.id, s]));
     const list: Row[] = sessionIds.map((id) => {
@@ -103,6 +118,16 @@ export default function MySessionsScreen() {
           <SessionCardSkeleton />
           <SessionCardSkeleton />
         </View>
+      ) : loadError ? (
+        <EmptyState
+          title={t("athleteMySessions.loadErrorTitle")}
+          body={t("athleteMySessions.loadErrorBody")}
+          icon="⚠️"
+          actionLabel={t("athleteMySessions.retry")}
+          onAction={() => void load()}
+          isRTL={isRTL}
+          style={styles.emptyPage}
+        />
       ) : !hasRegistrations ? (
         <EmptyState
           title={t("empty.noActiveRegistrations")}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Platform } from "react-native";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Platform, RefreshControl } from "react-native";
 import { router, type Href } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
@@ -7,6 +7,7 @@ import { formatISODateFull } from "../lib/dateFormat";
 import { firstDayOfMonthISOLocal, lastDayOfMonthISOLocal, monthRangeISO, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "../components/AppText";
+import { ActionButton } from "../components/ActionButton";
 import { Skeleton } from "../components/Skeleton";
 import { StatusChip } from "../components/StatusChip";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
@@ -102,6 +103,7 @@ export default function ManagerDashboardScreen() {
   const [anchorDate, setAnchorDate] = useState(() => startOfWeekSunday(new Date()));
   const [periodMode, setPeriodMode] = useState<PeriodMode>("week");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<StatsPayload | null>(null);
   const [capacityMismatchCount, setCapacityMismatchCount] = useState(0);
   const [expandedCoachId, setExpandedCoachId] = useState<string | null>(null);
@@ -364,8 +366,22 @@ export default function ManagerDashboardScreen() {
   const showAlertRow =
     periodMode === "week" || capacityMismatchCount > 0 || missingAttendance.count > 0;
 
+  async function onRefresh() {
+    setRefreshing(true);
+    try {
+      await load({ silent: true });
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.cta} />}
+    >
       <ManagerOverviewHubTabs />
       <View style={[styles.titleBlock, isRTL && styles.titleBlockRtl]}>
         <Text style={[styles.h, isRTL && styles.rtl]}>{t(overviewTitleKey(periodMode))}</Text>
@@ -498,7 +514,10 @@ export default function ManagerDashboardScreen() {
       ) : null}
 
       {!loading && data && !data.ok ? (
-        <Text style={styles.err}>{data.error ?? t("common.error")}</Text>
+        <View style={styles.errBlock}>
+          <Text style={styles.err}>{data.error ?? t("common.error")}</Text>
+          <ActionButton label={t("auth.retryConnection")} onPress={() => void load()} style={styles.errRetryBtn} />
+        </View>
       ) : null}
 
       {showStats ? (
@@ -976,6 +995,8 @@ const styles = StyleSheet.create({
     color: theme.colors.textSoft,
   },
   err: { color: theme.colors.error, fontWeight: "700", marginTop: 8 },
+  errBlock: { alignItems: "flex-start" },
+  errRetryBtn: { marginTop: theme.spacing.sm },
   statsCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.xl,

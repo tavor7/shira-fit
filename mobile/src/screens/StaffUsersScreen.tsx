@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   },
   cardDuplicateName: {
     borderColor: theme.colors.cta,
-    backgroundColor: "rgba(96, 165, 250, 0.08)",
+    backgroundColor: theme.colors.infoBg,
   },
   duplicateBadge: {
     marginTop: 4,

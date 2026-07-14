@@ -62,6 +62,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "pricing.chooseCoachFirst": "Choose a coach first.",
     "sessionDetail.deleteSession": "Delete session",
     "sessionDetail.deletedSession": "Deleted session",
+    "auth.wrongEmail": "Wrong email? Go back",
     "managerTools.title": "Manager tools",
     "managerTools.hint": "All manager-only actions in one place.",
     "managerTools.approveSub": "Approve new athlete accounts",
@@ -531,6 +532,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "footer.cannotOpenBody": "Try again from your phone browser.",
     "empty.noSessionsWeek": "No sessions this week.",
     "empty.noSessionsFound": "No sessions found.",
+    "coachSessions.loadError": "Couldn't load sessions — check your connection and pull to refresh.",
     "empty.noSessionsOpenYet": "No sessions for this week or next week yet.",
     "empty.noResults": "No results.",
     "empty.typeAtLeastOne": "Type at least one character.",
@@ -546,6 +548,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "athleteMySessions.registeredBadge": "Registered",
     "athleteMySessions.emptyBody": "Browse open sessions to sign up.",
     "athleteMySessions.browseSessions": "Browse sessions",
+    "athleteMySessions.loadErrorTitle": "Couldn't load your sessions",
+    "athleteMySessions.loadErrorBody": "Check your connection and try again.",
+    "athleteMySessions.retry": "Try again",
 
     "staffSearch.title": "Staff search",
     "staffSearch.placeholder": "Name / phone / username…",
@@ -563,6 +568,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "manualParticipant.genderPlaceholder": "male / female",
     "manualParticipant.dobPlaceholder": "2000-01-15",
     "manualParticipant.notFoundOrNoPermission": "Record not found or no permission.",
+    "manualParticipant.blankFieldsKept": "Name and phone can't be empty — kept the previous value(s).",
     "manualParticipant.lastSession": "Last session",
     "manualParticipant.lastSessionAdded": "Last added to session",
     "manualParticipant.neverInSession": "Never added to a session",
@@ -573,6 +579,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
       "They will be hidden from registration and reports. Existing session history is kept.",
 
     "pending.title": "Pending approval",
+    "pending.checkAgain": "Check again",
     "pending.body": "Hi {name}. A manager will contact you by phone before you can book sessions.",
     "pending.hint": "No action needed right now — we'll reach out when your account is ready.",
 
@@ -1218,6 +1225,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "pricing.chooseCoachFirst": "בחרו מאמן קודם.",
     "sessionDetail.deleteSession": "מחיקת אימון",
     "sessionDetail.deletedSession": "נמחק — אימון",
+    "auth.wrongEmail": "אימייל שגוי? חזרה",
     "managerTools.title": "כלי מנהל",
     "managerTools.hint": "כל הפעולות למנהלים במקום אחד.",
     "managerTools.approveSub": "אישור חשבונות מתאמנים חדשים",
@@ -1685,6 +1693,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "footer.cannotOpenBody": "נסו שוב מהדפדפן בטלפון.",
     "empty.noSessionsWeek": "אין אימונים בשבוע זה.",
     "empty.noSessionsFound": "לא נמצאו אימונים.",
+    "coachSessions.loadError": "לא הצלחנו לטעון אימונים — בדקו את החיבור ומשכו לרענון.",
     "empty.noSessionsOpenYet": "אין אימונים לשבוע הנוכחי או לשבוע הבא עדיין.",
     "empty.noResults": "אין תוצאות",
     "empty.typeAtLeastOne": "הקלידו לפחות תו אחד.",
@@ -1700,6 +1709,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "athleteMySessions.registeredBadge": "נרשם",
     "athleteMySessions.emptyBody": "עברו לאימונים הפתוחים כדי להירשם.",
     "athleteMySessions.browseSessions": "לאימונים פתוחים",
+    "athleteMySessions.loadErrorTitle": "לא הצלחנו לטעון את האימונים שלכם",
+    "athleteMySessions.loadErrorBody": "בדקו את החיבור ונסו שוב.",
+    "athleteMySessions.retry": "נסו שוב",
 
     "staffSearch.title": "חיפוש מהיר",
     "staffSearch.placeholder": "שם / טלפון / משתמש…",
@@ -1717,6 +1729,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "manualParticipant.genderPlaceholder": "male / female",
     "manualParticipant.dobPlaceholder": "2000-01-15",
     "manualParticipant.notFoundOrNoPermission": "לא נמצא רשומה או אין הרשאה.",
+    "manualParticipant.blankFieldsKept": "שם וטלפון לא יכולים להיות ריקים — הערך הקודם נשמר.",
     "manualParticipant.lastSession": "אימון אחרון",
     "manualParticipant.lastSessionAdded": "נוסף לאימון לאחרונה",
     "manualParticipant.neverInSession": "מעולם לא נוסף לאימון",
@@ -1727,6 +1740,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
       "לא יופיעו ברישום לדוחות. היסטוריית האימונים נשמרת.",
 
     "pending.title": "ממתין לאישור",
+    "pending.checkAgain": "בדיקה מחדש",
     "pending.body": "שלום {name}. מנהל יצור איתך קשר בטלפון לפני שתוכל/י להזמין אימונים.",
     "pending.hint": "אין צורך לעשות כלום כרגע — ניצור קשר כשהחשבון יהיה מוכן.",
 

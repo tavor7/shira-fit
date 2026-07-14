@@ -1,21 +1,33 @@
 import { Redirect, useFocusEffect, Stack } from "expo-router";
-import { useCallback } from "react";
-import { View, StyleSheet, Image } from "react-native";
+import { useCallback, useState } from "react";
+import { View, StyleSheet, Image, ScrollView, RefreshControl } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
 import { logRedirectToManagerSessions } from "../../src/lib/managerSessionsRedirectLog";
 import { AppText } from "../../src/components/AppText";
+import { ActionButton } from "../../src/components/ActionButton";
 import { StudioContactFooter } from "../../src/components/StudioContactFooter";
 
 export default function PendingScreen() {
   const { profile, refreshProfile, loading: authLoading, user } = useAuth();
   const { isRTL, t } = useI18n();
+  const [checking, setChecking] = useState(false);
+
+  const checkNow = useCallback(async () => {
+    setChecking(true);
+    try {
+      await refreshProfile();
+    } finally {
+      setChecking(false);
+    }
+  }, [refreshProfile]);
 
   useFocusEffect(
     useCallback(() => {
-      refreshProfile().catch(() => undefined);
+      void checkNow();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [refreshProfile])
   );
 
@@ -41,7 +53,10 @@ export default function PendingScreen() {
   return (
     <View style={styles.box}>
       <Stack.Screen options={{ title: t("screen.pending") }} />
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={checking} onRefresh={checkNow} tintColor={theme.colors.cta} />}
+      >
         <View style={styles.logoWrap}>
           <Image
             source={require("../../assets/logo.png")}
@@ -60,8 +75,14 @@ export default function PendingScreen() {
           <AppText variant="caption" soft isRTL={isRTL} style={styles.hint}>
             {t("pending.hint")}
           </AppText>
+          <ActionButton
+            label={checking ? t("common.loading") : t("pending.checkAgain")}
+            onPress={() => void checkNow()}
+            disabled={checking}
+            style={styles.checkBtn}
+          />
         </View>
-      </View>
+      </ScrollView>
       <StudioContactFooter />
     </View>
   );
@@ -69,7 +90,7 @@ export default function PendingScreen() {
 
 const styles = StyleSheet.create({
   box: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  content: { flex: 1, padding: theme.spacing.lg, justifyContent: "center" },
+  content: { flexGrow: 1, padding: theme.spacing.lg, justifyContent: "center" },
   logoWrap: { alignItems: "center", marginBottom: theme.spacing.lg },
   logo: { width: 120, height: 120 },
   card: {
@@ -83,4 +104,5 @@ const styles = StyleSheet.create({
   title: { letterSpacing: 0.2 },
   body: { lineHeight: 24 },
   hint: { marginTop: theme.spacing.xs, lineHeight: 20 },
+  checkBtn: { marginTop: theme.spacing.md, alignSelf: "center" },
 });
