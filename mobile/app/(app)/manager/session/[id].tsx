@@ -559,13 +559,10 @@ export default function ManagerSessionDetail() {
       }
       const code = String(data?.error ?? "");
       if (code === "full") {
-        const title = language === "he" ? "האימון מלא" : "Session full";
-        const msg =
-          language === "he"
-            ? "להגדיל את המקסימום ב-1 ולהוסיף את המתאמן?"
-            : "Increase max participants by 1 and add this athlete?";
-        const cancelLbl = language === "he" ? "ביטול" : "Cancel";
-        const okLbl = language === "he" ? "המשך" : "Continue";
+        const title = t("sessionFull.title");
+        const msg = t("sessionDetail.bumpCapacityMessage");
+        const cancelLbl = t("common.cancel");
+        const okLbl = t("common.continue");
 
         const bumpAndRetry = async () => {
           setWaitlistQuickUserId(userId);
@@ -799,8 +796,7 @@ export default function ManagerSessionDetail() {
   }
 
   async function deleteNote(noteId: string) {
-    const msg =
-      language === "he" ? "למחוק את ההערה?" : "Delete this note?";
+    const msg = t("sessionDetail.deleteNoteMessage");
     const run = async () => {
       setNoteBusy(true);
       const { data, error } = await supabase.rpc("delete_session_note", { p_note_id: noteId });
@@ -817,10 +813,10 @@ export default function ManagerSessionDetail() {
       showToast({ message: t("sessionDetail.noteRemoved"), variant: "success" });
     };
     showConfirm({
-      title: language === "he" ? "מחיקת הערה" : "Delete note",
+      title: t("sessionDetail.deleteNoteTitle"),
       message: msg,
-      cancelLabel: language === "he" ? "ביטול" : "Cancel",
-      confirmLabel: language === "he" ? "מחיקה" : "Delete",
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.delete"),
       confirmVariant: "danger",
       onConfirm: () => void run(),
     });
@@ -893,35 +889,23 @@ export default function ManagerSessionDetail() {
 
   async function executeSaveWithScope(scope?: SeriesScope) {
     if (!isValidISODateString(date.trim())) {
-      showOk(
-        language === "he" ? "תאריך לא תקין" : "Invalid date",
-        language === "he" ? "בחרו תאריך אימון תקין." : "Please choose a valid session date."
-      );
+      showOk(t("sessionDetail.invalidDateTitle"), t("sessionForm.invalidDate"));
       return;
     }
     if (!coachId) {
-      showOk(
-        language === "he" ? "חסר מאמן" : "Missing trainer",
-        language === "he" ? "בחרו מאמן/ת." : "Please choose a trainer."
-      );
+      showOk(t("sessionDetail.missingTrainerTitle"), t("sessionDetail.chooseTrainer"));
       return;
     }
     const parsedDuration = parseInt(durationMin.trim(), 10);
     const duration = clampSessionDuration(parsedDuration);
     if (!isValidSessionDuration(parsedDuration)) {
-      showOk(
-        language === "he" ? "משך לא תקין" : "Invalid duration",
-        language === "he" ? "בחרו משך בין 30 ל-120 דקות." : "Choose a duration between 30 and 120 minutes."
-      );
+      showOk(t("sessionDetail.invalidDurationTitle"), t("sessionDetail.invalidDurationRange"));
       return;
     }
     const parsedMax = parseInt(maxP.trim(), 10);
     const maxParticipants = clampSessionMaxParticipants(parsedMax);
     if (!isValidSessionMaxParticipants(parsedMax)) {
-      showOk(
-        language === "he" ? "גודל קבוצה לא תקין" : "Invalid group size",
-        language === "he" ? "בחרו גודל קבוצה בין 1 ל-15." : "Choose a group size between 1 and 15."
-      );
+      showOk(t("sessionDetail.invalidGroupSizeTitle"), t("sessionDetail.invalidGroupSizeRange"));
       return;
     }
     const parsedPrice = parseCustomSlotPriceDraft(customSlotPriceDraft);
@@ -988,20 +972,12 @@ export default function ManagerSessionDetail() {
       if (savedWithoutHidden || savedWithoutKickbox) {
         const parts: string[] = [];
         if (savedWithoutHidden) {
-          parts.push(
-            language === "he"
-              ? "סימון מוסתר לא נשמר (עמודה חסרה במסד)"
-              : "Hidden flag was not saved (column missing)"
-          );
+          parts.push(t("sessionDetail.hiddenNotSaved"));
         }
         if (savedWithoutKickbox) {
-          parts.push(
-            language === "he"
-              ? "סימון קיקבוקס לא נשמר (עמודה חסרה במסד)"
-              : "Kickbox flag was not saved (column missing)"
-          );
+          parts.push(t("sessionDetail.kickboxNotSaved"));
         }
-        showOk(language === "he" ? "הערה" : "Note", parts.join("\n"));
+        showOk(t("sessionDetail.dbNoteTitle"), parts.join("\n"));
       }
     }
 
@@ -1010,14 +986,7 @@ export default function ManagerSessionDetail() {
     setEditBaseline(null);
     if (seriesScope) {
       showToast({
-        message:
-          seriesScope === "future"
-            ? language === "he"
-              ? "נשמר — אימון זה והבאים בסדרה"
-              : "Saved — this and future sessions"
-            : language === "he"
-              ? "נשמר — רק אימון זה"
-              : "Saved — only this session",
+        message: seriesScope === "future" ? t("sessionDetail.savedThisAndFuture") : t("sessionDetail.savedThisOnly"),
         variant: "success",
       });
     } else {
@@ -1048,17 +1017,11 @@ export default function ManagerSessionDetail() {
   async function duplicateSession() {
     const d = dupDate.trim();
     if (!isValidISODateString(d)) {
-      showOk(
-        language === "he" ? "תאריך לא תקין" : "Invalid date",
-        language === "he" ? "בחרו תאריך אימון תקין." : "Please choose a valid session date."
-      );
+      showOk(t("sessionDetail.invalidDateTitle"), t("sessionForm.invalidDate"));
       return;
     }
     if (!dupCoachId) {
-      showOk(
-        language === "he" ? "חסר מאמן" : "Missing trainer",
-        language === "he" ? "בחרו מאמן/ת." : "Please choose a trainer."
-      );
+      showOk(t("sessionDetail.missingTrainerTitle"), t("sessionDetail.chooseTrainer"));
       return;
     }
     setDupBusy(true);
@@ -1089,7 +1052,7 @@ export default function ManagerSessionDetail() {
       const errs = await copySessionParticipantsToNewSession(String(id), newId);
       if (errs.length > 0) {
         showToast({
-          message: language === "he" ? "האימון שוכפל — חלק מהמשתתפים לא הועתקו" : "Session copied — some participants were not copied",
+          message: t("sessionDetail.sessionCopiedPartialFail"),
           detail: errs.slice(0, 8).join("\n"),
           variant: "error",
         });
@@ -1148,14 +1111,7 @@ export default function ManagerSessionDetail() {
 
     if (seriesScope) {
       showToast({
-        message:
-          seriesScope === "future"
-            ? language === "he"
-              ? "נמחק — אימון זה והבאים בסדרה"
-              : "Deleted — this and future sessions"
-            : language === "he"
-              ? "נמחק — רק אימון זה"
-              : "Deleted — only this session",
+        message: seriesScope === "future" ? t("sessionDetail.deletedThisAndFuture") : t("sessionDetail.deletedThisOnly"),
         variant: "success",
       });
     } else {
@@ -1178,15 +1134,11 @@ export default function ManagerSessionDetail() {
       setSeriesScopeOpen(true);
       return;
     }
-    const msg =
-      language === "he"
-        ? "למחוק את האימון? גם ההרשמות אליו יימחקו."
-        : "Delete this session? Registrations for it will be removed too.";
     showConfirm({
-      title: language === "he" ? "מחיקת אימון?" : "Delete session?",
-      message: msg,
-      cancelLabel: language === "he" ? "ביטול" : "Cancel",
-      confirmLabel: language === "he" ? "מחק" : "Delete",
+      title: t("sessionDetail.deleteSessionConfirmTitle"),
+      message: t("sessionDetail.deleteSessionConfirmMessage"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.delete"),
       confirmVariant: "danger",
       onConfirm: () => void runDeleteWithScope(session?.series_id ? "this" : undefined),
     });
@@ -1257,13 +1209,7 @@ export default function ManagerSessionDetail() {
     if (!ok) return;
     await load();
     showToast({
-      message: clearOnly
-        ? language === "he"
-          ? "חזרה לתעריף ברירת מחדל"
-          : "Using default tier rate"
-        : language === "he"
-          ? "תעריף האימון נשמר"
-          : "Session rate saved",
+      message: clearOnly ? t("managerSession.usingDefaultTierRate") : t("managerSession.sessionRateSaved"),
     });
   }
 
@@ -1405,7 +1351,7 @@ export default function ManagerSessionDetail() {
       {!editingSession ? (
         <View style={styles.summaryCard}>
           <View style={[styles.summaryTitleRow, isRTL && styles.summaryTitleRowRtl]}>
-            <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{language === "he" ? "אימון" : "Session"}</Text>
+            <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{t("sessionDetail.session")}</Text>
             {session.series_id && !session.series_detached ? (
               <View style={styles.seriesBadge}>
                 <Text style={styles.seriesBadgeTxt}>{t("session.seriesBadge")}</Text>
@@ -1419,7 +1365,7 @@ export default function ManagerSessionDetail() {
           ) : null}
           <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>
             {formatISODateFullWithWeekdayAfter(date, language)} · {formatSessionStartTime(time)} · {durationMin}{" "}
-            {language === "he" ? "דק׳" : "min"}
+            {t("sessionDetail.durationMinAbbr")}
           </Text>
           <Text style={[styles.summaryCoachLine, isRTL && styles.rtlText]}>
             {t("managerSession.coachHeading")}:{" "}
@@ -1431,11 +1377,11 @@ export default function ManagerSessionDetail() {
             </View>
           ) : null}
           <Text style={[styles.summaryMeta, isRTL && styles.rtlText]}>
-            {language === "he" ? "פתוח להרשמה: " : "Open: "}
-            {open ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
+            {t("sessionDetail.openLabel")}
+            {open ? t("common.yes") : t("common.no")}
             {" · "}
-            {language === "he" ? "מוסתר: " : "Hidden: "}
-            {hidden ? (language === "he" ? "כן" : "Yes") : language === "he" ? "לא" : "No"}
+            {t("sessionDetail.hiddenLabel")}
+            {hidden ? t("common.yes") : t("common.no")}
           </Text>
           {sessionHasEnded ? (
             <View style={styles.trainingSummaryBox}>
@@ -1549,7 +1495,7 @@ export default function ManagerSessionDetail() {
         <View style={styles.editBlock}>
           <View style={sf.sections}>
           <View style={sf.card}>
-            <Text style={sf.cardTitle}>{language === "he" ? "מתי" : "When"}</Text>
+            <Text style={sf.cardTitle}>{t("sessionDetail.when")}</Text>
             <SessionWhenFields
               date={date}
               time={time}
@@ -1561,8 +1507,8 @@ export default function ManagerSessionDetail() {
                 pushUndo();
                 setTime(v);
               }}
-              dateLabel={language === "he" ? "תאריך אימון" : "Session date"}
-              timeLabel={language === "he" ? "שעת התחלה" : "Start time"}
+              dateLabel={t("sessionForm.sessionDate")}
+              timeLabel={t("sessionForm.startTime")}
             />
           </View>
 
@@ -1579,7 +1525,7 @@ export default function ManagerSessionDetail() {
           </View>
 
           <View style={sf.card}>
-            <Text style={sf.cardTitle}>{language === "he" ? "קיבולת" : "Capacity"}</Text>
+            <Text style={sf.cardTitle}>{t("sessionForm.capacity")}</Text>
             <SessionCapacityFields
               duration={durationMin}
               max={maxP}
@@ -1659,11 +1605,11 @@ export default function ManagerSessionDetail() {
                   undoStack.length === 0 && { opacity: 0.45 },
                 ]}
               >
-                <Text style={styles.undoBtnTxt}>{language === "he" ? "ביטול שינוי אחרון" : "Undo last change"}</Text>
+                <Text style={styles.undoBtnTxt}>{t("sessionDetail.undoLastChange")}</Text>
               </Pressable>
               <PrimaryButton label={t("common.save")} onPress={saveSession} />
               <Pressable onPress={requestCancelEdit} style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}>
-                <Text style={styles.cancelEditTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                <Text style={styles.cancelEditTxt}>{t("common.cancel")}</Text>
               </Pressable>
             </View>
           </View>
@@ -1675,14 +1621,14 @@ export default function ManagerSessionDetail() {
         <View style={styles.dupBackdrop}>
           <Pressable style={styles.dupBackdropTouch} onPress={() => (dupBusy ? null : setDupOpen(false))} />
           <View style={styles.dupCard}>
-            <Text style={[styles.dupTitle, isRTL && styles.rtlText]}>{language === "he" ? "שכפול אימון" : "Duplicate session"}</Text>
+            <Text style={[styles.dupTitle, isRTL && styles.rtlText]}>{t("sessionDetail.duplicateSession")}</Text>
             <SessionWhenFields
               date={dupDate}
               time={dupTime}
               onDateChange={setDupDate}
               onTimeChange={setDupTime}
-              dateLabel={language === "he" ? "תאריך חדש" : "New date"}
-              timeLabel={language === "he" ? "שעה חדשה" : "New time"}
+              dateLabel={t("sessionDetail.newDate")}
+              timeLabel={t("sessionDetail.newTime")}
             />
             <SessionCoachPickerField
               coachId={dupCoachId}
@@ -1691,7 +1637,7 @@ export default function ManagerSessionDetail() {
               disabled={dupBusy}
             />
             <Text style={[styles.dupSectionLabel, isRTL && styles.rtlText]}>
-              {language === "he" ? "משתתפים" : "Participants"}
+              {t("sessionDetail.participants")}
             </Text>
             <View style={[styles.dupChoiceRow, isRTL && styles.dupChoiceRowRtl]}>
               <Pressable
@@ -1705,7 +1651,7 @@ export default function ManagerSessionDetail() {
                 disabled={dupBusy}
               >
                 <Text style={[styles.dupChoiceTxt, !dupIncludeParticipants && styles.dupChoiceTxtOn, isRTL && styles.rtlText]}>
-                  {language === "he" ? "בלי משתתפים" : "Without participants"}
+                  {t("sessionDetail.withoutParticipants")}
                 </Text>
               </Pressable>
               <Pressable
@@ -1719,13 +1665,13 @@ export default function ManagerSessionDetail() {
                 disabled={dupBusy}
               >
                 <Text style={[styles.dupChoiceTxt, dupIncludeParticipants && styles.dupChoiceTxtOn, isRTL && styles.rtlText]}>
-                  {language === "he" ? "עם אותם נרשמים" : "With same roster"}
+                  {t("sessionDetail.withSameRoster")}
                 </Text>
               </Pressable>
             </View>
             <View style={styles.editSpacer} />
             <PrimaryButton
-              label={language === "he" ? "צור עותק" : "Create copy"}
+              label={t("sessionDetail.createCopy")}
               onPress={() => void duplicateSession()}
               loading={dupBusy}
               loadingLabel={t("common.loading")}
@@ -1763,14 +1709,14 @@ export default function ManagerSessionDetail() {
       />
 
       <PrimaryButton
-        label={language === "he" ? "הוספת משתתף" : "Add participant"}
+        label={t("sessionDetail.addParticipant")}
         onPress={() => setAddOpen(true)}
         variant="ghost"
       />
 
       <Text style={[styles.h, isRTL && styles.rtlText]}>{t("sessionDetail.waitlist")}</Text>
       {waitlist.length === 0 ? (
-        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("common.none")}</Text>
       ) : (
         waitlist.map((item) => {
           const p = item.profiles ? (Array.isArray(item.profiles) ? item.profiles[0] : item.profiles) : null;
@@ -1796,12 +1742,12 @@ export default function ManagerSessionDetail() {
                     busy && { opacity: 0.65 },
                   ]}
                   accessibilityRole="button"
-                  accessibilityLabel={language === "he" ? "הוספה מהירה לאימון" : "Quick add to session"}
+                  accessibilityLabel={t("sessionDetail.quickAddA11y")}
                 >
                   {busy ? (
                     <ActivityIndicator size="small" color={theme.colors.ctaText} />
                   ) : (
-                    <Text style={styles.waitQuickBtnTxt}>{language === "he" ? "הוסף" : "Add"}</Text>
+                    <Text style={styles.waitQuickBtnTxt}>{t("common.add")}</Text>
                   )}
                 </Pressable>
               </View>
@@ -1812,7 +1758,7 @@ export default function ManagerSessionDetail() {
 
       <Text style={[styles.h, isRTL && styles.rtlText]}>{t("sessionDetail.cancellations")}</Text>
       {cancellations.length === 0 ? (
-        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("common.none")}</Text>
       ) : (
         cancellations.map((c) => {
           const p = c.profiles ? (Array.isArray(c.profiles) ? c.profiles[0] : c.profiles) : null;
@@ -1827,7 +1773,7 @@ export default function ManagerSessionDetail() {
             <View key={c.id} style={styles.cancelCard}>
               <Text style={styles.cancelName}>{name}</Text>
               <Text style={styles.cancelMeta}>{formatDateTimeForDisplay(c.cancelled_at, language)}</Text>
-              <Text style={styles.cancelReason}>{language === "he" ? "סיבה: " : "Reason: "}{c.reason}</Text>
+              <Text style={styles.cancelReason}>{t("sessionDetail.reasonPrefix")}{c.reason}</Text>
               {sched ? (
                 <>
                   <Text style={styles.chargeWarn}>
@@ -1893,7 +1839,7 @@ export default function ManagerSessionDetail() {
             accessibilityRole="button"
           >
             <Text style={[styles.noteCollapsedTriggerText, isRTL && styles.rtlText]}>
-              {language === "he" ? "הקשו להוספת הערה לצוות…" : "Tap to add a staff-only note…"}
+              {t("sessionDetail.tapAddNote")}
             </Text>
           </Pressable>
         ) : (
@@ -1902,7 +1848,7 @@ export default function ManagerSessionDetail() {
               style={[styles.noteInput, isRTL && styles.noteInputRtl]}
               value={noteDraft}
               onChangeText={setNoteDraft}
-              placeholder={language === "he" ? "הוספת הערה לצוות…" : "Add a staff-only note…"}
+              placeholder={t("sessionDetail.addNotePlaceholder")}
               placeholderTextColor={theme.colors.placeholderOnLight}
               multiline
               autoFocus
@@ -1915,7 +1861,7 @@ export default function ManagerSessionDetail() {
                 }}
                 style={({ pressed }) => [styles.noteCancelBtn, pressed && { opacity: 0.85 }]}
               >
-                <Text style={styles.noteCancelBtnTxt}>{language === "he" ? "סגירה" : "Close"}</Text>
+                <Text style={styles.noteCancelBtnTxt}>{t("common.close")}</Text>
               </Pressable>
               <Pressable
                 style={({ pressed }) => [
@@ -1930,7 +1876,7 @@ export default function ManagerSessionDetail() {
                 {noteBusy ? (
                   <ActivityIndicator color={theme.colors.ctaText} />
                 ) : (
-                  <Text style={styles.noteBtnTxt}>{language === "he" ? "שמירה" : "Save note"}</Text>
+                  <Text style={styles.noteBtnTxt}>{t("sessionDetail.saveNote")}</Text>
                 )}
               </Pressable>
             </View>
@@ -1939,7 +1885,7 @@ export default function ManagerSessionDetail() {
 
         {notes.length === 0 ? (
           <Text style={[styles.muted, isRTL && styles.rtlText, styles.noteListHint]}>
-            {language === "he" ? "אין הערות שמורות." : "No saved notes yet."}
+            {t("sessionDetail.noSavedNotes")}
           </Text>
         ) : (
           <View style={styles.noteList}>
@@ -1971,7 +1917,7 @@ export default function ManagerSessionDetail() {
                           }}
                           style={({ pressed }) => [styles.noteCancelBtn, pressed && { opacity: 0.85 }]}
                         >
-                          <Text style={styles.noteCancelBtnTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                          <Text style={styles.noteCancelBtnTxt}>{t("common.cancel")}</Text>
                         </Pressable>
                         <Pressable
                           style={({ pressed }) => [
@@ -1986,7 +1932,7 @@ export default function ManagerSessionDetail() {
                           {noteBusy ? (
                             <ActivityIndicator color={theme.colors.ctaText} />
                           ) : (
-                            <Text style={styles.noteBtnTxt}>{language === "he" ? "שמירה" : "Save"}</Text>
+                            <Text style={styles.noteBtnTxt}>{t("common.save")}</Text>
                           )}
                         </Pressable>
                       </View>
@@ -2018,7 +1964,7 @@ export default function ManagerSessionDetail() {
                         style={[styles.noteEditBtn, Platform.OS === "web" && styles.noteDeleteWeb]}
                         accessibilityRole="button"
                       >
-                        <Text style={styles.noteEditBtnTxt}>{language === "he" ? "עריכה" : "Edit"}</Text>
+                        <Text style={styles.noteEditBtnTxt}>{t("common.edit")}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         activeOpacity={0.75}
@@ -2028,7 +1974,7 @@ export default function ManagerSessionDetail() {
                         style={[styles.noteDelete, Platform.OS === "web" && styles.noteDeleteWeb]}
                         accessibilityRole="button"
                       >
-                        <Text style={styles.noteDeleteTxt}>{language === "he" ? "מחיקה" : "Delete"}</Text>
+                        <Text style={styles.noteDeleteTxt}>{t("common.delete")}</Text>
                       </TouchableOpacity>
                     </View>
                   ) : null}

@@ -61,6 +61,7 @@ export default function FamilyManagementScreen() {
   const [memberSearchQ, setMemberSearchQ] = useState("");
   const [candidateRows, setCandidateRows] = useState<PickerRow[]>([]);
   const [candidatesLoading, setCandidatesLoading] = useState(false);
+  const [familySearchQ, setFamilySearchQ] = useState("");
 
   const loadFamilies = useCallback(async () => {
     setLoading(true);
@@ -253,10 +254,18 @@ export default function FamilyManagementScreen() {
 
   const memberKeys = useMemo(() => new Set(members.map((m) => memberPayeeKey(m.kind, m.id))), [members]);
 
+  const visibleFamilies = useMemo(() => {
+    const q = familySearchQ.trim().toLowerCase();
+    if (!q) return families;
+    return families.filter(
+      (f) => f.name.toLowerCase().includes(q) || f.members.some((m) => (m.name ?? "").toLowerCase().includes(q))
+    );
+  }, [families, familySearchQ]);
+
   return (
     <View style={styles.screen}>
       <FlatList
-        data={families}
+        data={visibleFamilies}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
@@ -265,6 +274,16 @@ export default function FamilyManagementScreen() {
             <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.families")}</Text>
             <Text style={[styles.subtitle, isRTL && styles.rtl]}>{t("families.subtitle")}</Text>
             <PrimaryButton label={t("families.create")} onPress={openCreate} />
+            {families.length > 0 ? (
+              <AppSearchField
+                value={familySearchQ}
+                onChangeText={setFamilySearchQ}
+                onSearch={setFamilySearchQ}
+                placeholder={t("families.searchFamiliesPlaceholder")}
+                isRTL={isRTL}
+                style={styles.familySearch}
+              />
+            ) : null}
           </>
         }
         renderItem={({ item }) => (
@@ -297,7 +316,13 @@ export default function FamilyManagementScreen() {
           </View>
         )}
         ListEmptyComponent={
-          !loading ? <EmptyState title={t("families.empty")} isRTL={isRTL} /> : null
+          !loading ? (
+            <EmptyState
+              icon={familySearchQ.trim() ? "🔍" : undefined}
+              title={familySearchQ.trim() ? t("families.noSearchResults") : t("families.empty")}
+              isRTL={isRTL}
+            />
+          ) : null
         }
       />
 
@@ -413,6 +438,7 @@ const styles = StyleSheet.create({
   rtl: { textAlign: "right", alignSelf: "stretch" },
   title: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginTop: theme.spacing.sm },
   subtitle: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4, marginBottom: theme.spacing.md, lineHeight: 18 },
+  familySearch: { marginBottom: theme.spacing.md },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
