@@ -3,30 +3,24 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 
-type Tool = { title: string; subtitle: string; path: string };
+type Tool = { titleKey: string; subtitleKey: string; path: string; icon: string };
 
 const tools: Tool[] = [
-  { title: "Approve athletes", subtitle: "Approve new athlete accounts", path: "/(app)/manager/approve" },
-  {
-    title: "Activity log",
-    subtitle: "User actions with timestamps (support)",
-    path: "/(app)/manager/activity-log",
-  },
-  { title: "Roles", subtitle: "Promote/demote users (athlete/coach/manager)", path: "/(app)/manager/roles" },
-  { title: "Coach colors", subtitle: "Set calendar colors for coaches/managers", path: "/(app)/manager/trainer-colors" },
-  { title: "Athlete activity", subtitle: "Search athlete and view registrations", path: "/(app)/manager/participant-history" },
-  { title: "Coach history", subtitle: "Sessions + registered/arrived counts", path: "/(app)/manager/coach-sessions-report" },
-  { title: "Opening schedule", subtitle: "Configure the weekly opening day/time", path: "/(app)/manager/opening-schedule" },
+  { titleKey: "menu.approve", subtitleKey: "managerTools.approveSub", path: "/(app)/manager/approve", icon: "✅" },
+  { titleKey: "menu.activityLog", subtitleKey: "managerTools.activityLogSub", path: "/(app)/manager/activity-log", icon: "📋" },
+  { titleKey: "menu.roles", subtitleKey: "managerTools.rolesSub", path: "/(app)/manager/roles", icon: "🎚️" },
+  { titleKey: "menu.trainerColors", subtitleKey: "managerTools.trainerColorsSub", path: "/(app)/manager/trainer-colors", icon: "🎨" },
+  { titleKey: "menu.athleteActivity", subtitleKey: "managerTools.athleteActivitySub", path: "/(app)/manager/participant-history", icon: "🔍" },
+  { titleKey: "menu.coachHistory", subtitleKey: "managerTools.coachHistorySub", path: "/(app)/manager/coach-sessions-report", icon: "📊" },
+  { titleKey: "menu.openingSchedule", subtitleKey: "managerTools.openingScheduleSub", path: "/(app)/manager/opening-schedule", icon: "🕒" },
 ];
 
 export default function ManagerToolsScreen() {
-  const { language, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={[styles.title, isRTL && styles.rtlText]}>{language === "he" ? "כלי מנהל" : "Manager tools"}</Text>
-      <Text style={[styles.hint, isRTL && styles.rtlText]}>
-        {language === "he" ? "כל הפעולות למנהלים במקום אחד." : "All manager-only actions in one place."}
-      </Text>
+      <Text style={[styles.title, isRTL && styles.rtlText]}>{t("managerTools.title")}</Text>
+      <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("managerTools.hint")}</Text>
 
       <View style={styles.grid}>
         {tools.map((tool) => (
@@ -36,44 +30,15 @@ export default function ManagerToolsScreen() {
             style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
             accessibilityRole="button"
           >
-            <Text style={[styles.cardTitle, isRTL && styles.rtlText]}>
-              {language === "he"
-                ? tool.title === "Approve athletes"
-                  ? "אישור מתאמנים"
-                  : tool.title === "Activity log"
-                    ? "יומן פעילות"
-                    : tool.title === "Roles"
-                      ? "תפקידים"
-                      : tool.title === "Coach colors"
-                        ? "צבעי מאמנים"
-                        : tool.title === "Athlete activity"
-                          ? "פעילות מתאמנים"
-                          : tool.title === "Coach history"
-                            ? "היסטוריית מאמנים"
-                            : tool.title === "Opening schedule"
-                              ? "פתיחת הרשמה"
-                              : tool.title
-                : tool.title}
-            </Text>
-            <Text style={[styles.cardSub, isRTL && styles.rtlText]}>
-              {language === "he"
-                ? tool.subtitle === "Approve new athlete accounts"
-                  ? "אישור חשבונות מתאמנים חדשים"
-                  : tool.subtitle === "User actions with timestamps (support)"
-                    ? "פעולות משתמשים עם חותמת זמן (תמיכה)"
-                    : tool.subtitle === "Promote/demote users (athlete/coach/manager)"
-                    ? "שינוי תפקידים (מתאמן/מאמן/מנהל)"
-                    : tool.subtitle === "Set calendar colors for coaches/managers"
-                      ? "קביעת צבעים ביומן למאמנים/מנהלים"
-                      : tool.subtitle === "Search athlete and view registrations"
-                        ? "חיפוש מתאמן וצפייה בהרשמות"
-                        : tool.subtitle === "Sessions + registered/arrived counts"
-                          ? "אימונים + מספר נרשמו/הגיעו"
-                            : tool.subtitle === "Configure the weekly opening day/time"
-                            ? "קביעת יום/שעה לפתיחת הרשמה שבועית"
-                            : tool.subtitle
-                : tool.subtitle}
-            </Text>
+            <View style={[styles.cardRow, isRTL && styles.cardRowRtl]}>
+              <Text style={styles.cardIcon} accessibilityElementsHidden>
+                {tool.icon}
+              </Text>
+              <View style={styles.cardText}>
+                <Text style={[styles.cardTitle, isRTL && styles.rtlText]}>{t(tool.titleKey)}</Text>
+                <Text style={[styles.cardSub, isRTL && styles.rtlText]}>{t(tool.subtitleKey)}</Text>
+              </View>
+            </View>
           </Pressable>
         ))}
       </View>
@@ -95,6 +60,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
+  cardRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm },
+  cardRowRtl: { flexDirection: "row-reverse" },
+  cardIcon: { fontSize: 22, width: 30, textAlign: "center" },
+  cardText: { flex: 1 },
   cardTitle: { color: theme.colors.text, fontWeight: "900", fontSize: 16 },
   cardSub: { marginTop: 6, color: theme.colors.textMuted, lineHeight: 18 },
 });

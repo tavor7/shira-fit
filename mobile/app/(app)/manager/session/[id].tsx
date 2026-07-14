@@ -551,7 +551,7 @@ export default function ManagerSessionDetail() {
       }
       if (data?.ok) {
         showToast({
-          message: language === "he" ? "נוסף לאימון" : "Added to session",
+          message: t("sessionDetail.addedToSession"),
           variant: "success",
         });
         await afterOk();
@@ -590,7 +590,7 @@ export default function ManagerSessionDetail() {
             }
             if (r2.data?.ok) {
               showToast({
-                message: language === "he" ? "נוסף לאימון" : "Added to session",
+                message: t("sessionDetail.addedToSession"),
                 variant: "success",
               });
               await afterOk();
@@ -814,7 +814,7 @@ export default function ManagerSessionDetail() {
         return;
       }
       await loadNotes();
-      showToast({ message: language === "he" ? "הערה נמחקה" : "Note removed", variant: "success" });
+      showToast({ message: t("sessionDetail.noteRemoved"), variant: "success" });
     };
     showConfirm({
       title: language === "he" ? "מחיקת הערה" : "Delete note",
@@ -1021,7 +1021,7 @@ export default function ManagerSessionDetail() {
         variant: "success",
       });
     } else {
-      showToast({ message: language === "he" ? "נשמר — אימון" : "Saved session", variant: "success" });
+      showToast({ message: t("sessionDetail.savedSession"), variant: "success" });
     }
     pushDiag("clearPersisted: saveSession success");
     void persistDraft.clearPersisted();
@@ -1159,7 +1159,7 @@ export default function ManagerSessionDetail() {
         variant: "success",
       });
     } else {
-      showToast({ message: language === "he" ? "נמחק — אימון" : "Deleted session", variant: "success" });
+      showToast({ message: t("sessionDetail.deletedSession"), variant: "success" });
     }
 
     pushDiag("clearPersisted: runDeleteSession success");
@@ -1738,7 +1738,7 @@ export default function ManagerSessionDetail() {
       </Modal>
 
       <Text style={[styles.h, isRTL && styles.rtlText]}>
-        {language === "he" ? "משתתפים ונוכחות" : "Participants & attendance"}
+        {t("sessionDetail.participantsAttendance")}
         <Text style={styles.hMuted}>
           {" "}
           ({participantCount}/{maxCap})
@@ -1768,7 +1768,7 @@ export default function ManagerSessionDetail() {
         variant="ghost"
       />
 
-      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "רשימת המתנה" : "Waitlist"}</Text>
+      <Text style={[styles.h, isRTL && styles.rtlText]}>{t("sessionDetail.waitlist")}</Text>
       {waitlist.length === 0 ? (
         <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
       ) : (
@@ -1810,7 +1810,7 @@ export default function ManagerSessionDetail() {
         })
       )}
 
-      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "ביטולים" : "Cancellations"}</Text>
+      <Text style={[styles.h, isRTL && styles.rtlText]}>{t("sessionDetail.cancellations")}</Text>
       {cancellations.length === 0 ? (
         <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין" : "None"}</Text>
       ) : (
@@ -1880,7 +1880,7 @@ export default function ManagerSessionDetail() {
       )}
 
 
-      <Text style={[styles.h, isRTL && styles.rtlText]}>{language === "he" ? "הערות" : "Notes"}</Text>
+      <Text style={[styles.h, isRTL && styles.rtlText]}>{t("sessionDetail.notes")}</Text>
       <View style={styles.notesCard}>
         {!noteComposerOpen ? (
           <Pressable
@@ -2055,7 +2055,7 @@ export default function ManagerSessionDetail() {
       {!editingSession ? (
         <View style={styles.sessionFooterActions}>
           <PrimaryButton
-            label={language === "he" ? "עריכת אימון" : "Edit session"}
+            label={t("sessionDetail.editSession")}
             onPress={() => {
               setNoteComposerOpen(false);
               setNoteDraft("");
@@ -2081,23 +2081,19 @@ export default function ManagerSessionDetail() {
             variant="ghost"
             style={styles.sessionFooterGhostBtn}
           />
-          <>
-            <PrimaryButton
-              label={language === "he" ? "שכפול אימון" : "Duplicate session"}
-              onPress={openDuplicateModal}
-              variant="ghost"
-              style={styles.sessionFooterGhostBtn}
-            />
-            <Pressable
-              style={({ pressed }) => [styles.sessionDangerBtnGhost, pressed && styles.sessionDangerBtnPressed]}
-              onPress={requestDeleteSession}
-              disabled={deleteSessionBusy}
-              accessibilityRole="button"
-              accessibilityLabel={language === "he" ? "מחיקת אימון" : "Delete session"}
-            >
-              <Text style={[styles.sessionDangerBtnGhostTxt, isRTL && styles.rtlText]}>{language === "he" ? "מחיקת אימון" : "Delete session"}</Text>
-            </Pressable>
-          </>
+          <PrimaryButton
+            label={t("sessionDetail.duplicateSession")}
+            onPress={openDuplicateModal}
+            variant="ghost"
+            style={styles.sessionFooterGhostBtn}
+          />
+          <PrimaryButton
+            label={t("sessionDetail.deleteSession")}
+            onPress={requestDeleteSession}
+            disabled={deleteSessionBusy}
+            variant="danger"
+            style={styles.sessionFooterDangerBtn}
+          />
         </View>
       ) : null}
 
@@ -2334,26 +2330,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: theme.colors.textMuted,
   },
-  /** Same size/radius as ghost `PrimaryButton`; light red fill + border so it reads as destructive but matches pill layout. */
-  sessionDangerBtnGhost: {
-    marginTop: 0,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderRadius: theme.radius.md,
-    minHeight: 52,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(239, 68, 68, 0.14)",
-    borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.42)",
-  },
-  sessionDangerBtnPressed: { opacity: 0.88 },
-  sessionDangerBtnGhostTxt: {
-    color: theme.colors.error,
-    fontWeight: "600",
-    fontSize: 16,
-    letterSpacing: 0.2,
-  },
+  sessionFooterDangerBtn: { marginTop: theme.spacing.sm },
   editBlock: {},
   optionsPanel: {
     borderRadius: theme.radius.md,
