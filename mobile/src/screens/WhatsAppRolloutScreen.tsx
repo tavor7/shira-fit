@@ -145,6 +145,17 @@ export default function WhatsAppRolloutScreen() {
       });
       return;
     }
+    if (savedMode === "live") {
+      showConfirm({
+        title: t("whatsapp.stepDownConfirmTitle"),
+        message: t("whatsapp.stepDownConfirmBody"),
+        cancelLabel: t("common.cancel"),
+        confirmLabel: t("whatsapp.stepDownConfirmOk"),
+        confirmVariant: "danger",
+        onConfirm: () => void persist(mode),
+      });
+      return;
+    }
     void persist(mode);
   }
 
