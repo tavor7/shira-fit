@@ -21,6 +21,8 @@ import { AppSearchField } from "../components/AppSearchField";
 import { AppModal } from "../components/AppModal";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { ListRowSkeleton } from "../components/ListRowSkeleton";
+import { EmptyState } from "../components/EmptyState";
 import { formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
 import { formatSessionTimeShort } from "../lib/financeBreakdownFormat";
 import { lastNDaysRangeISO } from "../lib/isoDate";
@@ -449,7 +451,7 @@ export default function AccountPaymentsScreen() {
 
   function confirmDelete(paymentId: string) {
     showConfirm({
-      title: language === "he" ? "אישור" : "Confirm",
+      title: t("common.confirm"),
       message: t("billing.deletePaymentConfirm"),
       cancelLabel: t("common.cancel"),
       confirmLabel: t("billing.deletePayment"),
@@ -604,9 +606,13 @@ export default function AccountPaymentsScreen() {
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator style={styles.listLoading} color={theme.colors.cta} />
+            <View style={styles.skeletonList}>
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+            </View>
           ) : (
-            <Text style={[styles.empty, isRTL && styles.rtl]}>{t("accountPayments.empty")}</Text>
+            <EmptyState icon="💳" title={t("accountPayments.empty")} isRTL={isRTL} />
           )
         }
         renderItem={({ item }) => {
@@ -672,7 +678,7 @@ export default function AccountPaymentsScreen() {
                       style={({ pressed }) => [styles.actionItem, styles.actionItemWide, pressed && styles.actionItemPressed]}
                     >
                       <Text style={[styles.actionText, isRTL && styles.rtl]}>
-                        {language === "he" ? "הפק מסמך" : "Generate document"}
+                        {t("billing.generateDocument")}
                       </Text>
                     </Pressable>
                     <View style={styles.actionSep} />
@@ -745,7 +751,7 @@ export default function AccountPaymentsScreen() {
               keyExtractor={(r) => `${r.kind}:${r.id}`}
               keyboardShouldPersistTaps="handled"
               style={styles.pickerList}
-              ListEmptyComponent={<Text style={[styles.empty, isRTL && styles.rtl]}>{t("accountPayments.noPayees")}</Text>}
+              ListEmptyComponent={<EmptyState icon="🔍" title={t("accountPayments.noPayees")} isRTL={isRTL} />}
               renderItem={({ item }) => {
                 let subtitle = "";
                 let title = "";
@@ -857,6 +863,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   list: { flex: 1 },
   listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl },
+  skeletonList: { gap: theme.spacing.sm, marginTop: theme.spacing.sm },
   headerBlock: { paddingTop: theme.spacing.sm },
   title: {
     fontSize: 22,
@@ -991,8 +998,6 @@ const styles = StyleSheet.create({
   actionSep: { width: StyleSheet.hairlineWidth, backgroundColor: theme.colors.borderMuted },
   actionText: { fontSize: 13, fontWeight: "800", color: theme.colors.text },
   actionTextDanger: { fontSize: 13, fontWeight: "800", color: theme.colors.error },
-  listLoading: { marginVertical: theme.spacing.xl },
-  empty: { textAlign: "center", marginVertical: theme.spacing.xl, color: theme.colors.textSoft, fontWeight: "600" },
   rtl: { textAlign: "right" },
   pickerSheet: { maxHeight: "85%" },
   pickerHeader: {

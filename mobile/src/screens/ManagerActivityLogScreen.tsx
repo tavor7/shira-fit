@@ -9,6 +9,8 @@ import { useAppAlert } from "../context/AppAlertContext";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { DateRangeFormPanel } from "../components/DateRangeFormPanel";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { ListRowSkeleton } from "../components/ListRowSkeleton";
+import { EmptyState } from "../components/EmptyState";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import { activityEventLooksRevertible, activityRevertReasonLabel } from "../lib/activityLogRevert";
 import {
@@ -653,9 +655,13 @@ export default function ManagerActivityLogScreen() {
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator style={styles.listLoading} color={theme.colors.cta} />
+            <View style={styles.skeletonList}>
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+            </View>
           ) : (
-            <Text style={styles.empty}>{language === "he" ? "אין רשומות" : "No events yet"}</Text>
+            <EmptyState icon="📋" title={t("activityLog.empty")} isRTL={isRTL} />
           )
         }
         ListFooterComponent={listFooter}
@@ -861,7 +867,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingBottom: theme.spacing.xl,
   },
-  listLoading: { marginTop: theme.spacing.xl },
+  skeletonList: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
   footerLoading: { marginVertical: theme.spacing.sm },
   card: {
     marginBottom: theme.spacing.sm,
@@ -968,7 +974,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   json: { marginTop: theme.spacing.sm, fontSize: 11, color: theme.colors.textMuted, fontFamily: undefined },
-  empty: { textAlign: "center", marginTop: theme.spacing.xl, color: theme.colors.textSoft, fontWeight: "600", fontSize: 15 },
   listFooterWrap: { marginTop: theme.spacing.sm },
   paginationBar: {
     flexDirection: "row",

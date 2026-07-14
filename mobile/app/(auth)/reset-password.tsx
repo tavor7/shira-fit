@@ -2,10 +2,8 @@ import { useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   Image,
 } from "react-native";
 import { router } from "expo-router";
@@ -13,8 +11,10 @@ import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { AppTextField } from "../../src/components/AppTextField";
 import { AppText } from "../../src/components/AppText";
+import { LoadingState } from "../../src/components/LoadingState";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
+import { useAppAlert } from "../../src/context/AppAlertContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 
 /**
@@ -23,10 +23,13 @@ import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
  */
 export default function ResetPasswordScreen() {
   const { t, isRTL } = useI18n();
+  const { showOk } = useAppAlert();
   const [ready, setReady] = useState(false);
+  const [hasSession, setHasSession] = useState(true);
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [busy, setBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -58,39 +61,33 @@ export default function ResetPasswordScreen() {
       const { data } = await supabase.auth.getSession();
       if (!cancelled) setReady(true);
       if (!data.session) {
-        Alert.alert(t("auth.resetLinkInvalidTitle"), t("auth.resetLinkInvalidBody"));
+        if (!cancelled) setHasSession(false);
+        showOk(t("auth.resetLinkInvalidTitle"), t("auth.resetLinkInvalidBody"));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [t, showOk]);
 
   async function save() {
+    setErrorMessage("");
     if (password.length < 6) {
-      Alert.alert(t("auth.passwordTooShortTitle"), t("auth.passwordTooShortBody"));
+      setErrorMessage(t("auth.passwordTooShortBody"));
       return;
     }
     if (password !== password2) {
-      Alert.alert(t("auth.passwordMismatchTitle"), t("auth.passwordMismatchBody"));
+      setErrorMessage(t("auth.passwordMismatchBody"));
       return;
     }
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
-    if (error) Alert.alert(t("common.error"), error.message);
+    if (error) setErrorMessage(error.message);
     else router.replace("/(auth)/password-updated");
   }
 
-  if (!ready)
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={theme.colors.cta} />
-        <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
-          {t("common.loading")}
-        </AppText>
-      </View>
-    );
+  if (!ready) return <LoadingState label={t("common.loading")} isRTL={isRTL} style={[styles.container, styles.centered]} />;
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
@@ -104,6 +101,13 @@ export default function ResetPasswordScreen() {
       <AppText variant="body" muted isRTL={isRTL} style={styles.hint}>
         {t("auth.resetPasswordHint")}
       </AppText>
+      {errorMessage ? (
+        <View style={styles.errorBox} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          <AppText variant="caption" isRTL={isRTL} style={styles.errorText}>
+            {errorMessage}
+          </AppText>
+        </View>
+      ) : null}
       <AppTextField
         variant="dark"
         isRTL={isRTL}
@@ -111,6 +115,7 @@ export default function ResetPasswordScreen() {
         secureTextEntry
         value={password}
         onChangeText={setPassword}
+        editable={hasSession}
         containerStyle={styles.field}
       />
       <AppTextField
@@ -120,12 +125,14 @@ export default function ResetPasswordScreen() {
         secureTextEntry
         value={password2}
         onChangeText={setPassword2}
+        editable={hasSession}
         containerStyle={styles.field}
       />
       <PrimaryButton
         label={t("auth.resetPasswordUpdate")}
         loadingLabel={t("common.loading")}
         loading={busy}
+        disabled={!hasSession}
         onPress={save}
       />
     </KeyboardAvoidingView>
@@ -135,10 +142,18 @@ export default function ResetPasswordScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.backgroundAlt },
   centered: { justifyContent: "center" },
-  loadingText: { textAlign: "center", marginTop: theme.spacing.sm },
   logoWrap: { alignItems: "center", marginBottom: theme.spacing.md },
   logo: { width: 200, height: 200 },
   title: { marginBottom: theme.spacing.sm },
   hint: { marginBottom: theme.spacing.lg },
   field: { marginBottom: theme.spacing.sm },
+  errorBox: {
+    backgroundColor: theme.colors.errorBg,
+    borderWidth: 1,
+    borderColor: theme.colors.errorBorder,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  errorText: { color: theme.colors.error },
 });

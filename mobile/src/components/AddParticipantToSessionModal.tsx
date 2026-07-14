@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, View, Text, Pressable, StyleSheet, ScrollView, Platform } from "react-native";
+import { View, Text, Pressable, StyleSheet, ScrollView, Platform } from "react-native";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { AppSearchSheet } from "./AppSearchSheet";
@@ -85,27 +85,28 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
 
   const fullAddCopy = useMemo(
     () => ({
-      title: language === "he" ? "האימון מלא" : "Session full",
-      message:
-        language === "he"
-          ? "האימון הגיע למקסימום. איך להוסיף את המשתתף?"
-          : "This session is at capacity. How would you like to add this participant?",
-      increase: language === "he" ? "להגדיל את הקיבולת" : "Increase capacity",
-      over: language === "he" ? "לשמור על הקיבולת ולהוסיף" : "Keep capacity, add anyway",
-      cancel: language === "he" ? "ביטול" : "Cancel",
+      title: t("sessionFull.title"),
+      message: t("sessionFull.message"),
+      increase: t("sessionFull.increase"),
+      over: t("sessionFull.over"),
+      cancel: t("common.cancel"),
     }),
-    [language]
+    [t]
   );
 
   const promptFullAddChoiceNative = useCallback(async (): Promise<FullAddChoice> => {
     return await new Promise<FullAddChoice>((resolve) => {
-      Alert.alert(fullAddCopy.title, fullAddCopy.message, [
-        { text: fullAddCopy.cancel, style: "cancel", onPress: () => resolve("cancel") },
-        { text: fullAddCopy.over, onPress: () => resolve("over") },
-        { text: fullAddCopy.increase, onPress: () => resolve("increase") },
-      ]);
+      showAlert({
+        title: fullAddCopy.title,
+        message: fullAddCopy.message,
+        actions: [
+          { label: fullAddCopy.cancel, variant: "secondary", onPress: () => resolve("cancel") },
+          { label: fullAddCopy.over, variant: "primary", onPress: () => resolve("over") },
+          { label: fullAddCopy.increase, variant: "primary", onPress: () => resolve("increase") },
+        ],
+      });
     });
-  }, [fullAddCopy]);
+  }, [fullAddCopy, showAlert]);
 
   async function increaseSessionCapacity(): Promise<boolean> {
     if (!sid) return false;

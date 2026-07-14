@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, Modal, TextInput } from "react-native";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Modal, TextInput } from "react-native";
 import { router } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../types/database";
 import { formatSessionTimeRange, hasSessionNotStarted } from "../lib/sessionTime";
@@ -40,7 +40,7 @@ type Props = {
 export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange }: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
-  const { showAlert } = useAppAlert();
+  const { showAlert, showOk } = useAppAlert();
   const [userId, setUserId] = useState<string | null>(null);
   const [regId, setRegId] = useState<string | null>(null);
   const [waitlist, setWaitlist] = useState(false);
@@ -127,7 +127,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
     const { data, error } = await supabase.rpc("register_for_session", { p_session_id: next.id });
     setBusy(false);
     if (error) {
-      Alert.alert(t("common.error"), appendNetworkHint(error, t("network.offlineHint")));
+      showOk(t("common.error"), appendNetworkHint(error, t("network.offlineHint")));
       return;
     }
     if (data?.ok) {
@@ -149,10 +149,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
     } else {
       const err = String(data?.error ?? "");
       if (err === "already_registered") await loadStatus();
-      Alert.alert(
-        language === "he" ? "לא ניתן להירשם" : "Could not register",
-        athleteRegisterSessionErrorDetail(err, t)
-      );
+      showOk(t("athleteSession.couldNotRegister"), athleteRegisterSessionErrorDetail(err, t));
     }
   }
 
@@ -161,19 +158,19 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
     setBusy(true);
     const { data, error } = await supabase.rpc("request_waitlist", { p_session_id: next.id });
     setBusy(false);
-    if (error) Alert.alert(t("common.error"), appendNetworkHint(error, t("network.offlineHint")));
+    if (error) showOk(t("common.error"), appendNetworkHint(error, t("network.offlineHint")));
     else if (data?.ok) {
       setWaitlist(true);
       showToast({
         message: language === "he" ? "נרשמתם לרשימת המתנה" : "You’re on the waitlist",
         variant: "success",
       });
-    } else Alert.alert(language === "he" ? "רשימת המתנה" : "Waitlist", data?.error ?? "");
+    } else showOk(t("athleteCalendar.waitlistHeading"), data?.error ?? "");
   }
 
   async function onCancel() {
     if (!next || !reason.trim()) {
-      Alert.alert(language === "he" ? "נדרשת סיבה" : "Reason required");
+      showOk(t("common.error"), t("athleteSession.reasonRequired"));
       return;
     }
     if (!hasSessionNotStarted(next.session_date, next.start_time)) {
@@ -192,7 +189,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
     setBusy(false);
     setCancelOpen(false);
     setReason("");
-    if (error) Alert.alert(t("common.error"), appendNetworkHint(error, t("network.offlineHint")));
+    if (error) showOk(t("common.error"), appendNetworkHint(error, t("network.offlineHint")));
     else if (data?.ok) {
       await cancelSessionReminders(next.id);
       setRegId(null);
@@ -207,7 +204,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
         err === "session_started"
           ? t("athleteSession.sessionStartedNoCancel")
           : err || t("common.error");
-      Alert.alert(language === "he" ? "לא ניתן לבטל" : "Could not cancel", msg);
+      showOk(t("athleteSession.couldNotCancel"), msg);
     }
   }
 

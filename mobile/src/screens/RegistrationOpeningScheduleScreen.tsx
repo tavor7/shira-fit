@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { appLocale } from "../lib/appLocale";
 import { theme } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { InlineTimePickerField } from "../components/InlineTimePickerField";
 import { useI18n } from "../context/I18nContext";
+import { useAppAlert } from "../context/AppAlertContext";
+import { useToast } from "../context/ToastContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import type { LanguageCode } from "../i18n/translations";
 
@@ -30,6 +32,8 @@ export default function RegistrationOpeningScheduleScreen() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const { language, t, isRTL } = useI18n();
+  const { showOk } = useAppAlert();
+  const { showToast } = useToast();
 
   const weekdayShort = useMemo(
     () => Object.fromEntries(WEEKDAY_IDS.map((id) => [id, formatWeekdayShort(id, language)])) as Record<number, string>,
@@ -66,19 +70,18 @@ export default function RegistrationOpeningScheduleScreen() {
     });
     setSaving(false);
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     if (!data?.ok) {
-      Alert.alert(t("common.failed"), data?.error ?? "Unknown error");
+      showOk(t("common.failed"), data?.error ?? "Unknown error");
       return;
     }
-    Alert.alert(
-      t("common.saved"),
-      language === "he"
-        ? `פתיחת הרשמה שבועית נקבעה ל-${weekdayLabel} בשעה ${timeStr} (שעון ישראל).`
-        : `Weekly opening set to ${weekdayLabel} at ${timeStr} (Israel time).`,
-    );
+    showToast({
+      message: t("common.saved"),
+      detail: t("openingSchedule.savedDetail").replace("{weekday}", weekdayLabel).replace("{time}", timeStr),
+      variant: "success",
+    });
   }
 
   const previewDay = weekdayLong[weekday] ?? "—";

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, StyleSheet, ActivityIndicator, ScrollView, Image, Platform } from "react-native";
+import { View, StyleSheet, ScrollView, Image, Platform } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { logUserActivity } from "../../src/lib/logUserActivity";
@@ -10,6 +10,7 @@ import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { AppText } from "../../src/components/AppText";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
+import { LoadingState } from "../../src/components/LoadingState";
 import { surface } from "../../src/theme/surfaces";
 
 const REDIRECT_MS = 2800;
@@ -92,13 +93,20 @@ export default function ConfirmEmailScreen() {
     };
   }, []);
 
+  const [secondsLeft, setSecondsLeft] = useState(Math.ceil(REDIRECT_MS / 1000));
+
   useEffect(() => {
     if (state !== "ok") return;
     redirectTimer.current = setTimeout(() => {
       void goLogin();
     }, REDIRECT_MS);
+    setSecondsLeft(Math.ceil(REDIRECT_MS / 1000));
+    const tick = setInterval(() => {
+      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
     return () => {
       if (redirectTimer.current) clearTimeout(redirectTimer.current);
+      clearInterval(tick);
     };
   }, [state, goLogin]);
 
@@ -111,12 +119,7 @@ export default function ConfirmEmailScreen() {
 
       <View style={styles.card}>
         {state === "loading" ? (
-          <>
-            <ActivityIndicator size="large" color={theme.colors.cta} />
-            <AppText variant="caption" soft isRTL={isRTL} style={styles.note}>
-              {t("common.loading")}
-            </AppText>
-          </>
+          <LoadingState label={t("common.loading")} isRTL={isRTL} />
         ) : (
           <>
             <View style={[styles.badge, state === "error" && styles.badgeErr]}>
@@ -128,7 +131,9 @@ export default function ConfirmEmailScreen() {
               {state === "ok" ? t("auth.confirmEmailVerified") : t("auth.confirmEmailFailed")}
             </AppText>
             <AppText variant="body" muted isRTL={isRTL} style={styles.lead}>
-              {state === "ok" ? t("auth.confirmEmailRedirectLead") : t("auth.confirmEmailErrorLead")}
+              {state === "ok"
+                ? `${t("auth.confirmEmailRedirectLead")} (${secondsLeft})`
+                : t("auth.confirmEmailErrorLead")}
             </AppText>
             <PrimaryButton label={t("auth.goToLogin")} onPress={goLogin} style={styles.btn} />
           </>
@@ -165,6 +170,5 @@ const styles = StyleSheet.create({
   badgeTextErr: { color: theme.colors.error },
   title: { textAlign: "center", marginBottom: theme.spacing.sm },
   lead: { textAlign: "center", marginBottom: theme.spacing.lg },
-  note: { textAlign: "center", marginTop: theme.spacing.sm },
   btn: { alignSelf: "stretch", marginTop: 0 },
 });

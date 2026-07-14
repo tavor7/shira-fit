@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
 } from "react-native";
 import { Stack, useLocalSearchParams, router, type Href } from "expo-router";
 import { theme } from "../theme";
@@ -17,6 +16,8 @@ import { formatISODateFull } from "../lib/dateFormat";
 import { formatSessionTimeRange } from "../lib/sessionTime";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ParticipantAttendanceList } from "../components/ParticipantAttendanceList";
+import { ListRowSkeleton } from "../components/ListRowSkeleton";
+import { EmptyState } from "../components/EmptyState";
 import {
   parseMissingAttendance,
   type MissingAttendanceSession,
@@ -126,11 +127,15 @@ export default function ManagerMissingAttendanceScreen() {
         <Text style={[styles.hint, isRTL && styles.rtl]}>{t("dashboard.missingAttendanceHint")}</Text>
 
         {loading ? (
-          <ActivityIndicator size="large" color={theme.colors.cta} style={{ marginTop: 24 }} />
+          <View style={styles.skeletonList}>
+            <ListRowSkeleton />
+            <ListRowSkeleton />
+            <ListRowSkeleton />
+          </View>
         ) : error ? (
           <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
         ) : sessions.length === 0 ? (
-          <Text style={[styles.muted, isRTL && styles.rtl]}>{t("dashboard.missingAttendanceEmpty")}</Text>
+          <EmptyState icon="✅" title={t("dashboard.missingAttendanceEmpty")} isRTL={isRTL} />
         ) : (
           sessions.map((s) => {
             const open = expandedId === s.session_id;
@@ -186,6 +191,7 @@ export default function ManagerMissingAttendanceScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
+  skeletonList: { gap: theme.spacing.sm, marginTop: theme.spacing.sm },
   h: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginBottom: 4 },
   sub: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
   hint: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, marginBottom: theme.spacing.md },

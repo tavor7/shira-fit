@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   ScrollView,
@@ -20,6 +19,7 @@ import { AppModal } from "../components/AppModal";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { EmptyState } from "../components/EmptyState";
 import { useToast } from "../context/ToastContext";
+import { useAppAlert } from "../context/AppAlertContext";
 import {
   type AthleteFamilyListItem,
   type AthleteFamilyMember,
@@ -50,6 +50,7 @@ function familyRpcError(code: string, t: (k: string) => string, language: string
 export default function FamilyManagementScreen() {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
+  const { showOk, showConfirm } = useAppAlert();
   const [families, setFamilies] = useState<AthleteFamilyListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -66,13 +67,13 @@ export default function FamilyManagementScreen() {
     const { data, error } = await supabase.rpc("list_athlete_families");
     setLoading(false);
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showToast({ message: t("common.error"), detail: error.message, variant: "error" });
       setFamilies([]);
       return;
     }
     const payload = data as { ok?: boolean; families?: unknown[]; error?: string };
     if (!payload?.ok) {
-      Alert.alert(t("common.error"), payload?.error ?? t("common.error"));
+      showToast({ message: t("common.error"), detail: payload?.error ?? "", variant: "error" });
       setFamilies([]);
       return;
     }
@@ -196,11 +197,11 @@ export default function FamilyManagementScreen() {
   async function saveFamily() {
     const name = familyName.trim();
     if (!name) {
-      Alert.alert(t("common.error"), t("families.errorNameRequired"));
+      showOk(t("common.error"), t("families.errorNameRequired"));
       return;
     }
     if (members.length === 0) {
-      Alert.alert(t("common.error"), t("families.errorMembersRequired"));
+      showOk(t("common.error"), t("families.errorMembersRequired"));
       return;
     }
     setSaving(true);
@@ -211,12 +212,12 @@ export default function FamilyManagementScreen() {
     });
     setSaving(false);
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     const payload = data as { ok?: boolean; error?: string };
     if (!payload?.ok) {
-      Alert.alert(t("common.error"), familyRpcError(String(payload?.error ?? ""), t, language));
+      showOk(t("common.error"), familyRpcError(String(payload?.error ?? ""), t, language));
       return;
     }
     showToast({ message: t("families.saved"), variant: "success" });
@@ -225,29 +226,29 @@ export default function FamilyManagementScreen() {
   }
 
   function confirmDelete(family: AthleteFamilyListItem) {
-    Alert.alert(t("families.deleteTitle"), t("families.deleteConfirm").replace("{name}", family.name), [
-      { text: t("common.cancel"), style: "cancel" },
-      {
-        text: t("common.delete"),
-        style: "destructive",
-        onPress: () => {
-          void (async () => {
-            const { data, error } = await supabase.rpc("delete_athlete_family", { p_family_id: family.id });
-            if (error) {
-              Alert.alert(t("common.error"), error.message);
-              return;
-            }
-            const payload = data as { ok?: boolean; error?: string };
-            if (!payload?.ok) {
-              Alert.alert(t("common.error"), payload?.error ?? t("common.error"));
-              return;
-            }
-            showToast({ message: t("families.deleted"), variant: "success" });
-            void loadFamilies();
-          })();
-        },
+    showConfirm({
+      title: t("families.deleteTitle"),
+      message: t("families.deleteConfirm").replace("{name}", family.name),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.delete"),
+      confirmVariant: "danger",
+      onConfirm: () => {
+        void (async () => {
+          const { data, error } = await supabase.rpc("delete_athlete_family", { p_family_id: family.id });
+          if (error) {
+            showOk(t("common.error"), error.message);
+            return;
+          }
+          const payload = data as { ok?: boolean; error?: string };
+          if (!payload?.ok) {
+            showOk(t("common.error"), payload?.error ?? "");
+            return;
+          }
+          showToast({ message: t("families.deleted"), variant: "success" });
+          void loadFamilies();
+        })();
       },
-    ]);
+    });
   }
 
   const memberKeys = useMemo(() => new Set(members.map((m) => memberPayeeKey(m.kind, m.id))), [members]);

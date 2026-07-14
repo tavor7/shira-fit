@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { AppModal } from "./AppModal";
+import { PrimaryButton } from "./PrimaryButton";
+import { ActionButton } from "./ActionButton";
 import { parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
 
 export type SessionRateMeta = {
@@ -169,34 +171,20 @@ export function RosterSlotRateChip({
             <Text style={styles.currency}>₪</Text>
           </View>
 
-          <Pressable
+          <PrimaryButton
+            label={t("managerSession.rosterSlotRateSave")}
+            loading={saving}
             onPress={() => void save()}
-            disabled={saving}
-            style={({ pressed }) => [
-              styles.saveBtn,
-              saving && styles.saveBtnDisabled,
-              pressed && !saving && { opacity: 0.9 },
-            ]}
-            accessibilityRole="button"
-          >
-            {saving ? (
-              <ActivityIndicator color={theme.colors.ctaText} />
-            ) : (
-              <Text style={styles.saveBtnTxt}>{t("managerSession.rosterSlotRateSave")}</Text>
-            )}
-          </Pressable>
+            style={styles.saveBtn}
+          />
 
           {hasOverride ? (
-            <Pressable
+            <ActionButton
+              label={t("managerSession.rosterSlotRateClear")}
               onPress={() => void clearOverride()}
               disabled={saving}
-              style={({ pressed }) => [styles.clearBtn, pressed && { opacity: 0.85 }]}
-              accessibilityRole="button"
-            >
-              <Text style={[styles.clearBtnTxt, isRTL && styles.rtlText]}>
-                {t("managerSession.rosterSlotRateClear")}
-              </Text>
-            </Pressable>
+              style={styles.clearBtn}
+            />
           ) : null}
         </View>
       </AppModal>
@@ -218,7 +206,7 @@ const styles = StyleSheet.create({
   chipRtl: { flexDirection: "row-reverse" },
   chipCustom: {
     borderColor: theme.colors.cta,
-    backgroundColor: "rgba(96, 165, 250, 0.1)",
+    backgroundColor: theme.colors.infoBg,
   },
   chipDisabled: { opacity: 0.5 },
   chipTxt: {
@@ -264,21 +252,9 @@ const styles = StyleSheet.create({
   currency: { fontSize: 16, fontWeight: "800", color: theme.colors.textMuted },
   saveBtn: {
     marginTop: 6,
-    paddingVertical: 14,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.cta,
-    alignItems: "center",
   },
-  saveBtnDisabled: { opacity: 0.6 },
-  saveBtnTxt: { fontSize: 15, fontWeight: "900", color: theme.colors.ctaText },
   clearBtn: {
     alignSelf: "center",
-    paddingVertical: 8,
-  },
-  clearBtnTxt: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: theme.colors.cta,
   },
   rtlText: { writingDirection: "rtl", textAlign: "right" },
 });

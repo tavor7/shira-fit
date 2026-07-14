@@ -8,6 +8,12 @@ function primaryTapFeedback() {
   }
 }
 
+function dangerTapFeedback() {
+  if (Platform.OS === "ios" || Platform.OS === "android") {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+  }
+}
+
 type Props = {
   label: string;
   loadingLabel?: string;
@@ -15,8 +21,8 @@ type Props = {
   onPress: () => void;
   disabled?: boolean;
   style?: ViewStyle;
-  /** `cta` = light filled (main). `ghost` = dark filled subtle border. */
-  variant?: "cta" | "ghost";
+  /** `cta` = light filled (main). `ghost` = dark filled subtle border. `danger` = destructive action. */
+  variant?: "cta" | "ghost" | "danger";
 };
 
 export function PrimaryButton({
@@ -30,18 +36,21 @@ export function PrimaryButton({
 }: Props) {
   const busy = loading || disabled;
   const isCta = variant === "cta";
+  const isDanger = variant === "danger";
+  const textStyle = isCta ? styles.textCta : isDanger ? styles.textDanger : styles.textGhost;
   return (
     <Pressable
       style={({ pressed }) => [
         styles.btn,
-        isCta ? styles.btnCta : styles.btnGhost,
+        isCta ? styles.btnCta : isDanger ? styles.btnDanger : styles.btnGhost,
         busy && styles.disabled,
         pressed && !busy && (isCta ? styles.pressedCta : styles.pressedGhost),
         style,
       ]}
       onPress={() => {
         if (busy) return;
-        primaryTapFeedback();
+        if (isDanger) dangerTapFeedback();
+        else primaryTapFeedback();
         onPress();
       }}
       disabled={busy}
@@ -52,10 +61,10 @@ export function PrimaryButton({
       {loading ? (
         <View style={styles.row}>
           <ActivityIndicator color={isCta ? theme.colors.ctaText : theme.colors.text} style={{ marginRight: 10 }} />
-          <Text style={[styles.text, isCta ? styles.textCta : styles.textGhost]}>{loadingLabel}</Text>
+          <Text style={[styles.text, textStyle]}>{loadingLabel}</Text>
         </View>
       ) : (
-        <Text style={[styles.text, isCta ? styles.textCta : styles.textGhost]} maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}>
+        <Text style={[styles.text, textStyle]} maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}>
           {label}
         </Text>
       )}
@@ -92,6 +101,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
+  btnDanger: {
+    backgroundColor: theme.colors.errorBg,
+    borderWidth: 1,
+    borderColor: theme.colors.errorBorder,
+  },
   disabled: { opacity: 0.5 },
   pressedCta: { opacity: 0.92, transform: [{ scale: 0.99 }] },
   pressedGhost: { opacity: 0.88 },
@@ -99,4 +113,5 @@ const styles = StyleSheet.create({
   text: { fontWeight: "600", fontSize: 16, letterSpacing: 0.2 } as TextStyle,
   textCta: { color: theme.colors.ctaText },
   textGhost: { color: theme.colors.text },
+  textDanger: { color: theme.colors.error },
 });

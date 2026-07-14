@@ -13,6 +13,7 @@ import { theme } from "../theme";
 import { surface } from "../theme/surfaces";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { AppTextField } from "../components/AppTextField";
+import { Skeleton } from "../components/Skeleton";
 import { ManagerMessageCard } from "../components/ManagerMessageCard";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { useI18n } from "../context/I18nContext";
@@ -151,16 +152,21 @@ export default function BirthdayMessagesScreen() {
       <ManagerStudioSetupTabs />
 
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("birthdayMessages.title")}</Text>
-      {updatedAt && updatedByName ? (
+      {updatedAt ? (
         <Text style={[styles.updatedMeta, isRTL && styles.rtl]}>
-          {t("birthdayMessages.lastUpdated")
-            .replace("{name}", updatedByName)
-            .replace("{when}", formatUpdatedWhen(updatedAt, language))}
+          {updatedByName
+            ? t("birthdayMessages.lastUpdated")
+                .replace("{name}", updatedByName)
+                .replace("{when}", formatUpdatedWhen(updatedAt, language))
+            : t("birthdayMessages.lastUpdatedDateOnly").replace("{when}", formatUpdatedWhen(updatedAt, language))}
         </Text>
       ) : null}
 
       {loading ? (
-        <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
+        <View style={styles.skeletonList}>
+          <Skeleton height={100} radius={theme.radius.lg} />
+          <Skeleton height={160} radius={theme.radius.lg} />
+        </View>
       ) : (
         <>
           <View style={[styles.card, surface.card]}>
@@ -223,6 +229,7 @@ export default function BirthdayMessagesScreen() {
               containerStyle={styles.field}
               style={styles.messageInput}
             />
+            <Text style={[styles.charCount, body.length > 2000 && styles.charCountOver]}>{body.length}/2000</Text>
 
             <View style={styles.previewShell}>
               <ManagerMessageCard
@@ -269,7 +276,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   rtl: { textAlign: "right" },
-  loader: { marginTop: theme.spacing.xl },
+  skeletonList: { marginTop: theme.spacing.xl, gap: theme.spacing.md },
   card: {
     marginTop: theme.spacing.lg,
     padding: theme.spacing.md,
@@ -312,6 +319,8 @@ const styles = StyleSheet.create({
   themeChipTxt: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
   field: { marginTop: 4 },
   messageInput: { minHeight: 96, textAlignVertical: "top" },
+  charCount: { marginTop: 4, fontSize: 11, fontWeight: "600", color: theme.colors.textSoft, textAlign: "right" },
+  charCountOver: { color: theme.colors.error },
   previewShell: { marginTop: 4 },
   saveWrap: { marginTop: theme.spacing.lg },
 });

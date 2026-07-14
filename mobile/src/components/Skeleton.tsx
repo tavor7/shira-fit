@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Easing, StyleSheet, type ViewStyle } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Easing, StyleSheet, type ViewStyle } from "react-native";
 import { theme } from "../theme";
+import { useReduceMotion } from "../hooks/useReduceMotion";
 
 type Props = {
   width?: number | `${number}%`;
@@ -11,14 +12,8 @@ type Props = {
 
 /** Pulsing placeholder block for content that's still loading. */
 export function Skeleton({ width = "100%", height = 14, radius = theme.radius.sm, style }: Props) {
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const reduceMotion = useReduceMotion();
   const pulse = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
-    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
-    return () => sub.remove();
-  }, []);
 
   useEffect(() => {
     if (reduceMotion) {

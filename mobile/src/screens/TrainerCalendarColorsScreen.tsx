@@ -14,6 +14,8 @@ import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
+import { ListRowSkeleton } from "../components/ListRowSkeleton";
+import { EmptyState } from "../components/EmptyState";
 
 type Row = {
   user_id: string;
@@ -24,7 +26,7 @@ type Row = {
 };
 
 export default function TrainerCalendarColorsScreen() {
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   const { showOk } = useAppAlert();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,9 +77,10 @@ export default function TrainerCalendarColorsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={theme.colors.cta} />
-        <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "טוען מאמנים…" : "Loading trainers…"}</Text>
+      <View style={styles.skeletonList}>
+        <ListRowSkeleton />
+        <ListRowSkeleton />
+        <ListRowSkeleton />
       </View>
     );
   }
@@ -93,9 +96,7 @@ export default function TrainerCalendarColorsScreen() {
           <View style={styles.top}>
             <ManagerStudioSetupTabs />
             <Text style={[styles.header, isRTL && styles.rtlText]}>{t("menu.trainerColors")}</Text>
-            <Text style={[styles.subhead, isRTL && styles.rtlText]}>
-              {language === "he" ? "בחירה נשמרת אוטומטית." : "Changes save automatically."}
-            </Text>
+            <Text style={[styles.subhead, isRTL && styles.rtlText]}>{t("trainerColors.autoSaveHint")}</Text>
           </View>
         }
         renderItem={({ item }) => {
@@ -124,7 +125,7 @@ export default function TrainerCalendarColorsScreen() {
                   ]}
                 >
                   <Text style={[styles.autoTxt, item.calendar_color == null && styles.autoTxtOn]}>
-                    {language === "he" ? "אוטומטי" : "Auto"}
+                    {t("trainerColors.auto")}
                   </Text>
                 </Pressable>
                 <View style={styles.presets}>
@@ -149,7 +150,7 @@ export default function TrainerCalendarColorsScreen() {
             </View>
           );
         }}
-        ListEmptyComponent={<Text style={[styles.empty, isRTL && styles.rtlText]}>{language === "he" ? "לא נמצאו מאמנים או מנהלים." : "No coaches or managers found."}</Text>}
+        ListEmptyComponent={<EmptyState icon="🎨" title={t("trainerColors.empty")} isRTL={isRTL} />}
       />
     </View>
   );
@@ -158,8 +159,7 @@ export default function TrainerCalendarColorsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   top: { paddingTop: theme.spacing.md, paddingBottom: theme.spacing.sm },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center", padding: theme.spacing.xl },
-  muted: { marginTop: 10, color: theme.colors.textMuted },
+  skeletonList: { padding: theme.spacing.md, gap: theme.spacing.sm },
   rtlText: { textAlign: "right" },
   header: { paddingTop: 2, paddingBottom: 2, fontSize: 18, fontWeight: "900", color: theme.colors.text },
   subhead: { paddingBottom: theme.spacing.sm, fontSize: 13, color: theme.colors.textMuted },
@@ -190,7 +190,6 @@ const styles = StyleSheet.create({
   autoTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
   autoTxtOn: { color: theme.colors.ctaText },
   presets: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  presetDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: "rgba(0,0,0,0.08)" },
+  presetDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.borderInput },
   presetDotOn: { borderColor: theme.colors.text, borderWidth: 2 },
-  empty: { textAlign: "center", color: theme.colors.textSoft, padding: theme.spacing.xl },
 });

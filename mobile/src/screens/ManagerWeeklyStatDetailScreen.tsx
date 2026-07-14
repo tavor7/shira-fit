@@ -5,14 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   Platform,
-  Alert,
 } from "react-native";
 import { Stack, useLocalSearchParams, router, type Href } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
+import { useAppAlert } from "../context/AppAlertContext";
 import type { LanguageCode } from "../i18n/translations";
 import type { TrainingSessionWithTrainer } from "../types/database";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
@@ -24,6 +23,8 @@ import {
 import { formatSessionTimeRange, sessionStartsAt, isCancellationWithinHoursBeforeSession } from "../lib/sessionTime";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
+import { ListRowSkeleton } from "../components/ListRowSkeleton";
+import { EmptyState } from "../components/EmptyState";
 
 type SessionBrief = {
   session_date: string;
@@ -135,6 +136,7 @@ function NoShowRowCard({
 }) {
   const [chargeNoShow, setChargeNoShow] = useState(row.chargeNoShow);
   const [busy, setBusy] = useState(false);
+  const { showOk } = useAppAlert();
 
   async function setCharge(charge: boolean) {
     if (busy || charge === chargeNoShow) return;
@@ -159,14 +161,11 @@ function NoShowRowCard({
               p_charge_no_show: charge,
             });
       if (res.error) {
-        Alert.alert(t("common.error"), res.error.message);
+        showOk(t("common.error"), res.error.message);
         return;
       }
       if (res.data?.ok !== true) {
-        Alert.alert(
-          language === "he" ? "לא ניתן לשמור" : "Could not save",
-          String(res.data?.error ?? "")
-        );
+        showOk(t("common.couldNotSave"), String(res.data?.error ?? ""));
         return;
       }
       setChargeNoShow(charge);
@@ -326,7 +325,7 @@ export default function ManagerWeeklyStatDetailScreen() {
               </Pressable>
             ))}
             {ordered.length === 0 ? (
-              <Text style={[styles.empty, isRTL && styles.rtl]}>{t("dashboard.detailEmpty")}</Text>
+              <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
             ) : null}
           </View>
         );
@@ -334,9 +333,7 @@ export default function ManagerWeeklyStatDetailScreen() {
       }
 
       if (sessionIds.length === 0) {
-        setBody(
-          <Text style={[styles.empty, isRTL && styles.rtl]}>{t("dashboard.detailEmpty")}</Text>
-        );
+        setBody(<EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />);
         return;
       }
 
@@ -401,7 +398,7 @@ export default function ManagerWeeklyStatDetailScreen() {
               );
             })}
             {list.length === 0 ? (
-              <Text style={[styles.empty, isRTL && styles.rtl]}>{t("dashboard.detailEmpty")}</Text>
+              <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
             ) : null}
           </View>
         );
@@ -490,7 +487,7 @@ export default function ManagerWeeklyStatDetailScreen() {
               <NoShowRowCard key={r.key} row={r} language={language} isRTL={isRTL} t={t} />
             ))}
             {rows.length === 0 ? (
-              <Text style={[styles.empty, isRTL && styles.rtl]}>{t("dashboard.detailEmpty")}</Text>
+              <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
             ) : null}
           </View>
         );
@@ -539,7 +536,7 @@ export default function ManagerWeeklyStatDetailScreen() {
               );
             })}
             {list.length === 0 ? (
-              <Text style={[styles.empty, isRTL && styles.rtl]}>{t("dashboard.detailEmpty")}</Text>
+              <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
             ) : null}
           </View>
         );
@@ -624,7 +621,7 @@ export default function ManagerWeeklyStatDetailScreen() {
               </Pressable>
             ))}
             {rows.length === 0 ? (
-              <Text style={[styles.empty, isRTL && styles.rtl]}>{t("dashboard.detailEmpty")}</Text>
+              <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
             ) : null}
           </View>
         );
@@ -666,7 +663,13 @@ export default function ManagerWeeklyStatDetailScreen() {
           <Text style={[styles.hint, isRTL && styles.rtl]}>{t("dashboard.detailHintAvgFill")}</Text>
         ) : null}
 
-        {loading ? <ActivityIndicator color={theme.colors.cta} style={{ marginTop: 16 }} /> : null}
+        {loading ? (
+          <View style={styles.skeletonList}>
+            <ListRowSkeleton />
+            <ListRowSkeleton />
+            <ListRowSkeleton />
+          </View>
+        ) : null}
         {error ? <Text style={styles.err}>{error}</Text> : null}
         {!loading && !error ? body : null}
       </ScrollView>
@@ -677,6 +680,7 @@ export default function ManagerWeeklyStatDetailScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: 40 },
+  skeletonList: { gap: theme.spacing.sm, marginTop: theme.spacing.sm },
   h: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginBottom: 4 },
   range: {
     fontSize: 13,
@@ -723,5 +727,4 @@ const styles = StyleSheet.create({
   noShowFeeBtnTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
   noShowFeeBtnTxtOn: { color: theme.colors.ctaText },
   segBtnPressed: { opacity: 0.85 },
-  empty: { marginTop: 12, color: theme.colors.textSoft, fontWeight: "600" },
 });

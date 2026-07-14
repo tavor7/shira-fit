@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Alert, ActivityIndicator, ScrollView, Modal, Platform } from "react-native";
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView, Modal } from "react-native";
 import { supabase } from "../../../../../src/lib/supabase";
 import type { TrainingSession } from "../../../../../src/types/database";
 import { theme } from "../../../../../src/theme";
@@ -18,6 +18,7 @@ import {
 import { isMissingColumnError } from "../../../../../src/lib/dbColumnErrors";
 import { isValidISODateString, toISODateLocal } from "../../../../../src/lib/isoDate";
 import { useI18n } from "../../../../../src/context/I18nContext";
+import { useAppAlert } from "../../../../../src/context/AppAlertContext";
 import { sessionFormStyles as sf } from "../../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../../src/context/ToastContext";
 import { copySessionParticipantsToNewSession } from "../../../../../src/lib/copySessionParticipants";
@@ -57,6 +58,7 @@ export default function CoachSessionManageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t, isRTL } = useI18n();
   const { showToast } = useToast();
+  const { showOk, showConfirm } = useAppAlert();
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [ready, setReady] = useState(false);
@@ -97,6 +99,21 @@ export default function CoachSessionManageScreen() {
       }
       if (prev.length >= 30) return [...prev.slice(prev.length - 29), snap];
       return [...prev, snap];
+    });
+  }
+
+  function handleCancel() {
+    if (undoStack.length === 0) {
+      router.back();
+      return;
+    }
+    showConfirm({
+      title: t("sessionDetail.discardChangesTitle"),
+      message: t("sessionDetail.discardChangesMessage"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("sessionDetail.discardChangesConfirm"),
+      confirmVariant: "danger",
+      onConfirm: () => router.back(),
     });
   }
 
@@ -188,25 +205,25 @@ export default function CoachSessionManageScreen() {
 
   async function executeSaveWithScope(scope?: SeriesScope) {
     if (!isValidISODateString(date.trim())) {
-      Alert.alert(t("sessionDetail.invalidDateTitle"), t("sessionForm.invalidDate"));
+      showOk(t("sessionDetail.invalidDateTitle"), t("sessionForm.invalidDate"));
       return;
     }
     const customParsed = parseCustomSlotPriceDraft(customSlotPriceDraft);
     if (!customParsed.ok) {
-      Alert.alert(t("common.error"), t("managerSession.customSlotPriceInvalid"));
+      showOk(t("common.error"), t("managerSession.customSlotPriceInvalid"));
       return;
     }
 
     const parsedDuration = parseInt(durationMin.trim(), 10);
     const duration = clampSessionDuration(parsedDuration);
     if (!isValidSessionDuration(parsedDuration)) {
-      Alert.alert(t("sessionDetail.invalidDurationTitle"), t("sessionDetail.invalidDurationRange"));
+      showOk(t("sessionDetail.invalidDurationTitle"), t("sessionDetail.invalidDurationRange"));
       return;
     }
     const parsedMax = parseInt(maxP.trim(), 10);
     const maxParticipants = clampSessionMaxParticipants(parsedMax);
     if (!isValidSessionMaxParticipants(parsedMax)) {
-      Alert.alert(t("sessionDetail.invalidGroupSizeTitle"), t("sessionDetail.invalidGroupSizeRange"));
+      showOk(t("sessionDetail.invalidGroupSizeTitle"), t("sessionDetail.invalidGroupSizeRange"));
       return;
     }
 
@@ -228,7 +245,7 @@ export default function CoachSessionManageScreen() {
         customSlotPriceIls: customParsed.price,
       });
       if (!res.ok) {
-        Alert.alert(
+        showOk(
           t("common.error"),
           isMissingSessionSeriesRpc({ message: res.error })
             ? t("session.seriesNeedsDb")
@@ -261,7 +278,7 @@ export default function CoachSessionManageScreen() {
         ({ error } = await supabase.from("training_sessions").update(updateBody).eq("id", sid));
       }
       if (error) {
-        Alert.alert(t("common.error"), error.message);
+        showOk(t("common.error"), error.message);
         return;
       }
       const { data: priceData, error: priceErr } = await supabase.rpc("staff_set_session_custom_slot_price", {
@@ -269,7 +286,7 @@ export default function CoachSessionManageScreen() {
         p_price_ils: customParsed.price,
       });
       if (priceErr || !priceData?.ok) {
-        Alert.alert(
+        showOk(
           t("common.error"),
           priceErr?.message ?? String(priceData?.error ?? t("common.failed"))
         );
@@ -283,7 +300,7 @@ export default function CoachSessionManageScreen() {
         if (savedWithoutKickbox) {
           parts.push(t("sessionDetail.kickboxNotSaved"));
         }
-        Alert.alert(t("sessionDetail.dbNoteTitle"), parts.join("\n"));
+        showOk(t("sessionDetail.dbNoteTitle"), parts.join("\n"));
       }
     }
     if (seriesScope) {
@@ -338,11 +355,11 @@ export default function CoachSessionManageScreen() {
     if (!session) return;
     const d = dupDate.trim();
     if (!isValidISODateString(d)) {
-      Alert.alert(t("sessionDetail.invalidDateTitle"), t("sessionForm.invalidDate"));
+      showOk(t("sessionDetail.invalidDateTitle"), t("sessionForm.invalidDate"));
       return;
     }
     if (!dupCoachId) {
-      Alert.alert(t("sessionDetail.missingTrainerTitle"), t("sessionDetail.chooseTrainer"));
+      showOk(t("sessionDetail.missingTrainerTitle"), t("sessionDetail.chooseTrainer"));
       return;
     }
     setDupBusy(true);
@@ -365,8 +382,7 @@ export default function CoachSessionManageScreen() {
     }
     if (error) {
       setDupBusy(false);
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-      else Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     const newId = (res.data as { id?: string } | null)?.id;
@@ -534,7 +550,7 @@ export default function CoachSessionManageScreen() {
             onPress={() => void openDuplicateModal()}
             variant="ghost"
           />
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}>
+          <Pressable onPress={handleCancel} style={({ pressed }) => [styles.cancelEdit, pressed && { opacity: 0.85 }]}>
             <Text style={styles.cancelEditTxt}>{t("common.cancel")}</Text>
           </Pressable>
         </View>

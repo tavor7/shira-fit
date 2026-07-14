@@ -1,5 +1,6 @@
-import { Modal, View, Text, Pressable, StyleSheet, useWindowDimensions, Platform } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
+import { AppModal } from "./AppModal";
 
 export type AppAlertActionVariant = "primary" | "secondary" | "danger";
 
@@ -22,117 +23,72 @@ type Props = {
 };
 
 /**
- * Generic on-brand alert / confirm (mobile + web). Same visual language as {@link ConfirmDiscardDialog}.
+ * Generic on-brand alert / confirm (mobile + web). Built on {@link AppModal} (`variant="dialog"`)
+ * so backdrop/shadow/sizing stay in sync with every other sheet/popover in the app.
  */
 export function AppAlertDialog({ visible, title, message, actions, onRequestClose, isRTL, instanceKey }: Props) {
-  const { width } = useWindowDimensions();
-  const maxCard = Math.min(400, width - theme.spacing.lg * 2);
-
   return (
-    <Modal
-      key={Platform.OS === "web" ? instanceKey ?? 0 : undefined}
+    <AppModal
+      key={instanceKey}
       visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onRequestClose}
-      statusBarTranslucent
-      style={styles.modalLayer}
+      onClose={onRequestClose}
+      variant="dialog"
+      backdropAccessibilityLabel={actions[0]?.label ?? ""}
     >
-      <View style={styles.backdrop} accessibilityViewIsModal>
-        <Pressable
-          style={styles.backdropTouch}
-          onPress={onRequestClose}
-          accessibilityRole="button"
-          accessibilityLabel={actions[0]?.label}
-        />
-        <View style={[styles.card, { maxWidth: maxCard }, Platform.OS === "web" ? styles.cardWeb : null]}>
-          {title ? (
-            <Text style={[styles.title, isRTL && styles.rtlText]} accessibilityRole="header">
-              {title}
-            </Text>
-          ) : null}
-          <Text style={[styles.body, isRTL && styles.rtlText]}>{message}</Text>
-          <View style={[styles.actions, isRTL && styles.actionsRtl]}>
-            {actions.map((a, i) => {
-              const key = `${a.label}-${i}`;
-              if (a.variant === "danger") {
-                return (
-                  <Pressable
-                    key={key}
-                    onPress={a.onPress}
-                    style={({ pressed }) => [styles.btnDanger, pressed && styles.pressed]}
-                    accessibilityRole="button"
-                  >
-                    <Text style={[styles.btnDangerTxt, isRTL && styles.rtlText]}>{a.label}</Text>
-                  </Pressable>
-                );
-              }
-              if (a.variant === "primary") {
-                return (
-                  <Pressable
-                    key={key}
-                    onPress={a.onPress}
-                    style={({ pressed }) => [styles.btnPrimary, pressed && styles.pressed]}
-                    accessibilityRole="button"
-                  >
-                    <Text style={[styles.btnPrimaryTxt, isRTL && styles.rtlText]}>{a.label}</Text>
-                  </Pressable>
-                );
-              }
+      <View style={styles.card}>
+        {title ? (
+          <Text style={[styles.title, isRTL && styles.rtlText]} accessibilityRole="header">
+            {title}
+          </Text>
+        ) : null}
+        <Text style={[styles.body, isRTL && styles.rtlText]}>{message}</Text>
+        <View style={[styles.actions, isRTL && styles.actionsRtl]}>
+          {actions.map((a, i) => {
+            const key = `${a.label}-${i}`;
+            if (a.variant === "danger") {
               return (
                 <Pressable
                   key={key}
                   onPress={a.onPress}
-                  style={({ pressed }) => [styles.btnSecondary, pressed && styles.pressed]}
+                  style={({ pressed }) => [styles.btnDanger, pressed && styles.pressed]}
                   accessibilityRole="button"
                 >
-                  <Text style={[styles.btnSecondaryTxt, isRTL && styles.rtlText]}>{a.label}</Text>
+                  <Text style={[styles.btnDangerTxt, isRTL && styles.rtlText]}>{a.label}</Text>
                 </Pressable>
               );
-            })}
-          </View>
+            }
+            if (a.variant === "primary") {
+              return (
+                <Pressable
+                  key={key}
+                  onPress={a.onPress}
+                  style={({ pressed }) => [styles.btnPrimary, pressed && styles.pressed]}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.btnPrimaryTxt, isRTL && styles.rtlText]}>{a.label}</Text>
+                </Pressable>
+              );
+            }
+            return (
+              <Pressable
+                key={key}
+                onPress={a.onPress}
+                style={({ pressed }) => [styles.btnSecondary, pressed && styles.pressed]}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.btnSecondaryTxt, isRTL && styles.rtlText]}>{a.label}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
-    </Modal>
+    </AppModal>
   );
 }
 
 const styles = StyleSheet.create({
-  /** Above RN Modal sheets (e.g. home alerts list) on web; below toast layer. */
-  modalLayer: {
-    flex: 1,
-    elevation: 100,
-    ...(Platform.OS === "web"
-      ? { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 999_950 }
-      : {}),
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(8, 8, 10, 0.72)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: theme.spacing.lg,
-    ...(Platform.OS === "web"
-      ? ({
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        } as const)
-      : {}),
-  },
-  backdropTouch: { ...StyleSheet.absoluteFillObject },
   card: {
-    width: "100%",
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surfaceElevated,
     padding: theme.spacing.lg,
-  },
-  cardWeb: {
-    boxShadow: "0 16px 48px rgba(0, 0, 0, 0.45)",
   },
   title: {
     fontSize: 18,
@@ -211,8 +167,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     borderRadius: theme.radius.md,
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.45)",
-    backgroundColor: "rgba(239, 68, 68, 0.14)",
+    borderColor: theme.colors.errorBorder,
+    backgroundColor: theme.colors.errorBg,
     alignItems: "center",
     justifyContent: "center",
   },

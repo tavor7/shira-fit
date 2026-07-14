@@ -5,8 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Platform,
-  Alert,
 } from "react-native";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
@@ -69,14 +67,9 @@ function parseMoneyInput(raw: string): number | null {
   return Number.isFinite(price) && price >= 0 ? price : null;
 }
 
-function alertNative(title: string, message: string) {
-  if (Platform.OS === "web" && typeof window !== "undefined") window.alert(message);
-  else Alert.alert(title, message);
-}
-
 export default function SessionPricingScreen({ hideIntro = false }: Props) {
   const { t, language, isRTL } = useI18n();
-  const { showConfirm } = useAppAlert();
+  const { showConfirm, showOk } = useAppAlert();
   const [capStr, setCapStr] = useState("");
   const [priceStr, setPriceStr] = useState("");
   const [globalFromStr, setGlobalFromStr] = useState(() => toISODateLocal(new Date()));
@@ -120,9 +113,9 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
 
   const notifyErr = useCallback(
     (message: string) => {
-      alertNative(t("common.error"), message);
+      showOk(t("common.error"), message);
     },
-    [t]
+    [t, showOk]
   );
 
   const load = useCallback(async () => {

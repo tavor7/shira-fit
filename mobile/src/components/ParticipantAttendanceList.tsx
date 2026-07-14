@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert, Modal, TextInput, Keyboard } from "react-native";
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Modal, TextInput, Keyboard } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { router, usePathname } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -7,6 +7,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { isBirthdayToday } from "../lib/birthday";
+import { ListRowSkeleton } from "./ListRowSkeleton";
 import {
   normalizePaymentMethodKey,
   paymentMethodAttendanceLabel,
@@ -425,7 +426,7 @@ export function ParticipantAttendanceList({
       }
     }
     if (priceFetchFailed) {
-      const msg = language === "he" ? "טעינת חלק מהמחירים נכשלה" : "Failed to load some prices";
+      const msg = t("attendance.failedToLoadPrices");
       setLoadError((prev) => (prev ? `${prev} · ${msg}` : msg));
     }
     setRosterPriceByRowId(rosterMap);
@@ -500,7 +501,7 @@ export function ParticipantAttendanceList({
       if (price <= 0) return "";
       return formatBillingAmountDraft(price);
     } catch {
-      const msg = language === "he" ? "טעינת המחיר נכשלה" : "Failed to load price";
+      const msg = t("attendance.failedToLoadPrice");
       setLoadError(msg);
       return "";
     }
@@ -580,11 +581,11 @@ export function ParticipantAttendanceList({
           });
     setBusyKey(null);
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     if (!data?.ok) {
-      Alert.alert(language === "he" ? "לא ניתן לשמור" : "Could not save", data?.error ?? "");
+      showOk(t("common.couldNotSave"), data?.error ?? "");
       return;
     }
     setRows((prev) =>
@@ -609,17 +610,13 @@ export function ParticipantAttendanceList({
     if (rows.length === 0) return;
     const todo = rows.filter((r) => r.attended !== true);
     if (todo.length === 0) return;
-    const ok =
-      language === "he"
-        ? `לסמן הגעה לכל המשתתפים (${todo.length}) בלי אמצעי תשלום?`
-        : `Mark ${todo.length} participant(s) as arrived without payment method?`;
-    Alert.alert(language === "he" ? "סימון המוני" : "Mark all", ok, [
-      { text: t("common.cancel"), style: "cancel" },
-      {
-        text: language === "he" ? "אישור" : "OK",
-        onPress: () => void runMarkAll(),
-      },
-    ]);
+    showConfirm({
+      title: t("attendance.markAllTitle"),
+      message: t("attendance.markAllMessage").replace("{n}", String(todo.length)),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.ok"),
+      onConfirm: () => void runMarkAll(),
+    });
   }
 
   async function runMarkAll() {
@@ -646,11 +643,11 @@ export function ParticipantAttendanceList({
                 p_charge_no_show: false,
               });
         if (error) {
-          Alert.alert(t("common.error"), error.message);
+          showOk(t("common.error"), error.message);
           return;
         }
         if (!data?.ok) {
-          Alert.alert(language === "he" ? "לא ניתן לשמור" : "Could not save", data?.error ?? "");
+          showOk(t("common.couldNotSave"), data?.error ?? "");
           return;
         }
       }
@@ -662,7 +659,13 @@ export function ParticipantAttendanceList({
   }
 
   if (loading) {
-    return <ActivityIndicator color={theme.colors.cta} style={styles.loader} />;
+    return (
+      <View style={styles.skeletonList}>
+        <ListRowSkeleton />
+        <ListRowSkeleton />
+        <ListRowSkeleton />
+      </View>
+    );
   }
 
   const duplicateBanner =
@@ -686,9 +689,7 @@ export function ParticipantAttendanceList({
           <Text style={[styles.loadError, isRTL && styles.rtlText]}>{loadError}</Text>
         ) : null}
         {duplicateBanner}
-        <Text style={[styles.muted, isRTL && styles.rtlText]}>
-          {language === "he" ? "אין הרשמות פעילות." : "No active registrations."}
-        </Text>
+        <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("attendance.noActiveRegistrations")}</Text>
       </View>
     );
   }
@@ -703,7 +704,7 @@ export function ParticipantAttendanceList({
           onPress={markAllArrived}
           disabled={busyKey !== null}
         >
-          <Text style={styles.markAllTxt}>{language === "he" ? "סמן הכל כ”הגיע”" : "Mark all arrived"}</Text>
+          <Text style={styles.markAllTxt}>{t("attendance.markAllArrived")}</Text>
         </Pressable>
       ) : null}
       {rows.map((item) => {
@@ -1015,10 +1016,7 @@ export function ParticipantAttendanceList({
                     if (!row || !method) return;
                     const parsed = parseOptionalAmountInput(payAmountDraft);
                     if (parsed === "invalid") {
-                      Alert.alert(
-                        t("common.error"),
-                        language === "he" ? "הזינו מספר חיובי או השאירו ריק." : "Enter a valid positive number or leave blank."
-                      );
+                      showOk(t("common.error"), t("attendance.invalidAmount"));
                       return;
                     }
                     closePaymentModal();
@@ -1047,7 +1045,7 @@ export function ParticipantAttendanceList({
 }
 
 const styles = StyleSheet.create({
-  loader: { marginVertical: theme.spacing.md },
+  skeletonList: { gap: theme.spacing.sm, marginVertical: theme.spacing.md },
   muted: { color: theme.colors.textMuted, fontStyle: "italic", marginVertical: 8 },
   rtlText: { textAlign: "right" },
   list: { gap: theme.spacing.sm },

@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   View,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Image,
@@ -25,10 +24,12 @@ export default function ForgotPasswordScreen() {
   const { t, isRTL } = useI18n();
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function sendReset() {
+    setErrorMessage("");
     if (!email.trim()) {
-      Alert.alert(t("common.error"), t("auth.loginErrorEmailRequired"));
+      setErrorMessage(t("auth.loginErrorEmailRequired"));
       return;
     }
     setBusy(true);
@@ -38,7 +39,7 @@ export default function ForgotPasswordScreen() {
         redirectTo,
       });
       if (error) {
-        Alert.alert(t("common.error"), error.message);
+        setErrorMessage(error.message);
         return;
       }
       router.replace({
@@ -75,6 +76,13 @@ export default function ForgotPasswordScreen() {
         <AppText variant="body" muted isRTL={isRTL} style={styles.hint}>
           {t("auth.forgotPasswordHint")}
         </AppText>
+        {errorMessage ? (
+          <View style={styles.errorBox} accessibilityRole="alert" accessibilityLiveRegion="polite">
+            <AppText variant="caption" isRTL={isRTL} style={styles.errorText}>
+              {errorMessage}
+            </AppText>
+          </View>
+        ) : null}
         <AppTextField
           variant="dark"
           isRTL={isRTL}
@@ -86,7 +94,10 @@ export default function ForgotPasswordScreen() {
           autoCorrect={false}
           value={email}
           maxLength={MAX_EMAIL_LEN}
-          onChangeText={setEmail}
+          onChangeText={(v) => {
+            setEmail(v);
+            setErrorMessage("");
+          }}
           accessibilityLabel={t("auth.email")}
           containerStyle={styles.field}
         />
@@ -121,4 +132,13 @@ const styles = StyleSheet.create({
   hint: { marginBottom: theme.spacing.md },
   field: { marginBottom: theme.spacing.sm },
   navBtn: { marginTop: theme.spacing.md, alignSelf: "center", width: "100%" },
+  errorBox: {
+    backgroundColor: theme.colors.errorBg,
+    borderWidth: 1,
+    borderColor: theme.colors.errorBorder,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  errorText: { color: theme.colors.error },
 });

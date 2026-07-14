@@ -1,11 +1,13 @@
 import { useCallback, useState } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { useAppAlert } from "../context/AppAlertContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { AppSearchField } from "../components/AppSearchField";
 import { EmptyState } from "../components/EmptyState";
+import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 
 type Role = "athlete" | "coach" | "manager";
@@ -19,10 +21,12 @@ type Row = {
 };
 
 export default function RoleManagementScreen() {
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
+  const { showOk, showConfirm } = useAppAlert();
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
+  const [changingId, setChangingId] = useState<string | null>(null);
   const listBottomPad = useSearchListBottomPadding();
 
   const load = useCallback(async (termRaw?: string) => {
@@ -41,31 +45,61 @@ export default function RoleManagementScreen() {
     const { data, error } = await query;
     setLoading(false);
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       setRows([]);
       return;
     }
     setRows((data as Row[]) ?? []);
-  }, [q, t]);
+  }, [q, t, showOk]);
 
-  async function setRole(userId: string, role: Role) {
+  async function applyRole(userId: string, role: Role) {
+    setChangingId(userId);
     const { data, error } = await supabase.rpc("set_user_role", { p_user_id: userId, p_role: role });
+    setChangingId(null);
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       return;
     }
     if (!data?.ok) {
-      Alert.alert(t("common.failed"), data?.error ?? "Unknown error");
+      showOk(t("common.failed"), data?.error ?? "Unknown error");
       return;
     }
     void load(q);
   }
 
-  function RoleChip({ label, onPress, active }: { label: string; onPress: () => void; active: boolean }) {
+  function confirmSetRole(row: Row, role: Role) {
+    if (role === row.role || changingId) return;
+    const roleLabel = role === "athlete" ? t("roles.athlete") : role === "coach" ? t("roles.coach") : t("roles.manager");
+    showConfirm({
+      title: t("roles.changeConfirmTitle"),
+      message: t("roles.changeConfirmMessage").replace("{name}", row.full_name).replace("{role}", roleLabel),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.confirm"),
+      onConfirm: () => void applyRole(row.user_id, role),
+    });
+  }
+
+  function RoleChip({
+    label,
+    onPress,
+    active,
+    disabled,
+  }: {
+    label: string;
+    onPress: () => void;
+    active: boolean;
+    disabled: boolean;
+  }) {
     return (
       <Pressable
         onPress={onPress}
-        style={({ pressed }) => [styles.chip, active ? styles.chipActive : styles.chipInactive, pressed && { opacity: 0.9 }]}
+        disabled={disabled}
+        style={({ pressed }) => [
+          styles.chip,
+          active ? styles.chipActive : styles.chipInactive,
+          pressed && !disabled && { opacity: 0.9 },
+          disabled && !active && { opacity: 0.5 },
+        ]}
         accessibilityRole="button"
       >
         <Text style={[styles.chipTxt, active ? styles.chipTxtActive : styles.chipTxtInactive]}>{label}</Text>
@@ -84,11 +118,7 @@ export default function RoleManagementScreen() {
           <View style={styles.top}>
             <ManagerStudioSetupTabs />
             <Text style={[styles.title, isRTL && styles.rtlText]}>{t("menu.roles")}</Text>
-            <Text style={[styles.hint, isRTL && styles.rtlText]}>
-              {language === "he"
-                ? "חיפוש לפי שם, משתמש או טלפון. מנהלים יכולים לשנות תפקידים."
-                : "Search by name, username, or phone. Managers can promote/demote roles."}
-            </Text>
+            <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("roles.hint")}</Text>
             <AppSearchField
               value={q}
               onChangeText={setQ}
@@ -101,7 +131,11 @@ export default function RoleManagementScreen() {
         }
         ListEmptyComponent={
           loading ? (
-            <EmptyState title={t("common.loading")} isRTL={isRTL} />
+            <View style={styles.skeletonList}>
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+            </View>
           ) : (
             <EmptyState title={t("staffUsers.noUsers")} isRTL={isRTL} />
           )
@@ -114,19 +148,22 @@ export default function RoleManagementScreen() {
             </Text>
             <View style={styles.row}>
               <RoleChip
-                label={language === "he" ? "מתאמן" : "Athlete"}
+                label={t("roles.athlete")}
                 active={item.role === "athlete"}
-                onPress={() => setRole(item.user_id, "athlete")}
+                disabled={changingId !== null}
+                onPress={() => confirmSetRole(item, "athlete")}
               />
               <RoleChip
-                label={language === "he" ? "מאמן" : "Coach"}
+                label={t("roles.coach")}
                 active={item.role === "coach"}
-                onPress={() => setRole(item.user_id, "coach")}
+                disabled={changingId !== null}
+                onPress={() => confirmSetRole(item, "coach")}
               />
               <RoleChip
-                label={language === "he" ? "מנהל" : "Manager"}
+                label={t("roles.manager")}
                 active={item.role === "manager"}
-                onPress={() => setRole(item.user_id, "manager")}
+                disabled={changingId !== null}
+                onPress={() => confirmSetRole(item, "manager")}
               />
             </View>
           </View>
@@ -148,6 +185,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
   hint: { marginTop: 6, fontSize: 12, lineHeight: 18, color: theme.colors.textMuted },
   rtlText: { textAlign: "right" },
+  skeletonList: { paddingHorizontal: theme.spacing.md, gap: theme.spacing.sm },
   list: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,

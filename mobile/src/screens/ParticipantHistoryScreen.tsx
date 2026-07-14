@@ -3,6 +3,7 @@ import { View, Text, SectionList, Pressable, Platform } from "react-native";
 import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-router";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
+import { EmptyState } from "../components/EmptyState";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
@@ -118,7 +119,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
   /** True after a successful Load for the current athlete/date range (hides billing card on fetch error). */
   const [reportReady, setReportReady] = useState(false);
-  const [emptyHint, setEmptyHint] = useState<string>(language === "he" ? "אין רשומות לתאריכים שנבחרו." : "No records for those dates.");
+  const [emptyHint, setEmptyHint] = useState<string>(t("participantHistory.emptyDefault"));
   const [editAmountOpen, setEditAmountOpen] = useState(false);
   const [editAmountBusy, setEditAmountBusy] = useState(false);
   const [editAmountStr, setEditAmountStr] = useState("");
@@ -879,13 +880,11 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
           >
             <Text style={styles.pickerItemName}>{item.full_name}</Text>
             <Text style={styles.pickerItemRole}>
-              {item.kind === "athlete" ? athleteSearchSubtitle(item.phone) : `${item.phone} · ${language === "he" ? "מהיר" : "Quick Add"}`}
+              {item.kind === "athlete" ? athleteSearchSubtitle(item.phone) : `${item.phone} · ${t("participantHistory.quickAdd")}`}
             </Text>
           </Pressable>
         )}
-        ListEmptyComponent={
-          <Text style={[styles.pickerEmpty, isRTL && styles.rtlText]}>{language === "he" ? "אין מתאמנים" : "No athletes"}</Text>
-        }
+        ListEmptyComponent={<EmptyState icon="🔍" title={t("participantHistory.noAthletes")} isRTL={isRTL} />}
       />
 
       <AddAccountPaymentModal
@@ -1173,15 +1172,11 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
           )
         }
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            {!athleteId
-              ? language === "he"
-                ? "בחרו מתאמן כדי לראות את הפעילות."
-                : "Choose an athlete to see their activity."
-              : !hasSearched || loading
-                ? ""
-                : emptyHint}
-          </Text>
+          !athleteId ? (
+            <EmptyState icon="🧑" title={t("participantHistory.chooseAthlete")} isRTL={isRTL} />
+          ) : !hasSearched || loading ? null : (
+            <EmptyState icon="📭" title={emptyHint} isRTL={isRTL} />
+          )
         }
         contentContainerStyle={styles.listContent}
         stickySectionHeadersEnabled={false}

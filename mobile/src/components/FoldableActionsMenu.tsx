@@ -9,6 +9,8 @@ export type FoldableActionsMenuItem = {
   label: string;
   onPress: () => void;
   badgeCount?: number;
+  /** Renders the label in the destructive/error color. */
+  danger?: boolean;
   /** Screen reader label; defaults to `label`. */
   accessibilityLabel?: string;
 };
@@ -136,7 +138,10 @@ export function FoldableActionsMenu({
             accessibilityLabel={item.accessibilityLabel ?? item.label}
           >
             <View style={styles.itemRow}>
-              <Text style={styles.itemText} maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}>
+              <Text
+                style={[styles.itemText, item.danger && styles.itemTextDanger]}
+                maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}
+              >
                 {item.label}
               </Text>
               {item.badgeCount && item.badgeCount > 0 ? (
@@ -186,6 +191,7 @@ const styles = StyleSheet.create({
   itemRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   itemPressed: { backgroundColor: theme.colors.surfaceElevated },
   itemText: { color: theme.colors.text, fontWeight: "700", fontSize: 14, letterSpacing: 0.2 },
+  itemTextDanger: { color: theme.colors.error },
   badge: {
     minWidth: 22,
     paddingHorizontal: 8,

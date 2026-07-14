@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from "react-native";
+import { Animated, Easing, StyleSheet, View } from "react-native";
 import { theme } from "../theme";
+import { useReduceMotion } from "../hooks/useReduceMotion";
 
 type Props = {
   open: boolean;
@@ -11,14 +12,8 @@ const EASE = Easing.out(Easing.cubic);
 
 export function AnimatedOptionExpand({ open, children }: Props) {
   const [measuredH, setMeasuredH] = useState(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const reduceMotion = useReduceMotion();
   const progress = useRef(new Animated.Value(open ? 1 : 0)).current;
-
-  useEffect(() => {
-    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
-    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
-    return () => sub.remove();
-  }, []);
 
   useEffect(() => {
     const duration = reduceMotion ? 0 : theme.motion.normal;

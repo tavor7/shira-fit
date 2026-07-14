@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
+import { useToast } from "../context/ToastContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { AppSearchField } from "../components/AppSearchField";
+import { EmptyState } from "../components/EmptyState";
 import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 import {
   buildManualDuplicateIndexes,
@@ -44,6 +47,7 @@ export default function StaffUsersScreen() {
   const { profile } = useAuth();
   const isManager = profile?.role === "manager";
   const { t, isRTL } = useI18n();
+  const { showToast } = useToast();
 
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
@@ -98,7 +102,7 @@ export default function StaffUsersScreen() {
 
     const { data, error } = await query;
     if (error) {
-      Alert.alert(t("common.error"), error.message);
+      showToast({ message: t("common.error"), detail: error.message, variant: "error" });
       setRows([]);
       setLoading(false);
       return;
@@ -183,9 +187,13 @@ export default function StaffUsersScreen() {
           </View>
         }
         ListEmptyComponent={
-          <Text style={[styles.empty, isRTL && styles.rtlText]}>
-            {loading ? t("common.loading") : t("staffUsers.noUsers")}
-          </Text>
+          loading ? null : (
+            <EmptyState
+              icon={q.trim().length > 0 ? "🔍" : "👥"}
+              title={t("staffUsers.noUsers")}
+              isRTL={isRTL}
+            />
+          )
         }
         renderItem={({ item }) => {
           const nameKey = normalizeParticipantName(item.full_name ?? "");
@@ -205,15 +213,19 @@ export default function StaffUsersScreen() {
           return (
             <Pressable
               onPress={() => {
+                if (Platform.OS === "ios" || Platform.OS === "android") {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
                 if (item.kind === "profile") router.push(`/(app)/staff/profile/${item.user_id}` as never);
                 else router.push(`/(app)/staff/manual/${item.id}` as never);
               }}
+              accessibilityRole="button"
+              accessibilityLabel={item.full_name}
               style={({ pressed }) => [
                 styles.card,
                 hasDuplicateHighlight && styles.cardDuplicateName,
                 pressed && { opacity: 0.9 },
               ]}
-              accessibilityRole="button"
             >
               <Text style={styles.name}>
                 {item.full_name}
@@ -223,7 +235,11 @@ export default function StaffUsersScreen() {
                   const md = dob.slice(5, 10);
                   const now = new Date();
                   const tmd = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-                  return md === tmd ? <Text style={styles.bday}>{"  "}🎂</Text> : null;
+                  return md === tmd ? (
+                    <Text style={styles.bday} accessibilityLabel={t("staffUsers.birthdayToday")}>
+                      {"  "}🎂
+                    </Text>
+                  ) : null;
                 })()}
               </Text>
               {profileDuplicateName || manualDuplicateName ? (
@@ -266,7 +282,6 @@ const styles = StyleSheet.create({
   hint: { marginTop: 6, color: theme.colors.textMuted, lineHeight: 18, fontSize: 12 },
   rtlText: { textAlign: "right" },
   list: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
-  empty: { textAlign: "center", marginTop: 32, color: theme.colors.textSoft },
   card: {
     padding: theme.spacing.md,
     borderRadius: theme.radius.lg,

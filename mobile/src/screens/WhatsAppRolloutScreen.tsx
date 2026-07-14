@@ -11,6 +11,7 @@ import {
 import { theme } from "../theme";
 import { surface } from "../theme/surfaces";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { Skeleton } from "../components/Skeleton";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
@@ -203,7 +204,10 @@ export default function WhatsAppRolloutScreen() {
       <Text style={[styles.hint, isRTL && styles.rtl]}>{t("whatsapp.rolloutSubtitle")}</Text>
 
       {loading ? (
-        <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
+        <View style={styles.skeletonList}>
+          <Skeleton height={120} radius={theme.radius.lg} />
+          <Skeleton height={80} radius={theme.radius.lg} />
+        </View>
       ) : (
         <>
           <View style={[styles.card, surface.card]}>
@@ -243,20 +247,25 @@ export default function WhatsAppRolloutScreen() {
                   {selected.map((u) => {
                     const active = sendTarget?.user_id === u.user_id;
                     return (
-                      <Pressable
+                      <View
                         key={u.user_id}
-                        onPress={() => setSendTargetId(u.user_id)}
-                        onLongPress={() => removeUser(u.user_id)}
-                        style={({ pressed }) => [
-                          styles.chip,
-                          active && styles.chipActive,
-                          pressed && styles.pressed,
-                        ]}
+                        style={[styles.chip, styles.chipRemovable, active && styles.chipActive, isRTL && styles.chipRemovableRtl]}
                       >
-                        <Text style={[styles.chipTxt, active && styles.chipTxtActive, isRTL && styles.rtl]} numberOfLines={1}>
-                          {u.full_name}
-                        </Text>
-                      </Pressable>
+                        <Pressable onPress={() => setSendTargetId(u.user_id)} style={({ pressed }) => [pressed && styles.pressed]}>
+                          <Text style={[styles.chipTxt, active && styles.chipTxtActive, isRTL && styles.rtl]} numberOfLines={1}>
+                            {u.full_name}
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => removeUser(u.user_id)}
+                          hitSlop={8}
+                          accessibilityRole="button"
+                          accessibilityLabel={t("common.remove")}
+                          style={({ pressed }) => [styles.chipRemove, pressed && { opacity: 0.7 }]}
+                        >
+                          <Text style={styles.chipRemoveTxt}>×</Text>
+                        </Pressable>
+                      </View>
                     );
                   })}
                 </View>
@@ -349,7 +358,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "900", color: theme.colors.text, letterSpacing: -0.3 },
   hint: { marginTop: 8, color: theme.colors.textMuted, lineHeight: 21, fontSize: 14, fontWeight: "500" },
   rtl: { textAlign: "right", alignSelf: "stretch" },
-  loader: { marginTop: 32 },
+  skeletonList: { marginTop: 24, gap: theme.spacing.md },
   card: { marginTop: theme.spacing.lg, padding: theme.spacing.md, borderRadius: theme.radius.lg, gap: 12 },
   sectionEyebrow: {
     fontSize: 11,
@@ -387,6 +396,10 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
   },
   chipActive: { borderColor: theme.colors.cta, backgroundColor: theme.colors.surface },
+  chipRemovable: { flexDirection: "row", alignItems: "center", gap: 6 },
+  chipRemovableRtl: { flexDirection: "row-reverse" },
+  chipRemove: { marginLeft: 2 },
+  chipRemoveTxt: { fontSize: 15, fontWeight: "900", color: theme.colors.textSoft, lineHeight: 16 },
   chipTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
   chipTxtActive: { color: theme.colors.text },
   search: {

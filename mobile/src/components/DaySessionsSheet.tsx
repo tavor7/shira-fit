@@ -6,7 +6,6 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Platform,
   TextInput,
@@ -99,7 +98,7 @@ export function DaySessionsSheet({
   const [noteBusy, setNoteBusy] = useState(false);
   const isManager = variant === "manager";
   const offlineHint = useMemo(() => t("network.offlineHint"), [t]);
-  const { showAlert, showConfirm } = useAppAlert();
+  const { showAlert, showConfirm, showOk } = useAppAlert();
 
   const dayStudioNotes = useMemo(
     () => (calendarNotes ?? []).filter((n) => studioNoteCoversDate(n, dateIso)),
@@ -146,13 +145,7 @@ export function DaySessionsSheet({
     }
     setBusyId(null);
     if (deleteError) {
-      if (Platform.OS === "web" && typeof window !== "undefined") {
-        window.alert(
-          language === "he" ? `לא ניתן למחוק: ${deleteError.message}` : `Could not delete: ${deleteError.message}`
-        );
-      } else {
-        Alert.alert(language === "he" ? "לא ניתן למחוק" : "Could not delete", deleteError.message);
-      }
+      showOk(language === "he" ? "לא ניתן למחוק" : "Could not delete", deleteError.message);
       return;
     }
     if (sessionRow) setUndo({ kind: "delete_one", sessions: [sessionRow] });
@@ -243,8 +236,7 @@ export function DaySessionsSheet({
   }
 
   function showError(titleText: string, message: string) {
-    if (Platform.OS === "web" && typeof window !== "undefined") window.alert(`${titleText}\n${message}`);
-    else Alert.alert(titleText, message);
+    showOk(titleText, message);
   }
 
   async function executeClearDay() {
@@ -277,10 +269,14 @@ export function DaySessionsSheet({
       setPendingClearDay(true);
       return;
     }
-    Alert.alert(language === "he" ? "מחיקת יום?" : "Clear day?", msg, [
-      { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
-      { text: language === "he" ? "מחיקה" : "Delete", style: "destructive", onPress: () => void executeClearDay() },
-    ]);
+    showConfirm({
+      title: language === "he" ? "מחיקת יום?" : "Clear day?",
+      message: msg,
+      cancelLabel: language === "he" ? "ביטול" : "Cancel",
+      confirmLabel: language === "he" ? "מחיקה" : "Delete",
+      confirmVariant: "danger",
+      onConfirm: () => void executeClearDay(),
+    });
   }
 
   async function runDuplicateDay() {
@@ -426,10 +422,14 @@ export function DaySessionsSheet({
       setPendingDeleteStudioNoteId(id);
       return;
     }
-    Alert.alert(t("calendarNotes.deleteTitle"), t("calendarNotes.deleteMessage"), [
-      { text: t("common.cancel"), style: "cancel" },
-      { text: t("calendarNotes.removeNote"), style: "destructive", onPress: () => void executeDeleteStudioNote(id) },
-    ]);
+    showConfirm({
+      title: t("calendarNotes.deleteTitle"),
+      message: t("calendarNotes.deleteMessage"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("calendarNotes.removeNote"),
+      confirmVariant: "danger",
+      onConfirm: () => void executeDeleteStudioNote(id),
+    });
   }
 
   async function executeDeleteStudioNote(id: string) {

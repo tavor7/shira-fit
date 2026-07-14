@@ -1,6 +1,7 @@
 import { useLocalSearchParams, router, Stack, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Pressable, StyleSheet, Alert, Modal, ActivityIndicator, ScrollView } from "react-native";
+import { View, StyleSheet, Modal, ScrollView, Platform } from "react-native";
+import * as Haptics from "expo-haptics";
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../../src/types/database";
 import { formatSessionTimeRange, hasSessionNotEnded, hasSessionNotStarted } from "../../../../src/lib/sessionTime";
@@ -31,6 +32,7 @@ import {
 } from "../../../../src/lib/registrationOpeningSchedule";
 import { AppText } from "../../../../src/components/AppText";
 import { AppTextField } from "../../../../src/components/AppTextField";
+import { Skeleton } from "../../../../src/components/Skeleton";
 
 /** Same visual anchor for Hebrew + Latin names in the participants list. */
 function participantListLabel(name: string, uiRtl: boolean): string {
@@ -45,7 +47,7 @@ export default function AthleteSessionDetail() {
   const sessionId = String(id ?? "").trim();
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
-  const { showAlert } = useAppAlert();
+  const { showAlert, showOk } = useAppAlert();
   const [session, setSession] = useState<TrainingSessionWithTrainer | null>(null);
   const [count, setCount] = useState(0);
   const [onWaitlist, setOnWaitlist] = useState(false);
@@ -181,6 +183,9 @@ export default function AthleteSessionDetail() {
     setRegistering(false);
     if (error) showToast({ message: t("common.error"), detail: error.message, variant: "error" });
     else if (data?.ok) {
+      if (Platform.OS === "ios" || Platform.OS === "android") {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       showToast({ message: t("athleteSession.registeredToast"), variant: "success" });
       setRegistered(true);
       await loadNames();
@@ -266,7 +271,7 @@ export default function AthleteSessionDetail() {
       return;
     }
     if (!reason.trim()) {
-      Alert.alert(t("athleteSession.reasonRequired"));
+      showOk(t("common.error"), t("athleteSession.reasonRequired"));
       return;
     }
     setCancelling(true);
@@ -301,10 +306,15 @@ export default function AthleteSessionDetail() {
     return (
       <View style={styles.box}>
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
-        <ActivityIndicator size="large" color={theme.colors.cta} />
-        <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
-          {t("common.loading")}
-        </AppText>
+        <View style={styles.card}>
+          <Skeleton width="70%" height={22} />
+          <Skeleton width="45%" height={14} style={{ marginTop: 10 }} />
+          <View style={[styles.chips]}>
+            <Skeleton width={64} height={22} radius={theme.radius.full} />
+            <Skeleton width={64} height={22} radius={theme.radius.full} />
+          </View>
+        </View>
+        <Skeleton height={52} radius={theme.radius.md} style={{ marginTop: theme.spacing.sm }} />
       </View>
     );
   if (loadError)
@@ -394,8 +404,8 @@ export default function AthleteSessionDetail() {
               style={full || !regOpen || !sessionNotEnded ? styles.disabled : undefined}
             />
             {(full || onWaitlist) && (
-              <Pressable
-                style={({ pressed }) => [styles.btn2, pressed && { opacity: 0.85 }]}
+              <ActionButton
+                label={onWaitlist ? t("athleteSession.removeFromWaitlist") : t("athleteSession.joinWaitlist")}
                 onPress={onWaitlist ? leaveWaitlist : waitlist}
                 disabled={
                   waitlisting ||
@@ -403,11 +413,8 @@ export default function AthleteSessionDetail() {
                   cancelling ||
                   (!onWaitlist && (!full || !sessionNotEnded))
                 }
-              >
-                <AppText variant="body" style={styles.btnText2}>
-                  {onWaitlist ? t("athleteSession.removeFromWaitlist") : t("athleteSession.joinWaitlist")}
-                </AppText>
-              </Pressable>
+                style={styles.btn2}
+              />
             )}
             {!sessionNotEnded ? null : !full && !regOpen ? (
               <AppText variant="caption" muted isRTL={isRTL} style={styles.closedHint}>
@@ -416,15 +423,12 @@ export default function AthleteSessionDetail() {
             ) : null}
           </>
         ) : canCancelRegistration ? (
-          <Pressable
-            style={({ pressed }) => [styles.btnDanger, pressed && { opacity: 0.85 }]}
+          <PrimaryButton
+            variant="danger"
+            label={t("athleteSession.cancelRegistration")}
             onPress={() => setCancelOpen(true)}
             disabled={registering || waitlisting || cancelling}
-          >
-            <AppText variant="body" style={styles.btnText}>
-              {t("athleteSession.cancelRegistration")}
-            </AppText>
-          </Pressable>
+          />
         ) : sessionNotEnded ? (
           <AppText variant="caption" muted isRTL={isRTL} style={styles.closedHint}>
             {t("athleteSession.sessionStartedNoCancel")}
@@ -548,15 +552,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   closedHint: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13, textAlign: "center" },
-  btnText: { color: "#fff", textAlign: "center", fontWeight: "600" },
-  btnText2: { color: theme.colors.cta, fontWeight: "600" },
-  btnDanger: {
-    backgroundColor: theme.colors.error,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: theme.radius.md,
-    alignItems: "center",
-  },
   partCard: {
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.md,

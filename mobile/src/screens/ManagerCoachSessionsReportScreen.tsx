@@ -6,7 +6,6 @@ import {
   FlatList,
   Pressable,
   Platform,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { router, type Href } from "expo-router";
@@ -17,9 +16,12 @@ import { isValidISODateString, lastNDaysRangeISO } from "../lib/isoDate";
 import { formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
 import type { ManagerCoachSessionReportRow } from "../types/database";
 import { useI18n } from "../context/I18nContext";
+import { useAppAlert } from "../context/AppAlertContext";
 import { CoachPickerSheet } from "../components/CoachPickerSheet";
 import { PricingPickerField } from "../components/PricingPickerField";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
+import { ListRowSkeleton } from "../components/ListRowSkeleton";
+import { EmptyState } from "../components/EmptyState";
 
 function formatPayout(n: number) {
   return `${Math.round(n * 100) / 100} ₪`;
@@ -121,6 +123,7 @@ function CoachSessionReportCard({
 
 export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: { hideTitle?: boolean } = {}) {
   const { language, t, isRTL } = useI18n();
+  const { showOk } = useAppAlert();
   const defaultRange = useMemo(() => lastNDaysRangeISO(30), []);
   const [start, setStart] = useState(defaultRange.start);
   const [end, setEnd] = useState(defaultRange.end);
@@ -144,15 +147,11 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
     const s = start.trim();
     const e = end.trim();
     if (!isValidISODateString(s) || !isValidISODateString(e)) {
-      const msg = language === "he" ? "בחרו תאריכי התחלה וסיום תקינים." : "Please choose valid start and end dates.";
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
-      else Alert.alert(t("common.error"), msg);
+      showOk(t("common.error"), t("coachReport.invalidDateRange"));
       return;
     }
     if (s > e) {
-      const msg = language === "he" ? "תאריך ההתחלה חייב להיות לפני או שווה לתאריך הסיום." : "Start date must be on or before end date.";
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
-      else Alert.alert(t("common.error"), msg);
+      showOk(t("common.error"), t("coachReport.startAfterEnd"));
       return;
     }
     if (!coachId) return;
@@ -165,9 +164,7 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
     setLoading(false);
     setHasSearched(true);
     if (error) {
-      const msg = error.message;
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
-      else Alert.alert(t("common.error"), msg);
+      showOk(t("common.error"), error.message);
       setRows([]);
       return;
     }
@@ -266,13 +263,17 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
           />
         )}
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            {!coachId
-              ? t("coachReport.chooseTrainer")
-              : !hasSearched || loading
-                ? ""
-                : t("coachReport.noSessionsInRange")}
-          </Text>
+          !coachId ? (
+            <EmptyState icon="🏋️" title={t("coachReport.chooseTrainer")} isRTL={isRTL} />
+          ) : !hasSearched || loading ? (
+            <View style={styles.skeletonList}>
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+            </View>
+          ) : (
+            <EmptyState icon="📭" title={t("coachReport.noSessionsInRange")} isRTL={isRTL} />
+          )
         }
       />
     </View>
@@ -281,6 +282,7 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  skeletonList: { gap: theme.spacing.sm, padding: theme.spacing.md },
   filters: {
     margin: theme.spacing.md,
     padding: theme.spacing.md,
@@ -313,7 +315,6 @@ const styles = StyleSheet.create({
   },
   list: { flex: 1 },
   listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, flexGrow: 1, gap: 10 },
-  empty: { textAlign: "center", color: theme.colors.textSoft, padding: theme.spacing.xl, fontSize: 14 },
   payoutCard: {
     marginHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.sm,

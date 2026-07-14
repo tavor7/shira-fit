@@ -471,7 +471,7 @@ export const participantHistoryStyles = StyleSheet.create({
   paymentPaidAmount: { fontSize: 18, fontWeight: "900", color: theme.colors.success },
   paymentMethodLine: { fontSize: 14, fontWeight: "700", color: theme.colors.text, marginTop: 4 },
   paymentMethodCash: { color: theme.colors.success },
-  paymentMethodOther: { color: "#ca8a04" },
+  paymentMethodOther: { color: theme.colors.warning },
   paymentRecordedBy: { fontSize: 12, color: theme.colors.textMuted, marginTop: 4, lineHeight: 17 },
   paymentUnpaidHint: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4, lineHeight: 18 },
   sessionPaymentBlock: {

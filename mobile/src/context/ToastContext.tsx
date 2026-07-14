@@ -1,6 +1,7 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, Platform, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
+import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
 type ToastPayload = {
   message: string;
@@ -19,17 +20,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<ToastPayload | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progress = useRef(new Animated.Value(0)).current;
-  const reduceMotionRef = useRef(false);
-
-  useEffect(() => {
-    void AccessibilityInfo.isReduceMotionEnabled().then((v) => {
-      reduceMotionRef.current = v;
-    });
-    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", (v) => {
-      reduceMotionRef.current = v;
-    });
-    return () => sub.remove();
-  }, []);
+  const reduceMotionRef = useReduceMotionRef();
 
   const showToast = useCallback(
     (p: ToastPayload) => {

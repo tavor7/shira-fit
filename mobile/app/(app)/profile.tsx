@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, Stack } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../src/context/AuthContext";
@@ -7,6 +8,7 @@ import { theme } from "../../src/theme";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { AppTextField } from "../../src/components/AppTextField";
 import { AppText } from "../../src/components/AppText";
+import { LoadingState } from "../../src/components/LoadingState";
 import { useI18n } from "../../src/context/I18nContext";
 import { NotificationSettingsPanel } from "../../src/components/NotificationSettingsPanel";
 import { ManagerSendMessagePanel } from "../../src/components/ManagerSendMessagePanel";
@@ -50,6 +52,13 @@ export default function ProfileScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (successTimer.current) clearTimeout(successTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     setEmail(initialEmail);
@@ -122,7 +131,12 @@ export default function ProfileScreen() {
       }
 
       await refreshProfile();
+      if (Platform.OS === "ios" || Platform.OS === "android") {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       setSuccess(t("common.saved"));
+      if (successTimer.current) clearTimeout(successTimer.current);
+      successTimer.current = setTimeout(() => setSuccess(null), 4000);
     } finally {
       setBusy(false);
     }
@@ -133,10 +147,7 @@ export default function ProfileScreen() {
     return (
       <View style={styles.loadingWrap}>
         <Stack.Screen options={{ title: t("screen.profile") }} />
-        <ActivityIndicator size="large" color={theme.colors.cta} />
-        <AppText muted isRTL={isRTL} style={styles.loadingText}>
-          {t("common.loading")}
-        </AppText>
+        <LoadingState label={t("common.loading")} isRTL={isRTL} />
       </View>
     );
   }
@@ -223,14 +234,18 @@ export default function ProfileScreen() {
         {segment === "account" ? (
           <>
             {success ? (
-              <AppText isRTL={rtl} style={styles.success}>
-                {success}
-              </AppText>
+              <View style={styles.successBox} accessibilityRole="alert" accessibilityLiveRegion="polite">
+                <AppText isRTL={rtl} style={styles.successText}>
+                  {success}
+                </AppText>
+              </View>
             ) : null}
             {error ? (
-              <AppText isRTL={rtl} style={styles.error}>
-                {error}
-              </AppText>
+              <View style={styles.errorBox} accessibilityRole="alert" accessibilityLiveRegion="polite">
+                <AppText isRTL={rtl} style={styles.errorText}>
+                  {error}
+                </AppText>
+              </View>
             ) : null}
 
             <AppTextField
@@ -248,6 +263,11 @@ export default function ProfileScreen() {
               variant="dark"
               containerStyle={styles.field}
             />
+            {email.trim() !== initialEmail ? (
+              <AppText variant="caption" isRTL={rtl} style={styles.emailWarning}>
+                {t("profile.emailChangeWarning")}
+              </AppText>
+            ) : null}
 
             <AppTextField
               label={t("profile.phone")}
@@ -317,7 +337,6 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.colors.backgroundAlt },
-  loadingText: { marginTop: theme.spacing.sm },
   scrollContent: { flexGrow: 1, padding: theme.spacing.lg, paddingBottom: theme.spacing.xl },
   subtitle: { marginTop: theme.spacing.xs, marginBottom: theme.spacing.md },
   segmentTrack: {
@@ -355,6 +374,23 @@ const styles = StyleSheet.create({
     color: theme.colors.ctaText,
   },
   field: { marginBottom: theme.spacing.md },
-  error: { color: theme.colors.error, marginBottom: theme.spacing.md, fontWeight: "600" },
-  success: { color: theme.colors.success, marginBottom: theme.spacing.md, fontWeight: "700" },
+  errorBox: {
+    backgroundColor: theme.colors.errorBg,
+    borderWidth: 1,
+    borderColor: theme.colors.errorBorder,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  errorText: { color: theme.colors.error, fontWeight: "600" },
+  successBox: {
+    backgroundColor: theme.colors.successBg,
+    borderWidth: 1,
+    borderColor: theme.colors.success,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  successText: { color: theme.colors.success, fontWeight: "700" },
+  emailWarning: { color: theme.colors.warning, marginTop: -theme.spacing.sm, marginBottom: theme.spacing.md },
 });

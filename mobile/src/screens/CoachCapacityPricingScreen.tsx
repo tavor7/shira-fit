@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Platform, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { useAppAlert } from "../context/AppAlertContext";
@@ -49,7 +49,7 @@ export default function CoachCapacityPricingScreen({
   hideIntro = false,
 }: Props) {
   const { language, t, isRTL } = useI18n();
-  const { showConfirm } = useAppAlert();
+  const { showConfirm, showOk } = useAppAlert();
   const [pickedCoachId, setPickedCoachId] = useState("");
   const [coachLabel, setCoachLabel] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -79,8 +79,7 @@ export default function CoachCapacityPricingScreen({
       .order("max_participants", { ascending: true });
     setLoading(false);
     if (error) {
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(error.message);
-      else Alert.alert(t("common.error"), error.message);
+      showOk(t("common.error"), error.message);
       setRows([]);
       return;
     }
@@ -108,8 +107,7 @@ export default function CoachCapacityPricingScreen({
   }, [coachId]);
 
   function notifyErr(message: string) {
-    if (Platform.OS === "web" && typeof window !== "undefined") window.alert(message);
-    else Alert.alert(t("common.error"), message);
+    showOk(t("common.error"), message);
   }
 
   async function saveRule() {
@@ -287,9 +285,7 @@ export default function CoachCapacityPricingScreen({
   const formTitle = editRow !== null ? t("pricing.editRule") : t("pricing.addRule");
 
   function showPickCoach() {
-    const msg = language === "he" ? "בחרו מאמן קודם." : "Choose a coach first.";
-    if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
-    else Alert.alert(t("common.error"), msg);
+    showOk(t("common.error"), t("pricing.chooseCoachFirst"));
   }
 
   function confirmRemove(row: CoachCapacityPricingRow) {
