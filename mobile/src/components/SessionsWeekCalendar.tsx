@@ -44,7 +44,7 @@ export type SessionsWeekItem = {
   hideTemporalDimming?: boolean;
   /** When true, hide open/closed indicators (chips / state bar). */
   hideRegistrationState?: boolean;
-  /** Staff-only: waitlist count for the session (shown when full). */
+  /** Staff-only: waitlist count for the session (shown whenever &gt; 0, regardless of open/full). */
   waitlistCount?: number;
   /** For staff: assigned coach (edit/delete only when matches current user for coaches). */
   coachId?: string;

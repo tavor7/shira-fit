@@ -118,7 +118,7 @@ export default function ManagerRosterCalendarScreen() {
             durationMinutes: s.duration_minutes ?? 60,
             timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
             timeBadgeText: badge,
-            timeBadgeText2: m > 0 && c >= m && wl > 0 ? String(wl) : undefined,
+            timeBadgeText2: wl > 0 ? String(wl) : undefined,
             waitlistCount: wl,
             trainerName: s.trainer?.full_name ?? undefined,
             subtitle,

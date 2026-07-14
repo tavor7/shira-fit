@@ -138,7 +138,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
       {showFill && staffLabels ? (
         <View style={styles.fillRow}>
           <Text style={[styles.fillInlineText, compact && styles.fillInlineTextCompact]}>{item.signedUpCount}/{item.maxParticipants}</Text>
-          {full && (item.waitlistCount ?? 0) > 0 ? (
+          {(item.waitlistCount ?? 0) > 0 ? (
             <Text style={[styles.waitInlineText, compact && styles.waitInlineTextCompact]}>({String(item.waitlistCount)})</Text>
           ) : null}
         </View>
