@@ -65,7 +65,8 @@ export default function AthleteSessionsScreen() {
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
-    await touchWeeklyRegistrationOpenIfDue();
+    // Idempotent server-side backup for a late cron; doesn't need to block the fetch below.
+    void touchWeeklyRegistrationOpenIfDue();
     const [calendarRes, alertItems] = await Promise.all([
       fetchAthleteOpenSessionsForCalendar(),
       fetchAthleteHomeAlertItems(language),

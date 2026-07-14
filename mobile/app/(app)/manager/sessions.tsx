@@ -60,14 +60,17 @@ export default function ManagerSessionsScreen() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
-    await touchWeeklyRegistrationOpenIfDue();
+    // Idempotent server-side backup for a late cron; doesn't need to block the fetch below.
+    void touchWeeklyRegistrationOpenIfDue();
     void maintainSessionSeriesHorizon();
     const { data, error } = await fetchStaffTrainingSessionsForCalendar();
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);
     const ids = list.map((s) => s.id);
-    const signup = await fetchActiveSignupCountsBySession(ids);
-    const waitlist = await fetchWaitlistCountsBySession(ids);
+    const [signup, waitlist] = await Promise.all([
+      fetchActiveSignupCountsBySession(ids),
+      fetchWaitlistCountsBySession(ids),
+    ]);
     setSignupBySession(signup);
     setWaitlistBySession(waitlist);
     setHomeAlerts(await mergeStaffHomeAlerts("manager", list, signup, waitlist, language));

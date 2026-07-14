@@ -295,8 +295,10 @@ export async function mergeStaffHomeAlerts(
   now = new Date()
 ): Promise<HomePriorityAlertItem[]> {
   const a = buildStaffWaitlistFreeSpotItems(sessions, signupBySession, waitlistBySession, variant, language, now);
-  const d = await fetchStaffAthleteMultipleSessionsPerDayItems(variant, sessions, language, now);
-  const b = await fetchStaffLateCancellationItems(variant, language, now);
+  const [d, b] = await Promise.all([
+    fetchStaffAthleteMultipleSessionsPerDayItems(variant, sessions, language, now),
+    fetchStaffLateCancellationItems(variant, language, now),
+  ]);
   const seen = new Set<string>();
   const out: HomePriorityAlertItem[] = [];
   for (const x of [...a, ...d, ...b]) {
