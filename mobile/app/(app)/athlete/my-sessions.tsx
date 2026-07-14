@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
-import { View, StyleSheet, ActivityIndicator } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { EmptyState } from "../../../src/components/EmptyState";
-import { AppText } from "../../../src/components/AppText";
+import { SessionCardSkeleton } from "../../../src/components/SessionCardSkeleton";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
 import { useI18n } from "../../../src/context/I18nContext";
 
@@ -99,10 +99,9 @@ export default function MySessionsScreen() {
       <Stack.Screen options={{ title: t("screen.athleteMySessions") }} />
       {loading ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={theme.colors.cta} />
-          <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
-            {t("common.loading")}
-          </AppText>
+          <SessionCardSkeleton />
+          <SessionCardSkeleton />
+          <SessionCardSkeleton />
         </View>
       ) : !hasRegistrations ? (
         <EmptyState
@@ -141,11 +140,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   loadingBox: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
     gap: theme.spacing.sm,
     padding: theme.spacing.lg,
   },
-  loadingText: { marginTop: theme.spacing.xs },
   emptyPage: { flex: 1 },
 });

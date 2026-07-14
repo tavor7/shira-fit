@@ -1,5 +1,5 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from "react";
-import { AccessibilityInfo, Platform, StyleSheet, Text, View } from "react-native";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { AccessibilityInfo, Animated, Easing, Platform, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 
 type ToastPayload = {
@@ -18,23 +18,62 @@ const TOAST_MS = 2800;
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<ToastPayload | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progress = useRef(new Animated.Value(0)).current;
+  const reduceMotionRef = useRef(false);
 
-  const showToast = useCallback((p: ToastPayload) => {
-    if (hideTimer.current) clearTimeout(hideTimer.current);
-    setToast(p);
-    if (Platform.OS === "ios" || Platform.OS === "android") {
-      const a11y = p.detail ? `${p.message}. ${p.detail}` : p.message;
-      AccessibilityInfo.announceForAccessibility(a11y);
-    }
-    hideTimer.current = setTimeout(() => setToast(null), TOAST_MS);
+  useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then((v) => {
+      reduceMotionRef.current = v;
+    });
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", (v) => {
+      reduceMotionRef.current = v;
+    });
+    return () => sub.remove();
   }, []);
+
+  const showToast = useCallback(
+    (p: ToastPayload) => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      setToast(p);
+      if (Platform.OS === "ios" || Platform.OS === "android") {
+        const a11y = p.detail ? `${p.message}. ${p.detail}` : p.message;
+        AccessibilityInfo.announceForAccessibility(a11y);
+      }
+      const reduceMotion = reduceMotionRef.current;
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: reduceMotion ? 0 : theme.motion.normal,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+      hideTimer.current = setTimeout(() => {
+        Animated.timing(progress, {
+          toValue: 0,
+          duration: reduceMotion ? 0 : theme.motion.fast,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }).start(() => setToast(null));
+      }, TOAST_MS);
+    },
+    [progress]
+  );
 
   return (
     <ToastCtx.Provider value={{ showToast }}>
       {children}
       {toast ? (
         <View style={styles.layer} pointerEvents="none" accessibilityLiveRegion="polite">
-          <View style={styles.toastWrap}>
+          <Animated.View
+            style={[
+              styles.toastWrap,
+              {
+                opacity: progress,
+                transform: [
+                  { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) },
+                ],
+              },
+            ]}
+          >
             <View
               style={[
                 styles.toast,
@@ -49,7 +88,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <Text style={styles.toastTxt}>{toast.message}</Text>
               {toast.detail ? <Text style={styles.toastDetail}>{toast.detail}</Text> : null}
             </View>
-          </View>
+          </Animated.View>
         </View>
       ) : null}
     </ToastCtx.Provider>

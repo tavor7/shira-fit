@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
 import { EmptyState } from "./EmptyState";
-import { AppText } from "./AppText";
 import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
+import { SessionCardSkeleton } from "./SessionCardSkeleton";
 import { AthleteWaitlistInviteStripe, AthleteWaitlistJoinedStripe } from "./AthleteWaitlistInviteStripe";
 import { useI18n } from "../context/I18nContext";
 import { getSessionTemporalPhase } from "../lib/sessionTime";
@@ -243,11 +243,10 @@ export function SessionsWeekCalendar({
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={theme.colors.cta} />
-        <AppText variant="body" muted style={styles.loadingText}>
-          {t("common.loading")}
-        </AppText>
+      <View style={styles.loadingWrap}>
+        <SessionCardSkeleton />
+        <SessionCardSkeleton />
+        <SessionCardSkeleton />
       </View>
     );
   }
@@ -612,7 +611,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
   },
   emptyBtnTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 13 },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center", padding: theme.spacing.lg },
-  loadingText: { marginTop: 12, color: theme.colors.textMuted },
+  loadingWrap: { flex: 1, padding: theme.spacing.lg, gap: theme.spacing.sm },
 });
 

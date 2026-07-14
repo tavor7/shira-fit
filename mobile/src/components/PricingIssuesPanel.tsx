@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import type { PricingIssue, PricingIssueKind, PricingIssueParams, PricingIssueSection } from "../lib/pricingIssues";
+import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
 type Props = {
   issues: PricingIssue[];
@@ -115,7 +116,7 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
         <Text style={styles.chevron}>{expanded ? "▴" : "▾"}</Text>
       </Pressable>
 
-      {expanded ? (
+      <AnimatedOptionExpand open={expanded}>
         <View style={styles.list}>
           {issues.map((issue, idx) => {
             const copy = issueCopy(issue, t);
@@ -151,7 +152,7 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
             );
           })}
         </View>
-      ) : null}
+      </AnimatedOptionExpand>
     </View>
   );
 }

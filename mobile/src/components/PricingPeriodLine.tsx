@@ -31,11 +31,23 @@ export function PricingPeriodLine({
         </Text>
       </View>
       <View style={[styles.actions, isRTL && styles.actionsRtl]}>
-        <Pressable onPress={onEdit} hitSlop={6} accessibilityRole="button" accessibilityLabel={editLabel}>
+        <Pressable
+          onPress={onEdit}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={editLabel}
+          style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+        >
           <Text style={styles.actionEdit}>{editLabel}</Text>
         </Pressable>
         <Text style={styles.actionSep}>·</Text>
-        <Pressable onPress={onRemove} hitSlop={6} accessibilityRole="button" accessibilityLabel={removeLabel}>
+        <Pressable
+          onPress={onRemove}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={removeLabel}
+          style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+        >
           <Text style={styles.actionRemove}>{removeLabel}</Text>
         </Pressable>
       </View>

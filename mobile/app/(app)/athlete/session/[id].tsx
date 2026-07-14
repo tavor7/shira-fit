@@ -395,7 +395,7 @@ export default function AthleteSessionDetail() {
             />
             {(full || onWaitlist) && (
               <Pressable
-                style={styles.btn2}
+                style={({ pressed }) => [styles.btn2, pressed && { opacity: 0.85 }]}
                 onPress={onWaitlist ? leaveWaitlist : waitlist}
                 disabled={
                   waitlisting ||
@@ -417,7 +417,7 @@ export default function AthleteSessionDetail() {
           </>
         ) : canCancelRegistration ? (
           <Pressable
-            style={styles.btnDanger}
+            style={({ pressed }) => [styles.btnDanger, pressed && { opacity: 0.85 }]}
             onPress={() => setCancelOpen(true)}
             disabled={registering || waitlisting || cancelling}
           >

@@ -14,6 +14,7 @@ import { useI18n } from "../context/I18nContext";
 import { isBirthdayToday } from "../lib/birthday";
 import { formatISODateFull, formatISODateLong } from "../lib/dateFormat";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
+import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
 function truncateNotePreview(body: string, maxLen: number): string {
   const oneLine = body.replace(/\s+/g, " ").trim();
@@ -394,7 +395,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
                 </View>
               </Pressable>
 
-              {expanded ? (
+              <AnimatedOptionExpand open={expanded}>
                 <View style={styles.groupBody}>
                   {g.items.map((s) => {
                     const time = formatSessionTimeRange(s.start_time, durMin(s));
@@ -426,7 +427,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
                     );
                   })}
                 </View>
-              ) : null}
+              </AnimatedOptionExpand>
             </View>
           );
         })}

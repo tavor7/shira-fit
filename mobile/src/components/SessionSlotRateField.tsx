@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
 type Props = {
   value: string;
@@ -91,7 +92,7 @@ export function SessionSlotRateField({
         </View>
       </Pressable>
 
-      {expanded ? (
+      <AnimatedOptionExpand open={expanded}>
         <View style={styles.body}>
           <Text style={[styles.hierarchyHint, isRTL && styles.rtlText]}>
             {t("managerSession.customSlotPriceHierarchy")}
@@ -144,7 +145,7 @@ export function SessionSlotRateField({
             </Pressable>
           ) : null}
         </View>
-      ) : null}
+      </AnimatedOptionExpand>
     </View>
   );
 }

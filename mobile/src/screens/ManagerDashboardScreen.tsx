@@ -7,6 +7,7 @@ import { formatISODateFull } from "../lib/dateFormat";
 import { firstDayOfMonthISOLocal, lastDayOfMonthISOLocal, monthRangeISO, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "../components/AppText";
+import { Skeleton } from "../components/Skeleton";
 import { StatusChip } from "../components/StatusChip";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
@@ -472,8 +473,27 @@ export default function ManagerDashboardScreen() {
       )}
 
       {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={theme.colors.cta} />
+        <View style={styles.statsGrid}>
+          <View style={styles.statsPair}>
+            <View style={styles.tile}>
+              <Skeleton width={60} height={11} style={styles.tileSkeletonCenter} />
+              <Skeleton width={40} height={22} style={styles.tileSkeletonValue} />
+            </View>
+            <View style={styles.tile}>
+              <Skeleton width={60} height={11} style={styles.tileSkeletonCenter} />
+              <Skeleton width={40} height={22} style={styles.tileSkeletonValue} />
+            </View>
+          </View>
+          <View style={styles.statsPair}>
+            <View style={styles.tile}>
+              <Skeleton width={60} height={11} style={styles.tileSkeletonCenter} />
+              <Skeleton width={40} height={22} style={styles.tileSkeletonValue} />
+            </View>
+            <View style={styles.tile}>
+              <Skeleton width={60} height={11} style={styles.tileSkeletonCenter} />
+              <Skeleton width={40} height={22} style={styles.tileSkeletonValue} />
+            </View>
+          </View>
         </View>
       ) : null}
 
@@ -907,7 +927,6 @@ const styles = StyleSheet.create({
   periodChipTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted, letterSpacing: 0.2 },
   periodChipTxtOn: { color: theme.colors.ctaText },
   rtl: { textAlign: "right", alignSelf: "stretch" },
-  loadingWrap: { paddingVertical: theme.spacing.sm, alignItems: "center" },
   sectionEyebrow: {
     fontSize: 11,
     fontWeight: "800",
@@ -988,6 +1007,8 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
     textAlign: "center",
   },
+  tileSkeletonCenter: { alignSelf: "center" },
+  tileSkeletonValue: { alignSelf: "center", marginTop: theme.spacing.sm },
   tilePressed: { opacity: Platform.OS === "web" ? 0.92 : 0.9 },
   financeBlock: { marginTop: theme.spacing.lg, gap: theme.spacing.sm + 2 },
   financeCard: {

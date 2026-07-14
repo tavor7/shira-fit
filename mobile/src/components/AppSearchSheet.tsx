@@ -202,7 +202,13 @@ export function AppSearchSheet<T>({
             </Text>
           ) : null}
         </View>
-        <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={dismissLabel}>
+        <Pressable
+          onPress={onClose}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={dismissLabel}
+          style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+        >
           <Text style={styles.dismiss}>{dismissLabel}</Text>
         </Pressable>
       </View>

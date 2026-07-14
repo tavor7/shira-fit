@@ -216,7 +216,10 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
       <View style={[styles.hero, surface.hero]}>
         <Text style={[styles.title, isRTL && styles.rtl]}>{language === "he" ? "האימון הקרוב" : "Next workout"}</Text>
         <Text style={[styles.muted, isRTL && styles.rtl]}>{language === "he" ? "אין אימון קרוב." : "No upcoming session."}</Text>
-        <Pressable style={styles.linkBtn} onPress={() => router.push("/(app)/athlete/sessions")}>
+        <Pressable
+          style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
+          onPress={() => router.push("/(app)/athlete/sessions")}
+        >
           <Text style={styles.linkTxt}>{language === "he" ? "לוח אימונים" : "Calendar"}</Text>
         </Pressable>
       </View>
@@ -300,7 +303,11 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
         </Text>
       ) : null}
 
-      <Pressable style={styles.detailTap} onPress={() => router.push(`/(app)/athlete/session/${next.id}`)} disabled={busy}>
+      <Pressable
+        style={({ pressed }) => [styles.detailTap, pressed && { opacity: 0.7 }]}
+        onPress={() => router.push(`/(app)/athlete/session/${next.id}`)}
+        disabled={busy}
+      >
         <Text style={styles.detailTapTxt}>{language === "he" ? "פרטים" : "Details"}</Text>
       </Pressable>
 
@@ -317,7 +324,10 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
               multiline
             />
             <PrimaryButton label={language === "he" ? "אישור" : "Confirm"} onPress={onCancel} />
-            <Pressable onPress={() => setCancelOpen(false)} style={{ marginTop: 12 }}>
+            <Pressable
+              onPress={() => setCancelOpen(false)}
+              style={({ pressed }) => [{ marginTop: 12 }, pressed && { opacity: 0.7 }]}
+            >
               <Text style={styles.cancelTxt}>{t("common.cancel")}</Text>
             </Pressable>
           </View>

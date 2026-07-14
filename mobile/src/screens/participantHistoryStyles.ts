@@ -96,16 +96,11 @@ export const participantHistoryStyles = StyleSheet.create({
   pickerPlaceholder: { fontSize: 16, color: theme.colors.textSoftOnLight },
   clearSel: { marginTop: 8, alignSelf: "flex-start" },
   clearSelTxt: { color: theme.colors.textMuted, fontWeight: "700" },
-  loadingBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+  loadingSkeletonStack: {
+    gap: theme.spacing.sm,
     marginHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.sm,
-    paddingVertical: 10,
   },
-  loadingBannerTxt: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
   modalBackdrop: { flex: 1, justifyContent: "flex-end" },
   modalBackdropTouch: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
   modalBox: {

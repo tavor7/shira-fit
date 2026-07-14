@@ -84,11 +84,11 @@ export function PricingCapacityGroup<T extends PeriodRow>({
               {formatRange(sole.effective_from, sole.effective_to)}
             </Text>
             <View style={[styles.soleActions, isRTL && styles.soleActionsRtl]}>
-              <Pressable onPress={() => onEdit(sole)} hitSlop={8}>
+              <Pressable onPress={() => onEdit(sole)} hitSlop={8} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={styles.actionEdit}>{editLabel}</Text>
               </Pressable>
               <Text style={styles.actionSep}>·</Text>
-              <Pressable onPress={() => onRemove(sole)} hitSlop={8}>
+              <Pressable onPress={() => onRemove(sole)} hitSlop={8} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={styles.actionRemove}>{removeLabel}</Text>
               </Pressable>
             </View>
@@ -101,12 +101,18 @@ export function PricingCapacityGroup<T extends PeriodRow>({
           showPast ? (
             <View style={styles.pastBlock}>
               {past.map((row) => renderLine(row, true))}
-              <Pressable onPress={() => setShowPast(false)} style={styles.pastToggle}>
+              <Pressable
+                onPress={() => setShowPast(false)}
+                style={({ pressed }) => [styles.pastToggle, pressed && { opacity: 0.7 }]}
+              >
                 <Text style={styles.pastToggleTxt}>{hideEndedLabel}</Text>
               </Pressable>
             </View>
           ) : (
-            <Pressable onPress={() => setShowPast(true)} style={styles.pastToggle}>
+            <Pressable
+              onPress={() => setShowPast(true)}
+              style={({ pressed }) => [styles.pastToggle, pressed && { opacity: 0.7 }]}
+            >
               <Text style={styles.pastToggleTxt}>{showEndedLabel(past.length)}</Text>
             </Pressable>
           )

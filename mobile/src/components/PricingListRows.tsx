@@ -87,7 +87,7 @@ export function PricingListRows<T extends PricingRateTierRow>({
             {pastOpen && listRow.pastCount > 0 ? (
               <Pressable
                 onPress={() => setShowPast((s) => ({ ...s, [listRow.groupKey]: false }))}
-                style={styles.hidePast}
+                style={({ pressed }) => [styles.hidePast, pressed && { opacity: 0.7 }]}
               >
                 <Text style={styles.hidePastTxt}>{hideEndedLabel}</Text>
               </Pressable>

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, SectionList, Pressable, ActivityIndicator, Platform } from "react-native";
+import { View, Text, SectionList, Pressable, Platform } from "react-native";
 import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-router";
-import { theme } from "../theme";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
+import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
@@ -1023,9 +1023,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             ) : null}
 
             {athleteId && loading ? (
-              <View style={styles.loadingBanner}>
-                <ActivityIndicator size="small" color={theme.colors.cta} />
-                <Text style={styles.loadingBannerTxt}>{t("common.loading")}</Text>
+              <View style={styles.loadingSkeletonStack}>
+                <ListRowSkeleton />
+                <ListRowSkeleton />
               </View>
             ) : null}
 

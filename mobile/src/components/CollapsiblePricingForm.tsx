@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
+import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
 type Props = {
   title: string;
@@ -55,7 +56,9 @@ export function CollapsiblePricingForm({
           <Text style={styles.chevron}>{expanded ? "▴" : "▾"}</Text>
         </View>
       </Pressable>
-      {expanded ? <View style={[styles.body, inline && styles.bodyInline]}>{children}</View> : null}
+      <AnimatedOptionExpand open={expanded}>
+        <View style={[styles.body, inline && styles.bodyInline]}>{children}</View>
+      </AnimatedOptionExpand>
     </View>
   );
 }

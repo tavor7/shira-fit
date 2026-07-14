@@ -15,7 +15,7 @@ export function PricingPickerField({ label, value, placeholder, onPress, isRTL, 
     <View>
       <Text style={[ps.label, isRTL && ps.rtl]}>{label}</Text>
       <Pressable
-        style={ps.pickerTouch}
+        style={({ pressed }) => [ps.pickerTouch, pressed && { opacity: 0.85 }]}
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}

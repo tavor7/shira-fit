@@ -5,6 +5,7 @@ import { useI18n } from "../context/I18nContext";
 import type { PricingListRow, PricingListCluster, PricingRateTierRow } from "../lib/pricingRates";
 import { clusterPricingListRows, formatPricingEffectiveRange } from "../lib/pricingRates";
 import { PricingRowMoreMenu } from "./PricingRowMoreMenu";
+import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
 type Props<T extends PricingRateTierRow> = {
   rows: PricingListRow<T>[];
@@ -197,7 +198,8 @@ function ClusterBlock<T extends PricingRateTierRow>({
         </View>
       ) : null}
 
-      {expanded && collapsibleHeader ? (
+      {collapsibleHeader ? (
+        <AnimatedOptionExpand open={expanded}>
         <View style={styles.body}>
           {cluster.items.map((item) => (
             <RateRowCard
@@ -246,6 +248,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
             )
           ) : null}
         </View>
+        </AnimatedOptionExpand>
       ) : null}
 
       {!collapsibleHeader && cluster.pastCount > 0 ? (

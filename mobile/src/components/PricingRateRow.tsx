@@ -64,7 +64,10 @@ export function PricingRateRow({
         />
       </View>
       {footerLink ? (
-        <Pressable onPress={footerLink.onPress} style={styles.footerLink}>
+        <Pressable
+          onPress={footerLink.onPress}
+          style={({ pressed }) => [styles.footerLink, pressed && { opacity: 0.7 }]}
+        >
           <Text style={styles.footerLinkTxt}>{footerLink.label}</Text>
         </Pressable>
       ) : null}

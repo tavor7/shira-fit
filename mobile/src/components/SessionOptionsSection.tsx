@@ -57,7 +57,7 @@ function OptionList({ options, isRTL }: Pick<Props, "options" | "isRTL">) {
             <View style={[styles.rowShell, toneStyle]}>
             <View style={[styles.row, isRTL && styles.rowRtl]}>
               <Pressable
-                style={styles.labelBlock}
+                style={({ pressed }) => [styles.labelBlock, pressed && { opacity: 0.7 }]}
                 onPress={() => opt.onValueChange(!opt.value)}
                 accessibilityRole="switch"
                 accessibilityState={{ checked: opt.value }}

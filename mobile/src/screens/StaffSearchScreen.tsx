@@ -11,6 +11,7 @@ import { AppSearchField } from "../components/AppSearchField";
 import { EmptyState } from "../components/EmptyState";
 import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 import { AppText } from "../components/AppText";
+import { ListRowSkeleton } from "../components/ListRowSkeleton";
 
 type AthleteRow = { kind: "athlete"; id: string; title: string; subtitle: string };
 type ManualRow = { kind: "manual"; id: string; title: string; subtitle: string };
@@ -84,6 +85,13 @@ export default function StaffSearchScreen() {
         style={styles.searchField}
       />
 
+      {loading && rows.length === 0 ? (
+        <View style={styles.list}>
+          <ListRowSkeleton />
+          <ListRowSkeleton />
+          <ListRowSkeleton />
+        </View>
+      ) : (
       <FlatList
         data={rows}
         keyExtractor={(item) => `${item.kind}:${item.id}`}
@@ -114,7 +122,7 @@ export default function StaffSearchScreen() {
               {item.kind === "athlete" ? (
                 <>
                   <Pressable
-                    style={styles.link}
+                    style={({ pressed }) => [styles.link, pressed && { opacity: 0.7 }]}
                     onPress={() => router.push(`/(app)/staff/profile/${item.id}` as never)}
                   >
                     <AppText variant="caption" style={styles.linkTxt}>
@@ -122,7 +130,7 @@ export default function StaffSearchScreen() {
                     </AppText>
                   </Pressable>
                   <Pressable
-                    style={styles.link}
+                    style={({ pressed }) => [styles.link, pressed && { opacity: 0.7 }]}
                     onPress={() => router.push(`${historyPath}?presetUserId=${encodeURIComponent(item.id)}` as never)}
                   >
                     <AppText variant="caption" style={styles.linkTxt}>
@@ -131,7 +139,10 @@ export default function StaffSearchScreen() {
                   </Pressable>
                 </>
               ) : (
-                <Pressable style={styles.link} onPress={() => router.push(`/(app)/staff/manual/${item.id}` as never)}>
+                <Pressable
+                  style={({ pressed }) => [styles.link, pressed && { opacity: 0.7 }]}
+                  onPress={() => router.push(`/(app)/staff/manual/${item.id}` as never)}
+                >
                   <AppText variant="caption" style={styles.linkTxt}>
                     {t("staffSearch.manualLink")}
                   </AppText>
@@ -141,6 +152,7 @@ export default function StaffSearchScreen() {
           </View>
         )}
       />
+      )}
     </View>
   );
 }
