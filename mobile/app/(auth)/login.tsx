@@ -176,9 +176,6 @@ export default function LoginScreen() {
           <AppText variant="title" isRTL={isRTL} style={styles.title}>
             {t("auth.loginTitle")}
           </AppText>
-          <AppText variant="body" muted isRTL={isRTL} style={styles.sub}>
-            {t("auth.loginSubtitle")}
-          </AppText>
           {errorMessage ? (
             <View
               style={styles.errorBox}
@@ -290,13 +287,9 @@ const styles = StyleSheet.create({
   },
   title: {
     textAlign: "center",
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.lg,
     color: theme.colors.alertSubject,
     fontWeight: "600",
-  },
-  sub: {
-    textAlign: "center",
-    marginBottom: theme.spacing.lg,
   },
   errorBox: {
     backgroundColor: theme.colors.errorBg,
