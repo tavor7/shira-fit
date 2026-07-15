@@ -16,6 +16,7 @@ import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { useAppAlert } from "../../src/context/AppAlertContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
+import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 
 /**
  * User lands here after clicking the email link (tokens in URL hash on web).
@@ -92,6 +93,7 @@ export default function ResetPasswordScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
       <LanguageToggleChip />
+      <FadeSlideIn>
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" accessibilityLabel={t("a11y.appLogo")} />
       </View>
@@ -135,6 +137,7 @@ export default function ResetPasswordScreen() {
         disabled={!hasSession}
         onPress={save}
       />
+      </FadeSlideIn>
     </KeyboardAvoidingView>
   );
 }
@@ -142,7 +145,7 @@ export default function ResetPasswordScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.backgroundAlt },
   centered: { justifyContent: "center" },
-  logoWrap: { alignItems: "center", marginBottom: theme.spacing.md },
+  logoWrap: { alignItems: "center", marginBottom: theme.spacing.xl },
   logo: { width: 200, height: 41 },
   title: { marginBottom: theme.spacing.sm },
   hint: { marginBottom: theme.spacing.lg },

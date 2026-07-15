@@ -9,6 +9,7 @@ import { logRedirectToManagerSessions } from "../../src/lib/managerSessionsRedir
 import { AppText } from "../../src/components/AppText";
 import { ActionButton } from "../../src/components/ActionButton";
 import { StudioContactFooter } from "../../src/components/StudioContactFooter";
+import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 
 export default function PendingScreen() {
   const { profile, refreshProfile, loading: authLoading, user } = useAuth();
@@ -57,6 +58,7 @@ export default function PendingScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={checking} onRefresh={checkNow} tintColor={theme.colors.cta} />}
       >
+        <FadeSlideIn>
         <View style={styles.logoWrap}>
           <Image
             source={require("../../assets/logo.png")}
@@ -82,6 +84,7 @@ export default function PendingScreen() {
             style={styles.checkBtn}
           />
         </View>
+        </FadeSlideIn>
       </ScrollView>
       <StudioContactFooter />
     </View>
@@ -91,7 +94,7 @@ export default function PendingScreen() {
 const styles = StyleSheet.create({
   box: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { flexGrow: 1, padding: theme.spacing.lg, justifyContent: "center" },
-  logoWrap: { alignItems: "center", marginBottom: theme.spacing.lg },
+  logoWrap: { alignItems: "center", marginBottom: theme.spacing.xl },
   logo: { width: 120, height: 24 },
   card: {
     backgroundColor: theme.colors.surface,

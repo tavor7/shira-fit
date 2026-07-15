@@ -8,6 +8,7 @@ import { syncSignupProfileFromMetadata } from "../../src/lib/signupOnboarding";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
+import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { AppText } from "../../src/components/AppText";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { LoadingState } from "../../src/components/LoadingState";
@@ -113,6 +114,7 @@ export default function ConfirmEmailScreen() {
   return (
     <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
       <LanguageToggleChip />
+      <FadeSlideIn>
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" accessibilityLabel={t("a11y.appLogo")} />
       </View>
@@ -139,6 +141,7 @@ export default function ConfirmEmailScreen() {
           </>
         )}
       </View>
+      </FadeSlideIn>
     </ScrollView>
   );
 }
@@ -146,7 +149,7 @@ export default function ConfirmEmailScreen() {
 const styles = StyleSheet.create({
   scrollRoot: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flexGrow: 1, padding: theme.spacing.lg, justifyContent: "center", backgroundColor: theme.colors.backgroundAlt },
-  logoWrap: { alignItems: "center", marginBottom: theme.spacing.sm },
+  logoWrap: { alignItems: "center", marginBottom: theme.spacing.lg },
   logo: { width: 200, height: 41 },
   card: {
     ...surface.hero,

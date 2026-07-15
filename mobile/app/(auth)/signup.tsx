@@ -18,6 +18,7 @@ import { theme } from "../../src/theme";
 import { parseISODateLocal, toISODateLocal, isValidISODateString } from "../../src/lib/isoDate";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
+import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { DatePickerField } from "../../src/components/DatePickerField";
 import { buildAuthRedirectUrl } from "../../src/lib/authRedirect";
 import {
@@ -161,6 +162,7 @@ export default function SignupScreen() {
     <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <LanguageToggleChip />
+        <FadeSlideIn>
         <AppText variant="display" isRTL={isRTL} style={styles.title}>
           {t("auth.register")}
         </AppText>
@@ -328,6 +330,7 @@ export default function SignupScreen() {
             {t("auth.alreadyHaveAccount")}
           </AppText>
         </Pressable>
+        </FadeSlideIn>
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -18,6 +18,7 @@ import { theme } from "../../src/theme";
 import { parseISODateLocal, toISODateLocal, isValidISODateString } from "../../src/lib/isoDate";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
+import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { DatePickerField } from "../../src/components/DatePickerField";
 import { buildAuthRedirectUrl } from "../../src/lib/authRedirect";
 import {
@@ -162,6 +163,7 @@ export default function SignupScreen() {
     <KeyboardAvoidingView style={styles.keyboard}>
       <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <LanguageToggleChip />
+        <FadeSlideIn>
         <View style={styles.logoWrap}>
           <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
         </View>
@@ -270,6 +272,7 @@ export default function SignupScreen() {
             {t("auth.alreadyHaveAccount")}
           </AppText>
         </Pressable>
+        </FadeSlideIn>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -284,7 +287,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
   },
   rtlText: { textAlign: "right" },
-  logoWrap: { alignItems: "center", marginBottom: theme.spacing.md },
+  logoWrap: { alignItems: "center", marginBottom: theme.spacing.xl },
   logo: { width: 200, height: 41 },
   title: {
     fontSize: 22,

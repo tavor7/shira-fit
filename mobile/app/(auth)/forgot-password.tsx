@@ -16,6 +16,7 @@ import { AppText } from "../../src/components/AppText";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
+import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { buildAuthRedirectUrl } from "../../src/lib/authRedirect";
 
 const MAX_EMAIL_LEN = 254;
@@ -61,6 +62,7 @@ export default function ForgotPasswordScreen() {
         showsVerticalScrollIndicator={false}
       >
         <LanguageToggleChip />
+        <FadeSlideIn>
         <View style={styles.logoWrap}>
           <Image
             source={require("../../assets/logo.png")}
@@ -108,6 +110,7 @@ export default function ForgotPasswordScreen() {
           onPress={sendReset}
         />
         <ActionButton label={t("auth.backToSignIn")} onPress={() => router.push("/(auth)/login")} style={styles.navBtn} />
+        </FadeSlideIn>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -126,7 +129,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xl + theme.spacing.md,
     backgroundColor: theme.colors.backgroundAlt,
   },
-  logoWrap: { alignItems: "center", marginBottom: theme.spacing.md },
+  logoWrap: { alignItems: "center", marginBottom: theme.spacing.xl },
   logo: { width: 200, height: 41 },
   title: { marginBottom: theme.spacing.sm },
   hint: { marginBottom: theme.spacing.md },

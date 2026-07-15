@@ -504,6 +504,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "common.close": "Close",
     "common.on": "On",
     "common.off": "Off",
+    "common.show": "Show",
+    "common.hide": "Hide",
 
     "auth.login": "Login",
     "auth.register": "Register",
@@ -606,7 +608,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "pending.hint": "No action needed right now — we'll reach out when your account is ready.",
 
     "accountDisabled.supportHint": "Questions about your account? Reach Shira Fit directly:",
-    "auth.loginSubtitle": "Sign in to your account",
+    "auth.loginTitle": "Ready for today's workout?",
+    "auth.loginSubtitle": "Sign in to continue.",
+    "auth.showPassword": "Show password",
+    "auth.hidePassword": "Hide password",
     "auth.bootstrapUnavailable":
       "We couldn’t reach the server to restore your session. Check your connection and try again.",
     "auth.retryConnection": "Try again",
@@ -1694,6 +1699,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "common.ok": "אישור",
     "common.on": "פעיל",
     "common.off": "כבוי",
+    "common.show": "הצג",
+    "common.hide": "הסתר",
     "common.none": "אין",
     "common.add": "הוסף",
     "common.close": "סגירה",
@@ -1799,7 +1806,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "pending.hint": "אין צורך לעשות כלום כרגע — ניצור קשר כשהחשבון יהיה מוכן.",
 
     "accountDisabled.supportHint": "שאלות לגבי החשבון? פנו לשירה פיט ישירות:",
-    "auth.loginSubtitle": "התחברות לחשבון",
+    "auth.loginTitle": "מוכנים לאימון של היום?",
+    "auth.loginSubtitle": "התחברו כדי להמשיך.",
+    "auth.showPassword": "הצג סיסמה",
+    "auth.hidePassword": "הסתר סיסמה",
     "auth.bootstrapUnavailable": "לא הצלחנו להתחבר לשרת כדי לשחזר את ההתחברות. בדקו את החיבור ונסו שוב.",
     "auth.retryConnection": "נסו שוב",
     "auth.profileUnavailableTitle": "הפרופיל אינו זמין",

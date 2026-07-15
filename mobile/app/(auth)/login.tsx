@@ -18,6 +18,7 @@ import { AppText } from "../../src/components/AppText";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
+import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { logUserActivity } from "../../src/lib/logUserActivity";
 import { canRoleAccessWebPath, normalizeWebRedirectTarget, webPublicPathToExpoHref } from "../../src/lib/webLastRoute";
 
@@ -162,99 +163,104 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
       >
         <LanguageToggleChip />
-        <View style={styles.logoWrap}>
-          <Image
-            source={require("../../assets/logo.png")}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityLabel={t("a11y.appLogo")}
-            accessibilityRole="image"
-          />
-        </View>
-        <AppText variant="body" muted isRTL={isRTL} style={styles.sub}>
-          {t("auth.loginSubtitle")}
-        </AppText>
-        {errorMessage ? (
-          <View
-            style={styles.errorBox}
-            accessibilityRole="alert"
-            accessibilityLabel={t("a11y.loginError")}
-            accessibilityLiveRegion="polite"
-          >
-            <AppText variant="caption" isRTL={isRTL} style={styles.errorText}>
-              {errorMessage}
-            </AppText>
+        <FadeSlideIn>
+          <View style={styles.logoWrap}>
+            <Image
+              source={require("../../assets/logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+              accessibilityLabel={t("a11y.appLogo")}
+              accessibilityRole="image"
+            />
           </View>
-        ) : null}
-        <View style={styles.formCard}>
-          <AppTextField
-            variant="dark"
-            isRTL={isRTL}
-            placeholder={t("auth.email")}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-            textContentType="emailAddress"
-            autoCorrect={false}
-            value={email}
-            maxLength={MAX_EMAIL_LEN}
-            onChangeText={(txt) => {
-              setEmail(txt);
-              setErrorMessage("");
-            }}
-            accessibilityLabel={t("auth.email")}
-            error={!!errorMessage}
-            returnKeyType="next"
-            onSubmitEditing={() => passwordRef.current?.focus()}
-            blurOnSubmit={false}
-          />
-          <AppTextField
-            ref={passwordRef}
-            variant="dark"
-            isRTL={isRTL}
-            placeholder={t("auth.password")}
-            secureTextEntry
-            autoComplete="password"
-            textContentType="password"
-            value={password}
-            maxLength={MAX_PASSWORD_LEN}
-            onChangeText={(txt) => {
-              setPassword(txt);
-              setErrorMessage("");
-            }}
-            accessibilityLabel={t("auth.password")}
-            error={!!errorMessage}
-            returnKeyType="go"
-            onSubmitEditing={onLogin}
-          />
-        </View>
-        <PrimaryButton
-          label={t("auth.signIn")}
-          loadingLabel={t("common.loading")}
-          loading={busy}
-          onPress={onLogin}
-        />
-        <View style={[styles.linksRow, isRTL && styles.linksRowRtl]}>
-          <Pressable
-            onPress={() => router.push("/(auth)/forgot-password")}
-            style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
-          >
-            <AppText variant="caption" isRTL={isRTL} style={styles.linkTxt}>
-              {t("auth.forgotPassword")}?
-            </AppText>
-          </Pressable>
-          <AppText variant="caption" muted style={styles.linkDivider}>
-            ·
+          <AppText variant="headline" isRTL={isRTL} style={styles.title}>
+            {t("auth.loginTitle")}
           </AppText>
-          <Pressable
-            onPress={() => router.push("/(auth)/signup")}
-            style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
-          >
-            <AppText variant="caption" isRTL={isRTL} style={styles.linkTxt}>
-              {t("auth.createAccount")}
+          <AppText variant="body" muted isRTL={isRTL} style={styles.sub}>
+            {t("auth.loginSubtitle")}
+          </AppText>
+          {errorMessage ? (
+            <View
+              style={styles.errorBox}
+              accessibilityRole="alert"
+              accessibilityLabel={t("a11y.loginError")}
+              accessibilityLiveRegion="polite"
+            >
+              <AppText variant="caption" isRTL={isRTL} style={styles.errorText}>
+                {errorMessage}
+              </AppText>
+            </View>
+          ) : null}
+          <View style={styles.formCard}>
+            <AppTextField
+              variant="dark"
+              isRTL={isRTL}
+              placeholder={t("auth.email")}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              textContentType="emailAddress"
+              autoCorrect={false}
+              value={email}
+              maxLength={MAX_EMAIL_LEN}
+              onChangeText={(txt) => {
+                setEmail(txt);
+                setErrorMessage("");
+              }}
+              accessibilityLabel={t("auth.email")}
+              error={!!errorMessage}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              blurOnSubmit={false}
+            />
+            <AppTextField
+              ref={passwordRef}
+              variant="dark"
+              isRTL={isRTL}
+              placeholder={t("auth.password")}
+              secureTextEntry
+              autoComplete="password"
+              textContentType="password"
+              value={password}
+              maxLength={MAX_PASSWORD_LEN}
+              onChangeText={(txt) => {
+                setPassword(txt);
+                setErrorMessage("");
+              }}
+              accessibilityLabel={t("auth.password")}
+              error={!!errorMessage}
+              returnKeyType="go"
+              onSubmitEditing={onLogin}
+            />
+          </View>
+          <PrimaryButton
+            label={t("auth.signIn")}
+            loadingLabel={t("common.loading")}
+            loading={busy}
+            onPress={onLogin}
+          />
+          <View style={[styles.linksRow, isRTL && styles.linksRowRtl]}>
+            <Pressable
+              onPress={() => router.push("/(auth)/forgot-password")}
+              style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
+            >
+              <AppText variant="caption" isRTL={isRTL} style={styles.linkTxt}>
+                {t("auth.forgotPassword")}?
+              </AppText>
+            </Pressable>
+            <AppText variant="caption" muted style={styles.linkDivider}>
+              ·
             </AppText>
-          </Pressable>
-        </View>
+            <Pressable
+              onPress={() => router.push("/(auth)/signup")}
+              style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
+            >
+              <AppText variant="caption" isRTL={isRTL} style={styles.linkTxt}>
+                {t("auth.createAccount")}
+              </AppText>
+            </Pressable>
+          </View>
+        </FadeSlideIn>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -276,11 +282,15 @@ const styles = StyleSheet.create({
   rtlText: { textAlign: "right" },
   logoWrap: {
     alignItems: "center",
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
   },
   logo: {
     width: 200,
     height: 41,
+  },
+  title: {
+    textAlign: "center",
+    marginBottom: theme.spacing.xs,
   },
   sub: {
     textAlign: "center",

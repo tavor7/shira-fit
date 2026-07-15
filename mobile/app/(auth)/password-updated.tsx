@@ -5,6 +5,7 @@ import { logUserActivity } from "../../src/lib/logUserActivity";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
+import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { AppText } from "../../src/components/AppText";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 
@@ -18,6 +19,7 @@ export default function PasswordUpdatedScreen() {
   return (
     <View style={styles.container}>
       <LanguageToggleChip />
+      <FadeSlideIn>
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" accessibilityLabel={t("a11y.appLogo")} />
       </View>
@@ -28,13 +30,14 @@ export default function PasswordUpdatedScreen() {
         {t("auth.passwordUpdatedBody")}
       </AppText>
       <PrimaryButton label={t("auth.signIn")} onPress={() => router.replace("/(auth)/login")} />
+      </FadeSlideIn>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: theme.spacing.lg, justifyContent: "center", backgroundColor: theme.colors.backgroundAlt },
-  logoWrap: { alignItems: "center", marginBottom: theme.spacing.md },
+  logoWrap: { alignItems: "center", marginBottom: theme.spacing.lg },
   logo: { width: 200, height: 41 },
   title: { textAlign: "center", marginBottom: theme.spacing.sm },
   body: { textAlign: "center", marginBottom: theme.spacing.lg },
