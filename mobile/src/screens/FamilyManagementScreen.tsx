@@ -273,17 +273,28 @@ export default function FamilyManagementScreen() {
             <ManagerStudioSetupTabs />
             <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.families")}</Text>
             <Text style={[styles.subtitle, isRTL && styles.rtl]}>{t("families.subtitle")}</Text>
-            <PrimaryButton label={t("families.create")} onPress={openCreate} />
             {families.length > 0 ? (
-              <AppSearchField
-                value={familySearchQ}
-                onChangeText={setFamilySearchQ}
-                onSearch={setFamilySearchQ}
-                placeholder={t("families.searchFamiliesPlaceholder")}
-                isRTL={isRTL}
-                style={styles.familySearch}
-              />
-            ) : null}
+              <View style={[styles.searchRow, isRTL && styles.searchRowRtl]}>
+                <AppSearchField
+                  value={familySearchQ}
+                  onChangeText={setFamilySearchQ}
+                  onSearch={setFamilySearchQ}
+                  placeholder={t("families.searchFamiliesPlaceholder")}
+                  isRTL={isRTL}
+                  style={styles.familySearch}
+                />
+                <Pressable
+                  onPress={openCreate}
+                  style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.9 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("families.create")}
+                >
+                  <Text style={styles.addBtnTxt}>+</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <PrimaryButton label={t("families.create")} onPress={openCreate} />
+            )}
           </>
         }
         renderItem={({ item }) => (
@@ -438,7 +449,18 @@ const styles = StyleSheet.create({
   rtl: { textAlign: "right", alignSelf: "stretch" },
   title: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginTop: theme.spacing.sm },
   subtitle: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4, marginBottom: theme.spacing.md, lineHeight: 18 },
-  familySearch: { marginBottom: theme.spacing.md },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, marginBottom: theme.spacing.md },
+  searchRowRtl: { flexDirection: "row-reverse" },
+  familySearch: { flex: 1 },
+  addBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.cta,
+  },
+  addBtnTxt: { color: theme.colors.ctaText, fontSize: 24, fontWeight: "700", lineHeight: 26 },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
