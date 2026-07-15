@@ -13,7 +13,6 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
-import { ActionButton } from "../../src/components/ActionButton";
 import { AppTextField } from "../../src/components/AppTextField";
 import { AppText } from "../../src/components/AppText";
 import { theme } from "../../src/theme";
@@ -235,15 +234,27 @@ export default function LoginScreen() {
           loading={busy}
           onPress={onLogin}
         />
-        <ActionButton label={t("auth.forgotPassword") + "?"} onPress={() => router.push("/(auth)/forgot-password")} style={styles.navBtn} />
-        <Pressable
-          onPress={() => router.push("/(auth)/signup")}
-          style={({ pressed }) => [styles.createAccountLink, pressed && { opacity: 0.7 }]}
-        >
-          <AppText variant="caption" isRTL={isRTL} style={styles.createAccountTxt}>
-            {t("auth.createAccount")}
+        <View style={[styles.linksRow, isRTL && styles.linksRowRtl]}>
+          <Pressable
+            onPress={() => router.push("/(auth)/forgot-password")}
+            style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
+          >
+            <AppText variant="caption" isRTL={isRTL} style={styles.linkTxt}>
+              {t("auth.forgotPassword")}?
+            </AppText>
+          </Pressable>
+          <AppText variant="caption" muted style={styles.linkDivider}>
+            ·
           </AppText>
-        </Pressable>
+          <Pressable
+            onPress={() => router.push("/(auth)/signup")}
+            style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
+          >
+            <AppText variant="caption" isRTL={isRTL} style={styles.linkTxt}>
+              {t("auth.createAccount")}
+            </AppText>
+          </Pressable>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -288,7 +299,15 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     marginBottom: theme.spacing.md,
   },
-  navBtn: { marginTop: theme.spacing.md, alignSelf: "center", width: "100%" },
-  createAccountLink: { marginTop: theme.spacing.lg, alignSelf: "center", padding: theme.spacing.sm },
-  createAccountTxt: { color: theme.colors.cta, fontWeight: "700" },
+  linksRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: theme.spacing.lg,
+    gap: theme.spacing.sm,
+  },
+  linksRowRtl: { flexDirection: "row-reverse" },
+  linkBtn: { padding: theme.spacing.sm },
+  linkTxt: { color: theme.colors.cta, fontWeight: "700" },
+  linkDivider: { fontWeight: "700" },
 });

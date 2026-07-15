@@ -12,7 +12,6 @@ import { router } from "expo-router";
 import * as Linking from "expo-linking";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
-import { ActionButton } from "../../src/components/ActionButton";
 import { AppTextField } from "../../src/components/AppTextField";
 import { AppText } from "../../src/components/AppText";
 import { theme } from "../../src/theme";
@@ -263,7 +262,14 @@ export default function SignupScreen() {
         </View>
 
         <PrimaryButton label={t("auth.signUp")} loadingLabel={t("common.loading")} loading={busy} onPress={onSignup} />
-        <ActionButton label={t("auth.alreadyHaveAccount")} onPress={() => router.push("/(auth)/login")} style={styles.navBtn} />
+        <Pressable
+          onPress={() => router.push("/(auth)/login")}
+          style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
+        >
+          <AppText variant="caption" isRTL={isRTL} style={styles.linkTxt}>
+            {t("auth.alreadyHaveAccount")}
+          </AppText>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -306,11 +312,6 @@ const styles = StyleSheet.create({
   },
   errorText: { color: theme.colors.error, fontSize: 14, lineHeight: 20, fontWeight: "600" },
   formCard: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
   },
   field: { marginBottom: theme.spacing.sm },
@@ -391,5 +392,6 @@ const styles = StyleSheet.create({
   checkboxOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   checkboxMark: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 13 },
   checkTxt: { flex: 1, color: theme.colors.text, fontWeight: "600", fontSize: 15, lineHeight: 22 },
-  navBtn: { marginTop: theme.spacing.md, alignSelf: "center", width: "100%" },
+  linkBtn: { marginTop: theme.spacing.lg, alignSelf: "center", padding: theme.spacing.sm },
+  linkTxt: { color: theme.colors.cta, fontWeight: "700" },
 });
