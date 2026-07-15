@@ -205,7 +205,6 @@ export default function LoginScreen() {
             }}
             accessibilityLabel={t("auth.email")}
             error={!!errorMessage}
-            containerStyle={styles.field}
             returnKeyType="next"
             onSubmitEditing={() => passwordRef.current?.focus()}
             blurOnSubmit={false}
@@ -226,7 +225,6 @@ export default function LoginScreen() {
             }}
             accessibilityLabel={t("auth.password")}
             error={!!errorMessage}
-            containerStyle={styles.lastField}
             returnKeyType="go"
             onSubmitEditing={onLogin}
           />
@@ -271,7 +269,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: 200,
-    height: 200,
+    height: 41,
   },
   sub: {
     textAlign: "center",
@@ -287,15 +285,9 @@ const styles = StyleSheet.create({
   },
   errorText: { color: theme.colors.error },
   formCard: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.md,
+    gap: theme.spacing.sm,
     marginBottom: theme.spacing.md,
   },
-  field: { marginBottom: theme.spacing.sm },
-  lastField: { marginBottom: 0 },
   navBtn: { marginTop: theme.spacing.md, alignSelf: "center", width: "100%" },
   createAccountLink: { marginTop: theme.spacing.lg, alignSelf: "center", padding: theme.spacing.sm },
   createAccountTxt: { color: theme.colors.cta, fontWeight: "700" },

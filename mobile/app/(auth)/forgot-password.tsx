@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
   },
   logoWrap: { alignItems: "center", marginBottom: theme.spacing.md },
-  logo: { width: 200, height: 200 },
+  logo: { width: 200, height: 41 },
   title: { marginBottom: theme.spacing.sm },
   hint: { marginBottom: theme.spacing.md },
   field: { marginBottom: theme.spacing.sm },

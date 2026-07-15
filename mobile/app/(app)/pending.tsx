@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   box: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { flexGrow: 1, padding: theme.spacing.lg, justifyContent: "center" },
   logoWrap: { alignItems: "center", marginBottom: theme.spacing.lg },
-  logo: { width: 120, height: 120 },
+  logo: { width: 120, height: 24 },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,

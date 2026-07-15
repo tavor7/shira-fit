@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.backgroundAlt },
   centered: { justifyContent: "center" },
   logoWrap: { alignItems: "center", marginBottom: theme.spacing.md },
-  logo: { width: 200, height: 200 },
+  logo: { width: 200, height: 41 },
   title: { marginBottom: theme.spacing.sm },
   hint: { marginBottom: theme.spacing.lg },
   field: { marginBottom: theme.spacing.sm },

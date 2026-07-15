@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   scrollRoot: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flexGrow: 1, padding: theme.spacing.lg, justifyContent: "center", backgroundColor: theme.colors.backgroundAlt },
   logoWrap: { alignItems: "center", marginBottom: theme.spacing.sm },
-  logo: { width: 200, height: 200 },
+  logo: { width: 200, height: 41 },
   card: {
     ...surface.hero,
     maxWidth: 480,

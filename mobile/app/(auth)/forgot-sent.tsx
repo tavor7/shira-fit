@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   scrollRoot: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   container: { flexGrow: 1, padding: theme.spacing.lg, justifyContent: "center", backgroundColor: theme.colors.backgroundAlt },
   logoWrap: { alignItems: "center", marginBottom: theme.spacing.md },
-  logo: { width: 200, height: 200 },
+  logo: { width: 200, height: 41 },
   title: { textAlign: "center", marginBottom: theme.spacing.md },
   body: { textAlign: "center", marginBottom: theme.spacing.lg },
   wrongEmailLink: { marginTop: theme.spacing.lg, alignSelf: "center", padding: theme.spacing.sm },
