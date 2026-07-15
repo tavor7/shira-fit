@@ -389,7 +389,6 @@ export function ParticipantAttendanceList({
           }
         : null;
 
-    let priceFetchFailed = false;
     for (const r of all) {
       if (normalizePaymentMethodKey(r.paymentMethod) !== "(none)") withPaymentMethod += 1;
       if (r.amountPaid != null && r.amountPaid > 0) totalPaidIls += r.amountPaid;
@@ -397,34 +396,42 @@ export function ParticipantAttendanceList({
         noShowChargedCount += 1;
         if (r.amountPaid != null && r.amountPaid > 0) noShowCollectedIls += r.amountPaid;
       }
+    }
 
-      const userId = r.kind === "registered" ? r.userId : null;
-      const manualParticipantId = r.kind === "manual" ? r.manualId : null;
-      const rosterOverride = rosterMap[r.id] ?? null;
-      let price = 0;
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        price = metaForBilling
-          ? await resolveRowBillingPriceIls(
-              supabase,
-              sessionId,
-              userId,
-              manualParticipantId,
-              metaForBilling,
-              rosterOverride
-            )
-          : await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
-      } catch {
-        priceFetchFailed = true;
-      }
+    // Fire every roster row's price lookup concurrently instead of one-at-a-time —
+    // with N participants this turns N sequential round-trips into one wait.
+    let priceFetchFailed = false;
+    const prices = await Promise.all(
+      all.map(async (r) => {
+        const userId = r.kind === "registered" ? r.userId : null;
+        const manualParticipantId = r.kind === "manual" ? r.manualId : null;
+        const rosterOverride = rosterMap[r.id] ?? null;
+        try {
+          return metaForBilling
+            ? await resolveRowBillingPriceIls(
+                supabase,
+                sessionId,
+                userId,
+                manualParticipantId,
+                metaForBilling,
+                rosterOverride
+              )
+            : await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
+        } catch {
+          priceFetchFailed = true;
+          return 0;
+        }
+      })
+    );
+    all.forEach((r, i) => {
+      const price = prices[i];
       effectiveMap[r.id] = price;
-
       const owes = r.attended === true || (r.attended === false && r.chargeNoShow);
       if (owes) {
         expectedPaymentSlots += 1;
         expectedPaymentsIls += price;
       }
-    }
+    });
     if (priceFetchFailed) {
       const msg = t("attendance.failedToLoadPrices");
       setLoadError((prev) => (prev ? `${prev} · ${msg}` : msg));
