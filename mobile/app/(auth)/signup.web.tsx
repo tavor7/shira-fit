@@ -29,6 +29,8 @@ import { syncSignupProfileFromMetadata } from "../../src/lib/signupOnboarding";
 
 const today = new Date();
 const minDob = new Date(1900, 0, 1);
+/** How long the button holds its success checkmark before navigating away. */
+const SUCCESS_HOLD_MS = 550;
 
 function getSignupErrorMessage(error: { message: string }): string {
   const msg = (error.message || "").toLowerCase();
@@ -51,6 +53,7 @@ export default function SignupScreen() {
   const [healthConfirmed, setHealthConfirmed] = useState(false);
   const [receiptConsent, setReceiptConsent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const healthUrl = "https://tpz.link/gdtw8";
@@ -153,6 +156,8 @@ export default function SignupScreen() {
       }
     }
     setBusy(false);
+    setSuccess(true);
+    await new Promise((resolve) => setTimeout(resolve, SUCCESS_HOLD_MS));
     router.replace({
       pathname: "/(auth)/signup-success",
       params: { email: email.trim() },
@@ -263,7 +268,13 @@ export default function SignupScreen() {
           </Pressable>
         </View>
 
-        <PrimaryButton label={t("auth.signUp")} loadingLabel={t("common.loading")} loading={busy} onPress={onSignup} />
+        <PrimaryButton
+          label={t("auth.signUp")}
+          loadingLabel={t("common.loading")}
+          loading={busy}
+          success={success}
+          onPress={onSignup}
+        />
         <Pressable
           onPress={() => router.push("/(auth)/login")}
           style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}

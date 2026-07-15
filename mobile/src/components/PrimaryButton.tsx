@@ -1,6 +1,19 @@
-import { Pressable, Text, View, ActivityIndicator, StyleSheet, ViewStyle, TextStyle, Platform } from "react-native";
+import { useEffect, useRef } from "react";
+import {
+  Pressable,
+  Text,
+  View,
+  ActivityIndicator,
+  Animated,
+  Easing,
+  StyleSheet,
+  ViewStyle,
+  TextStyle,
+  Platform,
+} from "react-native";
 import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
+import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
 function primaryTapFeedback() {
   if (Platform.OS === "ios" || Platform.OS === "android") {
@@ -14,10 +27,18 @@ function dangerTapFeedback() {
   }
 }
 
+function successFeedback() {
+  if (Platform.OS === "ios" || Platform.OS === "android") {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+}
+
 type Props = {
   label: string;
   loadingLabel?: string;
   loading?: boolean;
+  /** Momentary success state — swaps the label for a checkmark that pops in, with a success haptic. */
+  success?: boolean;
   onPress: () => void;
   disabled?: boolean;
   style?: ViewStyle;
@@ -29,21 +50,40 @@ export function PrimaryButton({
   label,
   loadingLabel = "Loading…",
   loading,
+  success,
   onPress,
   disabled,
   style,
   variant = "cta",
 }: Props) {
-  const busy = loading || disabled;
+  const busy = loading || disabled || success;
   const isCta = variant === "cta";
   const isDanger = variant === "danger";
   const textStyle = isCta ? styles.textCta : isDanger ? styles.textDanger : styles.textGhost;
+  const successScale = useRef(new Animated.Value(0)).current;
+  const reduceMotionRef = useReduceMotionRef();
+
+  useEffect(() => {
+    if (!success) {
+      successScale.setValue(0);
+      return;
+    }
+    successFeedback();
+    Animated.timing(successScale, {
+      toValue: 1,
+      duration: reduceMotionRef.current ? 0 : theme.motion.normal,
+      easing: Easing.out(Easing.back(1.4)),
+      useNativeDriver: true,
+    }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [success]);
+
   return (
     <Pressable
       style={({ pressed }) => [
         styles.btn,
         isCta ? styles.btnCta : isDanger ? styles.btnDanger : styles.btnGhost,
-        busy && styles.disabled,
+        (loading || disabled) && styles.disabled,
         pressed && !busy && (isCta ? styles.pressedCta : styles.pressedGhost),
         style,
       ]}
@@ -58,7 +98,11 @@ export function PrimaryButton({
         color: isCta ? "rgba(10,10,11,0.12)" : "rgba(244,244,245,0.08)",
       }}
     >
-      {loading ? (
+      {success ? (
+        <Animated.View style={{ transform: [{ scale: successScale }] }}>
+          <Text style={styles.successIcon}>{"✓"}</Text>
+        </Animated.View>
+      ) : loading ? (
         <View style={styles.row}>
           <ActivityIndicator color={isCta ? theme.colors.ctaText : theme.colors.text} style={{ marginRight: 10 }} />
           <Text style={[styles.text, textStyle]}>{loadingLabel}</Text>
@@ -114,4 +158,5 @@ const styles = StyleSheet.create({
   textCta: { color: theme.colors.ctaText },
   textGhost: { color: theme.colors.text },
   textDanger: { color: theme.colors.error },
+  successIcon: { fontSize: 22, fontWeight: "900", color: theme.colors.success },
 });

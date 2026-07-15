@@ -29,6 +29,8 @@ const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const MAX_EMAIL_LEN = 254;
 const MAX_PASSWORD_LEN = 128;
+/** How long the button holds its success checkmark before navigating away. */
+const SUCCESS_HOLD_MS = 550;
 
 type ClassifiedLoginError =
   | "invalid_credentials"
@@ -72,6 +74,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const mountedRef = useRef(true);
   const passwordRef = useRef<TextInput>(null);
@@ -126,6 +129,9 @@ export default function LoginScreen() {
       }
       if (data.session) {
         void logUserActivity("auth_login");
+        setSuccess(true);
+        await new Promise((resolve) => setTimeout(resolve, SUCCESS_HOLD_MS));
+        if (!mountedRef.current) return;
         const rawRedirect = Array.isArray(params.redirect) ? params.redirect[0] : params.redirect;
         const target = Platform.OS === "web" ? normalizeWebRedirectTarget(rawRedirect) : null;
         let role: string | undefined;
@@ -234,6 +240,7 @@ export default function LoginScreen() {
             label={t("auth.signIn")}
             loadingLabel={t("common.loading")}
             loading={busy}
+            success={success}
             onPress={onLogin}
           />
           <View style={[styles.linksRow, isRTL && styles.linksRowRtl]}>
