@@ -173,7 +173,7 @@ export default function LoginScreen() {
               accessibilityRole="image"
             />
           </View>
-          <AppText variant="headline" isRTL={isRTL} style={styles.title}>
+          <AppText variant="title" isRTL={isRTL} style={styles.title}>
             {t("auth.loginTitle")}
           </AppText>
           <AppText variant="body" muted isRTL={isRTL} style={styles.sub}>
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   rtlText: { textAlign: "right" },
   logoWrap: {
     alignItems: "center",
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.xl + theme.spacing.sm,
   },
   logo: {
     width: 200,
@@ -291,6 +291,8 @@ const styles = StyleSheet.create({
   title: {
     textAlign: "center",
     marginBottom: theme.spacing.xs,
+    color: theme.colors.alertSubject,
+    fontWeight: "600",
   },
   sub: {
     textAlign: "center",
