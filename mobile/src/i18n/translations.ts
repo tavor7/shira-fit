@@ -880,6 +880,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "approve.rejectBtn": "Reject",
     "approve.rejectConfirmTitle": "Reject this signup?",
     "approve.rejectConfirmMessage": "Reject {name}'s request? They won't be able to register for sessions.",
+    "approve.historyTitle": "Recently approved",
+    "approve.historyEmpty": "No approvals yet.",
+    "approve.approvedBy": "Approved by {name} · {when}",
+    "approve.unknownAthlete": "Unknown athlete",
+    "approve.unknownManager": "Unknown manager",
 
     "rosterCalendar.title": "Roster calendar (manager)",
     "rosterCalendar.hint": "Pick a week to see the participant roster for each session.",
@@ -2063,6 +2068,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "approve.rejectBtn": "דחייה",
     "approve.rejectConfirmTitle": "לדחות את ההרשמה?",
     "approve.rejectConfirmMessage": "לדחות את הבקשה של {name}? הם לא יוכלו להירשם לאימונים.",
+    "approve.historyTitle": "אושרו לאחרונה",
+    "approve.historyEmpty": "עדיין אין אישורים.",
+    "approve.approvedBy": "אושר על ידי {name} · {when}",
+    "approve.unknownAthlete": "מתאמן לא ידוע",
+    "approve.unknownManager": "מנהל לא ידוע",
 
     "rosterCalendar.title": "יומן משתתפים (מנהל)",
     "rosterCalendar.hint": "בחרו שבוע כדי לראות את רשימות המשתתפים לכל אימון.",

@@ -7,14 +7,41 @@ import { useI18n } from "../../../src/context/I18nContext";
 import { useAppAlert } from "../../../src/context/AppAlertContext";
 import { AppText } from "../../../src/components/AppText";
 import { EmptyState } from "../../../src/components/EmptyState";
+import { ListRowSkeleton } from "../../../src/components/ListRowSkeleton";
+import { formatDateTimeForDisplay } from "../../../src/lib/dateFormat";
 
 type Row = { user_id: string; username: string; full_name: string; phone: string };
 
+type HistoryItem = {
+  id: string;
+  createdAt: string;
+  actorUserId: string | null;
+  athleteName: string;
+};
+
+const HISTORY_LIMIT = 30;
+
+async function fetchActorLabels(userIds: string[]): Promise<Record<string, string>> {
+  const unique = [...new Set(userIds.filter(Boolean))];
+  if (unique.length === 0) return {};
+  const { data } = await supabase.from("profiles").select("user_id, full_name, username").in("user_id", unique);
+  const out: Record<string, string> = {};
+  for (const p of (data as { user_id: string; full_name: string | null; username: string | null }[]) ?? []) {
+    const fn = (p.full_name ?? "").trim();
+    const un = (p.username ?? "").trim();
+    out[p.user_id] = fn ? (un ? `${fn} (@${un})` : fn) : un ? `@${un}` : p.user_id;
+  }
+  return out;
+}
+
 export default function ApproveAthletesScreen() {
-  const { t, isRTL } = useI18n();
+  const { t, isRTL, language } = useI18n();
   const { showOk, showConfirm } = useAppAlert();
   const [rows, setRows] = useState<Row[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [actorLabels, setActorLabels] = useState<Record<string, string>>({});
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -25,7 +52,38 @@ export default function ApproveAthletesScreen() {
     setRows((data as Row[]) ?? []);
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from("user_activity_events")
+      .select("id, created_at, actor_user_id, metadata")
+      .eq("event_type", "athlete_approved")
+      .order("created_at", { ascending: false })
+      .limit(HISTORY_LIMIT);
+    const items: HistoryItem[] = ((data as
+      | { id: string; created_at: string; actor_user_id: string | null; metadata: Record<string, unknown> | null }[]
+      | null) ?? []).map((row) => {
+      const meta = row.metadata ?? {};
+      const fn = typeof meta.target_full_name === "string" ? meta.target_full_name.trim() : "";
+      const un = typeof meta.target_username === "string" ? meta.target_username.trim() : "";
+      return {
+        id: row.id,
+        createdAt: row.created_at,
+        actorUserId: row.actor_user_id,
+        athleteName: fn || (un ? `@${un}` : t("approve.unknownAthlete")),
+      };
+    });
+    setHistory(items);
+    setActorLabels(await fetchActorLabels(items.map((i) => i.actorUserId ?? "").filter(Boolean)));
+    setHistoryLoading(false);
+  }, [t]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      void loadHistory();
+    }, [load, loadHistory])
+  );
 
   async function setApproval(uid: string, status: "approved" | "rejected") {
     if (busyId) return;
@@ -36,8 +94,10 @@ export default function ApproveAthletesScreen() {
     });
     setBusyId(null);
     if (error) showOk(t("common.error"), error.message);
-    else if (data?.ok) load();
-    else showOk(t("common.failed"), data?.error ?? "");
+    else if (data?.ok) {
+      load();
+      if (status === "approved") void loadHistory();
+    } else showOk(t("common.failed"), data?.error ?? "");
   }
 
   function confirmReject(row: Row) {
@@ -90,6 +150,34 @@ export default function ApproveAthletesScreen() {
             </View>
           </View>
         )}
+        ListFooterComponent={
+          <View style={styles.historySection}>
+            <AppText variant="title" isRTL={isRTL} style={styles.historyTitle}>
+              {t("approve.historyTitle")}
+            </AppText>
+            {historyLoading ? (
+              <View style={styles.historySkeletonList}>
+                <ListRowSkeleton />
+                <ListRowSkeleton />
+              </View>
+            ) : history.length === 0 ? (
+              <AppText variant="caption" muted isRTL={isRTL} style={styles.historyEmpty}>
+                {t("approve.historyEmpty")}
+              </AppText>
+            ) : (
+              history.map((item) => (
+                <View key={item.id} style={styles.historyRow}>
+                  <AppText variant="body">{item.athleteName}</AppText>
+                  <AppText variant="caption" muted isRTL={isRTL} style={styles.historyMeta}>
+                    {t("approve.approvedBy")
+                      .replace("{name}", item.actorUserId ? actorLabels[item.actorUserId] ?? item.actorUserId : t("approve.unknownManager"))
+                      .replace("{when}", formatDateTimeForDisplay(item.createdAt, language))}
+                  </AppText>
+                </View>
+              ))
+            )}
+          </View>
+        }
       />
     </View>
   );
@@ -122,4 +210,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   rejectT: { color: theme.colors.error },
+  historySection: {
+    marginTop: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+  },
+  historyTitle: { marginBottom: theme.spacing.sm },
+  historySkeletonList: { gap: theme.spacing.sm },
+  historyEmpty: { paddingVertical: theme.spacing.sm },
+  historyRow: {
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.borderMuted,
+  },
+  historyMeta: { marginTop: 2 },
 });
