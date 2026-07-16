@@ -1,7 +1,10 @@
-import { View, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Easing, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { theme } from "../theme";
 import { AppText } from "./AppText";
 import { PrimaryButton } from "./PrimaryButton";
+import { FadeSlideIn } from "./FadeSlideIn";
+import { useReduceMotion } from "../hooks/useReduceMotion";
 
 type Props = {
   title: string;
@@ -16,12 +19,8 @@ type Props = {
 
 export function EmptyState({ title, body, icon, actionLabel, onAction, isRTL, style }: Props) {
   return (
-    <View style={[styles.wrap, style]} accessibilityRole="text">
-      {icon ? (
-        <AppText variant="display" style={styles.icon} accessibilityElementsHidden>
-          {icon}
-        </AppText>
-      ) : null}
+    <FadeSlideIn style={[styles.wrap, style]} accessibilityRole="text">
+      {icon ? <FloatingIcon icon={icon} /> : null}
       <AppText variant="title" isRTL={isRTL} style={styles.title}>
         {title}
       </AppText>
@@ -33,7 +32,45 @@ export function EmptyState({ title, body, icon, actionLabel, onAction, isRTL, st
       {actionLabel && onAction ? (
         <PrimaryButton label={actionLabel} onPress={onAction} variant="ghost" style={styles.action} />
       ) : null}
-    </View>
+    </FadeSlideIn>
+  );
+}
+
+/** Slow ambient float on the icon only, so it reads as alive without distracting from the message. */
+function FloatingIcon({ icon }: { icon: string }) {
+  const reduceMotion = useReduceMotion();
+  const float = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(float, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(float, {
+          toValue: 0,
+          duration: 1500,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [float, reduceMotion]);
+
+  const translateY = float.interpolate({ inputRange: [0, 1], outputRange: [-4, 4] });
+
+  return (
+    <Animated.View style={{ transform: [{ translateY: reduceMotion ? 0 : translateY }] }}>
+      <AppText variant="display" style={styles.icon} accessibilityElementsHidden>
+        {icon}
+      </AppText>
+    </Animated.View>
   );
 }
 

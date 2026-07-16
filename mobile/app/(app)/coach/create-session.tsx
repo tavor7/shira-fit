@@ -64,7 +64,7 @@ export default function CoachCreateSessionScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: t("screen.coachCreateSession") }} />
+      <Stack.Screen options={{ title: t("screen.coachCreateSession"), animation: "slide_from_bottom" }} />
       <CreateSessionForm initialDate={initialDate} fixedCoachId={uid} fixedCoachLabel={name ?? undefined} />
     </>
   );

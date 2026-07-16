@@ -1,4 +1,7 @@
-import { View, Text, Pressable } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, View, Text, Pressable } from "react-native";
+import { theme } from "../theme";
+import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { pricingScreenStyles as ps } from "./pricingScreenStyles";
 
 type Props = {
@@ -11,6 +14,23 @@ type Props = {
 };
 
 export function PricingPickerField({ label, value, placeholder, onPress, isRTL, accessibilityLabel }: Props) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const prevValueRef = useRef(value);
+  const reduceMotionRef = useReduceMotionRef();
+
+  useEffect(() => {
+    if (prevValueRef.current === value) return;
+    prevValueRef.current = value;
+    if (!value || reduceMotionRef.current) return;
+    scale.setValue(0.96);
+    Animated.timing(scale, {
+      toValue: 1,
+      duration: theme.motion.normal,
+      easing: theme.motion.springOvershoot,
+      useNativeDriver: true,
+    }).start();
+  }, [value, scale, reduceMotionRef]);
+
   return (
     <View>
       <Text style={[ps.label, isRTL && ps.rtl]}>{label}</Text>
@@ -20,9 +40,11 @@ export function PricingPickerField({ label, value, placeholder, onPress, isRTL, 
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
       >
-        <Text style={value ? ps.pickerText : ps.pickerPlaceholder} numberOfLines={2}>
-          {value || placeholder}
-        </Text>
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <Text style={value ? ps.pickerText : ps.pickerPlaceholder} numberOfLines={2}>
+            {value || placeholder}
+          </Text>
+        </Animated.View>
       </Pressable>
     </View>
   );

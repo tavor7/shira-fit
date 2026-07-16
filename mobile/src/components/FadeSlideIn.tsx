@@ -1,9 +1,9 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { Animated, Easing, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, Easing, type ViewProps, type StyleProp, type ViewStyle } from "react-native";
 import { theme } from "../theme";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
-type Props = {
+type Props = Omit<Animated.AnimatedProps<ViewProps>, "style"> & {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   /** Delay in ms before the animation starts (for a subtle stagger between blocks). */
@@ -11,7 +11,7 @@ type Props = {
 };
 
 /** One-shot fade + rise on mount — used for auth-screen content so first paint feels intentional. */
-export function FadeSlideIn({ children, style, delay = 0 }: Props) {
+export function FadeSlideIn({ children, style, delay = 0, ...rest }: Props) {
   const progress = useRef(new Animated.Value(0)).current;
   const reduceMotionRef = useReduceMotionRef();
 
@@ -30,6 +30,7 @@ export function FadeSlideIn({ children, style, delay = 0 }: Props) {
 
   return (
     <Animated.View
+      {...rest}
       style={[
         style,
         {

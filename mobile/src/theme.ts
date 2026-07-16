@@ -2,6 +2,8 @@
  * Shira Fit — minimal dark UI: layered greys, one crisp CTA, generous radius.
  * (Inspired by 2025 dark-mode patterns: soft blacks, intentional contrast, calm density.)
  */
+import { Easing } from "react-native";
+
 export const theme = {
   colors: {
     /** Near-black canvas */
@@ -107,6 +109,15 @@ export const theme = {
   motion: {
     fast: 200,
     normal: 280,
+    slow: 360,
+    /** Cap on staggered-list entrance index — items beyond this animate together. */
+    maxStaggerIndex: 8,
+    easeOut: Easing.out(Easing.cubic),
+    easeIn: Easing.in(Easing.cubic),
+    /** Matches PrimaryButton's success checkmark pop. */
+    springOvershoot: Easing.out(Easing.back(1.4)),
+    /** Matches AppModal's popover pop-in. */
+    popoverSpring: Easing.out(Easing.back(1.15)),
   },
   fontWeights: {
     normal: "500" as const,

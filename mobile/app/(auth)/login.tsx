@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Animated,
   type TextInput,
 } from "react-native";
 import * as Haptics from "expo-haptics";
@@ -19,6 +20,7 @@ import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
+import { useReduceMotionRef } from "../../src/hooks/useReduceMotion";
 import { logUserActivity } from "../../src/lib/logUserActivity";
 import { canRoleAccessWebPath, normalizeWebRedirectTarget, webPublicPathToExpoHref } from "../../src/lib/webLastRoute";
 
@@ -27,8 +29,8 @@ const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const MAX_EMAIL_LEN = 254;
 const MAX_PASSWORD_LEN = 128;
-/** How long the button holds its success checkmark before navigating away. */
-const SUCCESS_HOLD_MS = 550;
+/** How long the success moment (button pop + logo pulse + form fade) holds before navigating away. */
+const SUCCESS_HOLD_MS = 900;
 
 type ClassifiedLoginError =
   | "invalid_credentials"
@@ -76,6 +78,9 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState("");
   const mountedRef = useRef(true);
   const passwordRef = useRef<TextInput>(null);
+  const logoScale = useRef(new Animated.Value(1)).current;
+  const formProgress = useRef(new Animated.Value(1)).current;
+  const reduceMotionRef = useReduceMotionRef();
 
   useEffect(() => {
     mountedRef.current = true;
@@ -83,6 +88,31 @@ export default function LoginScreen() {
       mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!success || reduceMotionRef.current) return;
+    Animated.timing(formProgress, {
+      toValue: 0,
+      duration: theme.motion.normal,
+      easing: theme.motion.easeIn,
+      useNativeDriver: true,
+    }).start();
+    Animated.sequence([
+      Animated.timing(logoScale, {
+        toValue: 1.18,
+        duration: 260,
+        easing: theme.motion.springOvershoot,
+        useNativeDriver: true,
+      }),
+      Animated.timing(logoScale, {
+        toValue: 1.08,
+        duration: 220,
+        easing: theme.motion.easeOut,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [success]);
 
   async function onLogin() {
     if (busy) return;
@@ -168,7 +198,7 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
       >
         <FadeSlideIn>
-          <View style={styles.logoWrap}>
+          <Animated.View style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}>
             <Image
               source={require("../../assets/logo.png")}
               style={styles.logo}
@@ -176,7 +206,14 @@ export default function LoginScreen() {
               accessibilityLabel={t("a11y.appLogo")}
               accessibilityRole="image"
             />
-          </View>
+          </Animated.View>
+          <Animated.View
+            pointerEvents={success ? "none" : "auto"}
+            style={{
+              opacity: formProgress,
+              transform: [{ translateY: formProgress.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
+            }}
+          >
           <AppText variant="title" isRTL={isRTL} style={styles.title}>
             {t("auth.loginTitle")}
           </AppText>
@@ -263,6 +300,7 @@ export default function LoginScreen() {
             </Pressable>
           </View>
           <LanguageToggleChip />
+          </Animated.View>
         </FadeSlideIn>
       </ScrollView>
     </KeyboardAvoidingView>

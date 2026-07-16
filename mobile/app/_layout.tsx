@@ -127,6 +127,8 @@ export default function RootLayout() {
                         headerStyle: rootHeaderStyle as object,
                         headerTintColor: theme.colors.text,
                         headerTitleStyle: rootHeaderTitleStyle as object,
+                        // Auth<->app group swap isn't a drill-in — a fade reads better than a lateral slide.
+                        animation: "fade",
                       }}
                     />
                   </View>

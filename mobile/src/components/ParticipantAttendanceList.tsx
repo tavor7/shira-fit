@@ -1,13 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Modal, TextInput, Keyboard } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Animated, View, Text, Pressable, StyleSheet, ActivityIndicator, Modal, TextInput, Keyboard, Platform } from "react-native";
 import { useFocusEffect } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { router, usePathname } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
+import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { isBirthdayToday } from "../lib/birthday";
 import { ListRowSkeleton } from "./ListRowSkeleton";
+import { PressableScale } from "./PressableScale";
+import { FadeSlideIn } from "./FadeSlideIn";
 import {
   normalizePaymentMethodKey,
   paymentMethodAttendanceLabel,
@@ -122,6 +126,36 @@ type Props = {
   onMoveParticipant?: (target: MoveParticipantTarget) => void;
 };
 
+/** Brief accent wash over a newly-added roster row, fading out as it "settles" into the list. */
+function EnteringHighlight() {
+  const opacity = useRef(new Animated.Value(1)).current;
+  const reduceMotionRef = useReduceMotionRef();
+
+  useEffect(() => {
+    if (reduceMotionRef.current) {
+      opacity.setValue(0);
+      return;
+    }
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: theme.motion.normal + 400,
+      easing: theme.motion.easeOut,
+      useNativeDriver: true,
+    }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        StyleSheet.absoluteFill,
+        { backgroundColor: "rgba(34,197,94,0.18)", borderRadius: theme.radius.md, opacity },
+      ]}
+    />
+  );
+}
+
 export function ParticipantAttendanceList({
   sessionId,
   onChanged,
@@ -153,6 +187,9 @@ export function ParticipantAttendanceList({
   const [payAmountDraft, setPayAmountDraft] = useState("");
   const [payMode, setPayMode] = useState<"arrived" | "absent_penalty">("arrived");
   const [sessionNotStarted, setSessionNotStarted] = useState(false);
+  const [enteringIds, setEnteringIds] = useState<Set<string>>(new Set());
+  const prevIdsRef = useRef<Set<string> | null>(null);
+  const enteringClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function interpolateParticipantName(template: string, name: string) {
     return template.replace(/\{name\}/g, name);
@@ -439,6 +476,27 @@ export function ParticipantAttendanceList({
     setRosterPriceByRowId(rosterMap);
     setEffectivePriceByRowId(effectiveMap);
     setRows(all);
+
+    // Mark rows that weren't in the previous roster as "entering" so they animate in —
+    // skip on the very first load so the initial roster never flashes as new.
+    const isFirstLoad = prevIdsRef.current === null;
+    const newIds = isFirstLoad
+      ? new Set<string>()
+      : new Set(all.filter((r) => !prevIdsRef.current!.has(r.id)).map((r) => r.id));
+    prevIdsRef.current = new Set(all.map((r) => r.id));
+    if (enteringClearTimerRef.current) {
+      clearTimeout(enteringClearTimerRef.current);
+      enteringClearTimerRef.current = null;
+    }
+    if (newIds.size > 0) {
+      setEnteringIds(newIds);
+      if (Platform.OS === "ios" || Platform.OS === "android") {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      enteringClearTimerRef.current = setTimeout(() => setEnteringIds(new Set()), theme.motion.normal + 800);
+    } else {
+      setEnteringIds(new Set());
+    }
     onParticipantCountChange?.(all.length);
     onAttendanceStatsChange?.({
       registered: all.length,
@@ -481,8 +539,15 @@ export function ParticipantAttendanceList({
   );
 
   useEffect(() => {
-    if (refreshNonce > 0) load();
+    // Silent: a newly-added participant animates in via `enteringIds` instead of a full skeleton flash.
+    if (refreshNonce > 0) load({ silent: true });
   }, [refreshNonce, load]);
+
+  useEffect(() => {
+    return () => {
+      if (enteringClearTimerRef.current) clearTimeout(enteringClearTimerRef.current);
+    };
+  }, []);
 
   function formatBillingAmountDraft(amount: number): string {
     const rounded = Math.round(amount * 100) / 100;
@@ -706,22 +771,28 @@ export function ParticipantAttendanceList({
       {loadError ? <Text style={[styles.loadError, isRTL && styles.rtlText]}>{loadError}</Text> : null}
       {duplicateBanner}
       {showMarkAllArrived && rows.some((r) => r.attended !== true) ? (
-        <Pressable
+        <PressableScale
           style={({ pressed }) => [styles.markAll, pressed && { opacity: 0.9 }]}
           onPress={markAllArrived}
           disabled={busyKey !== null}
         >
           <Text style={styles.markAllTxt}>{t("attendance.markAllArrived")}</Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
-      {rows.map((item) => {
+      {rows.map((item, rowIndex) => {
         const current: AttendanceStatus =
           item.attended === true ? "arrived" : item.attended === false ? "absent" : "unset";
         const busy = busyKey === item.id || busyKey === "__all__";
         const effectivePrice = effectivePriceByRowId[item.id] ?? 0;
         const hasRateOverride = rosterPriceByRowId[item.id] != null;
+        const entering = enteringIds.has(item.id);
         return (
-          <View key={item.id} style={styles.card}>
+          <FadeSlideIn
+            key={item.id}
+            delay={Math.min(rowIndex, theme.motion.maxStaggerIndex) * 30}
+            style={styles.card}
+          >
+            {entering ? <EnteringHighlight /> : null}
             <View style={[styles.nameRow, isRTL && styles.nameRowRtl]}>
               <View style={[styles.nameBlock, isRTL && styles.nameBlockRtl]}>
                 <Text style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
@@ -945,7 +1016,7 @@ export function ParticipantAttendanceList({
                 </View>
               </View>
             ) : null}
-          </View>
+          </FadeSlideIn>
         );
       })}
       <Modal visible={payOpen} transparent animationType="fade" onRequestClose={closePaymentModal}>

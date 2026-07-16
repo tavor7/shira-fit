@@ -9,6 +9,8 @@ import { formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateForma
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { ActionButton } from "../../../../src/components/ActionButton";
+import { ConfettiBurst } from "../../../../src/components/ConfettiBurst";
+import { DeflatingCard } from "../../../../src/components/DeflatingCard";
 import { useI18n } from "../../../../src/context/I18nContext";
 import { useToast } from "../../../../src/context/ToastContext";
 import { useAppAlert } from "../../../../src/context/AppAlertContext";
@@ -52,6 +54,7 @@ export default function AthleteSessionDetail() {
   const [count, setCount] = useState(0);
   const [onWaitlist, setOnWaitlist] = useState(false);
   const [registered, setRegistered] = useState(false);
+  const [justRegistered, setJustRegistered] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [names, setNames] = useState<string[]>([]);
@@ -60,6 +63,7 @@ export default function AthleteSessionDetail() {
   const [registering, setRegistering] = useState(false);
   const [waitlisting, setWaitlisting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [justCancelled, setJustCancelled] = useState(false);
   const [regOpenState, setRegOpenState] = useState<SessionRegistrationOpenState | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -187,6 +191,9 @@ export default function AthleteSessionDetail() {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       showToast({ message: t("athleteSession.registeredToast"), variant: "success" });
+      setJustRegistered(true);
+      await new Promise((resolve) => setTimeout(resolve, theme.motion.normal + 500));
+      setJustRegistered(false);
       setRegistered(true);
       await loadNames();
       if (session) {
@@ -258,7 +265,7 @@ export default function AthleteSessionDetail() {
   }
 
   async function cancel() {
-    if (registering || waitlisting || cancelling) return;
+    if (registering || waitlisting || cancelling || justCancelled) return;
     if (
       !session ||
       !hasSessionNotStarted(session.session_date, session.start_time)
@@ -288,6 +295,9 @@ export default function AthleteSessionDetail() {
       const cancelMsg =
         data.late_cancellation === true ? t("athleteSession.cancelledLateNotice") : t("athleteSession.cancelledOk");
       showToast({ message: cancelMsg, variant: "success" });
+      setJustCancelled(true);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      setJustCancelled(false);
       setRegistered(false);
       await refreshCount();
       await loadNames();
@@ -356,7 +366,7 @@ export default function AthleteSessionDetail() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-      <View style={styles.card}>
+      <DeflatingCard trigger={justCancelled} style={styles.card}>
         {session.is_kickbox ? (
           <View style={styles.kickboxBadgeWrap}>
             <KickboxSessionBadge isRTL={isRTL} />
@@ -392,17 +402,21 @@ export default function AthleteSessionDetail() {
             </>
           )}
         </View>
-      </View>
+      </DeflatingCard>
 
       <View style={styles.actionsBlock}>
         {!registered ? (
           <>
-            <PrimaryButton
-              label={registering ? t("common.loading") : t("athleteSession.register")}
-              onPress={register}
-              disabled={full || !regOpen || !sessionNotEnded || registering || waitlisting || cancelling}
-              style={full || !regOpen || !sessionNotEnded ? styles.disabled : undefined}
-            />
+            <View style={styles.registerBtnWrap}>
+              <ConfettiBurst trigger={justRegistered} />
+              <PrimaryButton
+                label={registering ? t("common.loading") : t("athleteSession.register")}
+                onPress={register}
+                disabled={full || !regOpen || !sessionNotEnded || registering || waitlisting || cancelling}
+                success={justRegistered}
+                style={full || !regOpen || !sessionNotEnded ? styles.disabled : undefined}
+              />
+            </View>
             {(full || onWaitlist) && (
               <ActionButton
                 label={onWaitlist ? t("athleteSession.removeFromWaitlist") : t("athleteSession.joinWaitlist")}
@@ -427,7 +441,7 @@ export default function AthleteSessionDetail() {
             variant="danger"
             label={t("athleteSession.cancelRegistration")}
             onPress={() => setCancelOpen(true)}
-            disabled={registering || waitlisting || cancelling}
+            disabled={registering || waitlisting || cancelling || justCancelled}
           />
         ) : sessionNotEnded ? (
           <AppText variant="caption" muted isRTL={isRTL} style={styles.closedHint}>
@@ -541,6 +555,9 @@ const styles = StyleSheet.create({
   actionsBlock: {
     marginBottom: theme.spacing.md,
     gap: 10,
+  },
+  registerBtnWrap: {
+    position: "relative",
   },
   btn2: {
     borderWidth: 1,

@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { FlatList, View, Pressable, StyleSheet } from "react-native";
+import { FlatList, View, StyleSheet } from "react-native";
+import { PressableScale } from "../../../src/components/PressableScale";
 import { useFocusEffect, Stack } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
@@ -129,7 +130,7 @@ export default function ApproveAthletesScreen() {
               {item.username} · {item.phone}
             </AppText>
             <View style={styles.actions}>
-              <Pressable
+              <PressableScale
                 style={({ pressed }) => [styles.ok, pressed && { opacity: 0.9 }, busyId === item.user_id && { opacity: 0.6 }]}
                 onPress={() => void setApproval(item.user_id, "approved")}
                 disabled={busyId !== null}
@@ -137,8 +138,8 @@ export default function ApproveAthletesScreen() {
                 <AppText variant="label" style={styles.okT}>
                   {busyId === item.user_id ? t("common.loading") : t("approve.approveBtn")}
                 </AppText>
-              </Pressable>
-              <Pressable
+              </PressableScale>
+              <PressableScale
                 style={({ pressed }) => [styles.reject, pressed && { opacity: 0.9 }, busyId === item.user_id && { opacity: 0.6 }]}
                 onPress={() => confirmReject(item)}
                 disabled={busyId !== null}
@@ -146,7 +147,7 @@ export default function ApproveAthletesScreen() {
                 <AppText variant="label" style={styles.rejectT}>
                   {t("approve.rejectBtn")}
                 </AppText>
-              </Pressable>
+              </PressableScale>
             </View>
           </View>
         )}

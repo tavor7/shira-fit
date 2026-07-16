@@ -8,7 +8,7 @@ export default function ManagerCreateSessionScreen() {
   const initialDate = Array.isArray(date) ? date[0] : date;
   return (
     <>
-      <Stack.Screen options={{ title: t("screen.managerCreateSession") }} />
+      <Stack.Screen options={{ title: t("screen.managerCreateSession"), animation: "slide_from_bottom" }} />
       <CreateSessionForm initialDate={initialDate} />
     </>
   );

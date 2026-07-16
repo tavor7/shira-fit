@@ -54,6 +54,7 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
   const [note, setNote] = useState("");
   const [paidAt, setPaidAt] = useState(() => toISODateLocal(new Date()));
   const [busy, setBusy] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const scrollRef = useRef<ScrollView>(null);
 
@@ -184,6 +185,9 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
         needsPdf: result.needs_pdf,
       });
       await onCreated();
+      setSuccess(true);
+      await new Promise((resolve) => setTimeout(resolve, theme.motion.normal));
+      setSuccess(false);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
@@ -321,7 +325,8 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
               label={language === "he" ? "הפק קבלה ורשום תשלום" : "Create receipt & payment"}
               onPress={() => void submit()}
               disabled={busy}
-              loading={busy}
+              loading={busy && !success}
+              success={success}
               loadingLabel={t("common.loading")}
             />
           </>

@@ -21,6 +21,8 @@ import {
   formatSessionRosterLine,
   formatSessionTimeShort,
 } from "../lib/financeBreakdownFormat";
+import { useCountUp } from "../hooks/useCountUp";
+import { CrossfadeSwap } from "../components/CrossfadeSwap";
 
 function AmountPair({
   expected,
@@ -37,6 +39,8 @@ function AmountPair({
   isRTL: boolean;
   compact?: boolean;
 }) {
+  const expectedDisplay = useCountUp(expected);
+  const collectedDisplay = useCountUp(collected);
   return (
     <View style={[styles.amountPair, isRTL && styles.amountPairRtl, compact && styles.amountPairCompact]}>
       <View style={[styles.amountCol, compact ? styles.amountColCompact : styles.amountColBanner]}>
@@ -44,7 +48,7 @@ function AmountPair({
           {t("dashboard.financeBreakdownExpected")}
         </Text>
         <Text style={[styles.amountExpected, compact && styles.amountExpectedCompact, isRTL && styles.rtl]}>
-          {formatFinanceIls(expected, language)}
+          {formatFinanceIls(expectedDisplay, language)}
         </Text>
       </View>
       {!compact ? <View style={styles.amountDivider} /> : null}
@@ -53,7 +57,7 @@ function AmountPair({
           {t("dashboard.financeBreakdownCollected")}
         </Text>
         <Text style={[styles.amountCollected, compact && styles.amountCollectedCompact, isRTL && styles.rtl]}>
-          {formatFinanceIls(collected, language)}
+          {formatFinanceIls(collectedDisplay, language)}
         </Text>
       </View>
     </View>
@@ -134,13 +138,17 @@ export default function ManagerFinanceBreakdownScreen() {
         <Text style={[styles.h, isRTL && styles.rtl]}>{t("dashboard.financeBreakdownTitle")}</Text>
         {rangeLabel ? <Text style={[styles.sub, isRTL && styles.rtl]}>{rangeLabel}</Text> : null}
 
-        {loading ? (
-          <View style={styles.skeletonList}>
-            <ListRowSkeleton />
-            <ListRowSkeleton />
-            <ListRowSkeleton />
-          </View>
-        ) : error ? (
+        <CrossfadeSwap
+          loading={loading}
+          skeleton={
+            <View style={styles.skeletonList}>
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+            </View>
+          }
+        >
+        {error ? (
           <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
         ) : days.length === 0 ? (
           <EmptyState icon="📊" title={t("dashboard.financeBreakdownEmpty")} isRTL={isRTL} />
@@ -273,6 +281,7 @@ export default function ManagerFinanceBreakdownScreen() {
             })}
           </>
         )}
+        </CrossfadeSwap>
       </ScrollView>
     </>
   );

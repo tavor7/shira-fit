@@ -29,6 +29,7 @@ import {
   type WeeklyFinanceFamily,
 } from "../lib/managerWeeklyStats";
 import { fetchActiveAccountCounts, type ActiveAccountCounts } from "../lib/activeAccountCounts";
+import { useCountUp } from "../hooks/useCountUp";
 
 type PeriodMode = ManagerPeriodMode;
 
@@ -273,6 +274,8 @@ export default function ManagerDashboardScreen() {
     () => (finance?.coaches ?? []).reduce((s, c) => s + c.payout_ils, 0),
     [finance?.coaches]
   );
+  const coachPayoutTotalDisplay = useCountUp(coachPayoutTotal);
+  const outstandingBalanceDisplay = useCountUp(Math.abs(finance?.athlete_totals.outstanding_ils ?? 0));
 
   const athleteListModel = useMemo(() => {
     if (!finance) return { families: [] as WeeklyFinanceFamily[], solo: [] as WeeklyFinanceAthlete[] };
@@ -648,7 +651,7 @@ export default function ManagerDashboardScreen() {
             <Text style={[styles.financeHint, isRTL && styles.rtl]}>{t("dashboard.financeHintCoach")}</Text>
             <View style={[styles.moneyHero, isRTL && styles.moneyHeroRtl]}>
               <Text style={[styles.moneyHeroLbl, isRTL && styles.rtl]}>{t("dashboard.financeTotalToCoaches")}</Text>
-              <Text style={[styles.moneyHeroVal, isRTL && styles.rtl]}>{formatIls(coachPayoutTotal, language)}</Text>
+              <Text style={[styles.moneyHeroVal, isRTL && styles.rtl]}>{formatIls(coachPayoutTotalDisplay, language)}</Text>
             </View>
             <Text style={[styles.tapHint, isRTL && styles.rtl]}>{t("dashboard.financeTapCoachHint")}</Text>
             <View style={styles.coachList}>
@@ -781,7 +784,7 @@ export default function ManagerDashboardScreen() {
                 {finance.athlete_totals.outstanding_ils >= 0 ? t("dashboard.financeOutstanding") : t("dashboard.financeAhead")}
               </Text>
               <Text style={[styles.balanceBannerVal, isRTL && styles.rtl]}>
-                {formatIls(Math.abs(finance.athlete_totals.outstanding_ils), language)}
+                {formatIls(outstandingBalanceDisplay, language)}
               </Text>
             </View>
 

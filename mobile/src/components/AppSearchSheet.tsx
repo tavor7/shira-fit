@@ -20,6 +20,7 @@ import { useLockBodyScroll } from "../hooks/useLockBodyScroll";
 import { useVisualViewport } from "../hooks/useVisualViewport";
 import { theme } from "../theme";
 import { AppSearchField } from "./AppSearchField";
+import { FadeSlideIn } from "./FadeSlideIn";
 
 export type AppSearchSheetSearchConfig = {
   value: string;
@@ -234,7 +235,11 @@ export function AppSearchSheet<T>({
             contentContainerStyle={styles.listContent}
             data={data}
             keyExtractor={keyExtractor}
-            renderItem={renderItem}
+            renderItem={(info) => (
+              <FadeSlideIn delay={Math.min(info.index, theme.motion.maxStaggerIndex) * 30}>
+                {renderItem(info)}
+              </FadeSlideIn>
+            )}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator

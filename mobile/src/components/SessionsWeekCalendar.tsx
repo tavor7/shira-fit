@@ -1,7 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Animated,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
+import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { EmptyState } from "./EmptyState";
 import { SessionAgendaCardContent } from "./SessionAgendaCardContent";
 import { SessionCardSkeleton } from "./SessionCardSkeleton";
@@ -119,6 +130,41 @@ function formatWeekLabel(start: Date, end: Date, locale: string) {
   return `${fmtA(start)} - ${fmtA(end)}`;
 }
 
+/** Direction-aware fade + slide-in for a day column when the visible week changes. */
+function WeekDayEnter({
+  fromRight,
+  style,
+  children,
+}: {
+  fromRight: boolean;
+  style?: StyleProp<ViewStyle>;
+  children: ReactNode;
+}) {
+  const progress = useRef(new Animated.Value(0)).current;
+  const reduceMotionRef = useReduceMotionRef();
+
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: reduceMotionRef.current ? 0 : theme.motion.normal,
+      easing: theme.motion.easeOut,
+      useNativeDriver: true,
+    }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const translateX = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [fromRight ? 24 : -24, 0],
+  });
+
+  return (
+    <Animated.View style={[style, { opacity: progress, transform: [{ translateX }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
 export function SessionsWeekCalendar({
   items,
   isLoading,
@@ -142,12 +188,15 @@ export function SessionsWeekCalendar({
   const scrollRef = useRef<ScrollView>(null);
   /** Set by bumpWeek, consumed by the effect below once the new week's days are in place. */
   const pendingScrollDirRef = useRef<1 | -1 | null>(null);
+  /** Last navigation direction, for the day columns' direction-aware enter animation. Not cleared like the scroll ref. */
+  const weekDirRef = useRef<1 | -1>(1);
 
   function bumpWeek(delta: number) {
     const next = weekOffset + delta;
     if (minWeekOffset != null && next < minWeekOffset) return;
     if (maxWeekOffset != null && next > maxWeekOffset) return;
     pendingScrollDirRef.current = delta > 0 ? 1 : -1;
+    weekDirRef.current = delta > 0 ? 1 : -1;
     if (controlled) {
       onWeekOffsetChange?.(next);
     } else {
@@ -333,9 +382,12 @@ export function SessionsWeekCalendar({
             const dayList = byDate.get(d.iso) ?? [];
             const isToday = d.iso === todayIso;
             const dayNotes = notesByDate.get(d.iso) ?? [];
+            // Column order is row-reversed under RTL, mirroring the scroll-anchor logic above.
+            const fromRight = weekDirRef.current > 0 ? !isRTL : isRTL;
             return (
-              <View
+              <WeekDayEnter
                 key={d.iso}
+                fromRight={fromRight}
                 style={[
                   styles.dayCol,
                   isToday && styles.dayColToday,
@@ -453,7 +505,7 @@ export function SessionsWeekCalendar({
                     );
                   })}
                 </View>
-              </View>
+              </WeekDayEnter>
             );
           })}
         </ScrollView>

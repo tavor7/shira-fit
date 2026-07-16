@@ -4,6 +4,8 @@ import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-ro
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
+import { FadeSlideIn } from "../components/FadeSlideIn";
+import { theme } from "../theme";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
@@ -1123,23 +1125,26 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             </Text>
           </View>
         )}
-        renderItem={({ item }) =>
+        renderItem={({ item, index }) =>
           item.kind === "payment" ? (
-            <PaymentHistoryRow
-              pay={item.pay}
-              familyContext={familyContext}
-              isRTL={isRTL}
-              rtlRowFlip={rtlRowFlip}
-              language={language}
-              t={t}
-              deletingPaymentId={deletingPaymentId}
-              onEdit={(pay) => {
-                setEditAccountPayment(pay);
-                setAddPayOpen(true);
-              }}
-              onDelete={confirmDeleteAccountPayment}
-            />
+            <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+              <PaymentHistoryRow
+                pay={item.pay}
+                familyContext={familyContext}
+                isRTL={isRTL}
+                rtlRowFlip={rtlRowFlip}
+                language={language}
+                t={t}
+                deletingPaymentId={deletingPaymentId}
+                onEdit={(pay) => {
+                  setEditAccountPayment(pay);
+                  setAddPayOpen(true);
+                }}
+                onDelete={confirmDeleteAccountPayment}
+              />
+            </FadeSlideIn>
           ) : (
+            <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <SessionHistoryRow
               reg={item.reg}
               isRTL={isRTL}
@@ -1169,6 +1174,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
               applyNoShowCharge={applyNoShowCharge}
               applyLateCancellationCharge={applyLateCancellationCharge}
             />
+            </FadeSlideIn>
           )
         }
         ListEmptyComponent={

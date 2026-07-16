@@ -1,5 +1,7 @@
-import { View, Text, StyleSheet } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Text, StyleSheet } from "react-native";
 import { theme } from "../theme";
+import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
 export type ChipTone = "neutral" | "success" | "warning" | "danger" | "info";
 
@@ -26,12 +28,31 @@ const toneTxt: Record<ChipTone, string> = {
 };
 
 export function StatusChip({ label, tone = "neutral" }: { label: string; tone?: ChipTone }) {
+  const opacity = useRef(new Animated.Value(1)).current;
+  const prevToneRef = useRef(tone);
+  const reduceMotionRef = useReduceMotionRef();
+
+  useEffect(() => {
+    if (prevToneRef.current === tone) return;
+    prevToneRef.current = tone;
+    if (reduceMotionRef.current) return;
+    opacity.setValue(0.4);
+    Animated.timing(opacity, {
+      toValue: 1,
+      duration: theme.motion.fast,
+      easing: theme.motion.easeOut,
+      useNativeDriver: true,
+    }).start();
+  }, [tone, opacity, reduceMotionRef]);
+
   return (
-    <View style={[styles.wrap, { backgroundColor: toneBg[tone], borderColor: toneBorder[tone] }]}>
+    <Animated.View
+      style={[styles.wrap, { backgroundColor: toneBg[tone], borderColor: toneBorder[tone], opacity }]}
+    >
       <Text style={[styles.txt, { color: toneTxt[tone] }]} numberOfLines={1}>
         {label}
       </Text>
-    </View>
+    </Animated.View>
   );
 }
 

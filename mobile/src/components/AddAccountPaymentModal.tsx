@@ -59,6 +59,7 @@ export function AddAccountPaymentModal({
   const [payerName, setPayerName] = useState("");
   const [paidAt, setPaidAt] = useState(() => toISODateLocal(new Date()));
   const [busy, setBusy] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
@@ -125,6 +126,9 @@ export function AddAccountPaymentModal({
       showError(msg);
       return;
     }
+    setSuccess(true);
+    await new Promise((resolve) => setTimeout(resolve, theme.motion.normal));
+    setSuccess(false);
     onClose();
     showToast({
       message: isEdit ? t("billing.paymentUpdated") : t("billing.paymentSaved"),
@@ -226,7 +230,8 @@ export function AddAccountPaymentModal({
         />
         <PrimaryButton
           label={t("common.save")}
-          loading={busy}
+          loading={busy && !success}
+          success={success}
           loadingLabel={t("common.loading")}
           onPress={() => void save()}
         />

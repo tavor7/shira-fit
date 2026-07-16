@@ -1,7 +1,8 @@
-import { View, Text, Pressable, StyleSheet, useWindowDimensions } from "react-native";
+import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { sessionFormIsCompact } from "./sessionFormStyles";
+import { PressableScale } from "./PressableScale";
 
 type Props = {
   title: string;
@@ -28,22 +29,22 @@ export function PricingTierRow({ title, priceLabel, subtitle, onEdit, onRemove, 
 
   const actions = (
     <View style={[styles.actions, isRTL && styles.actionsRtl]}>
-      <Pressable
+      <PressableScale
         onPress={onEdit}
-        style={({ pressed }) => [styles.actionBtn, styles.editBtn, pressed && { opacity: 0.85 }]}
+        style={[styles.actionBtn, styles.editBtn]}
         accessibilityRole="button"
         accessibilityLabel={`${t("common.edit")}: ${title}`}
       >
         <Text style={styles.editTxt}>{t("common.edit")}</Text>
-      </Pressable>
-      <Pressable
+      </PressableScale>
+      <PressableScale
         onPress={onRemove}
-        style={({ pressed }) => [styles.actionBtn, styles.removeBtn, pressed && { opacity: 0.85 }]}
+        style={[styles.actionBtn, styles.removeBtn]}
         accessibilityRole="button"
         accessibilityLabel={`${t("pricing.delete")}: ${title}`}
       >
         <Text style={styles.removeTxt}>{t("pricing.delete")}</Text>
-      </Pressable>
+      </PressableScale>
     </View>
   );
 

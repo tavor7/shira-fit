@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Pressable,
   StyleSheet,
@@ -12,6 +13,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
+import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { AppModal } from "./AppModal";
 import { PrimaryButton } from "./PrimaryButton";
 import { formatISODateWeekdayDayMonth } from "../lib/dateFormat";
@@ -71,9 +73,12 @@ export function MoveParticipantSheet({
   const { showAlert } = useAppAlert();
   const [loading, setLoading] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [justMoved, setJustMoved] = useState(false);
   const [sessions, setSessions] = useState<SessionPick[]>([]);
   const [picked, setPicked] = useState<SessionPick | null>(null);
   const [fullChoice, setFullChoice] = useState<FullChoice | null>(null);
+  const sendProgress = useRef(new Animated.Value(0)).current;
+  const reduceMotionRef = useReduceMotionRef();
 
   const canOfferDecreaseSource =
     fromMaxParticipants < 12 &&
@@ -133,10 +138,12 @@ export function MoveParticipantSheet({
     if (!visible) {
       setPicked(null);
       setFullChoice(null);
+      setJustMoved(false);
+      sendProgress.setValue(0);
       return;
     }
     void loadSessions();
-  }, [visible, loadSessions]);
+  }, [visible, loadSessions, sendProgress]);
 
   const destFull = picked != null && picked.count >= picked.max_participants;
 
@@ -155,7 +162,7 @@ export function MoveParticipantSheet({
   }, [picked, participant, fromParticipantCount, fromMaxParticipants, fullChoice]);
 
   function handleClose() {
-    if (moving) return;
+    if (moving || justMoved) return;
     onClose();
   }
 
@@ -185,6 +192,18 @@ export function MoveParticipantSheet({
       return;
     }
     showToast({ message: t("moveParticipant.success"), variant: "success" });
+    setJustMoved(true);
+    if (!reduceMotionRef.current) {
+      await new Promise<void>((resolve) => {
+        Animated.timing(sendProgress, {
+          toValue: 1,
+          duration: 480,
+          easing: theme.motion.easeOut,
+          useNativeDriver: true,
+        }).start(() => resolve());
+      });
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
     onMoved();
     onClose();
 
@@ -246,8 +265,19 @@ export function MoveParticipantSheet({
     </View>
   );
 
+  const sendDir = isRTL ? -1 : 1;
   const confirmBody = picked && participant ? (
-    <View style={styles.confirmBlock}>
+    <Animated.View
+      style={[
+        styles.confirmBlock,
+        {
+          opacity: sendProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+          transform: [
+            { translateX: sendProgress.interpolate({ inputRange: [0, 1], outputRange: [0, 48 * sendDir] }) },
+          ],
+        },
+      ]}
+    >
       <Text style={[styles.confirmTitle, isRTL && styles.rtlText]}>{t("moveParticipant.confirmTitle")}</Text>
       <Text style={[styles.confirmSession, isRTL && styles.rtlText]}>
         {formatISODateWeekdayDayMonth(picked.session_date, language)} · {formatSessionStartTime(picked.start_time)}
@@ -303,22 +333,23 @@ export function MoveParticipantSheet({
             label={moving ? t("common.loading") : t("moveParticipant.confirmMove")}
             onPress={confirmMove}
             loading={moving}
+            success={justMoved}
             loadingLabel={t("common.loading")}
-            disabled={destFull && !fullChoice}
+            disabled={(destFull && !fullChoice) || justMoved}
           />
           <Pressable
             onPress={() => {
               setPicked(null);
               setFullChoice(null);
             }}
-            disabled={moving}
+            disabled={moving || justMoved}
             style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}
           >
             <Text style={[styles.backBtnTxt, isRTL && styles.rtlText]}>{t("moveParticipant.backToList")}</Text>
           </Pressable>
         </View>
       )}
-    </View>
+    </Animated.View>
   ) : null;
 
   return (

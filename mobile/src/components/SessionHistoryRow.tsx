@@ -1,5 +1,6 @@
 import { View, Text, Pressable, ActivityIndicator, Platform } from "react-native";
 import { theme } from "../theme";
+import { PressableScale } from "./PressableScale";
 import { AttStatusDot } from "./AttStatusDot";
 import { attStatusFromRow, attStatusLabel } from "../lib/participantHistoryHelpers";
 import { isSessionPaymentRecorded, paymentMethodHistoryLabel } from "../lib/paymentMethod";
@@ -252,8 +253,9 @@ export function SessionHistoryRow({
   return (
     <View style={styles.row}>
       {staffCanEdit ? (
-        <Pressable
+        <PressableScale
           onPress={() => openSession(reg.session_id)}
+          scaleTo={0.985}
           style={({ pressed }) => [
             styles.sessionCardBody,
             isRTL && styles.sessionCardBodyRtl,
@@ -264,7 +266,7 @@ export function SessionHistoryRow({
           accessibilityLabel={`${formatISODateFullWithWeekdayAfter(reg.session_date, language)} · ${timeCoachPart}`}
         >
           {sessionCardInner}
-        </Pressable>
+        </PressableScale>
       ) : (
         <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>{sessionCardInner}</View>
       )}
