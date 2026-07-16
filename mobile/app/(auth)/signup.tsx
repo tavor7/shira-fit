@@ -166,7 +166,6 @@ export default function SignupScreen() {
   return (
     <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <LanguageToggleChip />
         <FadeSlideIn>
         <AppText variant="display" isRTL={isRTL} style={styles.title}>
           {t("auth.register")}
@@ -336,6 +335,7 @@ export default function SignupScreen() {
             {t("auth.alreadyHaveAccount")}
           </AppText>
         </Pressable>
+        <LanguageToggleChip />
         </FadeSlideIn>
       </ScrollView>
     </KeyboardAvoidingView>

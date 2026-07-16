@@ -3,39 +3,59 @@ import { useI18n } from "../context/I18nContext";
 import { theme } from "../theme";
 
 /**
- * Small chip to toggle language (EN <-> HE).
- * Used on auth (pre-login) screens where the global menu is unavailable.
+ * Segmented EN / עב switcher for auth (pre-login) screens where the global menu is unavailable.
  */
 export function LanguageToggleChip() {
-  const { language, toggleLanguage } = useI18n();
-  const next = language === "he" ? "EN" : "עב";
+  const { language, setLanguage } = useI18n();
+  const isHe = language === "he";
   return (
     <View style={styles.wrap}>
-      <Pressable
-        onPress={() => void toggleLanguage()}
-        style={({ pressed }) => [styles.chip, pressed && { opacity: 0.9 }]}
-        accessibilityRole="button"
-        accessibilityLabel={language === "he" ? "Switch to English" : "Switch to Hebrew"}
-      >
-        <Text style={styles.txt}>{next}</Text>
-      </Pressable>
+      <View style={styles.track}>
+        <Pressable
+          onPress={() => void setLanguage("en")}
+          style={({ pressed }) => [styles.segment, !isHe && styles.segmentOn, pressed && styles.segmentPressed]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !isHe }}
+          accessibilityLabel="English"
+          hitSlop={4}
+        >
+          <Text style={[styles.txt, !isHe && styles.txtOn]}>EN</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => void setLanguage("he")}
+          style={({ pressed }) => [styles.segment, isHe && styles.segmentOn, pressed && styles.segmentPressed]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isHe }}
+          accessibilityLabel="עברית"
+          hitSlop={4}
+        >
+          <Text style={[styles.txt, isHe && styles.txtOn]}>עב</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: "absolute", top: theme.spacing.md, end: theme.spacing.md, zIndex: 10 },
-  chip: {
-    height: 36,
-    minWidth: 44,
-    paddingHorizontal: 12,
+  wrap: { alignItems: "center", marginTop: theme.spacing.lg },
+  track: {
+    flexDirection: "row",
+    padding: 3,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
+  },
+  segment: {
+    minWidth: 40,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: theme.radius.full,
     alignItems: "center",
     justifyContent: "center",
   },
-  txt: { color: theme.colors.text, fontWeight: "900", letterSpacing: 0.6 },
+  segmentOn: { backgroundColor: theme.colors.cta },
+  segmentPressed: { opacity: 0.85 },
+  txt: { color: theme.colors.textSoft, fontWeight: "800", fontSize: 12, letterSpacing: 0.4 },
+  txtOn: { color: theme.colors.ctaText },
 });
-

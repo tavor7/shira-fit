@@ -61,7 +61,6 @@ export default function ForgotPasswordScreen() {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        <LanguageToggleChip />
         <FadeSlideIn>
         <View style={styles.logoWrap}>
           <Image
@@ -110,6 +109,7 @@ export default function ForgotPasswordScreen() {
           onPress={sendReset}
         />
         <ActionButton label={t("auth.backToSignIn")} onPress={() => router.push("/(auth)/login")} style={styles.navBtn} />
+        <LanguageToggleChip />
         </FadeSlideIn>
       </ScrollView>
     </KeyboardAvoidingView>

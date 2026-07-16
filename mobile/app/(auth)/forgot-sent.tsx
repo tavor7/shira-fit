@@ -14,7 +14,6 @@ export default function ForgotSentScreen() {
 
   return (
     <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <LanguageToggleChip />
       <FadeSlideIn>
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" accessibilityLabel={t("a11y.appLogo")} />
@@ -34,6 +33,7 @@ export default function ForgotSentScreen() {
           {t("auth.wrongEmail")}
         </AppText>
       </Pressable>
+      <LanguageToggleChip />
       </FadeSlideIn>
     </ScrollView>
   );

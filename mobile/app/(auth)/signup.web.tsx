@@ -167,7 +167,6 @@ export default function SignupScreen() {
   return (
     <KeyboardAvoidingView style={styles.keyboard}>
       <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <LanguageToggleChip />
         <FadeSlideIn>
         <View style={styles.logoWrap}>
           <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
@@ -283,6 +282,7 @@ export default function SignupScreen() {
             {t("auth.alreadyHaveAccount")}
           </AppText>
         </Pressable>
+        <LanguageToggleChip />
         </FadeSlideIn>
       </ScrollView>
     </KeyboardAvoidingView>

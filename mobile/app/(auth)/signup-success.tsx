@@ -33,7 +33,6 @@ export default function SignupSuccessScreen() {
 
   return (
     <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-      <LanguageToggleChip />
       <FadeSlideIn>
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" accessibilityLabel={t("a11y.appLogo")} />
@@ -69,6 +68,7 @@ export default function SignupSuccessScreen() {
           style={styles.btn}
         />
       </View>
+      <LanguageToggleChip />
       </FadeSlideIn>
     </ScrollView>
   );

@@ -18,7 +18,6 @@ export default function PasswordUpdatedScreen() {
 
   return (
     <View style={styles.container}>
-      <LanguageToggleChip />
       <FadeSlideIn>
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" accessibilityLabel={t("a11y.appLogo")} />
@@ -30,6 +29,7 @@ export default function PasswordUpdatedScreen() {
         {t("auth.passwordUpdatedBody")}
       </AppText>
       <PrimaryButton label={t("auth.signIn")} onPress={() => router.replace("/(auth)/login")} />
+      <LanguageToggleChip />
       </FadeSlideIn>
     </View>
   );

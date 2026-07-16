@@ -10,7 +10,7 @@ import {
   type TextInput,
 } from "react-native";
 import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { AppTextField } from "../../src/components/AppTextField";
@@ -21,8 +21,6 @@ import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { logUserActivity } from "../../src/lib/logUserActivity";
 import { canRoleAccessWebPath, normalizeWebRedirectTarget, webPublicPathToExpoHref } from "../../src/lib/webLastRoute";
-
-export const options = { headerShown: false };
 
 /** Loose client-side check; server remains authoritative. */
 const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -161,6 +159,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         style={styles.scrollRoot}
         contentContainerStyle={styles.scrollContent}
@@ -168,7 +167,6 @@ export default function LoginScreen() {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        <LanguageToggleChip />
         <FadeSlideIn>
           <View style={styles.logoWrap}>
             <Image
@@ -264,6 +262,7 @@ export default function LoginScreen() {
               </AppText>
             </Pressable>
           </View>
+          <LanguageToggleChip />
         </FadeSlideIn>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -280,14 +279,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "flex-start",
     padding: theme.spacing.lg,
-    paddingTop: theme.spacing.xl,
+    paddingTop: 72,
     paddingBottom: theme.spacing.xl + theme.spacing.md,
     backgroundColor: theme.colors.backgroundAlt,
   },
   rtlText: { textAlign: "right" },
   logoWrap: {
     alignItems: "center",
-    marginBottom: theme.spacing.xl + theme.spacing.md,
+    marginBottom: 72,
   },
   logo: {
     width: 200,
