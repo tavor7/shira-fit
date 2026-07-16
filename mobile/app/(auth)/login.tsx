@@ -30,7 +30,7 @@ const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_EMAIL_LEN = 254;
 const MAX_PASSWORD_LEN = 128;
 /** How long the success moment (button pop + logo pulse + form fade) holds before navigating away. */
-const SUCCESS_HOLD_MS = 900;
+const SUCCESS_HOLD_MS = 1500;
 
 type ClassifiedLoginError =
   | "invalid_credentials"
@@ -79,6 +79,7 @@ export default function LoginScreen() {
   const mountedRef = useRef(true);
   const passwordRef = useRef<TextInput>(null);
   const logoScale = useRef(new Animated.Value(1)).current;
+  const logoGlow = useRef(new Animated.Value(0)).current;
   const formProgress = useRef(new Animated.Value(1)).current;
   const reduceMotionRef = useReduceMotionRef();
 
@@ -93,24 +94,30 @@ export default function LoginScreen() {
     if (!success || reduceMotionRef.current) return;
     Animated.timing(formProgress, {
       toValue: 0,
-      duration: theme.motion.normal,
+      duration: 420,
       easing: theme.motion.easeIn,
       useNativeDriver: true,
     }).start();
     Animated.sequence([
       Animated.timing(logoScale, {
-        toValue: 1.18,
-        duration: 260,
+        toValue: 1.4,
+        duration: 420,
         easing: theme.motion.springOvershoot,
         useNativeDriver: true,
       }),
       Animated.timing(logoScale, {
-        toValue: 1.08,
-        duration: 220,
+        toValue: 1.18,
+        duration: 340,
         easing: theme.motion.easeOut,
         useNativeDriver: true,
       }),
     ]).start();
+    Animated.timing(logoGlow, {
+      toValue: 1,
+      duration: 760,
+      easing: theme.motion.easeOut,
+      useNativeDriver: true,
+    }).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [success]);
 
@@ -158,19 +165,27 @@ export default function LoginScreen() {
       if (data.session) {
         void logUserActivity("auth_login");
         setSuccess(true);
-        await new Promise((resolve) => setTimeout(resolve, SUCCESS_HOLD_MS));
-        if (!mountedRef.current) return;
+
+        // Kick off the post-login redirect lookup alongside the success animation instead of
+        // after it, so the hold isn't dead time — by the time the animation finishes, this has
+        // usually already resolved. The session's own auth-state listener (AuthContext) is also
+        // already loading the user's profile in the background from the moment sign-in resolved.
         const rawRedirect = Array.isArray(params.redirect) ? params.redirect[0] : params.redirect;
         const target = Platform.OS === "web" ? normalizeWebRedirectTarget(rawRedirect) : null;
-        let role: string | undefined;
-        if (target && data.session.user?.id) {
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("user_id", data.session.user.id)
-            .maybeSingle();
-          role = (prof as { role?: string } | null)?.role;
-        }
+        const roleLookup: Promise<string | undefined> =
+          target && data.session.user?.id
+            ? Promise.resolve(
+                supabase
+                  .from("profiles")
+                  .select("role")
+                  .eq("user_id", data.session.user.id)
+                  .maybeSingle()
+              ).then(({ data: prof }) => (prof as { role?: string } | null)?.role)
+            : Promise.resolve(undefined);
+        const hold = new Promise<void>((resolve) => setTimeout(resolve, SUCCESS_HOLD_MS));
+
+        const [role] = await Promise.all([roleLookup, hold]);
+        if (!mountedRef.current) return;
         if (Platform.OS === "web" && target && role && canRoleAccessWebPath(role, target)) {
           router.replace(webPublicPathToExpoHref(target));
         } else {
@@ -198,15 +213,29 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
       >
         <FadeSlideIn>
-          <Animated.View style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}>
-            <Image
-              source={require("../../assets/logo.png")}
-              style={styles.logo}
-              resizeMode="contain"
-              accessibilityLabel={t("a11y.appLogo")}
-              accessibilityRole="image"
+          <View style={styles.logoWrap}>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.logoGlow,
+                {
+                  opacity: logoGlow.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0.55, 0] }),
+                  transform: [
+                    { scale: logoGlow.interpolate({ inputRange: [0, 1], outputRange: [0.6, 2.3] }) },
+                  ],
+                },
+              ]}
             />
-          </Animated.View>
+            <Animated.View style={{ transform: [{ scale: logoScale }] }}>
+              <Image
+                source={require("../../assets/logo.png")}
+                style={styles.logo}
+                resizeMode="contain"
+                accessibilityLabel={t("a11y.appLogo")}
+                accessibilityRole="image"
+              />
+            </Animated.View>
+          </View>
           <Animated.View
             pointerEvents={success ? "none" : "auto"}
             style={{
@@ -325,6 +354,16 @@ const styles = StyleSheet.create({
   logoWrap: {
     alignItems: "center",
     marginBottom: 72,
+  },
+  logoGlow: {
+    position: "absolute",
+    top: -22,
+    left: "50%",
+    width: 220,
+    height: 84,
+    marginLeft: -110,
+    borderRadius: 999,
+    backgroundColor: theme.colors.cta,
   },
   logo: {
     width: 200,
