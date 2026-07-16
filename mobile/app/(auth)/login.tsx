@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   rtlText: { textAlign: "right" },
   logoWrap: {
     alignItems: "center",
-    marginBottom: theme.spacing.xl + theme.spacing.sm,
+    marginBottom: theme.spacing.xl + theme.spacing.md,
   },
   logo: {
     width: 200,

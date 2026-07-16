@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     backgroundColor: theme.colors.backgroundAlt,
   },
-  logoWrap: { alignItems: "center", marginBottom: theme.spacing.lg },
+  logoWrap: { alignItems: "center", marginBottom: theme.spacing.xl + theme.spacing.md },
   logo: { width: 200, height: 41 },
   title: { textAlign: "center", marginBottom: theme.spacing.sm },
   body: { textAlign: "center", marginBottom: theme.spacing.lg },
