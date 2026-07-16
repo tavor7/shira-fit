@@ -82,7 +82,7 @@ export default function DisabledAccountScreen() {
 
 const styles = StyleSheet.create({
   box: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  content: { flexGrow: 1, padding: theme.spacing.lg, justifyContent: "center" },
+  content: { flexGrow: 1, padding: theme.spacing.lg, paddingTop: theme.spacing.xl, justifyContent: "flex-start" },
   logoWrap: { alignItems: "center", marginBottom: theme.spacing.xl },
   logo: { width: 120, height: 24 },
   card: {

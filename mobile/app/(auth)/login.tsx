@@ -278,8 +278,9 @@ const styles = StyleSheet.create({
   scrollRoot: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     padding: theme.spacing.lg,
+    paddingTop: theme.spacing.xl,
     paddingBottom: theme.spacing.xl + theme.spacing.md,
     backgroundColor: theme.colors.backgroundAlt,
   },

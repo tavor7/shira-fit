@@ -36,7 +36,13 @@ export default function PasswordUpdatedScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: theme.spacing.lg, justifyContent: "center", backgroundColor: theme.colors.backgroundAlt },
+  container: {
+    flex: 1,
+    padding: theme.spacing.lg,
+    paddingTop: theme.spacing.xl,
+    justifyContent: "flex-start",
+    backgroundColor: theme.colors.backgroundAlt,
+  },
   logoWrap: { alignItems: "center", marginBottom: theme.spacing.lg },
   logo: { width: 200, height: 41 },
   title: { textAlign: "center", marginBottom: theme.spacing.sm },
