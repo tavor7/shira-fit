@@ -47,7 +47,9 @@ export function HeaderBackPill() {
     if (isPendingPathname(pathname)) return false;
     if (atSessionsHome) return false;
     if (onPendingGate) return canPop;
-    return !!sessionsHomeHref;
+    // Pre-auth screens (signup, forgot-password, ...) have no role yet, so sessionsHomeHref
+    // is null — but real push history (from login) should still show a working back button.
+    return canPop || !!sessionsHomeHref;
   }, [pathname, atSessionsHome, onPendingGate, canPop, sessionsHomeHref]);
 
   // Hooks must run every render — never place hooks after `if (!visible) return null`.

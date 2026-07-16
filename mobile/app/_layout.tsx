@@ -95,6 +95,15 @@ export default function RootLayout() {
                 width: 0;
                 height: 0;
               }
+              /*
+                react-native-web renders Pressable as a button/div, so tapping one leaves the
+                browser's default focus ring showing (a blue outline) until focus moves elsewhere.
+                Drop it for pointer/touch-triggered focus but keep it for real keyboard navigation.
+              */
+              button:focus:not(:focus-visible),
+              [role="button"]:focus:not(:focus-visible) {
+                outline: none;
+              }
             `}</style>
           </Head>
         ) : null}
