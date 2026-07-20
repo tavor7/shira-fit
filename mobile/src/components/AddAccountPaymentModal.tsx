@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { AppModal } from "./AppModal";
 import { DatePickerField } from "./DatePickerField";
@@ -172,7 +172,11 @@ export function AddAccountPaymentModal({
         </Pressable>
       </View>
 
-      <View style={styles.body}>
+      <ScrollView
+        style={styles.bodyScroll}
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+      >
         <DatePickerField label={t("billing.paidOn")} value={paidAt} onChange={setPaidAt} />
         <Text style={[styles.label, isRTL && styles.rtlText]}>{t("billing.amount")}</Text>
         <TextInput
@@ -235,7 +239,7 @@ export function AddAccountPaymentModal({
           loadingLabel={t("common.loading")}
           onPress={() => void save()}
         />
-      </View>
+      </ScrollView>
     </AppModal>
   );
 }
@@ -259,6 +263,7 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 4, fontSize: 14, fontWeight: "600", color: theme.colors.textMuted },
   close: { fontSize: 15, fontWeight: "800", color: theme.colors.textMuted },
   rtlText: { textAlign: "right", writingDirection: "rtl" },
+  bodyScroll: { flexShrink: 1 },
   body: { padding: theme.spacing.md, gap: 8, paddingBottom: theme.spacing.lg },
   label: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted, marginTop: 4 },
   input: {
