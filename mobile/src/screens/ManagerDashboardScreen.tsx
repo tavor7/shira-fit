@@ -30,6 +30,7 @@ import {
 } from "../lib/managerWeeklyStats";
 import { fetchActiveAccountCounts, type ActiveAccountCounts } from "../lib/activeAccountCounts";
 import { useCountUp } from "../hooks/useCountUp";
+import { FadeSlideIn } from "../components/FadeSlideIn";
 
 type PeriodMode = ManagerPeriodMode;
 
@@ -276,6 +277,13 @@ export default function ManagerDashboardScreen() {
   );
   const coachPayoutTotalDisplay = useCountUp(coachPayoutTotal);
   const outstandingBalanceDisplay = useCountUp(Math.abs(finance?.athlete_totals.outstanding_ils ?? 0));
+
+  const avgFillDisplay = useCountUp(pct(data?.utilization_avg_pct));
+  const cancellationsDisplay = useCountUp(data?.cancellations ?? 0);
+  const noShowsDisplay = useCountUp(data?.no_shows ?? 0);
+  const sessionCountDisplay = useCountUp(data?.session_count ?? 0);
+  const waitlistCountDisplay = useCountUp(data?.waitlist_count ?? 0);
+  const checkedInCountDisplay = useCountUp(data?.checked_in_count ?? 0);
 
   const athleteListModel = useMemo(() => {
     if (!finance) return { families: [] as WeeklyFinanceFamily[], solo: [] as WeeklyFinanceAthlete[] };
@@ -524,7 +532,7 @@ export default function ManagerDashboardScreen() {
       ) : null}
 
       {showStats ? (
-        <>
+        <FadeSlideIn key={periodMode}>
           <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>{t(sectionEyebrowKey(periodMode))}</Text>
           <View style={styles.statsCard}>
             <View style={styles.statsGrid}>
@@ -536,7 +544,7 @@ export default function ManagerDashboardScreen() {
                   accessibilityLabel={t("dashboard.a11yAvgFill")}
                 >
                   <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileAvgFill")}</AppText>
-                  <AppText variant="display" style={styles.tileV}>{pct(data.utilization_avg_pct)}%</AppText>
+                  <AppText variant="display" style={styles.tileV}>{Math.round(avgFillDisplay)}%</AppText>
                 </Pressable>
                 <Pressable
                   onPress={() => openWeeklyDetail("cancellations")}
@@ -545,7 +553,7 @@ export default function ManagerDashboardScreen() {
                   accessibilityLabel={t("dashboard.a11yCancellations")}
                 >
                   <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileCancellations")}</AppText>
-                  <AppText variant="display" style={styles.tileV}>{data.cancellations ?? 0}</AppText>
+                  <AppText variant="display" style={styles.tileV}>{Math.round(cancellationsDisplay)}</AppText>
                 </Pressable>
               </View>
               <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
@@ -556,7 +564,7 @@ export default function ManagerDashboardScreen() {
                   accessibilityLabel={t("dashboard.a11yNoShows")}
                 >
                   <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileNoShows")}</AppText>
-                  <AppText variant="display" style={styles.tileV}>{data.no_shows ?? 0}</AppText>
+                  <AppText variant="display" style={styles.tileV}>{Math.round(noShowsDisplay)}</AppText>
                 </Pressable>
                 <Pressable
                   onPress={() => openWeeklyDetail("sessions")}
@@ -565,7 +573,7 @@ export default function ManagerDashboardScreen() {
                   accessibilityLabel={t("dashboard.a11ySessions")}
                 >
                   <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileSessions")}</AppText>
-                  <AppText variant="display" style={styles.tileV}>{data.session_count ?? 0}</AppText>
+                  <AppText variant="display" style={styles.tileV}>{Math.round(sessionCountDisplay)}</AppText>
                 </Pressable>
               </View>
               <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
@@ -576,7 +584,7 @@ export default function ManagerDashboardScreen() {
                   accessibilityLabel={t("dashboard.a11yWaitlist")}
                 >
                   <AppText variant="label" soft style={styles.tileL}>{t("dashboard.waitlist")}</AppText>
-                  <AppText variant="display" style={styles.tileV}>{data.waitlist_count ?? 0}</AppText>
+                  <AppText variant="display" style={styles.tileV}>{Math.round(waitlistCountDisplay)}</AppText>
                 </Pressable>
                 <Pressable
                   onPress={() => openWeeklyDetail("checked_in")}
@@ -585,12 +593,12 @@ export default function ManagerDashboardScreen() {
                   accessibilityLabel={t("dashboard.a11yCheckedIn")}
                 >
                   <AppText variant="label" soft style={styles.tileL}>{t("dashboard.checkedIn")}</AppText>
-                  <AppText variant="display" style={styles.tileV}>{data.checked_in_count ?? 0}</AppText>
+                  <AppText variant="display" style={styles.tileV}>{Math.round(checkedInCountDisplay)}</AppText>
                 </Pressable>
               </View>
             </View>
           </View>
-        </>
+        </FadeSlideIn>
       ) : null}
 
       {showStats && (data.session_count ?? 0) === 0 ? (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Pressable } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import { formatSessionTimeRange, hasSessionNotEnded, sessionStartsAt } from "../../../src/lib/sessionTime";
 import { supabase } from "../../../src/lib/supabase";
@@ -29,6 +29,8 @@ import {
 } from "../../../src/lib/studioWeek";
 import { AppText } from "../../../src/components/AppText";
 import { EmptyState } from "../../../src/components/EmptyState";
+import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
+import { PressableScale } from "../../../src/components/PressableScale";
 
 export default function AthleteSessionsScreen() {
   const { profile, session } = useAuth();
@@ -295,29 +297,32 @@ export default function AthleteSessionsScreen() {
             />
           ) : (
             <View style={styles.myUpcomingList}>
-              {myUpcoming.map((s) => {
+              {myUpcoming.map((s, index) => {
                 const trainer = s.trainer?.full_name ? firstWordOfDisplayName(s.trainer.full_name) : "";
                 const time = formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60);
                 const meta = trainer ? `${time} · ${trainer}` : time;
                 const accent = resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id);
                 return (
-                  <Pressable
-                    key={s.id}
-                    onPress={() => router.push(`/(app)/athlete/session/${s.id}`)}
-                    style={({ pressed }) => [styles.upcomingRow, pressed && { opacity: 0.88 }]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${formatISODateWeekdayDayMonth(s.session_date, language)} ${meta}`}
-                  >
-                    {accent ? <View style={[styles.upcomingAccent, { backgroundColor: accent }]} /> : null}
-                    <View style={[styles.upcomingBody, isRTL && styles.upcomingBodyRtl]}>
-                      <AppText variant="body" isRTL={isRTL} style={styles.upcomingDay}>
-                        {formatISODateWeekdayDayMonth(s.session_date, language)}
-                      </AppText>
-                      <AppText variant="caption" muted isRTL={isRTL} numberOfLines={1} style={styles.upcomingMeta}>
-                        {meta}
-                      </AppText>
-                    </View>
-                  </Pressable>
+                  <FadeSlideIn key={s.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+                    <PressableScale
+                      onPress={() => router.push(`/(app)/athlete/session/${s.id}`)}
+                      style={styles.upcomingRow}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${formatISODateWeekdayDayMonth(s.session_date, language)} ${meta}`}
+                    >
+                      <View style={styles.upcomingRowInner}>
+                        {accent ? <View style={[styles.upcomingAccent, { backgroundColor: accent }]} /> : null}
+                        <View style={[styles.upcomingBody, isRTL && styles.upcomingBodyRtl]}>
+                          <AppText variant="body" isRTL={isRTL} style={styles.upcomingDay}>
+                            {formatISODateWeekdayDayMonth(s.session_date, language)}
+                          </AppText>
+                          <AppText variant="caption" muted isRTL={isRTL} numberOfLines={1} style={styles.upcomingMeta}>
+                            {meta}
+                          </AppText>
+                        </View>
+                      </View>
+                    </PressableScale>
+                  </FadeSlideIn>
                 );
               })}
             </View>
@@ -372,6 +377,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
     overflow: "hidden",
   },
+  /** PressableScale wraps children in its own Animated.View, so the row layout is reapplied here. */
+  upcomingRowInner: { flexDirection: "row" },
   upcomingAccent: { width: 3, alignSelf: "stretch" },
   upcomingBody: { flex: 1, paddingVertical: 10, paddingHorizontal: theme.spacing.sm, gap: 2 },
   upcomingBodyRtl: { alignItems: "flex-end" },

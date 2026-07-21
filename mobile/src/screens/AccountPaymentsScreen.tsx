@@ -20,6 +20,7 @@ import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { AppSearchField } from "../components/AppSearchField";
 import { AppModal } from "../components/AppModal";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
+import { SelectionPulse } from "../components/SelectionPulse";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
@@ -93,6 +94,9 @@ export default function AccountPaymentsScreen() {
   const [dateEnd, setDateEnd] = useState(defaultRange.end);
   const [payeeFilter, setPayeeFilter] = useState<PayeeFilter>({ type: "all" });
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethodFilter>("all");
+  /** Tracks the chip most recently tapped, so SelectionPulse only fires on the tap that selects it (not on mount). */
+  const [justPickedDateMode, setJustPickedDateMode] = useState<DateMode | null>(null);
+  const [justPickedMethod, setJustPickedMethod] = useState<PaymentMethodFilter | null>(null);
 
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [totalReceived, setTotalReceived] = useState(0);
@@ -538,10 +542,15 @@ export default function AccountPaymentsScreen() {
             return (
               <Pressable
                 key={opt.id}
-                onPress={() => setDateMode(opt.id)}
+                onPress={() => {
+                  setDateMode(opt.id);
+                  setJustPickedDateMode(opt.id);
+                }}
                 style={({ pressed }) => [styles.dateModeChip, on && styles.dateModeChipOn, pressed && !on && { opacity: 0.9 }]}
               >
-                <Text style={[styles.dateModeChipText, on && styles.dateModeChipTextOn]}>{opt.label}</Text>
+                <SelectionPulse trigger={on && justPickedDateMode === opt.id}>
+                  <Text style={[styles.dateModeChipText, on && styles.dateModeChipTextOn]}>{opt.label}</Text>
+                </SelectionPulse>
               </Pressable>
             );
           })}
@@ -566,12 +575,17 @@ export default function AccountPaymentsScreen() {
             return (
               <Pressable
                 key={opt.id}
-                onPress={() => setPaymentMethodFilter(opt.id)}
+                onPress={() => {
+                  setPaymentMethodFilter(opt.id);
+                  setJustPickedMethod(opt.id);
+                }}
                 style={({ pressed }) => [styles.methodChip, on && styles.methodChipOn, pressed && !on && { opacity: 0.9 }]}
               >
-                <Text style={[styles.methodChipText, on && styles.methodChipTextOn]} numberOfLines={1}>
-                  {opt.label}
-                </Text>
+                <SelectionPulse trigger={on && justPickedMethod === opt.id}>
+                  <Text style={[styles.methodChipText, on && styles.methodChipTextOn]} numberOfLines={1}>
+                    {opt.label}
+                  </Text>
+                </SelectionPulse>
               </Pressable>
             );
           })}

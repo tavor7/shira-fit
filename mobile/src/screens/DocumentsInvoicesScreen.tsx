@@ -21,6 +21,7 @@ import { useAppAlert } from "../context/AppAlertContext";
 import { useToast } from "../context/ToastContext";
 import { ManagerMoneyHubTabs, ManagerStatePillTabBar } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
+import { FadeSlideIn } from "../components/FadeSlideIn";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { PendingReceiptsPanel } from "../components/PendingReceiptsPanel";
@@ -446,7 +447,7 @@ export default function DocumentsInvoicesScreen() {
 
   const visibleTabs = sectionTabs.filter((x) => !x.managerOnly || isManager);
 
-  function renderDocumentItem({ item }: { item: DocumentRow }) {
+  function renderDocumentItem({ item, index }: { item: DocumentRow; index: number }) {
     const needsMethod = item.status === "NEEDS_PAYMENT_METHOD";
     const pdfBusy = pdfBusyId === item.id;
     const accountantBusy = accountantBusyId === item.id;
@@ -454,6 +455,7 @@ export default function DocumentsInvoicesScreen() {
     const missingEmail = !item.customer_email?.trim();
     const isManual = item.customer_type === "manual" || !!item.customer_manual_participant_id;
     return (
+      <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
       <View style={styles.docCard}>
         <View style={[styles.docHead, isRTL && styles.docHeadRtl]}>
           <View style={styles.docHeadMain}>
@@ -633,6 +635,7 @@ export default function DocumentsInvoicesScreen() {
           ) : null}
         </View>
       </View>
+      </FadeSlideIn>
     );
   }
 
@@ -881,46 +884,52 @@ export default function DocumentsInvoicesScreen() {
       <ManagerMoneyHubTabs />
 
       {section === "pending" ? (
-        <PendingReceiptsPanel
-          enabled={!!settings?.digital_receipts_enabled}
-          header={pageHeader}
-          onCreated={() => load()}
-          testingMode={!settings?.is_operational}
-        />
+        <FadeSlideIn key={section} style={styles.tabPanel}>
+          <PendingReceiptsPanel
+            enabled={!!settings?.digital_receipts_enabled}
+            header={pageHeader}
+            onCreated={() => load()}
+            testingMode={!settings?.is_operational}
+          />
+        </FadeSlideIn>
       ) : section === "settings" && isManager ? (
-        settingsContent
+        <FadeSlideIn key={section} style={styles.tabPanel}>
+          {settingsContent}
+        </FadeSlideIn>
       ) : (
-        <FlatList
-          style={styles.list}
-          data={filteredDocuments}
-          keyExtractor={(x) => x.id}
-          renderItem={renderDocumentItem}
-          ListHeaderComponent={documentsListHeader}
-          ListEmptyComponent={
-            <View style={styles.emptyBox}>
-              <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>
-                {nameFilter.trim()
-                  ? language === "he"
-                    ? "אין מסמכים לשם זה"
-                    : "No documents for this name"
-                  : language === "he"
-                    ? "אין מסמכים בטווח"
-                    : "No documents in range"}
-              </Text>
-              <Text style={[styles.emptyHint, isRTL && styles.rtl]}>
-                {nameFilter.trim()
-                  ? language === "he"
-                    ? "נסו שם אחר או נקו את הסינון."
-                    : "Try another name or clear the filter."
-                  : language === "he"
-                    ? "נסו טווח תאריכים רחב יותר או הפיקו מסמך חדש."
-                    : "Try a wider date range or create a new document."}
-              </Text>
-            </View>
-          }
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={theme.colors.cta} />}
-          contentContainerStyle={styles.listContent}
-        />
+        <FadeSlideIn key={section} style={styles.tabPanel}>
+          <FlatList
+            style={styles.list}
+            data={filteredDocuments}
+            keyExtractor={(x) => x.id}
+            renderItem={renderDocumentItem}
+            ListHeaderComponent={documentsListHeader}
+            ListEmptyComponent={
+              <View style={styles.emptyBox}>
+                <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>
+                  {nameFilter.trim()
+                    ? language === "he"
+                      ? "אין מסמכים לשם זה"
+                      : "No documents for this name"
+                    : language === "he"
+                      ? "אין מסמכים בטווח"
+                      : "No documents in range"}
+                </Text>
+                <Text style={[styles.emptyHint, isRTL && styles.rtl]}>
+                  {nameFilter.trim()
+                    ? language === "he"
+                      ? "נסו שם אחר או נקו את הסינון."
+                      : "Try another name or clear the filter."
+                    : language === "he"
+                      ? "נסו טווח תאריכים רחב יותר או הפיקו מסמך חדש."
+                      : "Try a wider date range or create a new document."}
+                </Text>
+              </View>
+            }
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={theme.colors.cta} />}
+            contentContainerStyle={styles.listContent}
+          />
+        </FadeSlideIn>
       )}
 
       <EditCustomerEmailModal
@@ -940,6 +949,7 @@ export default function DocumentsInvoicesScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  tabPanel: { flex: 1 },
   list: { flex: 1 },
   listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
   scrollContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.md },

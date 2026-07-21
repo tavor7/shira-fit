@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { DatePickerField } from "./DatePickerField";
 import { MonthPickerSheet } from "./MonthPickerSheet";
+import { SelectionPulse } from "./SelectionPulse";
 import { sessionFormStyles as sf } from "./sessionFormStyles";
 import {
   firstDayOfMonthISOLocal,
@@ -72,6 +73,9 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
   const [recentPreset, setRecentPreset] = useState<QuickPreset>(initial.recentPreset);
   const [monthAnchor, setMonthAnchor] = useState(initial.monthAnchor);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+  /** Tracks the chip most recently tapped, so SelectionPulse only fires on the tap that selects it (not on mount). */
+  const [justPickedMode, setJustPickedMode] = useState<DateMode | null>(null);
+  const [justPickedPreset, setJustPickedPreset] = useState<QuickPreset | null>(null);
 
   useEffect(() => {
     const detected = detectReportRangeState(start, end);
@@ -147,7 +151,10 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
           return (
             <Pressable
               key={opt.id}
-              onPress={() => switchMode(opt.id)}
+              onPress={() => {
+                switchMode(opt.id);
+                setJustPickedMode(opt.id);
+              }}
               style={({ pressed }) => [
                 styles.segmentBtn,
                 edgeStart && styles.segmentBtnStart,
@@ -158,9 +165,11 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
             >
-              <Text style={[styles.segmentTxt, on && styles.segmentTxtOn]} numberOfLines={1}>
-                {opt.label}
-              </Text>
+              <SelectionPulse trigger={on && justPickedMode === opt.id}>
+                <Text style={[styles.segmentTxt, on && styles.segmentTxtOn]} numberOfLines={1}>
+                  {opt.label}
+                </Text>
+              </SelectionPulse>
             </Pressable>
           );
         })}
@@ -173,16 +182,21 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
             return (
               <Pressable
                 key={opt.id}
-                onPress={() => applyRecent(opt.id)}
+                onPress={() => {
+                  applyRecent(opt.id);
+                  setJustPickedPreset(opt.id);
+                }}
                 style={({ pressed }) => [styles.presetCell, on && styles.presetCellOn, pressed && !on && styles.presetCellPressed]}
                 accessibilityRole="button"
                 accessibilityLabel={opt.a11y}
                 accessibilityState={{ selected: on }}
               >
-                <Text style={[styles.presetNum, on && styles.presetNumOn]}>{opt.id}</Text>
-                <Text style={[styles.presetUnit, on && styles.presetUnitOn]} numberOfLines={1}>
-                  {t("reports.presetDays")}
-                </Text>
+                <SelectionPulse trigger={on && justPickedPreset === opt.id}>
+                  <Text style={[styles.presetNum, on && styles.presetNumOn]}>{opt.id}</Text>
+                  <Text style={[styles.presetUnit, on && styles.presetUnitOn]} numberOfLines={1}>
+                    {t("reports.presetDays")}
+                  </Text>
+                </SelectionPulse>
               </Pressable>
             );
           })}

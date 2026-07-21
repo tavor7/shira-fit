@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -10,6 +10,8 @@ import { useToast } from "../context/ToastContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { AppSearchField } from "../components/AppSearchField";
 import { EmptyState } from "../components/EmptyState";
+import { FadeSlideIn } from "../components/FadeSlideIn";
+import { PressableScale } from "../components/PressableScale";
 import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 import {
   buildManualDuplicateIndexes,
@@ -195,7 +197,7 @@ export default function StaffUsersScreen() {
             />
           )
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const nameKey = normalizeParticipantName(item.full_name ?? "");
           const profileDuplicateName = item.kind === "profile" ? (duplicateNameCounts[nameKey] ?? 0) > 1 : false;
           const manualDuplicateName =
@@ -211,7 +213,8 @@ export default function StaffUsersScreen() {
               : 0;
 
           return (
-            <Pressable
+            <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+            <PressableScale
               onPress={() => {
                 if (Platform.OS === "ios" || Platform.OS === "android") {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -261,7 +264,8 @@ export default function StaffUsersScreen() {
                       item.disabled_at ? ` · ${t("profile.accountDisabledBadge")}` : ""
                     }`}
               </Text>
-            </Pressable>
+            </PressableScale>
+            </FadeSlideIn>
           );
         }}
       />

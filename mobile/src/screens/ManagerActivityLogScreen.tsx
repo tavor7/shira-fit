@@ -11,6 +11,7 @@ import { DateRangeFormPanel } from "../components/DateRangeFormPanel";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
+import { FadeSlideIn } from "../components/FadeSlideIn";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import { activityEventLooksRevertible, activityRevertReasonLabel } from "../lib/activityLogRevert";
 import {
@@ -665,7 +666,7 @@ export default function ManagerActivityLogScreen() {
           )
         }
         ListFooterComponent={listFooter}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
             const details = buildActivityLogDetailLines(item, profileLabels, manualLabels, sessionSummaries, language);
             const actorLine = item.actor_user_id
               ? `${language === "he" ? "מבצע" : "Actor"}: ${profileLabels[item.actor_user_id] ?? item.actor_user_id}`
@@ -674,6 +675,7 @@ export default function ManagerActivityLogScreen() {
             const canRevert = activityEventLooksRevertible(item);
             const revertBusy = revertingId === item.id;
             return (
+              <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
               <View style={[styles.card, isReverted && styles.cardReverted]}>
                 <View style={[styles.cardHeaderRow, isRTL && styles.cardHeaderRowRtl]}>
                   <Text style={[styles.when, isRTL && styles.rtl, styles.whenInHeader]}>{formatWhen(item.created_at, language)}</Text>
@@ -729,6 +731,7 @@ export default function ManagerActivityLogScreen() {
                   </Text>
                 ) : null}
               </View>
+              </FadeSlideIn>
             );
           }}
       />

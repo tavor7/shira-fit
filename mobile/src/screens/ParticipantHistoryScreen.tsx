@@ -5,6 +5,7 @@ import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
+import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { theme } from "../theme";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
@@ -1083,7 +1084,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                     </Text>
                   </View>
                 </View>
-                {billingSummary.byMethod.length > 0 ? (
+                <AnimatedOptionExpand open={billingSummary.byMethod.length > 0}>
                   <View style={styles.billingMethodsBlock}>
                     <Text style={[styles.billingMethodsTitle, isRTL && styles.rtlText]}>{t("billing.byMethod")}</Text>
                     <View style={[styles.billingMethodGrid, rtlRowFlip && styles.billingMethodGridRtl]}>
@@ -1099,12 +1100,12 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                       ))}
                     </View>
                   </View>
-                ) : null}
-                {billingSummary.missingRuleCount > 0 ? (
+                </AnimatedOptionExpand>
+                <AnimatedOptionExpand open={billingSummary.missingRuleCount > 0}>
                   <Text style={[styles.billingWarn, isRTL && styles.rtlText]}>
                     {t("billing.missingRules").replace("{n}", String(billingSummary.missingRuleCount))}
                   </Text>
-                ) : null}
+                </AnimatedOptionExpand>
                 <Pressable
                   style={({ pressed }) => [styles.addPayBtn, pressed && { opacity: 0.9 }]}
                   onPress={() => {

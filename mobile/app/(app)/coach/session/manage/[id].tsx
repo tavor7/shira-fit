@@ -1,10 +1,11 @@
 import { useLocalSearchParams, router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView, Modal } from "react-native";
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { supabase } from "../../../../../src/lib/supabase";
 import type { TrainingSession } from "../../../../../src/types/database";
 import { theme } from "../../../../../src/theme";
 import { PrimaryButton } from "../../../../../src/components/PrimaryButton";
+import { AppModal } from "../../../../../src/components/AppModal";
 import { SessionWhenFields } from "../../../../../src/components/SessionWhenFields";
 import { SessionCapacityFields } from "../../../../../src/components/SessionCapacityFields";
 import {
@@ -557,10 +558,13 @@ export default function CoachSessionManageScreen() {
       </View>
       </View>
 
-      <Modal visible={dupOpen} transparent animationType="fade" onRequestClose={() => (dupBusy ? null : setDupOpen(false))}>
-        <View style={styles.dupBackdrop}>
-          <Pressable style={styles.dupBackdropTouch} onPress={() => (dupBusy ? null : setDupOpen(false))} />
-          <View style={styles.dupCard}>
+      <AppModal
+        visible={dupOpen}
+        onClose={() => (dupBusy ? null : setDupOpen(false))}
+        variant="dialog"
+        backdropAccessibilityLabel={t("common.cancel")}
+        cardStyle={styles.dupCard}
+      >
             <Text style={[styles.dupTitle, isRTL && styles.rtlText]}>{t("sessionDetail.duplicateSession")}</Text>
             <SessionWhenFields
               date={dupDate}
@@ -619,9 +623,7 @@ export default function CoachSessionManageScreen() {
             <Pressable style={({ pressed }) => [styles.dupCancel, pressed && { opacity: 0.85 }]} onPress={() => (dupBusy ? null : setDupOpen(false))}>
               <Text style={styles.dupCancelTxt}>{t("common.cancel")}</Text>
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
     </ScrollView>
       <SessionSeriesScopeSheet
         visible={seriesScopeOpen}
@@ -651,15 +653,7 @@ const styles = StyleSheet.create({
   err: { color: theme.colors.error, fontSize: 16, fontWeight: "600" },
   cancelEdit: { marginTop: theme.spacing.sm, paddingVertical: 12, alignItems: "center" },
   cancelEditTxt: { color: theme.colors.textSoft, fontWeight: "800", fontSize: 15 },
-  dupBackdrop: { flex: 1, justifyContent: "center", padding: theme.spacing.lg, backgroundColor: theme.overlay.backdrop },
-  dupBackdropTouch: { ...StyleSheet.absoluteFillObject },
-  dupCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    padding: theme.spacing.md,
-  },
+  dupCard: { padding: theme.spacing.md },
   dupTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text, marginBottom: 6 },
   dupHint: { fontSize: 12, color: theme.colors.textSoft, lineHeight: 17, marginBottom: 10 },
   dupSectionLabel: {

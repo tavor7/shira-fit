@@ -19,6 +19,8 @@ import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRe
 import { logRedirectToManagerSessions } from "../../../src/lib/managerSessionsRedirectLog";
 import { isSessionInActiveSeries } from "../../../src/lib/sessionSeries";
 import { EmptyState } from "../../../src/components/EmptyState";
+import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
+import { PressableScale } from "../../../src/components/PressableScale";
 
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
@@ -291,6 +293,8 @@ export default function ManagerRosterCalendarScreen() {
     return <Redirect href="/(app)/manager/sessions" />;
   }
 
+  let rosterRowIndex = 0;
+
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ title: t("screen.managerRosterCalendar") }} />
@@ -372,63 +376,67 @@ export default function ManagerRosterCalendarScreen() {
                   const m = s.max_participants ?? 0;
                   const roster = rosterBySession[s.id] ?? [];
                   const noteText = notesBySession[s.id]?.trim() ?? "";
+                  const rowDelay = Math.min(rosterRowIndex++, theme.motion.maxStaggerIndex) * 30;
                   return (
-                    <Pressable
-                      key={s.id}
-                      onPress={() => router.push(`/(app)/manager/session/${s.id}`)}
-                      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-                    >
-                      <View style={[styles.accent, accent ? { backgroundColor: accent } : null]} />
-                      <View style={styles.cardBody}>
-                        <View style={[styles.cardTop, isRTL && styles.cardTopRtl]}>
-                          <Text style={[styles.time, isRTL && styles.rtlText]}>
-                            {formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60)}
-                          </Text>
-                          <Text style={styles.count}>
-                            {c} / {m}
-                          </Text>
-                        </View>
-                        <Text style={[styles.trainer, isRTL && styles.rtlText]} numberOfLines={1}>
-                          {s.trainer?.full_name ?? t("rosterCalendar.noTrainer")}
-                        </Text>
-                        {roster.length === 0 ? (
-                          <Text style={[styles.namesEmpty, isRTL && styles.rtlText]}>
-                            {t("empty.noRegistrations")}
-                          </Text>
-                        ) : (
-                          <View style={styles.namesList}>
-                            {roster.map((r, idx) => (
-                              <Text
-                                key={`${s.id}:r:${idx}:${r.name}:${r.phone ?? ""}`}
-                                style={[styles.name, isRTL && styles.rtlText]}
-                                numberOfLines={2}
-                              >
-                                {r.name}
-                                {r.phone ? (
-                                  <Text
-                                    onPress={(e) => {
-                                      e.stopPropagation();
-                                      void Linking.openURL(`tel:${r.phone}`);
-                                    }}
-                                    style={styles.namePhone}
-                                  >
-                                    {` · ${r.phone}`}
-                                  </Text>
-                                ) : null}
-                              </Text>
-                            ))}
-                          </View>
-                        )}
-                        {noteText.length > 0 ? (
-                          <View style={styles.notesBlock}>
-                            <Text style={[styles.notesLabel, isRTL && styles.rtlText]}>
-                              {t("rosterCalendar.notes")}
+                    <FadeSlideIn key={s.id} delay={rowDelay}>
+                      <PressableScale
+                        onPress={() => router.push(`/(app)/manager/session/${s.id}`)}
+                        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+                      >
+                        <View style={styles.cardRow}>
+                        <View style={[styles.accent, accent ? { backgroundColor: accent } : null]} />
+                        <View style={styles.cardBody}>
+                          <View style={[styles.cardTop, isRTL && styles.cardTopRtl]}>
+                            <Text style={[styles.time, isRTL && styles.rtlText]}>
+                              {formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60)}
                             </Text>
-                            <Text style={[styles.notesBody, isRTL && styles.rtlText]}>{noteText}</Text>
+                            <Text style={styles.count}>
+                              {c} / {m}
+                            </Text>
                           </View>
-                        ) : null}
-                      </View>
-                    </Pressable>
+                          <Text style={[styles.trainer, isRTL && styles.rtlText]} numberOfLines={1}>
+                            {s.trainer?.full_name ?? t("rosterCalendar.noTrainer")}
+                          </Text>
+                          {roster.length === 0 ? (
+                            <Text style={[styles.namesEmpty, isRTL && styles.rtlText]}>
+                              {t("empty.noRegistrations")}
+                            </Text>
+                          ) : (
+                            <View style={styles.namesList}>
+                              {roster.map((r, idx) => (
+                                <Text
+                                  key={`${s.id}:r:${idx}:${r.name}:${r.phone ?? ""}`}
+                                  style={[styles.name, isRTL && styles.rtlText]}
+                                  numberOfLines={2}
+                                >
+                                  {r.name}
+                                  {r.phone ? (
+                                    <Text
+                                      onPress={(e) => {
+                                        e.stopPropagation();
+                                        void Linking.openURL(`tel:${r.phone}`);
+                                      }}
+                                      style={styles.namePhone}
+                                    >
+                                      {` · ${r.phone}`}
+                                    </Text>
+                                  ) : null}
+                                </Text>
+                              ))}
+                            </View>
+                          )}
+                          {noteText.length > 0 ? (
+                            <View style={styles.notesBlock}>
+                              <Text style={[styles.notesLabel, isRTL && styles.rtlText]}>
+                                {t("rosterCalendar.notes")}
+                              </Text>
+                              <Text style={[styles.notesBody, isRTL && styles.rtlText]}>{noteText}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        </View>
+                      </PressableScale>
+                    </FadeSlideIn>
                   );
                 })}
               </View>
@@ -571,13 +579,13 @@ const styles = StyleSheet.create({
   dayCards: { marginTop: theme.spacing.sm, gap: theme.spacing.sm },
 
   card: {
-    flexDirection: "row",
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     backgroundColor: theme.colors.surfaceElevated,
     overflow: "hidden",
   },
+  cardRow: { flexDirection: "row" },
   cardPressed: { opacity: 0.92 },
   accent: { width: theme.spacing.xs, backgroundColor: theme.colors.borderMuted },
   cardBody: { flex: 1, padding: theme.spacing.md, gap: theme.spacing.xs, minWidth: 0 },

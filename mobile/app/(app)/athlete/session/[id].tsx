@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router, Stack, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, StyleSheet, Modal, ScrollView, Platform } from "react-native";
+import { View, StyleSheet, ScrollView, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../../src/types/database";
@@ -33,6 +33,7 @@ import {
   type SessionRegistrationOpenState,
 } from "../../../../src/lib/registrationOpeningSchedule";
 import { AppText } from "../../../../src/components/AppText";
+import { AppModal } from "../../../../src/components/AppModal";
 import { AppTextField } from "../../../../src/components/AppTextField";
 import { Skeleton } from "../../../../src/components/Skeleton";
 
@@ -498,36 +499,38 @@ export default function AthleteSessionDetail() {
     </ScrollView>
         <SessionAdjacentNav variant="athlete" sessionId={sessionId} />
       </View>
-      <Modal visible={cancelOpen} transparent animationType="slide">
-        <View style={styles.modal}>
-          <View style={styles.modalCard}>
-            <AppText variant="title" isRTL={isRTL} style={styles.mTitle}>
-              {t("athleteSession.cancelReasonTitle")}
-            </AppText>
-            <AppTextField
-              isRTL={isRTL}
-              placeholder={t("athleteSession.cancelReasonPlaceholder")}
-              value={reason}
-              onChangeText={setReason}
-              multiline
-              style={styles.cancelReasonInput}
-              containerStyle={styles.cancelReasonField}
-              accessibilityLabel={t("athleteSession.cancelReasonPlaceholder")}
-            />
-            <PrimaryButton
-              label={cancelling ? t("common.loading") : t("athleteSession.confirmCancel")}
-              onPress={cancel}
-              loading={cancelling}
-              loadingLabel={t("common.loading")}
-            />
-            <ActionButton
-              label={t("common.cancel")}
-              onPress={() => setCancelOpen(false)}
-              style={{ marginTop: 16, alignSelf: "center" }}
-            />
-          </View>
-        </View>
-      </Modal>
+      <AppModal
+        visible={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        variant="dialog"
+        backdropAccessibilityLabel={t("common.cancel")}
+        cardStyle={styles.modalCard}
+      >
+        <AppText variant="title" isRTL={isRTL} style={styles.mTitle}>
+          {t("athleteSession.cancelReasonTitle")}
+        </AppText>
+        <AppTextField
+          isRTL={isRTL}
+          placeholder={t("athleteSession.cancelReasonPlaceholder")}
+          value={reason}
+          onChangeText={setReason}
+          multiline
+          style={styles.cancelReasonInput}
+          containerStyle={styles.cancelReasonField}
+          accessibilityLabel={t("athleteSession.cancelReasonPlaceholder")}
+        />
+        <PrimaryButton
+          label={cancelling ? t("common.loading") : t("athleteSession.confirmCancel")}
+          onPress={cancel}
+          loading={cancelling}
+          loadingLabel={t("common.loading")}
+        />
+        <ActionButton
+          label={t("common.cancel")}
+          onPress={() => setCancelOpen(false)}
+          style={{ marginTop: 16, alignSelf: "center" }}
+        />
+      </AppModal>
     </>
   );
 }
@@ -639,14 +642,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textSoft,
     textAlign: "center",
   },
-  modal: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: theme.overlay.backdrop },
-  modalCard: {
-    backgroundColor: theme.colors.surfaceElevated,
-    borderRadius: theme.radius.lg,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-  },
+  modalCard: { padding: 24 },
   mTitle: { marginBottom: 12 },
   cancelReasonField: { marginBottom: theme.spacing.md },
   cancelReasonInput: {

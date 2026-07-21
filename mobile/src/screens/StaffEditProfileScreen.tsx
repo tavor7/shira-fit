@@ -14,6 +14,9 @@ import { isValidISODateString } from "../lib/isoDate";
 import { formatDateTimeForDisplay } from "../lib/dateFormat";
 import { useAuth } from "../context/AuthContext";
 
+/** How long the save checkmark holds before navigating back. */
+const SAVE_SUCCESS_HOLD_MS = 1200;
+
 export default function StaffEditProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = String(id ?? "");
@@ -31,6 +34,7 @@ export default function StaffEditProfileScreen() {
   const [gender, setGender] = useState<"male" | "female" | "">("");
   const [dob, setDob] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [confirmingEmail, setConfirmingEmail] = useState(false);
   const [lastSignInAt, setLastSignInAt] = useState<string | null>(null);
   const [metaLoading, setMetaLoading] = useState(true);
@@ -138,6 +142,8 @@ export default function StaffEditProfileScreen() {
       return;
     }
     showToast({ message: t("common.saved"), variant: "success" });
+    setSaveSuccess(true);
+    await new Promise((resolve) => setTimeout(resolve, SAVE_SUCCESS_HOLD_MS));
     router.back();
   }
 
@@ -350,7 +356,13 @@ export default function StaffEditProfileScreen() {
 
       <DatePickerField label={t("profile.dob")} value={dob} onChange={setDob} />
 
-      <PrimaryButton label={t("common.save")} onPress={save} loading={saving} loadingLabel={t("common.loading")} />
+      <PrimaryButton
+        label={t("common.save")}
+        onPress={save}
+        loading={saving}
+        success={saveSuccess}
+        loadingLabel={t("common.loading")}
+      />
 
       <Pressable
         onPress={() => void toggleAccountDisabled()}
