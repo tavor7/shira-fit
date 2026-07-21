@@ -356,6 +356,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
 
     "sessionPresence.oneViewing": "{name} is also viewing this session",
     "sessionPresence.manyViewing": "{n} other staff are also viewing this session",
+    "activeUsers.now": "{n} active now",
 
     "tab.athleteBrowse": "Browse",
     "tab.athleteMySessions": "My sessions",
@@ -1558,6 +1559,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
 
     "sessionPresence.oneViewing": "{name} גם צופה באימון הזה",
     "sessionPresence.manyViewing": "עוד {n} אנשי צוות צופים באימון הזה",
+    "activeUsers.now": "{n} פעילים כעת",
 
     "dashboard.management": "ניהול",
     "dashboard.weeklyOverview": "סקירה שבועית",

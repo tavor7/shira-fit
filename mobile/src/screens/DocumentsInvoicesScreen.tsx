@@ -22,6 +22,8 @@ import { ManagerMoneyHubTabs, ManagerStatePillTabBar } from "../components/Manag
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { AppSwitch } from "../components/AppSwitch";
 import { FadeSlideIn } from "../components/FadeSlideIn";
+import { CrossfadeSwap } from "../components/CrossfadeSwap";
+import { useCountUp } from "../hooks/useCountUp";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { PendingReceiptsPanel } from "../components/PendingReceiptsPanel";
@@ -179,6 +181,10 @@ export default function DocumentsInvoicesScreen() {
       vat: active.reduce((s, r) => s + Number(r.vat_amount), 0),
     };
   }, [reportRows]);
+
+  const reportCountDisplay = useCountUp(reportTotals.count);
+  const reportGrossDisplay = useCountUp(reportTotals.gross);
+  const reportVatDisplay = useCountUp(reportTotals.vat);
 
   const load = useCallback(async () => {
     try {
@@ -833,17 +839,17 @@ export default function DocumentsInvoicesScreen() {
         <>
           <View style={[styles.summaryRow, isRTL && styles.summaryRowRtl]}>
             <View style={styles.summaryStat}>
-              <Text style={styles.summaryValue}>{reportTotals.count}</Text>
+              <Text style={styles.summaryValue}>{Math.round(reportCountDisplay)}</Text>
               <Text style={styles.summaryLabel}>{language === "he" ? "מסמכים" : "Documents"}</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryStat}>
-              <Text style={styles.summaryValue}>{formatIls(reportTotals.gross)}</Text>
+              <Text style={styles.summaryValue}>{formatIls(reportGrossDisplay)}</Text>
               <Text style={styles.summaryLabel}>{language === "he" ? "סה״כ ברוטו" : "Gross total"}</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryStat}>
-              <Text style={styles.summaryValue}>{formatIls(reportTotals.vat)}</Text>
+              <Text style={styles.summaryValue}>{formatIls(reportVatDisplay)}</Text>
               <Text style={styles.summaryLabel}>{language === "he" ? "מע״מ" : "VAT"}</Text>
             </View>
           </View>
@@ -859,25 +865,22 @@ export default function DocumentsInvoicesScreen() {
     </>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.screen}>
-        <Stack.Screen options={{ title: t("menu.documentsInvoices") }} />
-        <ManagerMoneyHubTabs />
-        <View style={styles.loaderSkeletonList}>
-          <ListRowSkeleton />
-          <ListRowSkeleton />
-          <ListRowSkeleton />
-        </View>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ title: t("menu.documentsInvoices") }} />
       <ManagerMoneyHubTabs />
 
+      <CrossfadeSwap
+        loading={loading}
+        style={styles.tabPanel}
+        skeleton={
+          <View style={styles.loaderSkeletonList}>
+            <ListRowSkeleton />
+            <ListRowSkeleton />
+            <ListRowSkeleton />
+          </View>
+        }
+      >
       {section === "pending" ? (
         <FadeSlideIn key={section} style={styles.tabPanel}>
           <PendingReceiptsPanel
@@ -926,6 +929,7 @@ export default function DocumentsInvoicesScreen() {
           />
         </FadeSlideIn>
       )}
+      </CrossfadeSwap>
 
       <EditCustomerEmailModal
         visible={editEmailDoc != null}

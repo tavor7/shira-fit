@@ -37,6 +37,8 @@ import { type FamilyMemberKind, memberPayeeKey, parseFamilyMembers } from "../li
 import { CreateDocumentModal, type CreateDocumentPrefill } from "../components/CreateDocumentModal";
 import { fetchReceiptSettings } from "../lib/documents";
 import type { AthleteAccountPayment } from "../types/database";
+import { FadeSlideIn } from "../components/FadeSlideIn";
+import { useCountUp } from "../hooks/useCountUp";
 
 type DateMode = "all" | "range";
 type PaymentMethodFilter = "all" | SessionPaymentMethodKey;
@@ -498,6 +500,9 @@ export default function AccountPaymentsScreen() {
     setAddPayOpen(true);
   }
 
+  const totalCountDisplay = useCountUp(totalCount);
+  const totalReceivedDisplay = useCountUp(totalReceived);
+
   const dateModeOptions: { id: DateMode; label: string }[] = [
     { id: "all", label: t("accountPayments.allDates") },
     { id: "range", label: t("accountPayments.dateRange") },
@@ -593,12 +598,12 @@ export default function AccountPaymentsScreen() {
 
         <View style={[styles.summaryRow, rtlRow && styles.summaryRowRtl]}>
           <View style={styles.summaryStat}>
-            <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{totalCount}</Text>
+            <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{Math.round(totalCountDisplay)}</Text>
             <Text style={[styles.summaryLabel, isRTL && styles.rtl]}>{t("accountPayments.paymentCount")}</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryStat}>
-            <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{`${Math.round(totalReceived * 100) / 100} ₪`}</Text>
+            <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{`${Math.round(totalReceivedDisplay * 100) / 100} ₪`}</Text>
             <Text style={[styles.summaryLabel, isRTL && styles.rtl]}>{t("billing.received")}</Text>
           </View>
         </View>
@@ -629,7 +634,7 @@ export default function AccountPaymentsScreen() {
             <EmptyState icon="💳" title={t("accountPayments.empty")} isRTL={isRTL} />
           )
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const amt = parseMoney(item.amount_ils);
           const amtTxt = amt !== null && amt > 0 ? `${amt} ₪` : "—";
           const busy = deletingId === item.record_id;
@@ -643,6 +648,7 @@ export default function AccountPaymentsScreen() {
                 }`
               : null;
           return (
+            <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <View style={styles.paymentCard}>
               <View style={[styles.paymentHead, rtlRow && styles.paymentHeadRtl]}>
                 <Text style={[styles.paymentDate, isRTL && styles.rtl]} numberOfLines={2}>
@@ -730,6 +736,7 @@ export default function AccountPaymentsScreen() {
                 )}
               </View>
             </View>
+            </FadeSlideIn>
           );
         }}
       />

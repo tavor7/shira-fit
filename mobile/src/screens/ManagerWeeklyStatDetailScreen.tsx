@@ -25,6 +25,8 @@ import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
+import { FadeSlideIn } from "../components/FadeSlideIn";
+import { CrossfadeSwap } from "../components/CrossfadeSwap";
 
 type SessionBrief = {
   session_date: string;
@@ -301,9 +303,9 @@ export default function ManagerWeeklyStatDetailScreen() {
             : rows;
         setBody(
           <View style={styles.list}>
-            {ordered.map(({ s, n, pct }) => (
+            {ordered.map(({ s, n, pct }, index) => (
+              <FadeSlideIn key={s.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
               <Pressable
-                key={s.id}
                 onPress={() => router.push(`/(app)/manager/session/${s.id}` as Href)}
                 style={({ pressed }) => [styles.rowCard, pressed && styles.rowCardPressed]}
                 accessibilityRole="button"
@@ -323,6 +325,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                   <Text style={styles.rowHint}>{language === "he" ? "מוסתר" : "Hidden"}</Text>
                 ) : null}
               </Pressable>
+              </FadeSlideIn>
             ))}
             {ordered.length === 0 ? (
               <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
@@ -368,8 +371,11 @@ export default function ManagerWeeklyStatDetailScreen() {
                 !!sess &&
                 isCancellationWithinHoursBeforeSession(sess.session_date, sess.start_time, c.cancelled_at, 12);
               return (
-                <Pressable
+                <FadeSlideIn
                   key={`${c.session_id}-${c.user_id}-${c.cancelled_at}-${idx}`}
+                  delay={Math.min(idx, theme.motion.maxStaggerIndex) * 30}
+                >
+                <Pressable
                   onPress={() => router.push(`/(app)/manager/session/${c.session_id}` as Href)}
                   style={({ pressed }) => [styles.rowCard, pressed && styles.rowCardPressed]}
                   accessibilityRole="button"
@@ -395,6 +401,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                       : ""}
                   </Text>
                 </Pressable>
+                </FadeSlideIn>
               );
             })}
             {list.length === 0 ? (
@@ -483,8 +490,10 @@ export default function ManagerWeeklyStatDetailScreen() {
 
         setBody(
           <View style={styles.list}>
-            {rows.map((r) => (
-              <NoShowRowCard key={r.key} row={r} language={language} isRTL={isRTL} t={t} />
+            {rows.map((r, index) => (
+              <FadeSlideIn key={r.key} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+                <NoShowRowCard row={r} language={language} isRTL={isRTL} t={t} />
+              </FadeSlideIn>
             ))}
             {rows.length === 0 ? (
               <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
@@ -513,13 +522,16 @@ export default function ManagerWeeklyStatDetailScreen() {
         }[];
         setBody(
           <View style={styles.list}>
-            {list.map((w) => {
+            {list.map((w, index) => {
               const p = w.profiles ? oneRelation(w.profiles) : null;
               const sess = oneRelation(w.training_sessions as any);
               const name = p?.full_name ?? w.user_id;
               return (
-                <Pressable
+                <FadeSlideIn
                   key={`${w.session_id}-${w.user_id}-${w.requested_at}`}
+                  delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}
+                >
+                <Pressable
                   onPress={() => router.push(`/(app)/manager/session/${w.session_id}` as Href)}
                   style={({ pressed }) => [styles.rowCard, pressed && styles.rowCardPressed]}
                 >
@@ -533,6 +545,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                   </Text>
                   <Text style={styles.rowHint}>{formatDateTimeForDisplay(w.requested_at, language)}</Text>
                 </Pressable>
+                </FadeSlideIn>
               );
             })}
             {list.length === 0 ? (
@@ -606,8 +619,8 @@ export default function ManagerWeeklyStatDetailScreen() {
         setBody(
           <View style={styles.list}>
             {rows.map((r, idx) => (
+              <FadeSlideIn key={`${r.session_id}-${r.name}-${idx}`} delay={Math.min(idx, theme.motion.maxStaggerIndex) * 30}>
               <Pressable
-                key={`${r.session_id}-${r.name}-${idx}`}
                 onPress={() => router.push(`/(app)/manager/session/${r.session_id}` as Href)}
                 style={({ pressed }) => [styles.rowCard, pressed && styles.rowCardPressed]}
               >
@@ -619,6 +632,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                   {formatSessionTimeRange(r.start_time, r.duration_minutes)}
                 </Text>
               </Pressable>
+              </FadeSlideIn>
             ))}
             {rows.length === 0 ? (
               <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
@@ -663,15 +677,18 @@ export default function ManagerWeeklyStatDetailScreen() {
           <Text style={[styles.hint, isRTL && styles.rtl]}>{t("dashboard.detailHintAvgFill")}</Text>
         ) : null}
 
-        {loading ? (
-          <View style={styles.skeletonList}>
-            <ListRowSkeleton />
-            <ListRowSkeleton />
-            <ListRowSkeleton />
-          </View>
-        ) : null}
-        {error ? <Text style={styles.err}>{error}</Text> : null}
-        {!loading && !error ? body : null}
+        <CrossfadeSwap
+          loading={loading}
+          skeleton={
+            <View style={styles.skeletonList}>
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+            </View>
+          }
+        >
+          {error ? <Text style={styles.err}>{error}</Text> : body}
+        </CrossfadeSwap>
       </ScrollView>
     </>
   );

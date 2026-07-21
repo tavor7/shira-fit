@@ -9,6 +9,7 @@ import { EmptyState } from "../../../src/components/EmptyState";
 import { SessionCardSkeleton } from "../../../src/components/SessionCardSkeleton";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
 import { useI18n } from "../../../src/context/I18nContext";
+import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
 
 type TsNested = {
   id: string;
@@ -112,51 +113,56 @@ export default function MySessionsScreen() {
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ title: t("screen.athleteMySessions") }} />
-      {loading ? (
-        <View style={styles.loadingBox}>
-          <SessionCardSkeleton />
-          <SessionCardSkeleton />
-          <SessionCardSkeleton />
-        </View>
-      ) : loadError ? (
-        <EmptyState
-          title={t("athleteMySessions.loadErrorTitle")}
-          body={t("athleteMySessions.loadErrorBody")}
-          icon="⚠️"
-          actionLabel={t("athleteMySessions.retry")}
-          onAction={() => void load()}
-          isRTL={isRTL}
-          style={styles.emptyPage}
-        />
-      ) : !hasRegistrations ? (
-        <EmptyState
-          title={t("empty.noActiveRegistrations")}
-          body={t("athleteMySessions.emptyBody")}
-          icon="📅"
-          actionLabel={t("athleteMySessions.browseSessions")}
-          onAction={() => router.push("/(app)/athlete/sessions")}
-          isRTL={isRTL}
-          style={styles.emptyPage}
-        />
-      ) : (
-        <>
-          <SessionsWeekCalendar
-            items={items}
-            isLoading={false}
-            emptyLabel={t("empty.noSessionsWeek")}
-            onDayPress={(iso) => setSheetDay(iso)}
-            weekOffset={calendarWeekOffset}
-            onWeekOffsetChange={setCalendarWeekOffset}
+      <CrossfadeSwap
+        loading={loading}
+        skeleton={
+          <View style={styles.loadingBox}>
+            <SessionCardSkeleton />
+            <SessionCardSkeleton />
+            <SessionCardSkeleton />
+          </View>
+        }
+      >
+        {loadError ? (
+          <EmptyState
+            title={t("athleteMySessions.loadErrorTitle")}
+            body={t("athleteMySessions.loadErrorBody")}
+            icon="⚠️"
+            actionLabel={t("athleteMySessions.retry")}
+            onAction={() => void load()}
+            isRTL={isRTL}
+            style={styles.emptyPage}
           />
-          <DaySessionsSheet
-            visible={sheetDay !== null}
-            onClose={() => setSheetDay(null)}
-            dateIso={sheetDay ?? ""}
-            items={sheetItems}
-            variant="athlete"
+        ) : !hasRegistrations ? (
+          <EmptyState
+            title={t("empty.noActiveRegistrations")}
+            body={t("athleteMySessions.emptyBody")}
+            icon="📅"
+            actionLabel={t("athleteMySessions.browseSessions")}
+            onAction={() => router.push("/(app)/athlete/sessions")}
+            isRTL={isRTL}
+            style={styles.emptyPage}
           />
-        </>
-      )}
+        ) : (
+          <>
+            <SessionsWeekCalendar
+              items={items}
+              isLoading={false}
+              emptyLabel={t("empty.noSessionsWeek")}
+              onDayPress={(iso) => setSheetDay(iso)}
+              weekOffset={calendarWeekOffset}
+              onWeekOffsetChange={setCalendarWeekOffset}
+            />
+            <DaySessionsSheet
+              visible={sheetDay !== null}
+              onClose={() => setSheetDay(null)}
+              dateIso={sheetDay ?? ""}
+              items={sheetItems}
+              variant="athlete"
+            />
+          </>
+        )}
+      </CrossfadeSwap>
     </View>
   );
 }

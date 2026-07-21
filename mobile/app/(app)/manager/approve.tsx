@@ -11,6 +11,8 @@ import { EmptyState } from "../../../src/components/EmptyState";
 import { FlyOffRow } from "../../../src/components/FlyOffRow";
 import { ListRowSkeleton } from "../../../src/components/ListRowSkeleton";
 import { formatDateTimeForDisplay } from "../../../src/lib/dateFormat";
+import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
+import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 
 type Row = { user_id: string; username: string; full_name: string; phone: string };
 
@@ -175,27 +177,34 @@ export default function ApproveAthletesScreen() {
             <AppText variant="title" isRTL={isRTL} style={styles.historyTitle}>
               {t("approve.historyTitle")}
             </AppText>
-            {historyLoading ? (
-              <View style={styles.historySkeletonList}>
-                <ListRowSkeleton />
-                <ListRowSkeleton />
-              </View>
-            ) : history.length === 0 ? (
-              <AppText variant="caption" muted isRTL={isRTL} style={styles.historyEmpty}>
-                {t("approve.historyEmpty")}
-              </AppText>
-            ) : (
-              history.map((item) => (
-                <View key={item.id} style={styles.historyRow}>
-                  <AppText variant="body">{item.athleteName}</AppText>
-                  <AppText variant="caption" muted isRTL={isRTL} style={styles.historyMeta}>
-                    {t("approve.approvedBy")
-                      .replace("{name}", item.actorUserId ? actorLabels[item.actorUserId] ?? item.actorUserId : t("approve.unknownManager"))
-                      .replace("{when}", formatDateTimeForDisplay(item.createdAt, language))}
-                  </AppText>
+            <CrossfadeSwap
+              loading={historyLoading}
+              skeleton={
+                <View style={styles.historySkeletonList}>
+                  <ListRowSkeleton />
+                  <ListRowSkeleton />
                 </View>
-              ))
-            )}
+              }
+            >
+              {history.length === 0 ? (
+                <AppText variant="caption" muted isRTL={isRTL} style={styles.historyEmpty}>
+                  {t("approve.historyEmpty")}
+                </AppText>
+              ) : (
+                history.map((item, index) => (
+                  <FadeSlideIn key={item.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+                    <View style={styles.historyRow}>
+                      <AppText variant="body">{item.athleteName}</AppText>
+                      <AppText variant="caption" muted isRTL={isRTL} style={styles.historyMeta}>
+                        {t("approve.approvedBy")
+                          .replace("{name}", item.actorUserId ? actorLabels[item.actorUserId] ?? item.actorUserId : t("approve.unknownManager"))
+                          .replace("{when}", formatDateTimeForDisplay(item.createdAt, language))}
+                      </AppText>
+                    </View>
+                  </FadeSlideIn>
+                ))
+              )}
+            </CrossfadeSwap>
           </View>
         }
       />

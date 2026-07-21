@@ -25,6 +25,7 @@ import { useCountUp } from "../hooks/useCountUp";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AnimatedChevron } from "../components/AnimatedChevron";
+import { FadeSlideIn } from "../components/FadeSlideIn";
 
 function AmountPair({
   expected,
@@ -126,6 +127,8 @@ export default function ManagerFinanceBreakdownScreen() {
     [days]
   );
 
+  const accountDisplay = useCountUp(totals.account);
+
   const rangeLabel = useMemo(() => {
     if (!rangeStart || !rangeEnd) return "";
     if (rangeStart === rangeEnd) return formatISODateFull(rangeStart, language);
@@ -167,15 +170,16 @@ export default function ManagerFinanceBreakdownScreen() {
             </View>
             {totals.account > 0 ? (
               <Text style={[styles.accountNote, isRTL && styles.rtl]}>
-                {t("dashboard.financeDailyAccountPayments")}: {formatFinanceIls(totals.account, language)}
+                {t("dashboard.financeDailyAccountPayments")}: {formatFinanceIls(accountDisplay, language)}
               </Text>
             ) : null}
             <Text style={[styles.hint, isRTL && styles.rtl]}>{t("dashboard.financeBreakdownHint")}</Text>
-            {days.map((d) => {
+            {days.map((d, index) => {
               const open = expandedDate === d.date;
               const dayGap = d.expected_ils - d.collected_ils;
               return (
-                <View key={d.date} style={styles.dayWrap}>
+                <FadeSlideIn key={d.date} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+                <View style={styles.dayWrap}>
                   <Pressable
                     onPress={() => setExpandedDate(open ? null : d.date)}
                     style={({ pressed }) => [styles.dayRow, pressed && styles.dayRowPressed]}
@@ -199,9 +203,9 @@ export default function ManagerFinanceBreakdownScreen() {
                       {d.sessions.length > 0 ? (
                         <>
                           <Text style={[styles.sectionLbl, isRTL && styles.rtl]}>{t("dashboard.financeDailyAtSessions")}</Text>
-                          {d.sessions.map((s) => (
+                          {d.sessions.map((s, sIndex) => (
+                            <FadeSlideIn key={s.session_id} delay={Math.min(sIndex, theme.motion.maxStaggerIndex) * 30}>
                             <Pressable
-                              key={s.session_id}
                               onPress={() => router.push(`/(app)/manager/session/${s.session_id}` as Href)}
                               style={({ pressed }) => [styles.sessionRow, pressed && styles.sessionRowPressed]}
                               accessibilityRole="button"
@@ -242,6 +246,7 @@ export default function ManagerFinanceBreakdownScreen() {
                               ) : null}
                               <Text style={[styles.sessionTap, isRTL && styles.rtl]}>{t("dashboard.financeTapSession")}</Text>
                             </Pressable>
+                            </FadeSlideIn>
                           ))}
                         </>
                       ) : null}
@@ -279,6 +284,7 @@ export default function ManagerFinanceBreakdownScreen() {
                     </View>
                   </AnimatedOptionExpand>
                 </View>
+                </FadeSlideIn>
               );
             })}
           </>

@@ -8,6 +8,7 @@ import { AppText } from "../../../src/components/AppText";
 import { ActionButton } from "../../../src/components/ActionButton";
 import { Skeleton } from "../../../src/components/Skeleton";
 import { useI18n } from "../../../src/context/I18nContext";
+import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
 
 export default function CoachCreateSessionScreen() {
   const { t, isRTL } = useI18n();
@@ -41,32 +42,30 @@ export default function CoachCreateSessionScreen() {
     void load();
   }, [load]);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <Skeleton width="60%" height={20} />
-        <Skeleton width="100%" height={52} radius={theme.radius.md} style={{ marginTop: theme.spacing.md }} />
-        <Skeleton width="100%" height={52} radius={theme.radius.md} style={{ marginTop: theme.spacing.sm }} />
-      </View>
-    );
-  }
-
-  if (loadError || !uid) {
-    return (
-      <View style={[styles.center, styles.centerAligned]}>
-        <AppText muted isRTL={isRTL}>
-          {t("common.error")}
-        </AppText>
-        <ActionButton label={t("auth.retryConnection")} onPress={() => void load()} style={{ marginTop: theme.spacing.sm }} />
-      </View>
-    );
-  }
+  const skeleton = (
+    <View style={styles.center}>
+      <Skeleton width="60%" height={20} />
+      <Skeleton width="100%" height={52} radius={theme.radius.md} style={{ marginTop: theme.spacing.md }} />
+      <Skeleton width="100%" height={52} radius={theme.radius.md} style={{ marginTop: theme.spacing.sm }} />
+    </View>
+  );
 
   return (
-    <>
-      <Stack.Screen options={{ title: t("screen.coachCreateSession"), animation: "slide_from_bottom" }} />
-      <CreateSessionForm initialDate={initialDate} fixedCoachId={uid} fixedCoachLabel={name ?? undefined} />
-    </>
+    <CrossfadeSwap loading={loading} skeleton={skeleton}>
+      {loadError || !uid ? (
+        <View style={[styles.center, styles.centerAligned]}>
+          <AppText muted isRTL={isRTL}>
+            {t("common.error")}
+          </AppText>
+          <ActionButton label={t("auth.retryConnection")} onPress={() => void load()} style={{ marginTop: theme.spacing.sm }} />
+        </View>
+      ) : (
+        <>
+          <Stack.Screen options={{ title: t("screen.coachCreateSession"), animation: "slide_from_bottom" }} />
+          <CreateSessionForm initialDate={initialDate} fixedCoachId={uid} fixedCoachLabel={name ?? undefined} />
+        </>
+      )}
+    </CrossfadeSwap>
   );
 }
 

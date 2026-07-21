@@ -8,6 +8,8 @@ import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { AppSearchField } from "../components/AppSearchField";
 import { EmptyState } from "../components/EmptyState";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
+import { FadeSlideIn } from "../components/FadeSlideIn";
+import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 
 type Role = "athlete" | "coach" | "manager";
@@ -130,43 +132,48 @@ export default function RoleManagementScreen() {
           </View>
         }
         ListEmptyComponent={
-          loading ? (
-            <View style={styles.skeletonList}>
-              <ListRowSkeleton />
-              <ListRowSkeleton />
-              <ListRowSkeleton />
-            </View>
-          ) : (
+          <CrossfadeSwap
+            loading={loading}
+            skeleton={
+              <View style={styles.skeletonList}>
+                <ListRowSkeleton />
+                <ListRowSkeleton />
+                <ListRowSkeleton />
+              </View>
+            }
+          >
             <EmptyState title={t("staffUsers.noUsers")} isRTL={isRTL} />
-          )
+          </CrossfadeSwap>
         }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.name}>{item.full_name}</Text>
-            <Text style={styles.meta}>
-              @{item.username} · {item.phone} · {item.approval_status}
-            </Text>
-            <View style={styles.row}>
-              <RoleChip
-                label={t("roles.athlete")}
-                active={item.role === "athlete"}
-                disabled={changingId !== null}
-                onPress={() => confirmSetRole(item, "athlete")}
-              />
-              <RoleChip
-                label={t("roles.coach")}
-                active={item.role === "coach"}
-                disabled={changingId !== null}
-                onPress={() => confirmSetRole(item, "coach")}
-              />
-              <RoleChip
-                label={t("roles.manager")}
-                active={item.role === "manager"}
-                disabled={changingId !== null}
-                onPress={() => confirmSetRole(item, "manager")}
-              />
+        renderItem={({ item, index }) => (
+          <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+            <View style={styles.card}>
+              <Text style={styles.name}>{item.full_name}</Text>
+              <Text style={styles.meta}>
+                @{item.username} · {item.phone} · {item.approval_status}
+              </Text>
+              <View style={styles.row}>
+                <RoleChip
+                  label={t("roles.athlete")}
+                  active={item.role === "athlete"}
+                  disabled={changingId !== null}
+                  onPress={() => confirmSetRole(item, "athlete")}
+                />
+                <RoleChip
+                  label={t("roles.coach")}
+                  active={item.role === "coach"}
+                  disabled={changingId !== null}
+                  onPress={() => confirmSetRole(item, "coach")}
+                />
+                <RoleChip
+                  label={t("roles.manager")}
+                  active={item.role === "manager"}
+                  disabled={changingId !== null}
+                  onPress={() => confirmSetRole(item, "manager")}
+                />
+              </View>
             </View>
-          </View>
+          </FadeSlideIn>
         )}
       />
     </View>

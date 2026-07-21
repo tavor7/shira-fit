@@ -16,6 +16,8 @@ import { useAppAlert } from "../context/AppAlertContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
+import { FadeSlideIn } from "../components/FadeSlideIn";
+import { CrossfadeSwap } from "../components/CrossfadeSwap";
 
 type Row = {
   user_id: string;
@@ -75,18 +77,18 @@ export default function TrainerCalendarColorsScreen() {
     setRows((prev) => prev.map((r) => (r.user_id === userId ? { ...r, calendar_color: value } : r)));
   }
 
-  if (loading) {
-    return (
-      <View style={styles.skeletonList}>
-        <ListRowSkeleton />
-        <ListRowSkeleton />
-        <ListRowSkeleton />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.screen}>
+      <CrossfadeSwap
+        loading={loading}
+        skeleton={
+          <View style={styles.skeletonList}>
+            <ListRowSkeleton />
+            <ListRowSkeleton />
+            <ListRowSkeleton />
+          </View>
+        }
+      >
       <FlatList
         data={rows}
         keyExtractor={(item) => item.user_id}
@@ -99,10 +101,11 @@ export default function TrainerCalendarColorsScreen() {
             <Text style={[styles.subhead, isRTL && styles.rtlText]}>{t("trainerColors.autoSaveHint")}</Text>
           </View>
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const preview = resolveTrainerAccentColor(item.calendar_color ?? null, item.user_id);
           const busy = savingId === item.user_id;
           return (
+            <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <View style={styles.card}>
               <View style={styles.cardHead}>
                 <View style={[styles.swatch, { backgroundColor: preview }]} />
@@ -148,10 +151,12 @@ export default function TrainerCalendarColorsScreen() {
                 </View>
               </View>
             </View>
+            </FadeSlideIn>
           );
         }}
         ListEmptyComponent={<EmptyState icon="🎨" title={t("trainerColors.empty")} isRTL={isRTL} />}
       />
+      </CrossfadeSwap>
     </View>
   );
 }

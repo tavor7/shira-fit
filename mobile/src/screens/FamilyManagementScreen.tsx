@@ -18,6 +18,8 @@ import { AppSearchField } from "../components/AppSearchField";
 import { AppModal } from "../components/AppModal";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { EmptyState } from "../components/EmptyState";
+import { ListRowSkeleton } from "../components/ListRowSkeleton";
+import { FadeSlideIn } from "../components/FadeSlideIn";
 import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import {
@@ -297,7 +299,8 @@ export default function FamilyManagementScreen() {
             )}
           </>
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
+          <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
           <View style={styles.card}>
             <Pressable onPress={() => openEdit(item)} style={({ pressed }) => [pressed && { opacity: 0.92 }]}>
               <Text style={[styles.cardTitle, isRTL && styles.rtl]}>{item.name}</Text>
@@ -325,15 +328,22 @@ export default function FamilyManagementScreen() {
               </Pressable>
             </View>
           </View>
+          </FadeSlideIn>
         )}
         ListEmptyComponent={
-          !loading ? (
+          loading ? (
+            <View style={styles.skeletonList}>
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+            </View>
+          ) : (
             <EmptyState
               icon={familySearchQ.trim() ? "🔍" : undefined}
               title={familySearchQ.trim() ? t("families.noSearchResults") : t("families.empty")}
               isRTL={isRTL}
             />
-          ) : null
+          )
         }
       />
 
@@ -446,6 +456,7 @@ export default function FamilyManagementScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   listContent: { padding: theme.spacing.md, paddingBottom: 48, gap: theme.spacing.sm },
+  skeletonList: { gap: theme.spacing.sm },
   rtl: { textAlign: "right", alignSelf: "stretch" },
   title: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginTop: theme.spacing.sm },
   subtitle: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4, marginBottom: theme.spacing.md, lineHeight: 18 },

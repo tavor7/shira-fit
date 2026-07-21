@@ -14,6 +14,7 @@ import { ManagerDirectMessageModal } from "../../src/components/ManagerDirectMes
 import { getLoginHrefWithOptionalRedirectWeb } from "../../src/lib/webLastRoute";
 import { useManagerAthletePreview } from "../../src/context/ManagerAthletePreviewContext";
 import { canRoleAccessAppPath, getRoleAccessDeniedRedirect } from "../../src/lib/roleRouteAccess";
+import { AppPresenceProvider } from "../../src/context/AppPresenceContext";
 
 const headerStyle = appHeaderStyle;
 const headerTitleStyle = appHeaderTitleStyle;
@@ -91,7 +92,7 @@ export default function AppLayout() {
   }
 
   return (
-    <>
+    <AppPresenceProvider>
       <ReceiptRequirementsGateModal />
       <ManagerDirectMessageModal />
       <Stack
@@ -111,6 +112,6 @@ export default function AppLayout() {
         animation: Platform.OS === "web" ? "fade" : "slide_from_bottom",
       }}
     />
-    </>
+    </AppPresenceProvider>
   );
 }

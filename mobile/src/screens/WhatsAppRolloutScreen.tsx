@@ -12,6 +12,8 @@ import { theme } from "../theme";
 import { surface } from "../theme/surfaces";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Skeleton } from "../components/Skeleton";
+import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
+import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
@@ -214,12 +216,15 @@ export default function WhatsAppRolloutScreen() {
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("whatsapp.rolloutTitle")}</Text>
       <Text style={[styles.hint, isRTL && styles.rtl]}>{t("whatsapp.rolloutSubtitle")}</Text>
 
-      {loading ? (
-        <View style={styles.skeletonList}>
-          <Skeleton height={120} radius={theme.radius.lg} />
-          <Skeleton height={80} radius={theme.radius.lg} />
-        </View>
-      ) : (
+      <CrossfadeSwap
+        loading={loading}
+        skeleton={
+          <View style={styles.skeletonList}>
+            <Skeleton height={120} radius={theme.radius.lg} />
+            <Skeleton height={80} radius={theme.radius.lg} />
+          </View>
+        }
+      >
         <>
           <View style={[styles.card, surface.card]}>
             <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>{t("whatsapp.rolloutTitle")}</Text>
@@ -248,7 +253,7 @@ export default function WhatsAppRolloutScreen() {
             />
           </View>
 
-          {mode !== "off" ? (
+          <AnimatedOptionExpand open={mode !== "off"}>
             <View style={[styles.card, surface.card]}>
               <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>{t("whatsapp.testSendTitle")}</Text>
               <Text style={[styles.testHint, isRTL && styles.rtl]}>{t("whatsapp.testSendHintHello")}</Text>
@@ -326,7 +331,7 @@ export default function WhatsAppRolloutScreen() {
                 disabled={!sendTarget}
               />
             </View>
-          ) : null}
+          </AnimatedOptionExpand>
 
           {mode === "testing" && selected.length > 0 ? (
             <Pressable
@@ -339,7 +344,7 @@ export default function WhatsAppRolloutScreen() {
             </Pressable>
           ) : null}
 
-          {mode === "testing" && manageOpen ? (
+          <AnimatedOptionExpand open={mode === "testing" && manageOpen}>
             <View style={[styles.card, surface.card]}>
               <Text style={[styles.testHint, isRTL && styles.rtl]}>{t("whatsapp.testUsersHint")}</Text>
               <View style={[styles.chips, isRTL && styles.chipsRtl]}>
@@ -356,9 +361,9 @@ export default function WhatsAppRolloutScreen() {
                 ))}
               </View>
             </View>
-          ) : null}
+          </AnimatedOptionExpand>
         </>
-      )}
+      </CrossfadeSwap>
     </ScrollView>
   );
 }

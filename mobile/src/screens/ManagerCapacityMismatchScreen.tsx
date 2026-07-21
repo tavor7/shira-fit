@@ -20,6 +20,9 @@ import {
   parseCapacityMismatch,
   type CapacityMismatchSession,
 } from "../lib/managerWeeklyStats";
+import { CrossfadeSwap } from "../components/CrossfadeSwap";
+import { FadeSlideIn } from "../components/FadeSlideIn";
+import { PressableScale } from "../components/PressableScale";
 
 function formatSessionTimeShort(isoTime: string): string {
   const s = String(isoTime ?? "").trim();
@@ -157,18 +160,22 @@ export default function ManagerCapacityMismatchScreen() {
         {rangeLabel ? <Text style={[styles.sub, isRTL && styles.rtl]}>{rangeLabel}</Text> : null}
         <Text style={[styles.hint, isRTL && styles.rtl]}>{t("dashboard.capacityMismatchHint")}</Text>
 
-        {loading ? (
-          <View style={styles.skeletonList}>
-            <ListRowSkeleton />
-            <ListRowSkeleton />
-            <ListRowSkeleton />
-          </View>
-        ) : error ? (
+        <CrossfadeSwap
+          loading={loading}
+          skeleton={
+            <View style={styles.skeletonList}>
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+            </View>
+          }
+        >
+          {error ? (
           <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
         ) : sessions.length === 0 ? (
           <EmptyState icon="✅" title={t("dashboard.capacityMismatchEmpty")} isRTL={isRTL} />
         ) : (
-          sessions.map((s) => {
+          sessions.map((s, index) => {
             const diff = s.registered_count - s.max_participants;
             const isOver = diff > 0;
             const diffLabel = isOver
@@ -176,8 +183,9 @@ export default function ManagerCapacityMismatchScreen() {
               : t("dashboard.capacityMismatchUnder").replace("{n}", String(Math.abs(diff)));
             const canSetMax = s.registered_count > 0;
             return (
-              <View key={s.session_id} style={styles.card}>
-                <Pressable
+              <FadeSlideIn key={s.session_id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+              <View style={styles.card}>
+                <PressableScale
                   onPress={() => router.push(`/(app)/manager/session/${s.session_id}` as Href)}
                   style={({ pressed }) => [styles.cardHead, pressed && styles.cardHeadPressed]}
                   accessibilityRole="button"
@@ -209,7 +217,7 @@ export default function ManagerCapacityMismatchScreen() {
                       </Text>
                     </View>
                   ) : null}
-                </Pressable>
+                </PressableScale>
                 <View style={[styles.cardActions, isRTL && styles.cardActionsRtl]}>
                   {canSetMax ? (
                     <Pressable
@@ -251,9 +259,11 @@ export default function ManagerCapacityMismatchScreen() {
                   </Pressable>
                 </View>
               </View>
+              </FadeSlideIn>
             );
           })
         )}
+        </CrossfadeSwap>
       </ScrollView>
     </>
   );

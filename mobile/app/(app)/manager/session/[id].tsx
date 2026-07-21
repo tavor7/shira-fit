@@ -6,7 +6,6 @@ import {
   Text,
   TextInput,
   Pressable,
-  TouchableOpacity,
   StyleSheet,
   Platform,
   ScrollView,
@@ -75,6 +74,10 @@ import {
   sumSessionBillingPrices,
   fetchActiveGlobalTierPrice,
 } from "../../../../src/lib/sessionSlotPrice";
+import { CrossfadeSwap } from "../../../../src/components/CrossfadeSwap";
+import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
+import { PressableScale } from "../../../../src/components/PressableScale";
+import { useCountUp } from "../../../../src/hooks/useCountUp";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
@@ -1320,6 +1323,12 @@ export default function ManagerSessionDetail() {
     participantsRev,
   ]);
 
+  const arrivedDisplay = useCountUp(attendanceStats.arrived);
+  const registeredDisplay = useCountUp(attendanceStats.registered);
+  const totalPaidDisplay = useCountUp(attendanceStats.totalPaidIls);
+  const expectedPaymentsDisplay = useCountUp(attendanceStats.expectedPaymentsIls);
+  const withPaymentMethodDisplay = useCountUp(attendanceStats.withPaymentMethod);
+  const participantCountDisplay = useCountUp(participantCount);
 
   if (!session)
     return (
@@ -1356,150 +1365,9 @@ export default function ManagerSessionDetail() {
           scrollEventThrottle={16}
         >
       <SessionPresenceBar others={othersPresent} />
-      {!editingSession ? (
-        <View style={styles.summaryCard}>
-          <View style={[styles.summaryTitleRow, isRTL && styles.summaryTitleRowRtl]}>
-            <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{t("sessionDetail.session")}</Text>
-            {session.series_id && !session.series_detached ? (
-              <View style={styles.seriesBadge}>
-                <Text style={styles.seriesBadgeTxt}>{t("session.seriesBadge")}</Text>
-              </View>
-            ) : null}
-          </View>
-          {isKickbox ? (
-            <View style={styles.summaryKickboxBadge}>
-              <KickboxSessionBadge isRTL={isRTL} />
-            </View>
-          ) : null}
-          <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>
-            {formatISODateFullWithWeekdayAfter(date, language)} · {formatSessionStartTime(time)} · {durationMin}{" "}
-            {t("sessionDetail.durationMinAbbr")}
-          </Text>
-          <Text style={[styles.summaryCoachLine, isRTL && styles.rtlText]}>
-            {t("managerSession.coachHeading")}:{" "}
-            {coachNameOnly.length > 0 ? coachNameOnly : t("managerSession.noTrainerAssigned")}
-          </Text>
-          {sessionHasEnded ? (
-            <View style={styles.summaryEndedRow} accessibilityLiveRegion="polite">
-              <Text style={[styles.summaryEndedText, isRTL && styles.rtlText]}>{t("managerSession.sessionEnded")}</Text>
-            </View>
-          ) : null}
-          <Text style={[styles.summaryMeta, isRTL && styles.rtlText]}>
-            {t("sessionDetail.openLabel")}
-            {open ? t("common.yes") : t("common.no")}
-            {" · "}
-            {t("sessionDetail.hiddenLabel")}
-            {hidden ? t("common.yes") : t("common.no")}
-          </Text>
-          {sessionHasEnded ? (
-            <View style={styles.trainingSummaryBox}>
-              <Text style={[styles.trainingSummaryTitle, isRTL && styles.rtlText]}>
-                {t("managerSession.trainingSummaryTitle")}
-              </Text>
-              {attendanceStats.registered === 0 ? (
-                <Text style={[styles.summaryEmptyNote, isRTL && styles.rtlText]}>
-                  {t("managerSession.summaryNoRegistrations")}
-                </Text>
-              ) : (
-                <View style={[styles.summaryTilesRow, isRTL && styles.summaryTilesRowRtl]}>
-                  <View style={[styles.summaryTile, isRTL && styles.summaryTileRtl]}>
-                    <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
-                      {t("managerSession.summaryTileAttendance")}
-                    </Text>
-                    <Text style={[styles.summaryTileHero, isRTL && styles.rtlText]} accessibilityRole="header">
-                      {t("managerSession.summaryAttendanceFraction")
-                        .replace("{arrived}", String(attendanceStats.arrived))
-                        .replace("{registered}", String(attendanceStats.registered))}
-                    </Text>
-                    <Text style={[styles.summaryTileHint, isRTL && styles.rtlText]}>
-                      {t("managerSession.summaryAttendanceSub")
-                        .replace("{pct}", String(arrivalRatePct))
-                        .replace("{capacity}", String(maxCap))}
-                    </Text>
-                  </View>
-                  <View style={[styles.summaryTile, isRTL && styles.summaryTileRtl]}>
-                    <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
-                      {t("managerSession.summaryTilePayments")}
-                    </Text>
-                    <Text style={[styles.summaryTileHero, isRTL && styles.rtlText]} accessibilityRole="header">
-                      {attendanceStats.expectedPaymentSlots > 0
-                        ? `${formatIls(attendanceStats.totalPaidIls, language)} / ${formatIls(attendanceStats.expectedPaymentsIls, language)}`
-                        : formatIls(attendanceStats.totalPaidIls, language)}
-                    </Text>
-                    <Text style={[styles.summaryTileHint, isRTL && styles.rtlText]}>
-                      {attendanceStats.expectedPaymentSlots > 0
-                        ? attendanceStats.totalPaidIls >= attendanceStats.expectedPaymentsIls
-                          ? t("managerSession.summaryPaymentsFullyCollected").replace(
-                              "{expected}",
-                              formatIls(attendanceStats.expectedPaymentsIls, language)
-                            )
-                          : t("managerSession.summaryPaymentsShouldCollect")
-                              .replace("{expected}", formatIls(attendanceStats.expectedPaymentsIls, language))
-                              .replace("{collected}", formatIls(attendanceStats.totalPaidIls, language))
-                        : attendanceStats.totalPaidIls > 0
-                          ? t("managerSession.summaryPaymentsSubRecorded")
-                              .replace("{n}", String(attendanceStats.withPaymentMethod))
-                              .replace("{total}", String(attendanceStats.registered))
-                          : attendanceStats.withPaymentMethod > 0
-                            ? t("managerSession.summaryPaymentsSubMethodsOnly").replace(
-                                "{n}",
-                                String(attendanceStats.withPaymentMethod)
-                              )
-                            : t("managerSession.summaryPaymentsSubNone")}
-                    </Text>
-                  </View>
-                </View>
-              )}
-              {sessionHasEnded && extraFeeSummary.hasAny ? (
-                <View style={[styles.summaryFeesBox, isRTL && styles.summaryTileRtl]}>
-                  <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
-                    {t("managerSession.summaryFeesTitle")}
-                  </Text>
-                  <Text style={[styles.summaryTileHint, isRTL && styles.rtlText]}>
-                    {extraFeeSummary.lateChargedCount > 0
-                      ? t("managerSession.summaryFeesLate")
-                          .replace("{n}", String(extraFeeSummary.lateChargedCount))
-                          .replace(
-                            "{expected}",
-                            extraFeeSummary.lateExpected != null
-                              ? formatIls(extraFeeSummary.lateExpected, language)
-                              : "—"
-                          )
-                          .replace("{collected}", formatIls(extraFeeSummary.lateCollected, language))
-                      : ""}
-                    {extraFeeSummary.lateChargedCount > 0 && extraFeeSummary.nsCount > 0 ? " · " : ""}
-                    {extraFeeSummary.nsCount > 0
-                      ? t("managerSession.summaryFeesNoShow")
-                          .replace("{n}", String(extraFeeSummary.nsCount))
-                          .replace(
-                            "{expected}",
-                            extraFeeSummary.nsExpected != null
-                              ? formatIls(extraFeeSummary.nsExpected, language)
-                              : "—"
-                          )
-                          .replace("{collected}", formatIls(extraFeeSummary.nsCollected, language))
-                      : ""}
-                  </Text>
-                </View>
-              ) : null}
-              {cancellations.length > 0 || waitlist.length > 0 ? (
-                <Text style={[styles.summaryFootnote, isRTL && styles.rtlText]}>
-                  {[
-                    cancellations.length > 0
-                      ? t("managerSession.summaryCancellationsShort").replace("{n}", String(cancellations.length))
-                      : null,
-                    waitlist.length > 0
-                      ? t("managerSession.summaryWaitlistShort").replace("{n}", String(waitlist.length))
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
-        </View>
-      ) : (
+      <CrossfadeSwap
+        loading={editingSession}
+        skeleton={
         <View style={styles.editBlock}>
           <View style={sf.sections}>
           <View style={sf.card}>
@@ -1623,7 +1491,151 @@ export default function ManagerSessionDetail() {
           </View>
           </View>
         </View>
-      )}
+        }
+      >
+        <View style={styles.summaryCard}>
+          <View style={[styles.summaryTitleRow, isRTL && styles.summaryTitleRowRtl]}>
+            <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{t("sessionDetail.session")}</Text>
+            {session.series_id && !session.series_detached ? (
+              <View style={styles.seriesBadge}>
+                <Text style={styles.seriesBadgeTxt}>{t("session.seriesBadge")}</Text>
+              </View>
+            ) : null}
+          </View>
+          {isKickbox ? (
+            <View style={styles.summaryKickboxBadge}>
+              <KickboxSessionBadge isRTL={isRTL} />
+            </View>
+          ) : null}
+          <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>
+            {formatISODateFullWithWeekdayAfter(date, language)} · {formatSessionStartTime(time)} · {durationMin}{" "}
+            {t("sessionDetail.durationMinAbbr")}
+          </Text>
+          <Text style={[styles.summaryCoachLine, isRTL && styles.rtlText]}>
+            {t("managerSession.coachHeading")}:{" "}
+            {coachNameOnly.length > 0 ? coachNameOnly : t("managerSession.noTrainerAssigned")}
+          </Text>
+          {sessionHasEnded ? (
+            <View style={styles.summaryEndedRow} accessibilityLiveRegion="polite">
+              <Text style={[styles.summaryEndedText, isRTL && styles.rtlText]}>{t("managerSession.sessionEnded")}</Text>
+            </View>
+          ) : null}
+          <Text style={[styles.summaryMeta, isRTL && styles.rtlText]}>
+            {t("sessionDetail.openLabel")}
+            {open ? t("common.yes") : t("common.no")}
+            {" · "}
+            {t("sessionDetail.hiddenLabel")}
+            {hidden ? t("common.yes") : t("common.no")}
+          </Text>
+          {sessionHasEnded ? (
+            <View style={styles.trainingSummaryBox}>
+              <Text style={[styles.trainingSummaryTitle, isRTL && styles.rtlText]}>
+                {t("managerSession.trainingSummaryTitle")}
+              </Text>
+              {attendanceStats.registered === 0 ? (
+                <Text style={[styles.summaryEmptyNote, isRTL && styles.rtlText]}>
+                  {t("managerSession.summaryNoRegistrations")}
+                </Text>
+              ) : (
+                <View style={[styles.summaryTilesRow, isRTL && styles.summaryTilesRowRtl]}>
+                  <View style={[styles.summaryTile, isRTL && styles.summaryTileRtl]}>
+                    <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
+                      {t("managerSession.summaryTileAttendance")}
+                    </Text>
+                    <Text style={[styles.summaryTileHero, isRTL && styles.rtlText]} accessibilityRole="header">
+                      {t("managerSession.summaryAttendanceFraction")
+                        .replace("{arrived}", String(Math.round(arrivedDisplay)))
+                        .replace("{registered}", String(Math.round(registeredDisplay)))}
+                    </Text>
+                    <Text style={[styles.summaryTileHint, isRTL && styles.rtlText]}>
+                      {t("managerSession.summaryAttendanceSub")
+                        .replace("{pct}", String(arrivalRatePct))
+                        .replace("{capacity}", String(maxCap))}
+                    </Text>
+                  </View>
+                  <View style={[styles.summaryTile, isRTL && styles.summaryTileRtl]}>
+                    <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
+                      {t("managerSession.summaryTilePayments")}
+                    </Text>
+                    <Text style={[styles.summaryTileHero, isRTL && styles.rtlText]} accessibilityRole="header">
+                      {attendanceStats.expectedPaymentSlots > 0
+                        ? `${formatIls(totalPaidDisplay, language)} / ${formatIls(expectedPaymentsDisplay, language)}`
+                        : formatIls(totalPaidDisplay, language)}
+                    </Text>
+                    <Text style={[styles.summaryTileHint, isRTL && styles.rtlText]}>
+                      {attendanceStats.expectedPaymentSlots > 0
+                        ? attendanceStats.totalPaidIls >= attendanceStats.expectedPaymentsIls
+                          ? t("managerSession.summaryPaymentsFullyCollected").replace(
+                              "{expected}",
+                              formatIls(attendanceStats.expectedPaymentsIls, language)
+                            )
+                          : t("managerSession.summaryPaymentsShouldCollect")
+                              .replace("{expected}", formatIls(attendanceStats.expectedPaymentsIls, language))
+                              .replace("{collected}", formatIls(attendanceStats.totalPaidIls, language))
+                        : attendanceStats.totalPaidIls > 0
+                          ? t("managerSession.summaryPaymentsSubRecorded")
+                              .replace("{n}", String(Math.round(withPaymentMethodDisplay)))
+                              .replace("{total}", String(Math.round(registeredDisplay)))
+                          : attendanceStats.withPaymentMethod > 0
+                            ? t("managerSession.summaryPaymentsSubMethodsOnly").replace(
+                                "{n}",
+                                String(Math.round(withPaymentMethodDisplay))
+                              )
+                            : t("managerSession.summaryPaymentsSubNone")}
+                    </Text>
+                  </View>
+                </View>
+              )}
+              {sessionHasEnded && extraFeeSummary.hasAny ? (
+                <View style={[styles.summaryFeesBox, isRTL && styles.summaryTileRtl]}>
+                  <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
+                    {t("managerSession.summaryFeesTitle")}
+                  </Text>
+                  <Text style={[styles.summaryTileHint, isRTL && styles.rtlText]}>
+                    {extraFeeSummary.lateChargedCount > 0
+                      ? t("managerSession.summaryFeesLate")
+                          .replace("{n}", String(extraFeeSummary.lateChargedCount))
+                          .replace(
+                            "{expected}",
+                            extraFeeSummary.lateExpected != null
+                              ? formatIls(extraFeeSummary.lateExpected, language)
+                              : "—"
+                          )
+                          .replace("{collected}", formatIls(extraFeeSummary.lateCollected, language))
+                      : ""}
+                    {extraFeeSummary.lateChargedCount > 0 && extraFeeSummary.nsCount > 0 ? " · " : ""}
+                    {extraFeeSummary.nsCount > 0
+                      ? t("managerSession.summaryFeesNoShow")
+                          .replace("{n}", String(extraFeeSummary.nsCount))
+                          .replace(
+                            "{expected}",
+                            extraFeeSummary.nsExpected != null
+                              ? formatIls(extraFeeSummary.nsExpected, language)
+                              : "—"
+                          )
+                          .replace("{collected}", formatIls(extraFeeSummary.nsCollected, language))
+                      : ""}
+                  </Text>
+                </View>
+              ) : null}
+              {cancellations.length > 0 || waitlist.length > 0 ? (
+                <Text style={[styles.summaryFootnote, isRTL && styles.rtlText]}>
+                  {[
+                    cancellations.length > 0
+                      ? t("managerSession.summaryCancellationsShort").replace("{n}", String(cancellations.length))
+                      : null,
+                    waitlist.length > 0
+                      ? t("managerSession.summaryWaitlistShort").replace("{n}", String(waitlist.length))
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      </CrossfadeSwap>
 
       <Modal visible={dupOpen} transparent animationType="fade" onRequestClose={() => (dupBusy ? null : setDupOpen(false))}>
         <View style={styles.dupBackdrop}>
@@ -1695,7 +1707,7 @@ export default function ManagerSessionDetail() {
         {t("sessionDetail.participantsAttendance")}
         <Text style={styles.hMuted}>
           {" "}
-          ({participantCount}/{maxCap})
+          ({Math.round(participantCountDisplay)}/{maxCap})
         </Text>
       </Text>
       <ParticipantAttendanceList
@@ -1726,13 +1738,14 @@ export default function ManagerSessionDetail() {
       {waitlist.length === 0 ? (
         <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("common.none")}</Text>
       ) : (
-        waitlist.map((item) => {
+        waitlist.map((item, index) => {
           const p = item.profiles ? (Array.isArray(item.profiles) ? item.profiles[0] : item.profiles) : null;
           const name = String(p?.full_name ?? item.user_id);
           const phone = String(p?.phone ?? "").trim();
           const busy = waitlistQuickUserId === item.user_id;
           return (
-            <View key={item.user_id} style={styles.waitCard}>
+            <FadeSlideIn key={item.user_id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+              <View style={styles.waitCard}>
               <View style={[styles.waitCardRow, isRTL && styles.waitCardRowRtl]}>
                 <View style={styles.waitCardMain}>
                   <Text style={[styles.waitName, isRTL && styles.rtlText]}>{name}</Text>
@@ -1759,7 +1772,8 @@ export default function ManagerSessionDetail() {
                   )}
                 </Pressable>
               </View>
-            </View>
+              </View>
+            </FadeSlideIn>
           );
         })
       )}
@@ -1768,7 +1782,7 @@ export default function ManagerSessionDetail() {
       {cancellations.length === 0 ? (
         <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("common.none")}</Text>
       ) : (
-        cancellations.map((c) => {
+        cancellations.map((c, index) => {
           const p = c.profiles ? (Array.isArray(c.profiles) ? c.profiles[0] : c.profiles) : null;
           const name = p?.full_name ?? c.user_id;
           const sched = session
@@ -1778,7 +1792,8 @@ export default function ManagerSessionDetail() {
           const penaltyNum = Number(c.penalty_collected_ils ?? 0);
           const collected = Number.isFinite(penaltyNum) ? penaltyNum : 0;
           return (
-            <View key={c.id} style={styles.cancelCard}>
+            <FadeSlideIn key={c.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+            <View style={styles.cancelCard}>
               <Text style={styles.cancelName}>{name}</Text>
               <Text style={styles.cancelMeta}>{formatDateTimeForDisplay(c.cancelled_at, language)}</Text>
               <Text style={styles.cancelReason}>{t("sessionDetail.reasonPrefix")}{c.reason}</Text>
@@ -1829,6 +1844,7 @@ export default function ManagerSessionDetail() {
                 </>
               ) : null}
             </View>
+            </FadeSlideIn>
           );
         })
       )}
@@ -1897,13 +1913,14 @@ export default function ManagerSessionDetail() {
           </Text>
         ) : (
           <View style={styles.noteList}>
-            {notes.map((n) => {
+            {notes.map((n, index) => {
               const p = n.profiles ? (Array.isArray(n.profiles) ? n.profiles[0] : n.profiles) : null;
               const name = p?.full_name ?? n.author_id;
               const canDelete = (profile?.role === "manager") || (!!user?.id && user.id === n.author_id);
               const isEditing = editingNoteId === n.id;
               return (
-                <View key={n.id} style={styles.noteRow}>
+                <FadeSlideIn key={n.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+                <View style={styles.noteRow}>
                   <Text style={[styles.noteMeta, isRTL && styles.rtlText]}>
                     {name} · {formatDateTimeForDisplay(n.created_at, language)}
                   </Text>
@@ -1950,9 +1967,7 @@ export default function ManagerSessionDetail() {
                   )}
                   {!isEditing && canDelete ? (
                     <View style={[styles.noteRowActions, isRTL && styles.noteRowActionsRtl]}>
-                      <TouchableOpacity
-                        activeOpacity={0.75}
-                        delayPressIn={0}
+                      <PressableScale
                         onPress={() => {
                           setNoteComposerOpen(false);
                           setNoteDraft("");
@@ -1973,20 +1988,19 @@ export default function ManagerSessionDetail() {
                         accessibilityRole="button"
                       >
                         <Text style={styles.noteEditBtnTxt}>{t("common.edit")}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        activeOpacity={0.75}
-                        delayPressIn={0}
+                      </PressableScale>
+                      <PressableScale
                         onPress={() => void deleteNote(n.id)}
                         {...(Platform.OS === "web" ? ({ onClick: () => void deleteNote(n.id) } as any) : null)}
                         style={[styles.noteDelete, Platform.OS === "web" && styles.noteDeleteWeb]}
                         accessibilityRole="button"
                       >
                         <Text style={styles.noteDeleteTxt}>{t("common.delete")}</Text>
-                      </TouchableOpacity>
+                      </PressableScale>
                     </View>
                   ) : null}
                 </View>
+                </FadeSlideIn>
               );
             })}
           </View>

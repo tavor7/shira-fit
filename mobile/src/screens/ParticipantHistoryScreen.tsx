@@ -6,6 +6,8 @@ import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
+import { CrossfadeSwap } from "../components/CrossfadeSwap";
+import { useCountUp } from "../hooks/useCountUp";
 import { theme } from "../theme";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
@@ -428,6 +430,10 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     sessionKickboxById,
     payeeIsManual,
   ]);
+
+  const billingReceivedDisplay = useCountUp(billingSummary?.received ?? 0);
+  const billingExpectedDisplay = useCountUp(billingSummary?.expected ?? 0);
+  const billingBalanceDisplay = useCountUp(billingSummary?.balance ?? 0);
 
   useEffect(() => {
     if (!athleteId) {
@@ -1024,13 +1030,15 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
               </View>
             ) : null}
 
-            {athleteId && loading ? (
-              <View style={styles.loadingSkeletonStack}>
-                <ListRowSkeleton />
-                <ListRowSkeleton />
-              </View>
-            ) : null}
-
+            <CrossfadeSwap
+              loading={!!(athleteId && loading)}
+              skeleton={
+                <View style={styles.loadingSkeletonStack}>
+                  <ListRowSkeleton />
+                  <ListRowSkeleton />
+                </View>
+              }
+            >
             {billingSummary && athleteId && reportReady ? (
               <View style={styles.billingCard}>
                 <Text style={[styles.billingTitle, isRTL && styles.rtlText]}>{t("billing.summaryTitle")}</Text>
@@ -1038,13 +1046,13 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                   <View style={styles.billingStatTile}>
                     <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.received")}</Text>
                     <Text style={[styles.billingStatValue, isRTL && styles.rtlText]}>
-                      {`${Math.round(billingSummary.received * 100) / 100} ₪`}
+                      {`${Math.round(billingReceivedDisplay * 100) / 100} ₪`}
                     </Text>
                   </View>
                   <View style={styles.billingStatTile}>
                     <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.expected")}</Text>
                     <Text style={[styles.billingStatValue, isRTL && styles.rtlText]}>
-                      {`${Math.round(billingSummary.expected * 100) / 100} ₪`}
+                      {`${Math.round(billingExpectedDisplay * 100) / 100} ₪`}
                     </Text>
                   </View>
                   <View
@@ -1073,12 +1081,12 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                       {billingSummary.balance > 0
                         ? t("billing.balanceOwes").replace(
                             "{n}",
-                            String(Math.round(Math.abs(billingSummary.balance) * 100) / 100)
+                            String(Math.round(Math.abs(billingBalanceDisplay) * 100) / 100)
                           )
                         : billingSummary.balance < 0
                           ? t("billing.balanceCredit").replace(
                               "{n}",
-                              String(Math.round(Math.abs(billingSummary.balance) * 100) / 100)
+                              String(Math.round(Math.abs(billingBalanceDisplay) * 100) / 100)
                             )
                           : t("billing.balanceEven")}
                     </Text>
@@ -1117,6 +1125,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
                 </Pressable>
               </View>
             ) : null}
+            </CrossfadeSwap>
           </>
         }
         renderSectionHeader={({ section: { title } }) => (

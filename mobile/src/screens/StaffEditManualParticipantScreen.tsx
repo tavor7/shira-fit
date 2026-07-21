@@ -10,6 +10,7 @@ import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { formatDateTimeForDisplay, formatISODateFull } from "../lib/dateFormat";
+import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import {
   participantNamesMatch,
   participantPhonesMatch,
@@ -258,7 +259,8 @@ export default function StaffEditManualParticipantScreen() {
         <AppText variant="caption" muted isRTL={isRTL} style={styles.duplicateHint}>
           {t("common.loading")}
         </AppText>
-      ) : duplicateRows.length > 0 ? (
+      ) : null}
+      <AnimatedOptionExpand open={duplicateRows.length > 0}>
         <View style={styles.duplicateCard}>
           <AppText variant="caption" isRTL={isRTL} style={styles.duplicateTitle}>
             {t("manualParticipant.duplicateRecordsTitle").replace("{n}", String(duplicateRows.length))}
@@ -278,7 +280,7 @@ export default function StaffEditManualParticipantScreen() {
             </Pressable>
           ))}
         </View>
-      ) : null}
+      </AnimatedOptionExpand>
 
       <AppTextField
         label={t("profile.phone")}

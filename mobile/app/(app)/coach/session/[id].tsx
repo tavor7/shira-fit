@@ -19,6 +19,9 @@ import { useAppAlert } from "../../../../src/context/AppAlertContext";
 import { useAuth } from "../../../../src/context/AuthContext";
 import { useSessionPresence, type PresentStaffMember } from "../../../../src/hooks/useSessionPresence";
 import { SessionPresenceBar } from "../../../../src/components/SessionPresenceBar";
+import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
+import { AnimatedOptionExpand } from "../../../../src/components/AnimatedOptionExpand";
+import { useCountUp } from "../../../../src/hooks/useCountUp";
 type W = {
   user_id: string;
   requested_at: string;
@@ -292,6 +295,7 @@ export default function CoachSessionDetail() {
   }, []);
 
   const maxCapCoach = Math.max(1, sessionMaxParticipants || 1);
+  const displayParticipantCount = Math.round(useCountUp(participantCount));
 
   return (
     <>
@@ -316,7 +320,7 @@ export default function CoachSessionDetail() {
         {t("sessionDetail.participantsAttendance")}
         <AppText variant="title" muted style={styles.hMuted}>
           {" "}
-          ({participantCount}/{maxCapCoach})
+          ({displayParticipantCount}/{maxCapCoach})
         </AppText>
       </AppText>
       <ParticipantAttendanceList
@@ -345,42 +349,44 @@ export default function CoachSessionDetail() {
           {t("common.none")}
         </AppText>
       ) : (
-        waitlist.map((item) => {
+        waitlist.map((item, index) => {
           const p = item.profiles ? (Array.isArray(item.profiles) ? item.profiles[0] : item.profiles) : null;
           const name = String(p?.full_name ?? item.user_id);
           const phone = String(p?.phone ?? "").trim();
           const busy = waitlistQuickUserId === item.user_id;
           return (
-            <View key={item.user_id} style={styles.waitCard}>
-              <View style={[styles.waitCardRow, isRTL && styles.waitCardRowRtl]}>
-                <View style={styles.waitCardMain}>
-                  <Text style={[styles.waitName, isRTL && styles.rtlText]}>{name}</Text>
-                  {phone ? <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>{phone}</Text> : null}
-                  <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>
-                    {formatDateTimeForDisplay(item.requested_at, language)}
-                  </Text>
+            <FadeSlideIn key={item.user_id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+              <View style={styles.waitCard}>
+                <View style={[styles.waitCardRow, isRTL && styles.waitCardRowRtl]}>
+                  <View style={styles.waitCardMain}>
+                    <Text style={[styles.waitName, isRTL && styles.rtlText]}>{name}</Text>
+                    {phone ? <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>{phone}</Text> : null}
+                    <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>
+                      {formatDateTimeForDisplay(item.requested_at, language)}
+                    </Text>
+                  </View>
+                  {canEditSession ? (
+                    <Pressable
+                      onPress={() => void quickAddWaitlistedAthlete(item.user_id)}
+                      disabled={!!waitlistQuickUserId}
+                      style={({ pressed }) => [
+                        styles.waitQuickBtn,
+                        pressed && { opacity: 0.88 },
+                        busy && { opacity: 0.65 },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("sessionDetail.quickAddA11y")}
+                    >
+                      {busy ? (
+                        <ActivityIndicator size="small" color={theme.colors.ctaText} />
+                      ) : (
+                        <Text style={styles.waitQuickBtnTxt}>{t("common.add")}</Text>
+                      )}
+                    </Pressable>
+                  ) : null}
                 </View>
-                {canEditSession ? (
-                  <Pressable
-                    onPress={() => void quickAddWaitlistedAthlete(item.user_id)}
-                    disabled={!!waitlistQuickUserId}
-                    style={({ pressed }) => [
-                      styles.waitQuickBtn,
-                      pressed && { opacity: 0.88 },
-                      busy && { opacity: 0.65 },
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("sessionDetail.quickAddA11y")}
-                  >
-                    {busy ? (
-                      <ActivityIndicator size="small" color={theme.colors.ctaText} />
-                    ) : (
-                      <Text style={styles.waitQuickBtnTxt}>{t("common.add")}</Text>
-                    )}
-                  </Pressable>
-                ) : null}
               </View>
-            </View>
+            </FadeSlideIn>
           );
         })
       )}
@@ -400,33 +406,35 @@ export default function CoachSessionDetail() {
           {t("common.none")}
         </AppText>
       ) : (
-        cancellations.map((c) => {
+        cancellations.map((c, index) => {
           const p = c.profiles ? (Array.isArray(c.profiles) ? c.profiles[0] : c.profiles) : null;
           const name = p?.full_name ?? c.user_id;
           const sched = sessionSchedule
             ? isCancellationWithinHoursBeforeSession(sessionSchedule.session_date, sessionSchedule.start_time, c.cancelled_at, 12)
             : false;
           return (
-            <View key={c.id} style={styles.cancelCard}>
-              <Text style={styles.cancelName}>{name}</Text>
-              <Text style={styles.cancelMeta}>{formatDateTimeForDisplay(c.cancelled_at, language)}</Text>
-              <Text style={styles.cancelReason}>
-                {t("sessionDetail.reasonPrefix")}
-                {c.reason}
-              </Text>
-              {sched ? (
-                <>
-                  <Text style={styles.chargeWarn}>
-                    {t("managerSession.lateCancelBadge")}
-                  </Text>
-                  <Text style={[styles.chargeInfo, isRTL && styles.rtlText]}>
-                    {c.charged_full_price === true
-                      ? t("managerSession.coachLateFeeCharged")
-                      : t("managerSession.coachLateFeeWaived")}
-                  </Text>
-                </>
-              ) : null}
-            </View>
+            <FadeSlideIn key={c.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+              <View style={styles.cancelCard}>
+                <Text style={styles.cancelName}>{name}</Text>
+                <Text style={styles.cancelMeta}>{formatDateTimeForDisplay(c.cancelled_at, language)}</Text>
+                <Text style={styles.cancelReason}>
+                  {t("sessionDetail.reasonPrefix")}
+                  {c.reason}
+                </Text>
+                {sched ? (
+                  <>
+                    <Text style={styles.chargeWarn}>
+                      {t("managerSession.lateCancelBadge")}
+                    </Text>
+                    <Text style={[styles.chargeInfo, isRTL && styles.rtlText]}>
+                      {c.charged_full_price === true
+                        ? t("managerSession.coachLateFeeCharged")
+                        : t("managerSession.coachLateFeeWaived")}
+                    </Text>
+                  </>
+                ) : null}
+              </View>
+            </FadeSlideIn>
           );
         })
       )}
@@ -445,8 +453,9 @@ export default function CoachSessionDetail() {
               {t("sessionDetail.tapAddNote")}
             </AppText>
           </Pressable>
-        ) : (
-          <View>
+        ) : null}
+        <AnimatedOptionExpand open={noteComposerOpen}>
+          <View key={noteComposerOpen ? "open" : "closed"}>
             <AppTextField
               value={noteDraft}
               onChangeText={setNoteDraft}
@@ -484,7 +493,7 @@ export default function CoachSessionDetail() {
               </Pressable>
             </View>
           </View>
-        )}
+        </AnimatedOptionExpand>
 
         {notes.length === 0 ? (
           <AppText soft isRTL={isRTL} style={styles.noteListHint}>
@@ -492,18 +501,22 @@ export default function CoachSessionDetail() {
           </AppText>
         ) : (
           <View style={styles.noteList}>
-            {notes.map((n) => {
+            {notes.map((n, index) => {
               const p = n.profiles ? (Array.isArray(n.profiles) ? n.profiles[0] : n.profiles) : null;
               const name = p?.full_name ?? n.author_id;
               const canDelete = !!myId && myId === n.author_id;
               const isEditing = editingNoteId === n.id;
               return (
-                <View key={n.id} style={styles.noteRow}>
+                <FadeSlideIn key={n.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+                <View style={styles.noteRow}>
                   <Text style={[styles.noteMeta, isRTL && styles.rtlText]}>
                     {name} · {formatDateTimeForDisplay(n.created_at, language)}
                   </Text>
-                  {isEditing ? (
-                    <>
+                  {!isEditing ? (
+                    <Text style={[styles.noteBody, isRTL && styles.rtlText]}>{n.body}</Text>
+                  ) : null}
+                  <AnimatedOptionExpand open={isEditing}>
+                    <View key={isEditing ? "editing" : "idle"}>
                       <AppTextField
                         value={noteEditDraft}
                         onChangeText={setNoteEditDraft}
@@ -540,10 +553,8 @@ export default function CoachSessionDetail() {
                           )}
                         </Pressable>
                       </View>
-                    </>
-                  ) : (
-                    <Text style={[styles.noteBody, isRTL && styles.rtlText]}>{n.body}</Text>
-                  )}
+                    </View>
+                  </AnimatedOptionExpand>
                   {!isEditing && canDelete ? (
                     <View style={[styles.noteRowActions, isRTL && styles.noteRowActionsRtl]}>
                       <TouchableOpacity
@@ -583,6 +594,7 @@ export default function CoachSessionDetail() {
                     </View>
                   ) : null}
                 </View>
+                </FadeSlideIn>
               );
             })}
           </View>

@@ -9,6 +9,7 @@ import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { AppText } from "../../src/components/AppText";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
+import { AnimatedCheckMark } from "../../src/components/AnimatedCheckMark";
 import { surface } from "../../src/theme/surfaces";
 
 export default function SignupSuccessScreen() {
@@ -39,9 +40,7 @@ export default function SignupSuccessScreen() {
       </View>
       <View style={styles.card}>
         <View style={styles.badge}>
-          <AppText variant="display" style={styles.badgeText}>
-            ✓
-          </AppText>
+          <AnimatedCheckMark visible style={styles.badgeText} />
         </View>
         <AppText variant="display" isRTL={isRTL} style={styles.title}>
           {t("auth.signupSuccessTitle")}
@@ -101,7 +100,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: theme.spacing.lg,
   },
-  badgeText: { color: theme.colors.success },
+  badgeText: { color: theme.colors.success, fontSize: 22, fontWeight: "800" },
   title: { textAlign: "center", marginBottom: theme.spacing.sm },
   lead: { textAlign: "center", marginBottom: theme.spacing.lg },
   box: {

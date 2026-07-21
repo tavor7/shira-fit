@@ -22,6 +22,9 @@ import { PricingPickerField } from "../components/PricingPickerField";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
+import { FadeSlideIn } from "../components/FadeSlideIn";
+import { CrossfadeSwap } from "../components/CrossfadeSwap";
+import { useCountUp } from "../hooks/useCountUp";
 
 function formatPayout(n: number) {
   return `${Math.round(n * 100) / 100} ₪`;
@@ -44,6 +47,9 @@ function CoachSessionReportCard({
   const lateCancels =
     typeof item.late_cancellations_within_24h === "number" ? item.late_cancellations_within_24h : 0;
   const missingRate = item.coach_rate_missing === true;
+  const registeredDisplay = useCountUp(item.registered_count ?? 0);
+  const arrivedDisplay = useCountUp(item.arrived_count ?? 0);
+  const lateCancelsDisplay = useCountUp(lateCancels);
 
   return (
     <Pressable
@@ -95,17 +101,17 @@ function CoachSessionReportCard({
 
       <View style={[styles.statsRow, rtlRowFlip && styles.statsRowRtl]}>
         <View style={styles.statCell}>
-          <Text style={styles.statValue}>{item.registered_count}</Text>
+          <Text style={styles.statValue}>{Math.round(registeredDisplay)}</Text>
           <Text style={[styles.statLabel, isRTL && styles.rtlText]}>{t("coachReport.statRegistered")}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statCell}>
-          <Text style={styles.statValue}>{item.arrived_count}</Text>
+          <Text style={styles.statValue}>{Math.round(arrivedDisplay)}</Text>
           <Text style={[styles.statLabel, isRTL && styles.rtlText]}>{t("coachReport.statArrived")}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statCell}>
-          <Text style={[styles.statValue, lateCancels > 0 && styles.statValueWarn]}>{lateCancels}</Text>
+          <Text style={[styles.statValue, lateCancels > 0 && styles.statValueWarn]}>{Math.round(lateCancelsDisplay)}</Text>
           <Text style={[styles.statLabel, isRTL && styles.rtlText]}>{t("coachReport.statLateCancel")}</Text>
         </View>
       </View>
@@ -142,6 +148,7 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
     () => rows.filter((r) => r.coach_rate_missing === true).length,
     [rows]
   );
+  const payoutTotalDisplay = useCountUp(payoutTotal);
 
   const loadReport = useCallback(async () => {
     const s = start.trim();
@@ -211,19 +218,21 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
         />
       </View>
 
-      {coachId && loading ? (
-        <View style={styles.loadingBanner}>
-          <ActivityIndicator size="small" color={theme.colors.cta} />
-          <Text style={styles.loadingBannerTxt}>{t("common.loading")}</Text>
-        </View>
-      ) : null}
-
+      <CrossfadeSwap
+        loading={!!(coachId && loading)}
+        skeleton={
+          <View style={styles.loadingBanner}>
+            <ActivityIndicator size="small" color={theme.colors.cta} />
+            <Text style={styles.loadingBannerTxt}>{t("common.loading")}</Text>
+          </View>
+        }
+      >
       {hasSearched && coachId && !loading ? (
         <View style={styles.payoutCard}>
           <View style={[styles.payoutTop, isRTL && Platform.OS !== "web" && styles.payoutTopRtl]}>
             <View style={styles.payoutTopMain}>
               <Text style={[styles.payoutEyebrow, isRTL && styles.rtlText]}>{t("coachReport.payoutTitle")}</Text>
-              <Text style={[styles.payoutBig, isRTL && styles.rtlText]}>{formatPayout(payoutTotal)}</Text>
+              <Text style={[styles.payoutBig, isRTL && styles.rtlText]}>{formatPayout(payoutTotalDisplay)}</Text>
             </View>
             <View style={styles.payoutBadge}>
               <Text style={styles.payoutBadgeTxt}>
@@ -238,6 +247,7 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
           ) : null}
         </View>
       ) : null}
+      </CrossfadeSwap>
 
       <CoachPickerSheet
         visible={pickerOpen}
@@ -254,13 +264,15 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
         data={rows}
         keyExtractor={(item) => item.session_id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <CoachSessionReportCard
-            item={item}
-            language={language}
-            isRTL={isRTL}
-            onPress={() => router.push(`/(app)/manager/session/${item.session_id}` as Href)}
-          />
+        renderItem={({ item, index }) => (
+          <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+            <CoachSessionReportCard
+              item={item}
+              language={language}
+              isRTL={isRTL}
+              onPress={() => router.push(`/(app)/manager/session/${item.session_id}` as Href)}
+            />
+          </FadeSlideIn>
         )}
         ListEmptyComponent={
           !coachId ? (

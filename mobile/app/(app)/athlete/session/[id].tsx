@@ -36,6 +36,8 @@ import { AppText } from "../../../../src/components/AppText";
 import { AppModal } from "../../../../src/components/AppModal";
 import { AppTextField } from "../../../../src/components/AppTextField";
 import { Skeleton } from "../../../../src/components/Skeleton";
+import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
+import { useCountUp } from "../../../../src/hooks/useCountUp";
 
 /** Same visual anchor for Hebrew + Latin names in the participants list. */
 function participantListLabel(name: string, uiRtl: boolean): string {
@@ -67,6 +69,9 @@ export default function AthleteSessionDetail() {
   const [justCancelled, setJustCancelled] = useState(false);
   const [regOpenState, setRegOpenState] = useState<SessionRegistrationOpenState | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const displayCount = Math.round(useCountUp(count));
+  const spotsLeftRaw = session ? Math.max(0, session.max_participants - count) : 0;
+  const displaySpotsLeft = Math.round(useCountUp(spotsLeftRaw));
 
   useEffect(() => {
     const t = requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
@@ -397,7 +402,7 @@ export default function AthleteSessionDetail() {
                 <StatusChip label={t("athleteSession.statusOpen")} tone="success" />
               )}
               <StatusChip
-                label={t("athleteSession.spotsLeft").replace("{n}", String(spotsLeft))}
+                label={t("athleteSession.spotsLeft").replace("{n}", String(displaySpotsLeft))}
                 tone={spotsLeft === 0 ? "danger" : "neutral"}
               />
             </>
@@ -458,7 +463,7 @@ export default function AthleteSessionDetail() {
           </AppText>
           <View style={styles.partCountBadge}>
             <AppText variant="caption" style={styles.partCountBadgeTxt}>
-              {count}/{session.max_participants}
+              {displayCount}/{session.max_participants}
             </AppText>
           </View>
         </View>
@@ -473,15 +478,17 @@ export default function AthleteSessionDetail() {
         ) : (
           <View style={styles.partListShell}>
             {names.slice(0, 32).map((n, i) => (
-              <View key={`${n}-${i}`} style={styles.partChip}>
-                <AppText
-                  variant="caption"
-                  style={[styles.partChipTxt, isRTL ? styles.partChipTxtRtlUi : styles.partChipTxtLtrUi]}
-                  numberOfLines={1}
-                >
-                  {participantListLabel(n, isRTL)}
-                </AppText>
-              </View>
+              <FadeSlideIn key={`${n}-${i}`} delay={Math.min(i, theme.motion.maxStaggerIndex) * 30}>
+                <View style={styles.partChip}>
+                  <AppText
+                    variant="caption"
+                    style={[styles.partChipTxt, isRTL ? styles.partChipTxtRtlUi : styles.partChipTxtLtrUi]}
+                    numberOfLines={1}
+                  >
+                    {participantListLabel(n, isRTL)}
+                  </AppText>
+                </View>
+              </FadeSlideIn>
             ))}
             {count > names.length ? (
               <AppText variant="caption" soft isRTL={isRTL} style={styles.partRowMore}>

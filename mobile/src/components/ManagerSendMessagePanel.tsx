@@ -12,6 +12,8 @@ import { PrimaryButton } from "./PrimaryButton";
 import { ActionButton } from "./ActionButton";
 import { AppModal } from "./AppModal";
 import { ManagerMessageCard } from "./ManagerMessageCard";
+import { FadeSlideIn } from "./FadeSlideIn";
+import { CrossfadeSwap } from "./CrossfadeSwap";
 import {
   cancelManagerDirectMessage,
   fetchSentManagerDirectMessages,
@@ -369,18 +371,21 @@ export function ManagerSendMessagePanel() {
         <AppText variant="title" isRTL={isRTL} style={styles.cardTitle}>
           {t("managerMessage.sentTitle")}
         </AppText>
-        {loadingSent ? (
-          <ActivityIndicator color={theme.colors.cta} style={styles.spinner} />
-        ) : sent.length === 0 ? (
+        <CrossfadeSwap
+          loading={loadingSent}
+          skeleton={<ActivityIndicator color={theme.colors.cta} style={styles.spinner} />}
+        >
+        {sent.length === 0 ? (
           <AppText variant="caption" muted isRTL={isRTL} style={styles.emptySent}>
             {t("managerMessage.sentEmpty")}
           </AppText>
         ) : (
           <View style={styles.sentList}>
-            {sent.map((row) => {
+            {sent.map((row, index) => {
               const read = !!row.read_at;
               return (
-                <View key={row.id} style={[styles.sentRow, isRTL && styles.sentRowRtl]}>
+                <FadeSlideIn key={row.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+                <View style={[styles.sentRow, isRTL && styles.sentRowRtl]}>
                   <Pressable
                     onPress={() => setPreviewSent(row)}
                     style={({ pressed }) => [styles.sentRowMain, isRTL && styles.sentRowRtl, pressed && styles.sentRowPressed]}
@@ -437,10 +442,12 @@ export function ManagerSendMessagePanel() {
                     </Pressable>
                   ) : null}
                 </View>
+                </FadeSlideIn>
               );
             })}
           </View>
         )}
+        </CrossfadeSwap>
       </View>
     </View>
   );

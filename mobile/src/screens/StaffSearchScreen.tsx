@@ -12,6 +12,8 @@ import { EmptyState } from "../components/EmptyState";
 import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 import { AppText } from "../components/AppText";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
+import { FadeSlideIn } from "../components/FadeSlideIn";
+import { CrossfadeSwap } from "../components/CrossfadeSwap";
 
 type AthleteRow = { kind: "athlete"; id: string; title: string; subtitle: string };
 type ManualRow = { kind: "manual"; id: string; title: string; subtitle: string };
@@ -85,13 +87,16 @@ export default function StaffSearchScreen() {
         style={styles.searchField}
       />
 
-      {loading && rows.length === 0 ? (
-        <View style={styles.list}>
-          <ListRowSkeleton />
-          <ListRowSkeleton />
-          <ListRowSkeleton />
-        </View>
-      ) : (
+      <CrossfadeSwap
+        loading={loading && rows.length === 0}
+        skeleton={
+          <View style={styles.list}>
+            <ListRowSkeleton />
+            <ListRowSkeleton />
+            <ListRowSkeleton />
+          </View>
+        }
+      >
       <FlatList
         data={rows}
         keyExtractor={(item) => `${item.kind}:${item.id}`}
@@ -108,7 +113,8 @@ export default function StaffSearchScreen() {
             />
           ) : null
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
+          <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
           <View style={[styles.card, surface.card]}>
             <AppText variant="title" isRTL={isRTL}>
               {item.title}
@@ -150,9 +156,10 @@ export default function StaffSearchScreen() {
               )}
             </View>
           </View>
+          </FadeSlideIn>
         )}
       />
-      )}
+      </CrossfadeSwap>
     </View>
   );
 }

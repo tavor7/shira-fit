@@ -9,6 +9,7 @@ import { fetchStaffUpcomingRegisteredSessions, type AthleteUpcomingSession } fro
 import { formatISODateWeekdayDayMonth } from "../lib/dateFormat";
 import { formatSessionStartTime } from "../lib/sessionTime";
 import { firstWordOfDisplayName } from "../lib/displayName";
+import { CrossfadeSwap } from "./CrossfadeSwap";
 
 type Props = {
   variant: "coach" | "manager";
@@ -74,6 +75,24 @@ export function StaffAthleteScheduleLookup({ variant }: Props) {
 
   return (
     <>
+      <CrossfadeSwap
+        loading={!selected}
+        skeleton={
+          <Pressable
+            onPress={openSheet}
+            style={({ pressed }) => [styles.trigger, pressed && styles.triggerPressed]}
+            accessibilityRole="button"
+            accessibilityLabel={t("staffScheduleLookup.placeholder")}
+          >
+            <Text style={styles.triggerIcon} importantForAccessibility="no">
+              {"⌕"}
+            </Text>
+            <Text style={[styles.triggerLabel, isRTL && styles.rtlText]} numberOfLines={1}>
+              {t("staffScheduleLookup.placeholder")}
+            </Text>
+          </Pressable>
+        }
+      >
       {selected ? (
         <View style={styles.panel}>
           <View style={[styles.panelHead, isRTL && styles.panelHeadRtl]}>
@@ -94,9 +113,11 @@ export function StaffAthleteScheduleLookup({ variant }: Props) {
             </Pressable>
           </View>
 
-          {loadingUpcoming ? (
-            <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
-          ) : upcoming.length === 0 ? (
+          <CrossfadeSwap
+            loading={loadingUpcoming}
+            skeleton={<ActivityIndicator color={theme.colors.cta} style={styles.loader} />}
+          >
+          {upcoming.length === 0 ? (
             <Text style={[styles.empty, isRTL && styles.rtlText]}>{t("staffScheduleLookup.noUpcoming")}</Text>
           ) : (
             <View style={styles.sessionList}>
@@ -124,6 +145,7 @@ export function StaffAthleteScheduleLookup({ variant }: Props) {
               ))}
             </View>
           )}
+          </CrossfadeSwap>
 
           <Pressable
             onPress={openSheet}
@@ -133,21 +155,8 @@ export function StaffAthleteScheduleLookup({ variant }: Props) {
             <Text style={[styles.changeBtnTxt, isRTL && styles.rtlText]}>{t("staffScheduleLookup.changeAthlete")}</Text>
           </Pressable>
         </View>
-      ) : (
-        <Pressable
-          onPress={openSheet}
-          style={({ pressed }) => [styles.trigger, pressed && styles.triggerPressed]}
-          accessibilityRole="button"
-          accessibilityLabel={t("staffScheduleLookup.placeholder")}
-        >
-          <Text style={styles.triggerIcon} importantForAccessibility="no">
-            {"⌕"}
-          </Text>
-          <Text style={[styles.triggerLabel, isRTL && styles.rtlText]} numberOfLines={1}>
-            {t("staffScheduleLookup.placeholder")}
-          </Text>
-        </Pressable>
-      )}
+      ) : null}
+      </CrossfadeSwap>
 
       <AppSearchSheet
         visible={sheetOpen}

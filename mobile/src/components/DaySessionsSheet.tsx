@@ -28,6 +28,7 @@ import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import type { StudioCalendarNote } from "../lib/studioCalendarNotes";
 import { studioNoteCoversDate } from "../lib/studioCalendarNotes";
 import { studioCalendarNoteAccent } from "../lib/studioCalendarNoteAccent";
+import { FadeSlideIn } from "./FadeSlideIn";
 
 export type DaySheetVariant = "athlete" | "coach" | "manager";
 
@@ -579,12 +580,12 @@ export function DaySessionsSheet({
 
             {items.length > 0 ? (
               <View style={styles.sessionList}>
-                {items.map((it) => {
+                {items.map((it, index) => {
                   const ownAsCoach = variant === "coach" && it.coachId && currentUserId && it.coachId === currentUserId;
                   const canDelete = !!(variant === "manager" || ownAsCoach);
 
                   return (
-                    <View key={it.key}>
+                    <FadeSlideIn key={it.key} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
                       {variant === "athlete" && typeof it.onJoinWaitlist === "function" ? (
                         <View style={styles.waitlistBlock}>
                           <AthleteWaitlistInviteStripe
@@ -615,7 +616,7 @@ export function DaySessionsSheet({
                           }
                         }}
                       />
-                    </View>
+                    </FadeSlideIn>
                   );
                 })}
               </View>

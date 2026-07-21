@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { FadeSlideIn } from "../components/FadeSlideIn";
 
 type Tool = { titleKey: string; subtitleKey: string; path: string; icon: string };
 
@@ -23,23 +24,24 @@ export default function ManagerToolsScreen() {
       <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("managerTools.hint")}</Text>
 
       <View style={styles.grid}>
-        {tools.map((tool) => (
-          <Pressable
-            key={tool.path}
-            onPress={() => router.push(tool.path as never)}
-            style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
-            accessibilityRole="button"
-          >
-            <View style={[styles.cardRow, isRTL && styles.cardRowRtl]}>
-              <Text style={styles.cardIcon} accessibilityElementsHidden>
-                {tool.icon}
-              </Text>
-              <View style={styles.cardText}>
-                <Text style={[styles.cardTitle, isRTL && styles.rtlText]}>{t(tool.titleKey)}</Text>
-                <Text style={[styles.cardSub, isRTL && styles.rtlText]}>{t(tool.subtitleKey)}</Text>
+        {tools.map((tool, index) => (
+          <FadeSlideIn key={tool.path} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+            <Pressable
+              onPress={() => router.push(tool.path as never)}
+              style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+              accessibilityRole="button"
+            >
+              <View style={[styles.cardRow, isRTL && styles.cardRowRtl]}>
+                <Text style={styles.cardIcon} accessibilityElementsHidden>
+                  {tool.icon}
+                </Text>
+                <View style={styles.cardText}>
+                  <Text style={[styles.cardTitle, isRTL && styles.rtlText]}>{t(tool.titleKey)}</Text>
+                  <Text style={[styles.cardSub, isRTL && styles.rtlText]}>{t(tool.subtitleKey)}</Text>
+                </View>
               </View>
-            </View>
-          </Pressable>
+            </Pressable>
+          </FadeSlideIn>
         ))}
       </View>
     </ScrollView>

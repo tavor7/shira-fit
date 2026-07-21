@@ -33,6 +33,7 @@ import { useCountUp } from "../hooks/useCountUp";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AnimatedChevron } from "../components/AnimatedChevron";
+import { CrossfadeSwap } from "../components/CrossfadeSwap";
 
 type PeriodMode = ManagerPeriodMode;
 
@@ -286,6 +287,8 @@ export default function ManagerDashboardScreen() {
   const sessionCountDisplay = useCountUp(data?.session_count ?? 0);
   const waitlistCountDisplay = useCountUp(data?.waitlist_count ?? 0);
   const checkedInCountDisplay = useCountUp(data?.checked_in_count ?? 0);
+  const missingAttendanceCountDisplay = useCountUp(missingAttendance.count);
+  const capacityMismatchCountDisplay = useCountUp(capacityMismatchCount);
 
   const athleteListModel = useMemo(() => {
     if (!finance) return { families: [] as WeeklyFinanceFamily[], solo: [] as WeeklyFinanceAthlete[] };
@@ -501,106 +504,109 @@ export default function ManagerDashboardScreen() {
       </View>
       )}
 
-      {loading ? (
-        <View style={styles.statsGrid}>
-          <View style={styles.statsPair}>
-            <View style={styles.tile}>
-              <Skeleton width={60} height={11} style={styles.tileSkeletonCenter} />
-              <Skeleton width={40} height={22} style={styles.tileSkeletonValue} />
+      <CrossfadeSwap
+        loading={loading}
+        skeleton={
+          <View style={styles.statsGrid}>
+            <View style={styles.statsPair}>
+              <View style={styles.tile}>
+                <Skeleton width={60} height={11} style={styles.tileSkeletonCenter} />
+                <Skeleton width={40} height={22} style={styles.tileSkeletonValue} />
+              </View>
+              <View style={styles.tile}>
+                <Skeleton width={60} height={11} style={styles.tileSkeletonCenter} />
+                <Skeleton width={40} height={22} style={styles.tileSkeletonValue} />
+              </View>
             </View>
-            <View style={styles.tile}>
-              <Skeleton width={60} height={11} style={styles.tileSkeletonCenter} />
-              <Skeleton width={40} height={22} style={styles.tileSkeletonValue} />
+            <View style={styles.statsPair}>
+              <View style={styles.tile}>
+                <Skeleton width={60} height={11} style={styles.tileSkeletonCenter} />
+                <Skeleton width={40} height={22} style={styles.tileSkeletonValue} />
+              </View>
+              <View style={styles.tile}>
+                <Skeleton width={60} height={11} style={styles.tileSkeletonCenter} />
+                <Skeleton width={40} height={22} style={styles.tileSkeletonValue} />
+              </View>
             </View>
           </View>
-          <View style={styles.statsPair}>
-            <View style={styles.tile}>
-              <Skeleton width={60} height={11} style={styles.tileSkeletonCenter} />
-              <Skeleton width={40} height={22} style={styles.tileSkeletonValue} />
+        }
+      >
+        {showStats ? (
+          <FadeSlideIn key={periodMode}>
+            <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>{t(sectionEyebrowKey(periodMode))}</Text>
+            <View style={styles.statsCard}>
+              <View style={styles.statsGrid}>
+                <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
+                  <Pressable
+                    onPress={() => openWeeklyDetail("avg_fill")}
+                    style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("dashboard.a11yAvgFill")}
+                  >
+                    <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileAvgFill")}</AppText>
+                    <AppText variant="display" style={styles.tileV}>{Math.round(avgFillDisplay)}%</AppText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => openWeeklyDetail("cancellations")}
+                    style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("dashboard.a11yCancellations")}
+                  >
+                    <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileCancellations")}</AppText>
+                    <AppText variant="display" style={styles.tileV}>{Math.round(cancellationsDisplay)}</AppText>
+                  </Pressable>
+                </View>
+                <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
+                  <Pressable
+                    onPress={() => openWeeklyDetail("no_shows")}
+                    style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("dashboard.a11yNoShows")}
+                  >
+                    <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileNoShows")}</AppText>
+                    <AppText variant="display" style={styles.tileV}>{Math.round(noShowsDisplay)}</AppText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => openWeeklyDetail("sessions")}
+                    style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("dashboard.a11ySessions")}
+                  >
+                    <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileSessions")}</AppText>
+                    <AppText variant="display" style={styles.tileV}>{Math.round(sessionCountDisplay)}</AppText>
+                  </Pressable>
+                </View>
+                <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
+                  <Pressable
+                    onPress={() => openWeeklyDetail("waitlist")}
+                    style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("dashboard.a11yWaitlist")}
+                  >
+                    <AppText variant="label" soft style={styles.tileL}>{t("dashboard.waitlist")}</AppText>
+                    <AppText variant="display" style={styles.tileV}>{Math.round(waitlistCountDisplay)}</AppText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => openWeeklyDetail("checked_in")}
+                    style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("dashboard.a11yCheckedIn")}
+                  >
+                    <AppText variant="label" soft style={styles.tileL}>{t("dashboard.checkedIn")}</AppText>
+                    <AppText variant="display" style={styles.tileV}>{Math.round(checkedInCountDisplay)}</AppText>
+                  </Pressable>
+                </View>
+              </View>
             </View>
-            <View style={styles.tile}>
-              <Skeleton width={60} height={11} style={styles.tileSkeletonCenter} />
-              <Skeleton width={40} height={22} style={styles.tileSkeletonValue} />
-            </View>
-          </View>
-        </View>
-      ) : null}
+          </FadeSlideIn>
+        ) : null}
+      </CrossfadeSwap>
 
       {!loading && data && !data.ok ? (
         <View style={styles.errBlock}>
           <Text style={styles.err}>{data.error ?? t("common.error")}</Text>
           <ActionButton label={t("auth.retryConnection")} onPress={() => void load()} style={styles.errRetryBtn} />
         </View>
-      ) : null}
-
-      {showStats ? (
-        <FadeSlideIn key={periodMode}>
-          <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>{t(sectionEyebrowKey(periodMode))}</Text>
-          <View style={styles.statsCard}>
-            <View style={styles.statsGrid}>
-              <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
-                <Pressable
-                  onPress={() => openWeeklyDetail("avg_fill")}
-                  style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("dashboard.a11yAvgFill")}
-                >
-                  <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileAvgFill")}</AppText>
-                  <AppText variant="display" style={styles.tileV}>{Math.round(avgFillDisplay)}%</AppText>
-                </Pressable>
-                <Pressable
-                  onPress={() => openWeeklyDetail("cancellations")}
-                  style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("dashboard.a11yCancellations")}
-                >
-                  <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileCancellations")}</AppText>
-                  <AppText variant="display" style={styles.tileV}>{Math.round(cancellationsDisplay)}</AppText>
-                </Pressable>
-              </View>
-              <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
-                <Pressable
-                  onPress={() => openWeeklyDetail("no_shows")}
-                  style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("dashboard.a11yNoShows")}
-                >
-                  <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileNoShows")}</AppText>
-                  <AppText variant="display" style={styles.tileV}>{Math.round(noShowsDisplay)}</AppText>
-                </Pressable>
-                <Pressable
-                  onPress={() => openWeeklyDetail("sessions")}
-                  style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("dashboard.a11ySessions")}
-                >
-                  <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileSessions")}</AppText>
-                  <AppText variant="display" style={styles.tileV}>{Math.round(sessionCountDisplay)}</AppText>
-                </Pressable>
-              </View>
-              <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
-                <Pressable
-                  onPress={() => openWeeklyDetail("waitlist")}
-                  style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("dashboard.a11yWaitlist")}
-                >
-                  <AppText variant="label" soft style={styles.tileL}>{t("dashboard.waitlist")}</AppText>
-                  <AppText variant="display" style={styles.tileV}>{Math.round(waitlistCountDisplay)}</AppText>
-                </Pressable>
-                <Pressable
-                  onPress={() => openWeeklyDetail("checked_in")}
-                  style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("dashboard.a11yCheckedIn")}
-                >
-                  <AppText variant="label" soft style={styles.tileL}>{t("dashboard.checkedIn")}</AppText>
-                  <AppText variant="display" style={styles.tileV}>{Math.round(checkedInCountDisplay)}</AppText>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </FadeSlideIn>
       ) : null}
 
       {showStats && (data.session_count ?? 0) === 0 ? (
@@ -624,7 +630,7 @@ export default function ManagerDashboardScreen() {
               accessibilityState={{ disabled: missingAttendance.count === 0 }}
             >
               <Text style={styles.alertTileL}>{t("dashboard.missingAttendanceTile")}</Text>
-              <Text style={styles.alertTileV}>{missingAttendance.count}</Text>
+              <Text style={styles.alertTileV}>{Math.round(missingAttendanceCountDisplay)}</Text>
               {missingAttendance.count > 0 ? (
                 <Text style={styles.alertTileHint}>{t("dashboard.missingAttendanceTileHint")}</Text>
               ) : null}
@@ -644,7 +650,7 @@ export default function ManagerDashboardScreen() {
             accessibilityState={{ disabled: capacityMismatchCount === 0 }}
           >
             <Text style={styles.alertTileL}>{t("dashboard.capacityMismatchTile")}</Text>
-            <Text style={styles.alertTileV}>{capacityMismatchCount}</Text>
+            <Text style={styles.alertTileV}>{Math.round(capacityMismatchCountDisplay)}</Text>
             {capacityMismatchCount > 0 ? (
               <Text style={styles.alertTileHintWarn}>{t("dashboard.capacityMismatchTileHint")}</Text>
             ) : null}
@@ -823,7 +829,7 @@ export default function ManagerDashboardScreen() {
               </Text>
             </Pressable>
 
-            {showAthleteList ? (
+            <AnimatedOptionExpand open={showAthleteList}>
               <View style={styles.athleteList}>
                 {athleteListModel.families.length === 0 && athleteListModel.solo.length === 0 ? (
                   <Text style={[styles.muted, isRTL && styles.rtl]}>{t("dashboard.financeNoAthleteRows")}</Text>
@@ -874,7 +880,7 @@ export default function ManagerDashboardScreen() {
                   </>
                 )}
               </View>
-            ) : null}
+            </AnimatedOptionExpand>
           </View>
         </View>
       ) : null}
@@ -882,21 +888,24 @@ export default function ManagerDashboardScreen() {
       {isGlobal ? (
         <View style={styles.accountsSummary}>
           <Text style={[styles.accountsSummaryEyebrow, isRTL && styles.rtl]}>{t("dashboard.globalAccountsEyebrow")}</Text>
-          {accountCountsLoading ? (
-            <ActivityIndicator color={theme.colors.textSoft} size="small" />
-          ) : accountCounts ? (
-            <>
-              <Text style={[styles.accountsSummaryLine, isRTL && styles.rtl]}>
-                {t("dashboard.globalAccountsSummary")
-                  .replace("{total}", String(accountCounts.total))
-                  .replace("{app}", String(accountCounts.appAthletes))
-                  .replace("{quick}", String(accountCounts.quickAddOnly))}
-              </Text>
-              <Text style={[styles.accountsSummaryHint, isRTL && styles.rtl]}>{t("dashboard.globalAccountsHint")}</Text>
-            </>
-          ) : (
-            <Text style={[styles.accountsSummaryHint, isRTL && styles.rtl]}>{t("common.error")}</Text>
-          )}
+          <CrossfadeSwap
+            loading={accountCountsLoading}
+            skeleton={<ActivityIndicator color={theme.colors.textSoft} size="small" />}
+          >
+            {accountCounts ? (
+              <>
+                <Text style={[styles.accountsSummaryLine, isRTL && styles.rtl]}>
+                  {t("dashboard.globalAccountsSummary")
+                    .replace("{total}", String(accountCounts.total))
+                    .replace("{app}", String(accountCounts.appAthletes))
+                    .replace("{quick}", String(accountCounts.quickAddOnly))}
+                </Text>
+                <Text style={[styles.accountsSummaryHint, isRTL && styles.rtl]}>{t("dashboard.globalAccountsHint")}</Text>
+              </>
+            ) : (
+              <Text style={[styles.accountsSummaryHint, isRTL && styles.rtl]}>{t("common.error")}</Text>
+            )}
+          </CrossfadeSwap>
         </View>
       ) : null}
 

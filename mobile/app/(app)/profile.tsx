@@ -12,6 +12,7 @@ import { LoadingState } from "../../src/components/LoadingState";
 import { useI18n } from "../../src/context/I18nContext";
 import { NotificationSettingsPanel } from "../../src/components/NotificationSettingsPanel";
 import { ManagerSendMessagePanel } from "../../src/components/ManagerSendMessagePanel";
+import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 
 function getUpdateErrorMessage(message: string, t: (key: string) => string) {
   const msg = (message || "").toLowerCase();
@@ -231,6 +232,7 @@ export default function ProfileScreen() {
           ) : null}
         </View>
 
+        <FadeSlideIn key={segment}>
         {segment === "account" ? (
           <>
             {success ? (
@@ -330,6 +332,7 @@ export default function ProfileScreen() {
         ) : (
           <NotificationSettingsPanel variant="embedded" />
         )}
+        </FadeSlideIn>
       </ScrollView>
     </KeyboardAvoidingView>
   );

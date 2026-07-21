@@ -24,6 +24,8 @@ import { isSessionInActiveSeries, maintainSessionSeriesHorizon } from "../../../
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
 import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySlot";
 import { EmptyState } from "../../../src/components/EmptyState";
+import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
+import { ActiveUsersIndicator } from "../../../src/components/ActiveUsersIndicator";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
@@ -174,6 +176,9 @@ export default function ManagerSessionsScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
+        <View style={styles.activeUsersWrap}>
+          <ActiveUsersIndicator />
+        </View>
         {showPriorityAlerts ? (
           <View style={styles.alertsWrap}>
             <HomePriorityAlerts
@@ -185,23 +190,24 @@ export default function ManagerSessionsScreen() {
         ) : null}
         <StaffHomeOverview userId={profile?.user_id} sessions={rows} variant="manager" refreshSeq={refreshSeq} />
         <StaffAthleteScheduleLookup variant="manager" />
-        {loading && rows.length === 0 ? (
-          <EmptyState title={t("common.loading")} isRTL={isRTL} style={styles.initialLoading} />
-        ) : (
-        <SessionsWeekCalendar
-          items={items}
-          isLoading={loading}
-          emptyLabel={t("empty.noSessionsFound")}
-          onDayPress={(iso) => setSheetDay(iso)}
-          weekOffset={calendarWeekOffset}
-          onWeekOffsetChange={setCalendarWeekOffset}
-          onWeekChange={(startIso, endIso) => {
-            setWeekRange({ start: startIso, end: endIso });
-            setWeekStartIso(startIso);
-          }}
-          calendarNotes={studioNotes}
-        />
-        )}
+        <CrossfadeSwap
+          loading={loading && rows.length === 0}
+          skeleton={<EmptyState title={t("common.loading")} isRTL={isRTL} style={styles.initialLoading} />}
+        >
+          <SessionsWeekCalendar
+            items={items}
+            isLoading={loading}
+            emptyLabel={t("empty.noSessionsFound")}
+            onDayPress={(iso) => setSheetDay(iso)}
+            weekOffset={calendarWeekOffset}
+            onWeekOffsetChange={setCalendarWeekOffset}
+            onWeekChange={(startIso, endIso) => {
+              setWeekRange({ start: startIso, end: endIso });
+              setWeekStartIso(startIso);
+            }}
+            calendarNotes={studioNotes}
+          />
+        </CrossfadeSwap>
         {weekStartIso ? (
           <View style={styles.weekActions}>
             <PrimaryButton
@@ -240,6 +246,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: theme.spacing.lg },
+  activeUsersWrap: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm },
   alertsWrap: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm },
   weekActions: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md },
   initialLoading: { paddingVertical: theme.spacing.xl },

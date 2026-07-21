@@ -12,6 +12,7 @@ import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { AppText } from "../../src/components/AppText";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { LoadingState } from "../../src/components/LoadingState";
+import { AnimatedCheckMark } from "../../src/components/AnimatedCheckMark";
 import { surface } from "../../src/theme/surfaces";
 
 const REDIRECT_MS = 2800;
@@ -124,9 +125,13 @@ export default function ConfirmEmailScreen() {
         ) : (
           <>
             <View style={[styles.badge, state === "error" && styles.badgeErr]}>
-              <AppText variant="display" style={[styles.badgeText, state === "error" && styles.badgeTextErr]}>
-                {state === "ok" ? "\u2713" : "!"}
-              </AppText>
+              {state === "error" ? (
+                <AppText variant="display" style={[styles.badgeText, styles.badgeTextErr]}>
+                  {"!"}
+                </AppText>
+              ) : (
+                <AnimatedCheckMark visible={state === "ok"} style={styles.badgeText} />
+              )}
             </View>
             <AppText variant="display" isRTL={isRTL} style={styles.title}>
               {state === "ok" ? t("auth.confirmEmailVerified") : t("auth.confirmEmailFailed")}
@@ -175,7 +180,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   badgeErr: { backgroundColor: theme.colors.errorBg },
-  badgeText: { color: theme.colors.success },
+  badgeText: { color: theme.colors.success, fontSize: 22, fontWeight: "800" },
   badgeTextErr: { color: theme.colors.error },
   title: { textAlign: "center", marginBottom: theme.spacing.sm },
   lead: { textAlign: "center", marginBottom: theme.spacing.lg },

@@ -1,5 +1,6 @@
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { theme } from "../theme";
+import { PressableScale } from "./PressableScale";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { formatSessionStartTime, getSessionTemporalPhase } from "../lib/sessionTime";
 import { KickboxSessionBadge } from "./KickboxSessionBadge";
@@ -29,7 +30,7 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
   return (
     <View style={[styles.card, item.athleteRegistered && styles.cardRegistered]}>
       {accent ? <View style={[styles.accent, { backgroundColor: accent }]} /> : null}
-      <Pressable
+      <PressableScale
         onPress={onPress}
         style={({ pressed }) => [styles.bodyPressable, pressed && styles.cardPressed]}
         accessibilityRole="button"
@@ -76,7 +77,7 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
           </View>
           {!canDelete ? <Text style={styles.chevron}>{isRTL ? "‹" : "›"}</Text> : null}
         </View>
-      </Pressable>
+      </PressableScale>
       {canDelete && onDelete ? (
         <Pressable
           onPress={onDelete}

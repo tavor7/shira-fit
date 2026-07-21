@@ -13,6 +13,7 @@ import { DatePickerField } from "../components/DatePickerField";
 import { isValidISODateString } from "../lib/isoDate";
 import { formatDateTimeForDisplay } from "../lib/dateFormat";
 import { useAuth } from "../context/AuthContext";
+import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 
 /** How long the save checkmark holds before navigating back. */
 const SAVE_SUCCESS_HOLD_MS = 1200;
@@ -283,7 +284,8 @@ export default function StaffEditProfileScreen() {
         <AppText variant="caption" muted isRTL={isRTL} style={styles.duplicateHint}>
           {t("common.loading")}
         </AppText>
-      ) : duplicateNames.length > 0 ? (
+      ) : null}
+      <AnimatedOptionExpand open={duplicateNames.length > 0}>
         <View style={styles.duplicateCard}>
           <AppText variant="caption" isRTL={isRTL} style={styles.duplicateTitle}>
             {t("profile.duplicateNameTitle").replace("{n}", String(duplicateNames.length))}
@@ -304,7 +306,7 @@ export default function StaffEditProfileScreen() {
             </Pressable>
           ))}
         </View>
-      ) : null}
+      </AnimatedOptionExpand>
 
       <AppTextField
         label={t("profile.phone")}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Animated, StyleSheet } from "react-native";
+import { Animated, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { theme } from "../theme";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
@@ -7,10 +7,12 @@ type Props = {
   loading: boolean;
   skeleton: ReactNode;
   children: ReactNode;
+  /** Optional style applied to the resolved-content wrapper (e.g. `{ flex: 1 }` when children need to fill the screen). */
+  style?: StyleProp<ViewStyle>;
 };
 
 /** Cross-dissolves a loading skeleton into its resolved content instead of a hard cut. */
-export function CrossfadeSwap({ loading, skeleton, children }: Props) {
+export function CrossfadeSwap({ loading, skeleton, children, style }: Props) {
   const skeletonOpacity = useRef(new Animated.Value(loading ? 1 : 0)).current;
   const contentOpacity = useRef(new Animated.Value(loading ? 0 : 1)).current;
   const [showSkeleton, setShowSkeleton] = useState(loading);
@@ -58,7 +60,7 @@ export function CrossfadeSwap({ loading, skeleton, children }: Props) {
 
   return (
     <>
-      {!loading ? <Animated.View style={{ opacity: contentOpacity }}>{children}</Animated.View> : null}
+      {!loading ? <Animated.View style={[style, { opacity: contentOpacity }]}>{children}</Animated.View> : null}
       {showSkeleton ? (
         <Animated.View style={[!loading && StyleSheet.absoluteFill, { opacity: skeletonOpacity }]}>
           {skeleton}

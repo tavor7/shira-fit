@@ -24,6 +24,9 @@ import {
   parseMissingAttendance,
   type MissingAttendanceSession,
 } from "../lib/managerWeeklyStats";
+import { CrossfadeSwap } from "../components/CrossfadeSwap";
+import { FadeSlideIn } from "../components/FadeSlideIn";
+import { PressableScale } from "../components/PressableScale";
 
 function formatSessionTimeShort(isoTime: string): string {
   const s = String(isoTime ?? "").trim();
@@ -129,39 +132,46 @@ export default function ManagerMissingAttendanceScreen() {
         {rangeLabel ? <Text style={[styles.sub, isRTL && styles.rtl]}>{rangeLabel}</Text> : null}
         <Text style={[styles.hint, isRTL && styles.rtl]}>{t("dashboard.missingAttendanceHint")}</Text>
 
-        {loading ? (
-          <View style={styles.skeletonList}>
-            <ListRowSkeleton />
-            <ListRowSkeleton />
-            <ListRowSkeleton />
-          </View>
-        ) : error ? (
+        <CrossfadeSwap
+          loading={loading}
+          skeleton={
+            <View style={styles.skeletonList}>
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+            </View>
+          }
+        >
+          {error ? (
           <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
         ) : sessions.length === 0 ? (
           <EmptyState icon="✅" title={t("dashboard.missingAttendanceEmpty")} isRTL={isRTL} />
         ) : (
-          sessions.map((s) => {
+          sessions.map((s, index) => {
             const open = expandedId === s.session_id;
             if (open) openedOnceRef.current.add(s.session_id);
             return (
-              <View key={s.session_id} style={styles.card}>
-                <Pressable
+              <FadeSlideIn key={s.session_id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+              <View style={styles.card}>
+                <PressableScale
                   onPress={() => setExpandedId(open ? null : s.session_id)}
                   style={({ pressed }) => [styles.cardHead, pressed && styles.cardHeadPressed]}
                   accessibilityRole="button"
                   accessibilityState={{ expanded: open }}
                 >
-                  <View style={[styles.cardHeadMain, isRTL && styles.cardHeadMainRtl]}>
-                    <Text style={[styles.cardDate, isRTL && styles.rtl]}>
-                      {formatISODateFull(s.session_date, language)} · {formatSessionTimeShort(s.start_time)}
-                    </Text>
-                    <Text style={[styles.cardMeta, isRTL && styles.rtl]} numberOfLines={1}>
-                      {s.coach_name?.trim() || "—"} ·{" "}
-                      {t("dashboard.missingAttendanceUnset").replace("{n}", String(s.unset_count))}
-                    </Text>
+                  <View style={styles.cardHeadRow}>
+                    <View style={[styles.cardHeadMain, isRTL && styles.cardHeadMainRtl]}>
+                      <Text style={[styles.cardDate, isRTL && styles.rtl]}>
+                        {formatISODateFull(s.session_date, language)} · {formatSessionTimeShort(s.start_time)}
+                      </Text>
+                      <Text style={[styles.cardMeta, isRTL && styles.rtl]} numberOfLines={1}>
+                        {s.coach_name?.trim() || "—"} ·{" "}
+                        {t("dashboard.missingAttendanceUnset").replace("{n}", String(s.unset_count))}
+                      </Text>
+                    </View>
+                    <AnimatedChevron open={open} style={styles.chev} />
                   </View>
-                  <AnimatedChevron open={open} style={styles.chev} />
-                </Pressable>
+                </PressableScale>
                 {openedOnceRef.current.has(s.session_id) ? (
                   <AnimatedOptionExpand open={open}>
                     <View style={styles.cardBody}>
@@ -186,9 +196,11 @@ export default function ManagerMissingAttendanceScreen() {
                   </AnimatedOptionExpand>
                 ) : null}
               </View>
+              </FadeSlideIn>
             );
           })
         )}
+        </CrossfadeSwap>
       </ScrollView>
     </>
   );
@@ -213,13 +225,15 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   cardHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 12,
   },
   cardHeadPressed: { opacity: 0.9 },
+  cardHeadRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   cardHeadMain: { flex: 1, minWidth: 0 },
   cardHeadMainRtl: { alignItems: "flex-end" },
   cardDate: { fontSize: 14, fontWeight: "800", color: theme.colors.text },

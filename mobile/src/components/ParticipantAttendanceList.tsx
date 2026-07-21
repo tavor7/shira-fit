@@ -12,6 +12,7 @@ import { isBirthdayToday } from "../lib/birthday";
 import { ListRowSkeleton } from "./ListRowSkeleton";
 import { PressableScale } from "./PressableScale";
 import { FadeSlideIn } from "./FadeSlideIn";
+import { CrossfadeSwap } from "./CrossfadeSwap";
 import {
   normalizePaymentMethodKey,
   paymentMethodAttendanceLabel,
@@ -730,16 +731,6 @@ export function ParticipantAttendanceList({
     }
   }
 
-  if (loading) {
-    return (
-      <View style={styles.skeletonList}>
-        <ListRowSkeleton />
-        <ListRowSkeleton />
-        <ListRowSkeleton />
-      </View>
-    );
-  }
-
   const duplicateBanner =
     duplicateRosterSessionId != null ? (
       <Pressable
@@ -754,19 +745,30 @@ export function ParticipantAttendanceList({
       </Pressable>
     ) : null;
 
+  const skeleton = (
+    <View style={styles.skeletonList}>
+      <ListRowSkeleton />
+      <ListRowSkeleton />
+      <ListRowSkeleton />
+    </View>
+  );
+
   if (rows.length === 0) {
     return (
-      <View style={styles.emptyWrap}>
-        {loadError ? (
-          <Text style={[styles.loadError, isRTL && styles.rtlText]}>{loadError}</Text>
-        ) : null}
-        {duplicateBanner}
-        <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("attendance.noActiveRegistrations")}</Text>
-      </View>
+      <CrossfadeSwap loading={loading} skeleton={skeleton}>
+        <View style={styles.emptyWrap}>
+          {loadError ? (
+            <Text style={[styles.loadError, isRTL && styles.rtlText]}>{loadError}</Text>
+          ) : null}
+          {duplicateBanner}
+          <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("attendance.noActiveRegistrations")}</Text>
+        </View>
+      </CrossfadeSwap>
     );
   }
 
   return (
+    <CrossfadeSwap loading={loading} skeleton={skeleton}>
     <View style={styles.list}>
       {loadError ? <Text style={[styles.loadError, isRTL && styles.rtlText]}>{loadError}</Text> : null}
       {duplicateBanner}
@@ -1119,6 +1121,7 @@ export function ParticipantAttendanceList({
         </View>
       </Modal>
     </View>
+    </CrossfadeSwap>
   );
 }
 
