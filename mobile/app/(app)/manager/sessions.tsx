@@ -27,6 +27,8 @@ import { EmptyState } from "../../../src/components/EmptyState";
 import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
 import { ActiveUsersIndicator } from "../../../src/components/ActiveUsersIndicator";
 import { useRealtimeRefetch } from "../../../src/hooks/useRealtimeRefetch";
+import { useLiveActivityBanner } from "../../../src/hooks/useLiveActivityBanner";
+import { LiveActivityBanner } from "../../../src/components/LiveActivityBanner";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
@@ -118,6 +120,16 @@ export default function ManagerSessionsScreen() {
   );
   useRealtimeRefetch(realtimeTables, () => load(false));
 
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const { current: liveActivityItem, dismissCurrent: dismissLiveActivity } = useLiveActivityBanner(
+    profile?.role === "manager",
+    (sessionId) => {
+      const row = rowsRef.current.find((r) => r.id === sessionId);
+      return row ? formatSessionTimeRange(row.start_time, row.duration_minutes ?? 60) : null;
+    }
+  );
+
   const visibleRows = useMemo(
     () => dedupeSessionsBySignupCount(rows, signupBySession),
     [rows, signupBySession]
@@ -185,6 +197,7 @@ export default function ManagerSessionsScreen() {
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ title: t("screen.managerSessions") }} />
+      <LiveActivityBanner item={liveActivityItem} onDismiss={dismissLiveActivity} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}

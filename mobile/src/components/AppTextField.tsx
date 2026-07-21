@@ -1,5 +1,8 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import {
+  Animated,
+  Easing,
+  Platform,
   TextInput,
   View,
   Pressable,
@@ -8,9 +11,11 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
 import { AppText } from "./AppText";
 import { useI18n } from "../context/I18nContext";
+import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
 type Props = TextInputProps & {
   label?: string;
@@ -42,6 +47,33 @@ export const AppTextField = forwardRef<TextInput, Props>(function AppTextField(
   const [revealed, setRevealed] = useState(false);
   const isPasswordField = !!secureTextEntry;
 
+  // Shake + a brief red flash the moment a field *becomes* invalid — not on every re-render
+  // while it stays invalid, which would just be noise while the user keeps typing.
+  const shakeX = useRef(new Animated.Value(0)).current;
+  const flashOpacity = useRef(new Animated.Value(0)).current;
+  const wasErrorRef = useRef(!!error);
+  const reduceMotionRef = useReduceMotionRef();
+
+  useEffect(() => {
+    const justBecameInvalid = !!error && !wasErrorRef.current;
+    wasErrorRef.current = !!error;
+    if (!justBecameInvalid || reduceMotionRef.current) return;
+    if (Platform.OS === "ios" || Platform.OS === "android") {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
+    shakeX.setValue(0);
+    flashOpacity.setValue(0.5);
+    Animated.sequence([
+      Animated.timing(shakeX, { toValue: -10, duration: 55, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: 8, duration: 55, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: -6, duration: 55, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: 4, duration: 55, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: 0, duration: 55, easing: Easing.linear, useNativeDriver: true }),
+    ]).start();
+    Animated.timing(flashOpacity, { toValue: 0, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [error]);
+
   return (
     <View style={containerStyle}>
       {label ? (
@@ -49,7 +81,7 @@ export const AppTextField = forwardRef<TextInput, Props>(function AppTextField(
           {label}
         </AppText>
       ) : null}
-      <View>
+      <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
         <TextInput
           ref={ref}
           style={[
@@ -65,6 +97,7 @@ export const AppTextField = forwardRef<TextInput, Props>(function AppTextField(
           secureTextEntry={isPasswordField && !revealed}
           {...rest}
         />
+        <Animated.View pointerEvents="none" style={[styles.errorFlash, { opacity: flashOpacity }]} />
         {isPasswordField ? (
           <Pressable
             onPress={() => setRevealed((v) => !v)}
@@ -82,7 +115,7 @@ export const AppTextField = forwardRef<TextInput, Props>(function AppTextField(
             </AppText>
           </Pressable>
         ) : null}
-      </View>
+      </Animated.View>
     </View>
   );
 });
@@ -101,6 +134,11 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.body.lineHeight,
     fontWeight: theme.typography.body.fontWeight,
     minHeight: 48,
+  },
+  errorFlash: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.error,
   },
   inputPaper: {
     borderColor: theme.colors.borderInput,

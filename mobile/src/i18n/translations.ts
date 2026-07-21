@@ -359,6 +359,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "activeUsers.now": "{n} active now",
     "activeUsers.title": "Active now",
     "activeUsers.you": "(you)",
+    "liveActivity.someone": "Someone",
+    "liveActivity.registered": "{name} just registered",
+    "liveActivity.registeredFor": "{name} just registered for {session}",
+    "liveActivity.cancelled": "{name} just cancelled",
+    "liveActivity.cancelledFor": "{name} just cancelled their spot in {session}",
 
     "tab.athleteBrowse": "Browse",
     "tab.athleteMySessions": "My sessions",
@@ -1564,6 +1569,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "activeUsers.now": "{n} פעילים כעת",
     "activeUsers.title": "פעילים כעת",
     "activeUsers.you": "(אתה)",
+    "liveActivity.someone": "מישהו",
+    "liveActivity.registered": "{name} נרשם/ה עכשיו",
+    "liveActivity.registeredFor": "{name} נרשם/ה עכשיו ל-{session}",
+    "liveActivity.cancelled": "{name} ביטל/ה עכשיו",
+    "liveActivity.cancelledFor": "{name} ביטל/ה עכשיו את המקום ב-{session}",
 
     "dashboard.management": "ניהול",
     "dashboard.weeklyOverview": "סקירה שבועית",
