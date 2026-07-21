@@ -117,6 +117,29 @@ function parseRpc<T extends Record<string, unknown>>(data: unknown): RpcOk<T> | 
   return row as RpcOk<T>;
 }
 
+/** supabase-js leaves the failed function's Response body unread on `error.context`; read it as text. */
+async function readFunctionErrorMessage(error: unknown, fallback: string): Promise<string> {
+  const context = (error as { context?: unknown } | null)?.context;
+  if (context instanceof Response) {
+    try {
+      const text = await context.text();
+      if (text) {
+        try {
+          const parsed = JSON.parse(text) as { error?: string };
+          if (parsed?.error) return parsed.error;
+        } catch {
+          /* not JSON */
+        }
+        return text;
+      }
+    } catch {
+      /* body already consumed or unreadable */
+    }
+  }
+  const message = (error as { message?: string } | null)?.message;
+  return message || fallback;
+}
+
 export async function fetchReceiptSettings(): Promise<ReceiptSettings | null> {
   const { data, error } = await supabase.rpc("get_receipt_settings");
   if (error) throw error;
@@ -139,6 +162,7 @@ export async function updateReceiptSettings(patch: Partial<{
   is_operational: boolean;
   request_address_from_existing_users: boolean;
   request_consent_from_existing_users: boolean;
+  next_document_number: number;
 }>): Promise<ReceiptSettings> {
   const { data, error } = await supabase.rpc("update_receipt_settings", {
     p_business_id: patch.business_id ?? null,
@@ -154,6 +178,7 @@ export async function updateReceiptSettings(patch: Partial<{
     p_is_operational: patch.is_operational ?? null,
     p_request_address_from_existing_users: patch.request_address_from_existing_users ?? null,
     p_request_consent_from_existing_users: patch.request_consent_from_existing_users ?? null,
+    p_next_document_number: patch.next_document_number ?? null,
   });
   if (error) throw error;
   const parsed = parseRpc<{ settings: ReceiptSettings }>(data);
@@ -363,11 +388,7 @@ export async function invokeGenerateDocumentPdf(documentId: string, allowOverwri
   });
   const row = (data ?? null) as { ok?: boolean; error?: string; signature_hash?: string } | null;
   if (error) {
-    const contextBody =
-      typeof error === "object" && error !== null && "context" in error
-        ? String((error as { context?: { body?: string } }).context?.body ?? "")
-        : "";
-    const msg = row?.error || contextBody || error.message || "pdf_generation_failed";
+    const msg = row?.error || (await readFunctionErrorMessage(error, "pdf_generation_failed"));
     throw new Error(msg.trim() || "pdf_generation_failed");
   }
   if (!row?.ok) throw new Error(row?.error ?? "pdf_generation_failed");
@@ -420,6 +441,65 @@ export async function invokeSendDocumentsEmail(opts: {
     documents_sent: row.documents_sent ?? 0,
     skipped_no_email: row.skipped_no_email,
   };
+}
+
+export type MonthlySummaryRow = {
+  id: string;
+  period_start: string;
+  period_end: string;
+  document_count: number;
+  active_count: number;
+  cancelled_count: number;
+  gross_total: number;
+  net_total: number;
+  vat_total: number;
+  business_name: string;
+  business_id: string;
+  pdf_url: string | null;
+  sent_at: string | null;
+  sent_to: string | null;
+  delivery_status: string | null;
+  created_at: string;
+};
+
+export async function fetchMonthlySummaries(limit = 24): Promise<MonthlySummaryRow[]> {
+  const { data, error } = await supabase.rpc("list_monthly_summaries", { p_limit: limit });
+  if (error) throw error;
+  const parsed = parseRpc<{ rows: MonthlySummaryRow[] }>(data);
+  if (!parsed.ok) throw new Error(parsed.error);
+  return parsed.rows ?? [];
+}
+
+export async function invokeGenerateMonthlySummaryPdf(
+  periodStart: string,
+  periodEnd: string
+): Promise<{ summaryId: string; pdfPath: string }> {
+  const { data, error } = await supabase.functions.invoke("generate-monthly-summary-pdf", {
+    body: { period_start: periodStart, period_end: periodEnd },
+  });
+  const row = (data ?? null) as { ok?: boolean; error?: string; summary_id?: string; pdf_path?: string } | null;
+  if (error) {
+    const msg = row?.error || (await readFunctionErrorMessage(error, "summary_generation_failed"));
+    throw new Error(msg.trim() || "summary_generation_failed");
+  }
+  if (!row?.ok || !row.summary_id || !row.pdf_path) throw new Error(row?.error ?? "summary_generation_failed");
+  return { summaryId: row.summary_id, pdfPath: row.pdf_path };
+}
+
+export async function invokeSendMonthlySummaryEmail(summaryId: string, recipientEmail: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke("send-monthly-summary-email", {
+    body: { summary_id: summaryId, recipient_email: recipientEmail },
+  });
+  if (error) throw error;
+  const row = data as { ok?: boolean; error?: string };
+  if (!row?.ok) throw new Error(row?.error ?? "email_send_failed");
+}
+
+export async function getMonthlySummaryPdfSignedUrl(pdfPath: string): Promise<string> {
+  const { data, error } = await supabase.storage.from("document-pdfs").createSignedUrl(pdfPath, 3600);
+  if (error) throw error;
+  if (!data?.signedUrl) throw new Error("signed_url_failed");
+  return data.signedUrl;
 }
 
 export async function publishLegalDocument(

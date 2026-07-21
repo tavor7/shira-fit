@@ -16,7 +16,8 @@ import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useToast } from "../context/ToastContext";
 import { ManagerMoneyHubTabs } from "../components/ManagerOverviewTabs";
-import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
+import { CollapsibleDateRangeCard } from "../components/CollapsibleDateRangeCard";
+import { SortToggleButton } from "../components/SortToggleButton";
 import { AppSearchField } from "../components/AppSearchField";
 import { AppModal } from "../components/AppModal";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
@@ -42,6 +43,7 @@ import { useCountUp } from "../hooks/useCountUp";
 
 type DateMode = "all" | "range";
 type PaymentMethodFilter = "all" | SessionPaymentMethodKey;
+type SortOrder = "asc" | "desc";
 
 type PayeeFilter =
   | { type: "all" }
@@ -96,6 +98,7 @@ export default function AccountPaymentsScreen() {
   const [dateEnd, setDateEnd] = useState(defaultRange.end);
   const [payeeFilter, setPayeeFilter] = useState<PayeeFilter>({ type: "all" });
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethodFilter>("all");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   /** Tracks the chip most recently tapped, so SelectionPulse only fires on the tap that selects it (not on mount). */
   const [justPickedDateMode, setJustPickedDateMode] = useState<DateMode | null>(null);
   const [justPickedMethod, setJustPickedMethod] = useState<PaymentMethodFilter | null>(null);
@@ -503,6 +506,15 @@ export default function AccountPaymentsScreen() {
   const totalCountDisplay = useCountUp(totalCount);
   const totalReceivedDisplay = useCountUp(totalReceived);
 
+  const sortedRows = useMemo(() => {
+    const sorted = [...rows].sort((a, b) => {
+      const aTime = new Date(a.paid_at ?? a.created_at).getTime();
+      const bTime = new Date(b.paid_at ?? b.created_at).getTime();
+      return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
+    });
+    return sorted;
+  }, [rows, sortOrder]);
+
   const dateModeOptions: { id: DateMode; label: string }[] = [
     { id: "all", label: t("accountPayments.allDates") },
     { id: "range", label: t("accountPayments.dateRange") },
@@ -562,13 +574,14 @@ export default function AccountPaymentsScreen() {
         </View>
         {dateMode === "range" ? (
           <View style={styles.dateRangeWrap}>
-            <ReportDateRangeControls
+            <CollapsibleDateRangeCard
               start={dateStart}
               end={dateEnd}
               onChange={({ start, end }) => {
                 setDateStart(start);
                 setDateEnd(end);
               }}
+              label={t("accountPayments.dateRange")}
             />
           </View>
         ) : null}
@@ -610,6 +623,14 @@ export default function AccountPaymentsScreen() {
 
         <PrimaryButton label={t("billing.addPayment")} onPress={onAddPayment} style={styles.addBtn} />
       </View>
+      <View style={[styles.sortRow, isRTL && styles.sortRowRtl]}>
+        <SortToggleButton
+          value={sortOrder}
+          onChange={setSortOrder}
+          ascLabel={t("accountPayments.sortOldestFirst")}
+          descLabel={t("accountPayments.sortNewestFirst")}
+        />
+      </View>
     </View>
   );
 
@@ -618,7 +639,7 @@ export default function AccountPaymentsScreen() {
       <ManagerMoneyHubTabs />
       <FlatList
         style={styles.list}
-        data={rows}
+        data={sortedRows}
         keyExtractor={(item) => item.row_id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.cta} />}
         contentContainerStyle={styles.listContent}
@@ -948,6 +969,12 @@ const styles = StyleSheet.create({
   dateModeChipTextOn: { color: theme.colors.ctaText },
   dateRangeWrap: { marginTop: theme.spacing.xs, width: "100%", maxWidth: "100%", minWidth: 0 },
   methodChipRow: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm },
+  sortRow: {
+    flexDirection: "row",
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
+  },
+  sortRowRtl: { flexDirection: "row-reverse" },
   methodChipRowRtl: { flexDirection: "row-reverse" },
   methodChip: {
     paddingVertical: 8,

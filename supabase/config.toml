@@ -24,6 +24,16 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/send-document-email/index.ts"
 
+[functions.generate-monthly-summary-pdf]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/generate-monthly-summary-pdf/index.ts"
+
+[functions.send-monthly-summary-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send-monthly-summary-email/index.ts"
+
 [functions.dispatch-notifications]
 enabled = true
 verify_jwt = false

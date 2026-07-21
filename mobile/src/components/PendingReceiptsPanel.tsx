@@ -13,7 +13,8 @@ import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { CreateReceiptWithPaymentModal } from "./CreateReceiptWithPaymentModal";
 import { AppSwitch } from "./AppSwitch";
-import { ReportDateRangeControls } from "./ReportDateRangeControls";
+import { CollapsibleDateRangeCard } from "./CollapsibleDateRangeCard";
+import { SortToggleButton } from "./SortToggleButton";
 import { PrimaryButton } from "./PrimaryButton";
 import { formatISODateLong } from "../lib/dateFormat";
 import { formatSessionStartTime } from "../lib/sessionTime";
@@ -59,6 +60,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
   const [createPaymentOpen, setCreatePaymentOpen] = useState(false);
   const [generatePdfs, setGeneratePdfs] = useState(true);
   const [emailCustomers, setEmailCustomers] = useState(false);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const load = useCallback(async () => {
     try {
@@ -94,6 +96,14 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
     setLoading(true);
     void load();
   }, [enabled, load]);
+
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      const aTime = new Date(a.paid_at).getTime();
+      const bTime = new Date(b.paid_at).getTime();
+      return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
+    });
+  }, [rows, sortOrder]);
 
   const selectableRows = useMemo(() => rows.filter((r) => !r.needs_payment_method), [rows]);
   const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selected.has(r.row_id));
@@ -229,19 +239,15 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
   const listHeader = (
     <>
       {header}
-      <View style={styles.card}>
-        <Text style={[styles.cardLabel, isRTL && styles.rtl]}>
-          {language === "he" ? "טווח תאריכים" : "Date range"}
-        </Text>
-        <ReportDateRangeControls
-          start={dateStart}
-          end={dateEnd}
-          onChange={({ start, end }) => {
-            setDateStart(start);
-            setDateEnd(end);
-          }}
-        />
-      </View>
+      <CollapsibleDateRangeCard
+        start={dateStart}
+        end={dateEnd}
+        onChange={({ start, end }) => {
+          setDateStart(start);
+          setDateEnd(end);
+        }}
+        label={language === "he" ? "טווח תאריכים" : "Date range"}
+      />
       <PrimaryButton
         label={language === "he" ? "קבלה + תשלום חדש" : "New receipt & payment"}
         onPress={() => setCreatePaymentOpen(true)}
@@ -278,6 +284,13 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
             ? `${totalCount} תשלומים ללא קבלה · ${formatIls(totalAmount)}`
             : `${totalCount} payments without receipt · ${formatIls(totalAmount)}`}
         </Text>
+        <View style={[styles.summaryStripActions, isRTL && styles.summaryStripActionsRtl]}>
+        <SortToggleButton
+          value={sortOrder}
+          onChange={setSortOrder}
+          ascLabel={language === "he" ? "מהישן לחדש" : "Oldest first"}
+          descLabel={language === "he" ? "מהחדש לישן" : "Newest first"}
+        />
         {selectableRows.length > 0 ? (
           <Pressable onPress={toggleSelectAll} style={styles.selectAllBtn}>
             <Text style={styles.selectAllText}>
@@ -291,6 +304,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
             </Text>
           </Pressable>
         ) : null}
+        </View>
       </View>
     </>
   );
@@ -318,7 +332,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
     <View style={styles.wrap}>
       <FlatList
         style={styles.list}
-        data={rows}
+        data={sortedRows}
         keyExtractor={(x) => x.row_id}
         renderItem={renderRow}
         ListHeaderComponent={listHeader}
@@ -423,12 +437,15 @@ const styles = StyleSheet.create({
   toggleLabel: { flex: 1, fontSize: 14, fontWeight: "700", color: theme.colors.text },
   summaryStrip: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "space-between",
     gap: theme.spacing.sm,
     marginBottom: theme.spacing.sm,
   },
   summaryText: { flex: 1, fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
+  summaryStripActions: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm },
+  summaryStripActionsRtl: { flexDirection: "row-reverse" },
   selectAllBtn: { paddingVertical: 6, paddingHorizontal: 10 },
   selectAllText: { fontSize: 13, fontWeight: "800", color: theme.colors.cta },
   row: {
