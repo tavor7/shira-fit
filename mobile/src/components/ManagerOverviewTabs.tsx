@@ -1,10 +1,11 @@
-import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { Animated, type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { logRedirectToManagerSessions } from "../lib/managerSessionsRedirectLog";
 import { useAuth } from "../context/AuthContext";
+import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
 export type ManagerPillTabItem = {
   id: string;
@@ -36,14 +37,106 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
   const { language, isRTL } = useI18n();
   const compact = density === "compact";
 
+  // A soft highlight box tracks the whole active tab, plus a bold underline on top of it —
+  // both slide + resize between measured tab positions. Slides when the same instance's
+  // activeId changes (state tabs); a freshly-mounted instance (route tabs remount per screen)
+  // has no prior position to slide from, so it's placed instantly instead of sliding in from
+  // an arbitrary spot.
+  const layouts = useRef<Record<string, { x: number; y: number; width: number; height: number }>>({});
+  const indicatorX = useRef(new Animated.Value(0)).current;
+  const indicatorW = useRef(new Animated.Value(0)).current;
+  const fillY = useRef(new Animated.Value(0)).current;
+  const fillH = useRef(new Animated.Value(0)).current;
+  const indicatorOpacity = useRef(new Animated.Value(0)).current;
+  const hasPositionedRef = useRef(false);
+  const reduceMotionRef = useReduceMotionRef();
+
+  const moveTo = useCallback(
+    (id: string, animate: boolean) => {
+      const l = layouts.current[id];
+      if (!l) return;
+      const anims = [
+        [indicatorX, l.x],
+        [indicatorW, l.width],
+        [fillY, l.y],
+        [fillH, l.height],
+      ] as const;
+      if (animate && !reduceMotionRef.current) {
+        Animated.parallel(
+          anims.map(([val, target]) =>
+            Animated.timing(val, {
+              toValue: target,
+              duration: theme.motion.normal,
+              easing: theme.motion.easeOut,
+              useNativeDriver: false,
+            })
+          )
+        ).start();
+      } else {
+        anims.forEach(([val, target]) => val.setValue(target));
+      }
+      if (!hasPositionedRef.current) {
+        hasPositionedRef.current = true;
+        Animated.timing(indicatorOpacity, {
+          toValue: 1,
+          duration: theme.motion.fast,
+          easing: theme.motion.easeOut,
+          useNativeDriver: false,
+        }).start();
+      }
+    },
+    [indicatorX, indicatorW, fillY, fillH, indicatorOpacity, reduceMotionRef]
+  );
+
+  useEffect(() => {
+    if (hasPositionedRef.current) moveTo(activeId, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
+
+  const handleLayout = (id: string) => (e: LayoutChangeEvent) => {
+    const { x, y, width, height } = e.nativeEvent.layout;
+    const prev = layouts.current[id];
+    layouts.current[id] = { x, y, width, height };
+    if (id === activeId && (!prev || prev.x !== x || prev.y !== y || prev.width !== width)) {
+      moveTo(id, false);
+    }
+  };
+
   return (
     <View style={styles.strip}>
       <View style={[styles.row, isRTL && styles.rowRtl]}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.fillShared,
+            {
+              transform: [{ translateX: indicatorX }, { translateY: fillY }],
+              width: indicatorW,
+              height: fillH,
+              opacity: indicatorOpacity,
+            },
+          ]}
+        />
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.underlineShared,
+            {
+              transform: [
+                { translateX: indicatorX },
+                { translateY: Animated.add(fillY, Animated.subtract(fillH, 4)) },
+              ],
+              width: indicatorW,
+              opacity: indicatorOpacity,
+            },
+          ]}
+        />
         {tabs.map((x) => {
           const active = x.id === activeId;
           return (
             <Pressable
               key={x.id}
+              onLayout={handleLayout(x.id)}
               onPress={() => onPressTab(x.id)}
               style={({ pressed }) => [
                 compact ? styles.tabCompact : styles.tab,
@@ -60,7 +153,6 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
               >
                 {x.label}
               </Text>
-              <View style={[compact ? styles.indicatorCompact : styles.indicator, active && styles.indicatorActive]} />
             </Pressable>
           );
         })}
@@ -165,21 +257,19 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: theme.colors.text,
   },
-  indicator: {
-    marginTop: 8,
-    height: 2,
-    borderRadius: 2,
-    backgroundColor: "transparent",
-    alignSelf: "stretch",
+  fillShared: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    borderRadius: theme.radius.sm,
+    backgroundColor: "rgba(244,244,245,0.10)",
   },
-  indicatorCompact: {
-    marginTop: 6,
-    height: 2,
+  underlineShared: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    height: 4,
     borderRadius: 2,
-    backgroundColor: "transparent",
-    alignSelf: "stretch",
-  },
-  indicatorActive: {
     backgroundColor: theme.colors.cta,
   },
 });
