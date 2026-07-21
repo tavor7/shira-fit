@@ -26,6 +26,7 @@ import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySl
 import { EmptyState } from "../../../src/components/EmptyState";
 import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
 import { ActiveUsersIndicator } from "../../../src/components/ActiveUsersIndicator";
+import { useRealtimeRefetch } from "../../../src/hooks/useRealtimeRefetch";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
@@ -103,6 +104,19 @@ export default function ManagerSessionsScreen() {
       load(false);
     }, [load])
   );
+
+  const realtimeTables = useMemo(
+    () => [
+      { table: "training_sessions" },
+      { table: "session_registrations" },
+      { table: "cancellations" },
+      { table: "waitlist_requests" },
+      { table: "manual_participants" },
+      { table: "session_manual_participants" },
+    ],
+    []
+  );
+  useRealtimeRefetch(realtimeTables, () => load(false));
 
   const visibleRows = useMemo(
     () => dedupeSessionsBySignupCount(rows, signupBySession),

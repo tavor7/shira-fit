@@ -45,6 +45,7 @@ import { useDiscardChangesPrompt } from "../../../../src/hooks/useDiscardChanges
 import { useAppAlert } from "../../../../src/context/AppAlertContext";
 import { useSessionPresence, type PresentStaffMember } from "../../../../src/hooks/useSessionPresence";
 import { SessionPresenceBar } from "../../../../src/components/SessionPresenceBar";
+import { useRealtimeRefetch } from "../../../../src/hooks/useRealtimeRefetch";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { usePersistedState } from "../../../../src/hooks/usePersistedState";
 import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
@@ -753,6 +754,34 @@ export default function ManagerSessionDetail() {
     loadCancellations();
     loadNotes();
   }
+
+  // Ref so the realtime callback below always reads the latest `editingSession` without
+  // needing to resubscribe the channel every time it changes.
+  const editingSessionRef = useRef(editingSession);
+  editingSessionRef.current = editingSession;
+
+  const realtimeSubs = useMemo(
+    () =>
+      id
+        ? [
+            { table: "training_sessions", filter: `id=eq.${id}` },
+            { table: "session_registrations", filter: `session_id=eq.${id}` },
+            { table: "cancellations", filter: `session_id=eq.${id}` },
+            { table: "waitlist_requests", filter: `session_id=eq.${id}` },
+            { table: "session_manual_participants", filter: `session_id=eq.${id}` },
+          ]
+        : [],
+    [id]
+  );
+  useRealtimeRefetch(realtimeSubs, () => {
+    // Skip re-pulling the session row (and thus the edit form's fields) while this manager is
+    // mid-edit — don't clobber in-progress input just because someone else's change came in.
+    if (!editingSessionRef.current) void load();
+    loadWaitlist();
+    loadCancellations();
+    loadNotes();
+    setParticipantsRev((n) => n + 1);
+  });
 
   async function loadNotes() {
     const { data, error } = await supabase
