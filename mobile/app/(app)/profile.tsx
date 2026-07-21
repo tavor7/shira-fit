@@ -163,6 +163,7 @@ export default function ProfileScreen() {
     >
       <Stack.Screen options={{ title: t("screen.profile") }} />
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <FadeSlideIn>
         <AppText variant="display" isRTL={rtl}>
           {t("profile.selfTitle")}
         </AppText>
@@ -332,6 +333,7 @@ export default function ProfileScreen() {
         ) : (
           <NotificationSettingsPanel variant="embedded" />
         )}
+        </FadeSlideIn>
         </FadeSlideIn>
       </ScrollView>
     </KeyboardAvoidingView>
