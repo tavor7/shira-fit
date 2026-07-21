@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ParticipantAttendanceList } from "../components/ParticipantAttendanceList";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
+import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
+import { AnimatedChevron } from "../components/AnimatedChevron";
 import {
   parseMissingAttendance,
   type MissingAttendanceSession,
@@ -43,6 +45,7 @@ export default function ManagerMissingAttendanceScreen() {
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const openedOnceRef = useRef<Set<string>>(new Set());
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   const load = useCallback(async () => {
@@ -139,6 +142,7 @@ export default function ManagerMissingAttendanceScreen() {
         ) : (
           sessions.map((s) => {
             const open = expandedId === s.session_id;
+            if (open) openedOnceRef.current.add(s.session_id);
             return (
               <View key={s.session_id} style={styles.card}>
                 <Pressable
@@ -156,28 +160,30 @@ export default function ManagerMissingAttendanceScreen() {
                       {t("dashboard.missingAttendanceUnset").replace("{n}", String(s.unset_count))}
                     </Text>
                   </View>
-                  <Text style={styles.chev}>{open ? "▾" : "▸"}</Text>
+                  <AnimatedChevron open={open} style={styles.chev} />
                 </Pressable>
-                {open ? (
-                  <View style={styles.cardBody}>
-                    <Pressable
-                      onPress={() => router.push(`/(app)/manager/session/${s.session_id}` as Href)}
-                      style={({ pressed }) => [styles.openSessionBtn, pressed && { opacity: 0.9 }]}
-                    >
-                      <Text style={styles.openSessionBtnTxt}>{t("dashboard.missingAttendanceOpenSession")}</Text>
-                    </Pressable>
-                    <Text style={[styles.timeRange, isRTL && styles.rtl]}>
-                      {formatSessionTimeRange(s.start_time, s.duration_minutes)}
-                    </Text>
-                    <ParticipantAttendanceList
-                      sessionId={s.session_id}
-                      refreshNonce={refreshNonce}
-                      onChanged={onAttendanceChanged}
-                      showMarkAllArrived
-                      onRemoveAthlete={(userId) => removeAthlete(s.session_id, userId)}
-                      onRemoveManualParticipant={(manualId) => removeManual(s.session_id, manualId)}
-                    />
-                  </View>
+                {openedOnceRef.current.has(s.session_id) ? (
+                  <AnimatedOptionExpand open={open}>
+                    <View style={styles.cardBody}>
+                      <Pressable
+                        onPress={() => router.push(`/(app)/manager/session/${s.session_id}` as Href)}
+                        style={({ pressed }) => [styles.openSessionBtn, pressed && { opacity: 0.9 }]}
+                      >
+                        <Text style={styles.openSessionBtnTxt}>{t("dashboard.missingAttendanceOpenSession")}</Text>
+                      </Pressable>
+                      <Text style={[styles.timeRange, isRTL && styles.rtl]}>
+                        {formatSessionTimeRange(s.start_time, s.duration_minutes)}
+                      </Text>
+                      <ParticipantAttendanceList
+                        sessionId={s.session_id}
+                        refreshNonce={refreshNonce}
+                        onChanged={onAttendanceChanged}
+                        showMarkAllArrived
+                        onRemoveAthlete={(userId) => removeAthlete(s.session_id, userId)}
+                        onRemoveManualParticipant={(manualId) => removeManual(s.session_id, manualId)}
+                      />
+                    </View>
+                  </AnimatedOptionExpand>
                 ) : null}
               </View>
             );
@@ -221,6 +227,7 @@ const styles = StyleSheet.create({
   chev: { color: theme.colors.textSoft, fontSize: 12, fontWeight: "700" },
   cardBody: {
     paddingHorizontal: 12,
+    paddingTop: 12,
     paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: theme.colors.borderMuted,
