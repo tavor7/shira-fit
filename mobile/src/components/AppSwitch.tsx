@@ -6,7 +6,7 @@ import { useReduceMotionRef } from "../hooks/useReduceMotion";
 type Props = {
   value: boolean;
   onValueChange: (value: boolean) => void;
-  /** Track color when on. Defaults to the app's crisp CTA color. */
+  /** Track color when on. Defaults to the app's success green (override for a differently-toned switch, e.g. a destructive toggle). */
   onColor?: string;
   /** Track color when off. */
   offColor?: string;
@@ -24,7 +24,7 @@ const PAD = 2;
 export function AppSwitch({
   value,
   onValueChange,
-  onColor = theme.colors.cta,
+  onColor = theme.colors.success,
   offColor = theme.colors.border,
   disabled,
   accessibilityLabel,
