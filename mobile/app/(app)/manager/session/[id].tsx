@@ -44,6 +44,8 @@ import { useToast } from "../../../../src/context/ToastContext";
 import { copySessionParticipantsToNewSession } from "../../../../src/lib/copySessionParticipants";
 import { useDiscardChangesPrompt } from "../../../../src/hooks/useDiscardChangesPrompt";
 import { useAppAlert } from "../../../../src/context/AppAlertContext";
+import { useSessionPresence, type PresentStaffMember } from "../../../../src/hooks/useSessionPresence";
+import { SessionPresenceBar } from "../../../../src/components/SessionPresenceBar";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { usePersistedState } from "../../../../src/hooks/usePersistedState";
 import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
@@ -188,6 +190,11 @@ export default function ManagerSessionDetail() {
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showOk, showConfirm } = useAppAlert();
   const { user, profile, loading: authLoading } = useAuth();
+  const presenceSelf: PresentStaffMember | null =
+    profile && (profile.role === "coach" || profile.role === "manager")
+      ? { userId: profile.user_id, name: profile.full_name, role: profile.role }
+      : null;
+  const othersPresent = useSessionPresence(id, presenceSelf);
   const managerSessionScreenKey = `manager-session:${String(id ?? "")}`;
   const draftStorageKey = useMemo(() => uiDraftStorageKey(user?.id, managerSessionScreenKey), [user?.id, managerSessionScreenKey]);
   const [uiDraft, setUiDraft, persistDraft] = usePersistedState(draftStorageKey, INITIAL_MANAGER_SESSION_DRAFT);
@@ -1348,6 +1355,7 @@ export default function ManagerSessionDetail() {
           }}
           scrollEventThrottle={16}
         >
+      <SessionPresenceBar others={othersPresent} />
       {!editingSession ? (
         <View style={styles.summaryCard}>
           <View style={[styles.summaryTitleRow, isRTL && styles.summaryTitleRowRtl]}>

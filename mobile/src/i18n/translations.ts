@@ -354,6 +354,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "session.seriesScopeThisOnlyDeleteHint": "Skips this date; the series continues on other weeks.",
     "session.seriesScopeFutureDeleteHint": "Ends the series and removes this date and all later ones.",
 
+    "sessionPresence.oneViewing": "{name} is also viewing this session",
+    "sessionPresence.manyViewing": "{n} other staff are also viewing this session",
+
     "tab.athleteBrowse": "Browse",
     "tab.athleteMySessions": "My sessions",
 
@@ -1552,6 +1555,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "session.seriesScopeFutureEditHint": "מעדכן את תבנית הסדרה וכל האימונים העתידיים מכאן.",
     "session.seriesScopeThisOnlyDeleteHint": "מדלג על התאריך; הסדרה ממשיכה בשאר השבועות.",
     "session.seriesScopeFutureDeleteHint": "מסיים את הסדרה ומוחק את התאריך הזה ואת כל המאוחרים.",
+
+    "sessionPresence.oneViewing": "{name} גם צופה באימון הזה",
+    "sessionPresence.manyViewing": "עוד {n} אנשי צוות צופים באימון הזה",
 
     "dashboard.management": "ניהול",
     "dashboard.weeklyOverview": "סקירה שבועית",

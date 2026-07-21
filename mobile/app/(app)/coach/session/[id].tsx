@@ -16,6 +16,9 @@ import { useToast } from "../../../../src/context/ToastContext";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
 import { useAppAlert } from "../../../../src/context/AppAlertContext";
+import { useAuth } from "../../../../src/context/AuthContext";
+import { useSessionPresence, type PresentStaffMember } from "../../../../src/hooks/useSessionPresence";
+import { SessionPresenceBar } from "../../../../src/components/SessionPresenceBar";
 type W = {
   user_id: string;
   requested_at: string;
@@ -43,6 +46,12 @@ export default function CoachSessionDetail() {
   const { language, t, isRTL } = useI18n();
   const { showOk, showConfirm } = useAppAlert();
   const { showToast } = useToast();
+  const { profile } = useAuth();
+  const presenceSelf: PresentStaffMember | null =
+    profile && (profile.role === "coach" || profile.role === "manager")
+      ? { userId: profile.user_id, name: profile.full_name, role: profile.role }
+      : null;
+  const othersPresent = useSessionPresence(id, presenceSelf);
   const [participantsRev, setParticipantsRev] = useState(0);
   const [participantCount, setParticipantCount] = useState(0);
   const [sessionMaxParticipants, setSessionMaxParticipants] = useState(0);
@@ -297,6 +306,7 @@ export default function CoachSessionDetail() {
           }}
           scrollEventThrottle={16}
         >
+      <SessionPresenceBar others={othersPresent} />
       {isKickbox ? (
         <View style={styles.kickboxBanner}>
           <KickboxSessionBadge isRTL={isRTL} />
