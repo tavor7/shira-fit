@@ -37,16 +37,15 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
   const { language, isRTL } = useI18n();
   const compact = density === "compact";
 
-  // A soft highlight box tracks the whole active tab, plus a bold underline on top of it —
-  // both slide + resize between measured tab positions. Slides when the same instance's
-  // activeId changes (state tabs); a freshly-mounted instance (route tabs remount per screen)
-  // has no prior position to slide from, so it's placed instantly instead of sliding in from
-  // an arbitrary spot.
+  // A thin underline slides + resizes to the measured active-tab position — the same idiom
+  // as the tab bar pill, just an underline instead of a filled pill. Slides when the same
+  // instance's activeId changes (state tabs); a freshly-mounted instance (route tabs remount
+  // per screen) has no prior position to slide from, so it's placed instantly instead of
+  // sliding in from an arbitrary spot.
   const layouts = useRef<Record<string, { x: number; y: number; width: number; height: number }>>({});
   const indicatorX = useRef(new Animated.Value(0)).current;
   const indicatorW = useRef(new Animated.Value(0)).current;
-  const fillY = useRef(new Animated.Value(0)).current;
-  const fillH = useRef(new Animated.Value(0)).current;
+  const indicatorY = useRef(new Animated.Value(0)).current;
   const indicatorOpacity = useRef(new Animated.Value(0)).current;
   const hasPositionedRef = useRef(false);
   const reduceMotionRef = useReduceMotionRef();
@@ -58,8 +57,7 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
       const anims = [
         [indicatorX, l.x],
         [indicatorW, l.width],
-        [fillY, l.y],
-        [fillH, l.height],
+        [indicatorY, l.y + l.height - 2],
       ] as const;
       if (animate && !reduceMotionRef.current) {
         Animated.parallel(
@@ -85,7 +83,7 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
         }).start();
       }
     },
-    [indicatorX, indicatorW, fillY, fillH, indicatorOpacity, reduceMotionRef]
+    [indicatorX, indicatorW, indicatorY, indicatorOpacity, reduceMotionRef]
   );
 
   useEffect(() => {
@@ -108,24 +106,9 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
         <Animated.View
           pointerEvents="none"
           style={[
-            styles.fillShared,
-            {
-              transform: [{ translateX: indicatorX }, { translateY: fillY }],
-              width: indicatorW,
-              height: fillH,
-              opacity: indicatorOpacity,
-            },
-          ]}
-        />
-        <Animated.View
-          pointerEvents="none"
-          style={[
             styles.underlineShared,
             {
-              transform: [
-                { translateX: indicatorX },
-                { translateY: Animated.add(fillY, Animated.subtract(fillH, 4)) },
-              ],
+              transform: [{ translateX: indicatorX }, { translateY: indicatorY }],
               width: indicatorW,
               opacity: indicatorOpacity,
             },
@@ -257,18 +240,11 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: theme.colors.text,
   },
-  fillShared: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    borderRadius: theme.radius.sm,
-    backgroundColor: "rgba(244,244,245,0.10)",
-  },
   underlineShared: {
     position: "absolute",
     top: 0,
     left: 0,
-    height: 4,
+    height: 2,
     borderRadius: 2,
     backgroundColor: theme.colors.cta,
   },
