@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
-import { View, Text, Switch, Pressable, StyleSheet, type ViewStyle } from "react-native";
+import { View, Text, Pressable, StyleSheet, type ViewStyle } from "react-native";
 import { theme } from "../theme";
 import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { KICKBOX_SESSION_ACCENT, KICKBOX_SESSION_BG } from "../lib/kickboxSessionStyle";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
+import { AppSwitch } from "./AppSwitch";
 
 /** Visual cue when the toggle is on (off rows share the same neutral look). */
 export type SessionOptionTone = "open" | "hidden" | "kickbox" | "repeat";
@@ -66,12 +67,11 @@ function OptionList({ options, isRTL }: Pick<Props, "options" | "isRTL">) {
                 <Text style={[styles.label, isRTL && styles.rtl, toneStyle && styles.labelEmphasis]}>{opt.label}</Text>
                 {opt.hint ? <Text style={[styles.hint, isRTL && styles.rtl]}>{opt.hint}</Text> : null}
               </Pressable>
-              <Switch
+              <AppSwitch
                 value={opt.value}
                 onValueChange={opt.onValueChange}
-                trackColor={switchTrackColor(opt.tone, opt.value)}
-                thumbColor={theme.colors.cta}
-                ios_backgroundColor={theme.colors.borderMuted}
+                onColor={switchTrackColor(opt.tone, opt.value).true}
+                offColor={switchTrackOff}
                 accessibilityLabel={opt.label}
               />
             </View>

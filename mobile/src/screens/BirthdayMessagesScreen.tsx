@@ -3,7 +3,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from "react-native";
@@ -11,6 +10,7 @@ import { useFocusEffect } from "expo-router";
 import { theme } from "../theme";
 import { surface } from "../theme/surfaces";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { AppSwitch } from "../components/AppSwitch";
 import { AppTextField } from "../components/AppTextField";
 import { Skeleton } from "../components/Skeleton";
 import { ManagerMessageCard } from "../components/ManagerMessageCard";
@@ -174,11 +174,11 @@ export default function BirthdayMessagesScreen() {
                 <Text style={[styles.toggleLabel, isRTL && styles.rtl]}>{t("birthdayMessages.toggleLabel")}</Text>
                 <Text style={[styles.toggleHint, isRTL && styles.rtl]}>{t("birthdayMessages.toggleHint")}</Text>
               </View>
-              <Switch
+              <AppSwitch
                 value={enabled}
                 onValueChange={setEnabled}
-                trackColor={{ false: theme.colors.borderMuted, true: theme.colors.cta }}
-                thumbColor="#fff"
+                offColor={theme.colors.borderMuted}
+                accessibilityLabel={t("birthdayMessages.toggleLabel")}
               />
             </View>
           </View>

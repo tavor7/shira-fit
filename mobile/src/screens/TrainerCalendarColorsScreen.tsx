@@ -159,7 +159,7 @@ export default function TrainerCalendarColorsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   top: { paddingTop: theme.spacing.md, paddingBottom: theme.spacing.sm },
-  skeletonList: { padding: theme.spacing.md, gap: theme.spacing.sm },
+  skeletonList: { flex: 1, backgroundColor: theme.colors.backgroundAlt, padding: theme.spacing.md, gap: theme.spacing.sm },
   rtlText: { textAlign: "right" },
   header: { paddingTop: 2, paddingBottom: 2, fontSize: 18, fontWeight: "900", color: theme.colors.text },
   subhead: { paddingBottom: theme.spacing.sm, fontSize: 13, color: theme.colors.textMuted },

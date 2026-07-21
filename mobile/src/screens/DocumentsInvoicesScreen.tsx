@@ -7,7 +7,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -21,6 +20,7 @@ import { useAppAlert } from "../context/AppAlertContext";
 import { useToast } from "../context/ToastContext";
 import { ManagerMoneyHubTabs, ManagerStatePillTabBar } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
+import { AppSwitch } from "../components/AppSwitch";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -115,12 +115,7 @@ function ToggleRow({
         <Text style={[styles.toggleTitle, isRTL && styles.rtl]}>{title}</Text>
         {subtitle ? <Text style={[styles.toggleSub, isRTL && styles.rtl]}>{subtitle}</Text> : null}
       </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ false: theme.colors.border, true: theme.colors.success }}
-        thumbColor={theme.colors.white}
-      />
+      <AppSwitch value={value} onValueChange={onChange} onColor={theme.colors.success} accessibilityLabel={title} />
     </View>
   );
 }

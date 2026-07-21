@@ -20,6 +20,7 @@ import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { DatePickerField } from "../../src/components/DatePickerField";
+import { AnimatedCheckMark } from "../../src/components/AnimatedCheckMark";
 import { buildAuthRedirectUrl } from "../../src/lib/authRedirect";
 import {
   fetchCurrentElectronicReceiptsConsentVersion,
@@ -297,7 +298,7 @@ export default function SignupScreen() {
             accessibilityState={{ checked: healthConfirmed }}
           >
             <View style={[styles.checkbox, healthConfirmed && styles.checkboxOn]}>
-              {healthConfirmed ? <Text style={styles.checkboxMark}>✓</Text> : null}
+              <AnimatedCheckMark visible={healthConfirmed} style={styles.checkboxMark} />
             </View>
             <Text style={[styles.checkTxt, isRTL && styles.rtlText]}>{t("health.confirmDone")}</Text>
           </Pressable>
@@ -314,7 +315,7 @@ export default function SignupScreen() {
             accessibilityState={{ checked: receiptConsent }}
           >
             <View style={[styles.checkbox, receiptConsent && styles.checkboxOn]}>
-              {receiptConsent ? <Text style={styles.checkboxMark}>✓</Text> : null}
+              <AnimatedCheckMark visible={receiptConsent} style={styles.checkboxMark} />
             </View>
             <Text style={[styles.checkTxt, isRTL && styles.rtlText]}>{t("consent.receiptsConfirm")}</Text>
           </Pressable>

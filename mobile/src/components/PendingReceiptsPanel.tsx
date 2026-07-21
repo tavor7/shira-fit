@@ -5,7 +5,6 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from "react-native";
@@ -13,6 +12,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { CreateReceiptWithPaymentModal } from "./CreateReceiptWithPaymentModal";
+import { AppSwitch } from "./AppSwitch";
 import { ReportDateRangeControls } from "./ReportDateRangeControls";
 import { PrimaryButton } from "./PrimaryButton";
 import { formatISODateLong } from "../lib/dateFormat";
@@ -252,22 +252,22 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
             <Text style={[styles.toggleLabel, isRTL && styles.rtl]}>
               {language === "he" ? "צור PDF לכל הנוצרים" : "Generate PDF for all created"}
             </Text>
-            <Switch
+            <AppSwitch
               value={generatePdfs}
               onValueChange={setGeneratePdfs}
-              trackColor={{ false: theme.colors.border, true: theme.colors.success }}
-              thumbColor={theme.colors.white}
+              onColor={theme.colors.success}
+              accessibilityLabel={language === "he" ? "צור PDF לכל הנוצרים" : "Generate PDF for all created"}
             />
           </View>
           <View style={[styles.toggleRow, isRTL && styles.toggleRowRtl]}>
             <Text style={[styles.toggleLabel, isRTL && styles.rtl]}>
               {language === "he" ? "שלח אימייל (כשיש כתובת)" : "Email customers (when address exists)"}
             </Text>
-            <Switch
+            <AppSwitch
               value={emailCustomers}
               onValueChange={setEmailCustomers}
-              trackColor={{ false: theme.colors.border, true: theme.colors.success }}
-              thumbColor={theme.colors.white}
+              onColor={theme.colors.success}
+              accessibilityLabel={language === "he" ? "שלח אימייל (כשיש כתובת)" : "Email customers (when address exists)"}
             />
           </View>
         </View>

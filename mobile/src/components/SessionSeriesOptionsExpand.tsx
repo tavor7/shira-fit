@@ -1,7 +1,8 @@
-import { View, Text, TextInput, Switch, StyleSheet } from "react-native";
+import { View, Text, TextInput, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { useI18n } from "../context/I18nContext";
+import { AppSwitch } from "./AppSwitch";
 
 type Props = {
   repeatOngoing: boolean;
@@ -29,12 +30,10 @@ export function SessionSeriesOptionsExpand({
           <Text style={[styles.optionTitle, isRTL && styles.rtl]}>{t("session.seriesOngoing")}</Text>
           <Text style={[styles.optionHint, isRTL && styles.rtl]}>{t("session.seriesOngoingHint")}</Text>
         </View>
-        <Switch
+        <AppSwitch
           value={repeatOngoing}
           onValueChange={onRepeatOngoingChange}
-          trackColor={{ false: theme.colors.border, true: theme.colors.cta }}
-          thumbColor={theme.colors.ctaText}
-          ios_backgroundColor={theme.colors.borderMuted}
+          accessibilityLabel={t("session.seriesOngoing")}
         />
       </View>
 
@@ -60,12 +59,11 @@ export function SessionSeriesOptionsExpand({
           <Text style={[styles.optionTitle, isRTL && styles.rtl]}>{t("session.seriesCopyRoster")}</Text>
           <Text style={[styles.optionHint, isRTL && styles.rtl]}>{t("session.seriesCopyRosterHint")}</Text>
         </View>
-        <Switch
+        <AppSwitch
           value={repeatCopyRoster}
           onValueChange={onRepeatCopyRosterChange}
-          trackColor={{ false: theme.colors.border, true: theme.colors.success }}
-          thumbColor={theme.colors.ctaText}
-          ios_backgroundColor={theme.colors.borderMuted}
+          onColor={theme.colors.success}
+          accessibilityLabel={t("session.seriesCopyRoster")}
         />
       </View>
     </View>
