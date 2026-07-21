@@ -106,6 +106,9 @@ export default function AppLayout() {
         headerStyle: headerStyle as object,
         headerTintColor: theme.colors.text,
         headerTitleStyle: headerTitleStyle as object,
+        // Rising up from the bottom reads as "this detail sits on top of the list" rather
+        // than a lateral drill-in — used app-wide so pushing into any screen feels consistent.
+        animation: Platform.OS === "web" ? "fade" : "slide_from_bottom",
       }}
     />
     </>

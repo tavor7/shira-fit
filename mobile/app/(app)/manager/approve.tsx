@@ -8,6 +8,7 @@ import { useI18n } from "../../../src/context/I18nContext";
 import { useAppAlert } from "../../../src/context/AppAlertContext";
 import { AppText } from "../../../src/components/AppText";
 import { EmptyState } from "../../../src/components/EmptyState";
+import { FlyOffRow } from "../../../src/components/FlyOffRow";
 import { ListRowSkeleton } from "../../../src/components/ListRowSkeleton";
 import { formatDateTimeForDisplay } from "../../../src/lib/dateFormat";
 
@@ -40,6 +41,7 @@ export default function ApproveAthletesScreen() {
   const { showOk, showConfirm } = useAppAlert();
   const [rows, setRows] = useState<Row[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [leavingId, setLeavingId] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [actorLabels, setActorLabels] = useState<Record<string, string>>({});
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -93,12 +95,24 @@ export default function ApproveAthletesScreen() {
       p_user_id: uid,
       p_status: status,
     });
+    if (error) {
+      setBusyId(null);
+      showOk(t("common.error"), error.message);
+    } else if (data?.ok) {
+      // Keep busyId set through the exit animation — onRowLeft clears it once the row's
+      // actually gone, so the row can't be double-actioned while it's flying off.
+      setLeavingId(uid);
+    } else {
+      setBusyId(null);
+      showOk(t("common.failed"), data?.error ?? "");
+    }
+  }
+
+  function onRowLeft(uid: string) {
+    setLeavingId((cur) => (cur === uid ? null : cur));
     setBusyId(null);
-    if (error) showOk(t("common.error"), error.message);
-    else if (data?.ok) {
-      load();
-      if (status === "approved") void loadHistory();
-    } else showOk(t("common.failed"), data?.error ?? "");
+    load();
+    void loadHistory();
   }
 
   function confirmReject(row: Row) {
@@ -124,7 +138,12 @@ export default function ApproveAthletesScreen() {
         contentContainerStyle={styles.list}
         ListEmptyComponent={<EmptyState title={t("approve.empty")} isRTL={isRTL} />}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <FlyOffRow
+            leaving={leavingId === item.user_id}
+            isRTL={isRTL}
+            style={styles.card}
+            onDone={() => onRowLeft(item.user_id)}
+          >
             <AppText variant="title">{item.full_name}</AppText>
             <AppText variant="caption" muted style={styles.meta}>
               {item.username} · {item.phone}
@@ -149,7 +168,7 @@ export default function ApproveAthletesScreen() {
                 </AppText>
               </PressableScale>
             </View>
-          </View>
+          </FlyOffRow>
         )}
         ListFooterComponent={
           <View style={styles.historySection}>

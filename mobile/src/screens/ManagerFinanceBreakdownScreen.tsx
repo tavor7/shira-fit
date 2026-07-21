@@ -23,6 +23,8 @@ import {
 } from "../lib/financeBreakdownFormat";
 import { useCountUp } from "../hooks/useCountUp";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
+import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
+import { AnimatedChevron } from "../components/AnimatedChevron";
 
 function AmountPair({
   expected,
@@ -190,9 +192,9 @@ export default function ManagerFinanceBreakdownScreen() {
                         {formatFinanceIls(d.collected_ils, language)}
                       </Text>
                     </View>
-                    <Text style={styles.chev}>{open ? "▾" : "▸"}</Text>
+                    <AnimatedChevron open={open} style={styles.chev} />
                   </Pressable>
-                  {open ? (
+                  <AnimatedOptionExpand open={open}>
                     <View style={styles.sessionList}>
                       {d.sessions.length > 0 ? (
                         <>
@@ -275,7 +277,7 @@ export default function ManagerFinanceBreakdownScreen() {
                         </Text>
                       ) : null}
                     </View>
-                  ) : null}
+                  </AnimatedOptionExpand>
                 </View>
               );
             })}

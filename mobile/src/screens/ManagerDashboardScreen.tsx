@@ -31,6 +31,8 @@ import {
 import { fetchActiveAccountCounts, type ActiveAccountCounts } from "../lib/activeAccountCounts";
 import { useCountUp } from "../hooks/useCountUp";
 import { FadeSlideIn } from "../components/FadeSlideIn";
+import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
+import { AnimatedChevron } from "../components/AnimatedChevron";
 
 type PeriodMode = ManagerPeriodMode;
 
@@ -689,9 +691,9 @@ export default function ManagerDashboardScreen() {
                           ) : null}
                         </View>
                         <Text style={[styles.coachPayout, isRTL && styles.rtl]}>{formatIls(c.payout_ils, language)}</Text>
-                        <Text style={styles.chev}>{open ? "▾" : "▸"}</Text>
+                        <AnimatedChevron open={open} style={styles.chev} />
                       </Pressable>
-                      {open ? (
+                      <AnimatedOptionExpand open={open}>
                         <View style={styles.sessionList}>
                           {c.sessions.map((s) => (
                             <Pressable
@@ -719,7 +721,7 @@ export default function ManagerDashboardScreen() {
                             </Pressable>
                           ))}
                         </View>
-                      ) : null}
+                      </AnimatedOptionExpand>
                     </View>
                   );
                 })

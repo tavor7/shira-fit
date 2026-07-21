@@ -2,6 +2,7 @@ import { View, Text, Pressable, ActivityIndicator, Platform } from "react-native
 import { theme } from "../theme";
 import { PressableScale } from "./PressableScale";
 import { AttStatusDot } from "./AttStatusDot";
+import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 import { attStatusFromRow, attStatusLabel } from "../lib/participantHistoryHelpers";
 import { isSessionPaymentRecorded, paymentMethodHistoryLabel } from "../lib/paymentMethod";
 import { firstWordOfDisplayName } from "../lib/displayName";
@@ -273,7 +274,7 @@ export function SessionHistoryRow({
 
       {reg.reg_status === "active" && staffCanEdit ? (
         <>
-          {attOpen && attendanceBusyId !== `att:${reg.registration_id}` ? (
+          <AnimatedOptionExpand open={attOpen && attendanceBusyId !== `att:${reg.registration_id}`}>
             <View style={[styles.attPicker, rtlRowFlip && styles.attPickerRtl]}>
               {(["unset", "arrived", "absent"] as const).map((status) => {
                 const on = attCurrent === status;
@@ -295,7 +296,7 @@ export function SessionHistoryRow({
                 );
               })}
             </View>
-          ) : null}
+          </AnimatedOptionExpand>
           <View style={[styles.actionBar, rtlRowFlip && styles.actionBarRtl]}>
             <Pressable
               onPress={() =>

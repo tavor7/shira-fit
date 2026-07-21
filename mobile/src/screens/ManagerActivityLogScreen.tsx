@@ -12,6 +12,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
+import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import { activityEventLooksRevertible, activityRevertReasonLabel } from "../lib/activityLogRevert";
 import {
@@ -549,7 +550,7 @@ export default function ManagerActivityLogScreen() {
           </Text>
         </Pressable>
 
-        {retentionExpanded ? (
+        <AnimatedOptionExpand open={retentionExpanded}>
           <View style={styles.retentionBody}>
             <Text style={[styles.retentionCaption, isRTL && styles.rtl]}>{t("activityLog.retentionHint")}</Text>
             <View style={styles.chipWrap}>
@@ -565,7 +566,7 @@ export default function ManagerActivityLogScreen() {
               style={styles.retentionSaveBtn}
             />
           </View>
-        ) : null}
+        </AnimatedOptionExpand>
       </View>
     </View>
   );

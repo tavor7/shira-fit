@@ -236,6 +236,13 @@ export default function LoginScreen() {
               />
             </Animated.View>
           </View>
+        </FadeSlideIn>
+        <FadeSlideIn delay={160}>
+          <AppText variant="title" isRTL={isRTL} style={styles.title}>
+            {t("auth.loginTitle")}
+          </AppText>
+        </FadeSlideIn>
+        <FadeSlideIn delay={300}>
           <Animated.View
             pointerEvents={success ? "none" : "auto"}
             style={{
@@ -243,9 +250,6 @@ export default function LoginScreen() {
               transform: [{ translateY: formProgress.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
             }}
           >
-          <AppText variant="title" isRTL={isRTL} style={styles.title}>
-            {t("auth.loginTitle")}
-          </AppText>
           {errorMessage ? (
             <View
               style={styles.errorBox}
