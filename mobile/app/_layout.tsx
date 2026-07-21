@@ -18,6 +18,7 @@ import { initNotificationHandler } from "../src/lib/notificationsInit";
 import { useEffect } from "react";
 import * as Updates from "expo-updates";
 import { useAuth } from "../src/context/AuthContext";
+import { useWebLiveReload } from "../src/hooks/useWebLiveReload";
 
 initNotificationHandler();
 
@@ -33,6 +34,8 @@ function StudioContactFooterGate() {
 }
 
 export default function RootLayout() {
+  useWebLiveReload();
+
   useEffect(() => {
     if (__DEV__) return;
     if (Platform.OS === "web") return;
