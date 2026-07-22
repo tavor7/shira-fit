@@ -268,14 +268,30 @@ export async function setDocumentPaymentMethod(
   return { needs_pdf: parsed.needs_pdf };
 }
 
-export async function cancelDocument(documentId: string, reason: string): Promise<void> {
+export async function cancelDocument(documentId: string, reason: string): Promise<{ needsPdfReissue: boolean }> {
   const { data, error } = await supabase.rpc("cancel_document", {
     p_document_id: documentId,
     p_reason: reason,
   });
   if (error) throw error;
-  const parsed = parseRpc<Record<string, never>>(data);
+  const parsed = parseRpc<{ needs_pdf_reissue?: boolean }>(data);
   if (!parsed.ok) throw new Error(parsed.error);
+  return { needsPdfReissue: parsed.needs_pdf_reissue === true };
+}
+
+/** Testing-mode only: permanently deletes a receipt (row, audit events, PDF) — no copy kept. */
+export async function deleteDocumentFull(documentId: string): Promise<void> {
+  const { data, error } = await supabase.rpc("delete_document", { p_document_id: documentId });
+  if (error) throw error;
+  const parsed = parseRpc<{ pdf_url?: string | null }>(data);
+  if (!parsed.ok) throw new Error(parsed.error);
+  if (parsed.pdf_url) {
+    try {
+      await supabase.storage.from("document-pdfs").remove([parsed.pdf_url]);
+    } catch {
+      /* storage cleanup is best-effort; the DB row is already gone */
+    }
+  }
 }
 
 export async function prepareDocumentPdfRegeneration(documentId: string): Promise<void> {
@@ -493,6 +509,20 @@ export async function invokeSendMonthlySummaryEmail(summaryId: string, recipient
   if (error) throw error;
   const row = data as { ok?: boolean; error?: string };
   if (!row?.ok) throw new Error(row?.error ?? "email_send_failed");
+}
+
+export async function deleteMonthlySummaryReport(summaryId: string, pdfUrl: string | null): Promise<void> {
+  const { data, error } = await supabase.rpc("delete_monthly_summary", { p_summary_id: summaryId });
+  if (error) throw error;
+  const parsed = parseRpc<Record<string, never>>(data);
+  if (!parsed.ok) throw new Error(parsed.error);
+  if (pdfUrl) {
+    try {
+      await supabase.storage.from("document-pdfs").remove([pdfUrl]);
+    } catch {
+      /* storage cleanup is best-effort; the DB row is already gone */
+    }
+  }
 }
 
 export async function getMonthlySummaryPdfSignedUrl(pdfPath: string): Promise<string> {

@@ -48,6 +48,14 @@ export function monthRangeISO(anchor: string): { start: string; end: string } | 
   return { start: toISODateLocal(start), end: toISODateLocal(end) };
 }
 
+/** True when [start, end] is exactly one full calendar month (local calendar). */
+export function isFullCalendarMonthRangeISO(start: string, end: string): boolean {
+  const s = parseISODateLocal(start);
+  if (!s) return false;
+  const range = monthRangeISO(toISODateLocal(s));
+  return !!range && range.start === start && range.end === end;
+}
+
 export function parseISODateLocal(s: string): Date | null {
   const t = s.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return null;

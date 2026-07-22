@@ -270,6 +270,23 @@ Deno.serve(async (req) => {
   if (Number.isNaN(periodStartDate.getTime()) || Number.isNaN(Date.parse(periodEnd))) {
     return json(400, { ok: false, error: "invalid_period" });
   }
+  const periodEndDate = new Date(periodEnd);
+
+  // Monthly summaries must cover exactly one full calendar month — reject custom
+  // date ranges or single-day periods, which would otherwise silently masquerade
+  // as (and overwrite) a real monthly report.
+  const isFirstOfMonth = periodStartDate.getUTCDate() === 1;
+  const lastDayOfEndMonth = new Date(
+    Date.UTC(periodEndDate.getUTCFullYear(), periodEndDate.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  const isLastOfMonth = periodEndDate.getUTCDate() === lastDayOfEndMonth;
+  const sameMonth =
+    periodStartDate.getUTCFullYear() === periodEndDate.getUTCFullYear() &&
+    periodStartDate.getUTCMonth() === periodEndDate.getUTCMonth();
+  if (!isFirstOfMonth || !isLastOfMonth || !sameMonth) {
+    return json(400, { ok: false, error: "full_calendar_month_required" });
+  }
+
   const periodMonth = `${periodStartDate.getUTCFullYear()}-${String(periodStartDate.getUTCMonth() + 1).padStart(2, "0")}-01`;
 
   // Replace any prior summary generated for this same calendar month.

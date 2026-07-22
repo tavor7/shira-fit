@@ -319,34 +319,29 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
     );
   }
 
-  if (loading) {
-    return (
-      <View style={styles.loaderWrap}>
-        {listHeader}
-        <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.wrap}>
       <FlatList
         style={styles.list}
-        data={sortedRows}
+        data={loading ? [] : sortedRows}
         keyExtractor={(x) => x.row_id}
         renderItem={renderRow}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>
-              {language === "he" ? "אין תשלומים ממתינים לקבלה" : "No payments pending receipt"}
-            </Text>
-            <Text style={[styles.emptyHint, isRTL && styles.rtl]}>
-              {language === "he"
-                ? "כל התשלומים בטווח כבר קיבלו קבלה."
-                : "All payments in this range already have receipts."}
-            </Text>
-          </View>
+          loading ? (
+            <ActivityIndicator color={theme.colors.cta} style={styles.loader} />
+          ) : (
+            <View style={styles.emptyBox}>
+              <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>
+                {language === "he" ? "אין תשלומים ממתינים לקבלה" : "No payments pending receipt"}
+              </Text>
+              <Text style={[styles.emptyHint, isRTL && styles.rtl]}>
+                {language === "he"
+                  ? "כל התשלומים בטווח כבר קיבלו קבלה."
+                  : "All payments in this range already have receipts."}
+              </Text>
+            </View>
+          )
         }
         refreshControl={
           <RefreshControl
@@ -404,7 +399,6 @@ const styles = StyleSheet.create({
   wrap: { flex: 1 },
   list: { flex: 1 },
   listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: 120, gap: theme.spacing.sm },
-  loaderWrap: { flex: 1, paddingHorizontal: theme.spacing.md },
   loader: { marginTop: 32 },
   card: {
     backgroundColor: theme.colors.surface,
