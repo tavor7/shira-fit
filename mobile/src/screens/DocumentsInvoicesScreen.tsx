@@ -342,7 +342,10 @@ export default function DocumentsInvoicesScreen() {
         await prepareDocumentPdfRegeneration(doc.id);
         await invokeGenerateDocumentPdf(doc.id, true);
       } else {
-        await invokeGenerateDocumentPdf(doc.id, !settings?.is_operational);
+        // A cancelled receipt may still have its pre-cancellation PDF sitting in storage
+        // (the auto-reissue on cancel can fail); always overwrite so retrying here can't
+        // collide with that stale file.
+        await invokeGenerateDocumentPdf(doc.id, doc.status === "CANCELLED" || !settings?.is_operational);
       }
       await load();
       showToast({
@@ -403,18 +406,27 @@ export default function DocumentsInvoicesScreen() {
     setCancelBusyId(doc.id);
     try {
       const { needsPdfReissue } = await cancelDocument(doc.id, "בוטל על ידי מנהל");
+      let pdfReissueFailed = false;
       if (needsPdfReissue) {
         try {
           await invokeGenerateDocumentPdf(doc.id, true);
         } catch {
-          /* the cancelled PDF can be regenerated later from the hub */
+          pdfReissueFailed = true;
         }
       }
       await load();
-      showToast({
-        message: language === "he" ? "הקבלה בוטלה" : "Receipt cancelled",
-        variant: "success",
-      });
+      if (pdfReissueFailed) {
+        showToast({
+          message: language === "he" ? "הקבלה בוטלה, אך יצירת ה-PDF המבוטל נכשלה" : "Receipt cancelled, but reissuing the cancelled PDF failed",
+          detail: language === "he" ? "אפשר לנסות שוב מכפתור «PDF מחדש»." : "You can retry from the Regen button.",
+          variant: "info",
+        });
+      } else {
+        showToast({
+          message: language === "he" ? "הקבלה בוטלה" : "Receipt cancelled",
+          variant: "success",
+        });
+      }
     } catch (e) {
       showToast({
         message: language === "he" ? "ביטול הקבלה נכשל" : "Failed to cancel receipt",
@@ -714,7 +726,7 @@ export default function DocumentsInvoicesScreen() {
               </Pressable>
             ) : null}
           </View>
-        ) : !item.pdf_url && item.status === "ACTIVE" ? (
+        ) : !item.pdf_url && (item.status === "ACTIVE" || item.status === "CANCELLED") ? (
           <View style={styles.warnBox}>
             <Text style={[styles.warnText, isRTL && styles.rtl]}>
               {language === "he" ? "PDF לא נוצר — לחצו «צור PDF»" : "PDF missing — tap Generate PDF"}
@@ -728,7 +740,7 @@ export default function DocumentsInvoicesScreen() {
               <Text style={[styles.actionText, isRTL && styles.rtl]}>{language === "he" ? "צפייה" : "View"}</Text>
             </Pressable>
           ) : null}
-          {!needsMethod && !item.pdf_url && item.status === "ACTIVE" ? (
+          {!needsMethod && !item.pdf_url && (item.status === "ACTIVE" || item.status === "CANCELLED") ? (
             <Pressable
               disabled={pdfBusy}
               onPress={() => void generatePdf(item)}

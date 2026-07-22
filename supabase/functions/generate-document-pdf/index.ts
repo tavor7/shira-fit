@@ -364,16 +364,16 @@ async function renderHebrewPdf(doc: DocRow): Promise<Uint8Array> {
 
   if (doc.status === "CANCELLED") {
     const stamp = "בוטל";
-    const stampSize = 48;
+    const stampSize = 110;
     const stampW = hebrewFont.widthOfTextAtSize(stamp, stampSize);
     page.drawText(stamp, {
       x: pageW / 2 - stampW / 2,
-      y: pageH / 2,
+      y: pageH / 2 - stampSize / 3,
       size: stampSize,
       font: hebrewFont,
       color: rgb(0.9, 0.22, 0.22),
       rotate: degrees(45),
-      opacity: 0.35,
+      opacity: 0.4,
     });
   }
 
