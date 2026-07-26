@@ -48,7 +48,17 @@ function formatWhen(iso: string, language: string) {
 
 type DatePreset = "7" | "14" | "30" | "90" | "all" | "custom";
 
-type ActivityGroupId = "all" | "auth" | "profiles" | "sessions" | "registration";
+type ActivityGroupId =
+  | "all"
+  | "auth"
+  | "profiles"
+  | "sessions"
+  | "signups"
+  | "attendance"
+  | "billing"
+  | "accounts"
+  | "messaging"
+  | "system";
 
 const ACTIVITY_GROUP_TYPES: Record<Exclude<ActivityGroupId, "all">, string[]> = {
   auth: ["auth_login", "email_confirmed", "password_reset_completed", "signup_completed"],
@@ -59,7 +69,6 @@ const ACTIVITY_GROUP_TYPES: Record<Exclude<ActivityGroupId, "all">, string[]> = 
     "athlete_approved",
     "athlete_rejected",
     "athlete_approval_updated",
-    "user_role_changed",
     "manual_participant_created",
     "manual_participant_updated",
     "athlete_family_created",
@@ -77,9 +86,10 @@ const ACTIVITY_GROUP_TYPES: Record<Exclude<ActivityGroupId, "all">, string[]> = 
     "calendar_note_updated",
     "calendar_note_deleted",
   ],
-  registration: [
-    "session_registration",
-    "session_registration_cancelled",
+  // Dedicated filter for signing up to a session and cancelling a registration —
+  // deliberately narrow (not the broader "attendance" bucket below).
+  signups: ["session_registration", "session_registration_cancelled"],
+  attendance: [
     "session_registration_status_changed",
     "session_manual_participant_added",
     "session_manual_participant_removed",
@@ -87,17 +97,32 @@ const ACTIVITY_GROUP_TYPES: Record<Exclude<ActivityGroupId, "all">, string[]> = 
     "manual_participant_attendance_updated",
     "waitlist_request_created",
     "waitlist_request_removed",
-    "cancellation_charge_updated",
-    "cancellation_penalty_collected_updated",
-    "registration_opening_schedule_updated",
+    "participant_moved",
+  ],
+  billing: [
     "account_payment_created",
     "account_payment_updated",
     "account_payment_deleted",
     "pricing_setting_created",
     "pricing_setting_updated",
     "pricing_setting_deleted",
-    "activity_event_reverted",
+    "cancellation_charge_updated",
+    "cancellation_penalty_collected_updated",
   ],
+  accounts: [
+    "user_role_changed",
+    "account_disabled",
+    "account_enabled",
+    "manual_participant_disabled",
+    "manual_participant_enabled",
+  ],
+  messaging: [
+    "manager_direct_message_sent",
+    "manager_direct_message_cancelled",
+    "birthday_message_settings_updated",
+    "whatsapp_settings_updated",
+  ],
+  system: ["registration_opening_schedule_updated", "activity_event_reverted"],
 };
 
 function eventTypesForActivityGroup(g: ActivityGroupId): string[] | null {
@@ -464,7 +489,12 @@ export default function ManagerActivityLogScreen() {
     { id: "auth", labelKey: "activityLog.typeAuth" },
     { id: "profiles", labelKey: "activityLog.typeProfiles" },
     { id: "sessions", labelKey: "activityLog.typeSessions" },
-    { id: "registration", labelKey: "activityLog.typeRegistrations" },
+    { id: "signups", labelKey: "activityLog.typeSignups" },
+    { id: "attendance", labelKey: "activityLog.typeAttendance" },
+    { id: "billing", labelKey: "activityLog.typeBilling" },
+    { id: "accounts", labelKey: "activityLog.typeAccounts" },
+    { id: "messaging", labelKey: "activityLog.typeMessaging" },
+    { id: "system", labelKey: "activityLog.typeSystem" },
   ];
 
   const filtersSection = (

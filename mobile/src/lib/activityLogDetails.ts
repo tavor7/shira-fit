@@ -207,7 +207,7 @@ export function collectActivityLogIds(
 ) {
   if (row.actor_user_id) profileIds.add(row.actor_user_id);
   if (row.target_type === "profile" && row.target_id) profileIds.add(row.target_id);
-  if (row.target_type === "training_session" && row.target_id) sessionIds.add(row.target_id);
+  if ((row.target_type === "training_session" || row.target_type === "session") && row.target_id) sessionIds.add(row.target_id);
   if (row.target_type === "manual_participant" && row.target_id) manualIds.add(row.target_id);
 
   const m = row.metadata;
@@ -217,7 +217,10 @@ export function collectActivityLogIds(
   if (typeof mu.target_user_id === "string") profileIds.add(mu.target_user_id);
   if (typeof mu.edited_user_id === "string") profileIds.add(mu.edited_user_id);
   if (typeof mu.user_id === "string") profileIds.add(mu.user_id);
+  if (typeof mu.recipient_user_id === "string") profileIds.add(mu.recipient_user_id);
   if (typeof mu.session_id === "string") sessionIds.add(mu.session_id);
+  if (typeof mu.from_session_id === "string") sessionIds.add(mu.from_session_id);
+  if (typeof mu.to_session_id === "string") sessionIds.add(mu.to_session_id);
   if (typeof mu.author_id === "string") profileIds.add(mu.author_id);
   if (typeof mu.manual_participant_id === "string") manualIds.add(mu.manual_participant_id);
   if (typeof mu.payee_id === "string") {
@@ -504,6 +507,58 @@ export function buildActivityLogDetailLines(
     return lines;
   }
 
+  if (item.event_type === "account_disabled" || item.event_type === "account_enabled") {
+    const tid = (typeof mu.target_user_id === "string" ? mu.target_user_id : null) ?? item.target_id;
+    const fn = typeof mu.target_full_name === "string" ? mu.target_full_name.trim() : "";
+    const un = typeof mu.target_username === "string" ? mu.target_username.trim() : "";
+    const who = fn && un ? `${fn} (@${un})` : fn ? fn : un ? `@${un}` : tid ? formatUserRef(tid, profileLabels) ?? "—" : "—";
+    lines.push(`${L(he, "Account", "חשבון")}: ${who}`);
+    return lines;
+  }
+
+  if (item.event_type === "participant_moved") {
+    const fromSid = typeof mu.from_session_id === "string" ? mu.from_session_id : null;
+    const toSid = typeof mu.to_session_id === "string" ? mu.to_session_id : null;
+    const fromSess = formatSessionRef(fromSid, sessionSummaries);
+    const toSess = formatSessionRef(toSid, sessionSummaries);
+    if (fromSess) lines.push(`${L(he, "From session", "מאימון")}: ${fromSess}`);
+    if (toSess) lines.push(`${L(he, "To session", "לאימון")}: ${toSess}`);
+    const pid = typeof mu.user_id === "string" ? mu.user_id : null;
+    const mid = typeof mu.manual_participant_id === "string" ? mu.manual_participant_id : null;
+    const part = pid ? formatUserRef(pid, profileLabels) : formatManualRef(mid, manualLabels, mu);
+    if (part) lines.push(`${L(he, "Participant", "משתתף")}: ${part}`);
+    return lines;
+  }
+
+  if (item.event_type === "manual_participant_disabled" || item.event_type === "manual_participant_enabled") {
+    const mid = (typeof mu.manual_participant_id === "string" ? mu.manual_participant_id : null) ?? item.target_id;
+    const name = formatManualRef(mid, manualLabels, mu);
+    if (name) lines.push(`${L(he, "Quick-add person", "משתתף מהיר")}: ${name}`);
+    return lines;
+  }
+
+  if (item.event_type === "manager_direct_message_sent" || item.event_type === "manager_direct_message_cancelled") {
+    const rid = typeof mu.recipient_user_id === "string" ? mu.recipient_user_id : null;
+    const to = formatUserRef(rid, profileLabels);
+    if (to) lines.push(`${L(he, "Recipient", "נמען")}: ${to}`);
+    if (typeof mu.theme === "string" && mu.theme) lines.push(`${L(he, "Theme", "ערכת נושא")}: ${mu.theme}`);
+    if (typeof mu.body_preview === "string" && mu.body_preview) lines.push(`${L(he, "Message", "הודעה")}: ${mu.body_preview}`);
+    return lines;
+  }
+
+  if (item.event_type === "birthday_message_settings_updated") {
+    if (mu.enabled != null) lines.push(`${L(he, "Enabled", "מופעל")}: ${formatBool(mu.enabled, he)}`);
+    if (typeof mu.theme === "string" && mu.theme) lines.push(`${L(he, "Theme", "ערכת נושא")}: ${mu.theme}`);
+    if (typeof mu.body_preview === "string" && mu.body_preview) lines.push(`${L(he, "Message", "הודעה")}: ${mu.body_preview}`);
+    return lines;
+  }
+
+  if (item.event_type === "whatsapp_settings_updated") {
+    if (typeof mu.mode === "string" && mu.mode) lines.push(`${L(he, "Rollout mode", "מצב הפעלה")}: ${mu.mode}`);
+    if (mu.test_user_count != null) lines.push(`${L(he, "Test users", "משתמשי בדיקה")}: ${str(mu.test_user_count)}`);
+    return lines;
+  }
+
   if (item.event_type === "activity_event_reverted") {
     const revertedType = mu.reverted_event_type;
     if (typeof revertedType === "string") {
@@ -580,6 +635,15 @@ export function activityLogEventLabel(eventType: string, language: string): stri
     registration_opening_schedule_updated: { en: "Registration opening schedule updated", he: "לוח פתיחת הרשמה עודכן" },
     waitlist_request_created: { en: "Waitlist request added", he: "בקשת המתנה נוספה" },
     waitlist_request_removed: { en: "Waitlist request removed", he: "בקשת המתנה הוסרה" },
+    account_disabled: { en: "Account disabled", he: "חשבון הושבת" },
+    account_enabled: { en: "Account enabled", he: "חשבון הופעל" },
+    participant_moved: { en: "Participant moved between sessions", he: "משתתף הועבר בין אימונים" },
+    manual_participant_disabled: { en: "Quick-add person disabled", he: "משתתף מהיר הושבת" },
+    manual_participant_enabled: { en: "Quick-add person enabled", he: "משתתף מהיר הופעל" },
+    manager_direct_message_sent: { en: "Direct message sent", he: "הודעה אישית נשלחה" },
+    manager_direct_message_cancelled: { en: "Direct message cancelled", he: "הודעה אישית בוטלה" },
+    birthday_message_settings_updated: { en: "Birthday message settings updated", he: "הגדרות הודעת יום הולדת עודכנו" },
+    whatsapp_settings_updated: { en: "WhatsApp settings updated", he: "הגדרות וואטסאפ עודכנו" },
   };
   const m = map[eventType];
   if (!m) return eventType;
