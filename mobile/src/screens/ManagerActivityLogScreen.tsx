@@ -14,7 +14,6 @@ import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AppModal } from "../components/AppModal";
-import { SlidingPillTabBar } from "../components/SlidingPillTabBar";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import { activityEventLooksRevertible, activityRevertReasonLabel } from "../lib/activityLogRevert";
 import {
@@ -273,6 +272,7 @@ export default function ManagerActivityLogScreen() {
   const [savingRetention, setSavingRetention] = useState(false);
   const [activityGroup, setActivityGroup] = useState<ActivityGroupId>("all");
   const [activityPickerOpen, setActivityPickerOpen] = useState(false);
+  const [dateRangePickerOpen, setDateRangePickerOpen] = useState(false);
   const [retentionExpanded, setRetentionExpanded] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [profileLabels, setProfileLabels] = useState<Record<string, string>>({});
@@ -478,13 +478,11 @@ export default function ManagerActivityLogScreen() {
     })();
   }
 
-  const dateRangeTabs = [
-    { id: "7", label: t("activityLog.preset7") },
-    { id: "14", label: t("activityLog.preset14") },
-    { id: "30", label: t("activityLog.preset30") },
-    { id: "90", label: t("activityLog.preset90") },
-  ];
   const datePresetRows: { preset: DatePreset; labelKey: string }[] = [
+    { preset: "7", labelKey: "activityLog.preset7" },
+    { preset: "14", labelKey: "activityLog.preset14" },
+    { preset: "30", labelKey: "activityLog.preset30" },
+    { preset: "90", labelKey: "activityLog.preset90" },
     { preset: "all", labelKey: "activityLog.presetAll" },
     { preset: "custom", labelKey: "activityLog.presetCustom" },
   ];
@@ -506,24 +504,70 @@ export default function ManagerActivityLogScreen() {
     <View style={styles.headerBlock}>
       <View style={styles.filterCard}>
         <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("activityLog.filterTitle")}</Text>
-        <SlidingPillTabBar
-          tabs={dateRangeTabs}
-          active={dateRangeTabs.some((tb) => tb.id === datePreset) ? datePreset : ""}
-          onChange={(id) => onPickDatePreset(id as DatePreset)}
-          dense
-          style={styles.dateRangeTabBar}
-        />
-        <View style={styles.dateRangeSecondaryRow}>
-          {datePresetRows.map(({ preset, labelKey }) => (
-            <ChipButton
-              key={preset}
-              label={t(labelKey)}
-              active={datePreset === preset}
-              onPress={() => onPickDatePreset(preset)}
-              compact
-            />
-          ))}
-        </View>
+        <Pressable
+          style={({ pressed }) => [styles.typeField, isRTL && styles.typeFieldRtl, pressed && styles.typeFieldPressed]}
+          onPress={() => setDateRangePickerOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t("activityLog.filterTitle")}
+        >
+          <Text style={[styles.typeFieldText, isRTL && styles.rtl]} numberOfLines={1}>
+            {t(datePresetRows.find((r) => r.preset === datePreset)?.labelKey ?? "activityLog.preset14")}
+          </Text>
+          <Text style={styles.chevron}>▼</Text>
+        </Pressable>
+
+        <AppModal
+          visible={dateRangePickerOpen}
+          onClose={() => setDateRangePickerOpen(false)}
+          variant="sheet"
+          maxHeightPct={0.62}
+          backdropAccessibilityLabel={t("common.close")}
+        >
+          <View style={styles.typeSheet}>
+            <View style={styles.typeSheetHandle} />
+            <Text style={[styles.typeSheetTitle, isRTL && styles.rtl]}>{t("activityLog.filterTitle")}</Text>
+            <ScrollView style={styles.typeSheetList} keyboardShouldPersistTaps="handled">
+              {datePresetRows.map(({ preset, labelKey }, idx) => {
+                const selected = datePreset === preset;
+                return (
+                  <View key={preset}>
+                    {idx > 0 ? <View style={styles.typeSheetDivider} /> : null}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.typeSheetOption,
+                        isRTL && styles.typeSheetOptionRtl,
+                        selected && styles.typeSheetOptionSelected,
+                        pressed && !selected && styles.typeFieldPressed,
+                      ]}
+                      onPress={() => {
+                        onPickDatePreset(preset);
+                        setDateRangePickerOpen(false);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                    >
+                      <Text
+                        style={[
+                          styles.typeSheetOptionText,
+                          selected && styles.typeSheetOptionTextSelected,
+                          isRTL && styles.rtl,
+                        ]}
+                      >
+                        {t(labelKey)}
+                      </Text>
+                      {selected ? (
+                        <Text style={styles.typeSheetCheck}>✓</Text>
+                      ) : (
+                        <View style={styles.typeSheetCheckSpacer} />
+                      )}
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </AppModal>
+
         {datePreset === "custom" ? (
           <View style={styles.customDates}>
             <DateRangeFormPanel
@@ -865,12 +909,6 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: theme.spacing.sm,
     rowGap: theme.spacing.sm,
-  },
-  dateRangeTabBar: { marginBottom: theme.spacing.sm },
-  dateRangeSecondaryRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing.sm,
   },
   typeField: {
     minHeight: 48,
