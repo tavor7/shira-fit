@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -538,7 +538,11 @@ export default function ManagerActivityLogScreen() {
         <Text style={[styles.sectionLabel, styles.sectionLabelSpaced, isRTL && styles.rtl]}>
           {t("activityLog.activityType")}
         </Text>
-        <View style={styles.chipWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.chipRow, isRTL && styles.chipRowRtl]}
+        >
           {activityGroupRows.map(({ id, labelKey }) => (
             <ChipButton
               key={id}
@@ -551,7 +555,7 @@ export default function ManagerActivityLogScreen() {
               compact
             />
           ))}
-        </View>
+        </ScrollView>
       </View>
 
       <View style={styles.retentionShell}>
@@ -813,6 +817,12 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     rowGap: theme.spacing.sm,
   },
+  chipRow: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    paddingEnd: theme.spacing.md,
+  },
+  chipRowRtl: { flexDirection: "row-reverse" },
   chip: {
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
