@@ -18,6 +18,8 @@ type Props = {
   active: string;
   onChange: (id: string) => void;
   style?: StyleProp<ViewStyle>;
+  /** Compact mode for short labels (e.g. "7d"/"14d"): equal-width slots, no long-label minWidth. */
+  dense?: boolean;
 };
 
 /**
@@ -25,7 +27,7 @@ type Props = {
  * tab instead of each slot independently swapping its own background. Single source for the
  * pattern previously duplicated inline in ManagerReportsScreen and PricingHubScreen.
  */
-export function SlidingPillTabBar({ tabs, active, onChange, style }: Props) {
+export function SlidingPillTabBar({ tabs, active, onChange, style, dense }: Props) {
   const { language, isRTL } = useI18n();
   const layouts = useRef<Record<string, { x: number; width: number }>>({});
   const indicatorX = useRef(new Animated.Value(0)).current;
@@ -98,12 +100,16 @@ export function SlidingPillTabBar({ tabs, active, onChange, style }: Props) {
               onChange(x.id);
               moveTo(x.id, true);
             }}
-            style={({ pressed }) => [styles.slot, pressed && !on && styles.slotPressed]}
+            style={({ pressed }) => [
+              styles.slot,
+              dense && styles.slotDense,
+              pressed && !on && styles.slotPressed,
+            ]}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
             accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
           >
-            <Text style={[styles.slotTxt, on && styles.slotTxtOn]} numberOfLines={1}>
+            <Text style={[styles.slotTxt, dense && styles.slotTxtDense, on && styles.slotTxtOn]} numberOfLines={1}>
               {x.label}
             </Text>
           </Pressable>
@@ -142,6 +148,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  slotDense: {
+    flexGrow: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.xs,
+  },
   slotPressed: { opacity: 0.85 },
   slotTxt: {
     fontWeight: "800",
@@ -150,5 +163,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.15,
     lineHeight: 16,
   },
+  slotTxtDense: { fontSize: 12 },
   slotTxtOn: { color: theme.colors.ctaText },
 });

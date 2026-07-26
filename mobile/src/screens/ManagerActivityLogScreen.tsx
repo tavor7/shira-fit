@@ -14,6 +14,7 @@ import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AppModal } from "../components/AppModal";
+import { SlidingPillTabBar } from "../components/SlidingPillTabBar";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import { activityEventLooksRevertible, activityRevertReasonLabel } from "../lib/activityLogRevert";
 import {
@@ -477,11 +478,13 @@ export default function ManagerActivityLogScreen() {
     })();
   }
 
+  const dateRangeTabs = [
+    { id: "7", label: t("activityLog.preset7") },
+    { id: "14", label: t("activityLog.preset14") },
+    { id: "30", label: t("activityLog.preset30") },
+    { id: "90", label: t("activityLog.preset90") },
+  ];
   const datePresetRows: { preset: DatePreset; labelKey: string }[] = [
-    { preset: "7", labelKey: "activityLog.preset7" },
-    { preset: "14", labelKey: "activityLog.preset14" },
-    { preset: "30", labelKey: "activityLog.preset30" },
-    { preset: "90", labelKey: "activityLog.preset90" },
     { preset: "all", labelKey: "activityLog.presetAll" },
     { preset: "custom", labelKey: "activityLog.presetCustom" },
   ];
@@ -503,7 +506,14 @@ export default function ManagerActivityLogScreen() {
     <View style={styles.headerBlock}>
       <View style={styles.filterCard}>
         <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("activityLog.filterTitle")}</Text>
-        <View style={styles.chipWrap}>
+        <SlidingPillTabBar
+          tabs={dateRangeTabs}
+          active={dateRangeTabs.some((tb) => tb.id === datePreset) ? datePreset : ""}
+          onChange={(id) => onPickDatePreset(id as DatePreset)}
+          dense
+          style={styles.dateRangeTabBar}
+        />
+        <View style={styles.dateRangeSecondaryRow}>
           {datePresetRows.map(({ preset, labelKey }) => (
             <ChipButton
               key={preset}
@@ -855,6 +865,12 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: theme.spacing.sm,
     rowGap: theme.spacing.sm,
+  },
+  dateRangeTabBar: { marginBottom: theme.spacing.sm },
+  dateRangeSecondaryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
   },
   typeField: {
     minHeight: 48,
