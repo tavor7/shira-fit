@@ -1138,7 +1138,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "profile.address": "Street address",
     "profile.zipCode": "Zip code",
 
-    "activityLog.hint": "System events with timestamps (logins, profiles, sessions, registrations, and more).",
     "activityLog.empty": "No events yet",
     "common.couldNotSave": "Could not save",
     "common.confirm": "Confirm",
@@ -2349,7 +2348,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "profile.address": "כתובת",
     "profile.zipCode": "מיקוד",
 
-    "activityLog.hint": "אירועים מהמערכת עם חותמת זמן (התחברות, פרופיל, אימונים, הרשמות ועוד).",
     "activityLog.empty": "אין רשומות",
     "common.couldNotSave": "לא ניתן לשמור",
     "common.confirm": "אישור",

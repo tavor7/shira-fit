@@ -13,6 +13,7 @@ import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
+import { AppModal } from "../components/AppModal";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import { activityEventLooksRevertible, activityRevertReasonLabel } from "../lib/activityLogRevert";
 import {
@@ -270,6 +271,7 @@ export default function ManagerActivityLogScreen() {
   const [retentionDraft, setRetentionDraft] = useState(14);
   const [savingRetention, setSavingRetention] = useState(false);
   const [activityGroup, setActivityGroup] = useState<ActivityGroupId>("all");
+  const [activityPickerOpen, setActivityPickerOpen] = useState(false);
   const [retentionExpanded, setRetentionExpanded] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [profileLabels, setProfileLabels] = useState<Record<string, string>>({});
@@ -538,24 +540,70 @@ export default function ManagerActivityLogScreen() {
         <Text style={[styles.sectionLabel, styles.sectionLabelSpaced, isRTL && styles.rtl]}>
           {t("activityLog.activityType")}
         </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.chipRow, isRTL && styles.chipRowRtl]}
+        <Pressable
+          style={({ pressed }) => [styles.typeField, isRTL && styles.typeFieldRtl, pressed && styles.typeFieldPressed]}
+          onPress={() => setActivityPickerOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t("activityLog.activityType")}
         >
-          {activityGroupRows.map(({ id, labelKey }) => (
-            <ChipButton
-              key={id}
-              label={t(labelKey)}
-              active={activityGroup === id}
-              onPress={() => {
-                setPageIndex(0);
-                setActivityGroup(id);
-              }}
-              compact
-            />
-          ))}
-        </ScrollView>
+          <Text style={[styles.typeFieldText, isRTL && styles.rtl]} numberOfLines={1}>
+            {t(activityGroupRows.find((g) => g.id === activityGroup)?.labelKey ?? "activityLog.typeAll")}
+          </Text>
+          <Text style={styles.chevron}>▼</Text>
+        </Pressable>
+
+        <AppModal
+          visible={activityPickerOpen}
+          onClose={() => setActivityPickerOpen(false)}
+          variant="sheet"
+          maxHeightPct={0.72}
+          backdropAccessibilityLabel={t("common.close")}
+        >
+          <View style={styles.typeSheet}>
+            <View style={styles.typeSheetHandle} />
+            <Text style={[styles.typeSheetTitle, isRTL && styles.rtl]}>{t("activityLog.activityType")}</Text>
+            <ScrollView style={styles.typeSheetList} keyboardShouldPersistTaps="handled">
+              {activityGroupRows.map(({ id, labelKey }, idx) => {
+                const selected = activityGroup === id;
+                return (
+                  <View key={id}>
+                    {idx > 0 ? <View style={styles.typeSheetDivider} /> : null}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.typeSheetOption,
+                        isRTL && styles.typeSheetOptionRtl,
+                        selected && styles.typeSheetOptionSelected,
+                        pressed && !selected && styles.typeFieldPressed,
+                      ]}
+                      onPress={() => {
+                        setPageIndex(0);
+                        setActivityGroup(id);
+                        setActivityPickerOpen(false);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                    >
+                      <Text
+                        style={[
+                          styles.typeSheetOptionText,
+                          selected && styles.typeSheetOptionTextSelected,
+                          isRTL && styles.rtl,
+                        ]}
+                      >
+                        {t(labelKey)}
+                      </Text>
+                      {selected ? (
+                        <Text style={styles.typeSheetCheck}>✓</Text>
+                      ) : (
+                        <View style={styles.typeSheetCheckSpacer} />
+                      )}
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </AppModal>
       </View>
 
       <View style={styles.retentionShell}>
@@ -609,7 +657,6 @@ export default function ManagerActivityLogScreen() {
     <View style={styles.listHeaderPad}>
       <ManagerOverviewHubTabs />
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.activityLog")}</Text>
-      <Text style={[styles.hint, isRTL && styles.rtl]}>{t("activityLog.hint")}</Text>
       {filtersSection}
     </View>
   );
@@ -784,15 +831,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     letterSpacing: 0.2,
     lineHeight: 26,
-  },
-  hint: {
-    marginTop: theme.spacing.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 22,
     marginBottom: theme.spacing.md,
-    fontSize: 15,
-    fontWeight: "500",
-    letterSpacing: 0.15,
   },
   headerBlock: { marginBottom: theme.spacing.md },
   filterCard: {
@@ -817,12 +856,66 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     rowGap: theme.spacing.sm,
   },
-  chipRow: {
+  typeField: {
+    minHeight: 48,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 12,
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: theme.spacing.sm,
-    paddingEnd: theme.spacing.md,
   },
-  chipRowRtl: { flexDirection: "row-reverse" },
+  typeFieldRtl: { flexDirection: "row-reverse" },
+  typeFieldPressed: { opacity: 0.88 },
+  typeFieldText: { flex: 1, fontSize: 15, fontWeight: "700", color: theme.colors.text },
+  chevron: { fontSize: 10, color: theme.colors.textMuted, marginTop: 1 },
+  typeSheet: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg },
+  typeSheetHandle: {
+    alignSelf: "center",
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.colors.borderMuted,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  typeSheetTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  typeSheetList: {
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+    maxHeight: 420,
+  },
+  typeSheetDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.borderMuted,
+    marginHorizontal: theme.spacing.md,
+  },
+  typeSheetOption: {
+    minHeight: 50,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing.sm,
+  },
+  typeSheetOptionRtl: { flexDirection: "row-reverse" },
+  typeSheetOptionSelected: { backgroundColor: theme.colors.surfaceElevated },
+  typeSheetOptionText: { flex: 1, fontSize: 15, fontWeight: "600", color: theme.colors.text },
+  typeSheetOptionTextSelected: { fontWeight: "800", color: theme.colors.text },
+  typeSheetCheck: { fontSize: 16, fontWeight: "900", color: theme.colors.cta, width: 20, textAlign: "center" },
+  typeSheetCheckSpacer: { width: 20 },
   chip: {
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
