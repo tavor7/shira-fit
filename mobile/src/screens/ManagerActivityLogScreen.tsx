@@ -503,18 +503,52 @@ export default function ManagerActivityLogScreen() {
   const filtersSection = (
     <View style={styles.headerBlock}>
       <View style={styles.filterCard}>
-        <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("activityLog.filterTitle")}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.typeField, isRTL && styles.typeFieldRtl, pressed && styles.typeFieldPressed]}
-          onPress={() => setDateRangePickerOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel={t("activityLog.filterTitle")}
-        >
-          <Text style={[styles.typeFieldText, isRTL && styles.rtl]} numberOfLines={1}>
-            {t(datePresetRows.find((r) => r.preset === datePreset)?.labelKey ?? "activityLog.preset14")}
-          </Text>
-          <Text style={styles.chevron}>▼</Text>
-        </Pressable>
+        <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("activityLog.filtersTitle")}</Text>
+        <View style={[styles.filterRow, isRTL && styles.filterRowRtl]}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.iconField,
+              isRTL && styles.iconFieldRtl,
+              datePreset !== "14" && styles.iconFieldActive,
+              pressed && styles.typeFieldPressed,
+            ]}
+            onPress={() => setDateRangePickerOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t("activityLog.filterTitle")}
+          >
+            <Ionicons
+              name="time-outline"
+              size={16}
+              color={datePreset !== "14" ? theme.colors.cta : theme.colors.textSoft}
+            />
+            <Text style={[styles.iconFieldText, isRTL && styles.rtl]} numberOfLines={1}>
+              {t(datePresetRows.find((r) => r.preset === datePreset)?.labelKey ?? "activityLog.preset14")}
+            </Text>
+            <Text style={styles.chevron}>▼</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.iconField,
+              isRTL && styles.iconFieldRtl,
+              activityGroup !== "all" && styles.iconFieldActive,
+              pressed && styles.typeFieldPressed,
+            ]}
+            onPress={() => setActivityPickerOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t("activityLog.activityType")}
+          >
+            <Ionicons
+              name="funnel-outline"
+              size={16}
+              color={activityGroup !== "all" ? theme.colors.cta : theme.colors.textSoft}
+            />
+            <Text style={[styles.iconFieldText, isRTL && styles.rtl]} numberOfLines={1}>
+              {t(activityGroupRows.find((g) => g.id === activityGroup)?.labelKey ?? "activityLog.typeAll")}
+            </Text>
+            <Text style={styles.chevron}>▼</Text>
+          </Pressable>
+        </View>
 
         <AppModal
           visible={dateRangePickerOpen}
@@ -590,21 +624,6 @@ export default function ManagerActivityLogScreen() {
             />
           </View>
         ) : null}
-
-        <Text style={[styles.sectionLabel, styles.sectionLabelSpaced, isRTL && styles.rtl]}>
-          {t("activityLog.activityType")}
-        </Text>
-        <Pressable
-          style={({ pressed }) => [styles.typeField, isRTL && styles.typeFieldRtl, pressed && styles.typeFieldPressed]}
-          onPress={() => setActivityPickerOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel={t("activityLog.activityType")}
-        >
-          <Text style={[styles.typeFieldText, isRTL && styles.rtl]} numberOfLines={1}>
-            {t(activityGroupRows.find((g) => g.id === activityGroup)?.labelKey ?? "activityLog.typeAll")}
-          </Text>
-          <Text style={styles.chevron}>▼</Text>
-        </Pressable>
 
         <AppModal
           visible={activityPickerOpen}
@@ -903,29 +922,34 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     marginBottom: theme.spacing.sm,
   },
-  sectionLabelSpaced: { marginTop: theme.spacing.md },
   chipWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: theme.spacing.sm,
     rowGap: theme.spacing.sm,
   },
-  typeField: {
+  filterRow: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+  },
+  filterRowRtl: { flexDirection: "row-reverse" },
+  iconField: {
+    flex: 1,
     minHeight: 48,
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     backgroundColor: theme.colors.surfaceElevated,
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
     paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: theme.spacing.sm,
+    gap: 7,
   },
-  typeFieldRtl: { flexDirection: "row-reverse" },
+  iconFieldRtl: { flexDirection: "row-reverse" },
+  iconFieldActive: { borderColor: theme.colors.cta },
   typeFieldPressed: { opacity: 0.88 },
-  typeFieldText: { flex: 1, fontSize: 15, fontWeight: "700", color: theme.colors.text },
+  iconFieldText: { flex: 1, fontSize: 14, fontWeight: "700", color: theme.colors.text },
   chevron: { fontSize: 10, color: theme.colors.textMuted, marginTop: 1 },
   typeSheet: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg },
   typeSheetHandle: {
