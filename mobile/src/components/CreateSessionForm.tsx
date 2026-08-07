@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation } from "expo-router/react-navigation";
 import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
@@ -1037,7 +1037,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.xs,
   },
   modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
-  modalBackdropTouch: { ...StyleSheet.absoluteFillObject },
+  modalBackdropTouch: { ...StyleSheet.absoluteFill },
   modalBox: {
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,

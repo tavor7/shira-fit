@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { BackHandler, Platform } from "react-native";
 import { router, usePathname } from "expo-router";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation } from "expo-router/react-navigation";
 import { useAuth } from "../context/AuthContext";
 import { useManagerAthletePreview } from "../context/ManagerAthletePreviewContext";
 import {

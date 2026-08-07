@@ -115,7 +115,9 @@ Use **email + password** (Supabase). Username is stored on `profiles`.
 
 The JavaScript bundle still comes from your machine, so the computer must stay on while others test.
 
-**Expo Go not loading?** Use the latest **Expo Go** from the store (must match SDK 55). Start with `npm run start` or `npx expo start` — not only `expo start --web` — then scan the QR. Same Wi‑Fi or `npm run start:tunnel`. If the bundler shows a red error, fix that first (the app will not open in Expo Go until the bundle succeeds).
+**Expo Go not loading?** Use the latest **Expo Go** from the store (must match SDK 55). Start with `npm run start` or `npx expo start --go` — not only `expo start --web` — then scan the QR. Same Wi‑Fi or `npm run start:tunnel`. If the bundler shows a red error, fix that first (the app will not open in Expo Go until the bundle succeeds).
+
+Note: `expo-dev-client` is installed for EAS dev/preview builds, which makes plain `expo start` default to dev-client mode instead of Expo Go. `npm run start` (and `start:lan`/`start:tunnel`) pass `--go` explicitly so Expo Go keeps working. Use `npm run start:dev-client` when testing a real EAS dev-client build instead.
 
 ### Hosted web (works when your Mac is off)
 

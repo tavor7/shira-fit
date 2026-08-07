@@ -65,7 +65,7 @@ export function ReceiptRequirementsGateModal() {
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: theme.overlay.backdrop,
     zIndex: 9999,
   },

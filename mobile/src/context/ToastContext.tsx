@@ -95,7 +95,7 @@ export function useToast(): Ctx {
 const styles = StyleSheet.create({
   /** Sit above RN Modal / sheets so feedback is visible while dialogs are open. */
   layer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "flex-end",
     paddingBottom: 56,
     paddingHorizontal: theme.spacing.md,

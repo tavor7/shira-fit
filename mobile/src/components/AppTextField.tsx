@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   errorFlash: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.error,
   },

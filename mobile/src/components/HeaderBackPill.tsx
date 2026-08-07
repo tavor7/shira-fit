@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation } from "expo-router/react-navigation";
 import { router, usePathname, type Href } from "expo-router";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";

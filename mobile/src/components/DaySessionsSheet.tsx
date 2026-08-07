@@ -842,7 +842,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   backdropFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 0,
   },
   sheet: {
@@ -1116,7 +1116,7 @@ const styles = StyleSheet.create({
   studioNoteSaveBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 14 },
 
   dupModalRoot: { flex: 1, justifyContent: "center", padding: theme.spacing.lg },
-  dupBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.55)" },
+  dupBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.55)" },
   dupCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.xl,

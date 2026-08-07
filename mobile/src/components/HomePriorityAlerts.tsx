@@ -611,7 +611,7 @@ const modalStyles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.55)",
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 0,
   },
   sheet: {

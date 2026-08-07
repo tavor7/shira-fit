@@ -1,4 +1,4 @@
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation } from "expo-router/react-navigation";
 import { router, useLocalSearchParams, Stack } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import {
@@ -57,6 +57,7 @@ import {
   updateSessionWithSeriesScope,
   type SeriesScope,
 } from "../../../../src/lib/sessionSeries";
+import { notifySessionParticipantsUpdated } from "../../../../src/lib/sessionNotify";
 import {
   SessionSeriesScopeSheet,
   type SeriesScopeChoice,
@@ -1023,7 +1024,15 @@ export default function ManagerSessionDetail() {
     await load();
     setEditingSession(false);
     setEditBaseline(null);
-    if (seriesScope) {
+
+    const hadRegisteredParticipants = participantCount > 0;
+    if (hadRegisteredParticipants) {
+      void notifySessionParticipantsUpdated(sid);
+      showToast({
+        message: t("sessionDetail.savedWithRegisteredWarning").replace("{n}", String(participantCount)),
+        variant: "info",
+      });
+    } else if (seriesScope) {
       showToast({
         message: seriesScope === "future" ? t("sessionDetail.savedThisAndFuture") : t("sessionDetail.savedThisOnly"),
         variant: "success",
@@ -2498,7 +2507,7 @@ const styles = StyleSheet.create({
   pickerText: { fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
   pickerPlaceholder: { fontSize: 16, fontWeight: "600", color: theme.colors.placeholderOnLight },
   modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
-  modalBackdropTouch: { ...StyleSheet.absoluteFillObject },
+  modalBackdropTouch: { ...StyleSheet.absoluteFill },
   modalBox: {
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,
@@ -2543,7 +2552,7 @@ const styles = StyleSheet.create({
   cancelEdit: { marginTop: theme.spacing.sm, paddingVertical: 12, alignItems: "center" },
   cancelEditTxt: { color: theme.colors.textSoft, fontWeight: "700", fontSize: 15 },
   dupBackdrop: { flex: 1, justifyContent: "center", padding: theme.spacing.lg, backgroundColor: "rgba(0,0,0,0.55)" },
-  dupBackdropTouch: { ...StyleSheet.absoluteFillObject },
+  dupBackdropTouch: { ...StyleSheet.absoluteFill },
   dupCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,

@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-end",
   },
-  backdropTouch: { ...StyleSheet.absoluteFillObject },
+  backdropTouch: { ...StyleSheet.absoluteFill },
   sheet: {
     width: "100%",
     backgroundColor: theme.colors.surface,
