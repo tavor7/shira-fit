@@ -27,6 +27,19 @@ module.exports = defineConfig([
         { vars: "all", args: "none", ignoreRestSiblings: true, caughtErrors: "all" },
       ],
       "react-hooks/rules-of-hooks": "error",
+      // eslint-config-expo's SDK 57 bump pulled in eslint-plugin-react-hooks v6,
+      // which ships the React Compiler lint rules (refs/set-state-in-effect/
+      // purity/static-components/use-memo/preserve-manual-memoization) as
+      // errors by default. The codebase has ~300 pre-existing call sites that
+      // predate these rules; downgrading to "warn" keeps them at the same
+      // permissive level as the rest of this remediation plan instead of
+      // failing CI outright. Tighten incrementally later.
+      "react-hooks/refs": "warn",
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/purity": "warn",
+      "react-hooks/static-components": "warn",
+      "react-hooks/use-memo": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
     },
   },
   {
