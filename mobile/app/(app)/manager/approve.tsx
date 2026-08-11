@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
 import { FlatList, View, StyleSheet } from "react-native";
 import { PressableScale } from "../../../src/components/PressableScale";
-import { useFocusEffect, Stack } from "expo-router";
+import { useFocusEffect, Stack, router } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
 import { useI18n } from "../../../src/context/I18nContext";
 import { useAppAlert } from "../../../src/context/AppAlertContext";
+import { useToast } from "../../../src/context/ToastContext";
 import { AppText } from "../../../src/components/AppText";
 import { EmptyState } from "../../../src/components/EmptyState";
 import { FlyOffRow } from "../../../src/components/FlyOffRow";
@@ -20,6 +21,7 @@ type HistoryItem = {
   id: string;
   createdAt: string;
   actorUserId: string | null;
+  athleteUserId: string | null;
   athleteName: string;
 };
 
@@ -47,6 +49,8 @@ export default function ApproveAthletesScreen() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [actorLabels, setActorLabels] = useState<Record<string, string>>({});
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [confirmingEmailId, setConfirmingEmailId] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -61,12 +65,18 @@ export default function ApproveAthletesScreen() {
     setHistoryLoading(true);
     const { data } = await supabase
       .from("user_activity_events")
-      .select("id, created_at, actor_user_id, metadata")
+      .select("id, created_at, actor_user_id, target_id, metadata")
       .eq("event_type", "athlete_approved")
       .order("created_at", { ascending: false })
       .limit(HISTORY_LIMIT);
     const items: HistoryItem[] = ((data as
-      | { id: string; created_at: string; actor_user_id: string | null; metadata: Record<string, unknown> | null }[]
+      | {
+          id: string;
+          created_at: string;
+          actor_user_id: string | null;
+          target_id: string | null;
+          metadata: Record<string, unknown> | null;
+        }[]
       | null) ?? []).map((row) => {
       const meta = row.metadata ?? {};
       const fn = typeof meta.target_full_name === "string" ? meta.target_full_name.trim() : "";
@@ -75,6 +85,7 @@ export default function ApproveAthletesScreen() {
         id: row.id,
         createdAt: row.created_at,
         actorUserId: row.actor_user_id,
+        athleteUserId: row.target_id || null,
         athleteName: fn || (un ? `@${un}` : t("approve.unknownAthlete")),
       };
     });
@@ -115,6 +126,24 @@ export default function ApproveAthletesScreen() {
     setBusyId(null);
     load();
     void loadHistory();
+  }
+
+  async function confirmEmailFor(uid: string | null) {
+    if (!uid || confirmingEmailId) return;
+    setConfirmingEmailId(uid);
+    const { data, error } = await supabase.functions.invoke("staff-confirm-email", {
+      body: { user_id: uid },
+    });
+    setConfirmingEmailId(null);
+    if (error) {
+      showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+      return;
+    }
+    if (!data?.ok) {
+      showToast({ message: t("common.failed"), detail: String(data?.error ?? ""), variant: "error" });
+      return;
+    }
+    showToast({ message: t("profile.emailConfirmed"), variant: "success" });
   }
 
   function confirmReject(row: Row) {
@@ -194,7 +223,40 @@ export default function ApproveAthletesScreen() {
                 history.map((item, index) => (
                   <FadeSlideIn key={item.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
                     <View style={styles.historyRow}>
-                      <AppText variant="body">{item.athleteName}</AppText>
+                      <View style={[styles.historyRowTop, isRTL && styles.historyRowTopRtl]}>
+                        <PressableScale
+                          onPress={() => {
+                            if (!item.athleteUserId) return;
+                            router.push(`/(app)/staff/profile/${item.athleteUserId}` as never);
+                          }}
+                          disabled={!item.athleteUserId}
+                          style={styles.historyNameBtn}
+                          accessibilityRole="button"
+                          accessibilityLabel={item.athleteName}
+                        >
+                          <AppText
+                            variant="body"
+                            isRTL={isRTL}
+                            style={item.athleteUserId ? styles.historyNameLink : undefined}
+                          >
+                            {item.athleteName}
+                          </AppText>
+                        </PressableScale>
+                        <PressableScale
+                          onPress={() => void confirmEmailFor(item.athleteUserId)}
+                          disabled={!item.athleteUserId || confirmingEmailId !== null}
+                          style={[
+                            styles.historyConfirmEmailBtn,
+                            (!item.athleteUserId || confirmingEmailId === item.athleteUserId) && { opacity: 0.6 },
+                          ]}
+                          accessibilityRole="button"
+                          accessibilityLabel={t("profile.confirmEmail")}
+                        >
+                          <AppText variant="label" style={styles.historyConfirmEmailTxt}>
+                            {confirmingEmailId === item.athleteUserId ? t("common.loading") : t("profile.confirmEmail")}
+                          </AppText>
+                        </PressableScale>
+                      </View>
                       <AppText variant="caption" muted isRTL={isRTL} style={styles.historyMeta}>
                         {t("approve.approvedBy")
                           .replace("{name}", item.actorUserId ? actorLabels[item.actorUserId] ?? item.actorUserId : t("approve.unknownManager"))
@@ -254,5 +316,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderMuted,
   },
+  historyRowTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing.sm,
+  },
+  historyRowTopRtl: { flexDirection: "row-reverse" },
+  historyNameBtn: { flexShrink: 1 },
+  historyNameLink: { color: theme.colors.cta, fontWeight: "800" },
+  historyConfirmEmailBtn: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.full,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  historyConfirmEmailTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 12, letterSpacing: 0.2 },
   historyMeta: { marginTop: 2 },
 });
