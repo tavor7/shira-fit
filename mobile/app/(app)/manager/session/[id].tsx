@@ -63,6 +63,7 @@ import {
   type SeriesScopeChoice,
 } from "../../../../src/components/SessionSeriesScopeSheet";
 import { SessionSlotRateField } from "../../../../src/components/SessionSlotRateField";
+import { SessionCoachRateField } from "../../../../src/components/SessionCoachRateField";
 import { SessionOptionsSection } from "../../../../src/components/SessionOptionsSection";
 import {
   SessionCoachPickerField,
@@ -76,6 +77,7 @@ import {
   sumSessionBillingPrices,
   fetchActiveGlobalTierPrice,
 } from "../../../../src/lib/sessionSlotPrice";
+import { fetchCoachCapacityRateIls, parseCustomCoachRateDraft } from "../../../../src/lib/coachRate";
 import { CrossfadeSwap } from "../../../../src/components/CrossfadeSwap";
 import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../../src/components/PressableScale";
@@ -250,6 +252,9 @@ export default function ManagerSessionDetail() {
   const [tierSlotPriceIls, setTierSlotPriceIls] = useState<number | null>(null);
   const [customSlotPriceDraft, setCustomSlotPriceDraft] = useState("");
   const [customSlotPriceBusy, setCustomSlotPriceBusy] = useState(false);
+  const [defaultCoachRateIls, setDefaultCoachRateIls] = useState<number | null>(null);
+  const [customCoachRateDraft, setCustomCoachRateDraft] = useState("");
+  const [customCoachRateBusy, setCustomCoachRateBusy] = useState(false);
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [waitlist, setWaitlist] = useState<WaitlistRow[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
@@ -501,6 +506,33 @@ export default function ManagerSessionDetail() {
   }, [maxP, date, isKickbox, session?.custom_slot_price_ils, session?.session_date]);
 
   useEffect(() => {
+    if (!coachId || attendanceStats.registered <= 0) {
+      setDefaultCoachRateIls(null);
+      return;
+    }
+    let cancelled = false;
+    const asOf =
+      isValidISODateString(date.trim()) ? date.trim() : session?.session_date ?? toISODateLocal(new Date());
+    void (async () => {
+      try {
+        const rate = await fetchCoachCapacityRateIls(supabase, coachId, attendanceStats.registered, asOf);
+        if (cancelled) return;
+        setDefaultCoachRateIls(rate);
+      } catch (error) {
+        if (cancelled) return;
+        showToast({
+          message: t("common.error"),
+          detail: error instanceof Error ? error.message : undefined,
+          variant: "error",
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [coachId, date, attendanceStats.registered, session?.session_date]);
+
+  useEffect(() => {
     return navigation.addListener("beforeRemove", (e) => {
       if (allowLeaveEditRef.current) return;
       if (!hasEditDirtyRef.current) return;
@@ -735,9 +767,15 @@ export default function ManagerSessionDetail() {
       const customRaw = (s as TrainingSession).custom_slot_price_ils;
       const customNum = customRaw != null && Number.isFinite(Number(customRaw)) ? Number(customRaw) : null;
       setCustomSlotPriceDraft(customNum != null ? String(customNum) : "");
+      const customCoachRaw = (s as TrainingSession).custom_coach_rate_ils;
+      const customCoachNum =
+        customCoachRaw != null && Number.isFinite(Number(customCoachRaw)) ? Number(customCoachRaw) : null;
+      setCustomCoachRateDraft(customCoachNum != null ? String(customCoachNum) : "");
     } else {
       setTierSlotPriceIls(null);
       setCustomSlotPriceDraft("");
+      setDefaultCoachRateIls(null);
+      setCustomCoachRateDraft("");
     }
     loadWaitlist();
     loadCancellations();
@@ -1263,6 +1301,42 @@ export default function ManagerSessionDetail() {
 
   const sessionHasCustomSlotPrice =
     session?.custom_slot_price_ils != null && Number.isFinite(Number(session.custom_slot_price_ils));
+
+  async function persistCustomCoachRateFromDraft(clearOnly = false): Promise<boolean> {
+    const parsed = clearOnly ? { ok: true as const, rate: null } : parseCustomCoachRateDraft(customCoachRateDraft);
+    if (!parsed.ok) {
+      showOk(t("common.error"), t("managerSession.coachRateInvalid"));
+      return false;
+    }
+    const { data, error } = await supabase.rpc("staff_set_session_custom_coach_rate", {
+      p_session_id: id,
+      p_rate_ils: parsed.rate,
+    });
+    if (error) {
+      showOk(t("common.error"), error.message);
+      return false;
+    }
+    if (!data?.ok) {
+      showOk(t("common.failed"), String(data?.error ?? ""));
+      return false;
+    }
+    return true;
+  }
+
+  async function saveCustomCoachRate(clearOnly = false) {
+    if (customCoachRateBusy) return;
+    setCustomCoachRateBusy(true);
+    const ok = await persistCustomCoachRateFromDraft(clearOnly);
+    setCustomCoachRateBusy(false);
+    if (!ok) return;
+    await load();
+    showToast({
+      message: clearOnly ? t("managerSession.coachRateUsingDefault") : t("managerSession.coachRateSaved"),
+    });
+  }
+
+  const sessionHasCustomCoachRate =
+    session?.custom_coach_rate_ils != null && Number.isFinite(Number(session.custom_coach_rate_ils));
 
   const [extraFeeSummary, setExtraFeeSummary] = useState({
     lateExpected: null as number | null,
@@ -2055,6 +2129,19 @@ export default function ManagerSessionDetail() {
           onApply={() => void saveCustomSlotPrice(false)}
           onClear={() => void saveCustomSlotPrice(true)}
           applyBusy={customSlotPriceBusy}
+        />
+      ) : null}
+
+      {!editingSession && profile?.role === "manager" ? (
+        <SessionCoachRateField
+          value={customCoachRateDraft}
+          onChangeValue={setCustomCoachRateDraft}
+          defaultRateIls={defaultCoachRateIls}
+          hasCustomOnServer={sessionHasCustomCoachRate}
+          serverCustomRateIls={session?.custom_coach_rate_ils ?? null}
+          onApply={() => void saveCustomCoachRate(false)}
+          onClear={() => void saveCustomCoachRate(true)}
+          applyBusy={customCoachRateBusy}
         />
       ) : null}
 
