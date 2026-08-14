@@ -50,6 +50,8 @@ export interface TrainingSession {
   is_hidden?: boolean;
   /** One-time price (₪) for every billing slot on this session; overrides tier/athlete pricing. */
   custom_slot_price_ils?: number | null;
+  /** One-time coach payout (₪) for this session; overrides the coach_capacity_pricing tier lookup. */
+  custom_coach_rate_ils?: number | null;
   /** Uses global kickbox tier rates when billing (session_capacity_pricing.is_kickbox). */
   is_kickbox?: boolean;
   /** Weekly series template id when generated from session_series. */

@@ -56,6 +56,7 @@ function sessionFieldLabel(key: string, he: boolean): string {
     is_hidden: { en: "Hidden", he: "מוסתר" },
     is_kickbox: { en: "Kickbox", he: "קיקבוקס" },
     custom_slot_price_ils: { en: "Custom slot price", he: "מחיר מותאם לאימון" },
+    custom_coach_rate_ils: { en: "Custom coach rate", he: "תעריף מותאם למאמן" },
     registration_open_weekday: { en: "Registration open weekday", he: "יום פתיחת הרשמה" },
     registration_open_time: { en: "Registration open time", he: "שעת פתיחת הרשמה" },
   };
