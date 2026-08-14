@@ -200,55 +200,6 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
 
   return (
     <View style={styles.screen}>
-      <View style={styles.filters}>
-        {!hideTitle ? (
-          <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t("menu.coachHistory")}</Text>
-        ) : null}
-        <ReportDateRangeControls start={start} end={end} onChange={onDateRangeChange} />
-      </View>
-
-      <View style={styles.coachPickCard}>
-        <PricingPickerField
-          label={t("sessionForm.trainer")}
-          value={coachLabel}
-          placeholder={t("sessionForm.chooseTrainer")}
-          onPress={() => setPickerOpen(true)}
-          isRTL={isRTL}
-          accessibilityLabel={t("sessionForm.trainer")}
-        />
-      </View>
-
-      <CrossfadeSwap
-        loading={!!(coachId && loading)}
-        skeleton={
-          <View style={styles.loadingBanner}>
-            <ActivityIndicator size="small" color={theme.colors.cta} />
-            <Text style={styles.loadingBannerTxt}>{t("common.loading")}</Text>
-          </View>
-        }
-      >
-      {hasSearched && coachId && !loading ? (
-        <View style={styles.payoutCard}>
-          <View style={[styles.payoutTop, isRTL && Platform.OS !== "web" && styles.payoutTopRtl]}>
-            <View style={styles.payoutTopMain}>
-              <Text style={[styles.payoutEyebrow, isRTL && styles.rtlText]}>{t("coachReport.payoutTitle")}</Text>
-              <Text style={[styles.payoutBig, isRTL && styles.rtlText]}>{formatPayout(payoutTotalDisplay)}</Text>
-            </View>
-            <View style={styles.payoutBadge}>
-              <Text style={styles.payoutBadgeTxt}>
-                {t("coachReport.sessionCount").replace("{n}", String(rows.length))}
-              </Text>
-            </View>
-          </View>
-          {missingRateSessions > 0 ? (
-            <Text style={[styles.payoutWarn, isRTL && styles.rtlText]}>
-              {t("coachReport.sessionsMissingRate").replace("{n}", String(missingRateSessions))}
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
-      </CrossfadeSwap>
-
       <CoachPickerSheet
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
@@ -264,6 +215,58 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
         data={rows}
         keyExtractor={(item) => item.session_id}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <>
+            <View style={styles.filters}>
+              {!hideTitle ? (
+                <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t("menu.coachHistory")}</Text>
+              ) : null}
+              <ReportDateRangeControls start={start} end={end} onChange={onDateRangeChange} />
+            </View>
+
+            <View style={styles.coachPickCard}>
+              <PricingPickerField
+                label={t("sessionForm.trainer")}
+                value={coachLabel}
+                placeholder={t("sessionForm.chooseTrainer")}
+                onPress={() => setPickerOpen(true)}
+                isRTL={isRTL}
+                accessibilityLabel={t("sessionForm.trainer")}
+              />
+            </View>
+
+            <CrossfadeSwap
+              loading={!!(coachId && loading)}
+              skeleton={
+                <View style={styles.loadingBanner}>
+                  <ActivityIndicator size="small" color={theme.colors.cta} />
+                  <Text style={styles.loadingBannerTxt}>{t("common.loading")}</Text>
+                </View>
+              }
+            >
+            {hasSearched && coachId && !loading ? (
+              <View style={styles.payoutCard}>
+                <View style={[styles.payoutTop, isRTL && Platform.OS !== "web" && styles.payoutTopRtl]}>
+                  <View style={styles.payoutTopMain}>
+                    <Text style={[styles.payoutEyebrow, isRTL && styles.rtlText]}>{t("coachReport.payoutTitle")}</Text>
+                    <Text style={[styles.payoutBig, isRTL && styles.rtlText]}>{formatPayout(payoutTotalDisplay)}</Text>
+                  </View>
+                  <View style={styles.payoutBadge}>
+                    <Text style={styles.payoutBadgeTxt}>
+                      {t("coachReport.sessionCount").replace("{n}", String(rows.length))}
+                    </Text>
+                  </View>
+                </View>
+                {missingRateSessions > 0 ? (
+                  <Text style={[styles.payoutWarn, isRTL && styles.rtlText]}>
+                    {t("coachReport.sessionsMissingRate").replace("{n}", String(missingRateSessions))}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+            </CrossfadeSwap>
+          </>
+        }
         renderItem={({ item, index }) => (
           <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <CoachSessionReportCard
