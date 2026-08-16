@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "../context/AuthContext";
 import { theme } from "../theme";
@@ -30,9 +30,22 @@ export function AppHeaderRight() {
         : "Manager · Athlete view"
       : baseRole;
 
+  const isNative = Platform.OS !== "web";
+
   return (
-    <View style={[styles.wrap, isRTL && styles.wrapRTL, isRTL && styles.wrapRtlSpacing]}>
-      <View style={[styles.nameBlock, isRTL && styles.nameBlockRtl]}>
+    <View
+      style={[
+        styles.wrap,
+        // Native's headerRight is a bar button item sized by intrinsic content (auto layout),
+        // not stretched across a full-width flex row like on web — `flex: 1` / `minWidth: 0`
+        // there has no parent extent to grow into or shrink against, so the row hugs its
+        // content instead, letting name text + chips render at their natural size.
+        isNative && { flex: 0, minWidth: undefined },
+        isRTL && styles.wrapRTL,
+        isRTL && styles.wrapRtlSpacing,
+      ]}
+    >
+      <View style={[styles.nameBlock, isNative && { flex: 0, minWidth: undefined, maxWidth: undefined }, isRTL && styles.nameBlockRtl]}>
         <Text
           style={[styles.name, isRTL && styles.nameRtl]}
           numberOfLines={1}
