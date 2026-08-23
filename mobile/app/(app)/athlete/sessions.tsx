@@ -356,7 +356,9 @@ export default function AthleteSessionsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flex: 1 },
-  scrollContent: { flexGrow: 1, flex: 1, justifyContent: "flex-start", paddingHorizontal: theme.spacing.md },
+  // flex:1 on a ScrollView's contentContainerStyle clamps it to the viewport height and disables
+  // scrolling past it — flexGrow:1 alone lets short content stretch without capping tall content.
+  scrollContent: { flexGrow: 1, justifyContent: "flex-start", paddingHorizontal: theme.spacing.md },
   alertsTop: { marginTop: theme.spacing.md },
   myUpcomingCard: {
     padding: theme.spacing.md,
