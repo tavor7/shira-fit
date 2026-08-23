@@ -51,9 +51,11 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
         accent ? { borderLeftWidth: leftAccentWidth, borderLeftColor: accent, paddingLeft: 8 } : null,
       ]}
     >
-      <View style={styles.timeRow}>
+      <View style={[styles.timeRow, item.isRecurringSeries && styles.timeRowWithRepeatPin]}>
         <View style={styles.timeRowLeft}>
-          <Text style={timeStyle}>{formatSessionStartTime(item.start_time)}</Text>
+          <Text style={timeStyle} numberOfLines={1}>
+            {formatSessionStartTime(item.start_time)}
+          </Text>
           {showTemporalPills ? (
             temporalPhase === "live" ? (
               <View style={styles.livePill}>
@@ -171,8 +173,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     flexWrap: "wrap",
-    paddingEnd: 26, // reserve space for pinned repeat badge
   },
+  /** Only reserve space for the pinned repeat badge when the session actually has one —
+   *  the narrow week-grid column can't afford to give it up unconditionally. */
+  timeRowWithRepeatPin: { paddingEnd: 20 },
   timeRowLeft: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0, flexWrap: "wrap" },
   repeatBadgePin: {
     position: "absolute",
@@ -217,8 +221,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     textAlign: "center",
   },
-  time: { fontWeight: "800", color: theme.colors.cta, fontSize: 15, letterSpacing: 0.2, lineHeight: 18 },
-  timeCompact: { fontSize: 14, lineHeight: 17 },
+  time: { fontWeight: "800", color: theme.colors.cta, fontSize: 15, letterSpacing: 0.2, lineHeight: 18, flexShrink: 0 },
+  timeCompact: { fontSize: 13, lineHeight: 16, letterSpacing: 0 },
   timePast: { color: theme.colors.textSoft, fontWeight: "600" },
   timeLive: { color: theme.colors.success, fontWeight: "900" },
   livePill: {

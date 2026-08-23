@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 
-const PREFIX = "dismissed_home_alerts_v1:";
+// expo-secure-store keys must be alphanumeric plus ".", "-", "_" only — no ":".
+const PREFIX = "dismissed_home_alerts_v1_";
 
 function storageKey(userId: string) {
   return `${PREFIX}${userId}`;

@@ -159,12 +159,12 @@ function AlertLabel({
       : [modalStyles.segSubject, { color: accent.subject }];
   const rtlAlign = variant === "strip" ? styles.rtl : modalStyles.rtlSheet;
 
-  const baseDir: "ltr" | "rtl" = isRTL ? "rtl" : "ltr";
-
   function segmentRun(run: HomePriorityLabelSegment[], lineNumberOfLines?: number) {
     return (
       <Text
-        style={[{ writingDirection: baseDir }, isRTL && styles.segmentLineRtl]}
+        // No writingDirection here — each nested segment Text below sets its own. Setting it on
+        // both the wrapping Text and its nested Text children renders blank on iOS native.
+        style={[isRTL && styles.segmentLineRtl]}
         numberOfLines={lineNumberOfLines}
       >
         {run.map((seg, idx) => {

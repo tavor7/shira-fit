@@ -7,7 +7,8 @@ import { ensureNotificationPermission } from "./sessionReminders";
 import { fetchActiveSignupCountsBySession } from "./sessionSignupCounts";
 
 function key(sessionId: string) {
-  return `waitlist_spot_notified:${sessionId}`;
+  // expo-secure-store keys must be alphanumeric plus ".", "-", "_" only — no ":".
+  return `waitlist_spot_notified_${sessionId}`;
 }
 
 export async function checkWaitlistSpotsAndNotify(language: "en" | "he"): Promise<void> {

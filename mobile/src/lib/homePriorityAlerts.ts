@@ -533,15 +533,9 @@ export function buildAthleteRegistrationItems(
     const rid = `reg-cd-${state.next_open_at_utc}`;
     const detail = formatStudioOpeningLabel(state.next_open_at_utc, language);
     const lead = tr(language, "homeAlerts.registrationOpensLead");
-    const leadDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
-    const detailDir: "ltr" | "rtl" = language === "he" ? "rtl" : "ltr";
     items.push({
       id: rid,
       label: `${lead} ${detail}`,
-      labelSegments: [
-        { text: lead, dir: leadDir, role: "subject" },
-        { text: detail, dir: detailDir, role: "body" },
-      ],
       href: "/(app)/athlete/sessions",
     });
   } else if (state.show_registration_still_pending) {

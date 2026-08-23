@@ -2,7 +2,8 @@ import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 import { loadNotificationPrefs } from "./notificationPrefs";
 
-const STORE_PREFIX = "session_reminder_ids:";
+// expo-secure-store keys must be alphanumeric plus ".", "-", "_" only — no ":".
+const STORE_PREFIX = "session_reminder_ids_";
 
 function sessionStartDate(sessionDate: string, startTime: string): Date {
   const t = startTime.length >= 5 ? startTime.slice(0, 5) : startTime;

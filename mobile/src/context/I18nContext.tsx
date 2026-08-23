@@ -15,7 +15,8 @@ type I18nCtx = {
 const STORAGE_KEY_GLOBAL = "shira_fit_language";
 
 function userKey(userId: string) {
-  return `shira_fit_language:${userId}`;
+  // expo-secure-store keys must be alphanumeric plus ".", "-", "_" only — no ":".
+  return `shira_fit_language_${userId}`;
 }
 
 const Ctx = createContext<I18nCtx | null>(null);
