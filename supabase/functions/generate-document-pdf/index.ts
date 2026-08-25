@@ -15,7 +15,6 @@ import {
   drawMixedTextRight,
   fmtDate,
   fmtMoney,
-  fmtTime,
   isHebrewDominant,
   measureMixedWidth,
 } from "../_shared/pdf/hebrewTextLayout.ts";
@@ -161,6 +160,7 @@ type DocRow = {
   status: string;
   pdf_url: string | null;
   created_at: string;
+  paid_at: string | null;
   customer_name: string;
   customer_email: string | null;
   customer_phone: string | null;
@@ -269,9 +269,7 @@ async function renderHebrewPdf(doc: DocRow): Promise<Uint8Array> {
 
   drawColRow("מספר מסמך:", doc.document_number, yLeft, leftColLeft, leftColRight);
   yLeft -= rowStep;
-  drawColRow("תאריך הפקה:", fmtDate(doc.created_at), yLeft, leftColLeft, leftColRight);
-  yLeft -= rowStep;
-  drawColRow("שעת הפקה:", fmtTime(doc.created_at), yLeft, leftColLeft, leftColRight);
+  drawColRow("תאריך תשלום:", fmtDate(doc.paid_at ?? doc.created_at), yLeft, leftColLeft, leftColRight);
   yLeft -= rowStep;
 
   drawColRow("שם העסק:", doc.business_name, yRight, rightColLeft, rightColRight);

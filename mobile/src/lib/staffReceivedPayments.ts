@@ -1,4 +1,5 @@
 /** Parsed row from `staff_list_received_payments`. */
+import { supabase } from "./supabase";
 
 export type ReceivedPaymentSource = "account" | "session";
 
@@ -21,6 +22,7 @@ export type StaffReceivedPaymentRow = {
   paid_at: string;
   created_at: string;
   created_by: string | null;
+  has_manual_receipt: boolean;
 };
 
 export type StaffReceivedPaymentsPayload = {
@@ -84,6 +86,7 @@ export function parseStaffReceivedPayments(raw: unknown): StaffReceivedPaymentsP
         paid_at,
         created_at: String(r.created_at ?? paid_at),
         created_by: r.created_by == null ? null : String(r.created_by),
+        has_manual_receipt: Boolean(r.has_manual_receipt),
       });
     }
   }
@@ -94,4 +97,26 @@ export function parseStaffReceivedPayments(raw: unknown): StaffReceivedPaymentsP
     total_count: num(o.total_count),
     payments,
   };
+}
+
+function parseOkOrThrow(data: unknown): void {
+  const o = data as { ok?: boolean; error?: string } | null;
+  if (!o?.ok) throw new Error(o?.error ?? "unknown_error");
+}
+
+/** Mark a payment as already receipted manually, outside the app (no PDF, no document_number). */
+export async function markPaymentReceiptExternal(rowId: string, note?: string): Promise<void> {
+  const { data, error } = await supabase.rpc("mark_payment_receipt_external", {
+    p_row_id: rowId,
+    p_note: note?.trim() || null,
+  });
+  if (error) throw error;
+  parseOkOrThrow(data);
+}
+
+/** Undo a manual-receipt mark. */
+export async function unmarkPaymentReceiptExternal(rowId: string): Promise<void> {
+  const { data, error } = await supabase.rpc("unmark_payment_receipt_external", { p_row_id: rowId });
+  if (error) throw error;
+  parseOkOrThrow(data);
 }

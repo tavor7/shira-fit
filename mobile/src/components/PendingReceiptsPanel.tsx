@@ -26,7 +26,11 @@ import {
   listPaymentsWithoutReceipt,
   type PendingReceiptPayment,
 } from "../lib/pendingReceipts";
-import { lastNDaysRangeISO } from "../lib/isoDate";
+import { markPaymentReceiptExternal } from "../lib/staffReceivedPayments";
+import { toISODateLocal } from "../lib/isoDate";
+
+/** Payments before this date are historical/testing data — never shown as pending a receipt. */
+const PENDING_RECEIPTS_FLOOR_DATE = "2026-06-14";
 
 type Props = {
   enabled: boolean;
@@ -46,7 +50,8 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
   const lang = language === "he" ? "he" : "en";
-  const defaultRange = useMemo(() => lastNDaysRangeISO(90), []);
+  // Global by default: from the floor date (server-enforced regardless of what's picked below) through today.
+  const defaultRange = useMemo(() => ({ start: PENDING_RECEIPTS_FLOOR_DATE, end: toISODateLocal(new Date()) }), []);
 
   const [dateStart, setDateStart] = useState(defaultRange.start);
   const [dateEnd, setDateEnd] = useState(defaultRange.end);
@@ -61,6 +66,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
   const [generatePdfs, setGeneratePdfs] = useState(true);
   const [emailCustomers, setEmailCustomers] = useState(false);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [markingRowId, setMarkingRowId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -180,6 +186,28 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
     }
   }
 
+  async function handleMarkManual(item: PendingReceiptPayment) {
+    setMarkingRowId(item.row_id);
+    try {
+      await markPaymentReceiptExternal(item.row_id);
+      setSelected((prev) => {
+        if (!prev.has(item.row_id)) return prev;
+        const next = new Set(prev);
+        next.delete(item.row_id);
+        return next;
+      });
+      await load();
+    } catch (e) {
+      showToast({
+        message: language === "he" ? "שגיאה" : "Error",
+        detail: e instanceof Error ? e.message : undefined,
+        variant: "error",
+      });
+    } finally {
+      setMarkingRowId(null);
+    }
+  }
+
   function renderRow({ item }: { item: PendingReceiptPayment }) {
     const isSelected = selected.has(item.row_id);
     const slotLabel = slotKindLabel(item.session_slot_kind, lang);
@@ -204,20 +232,32 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
             <Text style={[styles.payeeName, isRTL && styles.rtl]} numberOfLines={1}>
               {item.payee_name}
             </Text>
-            <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={2}>
-              {item.source === "account"
-                ? language === "he"
-                  ? "תשלום בחשבון"
-                  : "Account payment"
-                : [
+            {item.source === "account" ? (
+              <>
+                <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={1}>
+                  {item.paid_at ? formatISODateLong(item.paid_at.slice(0, 10), language) : "—"}
+                </Text>
+                <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={1}>
+                  {language === "he" ? "תשלום בחשבון" : "Account payment"}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={2}>
+                  {[
                     item.session_date ? formatISODateLong(item.session_date, language) : null,
                     item.session_start_time ? formatSessionStartTime(item.session_start_time) : null,
-                    item.coach_name,
-                    slotLabel,
                   ]
                     .filter(Boolean)
                     .join(" · ")}
-            </Text>
+                </Text>
+                {item.coach_name || slotLabel ? (
+                  <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={1}>
+                    {[item.coach_name, slotLabel].filter(Boolean).join(" · ")}
+                  </Text>
+                ) : null}
+              </>
+            )}
             <Text style={[styles.rowSub, isRTL && styles.rtl]}>
               {documentServiceTypeLabel(item.service_type, lang)}
               {item.payment_method ? ` · ${paymentMethodHistoryLabel(item.payment_method, lang)}` : ""}
@@ -232,6 +272,22 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
               : "Unsupported payment method — update payment before issuing receipt"}
           </Text>
         ) : null}
+        <View style={[styles.rowFooter, isRTL && styles.rowFooterRtl]}>
+          <Pressable
+            onPress={() => void handleMarkManual(item)}
+            disabled={markingRowId === item.row_id}
+            hitSlop={8}
+            style={({ pressed }) => [styles.manualLink, pressed && { opacity: 0.7 }]}
+          >
+            {markingRowId === item.row_id ? (
+              <ActivityIndicator size="small" color={theme.colors.textMuted} />
+            ) : (
+              <Text style={[styles.manualLinkText, isRTL && styles.rtl]}>
+                {language === "he" ? "קבלה ניתנה ידנית" : "Receipt given manually"}
+              </Text>
+            )}
+          </Pressable>
+        </View>
       </Pressable>
     );
   }
@@ -473,6 +529,10 @@ const styles = StyleSheet.create({
   rowSub: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
   amount: { fontSize: 16, fontWeight: "800", color: theme.colors.cta },
   warn: { fontSize: 12, fontWeight: "700", color: theme.colors.error, marginTop: 4 },
+  rowFooter: { flexDirection: "row", justifyContent: "flex-end", marginTop: 4 },
+  rowFooterRtl: { flexDirection: "row-reverse" },
+  manualLink: { paddingVertical: 4, paddingHorizontal: 6 },
+  manualLinkText: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, textDecorationLine: "underline" },
   emptyBox: { paddingVertical: 40, alignItems: "center", gap: 8 },
   emptyTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
   emptyHint: { fontSize: 14, fontWeight: "500", color: theme.colors.textMuted, textAlign: "center" },

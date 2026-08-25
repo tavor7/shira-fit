@@ -28,7 +28,12 @@ import { EmptyState } from "../components/EmptyState";
 import { formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
 import { formatSessionTimeShort } from "../lib/financeBreakdownFormat";
 import { lastNDaysRangeISO } from "../lib/isoDate";
-import { parseStaffReceivedPayments, type StaffReceivedPaymentRow } from "../lib/staffReceivedPayments";
+import {
+  parseStaffReceivedPayments,
+  markPaymentReceiptExternal,
+  unmarkPaymentReceiptExternal,
+  type StaffReceivedPaymentRow,
+} from "../lib/staffReceivedPayments";
 import {
   paymentMethodHistoryLabel,
   SESSION_PAYMENT_METHOD_KEYS,
@@ -109,6 +114,8 @@ export default function AccountPaymentsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [manualReceiptBusyRowId, setManualReceiptBusyRowId] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [payeePickerOpen, setPayeePickerOpen] = useState(false);
   const [payeePickerMode, setPayeePickerMode] = useState<"filter" | "add">("filter");
@@ -133,10 +140,7 @@ export default function AccountPaymentsScreen() {
   }, []);
 
   const loadPayments = useCallback(async () => {
-    const rpcArgs: Record<string, unknown> = {
-      p_limit: 500,
-      p_offset: 0,
-    };
+    const rpcArgs: Record<string, unknown> = {};
 
     if (dateMode === "range") {
       rpcArgs.p_date_start = dateStart;
@@ -160,29 +164,47 @@ export default function AccountPaymentsScreen() {
       rpcArgs.p_payment_method = paymentMethodFilter;
     }
 
-    const { data, error } = await supabase.rpc("staff_list_received_payments", rpcArgs);
-    if (error) {
-      showToast({ message: t("common.error"), detail: error.message, variant: "error" });
-      setRows([]);
-      setTotalReceived(0);
-      setTotalCount(0);
-      return;
-    }
-
-    const payload = parseStaffReceivedPayments(data);
-    if (!payload.ok) {
-      showToast({
-        message: t("common.error"),
-        detail: payload.error ?? "staff_list_received_payments",
-        variant: "error",
+    // The RPC caps p_limit at 2000 rows per call, so a filter matching more than that
+    // needs multiple pages — otherwise rows past the cap silently vanish from the list
+    // even though the "total" stat tile (computed separately, unlimited) still counts them.
+    const pageSize = 2000;
+    let payRows: StaffReceivedPaymentRow[] = [];
+    let payloadTotalReceived = 0;
+    let payloadTotalCount = 0;
+    let offset = 0;
+    for (;;) {
+      const { data, error } = await supabase.rpc("staff_list_received_payments", {
+        ...rpcArgs,
+        p_limit: pageSize,
+        p_offset: offset,
       });
-      setRows([]);
-      setTotalReceived(0);
-      setTotalCount(0);
-      return;
-    }
+      if (error) {
+        showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+        setRows([]);
+        setTotalReceived(0);
+        setTotalCount(0);
+        return;
+      }
 
-    const payRows = payload.payments;
+      const payload = parseStaffReceivedPayments(data);
+      if (!payload.ok) {
+        showToast({
+          message: t("common.error"),
+          detail: payload.error ?? "staff_list_received_payments",
+          variant: "error",
+        });
+        setRows([]);
+        setTotalReceived(0);
+        setTotalCount(0);
+        return;
+      }
+
+      payRows = payRows.concat(payload.payments);
+      payloadTotalReceived = payload.total_received;
+      payloadTotalCount = payload.total_count;
+      offset += pageSize;
+      if (payload.payments.length < pageSize || payRows.length >= payloadTotalCount) break;
+    }
     const appIds = [...new Set(payRows.filter((p) => !p.payee_is_manual).map((p) => p.payee_id))];
     const manualIds = [...new Set(payRows.filter((p) => p.payee_is_manual).map((p) => p.payee_id))];
     const staffIds = [...new Set(payRows.map((p) => p.created_by).filter((id): id is string => !!id))];
@@ -201,10 +223,7 @@ export default function AccountPaymentsScreen() {
     ]);
 
     const profileLabels = Object.fromEntries(
-      (profilesRes.data ?? []).map((p) => [
-        p.user_id,
-        `${(p.full_name ?? "").trim()}${p.username ? ` (@${p.username})` : ""}`.trim() || p.user_id.slice(0, 8),
-      ])
+      (profilesRes.data ?? []).map((p) => [p.user_id, (p.full_name ?? "").trim() || p.user_id.slice(0, 8)])
     );
     const manualLabels = Object.fromEntries(
       (manualRes.data ?? []).map((m) => [m.id, (m.full_name ?? "").trim() || m.id.slice(0, 8)])
@@ -246,8 +265,8 @@ export default function AccountPaymentsScreen() {
         };
       })
     );
-    setTotalReceived(payload.total_received);
-    setTotalCount(payload.total_count);
+    setTotalReceived(payloadTotalReceived);
+    setTotalCount(payloadTotalCount);
   }, [dateMode, dateStart, dateEnd, payeeFilter, paymentMethodFilter, showToast, t]);
 
   const reload = useCallback(
@@ -481,6 +500,42 @@ export default function AccountPaymentsScreen() {
     });
   }
 
+  async function handleMarkManualReceipt(item: PaymentRow) {
+    setManualReceiptBusyRowId(item.row_id);
+    try {
+      await markPaymentReceiptExternal(item.row_id);
+      showToast({ message: t("accountPayments.manualReceiptMarked"), variant: "success" });
+      await reload({ silent: true });
+    } catch (e) {
+      showToast({ message: t("common.error"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+    } finally {
+      setManualReceiptBusyRowId(null);
+    }
+  }
+
+  function confirmUnmarkManualReceipt(item: PaymentRow) {
+    showConfirm({
+      title: t("common.confirm"),
+      message: t("accountPayments.manualReceiptUnmarkConfirm"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.remove"),
+      confirmVariant: "danger",
+      onConfirm: () => {
+        void (async () => {
+          setManualReceiptBusyRowId(item.row_id);
+          try {
+            await unmarkPaymentReceiptExternal(item.row_id);
+            await reload({ silent: true });
+          } catch (e) {
+            showToast({ message: t("common.error"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+          } finally {
+            setManualReceiptBusyRowId(null);
+          }
+        })();
+      },
+    });
+  }
+
   function openAccountPaymentEdit(item: PaymentRow) {
     setAddPayee({
       id: item.payee_id,
@@ -528,86 +583,111 @@ export default function AccountPaymentsScreen() {
     })),
   ];
 
+  const activeFilterCount =
+    (payeeFilter.type !== "all" ? 1 : 0) + (dateMode !== "all" ? 1 : 0) + (paymentMethodFilter !== "all" ? 1 : 0);
+  const filtersSummary = [
+    payeeFilter.type === "all" ? null : payeeFilterLabel(payeeFilter, t),
+    dateMode === "all" ? null : t("accountPayments.dateRange"),
+    paymentMethodFilter === "all" ? null : paymentMethodHistoryLabel(paymentMethodFilter, language),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   const listHeader = (
     <View style={styles.headerBlock}>
-      <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.accountPayments")}</Text>
-      <Text style={[styles.hint, isRTL && styles.rtl]}>{t("accountPayments.subtitle")}</Text>
-
       <View style={styles.filterCard}>
-        <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("accountPayments.payeeFilter")}</Text>
         <Pressable
-          style={({ pressed }) => [styles.pickerTouch, pressed && styles.pickerTouchPressed]}
-          onPress={() => openPayeePicker("filter")}
+          onPress={() => setFiltersOpen((v) => !v)}
+          style={({ pressed }) => [styles.filterToggle, pressed && { opacity: 0.9 }]}
         >
-          <Text style={[payeeFilter.type === "all" ? styles.pickerPlaceholder : styles.pickerText, isRTL && styles.rtl]} numberOfLines={2}>
-            {payeeFilterLabel(payeeFilter, t)}
-          </Text>
+          <View style={styles.filterToggleCopy}>
+            <Text style={[styles.sectionLabel, styles.filterToggleLabel, isRTL && styles.rtl]}>
+              {t("accountPayments.filters")}
+            </Text>
+            <Text style={[styles.filterSummary, isRTL && styles.rtl]} numberOfLines={1}>
+              {activeFilterCount === 0 ? t("accountPayments.noFiltersActive") : filtersSummary}
+            </Text>
+          </View>
+          <Text style={styles.chevron}>{filtersOpen ? "︿" : "﹀"}</Text>
         </Pressable>
-        {payeeFilter.type !== "all" ? (
-          <Pressable
-            style={({ pressed }) => [styles.clearLink, pressed && { opacity: 0.85 }]}
-            onPress={() => setPayeeFilter({ type: "all" })}
-          >
-            <Text style={[styles.clearLinkText, isRTL && styles.rtl]}>{t("common.clearSelection")}</Text>
-          </Pressable>
-        ) : null}
-
-        <Text style={[styles.sectionLabel, styles.sectionSpaced, isRTL && styles.rtl]}>{t("accountPayments.dateFilter")}</Text>
-        <View style={[styles.dateModeRow, rtlRow && styles.dateModeRowRtl]}>
-          {dateModeOptions.map((opt) => {
-            const on = dateMode === opt.id;
-            return (
+        {filtersOpen ? (
+          <View style={styles.filterBody}>
+            <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("accountPayments.payeeFilter")}</Text>
+            <Pressable
+              style={({ pressed }) => [styles.pickerTouch, pressed && styles.pickerTouchPressed]}
+              onPress={() => openPayeePicker("filter")}
+            >
+              <Text style={[payeeFilter.type === "all" ? styles.pickerPlaceholder : styles.pickerText, isRTL && styles.rtl]} numberOfLines={2}>
+                {payeeFilterLabel(payeeFilter, t)}
+              </Text>
+            </Pressable>
+            {payeeFilter.type !== "all" ? (
               <Pressable
-                key={opt.id}
-                onPress={() => {
-                  setDateMode(opt.id);
-                  setJustPickedDateMode(opt.id);
-                }}
-                style={({ pressed }) => [styles.dateModeChip, on && styles.dateModeChipOn, pressed && !on && { opacity: 0.9 }]}
+                style={({ pressed }) => [styles.clearLink, pressed && { opacity: 0.85 }]}
+                onPress={() => setPayeeFilter({ type: "all" })}
               >
-                <SelectionPulse trigger={on && justPickedDateMode === opt.id}>
-                  <Text style={[styles.dateModeChipText, on && styles.dateModeChipTextOn]}>{opt.label}</Text>
-                </SelectionPulse>
+                <Text style={[styles.clearLinkText, isRTL && styles.rtl]}>{t("common.clearSelection")}</Text>
               </Pressable>
-            );
-          })}
-        </View>
-        {dateMode === "range" ? (
-          <View style={styles.dateRangeWrap}>
-            <CollapsibleDateRangeCard
-              start={dateStart}
-              end={dateEnd}
-              onChange={({ start, end }) => {
-                setDateStart(start);
-                setDateEnd(end);
-              }}
-              label={t("accountPayments.dateRange")}
-            />
+            ) : null}
+
+            <Text style={[styles.sectionLabel, styles.sectionSpaced, isRTL && styles.rtl]}>{t("accountPayments.dateFilter")}</Text>
+            <View style={[styles.dateModeRow, rtlRow && styles.dateModeRowRtl]}>
+              {dateModeOptions.map((opt) => {
+                const on = dateMode === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => {
+                      setDateMode(opt.id);
+                      setJustPickedDateMode(opt.id);
+                    }}
+                    style={({ pressed }) => [styles.dateModeChip, on && styles.dateModeChipOn, pressed && !on && { opacity: 0.9 }]}
+                  >
+                    <SelectionPulse trigger={on && justPickedDateMode === opt.id}>
+                      <Text style={[styles.dateModeChipText, on && styles.dateModeChipTextOn]}>{opt.label}</Text>
+                    </SelectionPulse>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {dateMode === "range" ? (
+              <View style={styles.dateRangeWrap}>
+                <CollapsibleDateRangeCard
+                  start={dateStart}
+                  end={dateEnd}
+                  onChange={({ start, end }) => {
+                    setDateStart(start);
+                    setDateEnd(end);
+                  }}
+                  label={t("accountPayments.dateRange")}
+                />
+              </View>
+            ) : null}
+
+            <Text style={[styles.sectionLabel, styles.sectionSpaced, isRTL && styles.rtl]}>{t("accountPayments.methodFilter")}</Text>
+            <View style={[styles.methodChipRow, rtlRow && styles.methodChipRowRtl]}>
+              {paymentMethodOptions.map((opt) => {
+                const on = paymentMethodFilter === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => {
+                      setPaymentMethodFilter(opt.id);
+                      setJustPickedMethod(opt.id);
+                    }}
+                    style={({ pressed }) => [styles.methodChip, on && styles.methodChipOn, pressed && !on && { opacity: 0.9 }]}
+                  >
+                    <SelectionPulse trigger={on && justPickedMethod === opt.id}>
+                      <Text style={[styles.methodChipText, on && styles.methodChipTextOn]} numberOfLines={1}>
+                        {opt.label}
+                      </Text>
+                    </SelectionPulse>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
         ) : null}
-
-        <Text style={[styles.sectionLabel, styles.sectionSpaced, isRTL && styles.rtl]}>{t("accountPayments.methodFilter")}</Text>
-        <View style={[styles.methodChipRow, rtlRow && styles.methodChipRowRtl]}>
-          {paymentMethodOptions.map((opt) => {
-            const on = paymentMethodFilter === opt.id;
-            return (
-              <Pressable
-                key={opt.id}
-                onPress={() => {
-                  setPaymentMethodFilter(opt.id);
-                  setJustPickedMethod(opt.id);
-                }}
-                style={({ pressed }) => [styles.methodChip, on && styles.methodChipOn, pressed && !on && { opacity: 0.9 }]}
-              >
-                <SelectionPulse trigger={on && justPickedMethod === opt.id}>
-                  <Text style={[styles.methodChipText, on && styles.methodChipTextOn]} numberOfLines={1}>
-                    {opt.label}
-                  </Text>
-                </SelectionPulse>
-              </Pressable>
-            );
-          })}
-        </View>
 
         <View style={[styles.summaryRow, rtlRow && styles.summaryRowRtl]}>
           <View style={styles.summaryStat}>
@@ -711,8 +791,27 @@ export default function AccountPaymentsScreen() {
                   {t("participantHistory.reportedBy").replace("{name}", item.created_by_name.split(/\s+/)[0] ?? item.created_by_name)}
                 </Text>
               ) : null}
+              {amt !== null && amt > 0 ? (
+                <View style={[styles.manualReceiptRow, rtlRow && styles.manualReceiptRowRtl]}>
+                  {manualReceiptBusyRowId === item.row_id ? (
+                    <ActivityIndicator size="small" color={theme.colors.textMuted} />
+                  ) : item.has_manual_receipt ? (
+                    <Pressable onPress={() => confirmUnmarkManualReceipt(item)} hitSlop={8}>
+                      <View style={styles.manualReceiptBadge}>
+                        <Text style={styles.manualReceiptBadgeText}>{t("accountPayments.manualReceiptBadge")}</Text>
+                      </View>
+                    </Pressable>
+                  ) : (
+                    <Pressable onPress={() => void handleMarkManualReceipt(item)} hitSlop={8}>
+                      <Text style={[styles.manualReceiptLink, isRTL && styles.rtl]}>
+                        {t("accountPayments.markManualReceipt")}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              ) : null}
               <View style={[styles.actionBar, rtlRow && styles.actionBarRtl]}>
-                {documentsEnabled && amt !== null && amt > 0 ? (
+                {documentsEnabled && amt !== null && amt > 0 && !item.has_manual_receipt ? (
                   <>
                     <Pressable
                       onPress={() => openGenerateDocument(item)}
@@ -906,21 +1005,7 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl },
   skeletonList: { gap: theme.spacing.sm, marginTop: theme.spacing.sm },
-  headerBlock: { paddingTop: theme.spacing.sm },
-  title: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: theme.colors.text,
-    letterSpacing: 0.2,
-    marginBottom: theme.spacing.xs,
-  },
-  hint: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: theme.colors.textMuted,
-    lineHeight: 20,
-    marginBottom: theme.spacing.md,
-  },
+  headerBlock: { paddingTop: theme.spacing.xs },
   filterCard: {
     padding: theme.spacing.md,
     backgroundColor: theme.colors.surface,
@@ -938,6 +1023,17 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   sectionSpaced: { marginTop: theme.spacing.md },
+  filterToggle: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: theme.spacing.sm },
+  filterToggleCopy: { flex: 1 },
+  filterToggleLabel: { marginBottom: 0 },
+  filterSummary: { fontSize: 13, fontWeight: "700", color: theme.colors.text, marginTop: 2 },
+  chevron: { fontSize: 14, fontWeight: "800", color: theme.colors.textSoft },
+  filterBody: {
+    marginTop: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+  },
   pickerTouch: {
     paddingVertical: 12,
     paddingHorizontal: theme.spacing.md,
@@ -1030,6 +1126,18 @@ const styles = StyleSheet.create({
   },
   kindBadgeText: { fontSize: 10, fontWeight: "800", color: theme.colors.textSoft, letterSpacing: 0.2 },
   metaLine: { marginTop: 4, fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 18 },
+  manualReceiptRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 8 },
+  manualReceiptRowRtl: { flexDirection: "row-reverse" },
+  manualReceiptLink: { fontSize: 12, fontWeight: "700", color: theme.colors.textSoft, textDecorationLine: "underline" },
+  manualReceiptBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: theme.radius.full,
+    backgroundColor: "rgba(52, 199, 89, 0.14)",
+    borderWidth: 1,
+    borderColor: theme.colors.success,
+  },
+  manualReceiptBadgeText: { fontSize: 11, fontWeight: "800", color: theme.colors.success },
   footnote: { marginTop: 6, fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
   actionBar: {
     flexDirection: "row",

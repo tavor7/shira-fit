@@ -24,7 +24,7 @@ import { AppSwitch } from "../components/AppSwitch";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useCountUp } from "../hooks/useCountUp";
-import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
+import { CollapsibleDateRangeCard } from "../components/CollapsibleDateRangeCard";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { PendingReceiptsPanel } from "../components/PendingReceiptsPanel";
 import { GoLiveReadinessSection } from "../components/GoLiveReadinessSection";
@@ -143,7 +143,7 @@ function HubTabs({
       tabs={tabs}
       active={active}
       onChange={(id) => onChange(id as HubSection)}
-      density="comfortable"
+      density="compact"
     />
   );
 }
@@ -632,7 +632,19 @@ export default function DocumentsInvoicesScreen() {
       showToast({ message: language === "he" ? "נשלח" : "Sent", variant: "success" });
       void load();
     } catch (e) {
-      showToast({ message: t("common.error"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+      const message = e instanceof Error ? e.message : undefined;
+      if (message === "email_provider_not_configured") {
+        showToast({
+          message: language === "he" ? "שליחת אימייל אינה מוגדרת" : "Email sending isn't set up",
+          detail:
+            language === "he"
+              ? "יש להגדיר RESEND_API_KEY בהגדרות הפרויקט לפני שליחת קבלות באימייל."
+              : "Set RESEND_API_KEY on the project before receipts can be emailed.",
+          variant: "error",
+        });
+        return;
+      }
+      showToast({ message: t("common.error"), detail: message, variant: "error" });
     }
   }
 
@@ -659,7 +671,6 @@ export default function DocumentsInvoicesScreen() {
     { id: "pending", label: language === "he" ? "ממתינים לקבלה" : "Pending receipts" },
     { id: "documents", label: language === "he" ? "מסמכים" : "Documents" },
     { id: "reports", label: language === "he" ? "דוחות" : "Reports", managerOnly: true },
-    { id: "settings", label: language === "he" ? "הגדרות" : "Settings", managerOnly: true },
   ];
 
   const visibleTabs = sectionTabs.filter((x) => !x.managerOnly || isManager);
@@ -877,13 +888,24 @@ export default function DocumentsInvoicesScreen() {
 
   const pageHeader = (
     <View style={styles.headerBlock}>
-      <Text style={[styles.pageTitle, isRTL && styles.rtl]}>{t("menu.documentsInvoices")}</Text>
-      <Text style={[styles.pageHint, isRTL && styles.rtl]}>
-        {language === "he"
-          ? "הפקה, ניהול ודיווח של קבלות וחשבוניות בעברית."
-          : "Issue, manage, and report Hebrew receipts and invoices."}
-      </Text>
-      <HubTabs tabs={visibleTabs} active={section} onChange={setSection} />
+      <View style={styles.tabBarRow}>
+        <View style={styles.tabBarFill}>
+          <HubTabs tabs={visibleTabs} active={section} onChange={setSection} />
+        </View>
+        {isManager ? (
+          <Pressable
+            onPress={() => setSection("settings")}
+            hitSlop={10}
+            style={({ pressed }) => [styles.settingsGear, pressed && { opacity: 0.6 }]}
+            accessibilityRole="button"
+            accessibilityLabel={language === "he" ? "הגדרות" : "Settings"}
+          >
+            <Text style={[styles.settingsGearIcon, section === "settings" && styles.settingsGearIconActive]}>
+              ⚙
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
       {!settings?.is_operational && settings?.digital_receipts_enabled ? (
         <View style={styles.testingBanner}>
           <Text style={[styles.testingText, isRTL && styles.rtl]}>
@@ -1065,10 +1087,12 @@ export default function DocumentsInvoicesScreen() {
   const documentsListHeader = (
     <>
       {pageHeader}
-      <View style={styles.card}>
-        <Text style={[styles.cardLabel, isRTL && styles.rtl]}>{language === "he" ? "טווח תאריכים" : "Date range"}</Text>
-        <ReportDateRangeControls start={dateStart} end={dateEnd} onChange={({ start, end }) => { setDateStart(start); setDateEnd(end); }} />
-      </View>
+      <CollapsibleDateRangeCard
+        start={dateStart}
+        end={dateEnd}
+        onChange={({ start, end }) => { setDateStart(start); setDateEnd(end); }}
+        label={language === "he" ? "טווח תאריכים" : "Date range"}
+      />
       <View style={styles.filterCard}>
         <Text style={[styles.cardLabel, isRTL && styles.rtl]}>
           {language === "he" ? "סינון לפי שם" : "Filter by name"}
@@ -1096,10 +1120,12 @@ export default function DocumentsInvoicesScreen() {
   const reportsContent = (
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       {pageHeader}
-      <View style={styles.card}>
-        <Text style={[styles.cardLabel, isRTL && styles.rtl]}>{language === "he" ? "טווח תאריכים" : "Date range"}</Text>
-        <ReportDateRangeControls start={dateStart} end={dateEnd} onChange={({ start, end }) => { setDateStart(start); setDateEnd(end); }} />
-      </View>
+      <CollapsibleDateRangeCard
+        start={dateStart}
+        end={dateEnd}
+        onChange={({ start, end }) => { setDateStart(start); setDateEnd(end); }}
+        label={language === "he" ? "טווח תאריכים" : "Date range"}
+      />
       <View style={[styles.summaryRow, isRTL && styles.summaryRowRtl]}>
         <View style={styles.summaryStat}>
           <Text style={styles.summaryValue}>{Math.round(reportCountDisplay)}</Text>
@@ -1289,9 +1315,16 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
   scrollContent: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.md },
   loaderSkeletonList: { padding: theme.spacing.md, gap: theme.spacing.sm },
-  headerBlock: { paddingTop: theme.spacing.sm, gap: theme.spacing.xs, marginBottom: theme.spacing.sm },
-  pageTitle: { fontSize: 22, fontWeight: "800", color: theme.colors.text, letterSpacing: 0.2 },
-  pageHint: { fontSize: 14, fontWeight: "500", color: theme.colors.textMuted, lineHeight: 20, marginBottom: theme.spacing.sm },
+  headerBlock: { marginTop: -theme.spacing.sm, gap: theme.spacing.xs, marginBottom: theme.spacing.xs },
+  tabBarRow: { flexDirection: "row", alignItems: "flex-end" },
+  tabBarFill: {},
+  settingsGear: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    marginBottom: theme.spacing.sm,
+  },
+  settingsGearIcon: { fontSize: 18, fontWeight: "600", color: theme.colors.textMuted },
+  settingsGearIconActive: { color: theme.colors.text, fontWeight: "800" },
   testingBanner: {
     marginTop: theme.spacing.xs,
     backgroundColor: theme.colors.warningBg,

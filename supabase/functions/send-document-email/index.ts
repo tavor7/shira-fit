@@ -125,6 +125,11 @@ Deno.serve(async (req) => {
 
   const resendKey = Deno.env.get("RESEND_API_KEY");
   const fromEmail = Deno.env.get("RECEIPT_FROM_EMAIL") ?? "receipts@shira-fit.co.il";
+  if (!resendKey) {
+    // Fail loudly rather than silently no-op'ing — a caller checking only `ok` must not
+    // see success when no email provider is configured.
+    return json(500, { ok: false, error: "email_provider_not_configured" });
+  }
 
   const url = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -169,17 +174,14 @@ Deno.serve(async (req) => {
       if (!row.pdf_url) return json(400, { ok: false, error: "pdf_not_ready" });
 
       const attachments = await buildAttachments(admin, [row]);
-      let deliveryStatus = "skipped_no_provider";
-      if (resendKey) {
-        deliveryStatus = await sendResendEmail(
-          resendKey,
-          fromEmail,
-          recipientEmail,
-          `קבלה מ-${row.business_name} — ${row.document_number}`,
-          customerEmailHtml(row.business_name, row.customer_name, [row]),
-          attachments
-        );
-      }
+      const deliveryStatus = await sendResendEmail(
+        resendKey,
+        fromEmail,
+        recipientEmail,
+        `קבלה מ-${row.business_name} — ${row.document_number}`,
+        customerEmailHtml(row.business_name, row.customer_name, [row]),
+        attachments
+      );
       await recordSent(admin, [row], recipientEmail, deliveryStatus);
       if (deliveryStatus.startsWith("failed")) return json(500, { ok: false, error: deliveryStatus });
       return json(200, { ok: true, delivery_status: deliveryStatus, emails_sent: 1, documents_sent: 1 });
@@ -227,17 +229,14 @@ Deno.serve(async (req) => {
             ? `קבלה מ-${businessName} — ${docs[0].document_number}`
             : `קבלות מ-${businessName} — ${docs.length} מסמכים`;
 
-        let deliveryStatus = "skipped_no_provider";
-        if (resendKey) {
-          deliveryStatus = await sendResendEmail(
-            resendKey,
-            fromEmail,
-            email,
-            subject,
-            customerEmailHtml(businessName, customerName, docs),
-            attachments
-          );
-        }
+        const deliveryStatus = await sendResendEmail(
+          resendKey,
+          fromEmail,
+          email,
+          subject,
+          customerEmailHtml(businessName, customerName, docs),
+          attachments
+        );
 
         await recordSent(admin, docs, email, deliveryStatus);
         if (deliveryStatus.startsWith("failed")) {
@@ -270,17 +269,14 @@ Deno.serve(async (req) => {
         ? `קבלה מ-${businessName} — ${withPdf[0].document_number}`
         : `קבלות מ-${businessName} — ${withPdf.length} מסמכים`;
 
-    let deliveryStatus = "skipped_no_provider";
-    if (resendKey) {
-      deliveryStatus = await sendResendEmail(
-        resendKey,
-        fromEmail,
-        recipientEmail,
-        subject,
-        accountantEmailHtml(businessName, withPdf),
-        attachments
-      );
-    }
+    const deliveryStatus = await sendResendEmail(
+      resendKey,
+      fromEmail,
+      recipientEmail,
+      subject,
+      accountantEmailHtml(businessName, withPdf),
+      attachments
+    );
 
     await recordSent(admin, withPdf, recipientEmail, deliveryStatus);
     if (deliveryStatus.startsWith("failed")) return json(500, { ok: false, error: deliveryStatus });
