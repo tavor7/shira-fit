@@ -2,3 +2,9 @@
 supabase/.secrets/.env
 supabase/.secrets/
 
+# macOS Finder metadata
+.DS_Store
+
+# Supabase CLI local cache
+supabase/.temp/
+
