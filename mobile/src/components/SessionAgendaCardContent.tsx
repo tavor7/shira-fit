@@ -78,6 +78,11 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
             </View>
           ) : null}
           {item.isKickbox ? <KickboxSessionBadge compact isRTL={isRTL} /> : null}
+          {item.hasSuperUserHiddenAthlete ? (
+            <View style={styles.hiddenPill}>
+              <Text style={styles.hiddenPillTxt}>{t("superUser.hiddenBadge")}</Text>
+            </View>
+          ) : null}
         </View>
 
         {item.isRecurringSeries ? (
@@ -243,6 +248,15 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   endedPillTxt: { color: theme.colors.textSoft, fontSize: 9, fontWeight: "800" },
+  hiddenPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.errorBg,
+    borderWidth: 1,
+    borderColor: theme.colors.error,
+  },
+  hiddenPillTxt: { color: theme.colors.error, fontSize: 9, fontWeight: "900", letterSpacing: 0.2 },
   timeBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,

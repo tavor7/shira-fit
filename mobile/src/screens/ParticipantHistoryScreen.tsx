@@ -20,6 +20,8 @@ import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/data
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
+import { useAuth } from "../context/AuthContext";
+import { fetchHiddenRegistrationKeys, hiddenRegistrationKey } from "../lib/superUserHidden";
 import {
   coerceSessionPaymentMethodKey,
   normalizePaymentMethodKey,
@@ -73,6 +75,9 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
   const rtlRowFlip = isRTL && Platform.OS !== "web";
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
+  const { profile } = useAuth();
+  const isSuperUser = profile?.is_super_user === true;
+  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
   const pathname = usePathname();
   const router = useRouter();
   const isCoachHistory = pathname?.startsWith("/coach/participant-history") ?? false;
@@ -742,6 +747,11 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
 
     const next = (histRes.data as ParticipantHistoryRow[]) ?? [];
     setRows(next);
+    setHiddenKeys(
+      isSuperUser
+        ? await fetchHiddenRegistrationKeys([...new Set(next.map((r) => r.session_id))])
+        : new Set()
+    );
     const payRows = (acctRes.data as AthleteAccountPayment[]) ?? [];
     const staffIds = [...new Set(payRows.map((p) => p.created_by).filter((id): id is string => !!id))];
     let nameByStaff: Record<string, string> = {};
@@ -825,7 +835,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
     if (!silent) setLoading(false);
     setReportReady(true);
     setHasSearched(true);
-  }, [start, end, phone, athleteId, payeeIsManual, language]);
+  }, [start, end, phone, athleteId, payeeIsManual, language, isSuperUser]);
 
   const loadRef = useRef(load);
   loadRef.current = load;
@@ -1157,6 +1167,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
             <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <SessionHistoryRow
               reg={item.reg}
+              superUserHidden={isSuperUser && hiddenKeys.has(hiddenRegistrationKey(item.reg.session_id, item.reg.athlete_user_id))}
               isRTL={isRTL}
               rtlRowFlip={rtlRowFlip}
               language={language}

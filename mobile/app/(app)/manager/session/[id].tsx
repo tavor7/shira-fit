@@ -235,6 +235,8 @@ export default function ManagerSessionDetail() {
   const { showToast } = useToast();
   const [participantsRev, setParticipantsRev] = useState(0);
   const [participantCount, setParticipantCount] = useState(0);
+  const isSuperUser = profile?.is_super_user === true;
+  const [hiddenUserIds, setHiddenUserIds] = useState<Set<string>>(new Set());
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState<MoveParticipantTarget | null>(null);
   const [attendanceStats, setAttendanceStats] = useState<SessionAttendanceStats>({
@@ -1230,6 +1232,35 @@ export default function ManagerSessionDetail() {
     });
   }
 
+  const loadHiddenUserIds = useCallback(async () => {
+    if (!isSuperUser || !id) {
+      setHiddenUserIds(new Set());
+      return;
+    }
+    const { data, error } = await supabase.rpc("super_user_list_hidden_for_session", { p_session_id: id });
+    if (error) return;
+    setHiddenUserIds(new Set(((data ?? []) as { user_id: string }[]).map((r) => r.user_id)));
+  }, [isSuperUser, id]);
+
+  useEffect(() => {
+    void loadHiddenUserIds();
+  }, [loadHiddenUserIds]);
+
+  async function toggleHideAthlete(userId: string, currentlyHidden: boolean) {
+    const rpcName = currentlyHidden ? "super_user_unhide_registration" : "super_user_hide_registration";
+    const { data, error } = await supabase.rpc(rpcName, { p_session_id: id, p_user_id: userId });
+    if (error) {
+      showOk(t("common.error"), error.message);
+      return;
+    }
+    if (data?.ok !== true) {
+      showOk(t("common.failed"), data?.error ?? "");
+      return;
+    }
+    showToast({ message: t(currentlyHidden ? "superUser.unhidden" : "superUser.hidden"), variant: "success" });
+    await loadHiddenUserIds();
+  }
+
   async function removeAthlete(userId: string) {
     const { data, error } = await supabase.rpc("manager_remove_athlete", {
       p_session_id: id,
@@ -1838,6 +1869,8 @@ export default function ManagerSessionDetail() {
               }
             : undefined
         }
+        superUserHiddenUserIds={isSuperUser ? hiddenUserIds : undefined}
+        onToggleHideAthlete={isSuperUser ? toggleHideAthlete : undefined}
       />
 
       <PrimaryButton

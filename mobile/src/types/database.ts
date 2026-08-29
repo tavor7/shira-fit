@@ -26,6 +26,26 @@ export interface Profile {
   whatsapp_notifications_enabled?: boolean;
   whatsapp_opted_in_at?: string | null;
   whatsapp_phone_e164?: string | null;
+  /** Dedicated Super User account flag — never settable via any UI/RPC, linked once via migration. */
+  is_super_user?: boolean;
+}
+
+/** Row shape returned by `super_user_list_hidden_records`. */
+export interface SuperUserHiddenRecord {
+  hide_id: string;
+  session_id: string;
+  athlete_user_id: string;
+  athlete_name: string;
+  session_date: string;
+  start_time: string;
+  duration_minutes: number;
+  coach_name: string | null;
+  hidden_at: string;
+  hidden_by_name: string | null;
+  unhidden_at: string | null;
+  unhidden_by_name: string | null;
+  /** What this athlete would have owed for this session, had it not been hidden (₪). */
+  expected_ils: number | string;
 }
 
 export type ManualParticipant = {

@@ -21,6 +21,7 @@ import { isSessionInActiveSeries } from "../../../src/lib/sessionSeries";
 import { EmptyState } from "../../../src/components/EmptyState";
 import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../src/components/PressableScale";
+import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHidden";
 
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
@@ -46,6 +47,8 @@ export default function ManagerRosterCalendarScreen() {
   const [showBig, setShowBig] = useState(false);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [notesBySession, setNotesBySession] = useState<Record<string, string>>({});
+  const [hiddenSessionIds, setHiddenSessionIds] = useState<Set<string>>(new Set());
+  const isSuperUser = profile?.is_super_user === true;
 
   // Both filters on shows every session with roster names on the calendar (same row set as
   // both-off, but with names visible); only the "big only" state hides the below-list roster view.
@@ -63,10 +66,11 @@ export default function ManagerRosterCalendarScreen() {
     const ids = list.map((s) => s.id);
     setSignupBySession(await fetchActiveSignupCountsBySession(ids));
     setWaitlistBySession(await fetchWaitlistCountsBySession(ids));
+    setHiddenSessionIds(isSuperUser ? await fetchSessionIdsWithHiddenAthletes(ids) : new Set());
 
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
-  }, []);
+  }, [isSuperUser]);
 
   useFocusEffect(
     useCallback(() => {
@@ -129,6 +133,7 @@ export default function ManagerRosterCalendarScreen() {
             subtitle,
             subtitleUnclamped: true,
             accentColor,
+            hasSuperUserHiddenAthlete: isSuperUser && hiddenSessionIds.has(s.id),
             hideTemporalDimming: filtersOn,
             hideRegistrationState: filtersOn,
             isKickbox: !!s.is_kickbox,
@@ -150,6 +155,7 @@ export default function ManagerRosterCalendarScreen() {
           accentColor,
           showStaffSessionLabels: true,
           isHidden: !!s.is_hidden,
+          hasSuperUserHiddenAthlete: isSuperUser && hiddenSessionIds.has(s.id),
           isOpenForRegistration: s.is_open_for_registration,
           hideTemporalDimming: filtersOn,
           hideRegistrationState: filtersOn,
@@ -158,7 +164,7 @@ export default function ManagerRosterCalendarScreen() {
           onPress: () => router.push(`/(app)/manager/session/${s.id}`),
         } satisfies SessionsWeekItem;
       }),
-    [filteredRows, signupBySession, waitlistBySession, showSmall, showBig, rosterBySession, t, filtersOn]
+    [filteredRows, signupBySession, waitlistBySession, showSmall, showBig, rosterBySession, t, filtersOn, isSuperUser, hiddenSessionIds]
   );
 
   const itemsAll = useMemo<SessionsWeekItem[]>(
@@ -177,6 +183,7 @@ export default function ManagerRosterCalendarScreen() {
         accentColor: resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id),
         showStaffSessionLabels: true,
         isHidden: !!s.is_hidden,
+        hasSuperUserHiddenAthlete: isSuperUser && hiddenSessionIds.has(s.id),
         isOpenForRegistration: s.is_open_for_registration,
         hideTemporalDimming: filtersOn,
         hideRegistrationState: filtersOn,
@@ -184,7 +191,7 @@ export default function ManagerRosterCalendarScreen() {
         isRecurringSeries: isSessionInActiveSeries(s),
         onPress: () => router.push(`/(app)/manager/session/${s.id}`),
       })),
-    [rows, signupBySession, waitlistBySession, filtersOn]
+    [rows, signupBySession, waitlistBySession, filtersOn, isSuperUser, hiddenSessionIds]
   );
 
   const grouped = useMemo(() => {

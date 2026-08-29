@@ -15,6 +15,8 @@ import { athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/AuthContext";
+import { fetchHiddenRegistrationKeys, hiddenRegistrationKey } from "../lib/superUserHidden";
 import { ManagerMoneyHubTabs } from "../components/ManagerOverviewTabs";
 import { CollapsibleDateRangeCard } from "../components/CollapsibleDateRangeCard";
 import { SortToggleButton } from "../components/SortToggleButton";
@@ -95,6 +97,9 @@ export default function AccountPaymentsScreen() {
   const { language, t, isRTL } = useI18n();
   const { showConfirm } = useAppAlert();
   const { showToast } = useToast();
+  const { profile } = useAuth();
+  const isSuperUser = profile?.is_super_user === true;
+  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
   const rtlRow = isRTL;
 
   const defaultRange = useMemo(() => lastNDaysRangeISO(30), []);
@@ -267,7 +272,15 @@ export default function AccountPaymentsScreen() {
     );
     setTotalReceived(payloadTotalReceived);
     setTotalCount(payloadTotalCount);
-  }, [dateMode, dateStart, dateEnd, payeeFilter, paymentMethodFilter, showToast, t]);
+
+    setHiddenKeys(
+      isSuperUser
+        ? await fetchHiddenRegistrationKeys([
+            ...new Set(payRows.filter((p) => p.session_id).map((p) => p.session_id as string)),
+          ])
+        : new Set()
+    );
+  }, [dateMode, dateStart, dateEnd, payeeFilter, paymentMethodFilter, showToast, t, isSuperUser]);
 
   const reload = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -748,6 +761,11 @@ export default function AccountPaymentsScreen() {
                   item.session_start_time ? ` · ${formatSessionTimeShort(item.session_start_time)}` : ""
                 }`
               : null;
+          const superUserHidden =
+            isSuperUser &&
+            item.source === "session" &&
+            !!item.session_id &&
+            hiddenKeys.has(hiddenRegistrationKey(item.session_id, item.payee_id));
           return (
             <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <View style={styles.paymentCard}>
@@ -764,6 +782,11 @@ export default function AccountPaymentsScreen() {
                 <View style={styles.kindBadge}>
                   <Text style={styles.kindBadgeText}>{kindLabel}</Text>
                 </View>
+                {superUserHidden ? (
+                  <View style={styles.hiddenBadge}>
+                    <Text style={styles.hiddenBadgeText}>{t("superUser.hiddenBadge")}</Text>
+                  </View>
+                ) : null}
               </View>
               {item.family_name ? (
                 <Text style={[styles.metaLine, isRTL && styles.rtl]} numberOfLines={1}>
@@ -1125,6 +1148,13 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   kindBadgeText: { fontSize: 10, fontWeight: "800", color: theme.colors.textSoft, letterSpacing: 0.2 },
+  hiddenBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.errorBg,
+  },
+  hiddenBadgeText: { fontSize: 10, fontWeight: "800", color: theme.colors.error, letterSpacing: 0.2 },
   metaLine: { marginTop: 4, fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 18 },
   manualReceiptRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 8 },
   manualReceiptRowRtl: { flexDirection: "row-reverse" },

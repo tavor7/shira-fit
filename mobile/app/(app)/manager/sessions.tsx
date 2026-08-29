@@ -29,6 +29,7 @@ import { ActiveUsersIndicator } from "../../../src/components/ActiveUsersIndicat
 import { useRealtimeRefetch } from "../../../src/hooks/useRealtimeRefetch";
 import { useLiveActivityBanner } from "../../../src/hooks/useLiveActivityBanner";
 import { LiveActivityBanner } from "../../../src/components/LiveActivityBanner";
+import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHidden";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
@@ -46,6 +47,8 @@ export default function ManagerSessionsScreen() {
   const [weekStartIso, setWeekStartIso] = useState<string>("");
   const [weekRange, setWeekRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [studioNotes, setStudioNotes] = useState<StudioCalendarNote[]>([]);
+  const [hiddenSessionIds, setHiddenSessionIds] = useState<Set<string>>(new Set());
+  const isSuperUser = profile?.is_super_user === true;
   const weekRangeRef = useRef(weekRange);
   weekRangeRef.current = weekRange;
   const [openWeekBusy, setOpenWeekBusy] = useState(false);
@@ -79,6 +82,7 @@ export default function ManagerSessionsScreen() {
     setSignupBySession(signup);
     setWaitlistBySession(waitlist);
     setHomeAlerts(await mergeStaffHomeAlerts("manager", list, signup, waitlist, language));
+    setHiddenSessionIds(isSuperUser ? await fetchSessionIdsWithHiddenAthletes(ids) : new Set());
     setRefreshSeq((n) => n + 1);
 
     const w = weekRangeRef.current;
@@ -88,7 +92,7 @@ export default function ManagerSessionsScreen() {
 
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
-  }, [language]);
+  }, [language, isSuperUser]);
 
   useEffect(() => {
     if (!weekRange.start || !weekRange.end) return;
@@ -151,12 +155,13 @@ export default function ManagerSessionsScreen() {
         accentColor: resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id),
         showStaffSessionLabels: true,
         isHidden: !!s.is_hidden,
+        hasSuperUserHiddenAthlete: isSuperUser && hiddenSessionIds.has(s.id),
         isOpenForRegistration: s.is_open_for_registration,
         isKickbox: !!s.is_kickbox,
         isRecurringSeries: isSessionInActiveSeries(s),
         onPress: () => router.push(`/(app)/manager/session/${s.id}`),
       })),
-    [visibleRows, signupBySession, waitlistBySession]
+    [visibleRows, signupBySession, waitlistBySession, isSuperUser, hiddenSessionIds]
   );
 
   const sheetItems = useMemo(() => (sheetDay ? items.filter((i) => i.session_date === sheetDay) : []), [items, sheetDay]);

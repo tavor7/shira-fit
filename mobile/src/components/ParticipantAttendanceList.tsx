@@ -125,6 +125,10 @@ type Props = {
   onDuplicateRosterSession?: (otherSessionId: string | null) => void;
   /** Staff: open move-to-another-session flow for a roster row. */
   onMoveParticipant?: (target: MoveParticipantTarget) => void;
+  /** Super User only: user_ids currently hidden from this session (drives badge + toggle). */
+  superUserHiddenUserIds?: Set<string>;
+  /** Super User only: hide/unhide an athlete for this session. Omit to hide the control entirely. */
+  onToggleHideAthlete?: (userId: string, currentlyHidden: boolean) => void | Promise<void>;
 };
 
 /** Brief accent wash over a newly-added roster row, fading out as it "settles" into the list. */
@@ -168,11 +172,14 @@ export function ParticipantAttendanceList({
   showMarkAllArrived = true,
   onDuplicateRosterSession,
   onMoveParticipant,
+  superUserHiddenUserIds,
+  onToggleHideAthlete,
 }: Props) {
   const { language, t, isRTL } = useI18n();
   const pathname = usePathname();
   const { showConfirm, showAlert, showOk } = useAppAlert();
   const [rows, setRows] = useState<Row[]>([]);
+  const [hideToggleBusyUserId, setHideToggleBusyUserId] = useState<string | null>(null);
   const [maxParticipants, setMaxParticipants] = useState<number | null>(null);
   const [sessionMeta, setSessionMeta] = useState<SessionRateMeta | null>(null);
   const [rosterPriceByRowId, setRosterPriceByRowId] = useState<Record<string, number>>({});
@@ -276,6 +283,30 @@ export function ParticipantAttendanceList({
       confirmLabel: t("managerSession.removeParticipantConfirmRemove"),
       confirmVariant: "danger",
       onConfirm: () => void Promise.resolve(onRemoveManualParticipant(item.manualId)),
+    });
+  }
+
+  function confirmToggleHideAthlete(item: Extract<Row, { kind: "registered" }>, currentlyHidden: boolean) {
+    if (!onToggleHideAthlete) return;
+    const titleKey = currentlyHidden ? "superUser.unhideConfirmTitle" : "superUser.hideConfirmTitle";
+    const messageKey = currentlyHidden ? "superUser.unhideConfirmMessage" : "superUser.hideConfirmMessage";
+    const confirmLabelKey = currentlyHidden ? "superUser.unhide" : "superUser.hideAction";
+    showConfirm({
+      title: t(titleKey),
+      message: interpolateParticipantName(t(messageKey), item.name),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t(confirmLabelKey),
+      confirmVariant: currentlyHidden ? "primary" : "danger",
+      onConfirm: () => {
+        void (async () => {
+          setHideToggleBusyUserId(item.userId);
+          try {
+            await Promise.resolve(onToggleHideAthlete(item.userId, currentlyHidden));
+          } finally {
+            setHideToggleBusyUserId(null);
+          }
+        })();
+      },
     });
   }
 
@@ -907,6 +938,38 @@ export function ParticipantAttendanceList({
                   />
                 ) : null}
                 {busy ? <ActivityIndicator size="small" color={theme.colors.cta} /> : null}
+                {item.kind === "registered" && superUserHiddenUserIds ? (
+                  (() => {
+                    const isHidden = superUserHiddenUserIds.has(item.userId);
+                    const toggleBusy = hideToggleBusyUserId === item.userId;
+                    return (
+                      <View style={[styles.hideControl, isRTL && styles.hideControlRtl]}>
+                        {isHidden ? (
+                          <View style={styles.hiddenBadge}>
+                            <Text style={styles.hiddenBadgeTxt}>{t("superUser.hiddenBadge")}</Text>
+                          </View>
+                        ) : null}
+                        {onToggleHideAthlete ? (
+                          toggleBusy ? (
+                            <ActivityIndicator size="small" color={theme.colors.cta} />
+                          ) : (
+                            <Pressable
+                              onPress={() => confirmToggleHideAthlete(item, isHidden)}
+                              hitSlop={8}
+                              accessibilityRole="button"
+                              accessibilityLabel={t(isHidden ? "superUser.unhideAction" : "superUser.hideAction")}
+                              style={({ pressed }) => [styles.hideToggleBtn, pressed && { opacity: 0.85 }]}
+                            >
+                              <Text style={styles.hideToggleIcon} importantForAccessibility="no">
+                                {isHidden ? "👁️" : "🙈"}
+                              </Text>
+                            </Pressable>
+                          )
+                        ) : null}
+                      </View>
+                    );
+                  })()
+                ) : null}
                 {onMoveParticipant && sessionNotStarted && rowCanMove(item) && !busy ? (
                   <Pressable
                     onPress={() => openMove(item)}
@@ -1186,6 +1249,26 @@ const styles = StyleSheet.create({
   },
   removeBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   removeIcon: { color: theme.colors.error, fontWeight: "900", fontSize: 18, lineHeight: 18 },
+  hideControl: { flexDirection: "row", alignItems: "center", gap: 6 },
+  hideControlRtl: { flexDirection: "row-reverse" },
+  hiddenBadge: {
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.errorBg,
+  },
+  hiddenBadgeTxt: { color: theme.colors.error, fontWeight: "800", fontSize: 10 },
+  hideToggleBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  hideToggleIcon: { fontSize: 14 },
   hint: { marginTop: 8, fontSize: 12, color: theme.colors.textMuted, fontWeight: "600" },
   seg: { flexDirection: "row", marginTop: 8, gap: 6, flexWrap: "wrap" },
   segRtl: { flexDirection: "row-reverse" },

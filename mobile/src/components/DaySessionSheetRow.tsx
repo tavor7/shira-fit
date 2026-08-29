@@ -68,6 +68,9 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
               {staffLabels && item.isHidden ? (
                 <StatusChip label={language === "he" ? "מוסתר" : "Hidden"} tone="warning" />
               ) : null}
+              {item.hasSuperUserHiddenAthlete ? (
+                <StatusChip label={language === "he" ? "מתאמן מוסתר" : "Hidden athlete"} tone="danger" />
+              ) : null}
               {staffLabels && item.isOpenForRegistration === false ? (
                 <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
               ) : null}

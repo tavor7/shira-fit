@@ -17,6 +17,8 @@ import { participantHistoryStyles as styles } from "../screens/participantHistor
 
 type Props = {
   reg: ParticipantHistoryRow;
+  /** Super User only: this registration is currently hidden from the athlete/debt. Never set for other roles. */
+  superUserHidden?: boolean;
   isRTL: boolean;
   rtlRowFlip: boolean;
   language: LanguageCode;
@@ -47,6 +49,7 @@ type Props = {
 
 export function SessionHistoryRow({
   reg,
+  superUserHidden,
   isRTL,
   rtlRowFlip,
   language,
@@ -141,6 +144,13 @@ export function SessionHistoryRow({
   const timeCoachPart = coachName
     ? `${formatSessionStartTime(reg.start_time)} · ${coachName}`
     : formatSessionStartTime(reg.start_time);
+  const hiddenPill = superUserHidden ? (
+    <View style={[styles.payPill, styles.payPillUnpaid]}>
+      <Text style={[styles.payPillTxt, styles.payPillTxtUnpaid, isRTL && styles.rtlText]} numberOfLines={1}>
+        {language === "he" ? "מוסתר" : "Hidden"}
+      </Text>
+    </View>
+  ) : null;
   const statusBlock =
     reg.reg_status === "cancelled" ? (
       <View style={[styles.payPill, styles.payPillMuted]}>
@@ -200,13 +210,14 @@ export function SessionHistoryRow({
                 </Text>
               ) : null}
             </View>
-            {metaLine || statusBlock ? (
+            {metaLine || statusBlock || hiddenPill ? (
               <View style={styles.sessionHeadAsideHe}>
                 {metaLine ? (
                   <Text style={[styles.sessionMetaAsideHe, styles.rtlText]} numberOfLines={2}>
                     {metaLine}
                   </Text>
                 ) : null}
+                {hiddenPill}
                 {statusBlock}
               </View>
             ) : null}
@@ -229,13 +240,14 @@ export function SessionHistoryRow({
                 </Text>
               ) : null}
             </View>
-            {metaLine || statusBlock ? (
+            {metaLine || statusBlock || hiddenPill ? (
               <View style={styles.sessionHeadAside}>
                 {metaLine ? (
                   <Text style={styles.sessionMetaAside} numberOfLines={2}>
                     {metaLine}
                   </Text>
                 ) : null}
+                {hiddenPill}
                 {statusBlock}
               </View>
             ) : null}

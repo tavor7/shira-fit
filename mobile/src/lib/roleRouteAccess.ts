@@ -27,6 +27,8 @@ export function isSharedAppPath(pathname: string): boolean {
 export type RoleRouteAccessOpts = {
   /** Manager browsing athlete-style navigation may open `/athlete/*` routes. */
   managerAthletePreview?: boolean;
+  /** Dedicated Super User account (profiles.is_super_user) may open `/super/*` routes. */
+  isSuperUser?: boolean;
 };
 
 /**
@@ -52,6 +54,7 @@ export function canRoleAccessAppPath(
   if (role === "manager") {
     const preview = opts?.managerAthletePreview === true;
     if (preview && (p === "/athlete" || p.startsWith("/athlete/"))) return true;
+    if (opts?.isSuperUser === true && (p === "/super" || p.startsWith("/super/"))) return true;
     return p === "/manager" || p.startsWith("/manager/") || p === "/staff" || p.startsWith("/staff/");
   }
   return false;

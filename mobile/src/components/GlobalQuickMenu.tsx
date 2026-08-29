@@ -130,6 +130,14 @@ export function GlobalQuickMenu() {
         },
       ];
 
+      if (profile?.is_super_user === true) {
+        managerItems.push({
+          label: t("menu.superUserHidden"),
+          onPress: () => router.push("/(app)/super/hidden-workouts" as never),
+          isActive: (p) => startsWithAny(p, ["/super/hidden-workouts"]),
+        });
+      }
+
       managerItems.push(
         {
           label: t("menu.athleteView"),

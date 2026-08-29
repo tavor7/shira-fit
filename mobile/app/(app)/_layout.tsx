@@ -87,7 +87,11 @@ export default function AppLayout() {
 
   const role = profile?.role;
   const roleRouteGateReady = role !== "manager" || managerPreviewStorageReady || Platform.OS === "web";
-  if (role && roleRouteGateReady && !canRoleAccessAppPath(role, pathname, { managerAthletePreview })) {
+  if (
+    role &&
+    roleRouteGateReady &&
+    !canRoleAccessAppPath(role, pathname, { managerAthletePreview, isSuperUser: profile?.is_super_user === true })
+  ) {
     return <Redirect href={getRoleAccessDeniedRedirect(role, managerAthletePreview)} />;
   }
 

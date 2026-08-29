@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { useAuth } from "../context/AuthContext";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 
 type Tool = { titleKey: string; subtitleKey: string; path: string; icon: string };
@@ -16,15 +17,24 @@ const tools: Tool[] = [
   { titleKey: "menu.openingSchedule", subtitleKey: "managerTools.openingScheduleSub", path: "/(app)/manager/opening-schedule", icon: "🕒" },
 ];
 
+const superUserTool: Tool = {
+  titleKey: "menu.superUserHidden",
+  subtitleKey: "managerTools.superUserHiddenSub",
+  path: "/(app)/super/hidden-workouts",
+  icon: "👁️",
+};
+
 export default function ManagerToolsScreen() {
   const { t, isRTL } = useI18n();
+  const { profile } = useAuth();
+  const visibleTools = profile?.is_super_user === true ? [...tools, superUserTool] : tools;
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={[styles.title, isRTL && styles.rtlText]}>{t("managerTools.title")}</Text>
       <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("managerTools.hint")}</Text>
 
       <View style={styles.grid}>
-        {tools.map((tool, index) => (
+        {visibleTools.map((tool, index) => (
           <FadeSlideIn key={tool.path} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <Pressable
               onPress={() => router.push(tool.path as never)}

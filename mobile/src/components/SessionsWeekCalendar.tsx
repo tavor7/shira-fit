@@ -50,6 +50,8 @@ export type SessionsWeekItem = {
   /** Show Listed/Hidden + Open/Closed tags (staff). */
   showStaffSessionLabels?: boolean;
   isHidden?: boolean;
+  /** Super User only: at least one athlete on this session is hidden. Never set for other roles. */
+  hasSuperUserHiddenAthlete?: boolean;
   isOpenForRegistration?: boolean;
   /** When true, don't dim past/hidden sessions in the grid. */
   hideTemporalDimming?: boolean;

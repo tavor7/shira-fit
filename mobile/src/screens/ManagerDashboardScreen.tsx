@@ -34,6 +34,8 @@ import { FadeSlideIn } from "../components/FadeSlideIn";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AnimatedChevron } from "../components/AnimatedChevron";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
+import { useAuth } from "../context/AuthContext";
+import { parseMoney } from "../lib/participantHistoryHelpers";
 
 type PeriodMode = ManagerPeriodMode;
 
@@ -101,6 +103,9 @@ function isMissingRpcSignature(err: { message?: string } | null | undefined): bo
 
 export default function ManagerDashboardScreen() {
   const { language, isRTL, t } = useI18n();
+  const { profile } = useAuth();
+  const isSuperUser = profile?.is_super_user === true;
+  const [hiddenPeriodSummary, setHiddenPeriodSummary] = useState<{ count: number; totalIls: number } | null>(null);
   const pct = (v: unknown) => {
     const n = typeof v === "number" ? v : Number(v);
     return Number.isFinite(n) ? n : 0;
@@ -128,6 +133,29 @@ export default function ManagerDashboardScreen() {
     }
     return periodRangeFromAnchor(anchorDate, periodMode);
   }, [anchorDate, periodMode, data?.week_start, data?.week_end]);
+
+  useEffect(() => {
+    if (!isSuperUser) {
+      setHiddenPeriodSummary(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data: rows, error } = await supabase.rpc("super_user_list_hidden_records", {
+        p_athlete_id: null,
+        p_start: displayRange.start,
+        p_end: displayRange.end,
+        p_include_unhidden: false,
+      });
+      if (cancelled || error) return;
+      const list = (rows as { expected_ils: number | string }[]) ?? [];
+      const totalIls = list.reduce((sum, r) => sum + (parseMoney(r.expected_ils) ?? 0), 0);
+      setHiddenPeriodSummary({ count: list.length, totalIls: Math.round(totalIls * 100) / 100 });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSuperUser, displayRange.start, displayRange.end]);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent === true;
@@ -446,6 +474,18 @@ export default function ManagerDashboardScreen() {
           </Pressable>
         </View>
       </View>
+      {isSuperUser && hiddenPeriodSummary && hiddenPeriodSummary.count > 0 ? (
+        <Pressable
+          onPress={() => router.push("/(app)/super/hidden-workouts" as never)}
+          style={({ pressed }) => [styles.hiddenBanner, pressed && { opacity: 0.9 }]}
+        >
+          <Text style={[styles.hiddenBannerTxt, isRTL && styles.rtl]}>
+            {t("superUser.dashboardBanner")
+              .replace("{count}", String(hiddenPeriodSummary.count))
+              .replace("{amount}", String(hiddenPeriodSummary.totalIls))}
+          </Text>
+        </Pressable>
+      ) : null}
       {isGlobal ? (
         <View style={styles.rangeRow}>
           <View style={styles.rangeCenter}>
@@ -936,6 +976,16 @@ const styles = StyleSheet.create({
   content: { padding: theme.spacing.md, paddingBottom: 48 },
   titleBlock: { marginBottom: theme.spacing.sm },
   titleBlockRtl: { alignItems: "flex-end" },
+  hiddenBanner: {
+    marginBottom: theme.spacing.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.errorBg,
+    borderWidth: 1,
+    borderColor: theme.colors.error,
+  },
+  hiddenBannerTxt: { color: theme.colors.error, fontWeight: "800", fontSize: 13 },
   h: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm, letterSpacing: -0.35 },
   periodTrack: {
     flexDirection: "row",
