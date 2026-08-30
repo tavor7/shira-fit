@@ -6,7 +6,7 @@ import { useAuth } from "../../../src/context/AuthContext";
 import { useI18n } from "../../../src/context/I18nContext";
 import { theme } from "../../../src/theme";
 import { fetchStaffTrainingSessionsForCalendar } from "../../../src/lib/trainingSessionQueries";
-import { fetchActiveSignupCountsBySession } from "../../../src/lib/sessionSignupCounts";
+import { fetchActiveSignupCountsBySession, fetchVisibleSignupCountsBySession } from "../../../src/lib/sessionSignupCounts";
 import { fetchWaitlistCountsBySession } from "../../../src/lib/waitlistCounts";
 import { resolveTrainerAccentColor } from "../../../src/lib/trainerCalendarColor";
 import { formatSessionTimeRange, sessionStartsAt } from "../../../src/lib/sessionTime";
@@ -35,6 +35,8 @@ export default function ManagerRosterCalendarScreen() {
   const { language, t, isRTL } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
+  /** Role-aware count for card/list display only — excludes athletes hidden from this viewer's role. Never use for capacity logic. */
+  const [visibleSignupBySession, setVisibleSignupBySession] = useState<Record<string, number>>({});
   const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
   const [rosterBySession, setRosterBySession] = useState<Record<string, RosterEntry[]>>({});
   const [refreshing, setRefreshing] = useState(false);
@@ -65,6 +67,7 @@ export default function ManagerRosterCalendarScreen() {
     setRows(list);
     const ids = list.map((s) => s.id);
     setSignupBySession(await fetchActiveSignupCountsBySession(ids));
+    setVisibleSignupBySession(await fetchVisibleSignupCountsBySession(ids));
     setWaitlistBySession(await fetchWaitlistCountsBySession(ids));
     setHiddenSessionIds(isSuperUser ? await fetchSessionIdsWithHiddenAthletes(ids) : new Set());
 
@@ -112,7 +115,7 @@ export default function ManagerRosterCalendarScreen() {
         // When a filter is enabled, show roster names on the calendar cards for that group size.
         if ((showBig && isBig) || (showSmall && !isBig)) {
           const roster = rosterBySession[s.id] ?? [];
-          const c = signupBySession[s.id] ?? 0;
+          const c = visibleSignupBySession[s.id] ?? 0;
           const m = s.max_participants ?? 0;
           const badge = m > 0 ? `${c}/${m}` : `${c}`;
           const wl = waitlistBySession[s.id] ?? 0;
@@ -149,7 +152,7 @@ export default function ManagerRosterCalendarScreen() {
           timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
           trainerName: s.trainer?.full_name ?? undefined,
           coachId: s.coach_id,
-          signedUpCount: signupBySession[s.id] ?? 0,
+          signedUpCount: visibleSignupBySession[s.id] ?? 0,
           maxParticipants: s.max_participants,
           waitlistCount: waitlistBySession[s.id] ?? 0,
           accentColor,
@@ -164,7 +167,7 @@ export default function ManagerRosterCalendarScreen() {
           onPress: () => router.push(`/(app)/manager/session/${s.id}`),
         } satisfies SessionsWeekItem;
       }),
-    [filteredRows, signupBySession, waitlistBySession, showSmall, showBig, rosterBySession, t, filtersOn, isSuperUser, hiddenSessionIds]
+    [filteredRows, signupBySession, visibleSignupBySession, waitlistBySession, showSmall, showBig, rosterBySession, t, filtersOn, isSuperUser, hiddenSessionIds]
   );
 
   const itemsAll = useMemo<SessionsWeekItem[]>(
@@ -177,7 +180,7 @@ export default function ManagerRosterCalendarScreen() {
         timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
         trainerName: s.trainer?.full_name ?? undefined,
         coachId: s.coach_id,
-        signedUpCount: signupBySession[s.id] ?? 0,
+        signedUpCount: visibleSignupBySession[s.id] ?? 0,
         maxParticipants: s.max_participants,
         waitlistCount: waitlistBySession[s.id] ?? 0,
         accentColor: resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id),
@@ -191,7 +194,7 @@ export default function ManagerRosterCalendarScreen() {
         isRecurringSeries: isSessionInActiveSeries(s),
         onPress: () => router.push(`/(app)/manager/session/${s.id}`),
       })),
-    [rows, signupBySession, waitlistBySession, filtersOn, isSuperUser, hiddenSessionIds]
+    [rows, signupBySession, visibleSignupBySession, waitlistBySession, filtersOn, isSuperUser, hiddenSessionIds]
   );
 
   const grouped = useMemo(() => {
@@ -379,7 +382,7 @@ export default function ManagerRosterCalendarScreen() {
               <View style={styles.dayCards}>
                 {g.items.map((s) => {
                   const accent = resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id);
-                  const c = signupBySession[s.id] ?? 0;
+                  const c = visibleSignupBySession[s.id] ?? 0;
                   const m = s.max_participants ?? 0;
                   const roster = rosterBySession[s.id] ?? [];
                   const noteText = notesBySession[s.id]?.trim() ?? "";

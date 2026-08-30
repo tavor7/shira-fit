@@ -4,7 +4,7 @@ import { router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
 import { fetchStaffTrainingSessionsForCalendar } from "../../../src/lib/trainingSessionQueries";
-import { fetchActiveSignupCountsBySession } from "../../../src/lib/sessionSignupCounts";
+import { fetchActiveSignupCountsBySession, fetchVisibleSignupCountsBySession } from "../../../src/lib/sessionSignupCounts";
 import { fetchWaitlistCountsBySession } from "../../../src/lib/waitlistCounts";
 import { resolveTrainerAccentColor } from "../../../src/lib/trainerCalendarColor";
 import { theme } from "../../../src/theme";
@@ -37,6 +37,8 @@ export default function ManagerSessionsScreen() {
   const { showOk, showConfirm } = useAppAlert();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
+  /** Role-aware count for card display only — excludes athletes hidden from this viewer's role. Never use for capacity/dedup logic. */
+  const [visibleSignupBySession, setVisibleSignupBySession] = useState<Record<string, number>>({});
   const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -75,12 +77,14 @@ export default function ManagerSessionsScreen() {
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);
     const ids = list.map((s) => s.id);
-    const [signup, waitlist] = await Promise.all([
+    const [signup, waitlist, visibleSignup] = await Promise.all([
       fetchActiveSignupCountsBySession(ids),
       fetchWaitlistCountsBySession(ids),
+      fetchVisibleSignupCountsBySession(ids),
     ]);
     setSignupBySession(signup);
     setWaitlistBySession(waitlist);
+    setVisibleSignupBySession(visibleSignup);
     setHomeAlerts(await mergeStaffHomeAlerts("manager", list, signup, waitlist, language));
     setHiddenSessionIds(isSuperUser ? await fetchSessionIdsWithHiddenAthletes(ids) : new Set());
     setRefreshSeq((n) => n + 1);
@@ -149,7 +153,7 @@ export default function ManagerSessionsScreen() {
         timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
         trainerName: s.trainer?.full_name ?? undefined,
         coachId: s.coach_id,
-        signedUpCount: signupBySession[s.id] ?? 0,
+        signedUpCount: visibleSignupBySession[s.id] ?? 0,
         maxParticipants: s.max_participants,
         waitlistCount: waitlistBySession[s.id] ?? 0,
         accentColor: resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id),
@@ -161,7 +165,7 @@ export default function ManagerSessionsScreen() {
         isRecurringSeries: isSessionInActiveSeries(s),
         onPress: () => router.push(`/(app)/manager/session/${s.id}`),
       })),
-    [visibleRows, signupBySession, waitlistBySession, isSuperUser, hiddenSessionIds]
+    [visibleRows, signupBySession, visibleSignupBySession, waitlistBySession, isSuperUser, hiddenSessionIds]
   );
 
   const sheetItems = useMemo(() => (sheetDay ? items.filter((i) => i.session_date === sheetDay) : []), [items, sheetDay]);

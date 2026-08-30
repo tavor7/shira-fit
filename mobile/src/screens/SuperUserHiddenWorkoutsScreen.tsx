@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
@@ -14,6 +15,7 @@ import { formatISODateFull } from "../lib/dateFormat";
 import { formatSessionTimeRange } from "../lib/sessionTime";
 import { athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
 import { globalOverviewRangeISO } from "../lib/managerPeriodMode";
+import { isValidISODateString } from "../lib/isoDate";
 import { parseMoney } from "../lib/participantHistoryHelpers";
 import type { SuperUserHiddenRecord } from "../types/database";
 
@@ -23,12 +25,17 @@ export default function SuperUserHiddenWorkoutsScreen() {
   const { t, isRTL, language } = useI18n();
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
+  const { start: presetStart, end: presetEnd } = useLocalSearchParams<{ start?: string; end?: string }>();
 
   const [athleteId, setAthleteId] = useState("");
   const [athleteLabel, setAthleteLabel] = useState("");
   const defaultRange = globalOverviewRangeISO();
-  const [start, setStart] = useState(defaultRange.start);
-  const [end, setEnd] = useState(defaultRange.end);
+  const [start, setStart] = useState(() =>
+    typeof presetStart === "string" && isValidISODateString(presetStart) ? presetStart : defaultRange.start
+  );
+  const [end, setEnd] = useState(() =>
+    typeof presetEnd === "string" && isValidISODateString(presetEnd) ? presetEnd : defaultRange.end
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQ, setPickerQ] = useState("");
   const [athletes, setAthletes] = useState<AthletePickerRow[]>([]);

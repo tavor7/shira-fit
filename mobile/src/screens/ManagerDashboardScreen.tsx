@@ -476,7 +476,12 @@ export default function ManagerDashboardScreen() {
       </View>
       {isSuperUser && hiddenPeriodSummary && hiddenPeriodSummary.count > 0 ? (
         <Pressable
-          onPress={() => router.push("/(app)/super/hidden-workouts" as never)}
+          onPress={() =>
+            router.push({
+              pathname: "/(app)/super/hidden-workouts" as never,
+              params: { start: displayRange.start, end: displayRange.end },
+            } as never)
+          }
           style={({ pressed }) => [styles.hiddenBanner, pressed && { opacity: 0.9 }]}
         >
           <Text style={[styles.hiddenBannerTxt, isRTL && styles.rtl]}>
