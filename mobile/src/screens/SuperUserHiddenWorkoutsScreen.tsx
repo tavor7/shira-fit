@@ -202,88 +202,93 @@ export default function SuperUserHiddenWorkoutsScreen() {
         ListEmptyComponent={<EmptyState icon="🔍" title={t("participantHistory.noAthletes")} isRTL={isRTL} />}
       />
 
-      <View style={styles.filters}>
-        <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("superUser.hiddenHint")}</Text>
-        <Pressable
-          style={[styles.pickerTouch, filtersLocked && styles.disabledControl]}
-          disabled={filtersLocked}
-          onPress={() => { setPickerQ(""); setPickerOpen(true); }}
-        >
-          <Text style={athleteLabel ? styles.pickerText : styles.pickerPlaceholder}>
-            {athleteLabel || t("superUser.filterAthletePlaceholder")}
-          </Text>
-        </Pressable>
-        <View style={filtersLocked ? styles.disabledControl : undefined} pointerEvents={filtersLocked ? "none" : "auto"}>
-          <CollapsibleDateRangeCard
-            start={start}
-            end={end}
-            onChange={({ start: s, end: e }) => {
-              setStart(s);
-              setEnd(e);
-            }}
-            label={t("superUser.dateRange")}
-          />
-        </View>
-        {!filtersLocked && (athleteId || start !== defaultRange.start || end !== defaultRange.end) ? (
-          <Pressable
-            style={({ pressed }) => [styles.clearSel, pressed && { opacity: 0.9 }]}
-            onPress={() => {
-              setAthleteId("");
-              setAthleteLabel("");
-              const fresh = globalOverviewRangeISO();
-              setStart(fresh.start);
-              setEnd(fresh.end);
-            }}
-          >
-            <Text style={styles.clearSelTxt}>{t("superUser.clearFilters")}</Text>
-          </Pressable>
-        ) : null}
+      <FlatList
+        style={styles.list}
+        data={loading ? [] : rows}
+        keyExtractor={(row) => row.hide_id}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <>
+            <View style={styles.filters}>
+              <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("superUser.hiddenHint")}</Text>
+              <Pressable
+                style={[styles.pickerTouch, filtersLocked && styles.disabledControl]}
+                disabled={filtersLocked}
+                onPress={() => { setPickerQ(""); setPickerOpen(true); }}
+              >
+                <Text style={athleteLabel ? styles.pickerText : styles.pickerPlaceholder}>
+                  {athleteLabel || t("superUser.filterAthletePlaceholder")}
+                </Text>
+              </Pressable>
+              <View style={filtersLocked ? styles.disabledControl : undefined} pointerEvents={filtersLocked ? "none" : "auto"}>
+                <CollapsibleDateRangeCard
+                  start={start}
+                  end={end}
+                  onChange={({ start: s, end: e }) => {
+                    setStart(s);
+                    setEnd(e);
+                  }}
+                  label={t("superUser.dateRange")}
+                />
+              </View>
+              {!filtersLocked && (athleteId || start !== defaultRange.start || end !== defaultRange.end) ? (
+                <Pressable
+                  style={({ pressed }) => [styles.clearSel, pressed && { opacity: 0.9 }]}
+                  onPress={() => {
+                    setAthleteId("");
+                    setAthleteLabel("");
+                    const fresh = globalOverviewRangeISO();
+                    setStart(fresh.start);
+                    setEnd(fresh.end);
+                  }}
+                >
+                  <Text style={styles.clearSelTxt}>{t("superUser.clearFilters")}</Text>
+                </Pressable>
+              ) : null}
 
-        <View style={styles.unhideAllRow}>
-          <View style={styles.unhideAllCopy}>
-            <Text style={[styles.unhideAllLabel, isRTL && styles.rtlText]}>{t("superUser.unhideAllToggle")}</Text>
-            <Text style={[styles.unhideAllHint, isRTL && styles.rtlText]}>
-              {t(unhideAllOn ? "superUser.unhideAllOnHint" : "superUser.unhideAllOffHint")}
-            </Text>
-          </View>
-          {unhideAllBusy ? (
-            <ActivityIndicator size="small" color={theme.colors.cta} />
-          ) : (
-            <AppSwitch
-              value={unhideAllOn}
-              onValueChange={(next) => void (next ? turnUnhideAllOn() : turnUnhideAllOff())}
-              onColor={theme.colors.error}
-              accessibilityLabel={t("superUser.unhideAllToggle")}
-            />
-          )}
-        </View>
-      </View>
+              <View style={styles.unhideAllRow}>
+                <View style={styles.unhideAllCopy}>
+                  <Text style={[styles.unhideAllLabel, isRTL && styles.rtlText]}>{t("superUser.unhideAllToggle")}</Text>
+                  <Text style={[styles.unhideAllHint, isRTL && styles.rtlText]}>
+                    {t(unhideAllOn ? "superUser.unhideAllOnHint" : "superUser.unhideAllOffHint")}
+                  </Text>
+                </View>
+                {unhideAllBusy ? (
+                  <ActivityIndicator size="small" color={theme.colors.cta} />
+                ) : (
+                  <AppSwitch
+                    value={unhideAllOn}
+                    onValueChange={(next) => void (next ? turnUnhideAllOn() : turnUnhideAllOff())}
+                    onColor={theme.colors.error}
+                    accessibilityLabel={t("superUser.unhideAllToggle")}
+                  />
+                )}
+              </View>
+            </View>
 
-      {!loading ? (
-        <View style={styles.totalsBar}>
-          <View style={styles.totalsCell}>
-            <Text style={styles.totalsLabel}>{t("superUser.totalWorkouts")}</Text>
-            <Text style={styles.totalsValue}>{totals.count}</Text>
-          </View>
-          <View style={styles.totalsCell}>
-            <Text style={styles.totalsLabel}>{t("superUser.totalMoney")}</Text>
-            <Text style={styles.totalsValue}>{`${totals.totalIls} ₪`}</Text>
-          </View>
-        </View>
-      ) : null}
+            {!loading ? (
+              <View style={styles.totalsBar}>
+                <View style={styles.totalsCell}>
+                  <Text style={styles.totalsLabel}>{t("superUser.totalWorkouts")}</Text>
+                  <Text style={styles.totalsValue}>{totals.count}</Text>
+                </View>
+                <View style={styles.totalsCell}>
+                  <Text style={styles.totalsLabel}>{t("superUser.totalMoney")}</Text>
+                  <Text style={styles.totalsValue}>{`${totals.totalIls} ₪`}</Text>
+                </View>
+              </View>
+            ) : null}
 
-      {loading ? (
-        <View style={styles.loadingStack}>
-          <ListRowSkeleton />
-          <ListRowSkeleton />
-          <ListRowSkeleton />
-        </View>
-      ) : (
-        <FlatList
-          data={rows}
-          keyExtractor={(row) => row.hide_id}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item, index }) => {
+            {loading ? (
+              <View style={styles.loadingStack}>
+                <ListRowSkeleton />
+                <ListRowSkeleton />
+                <ListRowSkeleton />
+              </View>
+            ) : null}
+          </>
+        }
+        renderItem={loading ? () => null : ({ item, index }) => {
             const tempUnhidden = tempUnhiddenIds.has(item.hide_id);
             return (
             <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
@@ -328,16 +333,17 @@ export default function SuperUserHiddenWorkoutsScreen() {
               </View>
             </FadeSlideIn>
             );
-          }}
-          ListEmptyComponent={<EmptyState icon="👁️" title={t("superUser.noRecords")} isRTL={isRTL} />}
-        />
-      )}
+          }
+        }
+        ListEmptyComponent={loading ? null : <EmptyState icon="👁️" title={t("superUser.noRecords")} isRTL={isRTL} />}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  list: { flex: 1 },
   rtlText: { textAlign: "right" },
   filters: { padding: theme.spacing.md, gap: theme.spacing.sm },
   hint: { color: theme.colors.textMuted, lineHeight: 18, fontSize: 12 },
