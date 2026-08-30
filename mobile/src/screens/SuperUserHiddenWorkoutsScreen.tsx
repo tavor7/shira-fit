@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { supabase } from "../lib/supabase";
 import { AppSearchSheet } from "../components/AppSearchSheet";
+import { AppSwitch } from "../components/AppSwitch";
 import { CollapsibleDateRangeCard } from "../components/CollapsibleDateRangeCard";
 import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
@@ -36,6 +37,11 @@ export default function SuperUserHiddenWorkoutsScreen() {
   const [rows, setRows] = useState<SuperUserHiddenRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [unhideAllOn, setUnhideAllOn] = useState(false);
+  const [unhideAllBusy, setUnhideAllBusy] = useState(false);
+  const [tempUnhiddenIds, setTempUnhiddenIds] = useState<Set<string>>(new Set());
+  /** Pairs unhidden by the bulk toggle, so switching it back off re-hides exactly these. */
+  const bulkPairsRef = useRef<{ session_id: string; user_id: string }[]>([]);
 
   const totals = useMemo(() => {
     const totalIls = rows.reduce((sum, r) => sum + (parseMoney(r.expected_ils) ?? 0), 0);
@@ -112,6 +118,53 @@ export default function SuperUserHiddenWorkoutsScreen() {
     await load();
   }
 
+  async function turnUnhideAllOn() {
+    if (unhideAllBusy || rows.length === 0) {
+      setUnhideAllOn(true);
+      return;
+    }
+    setUnhideAllBusy(true);
+    const pairs = rows.map((r) => ({ session_id: r.session_id, user_id: r.athlete_user_id }));
+    const results = await Promise.all(
+      pairs.map((p) =>
+        supabase.rpc("super_user_unhide_registration", { p_session_id: p.session_id, p_user_id: p.user_id })
+      )
+    );
+    const failedCount = results.filter((r) => r.error || r.data?.ok !== true).length;
+    bulkPairsRef.current = pairs;
+    setTempUnhiddenIds(new Set(rows.map((r) => r.hide_id)));
+    setUnhideAllOn(true);
+    setUnhideAllBusy(false);
+    if (failedCount > 0) {
+      showError(t("superUser.unhideAllPartialError").replace("{n}", String(failedCount)));
+    } else {
+      showToast({ message: t("superUser.unhideAllOnToast"), variant: "success" });
+    }
+  }
+
+  async function turnUnhideAllOff() {
+    setUnhideAllBusy(true);
+    const pairs = bulkPairsRef.current;
+    const results = await Promise.all(
+      pairs.map((p) =>
+        supabase.rpc("super_user_hide_registration", { p_session_id: p.session_id, p_user_id: p.user_id })
+      )
+    );
+    const failedCount = results.filter((r) => r.error || r.data?.ok !== true).length;
+    bulkPairsRef.current = [];
+    setTempUnhiddenIds(new Set());
+    setUnhideAllOn(false);
+    setUnhideAllBusy(false);
+    if (failedCount > 0) {
+      showError(t("superUser.unhideAllPartialError").replace("{n}", String(failedCount)));
+    } else {
+      showToast({ message: t("superUser.unhideAllOffToast"), variant: "success" });
+    }
+    await load();
+  }
+
+  const filtersLocked = unhideAllOn || unhideAllBusy;
+
   return (
     <View style={styles.screen}>
       <AppSearchSheet
@@ -151,21 +204,27 @@ export default function SuperUserHiddenWorkoutsScreen() {
 
       <View style={styles.filters}>
         <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("superUser.hiddenHint")}</Text>
-        <Pressable style={styles.pickerTouch} onPress={() => { setPickerQ(""); setPickerOpen(true); }}>
+        <Pressable
+          style={[styles.pickerTouch, filtersLocked && styles.disabledControl]}
+          disabled={filtersLocked}
+          onPress={() => { setPickerQ(""); setPickerOpen(true); }}
+        >
           <Text style={athleteLabel ? styles.pickerText : styles.pickerPlaceholder}>
             {athleteLabel || t("superUser.filterAthletePlaceholder")}
           </Text>
         </Pressable>
-        <CollapsibleDateRangeCard
-          start={start}
-          end={end}
-          onChange={({ start: s, end: e }) => {
-            setStart(s);
-            setEnd(e);
-          }}
-          label={t("superUser.dateRange")}
-        />
-        {athleteId || start !== defaultRange.start || end !== defaultRange.end ? (
+        <View style={filtersLocked ? styles.disabledControl : undefined} pointerEvents={filtersLocked ? "none" : "auto"}>
+          <CollapsibleDateRangeCard
+            start={start}
+            end={end}
+            onChange={({ start: s, end: e }) => {
+              setStart(s);
+              setEnd(e);
+            }}
+            label={t("superUser.dateRange")}
+          />
+        </View>
+        {!filtersLocked && (athleteId || start !== defaultRange.start || end !== defaultRange.end) ? (
           <Pressable
             style={({ pressed }) => [styles.clearSel, pressed && { opacity: 0.9 }]}
             onPress={() => {
@@ -179,6 +238,25 @@ export default function SuperUserHiddenWorkoutsScreen() {
             <Text style={styles.clearSelTxt}>{t("superUser.clearFilters")}</Text>
           </Pressable>
         ) : null}
+
+        <View style={styles.unhideAllRow}>
+          <View style={styles.unhideAllCopy}>
+            <Text style={[styles.unhideAllLabel, isRTL && styles.rtlText]}>{t("superUser.unhideAllToggle")}</Text>
+            <Text style={[styles.unhideAllHint, isRTL && styles.rtlText]}>
+              {t(unhideAllOn ? "superUser.unhideAllOnHint" : "superUser.unhideAllOffHint")}
+            </Text>
+          </View>
+          {unhideAllBusy ? (
+            <ActivityIndicator size="small" color={theme.colors.cta} />
+          ) : (
+            <AppSwitch
+              value={unhideAllOn}
+              onValueChange={(next) => void (next ? turnUnhideAllOn() : turnUnhideAllOff())}
+              onColor={theme.colors.error}
+              accessibilityLabel={t("superUser.unhideAllToggle")}
+            />
+          )}
+        </View>
       </View>
 
       {!loading ? (
@@ -205,15 +283,19 @@ export default function SuperUserHiddenWorkoutsScreen() {
           data={rows}
           keyExtractor={(row) => row.hide_id}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item, index }) => (
+          renderItem={({ item, index }) => {
+            const tempUnhidden = tempUnhiddenIds.has(item.hide_id);
+            return (
             <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
               <View style={styles.card}>
                 <View style={[styles.cardHead, isRTL && styles.cardHeadRtl]}>
                   <Text style={[styles.athleteName, isRTL && styles.rtlText]} numberOfLines={1}>
                     {item.athlete_name}
                   </Text>
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeTxt}>{t("superUser.hiddenBadge")}</Text>
+                  <View style={[styles.badge, tempUnhidden && styles.badgeVisible]}>
+                    <Text style={[styles.badgeTxt, tempUnhidden && styles.badgeTxtVisible]}>
+                      {t(tempUnhidden ? "superUser.temporarilyVisible" : "superUser.hiddenBadge")}
+                    </Text>
                   </View>
                 </View>
                 <Text style={[styles.meta, isRTL && styles.rtlText]}>
@@ -230,20 +312,23 @@ export default function SuperUserHiddenWorkoutsScreen() {
                   {t("superUser.hiddenAt")}: {formatISODateFull(item.hidden_at.slice(0, 10), language)}
                   {item.hidden_by_name ? ` · ${t("superUser.hiddenBy")}: ${item.hidden_by_name}` : ""}
                 </Text>
-                <Pressable
-                  disabled={busyId === item.hide_id}
-                  style={({ pressed }) => [
-                    styles.unhideBtn,
-                    pressed && { opacity: 0.9 },
-                    busyId === item.hide_id && { opacity: 0.6 },
-                  ]}
-                  onPress={() => confirmUnhide(item)}
-                >
-                  <Text style={styles.unhideBtnTxt}>{t("superUser.unhide")}</Text>
-                </Pressable>
+                {tempUnhidden ? null : (
+                  <Pressable
+                    disabled={busyId === item.hide_id || filtersLocked}
+                    style={({ pressed }) => [
+                      styles.unhideBtn,
+                      pressed && { opacity: 0.9 },
+                      (busyId === item.hide_id || filtersLocked) && { opacity: 0.6 },
+                    ]}
+                    onPress={() => confirmUnhide(item)}
+                  >
+                    <Text style={styles.unhideBtnTxt}>{t("superUser.unhide")}</Text>
+                  </Pressable>
+                )}
               </View>
             </FadeSlideIn>
-          )}
+            );
+          }}
           ListEmptyComponent={<EmptyState icon="👁️" title={t("superUser.noRecords")} isRTL={isRTL} />}
         />
       )}
@@ -271,6 +356,22 @@ const styles = StyleSheet.create({
   pickerItemSub: { color: theme.colors.textMuted, marginTop: 2 },
   clearSel: { alignSelf: "flex-start" },
   clearSelTxt: { color: theme.colors.cta, fontWeight: "800", fontSize: 13 },
+  disabledControl: { opacity: 0.5 },
+  unhideAllRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
+    padding: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.errorBorder,
+    backgroundColor: theme.colors.errorBg,
+  },
+  unhideAllCopy: { flex: 1 },
+  unhideAllLabel: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
+  unhideAllHint: { color: theme.colors.textMuted, fontSize: 12, marginTop: 2 },
   totalsBar: {
     flexDirection: "row",
     marginHorizontal: theme.spacing.md,
@@ -310,6 +411,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.errorBg,
   },
   badgeTxt: { color: theme.colors.error, fontWeight: "800", fontSize: 11 },
+  badgeVisible: { backgroundColor: theme.colors.successBg },
+  badgeTxtVisible: { color: theme.colors.success },
   meta: { color: theme.colors.textSoft, fontSize: 13 },
   expected: { color: theme.colors.text, fontSize: 13, fontWeight: "800", marginTop: 2 },
   metaMuted: { color: theme.colors.textMuted, fontSize: 12, marginTop: 2 },
