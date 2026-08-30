@@ -400,37 +400,20 @@ export default function SuperUserHiddenWorkoutsScreen() {
                     </Text>
                   </View>
                 </View>
-                <Text style={[styles.meta, isRTL && styles.rtlText]}>
+                <Text style={[styles.meta, isRTL && styles.rtlText]} numberOfLines={1}>
                   {formatISODateFull(item.session_date, language)} ·{" "}
                   {formatSessionTimeRange(item.start_time, item.duration_minutes)}
+                  {item.coach_name ? ` · ${item.coach_name}` : ""}
                 </Text>
-                {item.coach_name ? (
-                  <Text style={[styles.meta, isRTL && styles.rtlText]}>{item.coach_name}</Text>
-                ) : null}
-                <View style={[styles.scopeChips, isRTL && styles.scopeChipsRtl]}>
-                  {item.hide_from_athlete ? (
-                    <View style={styles.scopeChip}>
-                      <Text style={styles.scopeChipTxt}>{t("superUser.scopeAthlete")}</Text>
-                    </View>
-                  ) : null}
-                  {item.hide_from_coach ? (
-                    <View style={styles.scopeChip}>
-                      <Text style={styles.scopeChipTxt}>{t("superUser.scopeCoach")}</Text>
-                    </View>
-                  ) : null}
-                  {item.hide_from_manager ? (
-                    <View style={styles.scopeChip}>
-                      <Text style={styles.scopeChipTxt}>{t("superUser.scopeManager")}</Text>
-                    </View>
-                  ) : null}
+                <View style={[styles.cardFooter, isRTL && styles.cardFooterRtl]}>
+                  <Text style={[styles.expected, isRTL && styles.rtlText]}>
+                    {parseMoney(item.expected_ils) ?? 0} ₪
+                  </Text>
+                  <Text style={[styles.metaMuted, isRTL && styles.rtlText]} numberOfLines={1}>
+                    {formatISODateFull(item.hidden_at.slice(0, 10), language)}
+                    {item.hidden_by_name ? ` · ${item.hidden_by_name}` : ""}
+                  </Text>
                 </View>
-                <Text style={[styles.expected, isRTL && styles.rtlText]}>
-                  {t("superUser.expectedAmount")}: {parseMoney(item.expected_ils) ?? 0} ₪
-                </Text>
-                <Text style={[styles.metaMuted, isRTL && styles.rtlText]}>
-                  {t("superUser.hiddenAt")}: {formatISODateFull(item.hidden_at.slice(0, 10), language)}
-                  {item.hidden_by_name ? ` · ${t("superUser.hiddenBy")}: ${item.hidden_by_name}` : ""}
-                </Text>
                 {tempUnhidden ? null : (
                   <Pressable
                     disabled={busyId === item.hide_id || filtersLocked}
@@ -559,19 +542,16 @@ const styles = StyleSheet.create({
   badgeVisible: { backgroundColor: theme.colors.successBg },
   badgeTxtVisible: { color: theme.colors.success },
   meta: { color: theme.colors.textSoft, fontSize: 13 },
-  scopeChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
-  scopeChipsRtl: { flexDirection: "row-reverse" },
-  scopeChip: {
-    paddingVertical: 2,
-    paddingHorizontal: 7,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
+  cardFooter: {
+    marginTop: 6,
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: theme.spacing.sm,
   },
-  scopeChipTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 10 },
-  expected: { color: theme.colors.text, fontSize: 13, fontWeight: "800", marginTop: 2 },
-  metaMuted: { color: theme.colors.textMuted, fontSize: 12, marginTop: 2 },
+  cardFooterRtl: { flexDirection: "row-reverse" },
+  expected: { color: theme.colors.text, fontSize: 15, fontWeight: "900" },
+  metaMuted: { color: theme.colors.textMuted, fontSize: 11, flexShrink: 1 },
   unhideBtn: {
     marginTop: 8,
     alignSelf: "flex-start",
