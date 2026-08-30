@@ -1067,7 +1067,7 @@ export function ParticipantAttendanceList({
                   </Pressable>
                   <Pressable
                     disabled={busy}
-                    onPress={() => void setStatus(item, "absent", null, null, true)}
+                    onPress={() => openPaymentModal(item, "absent_penalty")}
                     style={({ pressed }) => [
                       styles.noShowFeeBtn,
                       item.chargeNoShow && styles.noShowFeeBtnOn,
