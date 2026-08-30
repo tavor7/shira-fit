@@ -26,20 +26,26 @@ export default function ManagerReportsScreen() {
     [t]
   );
 
+  const header = (
+    <View style={styles.header}>
+      <ManagerOverviewHubTabs />
+      <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.reports")}</Text>
+      <Text style={[styles.subtitle, isRTL && styles.rtl]}>
+        {active === "athlete" ? t("reports.athleteTabHint") : t("reports.coachTabHint")}
+      </Text>
+
+      <SlidingPillTabBar tabs={tabs} active={active} onChange={(id) => setActive(id as Tab)} />
+    </View>
+  );
+
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <ManagerOverviewHubTabs />
-        <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.reports")}</Text>
-        <Text style={[styles.subtitle, isRTL && styles.rtl]}>
-          {active === "athlete" ? t("reports.athleteTabHint") : t("reports.coachTabHint")}
-        </Text>
-
-        <SlidingPillTabBar tabs={tabs} active={active} onChange={(id) => setActive(id as Tab)} />
-      </View>
-
       <FadeSlideIn key={active} style={styles.body}>
-        {active === "athlete" ? <ParticipantHistoryScreen hideTitle /> : <ManagerCoachSessionsReportScreen hideTitle />}
+        {active === "athlete" ? (
+          <ParticipantHistoryScreen hideTitle headerExtra={header} />
+        ) : (
+          <ManagerCoachSessionsReportScreen hideTitle headerExtra={header} />
+        )}
       </FadeSlideIn>
     </View>
   );

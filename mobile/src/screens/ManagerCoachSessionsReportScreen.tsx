@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   View,
   Text,
@@ -127,7 +127,10 @@ function CoachSessionReportCard({
   );
 }
 
-export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: { hideTitle?: boolean } = {}) {
+export default function ManagerCoachSessionsReportScreen({
+  hideTitle = false,
+  headerExtra,
+}: { hideTitle?: boolean; headerExtra?: ReactNode } = {}) {
   const { language, t, isRTL } = useI18n();
   const { showOk } = useAppAlert();
   const defaultRange = useMemo(() => lastNDaysRangeISO(30), []);
@@ -217,6 +220,7 @@ export default function ManagerCoachSessionsReportScreen({ hideTitle = false }: 
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <>
+            {headerExtra}
             <View style={styles.filters}>
               {!hideTitle ? (
                 <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t("menu.coachHistory")}</Text>

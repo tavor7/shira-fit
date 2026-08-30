@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { View, Text, SectionList, Pressable, Platform } from "react-native";
 import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-router";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
@@ -50,7 +50,10 @@ import { PaymentHistoryRow } from "../components/PaymentHistoryRow";
 import { SessionHistoryRow } from "../components/SessionHistoryRow";
 import { EditSessionAmountModal } from "../components/EditSessionAmountModal";
 
-export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTitle?: boolean } = {}) {
+export default function ParticipantHistoryScreen({
+  hideTitle = false,
+  headerExtra,
+}: { hideTitle?: boolean; headerExtra?: ReactNode } = {}) {
   const { presetUserId, presetManualId, presetStart, presetEnd } = useLocalSearchParams<{
     presetUserId?: string;
     presetManualId?: string;
@@ -954,6 +957,7 @@ export default function ParticipantHistoryScreen({ hideTitle = false }: { hideTi
         keyExtractor={(item) => (item.kind === "session" ? item.reg.registration_id : `pay:${item.pay.id}`)}
         ListHeaderComponent={
           <>
+            {headerExtra}
             <View style={styles.filters}>
               {!hideTitle ? (
                 <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>
