@@ -50,8 +50,55 @@ export default function SuperUserHiddenWorkoutsScreen() {
     return { count: rows.length, totalIls: Math.round(totalIls * 100) / 100 };
   }, [rows]);
 
+  /** On (all currently-listed hidden workouts share that flag) vs off. */
+  const globalScope = useMemo(
+    () => ({
+      athlete: rows.length > 0 && rows.every((r) => r.hide_from_athlete),
+      coach: rows.length > 0 && rows.every((r) => r.hide_from_coach),
+      manager: rows.length > 0 && rows.every((r) => r.hide_from_manager),
+    }),
+    [rows]
+  );
+  const [scopeBulkBusy, setScopeBulkBusy] = useState<"athlete" | "coach" | "manager" | null>(null);
+
   function showError(msg: string) {
     showToast({ message: t("common.error"), detail: msg, variant: "error" });
+  }
+
+  async function setGlobalScope(key: "athlete" | "coach" | "manager", value: boolean) {
+    if (scopeBulkBusy || rows.length === 0) return;
+    setScopeBulkBusy(key);
+    let skipped = 0;
+    const results = await Promise.all(
+      rows.map((r) => {
+        const next = {
+          hide_from_athlete: key === "athlete" ? value : r.hide_from_athlete,
+          hide_from_coach: key === "coach" ? value : r.hide_from_coach,
+          hide_from_manager: key === "manager" ? value : r.hide_from_manager,
+        };
+        if (!next.hide_from_athlete && !next.hide_from_coach && !next.hide_from_manager) {
+          skipped += 1;
+          return Promise.resolve({ data: { ok: true }, error: null });
+        }
+        return supabase.rpc("super_user_update_hidden_scope", {
+          p_session_id: r.session_id,
+          p_user_id: r.athlete_user_id,
+          p_hide_from_athlete: next.hide_from_athlete,
+          p_hide_from_coach: next.hide_from_coach,
+          p_hide_from_manager: next.hide_from_manager,
+        });
+      })
+    );
+    const failedCount = results.filter((r) => r.error || r.data?.ok !== true).length;
+    setScopeBulkBusy(null);
+    if (skipped > 0) {
+      showError(t("superUser.scopeGlobalSkipped").replace("{n}", String(skipped)));
+    } else if (failedCount > 0) {
+      showError(t("superUser.unhideAllPartialError").replace("{n}", String(failedCount)));
+    } else {
+      showToast({ message: t("superUser.scopeGlobalUpdated"), variant: "success" });
+    }
+    await load();
   }
 
   const load = useCallback(async () => {
@@ -278,6 +325,42 @@ export default function SuperUserHiddenWorkoutsScreen() {
                   />
                 )}
               </View>
+
+              <View style={[styles.scopeChipsRow, isRTL && styles.scopeChipsRowRtl]}>
+                <Text style={[styles.scopeCardTitle, isRTL && styles.rtlText]}>{t("superUser.scopeGlobalTitle")}</Text>
+                <View style={[styles.scopeChipGroup, isRTL && styles.scopeChipGroupRtl]}>
+                  {(["athlete", "coach", "manager"] as const).map((key) => {
+                    const on = globalScope[key];
+                    const busy = scopeBulkBusy === key;
+                    const label = t(
+                      key === "athlete" ? "superUser.scopeAthlete" : key === "coach" ? "superUser.scopeCoach" : "superUser.scopeManager"
+                    );
+                    return (
+                      <Pressable
+                        key={key}
+                        disabled={filtersLocked || rows.length === 0 || scopeBulkBusy !== null}
+                        onPress={() => void setGlobalScope(key, !on)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        accessibilityLabel={label}
+                        style={({ pressed }) => [
+                          styles.scopeToggleChip,
+                          on && styles.scopeToggleChipOn,
+                          pressed && { opacity: 0.85 },
+                        ]}
+                      >
+                        {busy ? (
+                          <ActivityIndicator size="small" color={on ? theme.colors.ctaText : theme.colors.text} />
+                        ) : (
+                          <Text style={[styles.scopeToggleChipTxt, on && styles.scopeToggleChipTxtOn]} numberOfLines={1}>
+                            {label}
+                          </Text>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
             </View>
 
             {!loading ? (
@@ -409,6 +492,31 @@ const styles = StyleSheet.create({
   unhideAllCopy: { flex: 1 },
   unhideAllLabel: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
   unhideAllHint: { color: theme.colors.textMuted, fontSize: 12, marginTop: 2 },
+  scopeChipsRow: {
+    marginTop: theme.spacing.xs,
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  scopeChipsRowRtl: { flexDirection: "row-reverse" },
+  scopeCardTitle: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 12 },
+  scopeChipGroup: { flexDirection: "row", gap: 6 },
+  scopeChipGroupRtl: { flexDirection: "row-reverse" },
+  scopeToggleChip: {
+    minWidth: 40,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scopeToggleChipOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  scopeToggleChipTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 12 },
+  scopeToggleChipTxtOn: { color: theme.colors.ctaText },
   totalsBar: {
     flexDirection: "row",
     marginHorizontal: theme.spacing.md,

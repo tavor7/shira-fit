@@ -51,13 +51,6 @@ export interface SuperUserHiddenRecord {
   hide_from_manager: boolean;
 }
 
-/** Which audiences a Super User hide action targets. At least one must be true. */
-export type HideScope = {
-  athlete: boolean;
-  coach: boolean;
-  manager: boolean;
-};
-
 export type ManualParticipant = {
   id: string;
   full_name: string;

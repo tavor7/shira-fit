@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
-import type { TrainingSession, HideScope } from "../../../../src/types/database";
+import type { TrainingSession } from "../../../../src/types/database";
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import {
@@ -1246,16 +1246,9 @@ export default function ManagerSessionDetail() {
     void loadHiddenUserIds();
   }, [loadHiddenUserIds]);
 
-  async function toggleHideAthlete(userId: string, currentlyHidden: boolean, scope?: HideScope) {
-    const { data, error } = currentlyHidden
-      ? await supabase.rpc("super_user_unhide_registration", { p_session_id: id, p_user_id: userId })
-      : await supabase.rpc("super_user_hide_registration", {
-          p_session_id: id,
-          p_user_id: userId,
-          p_hide_from_athlete: scope?.athlete ?? true,
-          p_hide_from_coach: scope?.coach ?? false,
-          p_hide_from_manager: scope?.manager ?? false,
-        });
+  async function toggleHideAthlete(userId: string, currentlyHidden: boolean) {
+    const rpcName = currentlyHidden ? "super_user_unhide_registration" : "super_user_hide_registration";
+    const { data, error } = await supabase.rpc(rpcName, { p_session_id: id, p_user_id: userId });
     if (error) {
       showOk(t("common.error"), error.message);
       return;
