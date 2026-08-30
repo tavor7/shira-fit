@@ -24,7 +24,22 @@ export function useSessionPresence(
       return;
     }
 
-    const channel = supabase.channel(`session-presence:${sessionId}`, {
+    const topic = `session-presence:${sessionId}`;
+
+    // A fast remount (dev Fast Refresh, or quickly navigating away and back) can leave a
+    // previous channel for this exact topic still mid-teardown when this effect re-runs.
+    // supabase-js caches channels by topic and would hand back that same (already-subscribed)
+    // instance below, and calling `.on()` on an already-subscribed channel throws "cannot add
+    // presence callbacks ... after subscribe()". Evict any stale entry for this topic first —
+    // the topic itself must stay stable (unlike useRealtimeRefetch's per-mount suffix trick)
+    // since every staff member viewing this session needs to join the same channel.
+    for (const existing of supabase.getChannels()) {
+      if (existing.topic.endsWith(topic)) {
+        void supabase.removeChannel(existing);
+      }
+    }
+
+    const channel = supabase.channel(topic, {
       config: { presence: { key: self.userId } },
     });
 
