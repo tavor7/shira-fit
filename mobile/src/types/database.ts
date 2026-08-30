@@ -46,7 +46,17 @@ export interface SuperUserHiddenRecord {
   unhidden_by_name: string | null;
   /** What this athlete would have owed for this session, had it not been hidden (₪). */
   expected_ils: number | string;
+  hide_from_athlete: boolean;
+  hide_from_coach: boolean;
+  hide_from_manager: boolean;
 }
+
+/** Which audiences a Super User hide action targets. At least one must be true. */
+export type HideScope = {
+  athlete: boolean;
+  coach: boolean;
+  manager: boolean;
+};
 
 export type ManualParticipant = {
   id: string;

@@ -40,8 +40,10 @@ export default function SuperUserHiddenWorkoutsScreen() {
   const [unhideAllOn, setUnhideAllOn] = useState(false);
   const [unhideAllBusy, setUnhideAllBusy] = useState(false);
   const [tempUnhiddenIds, setTempUnhiddenIds] = useState<Set<string>>(new Set());
-  /** Pairs unhidden by the bulk toggle, so switching it back off re-hides exactly these. */
-  const bulkPairsRef = useRef<{ session_id: string; user_id: string }[]>([]);
+  /** Pairs (with their original scope) unhidden by the bulk toggle, so switching it back off re-hides exactly these with the same audience. */
+  const bulkPairsRef = useRef<
+    { session_id: string; user_id: string; hide_from_athlete: boolean; hide_from_coach: boolean; hide_from_manager: boolean }[]
+  >([]);
 
   const totals = useMemo(() => {
     const totalIls = rows.reduce((sum, r) => sum + (parseMoney(r.expected_ils) ?? 0), 0);
@@ -124,7 +126,13 @@ export default function SuperUserHiddenWorkoutsScreen() {
       return;
     }
     setUnhideAllBusy(true);
-    const pairs = rows.map((r) => ({ session_id: r.session_id, user_id: r.athlete_user_id }));
+    const pairs = rows.map((r) => ({
+      session_id: r.session_id,
+      user_id: r.athlete_user_id,
+      hide_from_athlete: r.hide_from_athlete,
+      hide_from_coach: r.hide_from_coach,
+      hide_from_manager: r.hide_from_manager,
+    }));
     const results = await Promise.all(
       pairs.map((p) =>
         supabase.rpc("super_user_unhide_registration", { p_session_id: p.session_id, p_user_id: p.user_id })
@@ -147,7 +155,13 @@ export default function SuperUserHiddenWorkoutsScreen() {
     const pairs = bulkPairsRef.current;
     const results = await Promise.all(
       pairs.map((p) =>
-        supabase.rpc("super_user_hide_registration", { p_session_id: p.session_id, p_user_id: p.user_id })
+        supabase.rpc("super_user_hide_registration", {
+          p_session_id: p.session_id,
+          p_user_id: p.user_id,
+          p_hide_from_athlete: p.hide_from_athlete,
+          p_hide_from_coach: p.hide_from_coach,
+          p_hide_from_manager: p.hide_from_manager,
+        })
       )
     );
     const failedCount = results.filter((r) => r.error || r.data?.ok !== true).length;
@@ -310,6 +324,23 @@ export default function SuperUserHiddenWorkoutsScreen() {
                 {item.coach_name ? (
                   <Text style={[styles.meta, isRTL && styles.rtlText]}>{item.coach_name}</Text>
                 ) : null}
+                <View style={[styles.scopeChips, isRTL && styles.scopeChipsRtl]}>
+                  {item.hide_from_athlete ? (
+                    <View style={styles.scopeChip}>
+                      <Text style={styles.scopeChipTxt}>{t("superUser.scopeAthlete")}</Text>
+                    </View>
+                  ) : null}
+                  {item.hide_from_coach ? (
+                    <View style={styles.scopeChip}>
+                      <Text style={styles.scopeChipTxt}>{t("superUser.scopeCoach")}</Text>
+                    </View>
+                  ) : null}
+                  {item.hide_from_manager ? (
+                    <View style={styles.scopeChip}>
+                      <Text style={styles.scopeChipTxt}>{t("superUser.scopeManager")}</Text>
+                    </View>
+                  ) : null}
+                </View>
                 <Text style={[styles.expected, isRTL && styles.rtlText]}>
                   {t("superUser.expectedAmount")}: {parseMoney(item.expected_ils) ?? 0} ₪
                 </Text>
@@ -420,6 +451,17 @@ const styles = StyleSheet.create({
   badgeVisible: { backgroundColor: theme.colors.successBg },
   badgeTxtVisible: { color: theme.colors.success },
   meta: { color: theme.colors.textSoft, fontSize: 13 },
+  scopeChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
+  scopeChipsRtl: { flexDirection: "row-reverse" },
+  scopeChip: {
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  scopeChipTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 10 },
   expected: { color: theme.colors.text, fontSize: 13, fontWeight: "800", marginTop: 2 },
   metaMuted: { color: theme.colors.textMuted, fontSize: 12, marginTop: 2 },
   unhideBtn: {

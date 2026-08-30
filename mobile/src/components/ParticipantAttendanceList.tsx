@@ -26,6 +26,8 @@ import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueri
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { hasSessionNotStarted } from "../lib/sessionTime";
 import type { MoveParticipantTarget } from "./MoveParticipantSheet";
+import { HideScopeModal } from "./HideScopeModal";
+import type { HideScope } from "../types/database";
 
 type RegRow = {
   user_id: string;
@@ -127,8 +129,8 @@ type Props = {
   onMoveParticipant?: (target: MoveParticipantTarget) => void;
   /** Super User only: user_ids currently hidden from this session (drives badge + toggle). */
   superUserHiddenUserIds?: Set<string>;
-  /** Super User only: hide/unhide an athlete for this session. Omit to hide the control entirely. */
-  onToggleHideAthlete?: (userId: string, currentlyHidden: boolean) => void | Promise<void>;
+  /** Super User only: hide/unhide an athlete for this session. `scope` is set (and required) when hiding. Omit to hide the control entirely. */
+  onToggleHideAthlete?: (userId: string, currentlyHidden: boolean, scope?: HideScope) => void | Promise<void>;
 };
 
 /** Brief accent wash over a newly-added roster row, fading out as it "settles" into the list. */
@@ -180,6 +182,7 @@ export function ParticipantAttendanceList({
   const { showConfirm, showAlert, showOk } = useAppAlert();
   const [rows, setRows] = useState<Row[]>([]);
   const [hideToggleBusyUserId, setHideToggleBusyUserId] = useState<string | null>(null);
+  const [hideScopeTarget, setHideScopeTarget] = useState<Extract<Row, { kind: "registered" }> | null>(null);
   const [maxParticipants, setMaxParticipants] = useState<number | null>(null);
   const [sessionMeta, setSessionMeta] = useState<SessionRateMeta | null>(null);
   const [rosterPriceByRowId, setRosterPriceByRowId] = useState<Record<string, number>>({});
@@ -288,26 +291,41 @@ export function ParticipantAttendanceList({
 
   function confirmToggleHideAthlete(item: Extract<Row, { kind: "registered" }>, currentlyHidden: boolean) {
     if (!onToggleHideAthlete) return;
-    const titleKey = currentlyHidden ? "superUser.unhideConfirmTitle" : "superUser.hideConfirmTitle";
-    const messageKey = currentlyHidden ? "superUser.unhideConfirmMessage" : "superUser.hideConfirmMessage";
-    const confirmLabelKey = currentlyHidden ? "superUser.unhide" : "superUser.hideAction";
+    if (!currentlyHidden) {
+      setHideScopeTarget(item);
+      return;
+    }
     showConfirm({
-      title: t(titleKey),
-      message: interpolateParticipantName(t(messageKey), item.name),
+      title: t("superUser.unhideConfirmTitle"),
+      message: interpolateParticipantName(t("superUser.unhideConfirmMessage"), item.name),
       cancelLabel: t("common.cancel"),
-      confirmLabel: t(confirmLabelKey),
-      confirmVariant: currentlyHidden ? "primary" : "danger",
+      confirmLabel: t("superUser.unhide"),
+      confirmVariant: "primary",
       onConfirm: () => {
         void (async () => {
           setHideToggleBusyUserId(item.userId);
           try {
-            await Promise.resolve(onToggleHideAthlete(item.userId, currentlyHidden));
+            await Promise.resolve(onToggleHideAthlete(item.userId, true));
           } finally {
             setHideToggleBusyUserId(null);
           }
         })();
       },
     });
+  }
+
+  function confirmHideScope(scope: HideScope) {
+    const item = hideScopeTarget;
+    if (!item || !onToggleHideAthlete) return;
+    void (async () => {
+      setHideToggleBusyUserId(item.userId);
+      try {
+        await Promise.resolve(onToggleHideAthlete(item.userId, false, scope));
+        setHideScopeTarget(null);
+      } finally {
+        setHideToggleBusyUserId(null);
+      }
+    })();
   }
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
@@ -1183,6 +1201,13 @@ export function ParticipantAttendanceList({
           </View>
         </View>
       </Modal>
+      <HideScopeModal
+        visible={!!hideScopeTarget}
+        athleteName={hideScopeTarget?.name ?? ""}
+        busy={hideToggleBusyUserId === hideScopeTarget?.userId}
+        onClose={() => setHideScopeTarget(null)}
+        onConfirm={confirmHideScope}
+      />
     </View>
     </CrossfadeSwap>
   );
