@@ -1692,8 +1692,9 @@ export default function ManagerSessionDetail() {
                     </Text>
                     <Text style={[styles.summaryTileHint, isRTL && styles.rtlText]}>
                       {t("managerSession.summaryAttendanceSub")
-                        .replace("{pct}", String(arrivalRatePct))
-                        .replace("{capacity}", String(maxCap))}
+                        .replace("{registered}", String(Math.round(registeredDisplay)))
+                        .replace("{capacity}", String(maxCap))
+                        .replace("{pct}", String(arrivalRatePct))}
                     </Text>
                   </View>
                   <View style={[styles.summaryTile, isRTL && styles.summaryTileRtl]}>
