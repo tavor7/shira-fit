@@ -142,6 +142,11 @@ export default function ParticipantHistoryScreen({
   const [removingRegId, setRemovingRegId] = useState<string | null>(null);
   const [attendanceBusyId, setAttendanceBusyId] = useState<string | null>(null);
   const [expandedAttendanceId, setExpandedAttendanceId] = useState<string | null>(null);
+  const [hideToggleBusyKey, setHideToggleBusyKey] = useState<string | null>(null);
+
+  function interpolateName(template: string, name: string) {
+    return template.replace(/\{name\}/g, name);
+  }
 
   function memberForRow(reg: ParticipantHistoryRow): AthleteFamilyMember | null {
     if (!familyContext) return null;
@@ -404,6 +409,44 @@ export default function ParticipantHistoryScreen({
     } finally {
       setRemovingRegId(null);
     }
+  }
+
+  async function toggleHideAthlete(reg: ParticipantHistoryRow, currentlyHidden: boolean) {
+    const key = hiddenRegistrationKey(reg.session_id, reg.athlete_user_id);
+    if (hideToggleBusyKey) return;
+    setHideToggleBusyKey(key);
+    try {
+      const rpcName = currentlyHidden ? "super_user_unhide_registration" : "super_user_hide_registration";
+      const { data, error } = await supabase.rpc(rpcName, {
+        p_session_id: reg.session_id,
+        p_user_id: reg.athlete_user_id,
+      });
+      if (error) {
+        showError(error.message);
+        return;
+      }
+      if (data?.ok !== true) {
+        showError(String(data?.error ?? "failed"));
+        return;
+      }
+      showToast({ message: t(currentlyHidden ? "superUser.unhidden" : "superUser.hidden"), variant: "success" });
+      setHiddenKeys(await fetchHiddenRegistrationKeys([...new Set(rows.map((r) => r.session_id))]));
+    } finally {
+      setHideToggleBusyKey(null);
+    }
+  }
+
+  function confirmToggleHideAthlete(reg: ParticipantHistoryRow) {
+    const currentlyHidden = hiddenKeys.has(hiddenRegistrationKey(reg.session_id, reg.athlete_user_id));
+    const name = (reg.athlete_name || athleteLabel).trim() || (language === "he" ? "המתאמן" : "this athlete");
+    showConfirm({
+      title: t(currentlyHidden ? "superUser.unhideConfirmTitle" : "superUser.hideConfirmTitle"),
+      message: interpolateName(t(currentlyHidden ? "superUser.unhideConfirmMessage" : "superUser.hideConfirmMessage"), name),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t(currentlyHidden ? "superUser.unhideAction" : "superUser.hideAction"),
+      confirmVariant: currentlyHidden ? "primary" : "danger",
+      onConfirm: () => void toggleHideAthlete(reg, currentlyHidden),
+    });
   }
 
   const sections = useMemo(() => {
@@ -1172,6 +1215,14 @@ export default function ParticipantHistoryScreen({
             <SessionHistoryRow
               reg={item.reg}
               superUserHidden={isSuperUser && hiddenKeys.has(hiddenRegistrationKey(item.reg.session_id, item.reg.athlete_user_id))}
+              canToggleHide={
+                isSuperUser &&
+                isManagerHistory &&
+                item.reg.reg_status === "active" &&
+                !isManualHistoryRow(item.reg)
+              }
+              hideToggleBusy={hideToggleBusyKey === hiddenRegistrationKey(item.reg.session_id, item.reg.athlete_user_id)}
+              onToggleHideAthlete={() => confirmToggleHideAthlete(item.reg)}
               isRTL={isRTL}
               rtlRowFlip={rtlRowFlip}
               language={language}

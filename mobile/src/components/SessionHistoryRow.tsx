@@ -19,6 +19,10 @@ type Props = {
   reg: ParticipantHistoryRow;
   /** Super User only: this registration is currently hidden from the athlete/debt. Never set for other roles. */
   superUserHidden?: boolean;
+  /** Super User only: this row is eligible for the hide/unhide toggle (active, real athlete registration). */
+  canToggleHide?: boolean;
+  hideToggleBusy?: boolean;
+  onToggleHideAthlete?: () => void;
   isRTL: boolean;
   rtlRowFlip: boolean;
   language: LanguageCode;
@@ -50,6 +54,9 @@ type Props = {
 export function SessionHistoryRow({
   reg,
   superUserHidden,
+  canToggleHide,
+  hideToggleBusy,
+  onToggleHideAthlete,
   isRTL,
   rtlRowFlip,
   language,
@@ -151,6 +158,26 @@ export function SessionHistoryRow({
       </Text>
     </View>
   ) : null;
+  const hideToggleButton =
+    canToggleHide && onToggleHideAthlete ? (
+      <View style={[styles.hideToggleWrap, isRTL && styles.hideToggleWrapRtl]}>
+        {hideToggleBusy ? (
+          <ActivityIndicator size="small" color={theme.colors.cta} />
+        ) : (
+          <Pressable
+            onPress={onToggleHideAthlete}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t(superUserHidden ? "superUser.unhideAction" : "superUser.hideAction")}
+            style={({ pressed }) => [styles.hideToggleBtn, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.hideToggleIcon} importantForAccessibility="no">
+              {superUserHidden ? "👁️" : "🙈"}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    ) : null;
   const statusBlock =
     reg.reg_status === "cancelled" ? (
       <View style={[styles.payPill, styles.payPillMuted]}>
@@ -210,7 +237,7 @@ export function SessionHistoryRow({
                 </Text>
               ) : null}
             </View>
-            {metaLine || statusBlock || hiddenPill ? (
+            {metaLine || statusBlock || hiddenPill || hideToggleButton ? (
               <View style={styles.sessionHeadAsideHe}>
                 {metaLine ? (
                   <Text style={[styles.sessionMetaAsideHe, styles.rtlText]} numberOfLines={2}>
@@ -218,6 +245,7 @@ export function SessionHistoryRow({
                   </Text>
                 ) : null}
                 {hiddenPill}
+                {hideToggleButton}
                 {statusBlock}
               </View>
             ) : null}
@@ -240,7 +268,7 @@ export function SessionHistoryRow({
                 </Text>
               ) : null}
             </View>
-            {metaLine || statusBlock || hiddenPill ? (
+            {metaLine || statusBlock || hiddenPill || hideToggleButton ? (
               <View style={styles.sessionHeadAside}>
                 {metaLine ? (
                   <Text style={styles.sessionMetaAside} numberOfLines={2}>
@@ -248,6 +276,7 @@ export function SessionHistoryRow({
                   </Text>
                 ) : null}
                 {hiddenPill}
+                {hideToggleButton}
                 {statusBlock}
               </View>
             ) : null}
