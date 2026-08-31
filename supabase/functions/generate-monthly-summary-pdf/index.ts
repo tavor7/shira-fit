@@ -313,9 +313,16 @@ Deno.serve(async (req) => {
   // wrong set of receipts for the period. This RPC filters/sorts by the real payment date
   // instead, the same one list_documents/document_report use (service-role only; the edge
   // function has already authenticated and role-checked the caller by this point).
+  //
+  // periodEnd arrives as a bare date ("2026-06-30"), which `new Date(...)` parses as midnight
+  // UTC — the *start* of the last day, not its end — so a <= filter on the raw string silently
+  // dropped the entire last day of the month. Push the upper bound to the start of the next day.
+  const queryEndExclusive = new Date(periodEndDate);
+  queryEndExclusive.setUTCDate(queryEndExclusive.getUTCDate() + 1);
+
   const { data: docs, error: docsErr } = await admin.rpc("monthly_summary_report_rows", {
     p_date_start: periodStart,
-    p_date_end: periodEnd,
+    p_date_end: queryEndExclusive.toISOString(),
   });
   if (docsErr) return json(500, { ok: false, error: "documents_load_failed" });
 
