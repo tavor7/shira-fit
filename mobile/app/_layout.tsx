@@ -10,6 +10,7 @@ import { StudioContactFooter } from "../src/components/StudioContactFooter";
 import { I18nProvider } from "../src/context/I18nContext";
 import { ManagerAthletePreviewProvider } from "../src/context/ManagerAthletePreviewContext";
 import { ToastProvider } from "../src/context/ToastContext";
+import { BulkJobsProvider } from "../src/context/BulkJobsContext";
 import { AppAlertProvider } from "../src/context/AppAlertContext";
 import { AppErrorBoundary } from "../src/components/AppErrorBoundary";
 import { RouteRestoreDebugPanel } from "../src/components/RouteRestoreDebugPanel";
@@ -113,26 +114,28 @@ export default function RootLayout() {
             <ManagerAthletePreviewProvider>
               <AppErrorBoundary>
                 <ToastProvider>
-                  {Platform.OS === "web" ? <WebLastRouteTracker /> : null}
-                  {Platform.OS === "web" && __DEV__ ? <RouteRestoreDebugPanel /> : null}
-                  <StatusBar style="light" />
-                  <View style={{ flex: 1 }}>
-                    <Stack
-                      screenOptions={{
-                        // Nested stacks (/(auth), /(app)) render their own headers as needed.
-                        // Keeping the root header hidden avoids showing route-group titles like "(app)".
-                        headerShown: false,
-                        headerBackTitle: "Back",
-                        headerShadowVisible: false,
-                        headerStyle: rootHeaderStyle as object,
-                        headerTintColor: theme.colors.text,
-                        headerTitleStyle: rootHeaderTitleStyle as object,
-                        // Auth<->app group swap isn't a drill-in — a fade reads better than a lateral slide.
-                        animation: "fade",
-                      }}
-                    />
-                  </View>
-                  <StudioContactFooterGate />
+                  <BulkJobsProvider>
+                    {Platform.OS === "web" ? <WebLastRouteTracker /> : null}
+                    {Platform.OS === "web" && __DEV__ ? <RouteRestoreDebugPanel /> : null}
+                    <StatusBar style="light" />
+                    <View style={{ flex: 1 }}>
+                      <Stack
+                        screenOptions={{
+                          // Nested stacks (/(auth), /(app)) render their own headers as needed.
+                          // Keeping the root header hidden avoids showing route-group titles like "(app)".
+                          headerShown: false,
+                          headerBackTitle: "Back",
+                          headerShadowVisible: false,
+                          headerStyle: rootHeaderStyle as object,
+                          headerTintColor: theme.colors.text,
+                          headerTitleStyle: rootHeaderTitleStyle as object,
+                          // Auth<->app group swap isn't a drill-in — a fade reads better than a lateral slide.
+                          animation: "fade",
+                        }}
+                      />
+                    </View>
+                    <StudioContactFooterGate />
+                  </BulkJobsProvider>
                 </ToastProvider>
               </AppErrorBoundary>
             </ManagerAthletePreviewProvider>

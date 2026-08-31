@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -18,6 +18,7 @@ import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useToast } from "../context/ToastContext";
+import { useBulkJobs } from "../context/BulkJobsContext";
 import { ManagerMoneyHubTabs, ManagerStatePillTabBar } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { AppSwitch } from "../components/AppSwitch";
@@ -66,7 +67,7 @@ import { DOCUMENT_PAYMENT_METHOD_KEYS, documentPaymentMethodLabel } from "../lib
 import { documentServiceTypeLabel } from "../lib/documentServiceTypes";
 import { buildCsv, downloadCsvWeb } from "../lib/csvExport";
 import { supabase } from "../lib/supabase";
-import { formatDateTimeForDisplay } from "../lib/dateFormat";
+import { formatDateTimeForDisplay, formatISODateFull } from "../lib/dateFormat";
 
 type HubSection = "pending" | "documents" | "reports" | "settings";
 
@@ -156,7 +157,7 @@ function HubTabs({
 export default function DocumentsInvoicesScreen() {
   const { language, t, isRTL } = useI18n();
   const { profile } = useAuth();
-  const { showConfirm } = useAppAlert();
+  const { showConfirm, showAlert } = useAppAlert();
   const { showToast } = useToast();
   const isManager = profile?.role === "manager";
   const isCoach = profile?.role === "coach";
@@ -188,6 +189,13 @@ export default function DocumentsInvoicesScreen() {
   const [cancelBusyId, setCancelBusyId] = useState<string | null>(null);
   const [deleteDocBusyId, setDeleteDocBusyId] = useState<string | null>(null);
   const [editEmailDoc, setEditEmailDoc] = useState<DocumentRow | null>(null);
+  const { job: bulkJob, runJob: runBulkJob, cancelJob: cancelBulkJob } = useBulkJobs();
+  const bulkRegenProgress = bulkJob?.key === "regenerateAllReceiptPdfs" ? bulkJob : null;
+  const bulkRegenBusy = bulkRegenProgress !== null;
+  const regenFetchingRef = useRef(false);
+  const [regenAllDates, setRegenAllDates] = useState(true);
+  const [regenDateStart, setRegenDateStart] = useState(defaultRange.start);
+  const [regenDateEnd, setRegenDateEnd] = useState(defaultRange.end);
 
   const canCancelDocument = isManager || (isCoach && !!settings?.staff_can_cancel_documents);
 
@@ -200,7 +208,9 @@ export default function DocumentsInvoicesScreen() {
     return [...filteredDocuments].sort((a, b) => {
       const aTime = new Date(a.paid_at).getTime();
       const bTime = new Date(b.paid_at).getTime();
-      return docsSortOrder === "asc" ? aTime - bTime : bTime - aTime;
+      if (aTime !== bTime) return docsSortOrder === "asc" ? aTime - bTime : bTime - aTime;
+      const cmp = a.document_number.localeCompare(b.document_number);
+      return docsSortOrder === "asc" ? cmp : -cmp;
     });
   }, [filteredDocuments, docsSortOrder]);
 
@@ -417,11 +427,11 @@ export default function DocumentsInvoicesScreen() {
     }
   }
 
-  async function cancelReceipt(doc: DocumentRow) {
+  async function cancelReceipt(doc: DocumentRow, revertPayment: boolean) {
     if (cancelBusyId) return;
     setCancelBusyId(doc.id);
     try {
-      const { needsPdfReissue } = await cancelDocument(doc.id, "בוטל על ידי מנהל");
+      const { needsPdfReissue } = await cancelDocument(doc.id, "בוטל על ידי מנהל", revertPayment);
       let pdfReissueFailed = false;
       if (needsPdfReissue) {
         try {
@@ -439,7 +449,13 @@ export default function DocumentsInvoicesScreen() {
         });
       } else {
         showToast({
-          message: language === "he" ? "הקבלה בוטלה" : "Receipt cancelled",
+          message: language === "he"
+            ? revertPayment
+              ? "הקבלה בוטלה והתשלום שוחזר"
+              : "הקבלה בוטלה, התשלום נשמר"
+            : revertPayment
+              ? "Receipt cancelled and payment reverted"
+              : "Receipt cancelled, payment kept",
           variant: "success",
         });
       }
@@ -455,27 +471,44 @@ export default function DocumentsInvoicesScreen() {
   }
 
   function confirmCancelReceipt(doc: DocumentRow) {
-    showConfirm({
-      title: language === "he" ? "לבטל קבלה?" : "Cancel receipt?",
-      message:
-        language === "he"
-          ? "הקבלה תסומן כבוטלת וה-PDF יופק מחדש עם חותמת \"בוטל\". התשלום המקושר לא ייחשב כתשלום עם קבלה."
-          : "The receipt will be marked cancelled and its PDF reissued with a \"Cancelled\" stamp. The linked payment will no longer count as receipted.",
-      cancelLabel: t("common.cancel"),
-      confirmLabel: language === "he" ? "ביטול קבלה" : "Cancel receipt",
-      confirmVariant: "danger",
-      onConfirm: () => void cancelReceipt(doc),
+    const title = language === "he" ? "לבטל קבלה?" : "Cancel receipt?";
+    const message =
+      language === "he"
+        ? "הקבלה תסומן כבוטלת וה-PDF יופק מחדש עם חותמת \"בוטל\". בחרו מה לעשות עם התשלום המקושר."
+        : "The receipt will be marked cancelled and its PDF reissued with a \"Cancelled\" stamp. Choose what happens to the linked payment.";
+    showAlert({
+      title,
+      message,
+      actions: [
+        { label: t("common.cancel"), variant: "secondary", onPress: () => {} },
+        {
+          label: language === "he" ? "ביטול קבלה, שמירת תשלום" : "Cancel receipt, keep payment",
+          variant: "secondary",
+          onPress: () => void cancelReceipt(doc, false),
+        },
+        {
+          label: language === "he" ? "ביטול קבלה + שחזור תשלום" : "Cancel receipt + revert payment",
+          variant: "danger",
+          onPress: () => void cancelReceipt(doc, true),
+        },
+      ],
     });
   }
 
-  async function deleteReceipt(doc: DocumentRow) {
+  async function deleteReceipt(doc: DocumentRow, deletePayment: boolean) {
     if (deleteDocBusyId) return;
     setDeleteDocBusyId(doc.id);
     try {
-      await deleteDocumentFull(doc.id);
+      await deleteDocumentFull(doc.id, deletePayment);
       await load();
       showToast({
-        message: language === "he" ? "הקבלה נמחקה לצמיתות" : "Receipt permanently deleted",
+        message: language === "he"
+          ? deletePayment
+            ? "הקבלה נמחקה לצמיתות והתשלום נמחק"
+            : "הקבלה נמחקה לצמיתות, התשלום נשמר"
+          : deletePayment
+            ? "Receipt permanently deleted and payment deleted"
+            : "Receipt permanently deleted, payment kept",
         variant: "success",
       });
     } catch (e) {
@@ -490,16 +523,116 @@ export default function DocumentsInvoicesScreen() {
   }
 
   function confirmDeleteReceipt(doc: DocumentRow) {
+    const title = language === "he" ? "מחיקת קבלה?" : "Delete receipt?";
+    const message =
+      language === "he"
+        ? "הקבלה, ה-PDF וכל היסטוריית האירועים שלה יימחקו לצמיתות — לא תישמר עותק. בחרו מה לעשות עם התשלום המקושר. זמין רק במצב בדיקה."
+        : "The receipt, its PDF, and its event history will be permanently deleted — no copy is kept. Choose what happens to the linked payment. Only available in testing mode.";
+    showAlert({
+      title,
+      message,
+      actions: [
+        { label: t("common.cancel"), variant: "secondary", onPress: () => {} },
+        {
+          label: language === "he" ? "מחיקה, שמירת תשלום" : "Delete, keep payment",
+          variant: "danger",
+          onPress: () => void deleteReceipt(doc, false),
+        },
+        {
+          label: language === "he" ? "מחיקה + מחיקת תשלום" : "Delete + delete payment",
+          variant: "danger",
+          onPress: () => void deleteReceipt(doc, true),
+        },
+      ],
+    });
+  }
+  /** One-time maintenance: after document_number values are reassigned in bulk (e.g. renumbering
+   * by payment date), already-generated PDF files still show the old number baked into the file.
+   * Regenerates every ACTIVE document's PDF so the file matches the current number. Testing-mode
+   * only — the generate-document-pdf function refuses to overwrite once operational. */
+  async function regenerateAllPdfs() {
+    if (bulkJob || regenFetchingRef.current) return;
+    regenFetchingRef.current = true;
+    // Fetch fresh regardless of the main list's currently-selected filter — this maintenance
+    // pass uses its own date range (or all dates), set separately below.
+    let allDocs: DocumentRow[] = [];
+    try {
+      allDocs = (await listDocuments({ limit: 500 })).rows;
+    } catch (e) {
+      regenFetchingRef.current = false;
+      showToast({ message: t("common.error"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+      return;
+    }
+    const rangeStartMs = regenAllDates ? null : new Date(`${regenDateStart}T00:00:00.000Z`).getTime();
+    const rangeEndMs = regenAllDates ? null : new Date(`${regenDateEnd}T23:59:59.999Z`).getTime();
+    const targets = allDocs.filter((d) => {
+      if (d.status !== "ACTIVE") return false;
+      if (rangeStartMs === null || rangeEndMs === null) return true;
+      const paidAtMs = new Date(d.paid_at).getTime();
+      return paidAtMs >= rangeStartMs && paidAtMs <= rangeEndMs;
+    });
+    regenFetchingRef.current = false;
+    if (targets.length === 0) {
+      showToast({
+        message: language === "he" ? "אין קבלות פעילות בטווח שנבחר" : "No active receipts in the selected range",
+        variant: "info",
+      });
+      return;
+    }
+
+    // Runs inside the app-wide bulk-job context, not local component state, so it keeps going
+    // (and stays visible) even if the manager navigates to another screen mid-run.
+    await runBulkJob("regenerateAllReceiptPdfs", targets.length, async (setDone, isCancelled) => {
+      let failed = 0;
+      let i = 0;
+      for (; i < targets.length; i++) {
+        if (isCancelled()) break;
+        try {
+          await prepareDocumentPdfRegeneration(targets[i].id);
+          await invokeGenerateDocumentPdf(targets[i].id, true);
+        } catch {
+          failed += 1;
+        }
+        setDone(i + 1);
+      }
+      await load();
+      const cancelled = isCancelled();
+      const doneCount = i;
+      const succeeded = doneCount - failed;
+      showToast({
+        message: cancelled
+          ? language === "he"
+            ? `בוטל — ${succeeded} מתוך ${targets.length} PDF-ים נוצרו מחדש${failed ? ` · ${failed} נכשלו` : ""}`
+            : `Cancelled — ${succeeded} of ${targets.length} PDFs regenerated${failed ? ` · ${failed} failed` : ""}`
+          : language === "he"
+            ? `${succeeded} מתוך ${targets.length} PDF-ים נוצרו מחדש${failed ? ` · ${failed} נכשלו` : ""}`
+            : `${succeeded} of ${targets.length} PDFs regenerated${failed ? ` · ${failed} failed` : ""}`,
+        variant: failed ? "info" : "success",
+      });
+    });
+  }
+
+  function cancelRegenerateAllPdfs() {
+    cancelBulkJob("regenerateAllReceiptPdfs");
+  }
+
+  function confirmRegenerateAllPdfs() {
+    const scope = regenAllDates
+      ? language === "he"
+        ? "ללא הגבלת טווח תאריכים"
+        : "across all dates"
+      : language === "he"
+        ? `בין ${formatISODateFull(regenDateStart, language)} ל-${formatISODateFull(regenDateEnd, language)}`
+        : `between ${formatISODateFull(regenDateStart, language)} and ${formatISODateFull(regenDateEnd, language)}`;
     showConfirm({
-      title: language === "he" ? "מחיקת קבלה?" : "Delete receipt?",
+      title: language === "he" ? "יצירת PDF מחדש?" : "Regenerate PDFs?",
       message:
         language === "he"
-          ? "הקבלה, ה-PDF וכל היסטוריית האירועים שלה יימחקו לצמיתות — לא תישמר עותק. זמין רק במצב בדיקה."
-          : "The receipt, its PDF, and its event history will be permanently deleted — no copy is kept. Only available in testing mode.",
+          ? `יופקו מחדש כל קבצי ה-PDF הפעילים עם המספרים הנוכחיים שלהם, ${scope}. פעולה זו עלולה לקחת זמן.`
+          : `Regenerates every active PDF file with its current number, ${scope}. This may take a while.`,
       cancelLabel: t("common.cancel"),
-      confirmLabel: language === "he" ? "מחיקה לצמיתות" : "Delete permanently",
-      confirmVariant: "danger",
-      onConfirm: () => void deleteReceipt(doc),
+      confirmLabel: language === "he" ? "יצירה מחדש" : "Regenerate",
+      onConfirm: () => void regenerateAllPdfs(),
     });
   }
 
@@ -946,6 +1079,78 @@ export default function DocumentsInvoicesScreen() {
         consentEnabled={!!settingsForm.request_consent_from_existing_users}
         addressEnabled={!!settingsForm.request_address_from_existing_users}
       />
+
+      {isManager && !settings?.is_operational ? (
+        <SectionCard label={language === "he" ? "יצירת PDF מחדש לכל הקבלות" : "Regenerate all receipt PDFs"}>
+          <Text style={[styles.filterHint, isRTL && styles.rtl]}>
+            {language === "he"
+              ? "השתמשו בזה אחרי שינוי גורף של מספרי הקבלות — מייצר מחדש כל PDF פעיל כדי שיתאים למספר הנוכחי שלו."
+              : "Use this after a bulk change to receipt numbers — regenerates every active PDF so its file matches its current number."}
+          </Text>
+          {!bulkRegenBusy ? (
+            <>
+              <ToggleRow
+                isRTL={isRTL}
+                title={language === "he" ? "כל התאריכים" : "All dates"}
+                subtitle={
+                  language === "he"
+                    ? "כבו כדי להגביל את היצירה מחדש לטווח תאריכי תשלום מסוים"
+                    : "Turn off to limit regeneration to a specific payment date range"
+                }
+                value={regenAllDates}
+                onChange={setRegenAllDates}
+              />
+              {!regenAllDates ? (
+                <CollapsibleDateRangeCard
+                  start={regenDateStart}
+                  end={regenDateEnd}
+                  onChange={({ start, end }) => {
+                    setRegenDateStart(start);
+                    setRegenDateEnd(end);
+                  }}
+                  label={language === "he" ? "טווח תאריכי תשלום" : "Payment date range"}
+                />
+              ) : null}
+            </>
+          ) : null}
+          {bulkRegenBusy && bulkRegenProgress ? (
+            <>
+              <View style={styles.bulkRegenProgressRow}>
+                <ActivityIndicator size="small" color={theme.colors.cta} />
+                <Text style={[styles.bulkRegenProgressText, isRTL && styles.rtl]}>
+                  {bulkRegenProgress.cancelling
+                    ? language === "he"
+                      ? "מבטל…"
+                      : "Cancelling…"
+                    : language === "he"
+                      ? `יוצר מחדש ${bulkRegenProgress.done} מתוך ${bulkRegenProgress.total}…`
+                      : `Regenerating ${bulkRegenProgress.done} of ${bulkRegenProgress.total}…`}
+                </Text>
+              </View>
+              <PrimaryButton
+                label={language === "he" ? "ביטול" : "Cancel"}
+                onPress={cancelRegenerateAllPdfs}
+                disabled={bulkRegenProgress.cancelling}
+                variant="ghost"
+              />
+            </>
+          ) : (
+            <PrimaryButton
+              label={
+                regenAllDates
+                  ? language === "he"
+                    ? "יצירת כל ה-PDF מחדש"
+                    : "Regenerate all PDFs"
+                  : language === "he"
+                    ? "יצירת PDF מחדש לטווח שנבחר"
+                    : "Regenerate PDFs in range"
+              }
+              onPress={confirmRegenerateAllPdfs}
+              disabled={bulkRegenBusy || regenFetchingRef.current}
+            />
+          )}
+        </SectionCard>
+      ) : null}
 
       <SectionCard label={language === "he" ? "מערכת" : "System"}>
         <ToggleRow
@@ -1416,6 +1621,8 @@ const styles = StyleSheet.create({
   clearLinkText: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
   sortRow: { flexDirection: "row", marginTop: theme.spacing.xs, marginBottom: theme.spacing.xs },
   sortRowRtl: { flexDirection: "row-reverse" },
+  bulkRegenProgressRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, paddingVertical: theme.spacing.sm },
+  bulkRegenProgressText: { fontSize: 14, fontWeight: "700", color: theme.colors.text },
   headerBlock: { marginTop: -theme.spacing.sm, gap: theme.spacing.xs, marginBottom: theme.spacing.xs },
   tabBarRow: { flexDirection: "row", alignItems: "flex-end" },
   tabBarFill: {},

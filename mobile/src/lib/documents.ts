@@ -270,20 +270,28 @@ export async function setDocumentPaymentMethod(
   return { needs_pdf: parsed.needs_pdf };
 }
 
-export async function cancelDocument(documentId: string, reason: string): Promise<{ needsPdfReissue: boolean }> {
+export async function cancelDocument(
+  documentId: string,
+  reason: string,
+  revertPayment: boolean = true
+): Promise<{ needsPdfReissue: boolean; paymentReverted: boolean }> {
   const { data, error } = await supabase.rpc("cancel_document", {
     p_document_id: documentId,
     p_reason: reason,
+    p_revert_payment: revertPayment,
   });
   if (error) throw error;
-  const parsed = parseRpc<{ needs_pdf_reissue?: boolean }>(data);
+  const parsed = parseRpc<{ needs_pdf_reissue?: boolean; payment_reverted?: boolean }>(data);
   if (!parsed.ok) throw new Error(parsed.error);
-  return { needsPdfReissue: parsed.needs_pdf_reissue === true };
+  return { needsPdfReissue: parsed.needs_pdf_reissue === true, paymentReverted: parsed.payment_reverted === true };
 }
 
 /** Testing-mode only: permanently deletes a receipt (row, audit events, PDF) — no copy kept. */
-export async function deleteDocumentFull(documentId: string): Promise<void> {
-  const { data, error } = await supabase.rpc("delete_document", { p_document_id: documentId });
+export async function deleteDocumentFull(documentId: string, deletePayment: boolean = false): Promise<void> {
+  const { data, error } = await supabase.rpc("delete_document", {
+    p_document_id: documentId,
+    p_delete_payment: deletePayment,
+  });
   if (error) throw error;
   const parsed = parseRpc<{ pdf_url?: string | null }>(data);
   if (!parsed.ok) throw new Error(parsed.error);
