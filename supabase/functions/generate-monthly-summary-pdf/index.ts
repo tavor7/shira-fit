@@ -91,7 +91,6 @@ async function renderMonthlySummaryPdf(
   periodStart: string,
   periodEnd: string,
   totals: SummaryTotals,
-  paymentBreakdown: Map<string, { count: number; gross: number }>,
   rows: DocRow[],
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
@@ -181,18 +180,16 @@ async function renderMonthlySummaryPdf(
   }
   y -= 8;
 
-  // Payment method breakdown
-  if (paymentBreakdown.size > 0) {
-    drawSectionTitle("פירוט לפי אמצעי תשלום");
-    for (const [method, agg] of paymentBreakdown) {
-      const label = PAYMENT_LABELS[method] ?? method ?? "—";
-      drawFullRow(`${label}:`, `${agg.count} x ${fmtMoney(agg.gross)}`);
-    }
-    y -= 8;
-  }
-
-  // Itemized ledger
-  drawSectionTitle(`פירוט קבלות: ${rows.length}`);
+  // Itemized ledger — always starts on a fresh page.
+  newPage();
+  const countLabel = "פירוט קבלות:";
+  ensureSpace(30);
+  drawMixedTextRight(page, countLabel, rightX, y, 16, hebrewFont, bodyFont);
+  const countLabelW = measureMixedWidth(countLabel, 16, hebrewFont, bodyFont);
+  drawMixedTextRight(page, String(rows.length), rightX - countLabelW - 8, y, 16, hebrewFont, bodyFont);
+  y -= 20;
+  page.drawLine({ start: { x: margin, y }, end: { x: rightX, y }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) });
+  y -= 16;
   if (rows.length === 0) {
     drawMixedTextRight(page, "לא נמצאו קבלות בטווח התאריכים שנבחר.", rightX, y, rowSize, hebrewFont, bodyFont);
     y -= rowStep;
@@ -330,6 +327,14 @@ Deno.serve(async (req) => {
   const activeRows = allRows.filter((r) => r.status === "ACTIVE");
   const cancelledCount = allRows.filter((r) => r.status === "CANCELLED").length;
 
+  // The RPC orders by paid_at asc, but many rows share the exact same paid_at (e.g. every
+  // athlete in the same session), leaving ties in whatever order Postgres happened to return —
+  // break ties by document_number so the printed ledger reads in a stable, ascending order.
+  activeRows.sort((a, b) => {
+    const t = new Date(a.paid_at).getTime() - new Date(b.paid_at).getTime();
+    return t !== 0 ? t : a.document_number.localeCompare(b.document_number);
+  });
+
   const totals: SummaryTotals = {
     documentCount: allRows.length,
     activeCount: activeRows.length,
@@ -339,18 +344,9 @@ Deno.serve(async (req) => {
     vatTotal: activeRows.reduce((s, r) => s + Number(r.vat_amount), 0),
   };
 
-  const paymentBreakdown = new Map<string, { count: number; gross: number }>();
-  for (const row of activeRows) {
-    const key = row.payment_method ?? "other";
-    const agg = paymentBreakdown.get(key) ?? { count: 0, gross: 0 };
-    agg.count += 1;
-    agg.gross += Number(row.gross_amount);
-    paymentBreakdown.set(key, agg);
-  }
-
   let pdfBytes: Uint8Array;
   try {
-    pdfBytes = await renderMonthlySummaryPdf(business, periodStart, periodEnd, totals, paymentBreakdown, activeRows);
+    pdfBytes = await renderMonthlySummaryPdf(business, periodStart, periodEnd, totals, activeRows);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("renderMonthlySummaryPdf failed:", msg);
