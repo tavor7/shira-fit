@@ -62,6 +62,8 @@ export type DocumentRow = {
   send_count: number;
   source_type: DocumentSourceType | null;
   source_id: string | null;
+  /** When the underlying payment actually happened (falls back to created_at for manual-source documents). */
+  paid_at: string;
 };
 
 export type DocumentReportRow = {

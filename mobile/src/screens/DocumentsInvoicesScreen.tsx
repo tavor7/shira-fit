@@ -27,6 +27,7 @@ import { useCountUp } from "../hooks/useCountUp";
 import { CollapsibleDateRangeCard } from "../components/CollapsibleDateRangeCard";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { PendingReceiptsPanel } from "../components/PendingReceiptsPanel";
+import { SortToggleButton } from "../components/SortToggleButton";
 import { GoLiveReadinessSection } from "../components/GoLiveReadinessSection";
 import { ReceiptRequirementsTestingSection } from "../components/ReceiptRequirementsTestingSection";
 import { EditCustomerEmailModal } from "../components/EditCustomerEmailModal";
@@ -65,6 +66,7 @@ import { DOCUMENT_PAYMENT_METHOD_KEYS, documentPaymentMethodLabel } from "../lib
 import { documentServiceTypeLabel } from "../lib/documentServiceTypes";
 import { buildCsv, downloadCsvWeb } from "../lib/csvExport";
 import { supabase } from "../lib/supabase";
+import { formatDateTimeForDisplay } from "../lib/dateFormat";
 
 type HubSection = "pending" | "documents" | "reports" | "settings";
 
@@ -175,6 +177,7 @@ export default function DocumentsInvoicesScreen() {
   const [dateStart, setDateStart] = useState(defaultRange.start);
   const [dateEnd, setDateEnd] = useState(defaultRange.end);
   const [payeeFilter, setPayeeFilter] = useState<PayeeFilter>({ type: "all" });
+  const [docsSortOrder, setDocsSortOrder] = useState<"asc" | "desc">("desc");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [payeePickerOpen, setPayeePickerOpen] = useState(false);
   const [pdfBusyId, setPdfBusyId] = useState<string | null>(null);
@@ -192,6 +195,14 @@ export default function DocumentsInvoicesScreen() {
     () => documents.filter((d) => matchesPayeeFilter(d, payeeFilter)),
     [documents, payeeFilter]
   );
+
+  const sortedDocuments = useMemo(() => {
+    return [...filteredDocuments].sort((a, b) => {
+      const aTime = new Date(a.paid_at).getTime();
+      const bTime = new Date(b.paid_at).getTime();
+      return docsSortOrder === "asc" ? aTime - bTime : bTime - aTime;
+    });
+  }, [filteredDocuments, docsSortOrder]);
 
   const reportTotals = useMemo(() => {
     const active = reportRows.filter((r) => r.status === "ACTIVE");
@@ -713,7 +724,7 @@ export default function DocumentsInvoicesScreen() {
         </View>
 
         <Text style={[styles.docMeta, isRTL && styles.rtl]}>
-          {item.created_at.slice(0, 10)}
+          {formatDateTimeForDisplay(item.paid_at, lang)}
           {" · "}
           {documentServiceTypeLabel(item.service_type, lang)}
           {item.payment_method ? ` · ${documentPaymentMethodLabel(item.payment_method, lang)}` : ""}
@@ -1140,6 +1151,14 @@ export default function DocumentsInvoicesScreen() {
           </View>
         ) : null}
       </View>
+      <View style={[styles.sortRow, isRTL && styles.sortRowRtl]}>
+        <SortToggleButton
+          value={docsSortOrder}
+          onChange={setDocsSortOrder}
+          ascLabel={language === "he" ? "מהישן לחדש" : "Oldest first"}
+          descLabel={language === "he" ? "מהחדש לישן" : "Newest first"}
+        />
+      </View>
     </>
   );
 
@@ -1286,7 +1305,7 @@ export default function DocumentsInvoicesScreen() {
         <FadeSlideIn key={section} style={styles.tabPanel}>
           <FlatList
             style={styles.list}
-            data={filteredDocuments}
+            data={sortedDocuments}
             keyExtractor={(x) => x.id}
             renderItem={renderDocumentItem}
             ListHeaderComponent={documentsListHeader}
@@ -1395,6 +1414,8 @@ const styles = StyleSheet.create({
   pickerPlaceholder: { fontSize: 15, fontWeight: "600", color: theme.colors.textSoft },
   clearLink: { alignSelf: "flex-start", marginTop: theme.spacing.sm, paddingVertical: 4 },
   clearLinkText: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
+  sortRow: { flexDirection: "row", marginTop: theme.spacing.xs, marginBottom: theme.spacing.xs },
+  sortRowRtl: { flexDirection: "row-reverse" },
   headerBlock: { marginTop: -theme.spacing.sm, gap: theme.spacing.xs, marginBottom: theme.spacing.xs },
   tabBarRow: { flexDirection: "row", alignItems: "flex-end" },
   tabBarFill: {},
