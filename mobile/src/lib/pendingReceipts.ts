@@ -114,7 +114,10 @@ export async function listPaymentsWithoutReceipt(opts?: {
   };
 }
 
-export async function createDocumentsFromPayments(rowIds: string[]): Promise<CreateDocumentsFromPaymentsResult> {
+// Matches the server-side cap in create_documents_from_payments.
+const CREATE_DOCUMENTS_BATCH_SIZE = 500;
+
+async function createDocumentsFromPaymentsBatch(rowIds: string[]): Promise<CreateDocumentsFromPaymentsResult> {
   const { data, error } = await supabase.rpc("create_documents_from_payments", {
     p_row_ids: rowIds,
   });
@@ -159,4 +162,19 @@ export async function createDocumentsFromPayments(rowIds: string[]): Promise<Cre
     created,
     failed,
   };
+}
+
+export async function createDocumentsFromPayments(rowIds: string[]): Promise<CreateDocumentsFromPaymentsResult> {
+  // The RPC rejects requests above its row cap outright, so a large selection
+  // (e.g. "select all" on a wide date range) is sent in batches instead.
+  const merged: CreateDocumentsFromPaymentsResult = { created_count: 0, failed_count: 0, created: [], failed: [] };
+  for (let i = 0; i < rowIds.length; i += CREATE_DOCUMENTS_BATCH_SIZE) {
+    const batch = rowIds.slice(i, i + CREATE_DOCUMENTS_BATCH_SIZE);
+    const result = await createDocumentsFromPaymentsBatch(batch);
+    merged.created_count += result.created_count;
+    merged.failed_count += result.failed_count;
+    merged.created.push(...result.created);
+    merged.failed.push(...result.failed);
+  }
+  return merged;
 }
