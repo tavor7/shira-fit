@@ -309,32 +309,17 @@ Deno.serve(async (req) => {
   const business = settings as BusinessDetails;
 
   // documents.created_at is when the row was bulk-imported, not when payment happened — every
-  // historical row shares the same created_at, so filtering by it here would silently return
-  // the wrong set of receipts for the period. Fetch all rows, resolve the real payment date via
-  // the same function list_documents/document_report use, then filter/sort by that instead.
-  const { data: rawDocs, error: docsErr } = await admin
-    .from("documents")
-    .select("document_number, created_at, source_type, source_id, customer_name, gross_amount, net_amount, vat_amount, payment_method, status");
+  // historical row shares the same created_at, so filtering by it would silently return the
+  // wrong set of receipts for the period. This RPC filters/sorts by the real payment date
+  // instead, the same one list_documents/document_report use (service-role only; the edge
+  // function has already authenticated and role-checked the caller by this point).
+  const { data: docs, error: docsErr } = await admin.rpc("monthly_summary_report_rows", {
+    p_date_start: periodStart,
+    p_date_end: periodEnd,
+  });
   if (docsErr) return json(500, { ok: false, error: "documents_load_failed" });
 
-  const periodStartMs = new Date(periodStart).getTime();
-  const periodEndMs = new Date(periodEnd).getTime();
-  const withPaidAt = await Promise.all(
-    ((rawDocs ?? []) as (DocRow & { source_type: string | null; source_id: string | null })[]).map(async (r) => {
-      const { data: computed } = await admin.rpc("_document_payment_paid_at", {
-        p_source_type: r.source_type,
-        p_source_id: r.source_id,
-      });
-      return { ...r, paid_at: (computed as string | null) ?? r.created_at };
-    })
-  );
-
-  const allRows = withPaidAt
-    .filter((r) => {
-      const t = new Date(r.paid_at).getTime();
-      return t >= periodStartMs && t <= periodEndMs;
-    })
-    .sort((a, b) => new Date(a.paid_at).getTime() - new Date(b.paid_at).getTime()) as DocRow[];
+  const allRows = (docs ?? []) as DocRow[];
   const activeRows = allRows.filter((r) => r.status === "ACTIVE");
   const cancelledCount = allRows.filter((r) => r.status === "CANCELLED").length;
 
