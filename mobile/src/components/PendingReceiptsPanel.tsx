@@ -14,6 +14,7 @@ import { useToast } from "../context/ToastContext";
 import { CreateReceiptWithPaymentModal } from "./CreateReceiptWithPaymentModal";
 import { AppSwitch } from "./AppSwitch";
 import { CollapsibleDateRangeCard } from "./CollapsibleDateRangeCard";
+import { AppSearchField } from "./AppSearchField";
 import { SortToggleButton } from "./SortToggleButton";
 import { PrimaryButton } from "./PrimaryButton";
 import { formatISODateLong } from "../lib/dateFormat";
@@ -67,6 +68,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
   const [emailCustomers, setEmailCustomers] = useState(false);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [markingRowId, setMarkingRowId] = useState<string | null>(null);
+  const [athleteQuery, setAthleteQuery] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -103,15 +105,21 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
     void load();
   }, [enabled, load]);
 
+  const filteredRows = useMemo(() => {
+    const q = athleteQuery.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => r.payee_name.toLowerCase().includes(q));
+  }, [rows, athleteQuery]);
+
   const sortedRows = useMemo(() => {
-    return [...rows].sort((a, b) => {
+    return [...filteredRows].sort((a, b) => {
       const aTime = new Date(a.paid_at).getTime();
       const bTime = new Date(b.paid_at).getTime();
       return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
     });
-  }, [rows, sortOrder]);
+  }, [filteredRows, sortOrder]);
 
-  const selectableRows = useMemo(() => rows.filter((r) => !r.needs_payment_method), [rows]);
+  const selectableRows = useMemo(() => filteredRows.filter((r) => !r.needs_payment_method), [filteredRows]);
   const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selected.has(r.row_id));
   const selectedCount = selected.size;
   const selectedTotal = useMemo(
@@ -304,6 +312,14 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
         }}
         label={language === "he" ? "טווח תאריכים" : "Date range"}
       />
+      <AppSearchField
+        value={athleteQuery}
+        onChangeText={setAthleteQuery}
+        onSearch={() => {}}
+        placeholder={language === "he" ? "סינון לפי שם מתאמן…" : "Filter by athlete name…"}
+        isRTL={isRTL}
+        style={styles.athleteSearch}
+      />
       <PrimaryButton
         label={language === "he" ? "קבלה + תשלום חדש" : "New receipt & payment"}
         onPress={() => setCreatePaymentOpen(true)}
@@ -389,12 +405,22 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
           ) : (
             <View style={styles.emptyBox}>
               <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>
-                {language === "he" ? "אין תשלומים ממתינים לקבלה" : "No payments pending receipt"}
+                {athleteQuery.trim()
+                  ? language === "he"
+                    ? "לא נמצאו תוצאות"
+                    : "No matches"
+                  : language === "he"
+                    ? "אין תשלומים ממתינים לקבלה"
+                    : "No payments pending receipt"}
               </Text>
               <Text style={[styles.emptyHint, isRTL && styles.rtl]}>
-                {language === "he"
-                  ? "כל התשלומים בטווח כבר קיבלו קבלה."
-                  : "All payments in this range already have receipts."}
+                {athleteQuery.trim()
+                  ? language === "he"
+                    ? "לא נמצאו תשלומים ממתינים עבור מתאמן זה בטווח שנבחר."
+                    : "No pending payments for this athlete in the selected range."
+                  : language === "he"
+                    ? "כל התשלומים בטווח כבר קיבלו קבלה."
+                    : "All payments in this range already have receipts."}
               </Text>
             </View>
           )
@@ -456,6 +482,7 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: 120, gap: theme.spacing.sm },
   loader: { marginTop: 32 },
+  athleteSearch: { marginTop: theme.spacing.sm },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
