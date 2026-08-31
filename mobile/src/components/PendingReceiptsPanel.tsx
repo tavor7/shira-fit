@@ -14,7 +14,7 @@ import { useToast } from "../context/ToastContext";
 import { CreateReceiptWithPaymentModal } from "./CreateReceiptWithPaymentModal";
 import { AppSwitch } from "./AppSwitch";
 import { CollapsibleDateRangeCard } from "./CollapsibleDateRangeCard";
-import { AppSearchField } from "./AppSearchField";
+import { PayeePickerModal, type PayeePickerRow } from "./PayeePickerModal";
 import { SortToggleButton } from "./SortToggleButton";
 import { PrimaryButton } from "./PrimaryButton";
 import { formatISODateLong } from "../lib/dateFormat";
@@ -68,7 +68,11 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
   const [emailCustomers, setEmailCustomers] = useState(false);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [markingRowId, setMarkingRowId] = useState<string | null>(null);
-  const [athleteQuery, setAthleteQuery] = useState("");
+  const [payeeFilter, setPayeeFilter] = useState<
+    { type: "all" } | { type: "app" | "manual"; id: string; label: string }
+  >({ type: "all" });
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [payeePickerOpen, setPayeePickerOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -106,10 +110,11 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
   }, [enabled, load]);
 
   const filteredRows = useMemo(() => {
-    const q = athleteQuery.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => r.payee_name.toLowerCase().includes(q));
-  }, [rows, athleteQuery]);
+    if (payeeFilter.type === "all") return rows;
+    return rows.filter(
+      (r) => r.payee_id === payeeFilter.id && r.payee_is_manual === (payeeFilter.type === "manual")
+    );
+  }, [rows, payeeFilter]);
 
   const sortedRows = useMemo(() => {
     return [...filteredRows].sort((a, b) => {
@@ -300,26 +305,66 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
     );
   }
 
+  const isDefaultRange = dateStart === defaultRange.start && dateEnd === defaultRange.end;
+  const activeFilterCount = (payeeFilter.type !== "all" ? 1 : 0) + (isDefaultRange ? 0 : 1);
+  const filtersSummary = [
+    payeeFilter.type === "all" ? null : payeeFilter.label,
+    isDefaultRange ? null : t("accountPayments.dateRange"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   const listHeader = (
     <>
       {header}
-      <CollapsibleDateRangeCard
-        start={dateStart}
-        end={dateEnd}
-        onChange={({ start, end }) => {
-          setDateStart(start);
-          setDateEnd(end);
-        }}
-        label={language === "he" ? "טווח תאריכים" : "Date range"}
-      />
-      <AppSearchField
-        value={athleteQuery}
-        onChangeText={setAthleteQuery}
-        onSearch={() => {}}
-        placeholder={language === "he" ? "סינון לפי שם מתאמן…" : "Filter by athlete name…"}
-        isRTL={isRTL}
-        style={styles.athleteSearch}
-      />
+      <View style={styles.filterCard}>
+        <Pressable
+          onPress={() => setFiltersOpen((v) => !v)}
+          style={({ pressed }) => [styles.filterToggle, pressed && { opacity: 0.9 }]}
+        >
+          <View style={styles.filterToggleCopy}>
+            <Text style={[styles.filterToggleLabel, isRTL && styles.rtl]}>{t("accountPayments.filters")}</Text>
+            <Text style={[styles.filterSummary, isRTL && styles.rtl]} numberOfLines={1}>
+              {activeFilterCount === 0 ? t("payeeFilter.noneActive") : filtersSummary}
+            </Text>
+          </View>
+          <Text style={styles.chevron}>{filtersOpen ? "︿" : "﹀"}</Text>
+        </Pressable>
+        {filtersOpen ? (
+          <View style={styles.filterBody}>
+            <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("accountPayments.payeeFilter")}</Text>
+            <Pressable
+              style={({ pressed }) => [styles.pickerTouch, pressed && { opacity: 0.92 }]}
+              onPress={() => setPayeePickerOpen(true)}
+            >
+              <Text
+                style={payeeFilter.type === "all" ? styles.pickerPlaceholder : styles.pickerText}
+                numberOfLines={1}
+              >
+                {payeeFilter.type === "all" ? t("accountPayments.allPayees") : payeeFilter.label}
+              </Text>
+            </Pressable>
+            {payeeFilter.type !== "all" ? (
+              <Pressable style={({ pressed }) => [styles.clearLink, pressed && { opacity: 0.85 }]} onPress={() => setPayeeFilter({ type: "all" })}>
+                <Text style={styles.clearLinkText}>{t("common.clearSelection")}</Text>
+              </Pressable>
+            ) : null}
+
+            <Text style={[styles.sectionLabel, styles.sectionSpaced, isRTL && styles.rtl]}>
+              {language === "he" ? "טווח תאריכים" : "Date range"}
+            </Text>
+            <CollapsibleDateRangeCard
+              start={dateStart}
+              end={dateEnd}
+              onChange={({ start, end }) => {
+                setDateStart(start);
+                setDateEnd(end);
+              }}
+              label={language === "he" ? "טווח תאריכים" : "Date range"}
+            />
+          </View>
+        ) : null}
+      </View>
       <PrimaryButton
         label={language === "he" ? "קבלה + תשלום חדש" : "New receipt & payment"}
         onPress={() => setCreatePaymentOpen(true)}
@@ -405,7 +450,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
           ) : (
             <View style={styles.emptyBox}>
               <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>
-                {athleteQuery.trim()
+                {payeeFilter.type !== "all"
                   ? language === "he"
                     ? "לא נמצאו תוצאות"
                     : "No matches"
@@ -414,7 +459,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
                     : "No payments pending receipt"}
               </Text>
               <Text style={[styles.emptyHint, isRTL && styles.rtl]}>
-                {athleteQuery.trim()
+                {payeeFilter.type !== "all"
                   ? language === "he"
                     ? "לא נמצאו תשלומים ממתינים עבור מתאמן זה בטווח שנבחר."
                     : "No pending payments for this athlete in the selected range."
@@ -473,6 +518,12 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
           await load();
         }}
       />
+
+      <PayeePickerModal
+        visible={payeePickerOpen}
+        onClose={() => setPayeePickerOpen(false)}
+        onSelect={(row: PayeePickerRow) => setPayeeFilter({ type: row.kind, id: row.id, label: row.full_name })}
+      />
     </View>
   );
 }
@@ -482,7 +533,55 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { paddingHorizontal: theme.spacing.md, paddingBottom: 120, gap: theme.spacing.sm },
   loader: { marginTop: 32 },
-  athleteSearch: { marginTop: theme.spacing.sm },
+  filterCard: {
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  filterToggle: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: theme.spacing.sm },
+  filterToggleCopy: { flex: 1 },
+  filterToggleLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: theme.colors.textSoft,
+    textTransform: "uppercase",
+    letterSpacing: 0.35,
+  },
+  filterSummary: { fontSize: 13, fontWeight: "700", color: theme.colors.text, marginTop: 2 },
+  chevron: { fontSize: 14, fontWeight: "800", color: theme.colors.textSoft },
+  filterBody: {
+    marginTop: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: theme.colors.textSoft,
+    textTransform: "uppercase",
+    letterSpacing: 0.35,
+    marginBottom: theme.spacing.sm,
+  },
+  sectionSpaced: { marginTop: theme.spacing.md },
+  pickerTouch: {
+    paddingVertical: 12,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    minHeight: 48,
+    justifyContent: "center",
+  },
+  pickerText: { fontSize: 15, fontWeight: "700", color: theme.colors.text },
+  pickerPlaceholder: { fontSize: 15, fontWeight: "600", color: theme.colors.textSoft },
+  clearLink: { alignSelf: "flex-start", marginTop: theme.spacing.sm, paddingVertical: 4 },
+  clearLinkText: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,

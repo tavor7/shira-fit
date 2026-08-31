@@ -57,17 +57,17 @@ function parseRowKind(raw: unknown): PendingReceiptRowKind {
   return "account";
 }
 
-export async function listPaymentsWithoutReceipt(opts?: {
-  date_start?: string | null;
-  date_end?: string | null;
-  limit?: number;
-  offset?: number;
-}): Promise<{ payments: PendingReceiptPayment[]; total_count: number; total_amount: number }> {
+async function fetchPage(
+  date_start: string | null,
+  date_end: string | null,
+  limit: number,
+  offset: number
+): Promise<{ payments: PendingReceiptPayment[]; total_count: number; total_amount: number }> {
   const { data, error } = await supabase.rpc("staff_list_payments_without_receipt", {
-    p_date_start: opts?.date_start ?? null,
-    p_date_end: opts?.date_end ?? null,
-    p_limit: opts?.limit ?? 500,
-    p_offset: opts?.offset ?? 0,
+    p_date_start: date_start,
+    p_date_end: date_end,
+    p_limit: limit,
+    p_offset: offset,
   });
   if (error) throw new Error(error.message);
   const parsed = parseRpc<{
@@ -112,6 +112,38 @@ export async function listPaymentsWithoutReceipt(opts?: {
     total_count: num(parsed.total_count),
     total_amount: num(parsed.total_amount),
   };
+}
+
+/** RPC caps a single page at 2000 rows — if a date range holds more pending payments than
+ * that, keep paging so the list always matches total_count instead of silently dropping the
+ * oldest rows (which used to make the earliest dates in a wide range appear to have nothing
+ * pending, while narrowing the range revealed they did). */
+const PAGE_SIZE = 2000;
+const MAX_PAGES = 20;
+
+export async function listPaymentsWithoutReceipt(opts?: {
+  date_start?: string | null;
+  date_end?: string | null;
+  limit?: number;
+  offset?: number;
+}): Promise<{ payments: PendingReceiptPayment[]; total_count: number; total_amount: number }> {
+  if (opts?.limit != null || opts?.offset != null) {
+    return fetchPage(opts?.date_start ?? null, opts?.date_end ?? null, opts.limit ?? 500, opts.offset ?? 0);
+  }
+
+  const date_start = opts?.date_start ?? null;
+  const date_end = opts?.date_end ?? null;
+  const first = await fetchPage(date_start, date_end, PAGE_SIZE, 0);
+  const payments = [...first.payments];
+  let page = 1;
+  while (payments.length < first.total_count && page < MAX_PAGES) {
+    const next = await fetchPage(date_start, date_end, PAGE_SIZE, payments.length);
+    if (next.payments.length === 0) break;
+    payments.push(...next.payments);
+    page += 1;
+  }
+
+  return { payments, total_count: first.total_count, total_amount: first.total_amount };
 }
 
 export async function createDocumentsFromPayments(rowIds: string[]): Promise<CreateDocumentsFromPaymentsResult> {
