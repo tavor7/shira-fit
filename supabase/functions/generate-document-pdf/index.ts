@@ -160,7 +160,10 @@ type DocRow = {
   status: string;
   pdf_url: string | null;
   created_at: string;
+  /** Raw stored column — always null in practice; the real value is computed at read time (see `_document_payment_paid_at`) and assigned onto this field below before rendering. */
   paid_at: string | null;
+  source_type: string | null;
+  source_id: string | null;
   customer_name: string;
   customer_email: string | null;
   customer_phone: string | null;
@@ -513,6 +516,20 @@ Deno.serve(async (req) => {
   }
 
   if (row.pdf_url && !allowOverwrite) return json(409, { ok: false, error: "pdf_already_exists" });
+
+  // documents.paid_at is a vestigial stored column that's always null — the real payment date
+  // is computed from the linked payment record (same source of truth as list_documents,
+  // renumbering, and the reports UI). Resolve it here so the printed "תאריך תשלום" is correct.
+  try {
+    const { data: computedPaidAt } = await admin.rpc("_document_payment_paid_at", {
+      p_source_type: row.source_type,
+      p_source_id: row.source_id,
+    });
+    row.paid_at = (computedPaidAt as string | null) ?? row.created_at;
+  } catch (e) {
+    console.warn("computed paid_at fallback to created_at:", e instanceof Error ? e.message : e);
+    row.paid_at = row.created_at;
+  }
 
   let pdfBytes: Uint8Array;
   try {
