@@ -69,6 +69,7 @@ export type DocumentRow = {
 export type DocumentReportRow = {
   document_number: string;
   created_at: string;
+  paid_at: string;
   customer_name: string;
   gross_amount: number;
   net_amount: number;

@@ -801,7 +801,7 @@ export default function DocumentsInvoicesScreen() {
     const headers = ["document_number", "date", "customer", "gross", "net", "vat", "vat_rate", "payment_method", "service_type", "status"];
     const rows = reportRows.map((r) => [
       r.document_number,
-      r.created_at.slice(0, 10),
+      r.paid_at.slice(0, 10),
       r.customer_name,
       String(r.gross_amount),
       String(r.net_amount),
