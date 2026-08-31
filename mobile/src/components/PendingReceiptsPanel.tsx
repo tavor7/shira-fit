@@ -70,15 +70,31 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
 
   const load = useCallback(async () => {
     try {
-      const result = await listPaymentsWithoutReceipt({
-        date_start: dateStart,
-        date_end: dateEnd,
-      });
-      setRows(result.payments);
-      setTotalCount(result.total_count);
-      setTotalAmount(result.total_amount);
+      const pageSize = 500;
+      let offset = 0;
+      let totalCount = 0;
+      let totalAmount = 0;
+      const payments: PendingReceiptPayment[] = [];
+      // The RPC caps each page at a fixed size, so a wide date range can span more
+      // rows than one page holds — keep paging until every matching row is fetched.
+      for (;;) {
+        const page = await listPaymentsWithoutReceipt({
+          date_start: dateStart,
+          date_end: dateEnd,
+          limit: pageSize,
+          offset,
+        });
+        payments.push(...page.payments);
+        totalCount = page.total_count;
+        totalAmount = page.total_amount;
+        if (page.payments.length < pageSize || payments.length >= totalCount) break;
+        offset += pageSize;
+      }
+      setRows(payments);
+      setTotalCount(totalCount);
+      setTotalAmount(totalAmount);
       setSelected((prev) => {
-        const valid = new Set(result.payments.map((p) => p.row_id));
+        const valid = new Set(payments.map((p) => p.row_id));
         return new Set([...prev].filter((id) => valid.has(id)));
       });
     } catch (e) {
