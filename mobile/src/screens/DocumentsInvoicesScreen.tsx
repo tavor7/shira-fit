@@ -857,7 +857,9 @@ export default function DocumentsInvoicesScreen() {
         </View>
 
         <Text style={[styles.docMeta, isRTL && styles.rtl]}>
-          {formatDateTimeForDisplay(item.paid_at, lang)}
+          {item.source_type === "account_payment"
+            ? formatISODateFull(item.paid_at.slice(0, 10), lang)
+            : formatDateTimeForDisplay(item.paid_at, lang)}
           {" · "}
           {documentServiceTypeLabel(item.service_type, lang)}
           {item.payment_method ? ` · ${documentPaymentMethodLabel(item.payment_method, lang)}` : ""}
