@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { View, Text, SectionList, Pressable, Platform } from "react-native";
+import { View, Text, SectionList, Pressable, Platform, Linking } from "react-native";
 import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-router";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
@@ -22,6 +22,7 @@ import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useAuth } from "../context/AuthContext";
 import { fetchHiddenRegistrationKeys, hiddenRegistrationKey } from "../lib/superUserHidden";
+import { getDocumentPdfSignedUrl, logDocumentEvent } from "../lib/documents";
 import {
   coerceSessionPaymentMethodKey,
   normalizePaymentMethodKey,
@@ -81,6 +82,9 @@ export default function ParticipantHistoryScreen({
   const { profile } = useAuth();
   const isSuperUser = profile?.is_super_user === true;
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
+  const [receiptBySourceId, setReceiptBySourceId] = useState<
+    Record<string, { id: string; document_number: string; pdf_url: string | null; signature_hash: string | null }>
+  >({});
   const pathname = usePathname();
   const router = useRouter();
   const isCoachHistory = pathname?.startsWith("/coach/participant-history") ?? false;
@@ -168,6 +172,21 @@ export default function ParticipantHistoryScreen({
 
   function showError(msg: string) {
     showToast({ message: t("common.error"), detail: msg, variant: "error" });
+  }
+
+  async function openReceipt(doc: { id: string; pdf_url: string | null; signature_hash: string | null }) {
+    if (!doc.pdf_url) {
+      showToast({ message: language === "he" ? "PDF לא מוכן" : "PDF not ready", variant: "error" });
+      return;
+    }
+    try {
+      const url = await getDocumentPdfSignedUrl(doc.pdf_url, doc.signature_hash ?? doc.id);
+      await logDocumentEvent(doc.id, "document_viewed");
+      if (Platform.OS === "web") window.open(url, "_blank", "noopener,noreferrer");
+      else await Linking.openURL(url);
+    } catch (e) {
+      showError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   function confirmDeleteAccountPayment(paymentId: string) {
@@ -816,6 +835,32 @@ export default function ParticipantHistoryScreen({
         created_by_name: p.created_by ? nameByStaff[p.created_by] ?? null : null,
       }))
     );
+    const receiptSourceIds = [
+      ...new Set([...next.map((r) => r.registration_id), ...payRows.map((p) => p.id)]),
+    ];
+    if (receiptSourceIds.length > 0) {
+      const { data: docRows } = await supabase
+        .from("documents")
+        .select("id, source_id, document_number, pdf_url, signature_hash")
+        .in("source_id", receiptSourceIds)
+        .eq("status", "ACTIVE");
+      setReceiptBySourceId(
+        Object.fromEntries(
+          ((docRows ?? []) as {
+            id: string;
+            source_id: string;
+            document_number: string;
+            pdf_url: string | null;
+            signature_hash: string | null;
+          }[]).map((d) => [
+            d.source_id,
+            { id: d.id, document_number: d.document_number, pdf_url: d.pdf_url, signature_hash: d.signature_hash },
+          ])
+        )
+      );
+    } else {
+      setReceiptBySourceId({});
+    }
     const stdTiers: PricingRateTierRow[] = [];
     const kickTiers: PricingRateTierRow[] = [];
     for (const r of (priceRes.data as {
@@ -1208,6 +1253,11 @@ export default function ParticipantHistoryScreen({
                   setAddPayOpen(true);
                 }}
                 onDelete={confirmDeleteAccountPayment}
+                receiptDocumentNumber={receiptBySourceId[item.pay.id]?.document_number ?? null}
+                onViewReceipt={() => {
+                  const doc = receiptBySourceId[item.pay.id];
+                  if (doc) void openReceipt(doc);
+                }}
               />
             </FadeSlideIn>
           ) : (
@@ -1223,6 +1273,11 @@ export default function ParticipantHistoryScreen({
               }
               hideToggleBusy={hideToggleBusyKey === hiddenRegistrationKey(item.reg.session_id, item.reg.athlete_user_id)}
               onToggleHideAthlete={() => confirmToggleHideAthlete(item.reg)}
+              receiptDocumentNumber={receiptBySourceId[item.reg.registration_id]?.document_number ?? null}
+              onViewReceipt={() => {
+                const doc = receiptBySourceId[item.reg.registration_id];
+                if (doc) void openReceipt(doc);
+              }}
               isRTL={isRTL}
               rtlRowFlip={rtlRowFlip}
               language={language}

@@ -23,6 +23,9 @@ type Props = {
   canToggleHide?: boolean;
   hideToggleBusy?: boolean;
   onToggleHideAthlete?: () => void;
+  /** Set when this session payment has an active receipt with a ready PDF; the document number to show on the badge. */
+  receiptDocumentNumber?: string | null;
+  onViewReceipt?: () => void;
   isRTL: boolean;
   rtlRowFlip: boolean;
   language: LanguageCode;
@@ -57,6 +60,8 @@ export function SessionHistoryRow({
   canToggleHide,
   hideToggleBusy,
   onToggleHideAthlete,
+  receiptDocumentNumber,
+  onViewReceipt,
   isRTL,
   rtlRowFlip,
   language,
@@ -283,10 +288,23 @@ export function SessionHistoryRow({
           </View>
         )}
         {showPaymentBlock && hasPaymentMethod ? (
-          <View style={styles.sessionFootnoteRow}>
+          <View style={[styles.sessionFootnoteRow, styles.receiptSublineRow, rtlRowFlip && styles.receiptSublineRowRtl]}>
             <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]} numberOfLines={2}>
               {[paymentMethodHistoryLabel(reg.payment_method, language), reporterLine].filter(Boolean).join(" · ")}
             </Text>
+            {receiptDocumentNumber ? (
+              <Pressable
+                onPress={onViewReceipt}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel={language === "he" ? "צפייה בקבלה" : "View receipt"}
+                style={({ pressed }) => [styles.receiptBadge, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={styles.receiptBadgeTxt} numberOfLines={1}>
+                  {language === "he" ? `קבלה ${receiptDocumentNumber}` : `Receipt ${receiptDocumentNumber}`}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
     </>

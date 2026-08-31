@@ -206,6 +206,17 @@ export const participantHistoryStyles = StyleSheet.create({
   cardDatePrimary: { fontSize: 15, fontWeight: "800", color: theme.colors.text, lineHeight: 21 },
   cardDateMeta: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 20 },
   sessionSubline: { fontSize: 13, color: theme.colors.textMuted, lineHeight: 18 },
+  receiptSublineRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
+  receiptSublineRowRtl: { flexDirection: "row-reverse" },
+  receiptBadge: {
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.successBg,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.35)",
+  },
+  receiptBadgeTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.success },
   payPill: {
     flexDirection: "row",
     alignItems: "center",

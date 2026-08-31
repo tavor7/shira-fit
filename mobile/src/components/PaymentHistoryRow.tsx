@@ -19,6 +19,9 @@ type Props = {
   deletingPaymentId: string | null;
   onEdit: (pay: AthleteAccountPayment) => void;
   onDelete: (paymentId: string) => void;
+  /** Set when this payment has an active receipt with a ready PDF; the document number to show on the badge. */
+  receiptDocumentNumber?: string | null;
+  onViewReceipt?: () => void;
 };
 
 export function PaymentHistoryRow({
@@ -31,6 +34,8 @@ export function PaymentHistoryRow({
   deletingPaymentId,
   onEdit,
   onDelete,
+  receiptDocumentNumber,
+  onViewReceipt,
 }: Props) {
   const p = pay;
   const amt = parseMoney(p.amount_ils);
@@ -61,9 +66,24 @@ export function PaymentHistoryRow({
             <Text style={styles.sessionAmount}>{amtTxt}</Text>
           </View>
         )}
-        <Text style={[styles.sessionSubline, isRTL && styles.rtlText]} numberOfLines={1}>
-          {t("billing.accountPayment")} · {paymentMethodHistoryLabel(p.payment_method, language)}
-        </Text>
+        <View style={[styles.receiptSublineRow, rtlRowFlip && styles.receiptSublineRowRtl]}>
+          <Text style={[styles.sessionSubline, isRTL && styles.rtlText]} numberOfLines={1}>
+            {t("billing.accountPayment")} · {paymentMethodHistoryLabel(p.payment_method, language)}
+          </Text>
+          {receiptDocumentNumber ? (
+            <Pressable
+              onPress={onViewReceipt}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={language === "he" ? "צפייה בקבלה" : "View receipt"}
+              style={({ pressed }) => [styles.receiptBadge, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={styles.receiptBadgeTxt} numberOfLines={1}>
+                {language === "he" ? `קבלה ${receiptDocumentNumber}` : `Receipt ${receiptDocumentNumber}`}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
         {familyContext && assignedName ? (
           <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]} numberOfLines={1}>
             {t("families.assignedTo").replace("{name}", assignedName)}
