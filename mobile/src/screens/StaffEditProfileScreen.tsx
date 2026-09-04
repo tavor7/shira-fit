@@ -174,24 +174,29 @@ export default function StaffEditProfileScreen() {
       onConfirm: () => {
         void (async () => {
           setTogglingDisabled(true);
-          const { data, error } = await supabase.rpc("staff_set_account_disabled", {
-            p_user_id: userId,
-            p_disabled: disabling,
-          });
-          setTogglingDisabled(false);
-          if (error) {
-            showToast({ message: t("common.error"), detail: error.message, variant: "error" });
-            return;
+          try {
+            const { data, error } = await supabase.rpc("staff_set_account_disabled", {
+              p_user_id: userId,
+              p_disabled: disabling,
+            });
+            if (error) {
+              showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+              return;
+            }
+            if (!data?.ok) {
+              showToast({ message: t("common.failed"), detail: String(data?.error ?? ""), variant: "error" });
+              return;
+            }
+            setDisabledAt(disabling ? new Date().toISOString() : null);
+            showToast({
+              message: disabling ? t("profile.accountDisabledToast") : t("profile.accountEnabledToast"),
+              variant: "success",
+            });
+          } catch (err) {
+            showToast({ message: t("common.error"), detail: err instanceof Error ? err.message : String(err), variant: "error" });
+          } finally {
+            setTogglingDisabled(false);
           }
-          if (!data?.ok) {
-            showToast({ message: t("common.failed"), detail: String(data?.error ?? ""), variant: "error" });
-            return;
-          }
-          setDisabledAt(disabling ? new Date().toISOString() : null);
-          showToast({
-            message: disabling ? t("profile.accountDisabledToast") : t("profile.accountEnabledToast"),
-            variant: "success",
-          });
         })();
       },
     });
@@ -212,21 +217,26 @@ export default function StaffEditProfileScreen() {
       onConfirm: () => {
         void (async () => {
           setSettingTempPassword(true);
-          const { data, error } = await supabase.functions.invoke("staff-set-temp-password", {
-            body: { user_id: uid },
-          });
-          setSettingTempPassword(false);
-          if (error) {
-            showToast({ message: t("common.error"), detail: error.message, variant: "error" });
-            return;
+          try {
+            const { data, error } = await supabase.functions.invoke("staff-set-temp-password", {
+              body: { user_id: uid },
+            });
+            if (error) {
+              showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+              return;
+            }
+            if (!data?.ok) {
+              showToast({ message: t("common.failed"), detail: String(data?.error ?? ""), variant: "error" });
+              return;
+            }
+            setTempPasswordResult(String(data.password ?? ""));
+            setMustChangePassword(true);
+            showToast({ message: t("profile.tempPasswordGenerated"), variant: "success" });
+          } catch (err) {
+            showToast({ message: t("common.error"), detail: err instanceof Error ? err.message : String(err), variant: "error" });
+          } finally {
+            setSettingTempPassword(false);
           }
-          if (!data?.ok) {
-            showToast({ message: t("common.failed"), detail: String(data?.error ?? ""), variant: "error" });
-            return;
-          }
-          setTempPasswordResult(String(data.password ?? ""));
-          setMustChangePassword(true);
-          showToast({ message: t("profile.tempPasswordGenerated"), variant: "success" });
         })();
       },
     });
@@ -238,22 +248,27 @@ export default function StaffEditProfileScreen() {
     if (!uid) return;
     if (confirmingEmail) return;
     setConfirmingEmail(true);
-    const { data, error } = await supabase.functions.invoke("staff-confirm-email", {
-      body: { user_id: uid },
-    });
-    setConfirmingEmail(false);
-    if (error) {
-      showToast({ message: t("common.error"), detail: error.message, variant: "error" });
-      return;
+    try {
+      const { data, error } = await supabase.functions.invoke("staff-confirm-email", {
+        body: { user_id: uid },
+      });
+      if (error) {
+        showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+        return;
+      }
+      if (!data?.ok) {
+        showToast({ message: t("common.failed"), detail: String(data?.error ?? ""), variant: "error" });
+        return;
+      }
+      showToast({
+        message: t("profile.emailConfirmed"),
+        variant: "success",
+      });
+    } catch (err) {
+      showToast({ message: t("common.error"), detail: err instanceof Error ? err.message : String(err), variant: "error" });
+    } finally {
+      setConfirmingEmail(false);
     }
-    if (!data?.ok) {
-      showToast({ message: t("common.failed"), detail: String(data?.error ?? ""), variant: "error" });
-      return;
-    }
-    showToast({
-      message: t("profile.emailConfirmed"),
-      variant: "success",
-    });
   }
 
   return (
