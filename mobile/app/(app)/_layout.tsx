@@ -6,8 +6,8 @@ import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
 import { theme } from "../../src/theme";
 import { appHeaderStyle, appHeaderTitleStyle } from "../../src/theme/headerStyles";
 import { useAndroidSessionsBackHandler } from "../../src/hooks/useAndroidSessionsBackHandler";
-import { isPendingPathname, isDisabledPathname } from "../../src/lib/sessionsHomeNavigation";
-import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
+import { isPendingPathname, isDisabledPathname, isChangePasswordPathname } from "../../src/lib/sessionsHomeNavigation";
+import { isAthleteAccountDisabled, isPasswordChangeRequired } from "../../src/lib/profileAccount";
 import { useI18n } from "../../src/context/I18nContext";
 import { ReceiptRequirementsGateModal } from "../../src/components/ReceiptRequirementsGateModal";
 import { ManagerDirectMessageModal } from "../../src/components/ManagerDirectMessageModal";
@@ -74,6 +74,11 @@ export default function AppLayout() {
   if (!session) {
     const loginHref: Href = Platform.OS === "web" ? getLoginHrefWithOptionalRedirectWeb() : "/(auth)/login";
     return <Redirect href={loginHref} />;
+  }
+
+  const mustChangePassword = isPasswordChangeRequired(profile);
+  if (mustChangePassword && !isChangePasswordPathname(pathname)) {
+    return <Redirect href="/(app)/change-password" />;
   }
 
   const pendingAthlete = profile?.role === "athlete" && profile?.approval_status === "pending";

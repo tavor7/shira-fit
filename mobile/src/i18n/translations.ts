@@ -598,6 +598,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "auth.passwordTooShortBody": "Use at least 6 characters.",
     "auth.passwordMismatchTitle": "Mismatch",
     "auth.passwordMismatchBody": "Passwords do not match.",
+    "screen.changePasswordRequired": "Set a new password",
+    "changePasswordRequired.hint": "A temporary password was set for your account. Choose a new password to continue.",
     "footer.instagram": "Instagram",
     "footer.website": "Website",
     "footer.call": "Call",
@@ -772,6 +774,16 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
       "This account is disabled for sessions on or after the disable date.",
     "profile.accountDisabledPaymentHint":
       "Cannot record a new payment on or after the date this account was disabled.",
+    "profile.mustChangePasswordBadge": "Must change password on next login",
+    "profile.setTempPassword": "Set temporary password",
+    "profile.tempPasswordConfirmTitle": "Set a temporary password?",
+    "profile.tempPasswordConfirmMessage":
+      "This immediately replaces their current password. They will be required to set a new password the next time they log in.",
+    "profile.tempPasswordConfirmAction": "Set temporary password",
+    "profile.tempPasswordGenerated": "Temporary password created",
+    "profile.tempPasswordResultLabel": "Temporary password",
+    "profile.tempPasswordResultHint":
+      "Share this with the user now — it won't be shown again. They'll be required to change it on their next login.",
     "screen.accountDisabled": "Account disabled",
     "accountDisabled.title": "Account disabled",
     "accountDisabled.message":
@@ -1861,6 +1873,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "auth.passwordTooShortBody": "השתמשו בלפחות 6 תווים.",
     "auth.passwordMismatchTitle": "אי התאמה",
     "auth.passwordMismatchBody": "הסיסמאות אינן תואמות.",
+    "screen.changePasswordRequired": "קביעת סיסמה חדשה",
+    "changePasswordRequired.hint": "נקבעה לחשבון שלך סיסמה זמנית. בחרו סיסמה חדשה כדי להמשיך.",
     "footer.instagram": "Instagram",
     "footer.website": "אתר",
     "footer.call": "התקשרות",
@@ -2032,6 +2046,16 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "profile.accountEnabledToast": "החשבון הופעל מחדש",
     "profile.accountDisabledStaffHint": "החשבון מושבת לאימונים מתאריך ההשבתה ואילך.",
     "profile.accountDisabledPaymentHint": "לא ניתן לרשום תשלום חדש מתאריך ההשבתה ואילך.",
+    "profile.mustChangePasswordBadge": "חייב להחליף סיסמה בכניסה הבאה",
+    "profile.setTempPassword": "קביעת סיסמה זמנית",
+    "profile.tempPasswordConfirmTitle": "לקבוע סיסמה זמנית?",
+    "profile.tempPasswordConfirmMessage":
+      "פעולה זו מחליפה מיד את הסיסמה הנוכחית. המשתמש יידרש לקבוע סיסמה חדשה בכניסה הבאה שלו.",
+    "profile.tempPasswordConfirmAction": "קביעת סיסמה זמנית",
+    "profile.tempPasswordGenerated": "נקבעה סיסמה זמנית",
+    "profile.tempPasswordResultLabel": "סיסמה זמנית",
+    "profile.tempPasswordResultHint":
+      "שתפו את המשתמש בסיסמה זו עכשיו — היא לא תוצג שוב. הוא יידרש להחליף אותה בכניסה הבאה שלו.",
     "screen.accountDisabled": "חשבון מושבת",
     "accountDisabled.title": "החשבון הושבת",
     "accountDisabled.message": "החשבון הזה הושבת. נא לפנות לשירה בנושא.",

@@ -21,6 +21,8 @@ export interface Profile {
   /** When set, athlete account is disabled and cannot use the app. */
   disabled_at?: string | null;
   disabled_by?: string | null;
+  /** When true, staff issued a temporary password and the user must set a new one before using the app. */
+  must_change_password?: boolean;
   electronic_receipts_consent_version?: number | null;
   electronic_receipts_consented_at?: string | null;
   whatsapp_notifications_enabled?: boolean;

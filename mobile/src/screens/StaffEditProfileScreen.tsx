@@ -43,6 +43,9 @@ export default function StaffEditProfileScreen() {
   const [disabledAt, setDisabledAt] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [togglingDisabled, setTogglingDisabled] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [settingTempPassword, setSettingTempPassword] = useState(false);
+  const [tempPasswordResult, setTempPasswordResult] = useState<string | null>(null);
   const [duplicateNames, setDuplicateNames] = useState<
     { user_id: string; full_name: string; username: string; phone: string; role: string }[]
   >([]);
@@ -82,7 +85,11 @@ export default function StaffEditProfileScreen() {
       setLoading(true);
       setMetaLoading(true);
       const [profileRes, metaRes] = await Promise.all([
-        supabase.from("profiles").select("full_name, phone, gender, date_of_birth, disabled_at, username, address, zip_code").eq("user_id", userId).single(),
+        supabase
+          .from("profiles")
+          .select("full_name, phone, gender, date_of_birth, disabled_at, username, address, zip_code, must_change_password")
+          .eq("user_id", userId)
+          .single(),
         supabase.rpc("staff_get_user_auth_meta", { p_user_id: userId }),
       ]);
       setLoading(false);
@@ -98,6 +105,7 @@ export default function StaffEditProfileScreen() {
       setDob((data as any).date_of_birth ?? "");
       setDisabledAt(typeof (data as any).disabled_at === "string" ? (data as any).disabled_at : null);
       setUsername(String((data as any).username ?? "").trim());
+      setMustChangePassword((data as any).must_change_password === true);
 
       const meta = metaRes.data as { ok?: boolean; last_sign_in_at?: string | null; email?: string | null } | null;
       if (meta?.ok) {
@@ -185,6 +193,39 @@ export default function StaffEditProfileScreen() {
 
   const isDisabled = disabledAt != null;
 
+  function setTempPassword() {
+    if (!isManager) return;
+    const uid = userId.trim();
+    if (!uid || settingTempPassword) return;
+    showConfirm({
+      title: t("profile.tempPasswordConfirmTitle"),
+      message: t("profile.tempPasswordConfirmMessage"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("profile.tempPasswordConfirmAction"),
+      confirmVariant: "primary",
+      onConfirm: () => {
+        void (async () => {
+          setSettingTempPassword(true);
+          const { data, error } = await supabase.functions.invoke("staff-set-temp-password", {
+            body: { user_id: uid },
+          });
+          setSettingTempPassword(false);
+          if (error) {
+            showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+            return;
+          }
+          if (!data?.ok) {
+            showToast({ message: t("common.failed"), detail: String(data?.error ?? ""), variant: "error" });
+            return;
+          }
+          setTempPasswordResult(String(data.password ?? ""));
+          setMustChangePassword(true);
+          showToast({ message: t("profile.tempPasswordGenerated"), variant: "success" });
+        })();
+      },
+    });
+  }
+
   async function confirmEmail() {
     if (!isManager) return;
     const uid = userId.trim();
@@ -270,6 +311,30 @@ export default function StaffEditProfileScreen() {
               </AppText>
             </View>
           ) : null}
+          {mustChangePassword ? (
+            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+              <AppText variant="label" soft isRTL={isRTL}>
+                {t("profile.accountStatus")}
+              </AppText>
+              <AppText isRTL={isRTL} style={styles.metaPending} numberOfLines={2}>
+                {t("profile.mustChangePasswordBadge")}
+              </AppText>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {tempPasswordResult ? (
+        <View style={styles.tempPasswordCard}>
+          <AppText variant="label" isRTL={isRTL} style={styles.tempPasswordTitle}>
+            {t("profile.tempPasswordResultLabel")}
+          </AppText>
+          <AppText selectable isRTL={isRTL} style={styles.tempPasswordValue}>
+            {tempPasswordResult}
+          </AppText>
+          <AppText variant="caption" isRTL={isRTL} style={styles.tempPasswordHint}>
+            {t("profile.tempPasswordResultHint")}
+          </AppText>
         </View>
       ) : null}
 
@@ -364,6 +429,7 @@ export default function StaffEditProfileScreen() {
         loading={saving}
         success={saveSuccess}
         loadingLabel={t("common.loading")}
+        style={styles.saveBtn}
       />
 
       <Pressable
@@ -387,6 +453,24 @@ export default function StaffEditProfileScreen() {
 
       {isManager ? (
         <Pressable
+          onPress={setTempPassword}
+          disabled={settingTempPassword}
+          style={({ pressed }) => [
+            styles.tempPasswordBtn,
+            settingTempPassword && { opacity: 0.6 },
+            pressed && !settingTempPassword && { opacity: 0.9 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={t("profile.setTempPassword")}
+        >
+          <AppText style={styles.tempPasswordBtnTxt}>
+            {settingTempPassword ? t("common.loading") : t("profile.setTempPassword")}
+          </AppText>
+        </Pressable>
+      ) : null}
+
+      {isManager ? (
+        <Pressable
           onPress={confirmEmail}
           disabled={confirmingEmail}
           style={({ pressed }) => [
@@ -402,13 +486,6 @@ export default function StaffEditProfileScreen() {
           </AppText>
         </Pressable>
       ) : null}
-
-      <Pressable
-        onPress={() => router.replace("/(app)/staff/users")}
-        style={({ pressed }) => [styles.backToList, pressed && { opacity: 0.9 }]}
-      >
-        <AppText style={styles.backToListTxt}>{t("common.backToUsers")}</AppText>
-      </Pressable>
 
       <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancel, pressed && { opacity: 0.9 }]}>
         <AppText muted style={styles.cancelTxt}>
@@ -429,6 +506,7 @@ const styles = StyleSheet.create({
   muted: { marginBottom: theme.spacing.sm },
   field: { marginTop: theme.spacing.sm },
   genderLabel: { marginTop: theme.spacing.sm, marginBottom: theme.spacing.xs },
+  saveBtn: { marginTop: theme.spacing.md },
   metaCard: {
     marginBottom: theme.spacing.md,
     padding: theme.spacing.md,
@@ -441,6 +519,30 @@ const styles = StyleSheet.create({
   metaRow: { gap: 4 },
   metaRowRtl: { alignItems: "flex-end" },
   metaDisabled: { color: theme.colors.error },
+  metaPending: { color: theme.colors.cta },
+  tempPasswordCard: {
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.cta,
+    backgroundColor: theme.colors.infoBg,
+    gap: 4,
+  },
+  tempPasswordTitle: { color: theme.colors.textMuted },
+  tempPasswordValue: { fontSize: 22, fontWeight: "900", letterSpacing: 0.5 },
+  tempPasswordHint: { color: theme.colors.textSoft, lineHeight: 18 },
+  tempPasswordBtn: {
+    marginTop: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.md,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tempPasswordBtnTxt: { color: theme.colors.text, fontWeight: "900", letterSpacing: 0.2 },
   disableAccountBtn: {
     marginTop: theme.spacing.sm,
     borderWidth: 1,
@@ -506,13 +608,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   confirmEmailTxt: { color: theme.colors.text, fontWeight: "900", letterSpacing: 0.2 },
-  backToList: {
-    marginTop: theme.spacing.md,
-    alignSelf: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  backToListTxt: { color: theme.colors.textMuted, fontWeight: "900" },
   cancel: { marginTop: theme.spacing.md, alignSelf: "center" },
   cancelTxt: { color: theme.colors.textMuted, fontWeight: "800" },
 });
