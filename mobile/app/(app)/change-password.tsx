@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, StyleSheet, KeyboardAvoidingView, Platform, Image } from "react-native";
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { AppTextField } from "../../src/components/AppTextField";
@@ -8,15 +8,21 @@ import { AppText } from "../../src/components/AppText";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { useAuth } from "../../src/context/AuthContext";
+import { useToast } from "../../src/context/ToastContext";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
+
+/** How long the success checkmark holds before leaving to the app's home screen. */
+const SUCCESS_HOLD_MS = 1200;
 
 /** Forced gate: shown when staff issued a temporary password (profiles.must_change_password). */
 export default function ChangePasswordRequiredScreen() {
   const { t, isRTL } = useI18n();
   const { refreshProfile } = useAuth();
+  const { showToast } = useToast();
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [busy, setBusy] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   async function save() {
@@ -44,6 +50,10 @@ export default function ChangePasswordRequiredScreen() {
     }
     await refreshProfile();
     setBusy(false);
+    setSuccess(true);
+    showToast({ message: t("auth.passwordUpdated"), variant: "success" });
+    await new Promise((resolve) => setTimeout(resolve, SUCCESS_HOLD_MS));
+    router.replace("/");
   }
 
   return (
@@ -88,6 +98,8 @@ export default function ChangePasswordRequiredScreen() {
           label={t("auth.resetPasswordUpdate")}
           loadingLabel={t("common.loading")}
           loading={busy}
+          success={success}
+          disabled={success}
           onPress={save}
         />
       </FadeSlideIn>
