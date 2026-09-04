@@ -105,7 +105,13 @@ export default function StaffEditProfileScreen() {
       setDob((data as any).date_of_birth ?? "");
       setDisabledAt(typeof (data as any).disabled_at === "string" ? (data as any).disabled_at : null);
       setUsername(String((data as any).username ?? "").trim());
-      setMustChangePassword((data as any).must_change_password === true);
+      const pendingChange = (data as any).must_change_password === true;
+      setMustChangePassword(pendingChange);
+      if (pendingChange && isManager) {
+        const { data: pwData } = await supabase.rpc("staff_get_temp_password", { p_user_id: userId });
+        const pw = (pwData as { ok?: boolean; password?: string | null } | null)?.password;
+        if (typeof pw === "string" && pw) setTempPasswordResult(pw);
+      }
 
       const meta = metaRes.data as { ok?: boolean; last_sign_in_at?: string | null; email?: string | null } | null;
       if (meta?.ok) {

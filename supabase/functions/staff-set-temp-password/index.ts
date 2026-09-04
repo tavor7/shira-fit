@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
 
   const { error: profileError } = await adminClient
     .from("profiles")
-    .update({ must_change_password: true })
+    .update({ must_change_password: true, temp_password_plaintext: tempPassword })
     .eq("user_id", userId);
   if (profileError) return json(400, { ok: false, error: profileError.message });
 
