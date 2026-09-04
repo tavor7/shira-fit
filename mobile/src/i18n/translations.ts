@@ -776,6 +776,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
       "Cannot record a new payment on or after the date this account was disabled.",
     "profile.mustChangePasswordBadge": "Must change password on next login",
     "profile.setTempPassword": "Set temporary password",
+    "profile.tempPasswordAlreadyPending": "Temporary password pending",
     "profile.tempPasswordConfirmTitle": "Set a temporary password?",
     "profile.tempPasswordConfirmMessage":
       "This immediately replaces their current password. They will be required to set a new password the next time they log in.",
@@ -2048,6 +2049,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "profile.accountDisabledPaymentHint": "לא ניתן לרשום תשלום חדש מתאריך ההשבתה ואילך.",
     "profile.mustChangePasswordBadge": "חייב להחליף סיסמה בכניסה הבאה",
     "profile.setTempPassword": "קביעת סיסמה זמנית",
+    "profile.tempPasswordAlreadyPending": "יש סיסמה זמנית ממתינה",
     "profile.tempPasswordConfirmTitle": "לקבוע סיסמה זמנית?",
     "profile.tempPasswordConfirmMessage":
       "פעולה זו מחליפה מיד את הסיסמה הנוכחית. המשתמש יידרש לקבוע סיסמה חדשה בכניסה הבאה שלו.",

@@ -205,7 +205,7 @@ export default function StaffEditProfileScreen() {
   const isDisabled = disabledAt != null;
 
   function setTempPassword() {
-    if (!isManager) return;
+    if (!isManager || mustChangePassword) return;
     const uid = userId.trim();
     if (!uid || settingTempPassword) return;
     showConfirm({
@@ -475,17 +475,21 @@ export default function StaffEditProfileScreen() {
       {isManager ? (
         <Pressable
           onPress={setTempPassword}
-          disabled={settingTempPassword}
+          disabled={settingTempPassword || mustChangePassword}
           style={({ pressed }) => [
             styles.tempPasswordBtn,
-            settingTempPassword && { opacity: 0.6 },
-            pressed && !settingTempPassword && { opacity: 0.9 },
+            (settingTempPassword || mustChangePassword) && { opacity: 0.6 },
+            pressed && !settingTempPassword && !mustChangePassword && { opacity: 0.9 },
           ]}
           accessibilityRole="button"
           accessibilityLabel={t("profile.setTempPassword")}
         >
           <AppText style={styles.tempPasswordBtnTxt}>
-            {settingTempPassword ? t("common.loading") : t("profile.setTempPassword")}
+            {settingTempPassword
+              ? t("common.loading")
+              : mustChangePassword
+                ? t("profile.tempPasswordAlreadyPending")
+                : t("profile.setTempPassword")}
           </AppText>
         </Pressable>
       ) : null}
