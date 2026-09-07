@@ -33,10 +33,16 @@ const minDob = new Date(1900, 0, 1);
 /** How long the button holds its success checkmark before navigating away. */
 const SUCCESS_HOLD_MS = 550;
 
-function getSignupErrorMessage(error: { message: string }): string {
+function emailInUseMessage(language: string): string {
+  return language === "he"
+    ? "האימייל הזה כבר בשימוש. התחברו או השתמשו ב\"שכחתי סיסמה\"."
+    : "This email is already in use. Sign in or use Forgot password.";
+}
+
+function getSignupErrorMessage(error: { message: string }, language: string): string {
   const msg = (error.message || "").toLowerCase();
   if (msg.includes("already registered") || msg.includes("already exists") || msg.includes("already in use")) {
-    return "This email is already in use. Sign in or use Forgot password.";
+    return emailInUseMessage(language);
   }
   return error.message || "Signup failed. Please try again.";
 }
@@ -132,7 +138,17 @@ export default function SignupScreen() {
     });
     if (error) {
       setBusy(false);
-      setErrorMessage(getSignupErrorMessage(error));
+      setErrorMessage(getSignupErrorMessage(error, language));
+      return;
+    }
+    // Supabase returns a fake "success" (no error) when the email already belongs to an
+    // existing account — usually one still awaiting confirmation — to avoid leaking which
+    // emails are registered. It just resends that account's confirmation email instead of
+    // creating a new one. Detect it via the documented empty-identities signal so we don't
+    // overwrite that account's profile with this submission's data.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      setBusy(false);
+      setErrorMessage(emailInUseMessage(language));
       return;
     }
     if (data.user) {
