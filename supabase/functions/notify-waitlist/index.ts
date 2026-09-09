@@ -79,6 +79,19 @@ Deno.serve(async (req) => {
       headers: { ...cors, "Content-Type": "application/json" },
     });
 
+  const { data: settings } = await supabase
+    .from("app_settings")
+    .select("push_notifications_enabled")
+    .eq("id", 1)
+    .maybeSingle();
+  const pushEnabled = (settings as { push_notifications_enabled?: boolean } | null)?.push_notifications_enabled !== false;
+
+  if (!pushEnabled) {
+    return new Response(JSON.stringify({ ok: true, notified: false, reason: "push_disabled" }), {
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
   const waitlistTitle = "Spot available";
   const waitlistBody = `A spot opened for ${sess.session_date} ${sess.start_time}. Open the app to register.`;
 

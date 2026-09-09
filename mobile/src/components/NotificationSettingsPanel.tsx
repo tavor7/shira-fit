@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Pressable, Platform, ActivityIndicator } from "
 import { theme } from "../theme";
 import { surface } from "../theme/surfaces";
 import { useI18n } from "../context/I18nContext";
+import { useAuth } from "../context/AuthContext";
+import { supabase } from "../lib/supabase";
 import { loadNotificationPrefs, saveNotificationPrefs, type NotificationPrefs } from "../lib/notificationPrefs";
 import { syncExpoPushTokenIfNeeded } from "../lib/pushTokenSync";
 import { syncWebPushSubscriptionIfNeeded } from "../lib/webPushSync";
@@ -19,12 +21,27 @@ type Props = {
   variant?: "screen" | "embedded";
 };
 
+const TEST_NOTIFICATION_TYPES = [
+  "weekly_open",
+  "day_before",
+  "hour_before",
+  "waitlist_spot",
+  "session_updated",
+] as const;
+type TestNotificationType = (typeof TEST_NOTIFICATION_TYPES)[number];
+
 export function NotificationSettingsPanel({ variant = "screen" }: Props) {
-  const { language, isRTL, t } = useI18n();
+  const { isRTL, t } = useI18n();
+  const { profile } = useAuth();
   const { showToast } = useToast();
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
   const [waState, setWaState] = useState<WhatsAppFeatureState | null>(null);
   const [waLoading, setWaLoading] = useState(false);
+  const [killSwitchOn, setKillSwitchOn] = useState<boolean | null>(null);
+  const [killSwitchBusy, setKillSwitchBusy] = useState(false);
+  const [testBusyType, setTestBusyType] = useState<TestNotificationType | null>(null);
+
+  const isManager = profile?.role === "manager";
 
   const load = useCallback(async () => {
     setPrefs(await loadNotificationPrefs());
@@ -36,18 +53,27 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
     void load();
   }, [load]);
 
-  async function toggle(key: keyof NotificationPrefs) {
+  useEffect(() => {
+    if (!isManager) return;
+    void (async () => {
+      const { data } = await supabase.rpc("get_push_kill_switch");
+      const res = data as { ok?: boolean; enabled?: boolean } | null;
+      if (res?.ok) setKillSwitchOn(res.enabled !== false);
+    })();
+  }, [isManager]);
+
+  /** Single on/off — both underlying prefs always move together. */
+  async function toggleAll() {
     if (!prefs) return;
-    const next = { ...prefs, [key]: !prefs[key] };
-    setPrefs(next);
-    await saveNotificationPrefs(next);
-    if (key === "sessionReminders" || key === "waitlistAlerts") {
-      if (!next.sessionReminders && !next.waitlistAlerts && Platform.OS !== "web") {
-        try {
-          await Notifications.cancelAllScheduledNotificationsAsync();
-        } catch {
-          // ignore (permissions missing, not supported, etc.)
-        }
+    const next = !(prefs.sessionReminders && prefs.waitlistAlerts);
+    const nextPrefs: NotificationPrefs = { sessionReminders: next, waitlistAlerts: next };
+    setPrefs(nextPrefs);
+    await saveNotificationPrefs(nextPrefs);
+    if (!next && Platform.OS !== "web") {
+      try {
+        await Notifications.cancelAllScheduledNotificationsAsync();
+      } catch {
+        // ignore (permissions missing, not supported, etc.)
       }
     }
     void syncExpoPushTokenIfNeeded();
@@ -69,6 +95,43 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
     setWaState(refreshed);
   }
 
+  async function toggleKillSwitch() {
+    if (killSwitchOn === null || killSwitchBusy) return;
+    const next = !killSwitchOn;
+    setKillSwitchBusy(true);
+    try {
+      const { data, error } = await supabase.rpc("set_push_kill_switch", { p_enabled: next });
+      const res = data as { ok?: boolean; enabled?: boolean; error?: string } | null;
+      if (error || !res?.ok) {
+        showToast({ message: t("common.error"), detail: error?.message ?? res?.error, variant: "error" });
+        return;
+      }
+      setKillSwitchOn(res.enabled !== false);
+      showToast({
+        message: next ? t("notifications.killSwitchOnToast") : t("notifications.killSwitchOffToast"),
+        variant: next ? "success" : "info",
+      });
+    } finally {
+      setKillSwitchBusy(false);
+    }
+  }
+
+  async function sendTest(type: TestNotificationType) {
+    if (testBusyType) return;
+    setTestBusyType(type);
+    try {
+      const { data, error } = await supabase.rpc("send_test_push_notification", { p_type: type });
+      const res = data as { ok?: boolean; error?: string } | null;
+      if (error || !res?.ok) {
+        showToast({ message: t("common.error"), detail: error?.message ?? res?.error, variant: "error" });
+        return;
+      }
+      showToast({ message: t("notifications.testSentToast"), variant: "success" });
+    } finally {
+      setTestBusyType(null);
+    }
+  }
+
   if (!prefs) {
     return (
       <View style={[styles.loaderWrap, variant === "embedded" && styles.loaderWrapEmbedded]}>
@@ -78,48 +141,38 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
     );
   }
 
-  const row = (label: string, value: boolean, k: keyof NotificationPrefs) => (
-    <Pressable
-      style={({ pressed }) => [styles.row, surface.card, pressed && styles.rowPressed]}
-      onPress={() => void toggle(k)}
-    >
-      <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{label}</Text>
-      <View style={[styles.pill, value ? styles.pillOn : styles.pillOff]}>
-        <Text style={[styles.pillTxt, value ? styles.pillTxtOn : styles.pillTxtOff]}>
-          {value ? (language === "he" ? "פעיל" : "On") : language === "he" ? "כבוי" : "Off"}
-        </Text>
-      </View>
-    </Pressable>
-  );
-
+  const allOn = prefs.sessionReminders && prefs.waitlistAlerts;
   const embedded = variant === "embedded";
+
+  const pill = (on: boolean) => (
+    <View style={[styles.pill, on ? styles.pillOn : styles.pillOff]}>
+      <Text style={[styles.pillTxt, on ? styles.pillTxtOn : styles.pillTxtOff]}>
+        {on ? t("notifications.on") : t("notifications.off")}
+      </Text>
+    </View>
+  );
 
   return (
     <View style={[styles.block, embedded && styles.blockEmbedded]}>
       {!embedded ? (
-        <Text style={[styles.h, isRTL && styles.rtl]}>{language === "he" ? "התראות" : "Notifications"}</Text>
+        <Text style={[styles.h, isRTL && styles.rtl]}>{t("profile.tabNotifications")}</Text>
       ) : (
-        <Text style={[styles.sub, isRTL && styles.rtl]}>
-          {language === "he" ? "בחרו אילו התראות לקבל במכשיר זה." : "Choose which alerts to receive on this device."}
-        </Text>
+        <Text style={[styles.sub, isRTL && styles.rtl]}>{t("notifications.chooseHint")}</Text>
       )}
       {Platform.OS === "web" ? (
-        <Text style={[styles.note, isRTL && styles.rtl]}>
-          {language === "he"
-            ? "באייפון: הוסיפו את העמוד למסך הבית (שיתוף ← הוספה למסך הבית) כדי לקבל התראות. באנדרואיד ובמחשב זה עובד ישירות מהדפדפן."
-            : "On iPhone: add this page to your Home Screen (Share → Add to Home Screen) to receive alerts. On Android and desktop it works straight from the browser."}
-        </Text>
+        <Text style={[styles.note, isRTL && styles.rtl]}>{t("notifications.webHint")}</Text>
       ) : null}
-      {row(
-        language === "he" ? "תזכורות לאימון (12–24 שעות לפני)" : "Workout reminders (12–24h before)",
-        prefs.sessionReminders,
-        "sessionReminders"
-      )}
-      {row(
-        language === "he" ? "התראה כשיתפנה מקום (רשימת המתנה)" : "Alert when a waitlisted spot may open",
-        prefs.waitlistAlerts,
-        "waitlistAlerts"
-      )}
+
+      <Pressable
+        style={({ pressed }) => [styles.row, surface.card, pressed && styles.rowPressed]}
+        onPress={() => void toggleAll()}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: allOn }}
+      >
+        <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("notifications.allLabel")}</Text>
+        {pill(allOn)}
+      </Pressable>
+
       {waState?.can_see_settings ? (
         <View style={styles.waBlock}>
           <Text style={[styles.waTitle, isRTL && styles.rtl]}>{t("whatsapp.settingsTitle")}</Text>
@@ -135,18 +188,59 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
             disabled={waLoading}
           >
             <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("whatsapp.settingsEnable")}</Text>
-            <View style={[styles.pill, waState.whatsapp_enabled ? styles.pillOn : styles.pillOff]}>
-              <Text style={[styles.pillTxt, waState.whatsapp_enabled ? styles.pillTxtOn : styles.pillTxtOff]}>
-                {waState.whatsapp_enabled
-                  ? language === "he"
-                    ? "פעיל"
-                    : "On"
-                  : language === "he"
-                    ? "כבוי"
-                    : "Off"}
-              </Text>
-            </View>
+            {pill(waState.whatsapp_enabled === true)}
           </Pressable>
+        </View>
+      ) : null}
+
+      {isManager ? (
+        <View style={styles.managerBlock}>
+          <Text style={[styles.managerTitle, isRTL && styles.rtl]}>{t("notifications.managerSectionTitle")}</Text>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.row,
+              surface.card,
+              styles.killSwitchRow,
+              pressed && styles.rowPressed,
+              (killSwitchBusy || killSwitchOn === null) && styles.rowDisabled,
+            ]}
+            onPress={() => void toggleKillSwitch()}
+            disabled={killSwitchBusy || killSwitchOn === null}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: killSwitchOn === true }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("notifications.killSwitchLabel")}</Text>
+              <Text style={[styles.killSwitchHint, isRTL && styles.rtl]}>{t("notifications.killSwitchHint")}</Text>
+            </View>
+            {killSwitchOn === null ? (
+              <ActivityIndicator color={theme.colors.cta} />
+            ) : (
+              pill(killSwitchOn)
+            )}
+          </Pressable>
+
+          <Text style={[styles.testSectionTitle, isRTL && styles.rtl]}>{t("notifications.testSectionTitle")}</Text>
+          <Text style={[styles.testSectionHint, isRTL && styles.rtl]}>{t("notifications.testSectionHint")}</Text>
+          <View style={styles.testGrid}>
+            {TEST_NOTIFICATION_TYPES.map((type) => (
+              <Pressable
+                key={type}
+                style={({ pressed }) => [
+                  styles.testBtn,
+                  pressed && !testBusyType && styles.rowPressed,
+                  testBusyType && testBusyType !== type && styles.rowDisabled,
+                ]}
+                onPress={() => void sendTest(type)}
+                disabled={testBusyType !== null}
+              >
+                <Text style={styles.testBtnTxt}>
+                  {testBusyType === type ? t("common.loading") : t(`notifications.testType.${type}` as const)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       ) : null}
     </View>
@@ -190,4 +284,20 @@ const styles = StyleSheet.create({
   pillTxt: { fontWeight: "800", fontSize: 12 },
   pillTxtOn: { color: theme.colors.cta },
   pillTxtOff: { color: theme.colors.textSoft },
+  managerBlock: { marginTop: 16, gap: 8, borderTopWidth: 1, borderTopColor: theme.colors.borderMuted, paddingTop: 16 },
+  managerTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  killSwitchRow: { alignItems: "flex-start" },
+  killSwitchHint: { fontSize: 12, color: theme.colors.textSoft, marginTop: 3, lineHeight: 16 },
+  testSectionTitle: { fontSize: 14, fontWeight: "800", color: theme.colors.text, marginTop: 8 },
+  testSectionHint: { fontSize: 12, color: theme.colors.textMuted, lineHeight: 16 },
+  testGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
+  testBtn: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  testBtnTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 13 },
 });

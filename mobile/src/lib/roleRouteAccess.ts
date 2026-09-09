@@ -1,6 +1,12 @@
 import type { Href } from "expo-router";
 import type { UserRole } from "../types/database";
-import { getSessionsHomeHref, isChangePasswordPathname, isDisabledPathname, isPendingPathname } from "./sessionsHomeNavigation";
+import {
+  getSessionsHomeHref,
+  isChangePasswordPathname,
+  isDisabledPathname,
+  isNotificationsOnboardingPathname,
+  isPendingPathname,
+} from "./sessionsHomeNavigation";
 
 /** Normalize expo-router pathnames to public `/role/...` form (strip `/(app)` group). */
 export function normalizeAppPathname(pathname: string): string {
@@ -21,7 +27,8 @@ export function isSharedAppPath(pathname: string): boolean {
     p.startsWith("/settings/") ||
     isPendingPathname(p) ||
     isDisabledPathname(p) ||
-    isChangePasswordPathname(p)
+    isChangePasswordPathname(p) ||
+    isNotificationsOnboardingPathname(p)
   );
 }
 

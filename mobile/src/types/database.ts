@@ -23,6 +23,8 @@ export interface Profile {
   disabled_by?: string | null;
   /** When true, staff issued a temporary password and the user must set a new one before using the app. */
   must_change_password?: boolean;
+  /** Set once this account has answered the one-time "enable notifications?" prompt. Null means it's still due. */
+  notifications_onboarded_at?: string | null;
   electronic_receipts_consent_version?: number | null;
   electronic_receipts_consented_at?: string | null;
   whatsapp_notifications_enabled?: boolean;

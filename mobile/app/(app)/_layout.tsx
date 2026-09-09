@@ -6,8 +6,13 @@ import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
 import { theme } from "../../src/theme";
 import { appHeaderStyle, appHeaderTitleStyle } from "../../src/theme/headerStyles";
 import { useAndroidSessionsBackHandler } from "../../src/hooks/useAndroidSessionsBackHandler";
-import { isPendingPathname, isDisabledPathname, isChangePasswordPathname } from "../../src/lib/sessionsHomeNavigation";
-import { isAthleteAccountDisabled, isPasswordChangeRequired } from "../../src/lib/profileAccount";
+import {
+  isPendingPathname,
+  isDisabledPathname,
+  isChangePasswordPathname,
+  isNotificationsOnboardingPathname,
+} from "../../src/lib/sessionsHomeNavigation";
+import { isAthleteAccountDisabled, isNotificationsOnboardingNeeded, isPasswordChangeRequired } from "../../src/lib/profileAccount";
 import { useI18n } from "../../src/context/I18nContext";
 import { ReceiptRequirementsGateModal } from "../../src/components/ReceiptRequirementsGateModal";
 import { ManagerDirectMessageModal } from "../../src/components/ManagerDirectMessageModal";
@@ -88,6 +93,10 @@ export default function AppLayout() {
   }
   if (pendingAthlete && !isPendingPathname(pathname)) {
     return <Redirect href="/(app)/pending" />;
+  }
+
+  if (isNotificationsOnboardingNeeded(profile) && !isNotificationsOnboardingPathname(pathname)) {
+    return <Redirect href="/(app)/notifications-onboarding" />;
   }
 
   const role = profile?.role;

@@ -8,3 +8,10 @@ export function isAthleteAccountDisabled(profile: Pick<Profile, "role" | "disabl
 export function isPasswordChangeRequired(profile: Pick<Profile, "must_change_password"> | null | undefined): boolean {
   return profile?.must_change_password === true;
 }
+
+/** True until this account has answered the one-time "enable notifications?" prompt. */
+export function isNotificationsOnboardingNeeded(
+  profile: Pick<Profile, "notifications_onboarded_at"> | null | undefined
+): boolean {
+  return profile != null && profile.notifications_onboarded_at == null;
+}

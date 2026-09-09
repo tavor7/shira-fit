@@ -13,7 +13,7 @@ import {
   recordIndexRouteRestoreDebug,
 } from "../src/lib/routeRestoreDebug";
 import { canRoleAccessWebPath, readWebLastRoute, webPublicPathToExpoHref } from "../src/lib/webLastRoute";
-import { isAthleteAccountDisabled, isPasswordChangeRequired } from "../src/lib/profileAccount";
+import { isAthleteAccountDisabled, isNotificationsOnboardingNeeded, isPasswordChangeRequired } from "../src/lib/profileAccount";
 
 /**
  * Entry route for `/` only. After auth + profile are ready, web clients may be sent to the last saved
@@ -41,6 +41,7 @@ export default function Index() {
     if (profile.role === "manager" && !athletePreviewStorageReady) return;
     if (
       isPasswordChangeRequired(profile) ||
+      isNotificationsOnboardingNeeded(profile) ||
       (profile.role === "athlete" && (profile.approval_status === "pending" || isAthleteAccountDisabled(profile)))
     ) {
       setWebIndexRestoreReady(true);
@@ -195,6 +196,7 @@ export default function Index() {
     return <Redirect href="/(app)/disabled" />;
   if (profile.role === "athlete" && profile.approval_status === "pending")
     return <Redirect href="/(app)/pending" />;
+  if (isNotificationsOnboardingNeeded(profile)) return <Redirect href="/(app)/notifications-onboarding" />;
 
   if (Platform.OS === "web" && !webIndexRestoreReady) {
     return (

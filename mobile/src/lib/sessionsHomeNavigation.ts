@@ -64,6 +64,10 @@ export function isChangePasswordPathname(pathname: string): boolean {
   return pathname === "/change-password" || pathname.startsWith("/change-password/");
 }
 
+export function isNotificationsOnboardingPathname(pathname: string): boolean {
+  return pathname === "/notifications-onboarding" || pathname.startsWith("/notifications-onboarding/");
+}
+
 /** Role-based sessions calendar — app “home” for back / Android hardware back. */
 export function getSessionsHomeHref(
   role: UserRole | undefined | null,
