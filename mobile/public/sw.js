@@ -16,16 +16,21 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let payload = { title: "Shira Fit", body: "" };
+  let payload = { title: "", body: "" };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch {
     if (event.data) payload.body = event.data.text();
   }
 
+  // iOS always prefixes an installed web app's notifications with "from Shira Fit" itself
+  // (not something we control), so an explicit title of ours just duplicates that — leaving
+  // it blank collapses the notification to that one attribution line plus the message.
+  // `payload.title || "..."` would be wrong here: it'd re-add a fallback title for the
+  // empty string we send on purpose, so check for a string explicitly instead.
   const data = payload.data || {};
   event.waitUntil(
-    self.registration.showNotification(payload.title || "Shira Fit", {
+    self.registration.showNotification(typeof payload.title === "string" ? payload.title : "", {
       body: payload.body || "",
       icon: "/icon-192.png",
       badge: "/icon-192.png",
