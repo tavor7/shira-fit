@@ -737,7 +737,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "birthdayMessages.lastUpdated": "Last saved by {name} · {when}",
     "birthdayMessages.lastUpdatedDateOnly": "Last saved {when}",
     "profile.tabAccount": "Account",
-    "profile.tabNotifications": "Notifications",
+    "profile.tabNotifications": "Alerts",
     "profile.tabMessages": "Messages",
     "profile.selfTitle": "Profile",
     "profile.selfSubtitle": "Account ({role}).",
