@@ -16,6 +16,12 @@ self.addEventListener("push", (event) => {
       body: payload.body || "",
       icon: "/icon-192.png",
       badge: "/icon-192.png",
+      // Without a unique tag, iOS treats every push from this origin as "the same"
+      // notification and only surfaces the latest one, silently swallowing earlier ones
+      // that arrive close together (e.g. several manager test presses in a row).
+      // renotify forces a fresh alert even when a tag happens to repeat.
+      tag: (data && data.tag) || `shirafit-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      renotify: true,
       data,
     })
   );
