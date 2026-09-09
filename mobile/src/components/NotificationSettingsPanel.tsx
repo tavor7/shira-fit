@@ -160,7 +160,10 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
         <Text style={[styles.sub, isRTL && styles.rtl]}>{t("notifications.chooseHint")}</Text>
       )}
       {Platform.OS === "web" ? (
-        <Text style={[styles.note, isRTL && styles.rtl]}>{t("notifications.webHint")}</Text>
+        <>
+          <Text style={[styles.note, isRTL && styles.rtl]}>{t("notifications.webHint")}</Text>
+          <Text style={[styles.note, isRTL && styles.rtl]}>{t("notifications.reinstallHint")}</Text>
+        </>
       ) : null}
 
       <Pressable
