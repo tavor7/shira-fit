@@ -1,6 +1,9 @@
+import { useEffect } from "react";
 import { Stack, Redirect, usePathname, type Href } from "expo-router";
 import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
+import { syncExpoPushTokenIfNeeded } from "../../src/lib/pushTokenSync";
+import { syncWebPushSubscriptionIfNeeded } from "../../src/lib/webPushSync";
 import { AppHeaderRight } from "../../src/components/AppHeaderRight";
 import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
 import { theme } from "../../src/theme";
@@ -30,6 +33,23 @@ export default function AppLayout() {
   const pathname = usePathname() ?? "";
   const { enabled: managerAthletePreview, storageReady: managerPreviewStorageReady } = useManagerAthletePreview();
   useAndroidSessionsBackHandler(!!session && !loading && !authUnavailable);
+
+  /**
+   * Only the athlete home screen re-synced push subscriptions on every focus; managers and
+   * coaches had no equivalent, so a fresh install/reinstall never re-subscribed for them
+   * (prefs default to "on" already, so the toggle that normally triggers a resync is never
+   * touched) and pushes silently targeted a stale, pre-reinstall subscription. Running the
+   * sync once per session here, for every role, closes that gap.
+   */
+  useEffect(() => {
+    if (!session) return;
+    void syncExpoPushTokenIfNeeded();
+    void syncWebPushSubscriptionIfNeeded();
+    // Deliberately keyed on the user id, not the whole session object: session is a new
+    // object reference on every token refresh, and re-running this on each refresh would
+    // defeat the point of a once-per-login sync.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
 
   /**
    * Gate on `!session`, not on `loading` alone: profile/token refresh can set `loading` briefly for a
