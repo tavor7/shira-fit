@@ -34,7 +34,7 @@ const TEST_NOTIFICATION_TYPES = [
 type TestNotificationType = (typeof TEST_NOTIFICATION_TYPES)[number];
 
 export function NotificationSettingsPanel({ variant = "screen" }: Props) {
-  const { isRTL, t } = useI18n();
+  const { isRTL, t, language } = useI18n();
   const { profile } = useAuth();
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
@@ -47,6 +47,8 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
   const [customTitle, setCustomTitle] = useState("");
   const [customBody, setCustomBody] = useState("");
   const [customBusy, setCustomBusy] = useState(false);
+  const [customLang, setCustomLang] = useState<"he" | "en">(language);
+  const customIsRTL = customLang === "he";
 
   const isManager = profile?.role === "manager";
 
@@ -293,9 +295,31 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
 
           <Text style={[styles.testSectionTitle, isRTL && styles.rtl]}>{t("notifications.customSectionTitle")}</Text>
           <Text style={[styles.testSectionHint, isRTL && styles.rtl]}>{t("notifications.customSectionHint")}</Text>
+
+          <Text style={[styles.langLabel, isRTL && styles.rtl]}>{t("notifications.customLangLabel")}</Text>
+          <View style={[styles.langRow, isRTL && styles.langRowRtl]}>
+            {(["he", "en"] as const).map((lang) => (
+              <Pressable
+                key={lang}
+                onPress={() => setCustomLang(lang)}
+                style={({ pressed }) => [
+                  styles.langBtn,
+                  customLang === lang && styles.langBtnOn,
+                  pressed && { opacity: 0.9 },
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: customLang === lang }}
+              >
+                <Text style={[styles.langBtnTxt, customLang === lang && styles.langBtnTxtOn]}>
+                  {lang === "he" ? t("notifications.customLangHebrew") : t("notifications.customLangEnglish")}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
           <AppTextField
             variant="dark"
-            isRTL={isRTL}
+            isRTL={customIsRTL}
             label={t("notifications.customTitleLabel")}
             placeholder={t("notifications.customTitlePlaceholder")}
             value={customTitle}
@@ -305,7 +329,7 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
           />
           <AppTextField
             variant="dark"
-            isRTL={isRTL}
+            isRTL={customIsRTL}
             label={t("notifications.customBodyLabel")}
             placeholder={t("notifications.customBodyPlaceholder")}
             value={customBody}
@@ -383,4 +407,19 @@ const styles = StyleSheet.create({
   testBtnTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 13 },
   customField: { marginTop: 8 },
   customSendBtn: { marginTop: 8 },
+  langLabel: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, marginTop: 4 },
+  langRow: { flexDirection: "row", gap: 8, marginTop: 4 },
+  langRowRtl: { flexDirection: "row-reverse" },
+  langBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: "center",
+  },
+  langBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  langBtnTxt: { fontWeight: "800", color: theme.colors.textMuted, fontSize: 13 },
+  langBtnTxtOn: { color: theme.colors.ctaText },
 });
