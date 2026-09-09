@@ -10,6 +10,9 @@ import { syncExpoPushTokenIfNeeded } from "../lib/pushTokenSync";
 import { syncWebPushSubscriptionIfNeeded } from "../lib/webPushSync";
 import * as Notifications from "expo-notifications";
 import { useToast } from "../context/ToastContext";
+import { useAppAlert } from "../context/AppAlertContext";
+import { AppTextField } from "./AppTextField";
+import { PrimaryButton } from "./PrimaryButton";
 import {
   fetchWhatsAppFeatureState,
   setWhatsAppNotificationsEnabled,
@@ -34,12 +37,16 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
   const { isRTL, t } = useI18n();
   const { profile } = useAuth();
   const { showToast } = useToast();
+  const { showConfirm } = useAppAlert();
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
   const [waState, setWaState] = useState<WhatsAppFeatureState | null>(null);
   const [waLoading, setWaLoading] = useState(false);
   const [killSwitchOn, setKillSwitchOn] = useState<boolean | null>(null);
   const [killSwitchBusy, setKillSwitchBusy] = useState(false);
   const [testBusyType, setTestBusyType] = useState<TestNotificationType | null>(null);
+  const [customTitle, setCustomTitle] = useState("");
+  const [customBody, setCustomBody] = useState("");
+  const [customBusy, setCustomBusy] = useState(false);
 
   const isManager = profile?.role === "manager";
 
@@ -130,6 +137,48 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
     } finally {
       setTestBusyType(null);
     }
+  }
+
+  function sendCustomBroadcast() {
+    const title = customTitle.trim();
+    const body = customBody.trim();
+    if (!title || !body || customBusy) return;
+
+    showConfirm({
+      title: t("notifications.customConfirmTitle"),
+      message: t("notifications.customConfirmMessage"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("notifications.customSend"),
+      confirmVariant: "primary",
+      onConfirm: () => {
+        void (async () => {
+          setCustomBusy(true);
+          try {
+            const { data, error } = await supabase.rpc("send_custom_push_notification", {
+              p_title: title,
+              p_body: body,
+            });
+            const res = data as { ok?: boolean; notified?: number; error?: string } | null;
+            if (error || !res?.ok) {
+              const msg =
+                res?.error === "push_disabled"
+                  ? t("notifications.customErrorPushDisabled")
+                  : res?.error ?? error?.message;
+              showToast({ message: t("common.error"), detail: msg, variant: "error" });
+              return;
+            }
+            showToast({
+              message: t("notifications.customSentToast").replace("{count}", String(res.notified ?? 0)),
+              variant: "success",
+            });
+            setCustomTitle("");
+            setCustomBody("");
+          } finally {
+            setCustomBusy(false);
+          }
+        })();
+      },
+    });
   }
 
   if (!prefs) {
@@ -241,6 +290,38 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
               </Pressable>
             ))}
           </View>
+
+          <Text style={[styles.testSectionTitle, isRTL && styles.rtl]}>{t("notifications.customSectionTitle")}</Text>
+          <Text style={[styles.testSectionHint, isRTL && styles.rtl]}>{t("notifications.customSectionHint")}</Text>
+          <AppTextField
+            variant="dark"
+            isRTL={isRTL}
+            label={t("notifications.customTitleLabel")}
+            placeholder={t("notifications.customTitlePlaceholder")}
+            value={customTitle}
+            onChangeText={setCustomTitle}
+            maxLength={100}
+            containerStyle={styles.customField}
+          />
+          <AppTextField
+            variant="dark"
+            isRTL={isRTL}
+            label={t("notifications.customBodyLabel")}
+            placeholder={t("notifications.customBodyPlaceholder")}
+            value={customBody}
+            onChangeText={setCustomBody}
+            multiline
+            maxLength={500}
+            containerStyle={styles.customField}
+          />
+          <PrimaryButton
+            label={t("notifications.customSend")}
+            loadingLabel={t("common.loading")}
+            loading={customBusy}
+            disabled={!customTitle.trim() || !customBody.trim()}
+            onPress={sendCustomBroadcast}
+            style={styles.customSendBtn}
+          />
         </View>
       ) : null}
     </View>
@@ -300,4 +381,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   testBtnTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 13 },
+  customField: { marginTop: 8 },
+  customSendBtn: { marginTop: 8 },
 });
