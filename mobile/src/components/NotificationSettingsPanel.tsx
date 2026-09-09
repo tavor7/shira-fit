@@ -5,6 +5,7 @@ import { surface } from "../theme/surfaces";
 import { useI18n } from "../context/I18nContext";
 import { loadNotificationPrefs, saveNotificationPrefs, type NotificationPrefs } from "../lib/notificationPrefs";
 import { syncExpoPushTokenIfNeeded } from "../lib/pushTokenSync";
+import { syncWebPushSubscriptionIfNeeded } from "../lib/webPushSync";
 import * as Notifications from "expo-notifications";
 import { useToast } from "../context/ToastContext";
 import {
@@ -41,22 +42,16 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
     setPrefs(next);
     await saveNotificationPrefs(next);
     if (key === "sessionReminders" || key === "waitlistAlerts") {
-      if (!next.sessionReminders && !next.waitlistAlerts) {
-        if (Platform.OS === "web") {
-          showToast({
-            message: language === "he" ? "התראות מקומיות זמינות בעיקר בנייד." : "Local alerts work best on iOS/Android.",
-            variant: "info",
-          });
-        } else {
-          try {
-            await Notifications.cancelAllScheduledNotificationsAsync();
-          } catch {
-            // ignore (permissions missing, not supported, etc.)
-          }
+      if (!next.sessionReminders && !next.waitlistAlerts && Platform.OS !== "web") {
+        try {
+          await Notifications.cancelAllScheduledNotificationsAsync();
+        } catch {
+          // ignore (permissions missing, not supported, etc.)
         }
       }
     }
     void syncExpoPushTokenIfNeeded();
+    void syncWebPushSubscriptionIfNeeded();
   }
 
   async function toggleWhatsApp() {
@@ -110,7 +105,9 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
       )}
       {Platform.OS === "web" ? (
         <Text style={[styles.note, isRTL && styles.rtl]}>
-          {language === "he" ? "התראות מקומיות זמינות בעיקר בנייד." : "Local alerts work best on iOS/Android."}
+          {language === "he"
+            ? "באייפון: הוסיפו את העמוד למסך הבית (שיתוף ← הוספה למסך הבית) כדי לקבל התראות. באנדרואיד ובמחשב זה עובד ישירות מהדפדפן."
+            : "On iPhone: add this page to your Home Screen (Share → Add to Home Screen) to receive alerts. On Android and desktop it works straight from the browser."}
         </Text>
       ) : null}
       {row(

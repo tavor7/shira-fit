@@ -16,6 +16,7 @@ import { useI18n } from "../../../src/context/I18nContext";
 import { useToast } from "../../../src/context/ToastContext";
 import { checkWaitlistSpotsAndNotify } from "../../../src/lib/waitlistSpotNotifier";
 import { syncExpoPushTokenIfNeeded } from "../../../src/lib/pushTokenSync";
+import { syncWebPushSubscriptionIfNeeded } from "../../../src/lib/webPushSync";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 import { fetchAthleteHomeAlertItems, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
@@ -210,6 +211,7 @@ export default function AthleteSessionsScreen() {
       load(false);
       void loadMyUpcoming();
       void syncExpoPushTokenIfNeeded();
+      void syncWebPushSubscriptionIfNeeded();
       void checkWaitlistSpotsAndNotify(language === "he" ? "he" : "en");
     }, [load, loadMyUpcoming, language])
   );

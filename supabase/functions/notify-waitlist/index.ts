@@ -5,6 +5,7 @@
  * Does not remove waitlist rows — staff can see the full list and add people manually.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendWebPushToUser } from "../_shared/webPush.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -78,6 +79,9 @@ Deno.serve(async (req) => {
       headers: { ...cors, "Content-Type": "application/json" },
     });
 
+  const waitlistTitle = "Spot available";
+  const waitlistBody = `A spot opened for ${sess.session_date} ${sess.start_time}. Open the app to register.`;
+
   const token = (first as { profiles?: { expo_push_token?: string } }).profiles?.expo_push_token;
   if (token) {
     await fetch("https://exp.host/--/api/v2/push/send", {
@@ -85,11 +89,21 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         to: token,
-        title: "Spot available",
-        body: `A spot opened for ${sess.session_date} ${sess.start_time}. Open the app to register.`,
+        title: waitlistTitle,
+        body: waitlistBody,
         data: { session_id: sessionId },
       }),
     });
+  }
+
+  try {
+    await sendWebPushToUser(supabase, first.user_id, {
+      title: waitlistTitle,
+      body: waitlistBody,
+      data: { session_id: sessionId },
+    });
+  } catch {
+    // Best-effort — a missing VAPID config or an offline browser shouldn't fail the response.
   }
 
   return new Response(JSON.stringify({ ok: true, notified: true, user_id: first.user_id }), {
