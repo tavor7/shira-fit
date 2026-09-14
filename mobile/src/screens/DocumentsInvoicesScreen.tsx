@@ -1326,7 +1326,8 @@ export default function DocumentsInvoicesScreen() {
   );
 
   const docsFiltersActive = payeeFilter.type !== "all";
-  const docsFiltersSummary = payeeFilter.type === "all" ? "" : payeeFilter.label;
+  const docsDateRangeLabel = `${formatISODateFull(dateStart, language)} – ${formatISODateFull(dateEnd, language)}`;
+  const docsFiltersSummary = `${docsFiltersActive ? payeeFilter.label : t("accountPayments.allPayees")} · ${docsDateRangeLabel}`;
 
   const documentsListHeader = (
     <>
@@ -1339,7 +1340,7 @@ export default function DocumentsInvoicesScreen() {
           <View style={styles.filterToggleCopy}>
             <Text style={[styles.filterToggleLabel, isRTL && styles.rtl]}>{t("accountPayments.filters")}</Text>
             <Text style={[styles.filterSummary, isRTL && styles.rtl]} numberOfLines={1}>
-              {docsFiltersActive ? docsFiltersSummary : t("payeeFilter.noneActive")}
+              {docsFiltersSummary}
             </Text>
           </View>
           <Text style={styles.chevron}>{filtersOpen ? "︿" : "﹀"}</Text>
