@@ -15,7 +15,7 @@ export async function searchStaffAthletes(termRaw: string, limit = 50): Promise<
   let pQuery = supabase
     .from("profiles")
     .select("user_id, full_name, username, phone")
-    .eq("role", "athlete")
+    .in("role", ["athlete", "coach"])
     .order("full_name", { ascending: true })
     .limit(limit);
   if (term.length > 0) {

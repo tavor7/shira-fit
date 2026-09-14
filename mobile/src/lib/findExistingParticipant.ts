@@ -39,7 +39,7 @@ async function findByPhone(phoneRaw: string): Promise<ExistingParticipantMatch |
     supabase
       .from("profiles")
       .select("user_id, full_name, phone, username")
-      .eq("role", "athlete")
+      .in("role", ["athlete", "coach"])
       .eq("phone", phone)
       .limit(5),
     supabase.from("manual_participants").select("id, full_name, phone").is("disabled_at", null).eq("phone", phone).limit(5),
@@ -78,7 +78,7 @@ async function findByPhone(phoneRaw: string): Promise<ExistingParticipantMatch |
     supabase
       .from("profiles")
       .select("user_id, full_name, phone, username")
-      .eq("role", "athlete")
+      .in("role", ["athlete", "coach"])
       .ilike("phone", `%${tail}%`)
       .limit(15),
     supabase.from("manual_participants").select("id, full_name, phone").is("disabled_at", null).ilike("phone", `%${tail}%`).limit(15),
@@ -121,7 +121,7 @@ async function findByName(nameRaw: string): Promise<ExistingParticipantMatch | n
     supabase
       .from("profiles")
       .select("user_id, full_name, phone, username")
-      .eq("role", "athlete")
+      .in("role", ["athlete", "coach"])
       .ilike("full_name", safe)
       .limit(10),
     supabase.from("manual_participants").select("id, full_name, phone").is("disabled_at", null).ilike("full_name", safe).limit(10),

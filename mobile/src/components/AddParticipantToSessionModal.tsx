@@ -140,7 +140,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       let pQuery = supabase
         .from("profiles")
         .select("user_id, full_name, username, phone")
-        .eq("role", "athlete")
+        .in("role", ["athlete", "coach"])
         .order("full_name", { ascending: true })
         .limit(50);
       if (term.length > 0) {
@@ -223,6 +223,11 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   function rpcErrorMessage(code: string): string {
     if (code === "invalid_athlete") {
       return language === "he" ? "המתאמן חייב להיות מאושר במערכת." : "This person must be an approved athlete in the system.";
+    }
+    if (code === "is_session_coach") {
+      return language === "he"
+        ? "לא ניתן לרשום את המאמן/ת של האימון הזה כמתאמן/ת."
+        : "This coach can't be added as a participant to a session they coach.";
     }
     if (code === "account_disabled") {
       return t("profile.accountDisabledStaffHint");
