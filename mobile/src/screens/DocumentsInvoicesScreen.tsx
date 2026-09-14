@@ -254,6 +254,7 @@ export default function DocumentsInvoicesScreen() {
           accountant_email: s.accountant_email ?? "",
           digital_receipts_enabled: s.digital_receipts_enabled,
           vat_rate: s.vat_rate,
+          vat_enabled: s.vat_enabled,
           document_prefix: s.document_prefix,
           staff_can_cancel_documents: s.staff_can_cancel_documents,
           is_operational: s.is_operational,
@@ -328,6 +329,7 @@ export default function DocumentsInvoicesScreen() {
         accountant_email: settingsForm.accountant_email,
         digital_receipts_enabled: settingsForm.digital_receipts_enabled,
         vat_rate: vatPct != null ? vatPct / 100 : undefined,
+        vat_enabled: settingsForm.vat_enabled,
         document_prefix: settingsForm.document_prefix,
         staff_can_cancel_documents: settingsForm.staff_can_cancel_documents,
         is_operational: settingsForm.is_operational,
@@ -798,15 +800,18 @@ export default function DocumentsInvoicesScreen() {
   }
 
   function exportCsv() {
-    const headers = ["document_number", "date", "customer", "gross", "net", "vat", "vat_rate", "payment_method", "service_type", "status"];
+    const vatOn = !!settings?.vat_enabled;
+    const headers = [
+      "document_number", "date", "customer", "gross",
+      ...(vatOn ? ["net", "vat", "vat_rate"] : []),
+      "payment_method", "service_type", "status",
+    ];
     const rows = reportRows.map((r) => [
       r.document_number,
       r.paid_at.slice(0, 10),
       r.customer_name,
       String(r.gross_amount),
-      String(r.net_amount),
-      String(r.vat_amount),
-      vatPercentLabel(r.vat_rate),
+      ...(vatOn ? [String(r.net_amount), String(r.vat_amount), vatPercentLabel(r.vat_rate)] : []),
       r.payment_method ?? "",
       r.service_type,
       r.status,
@@ -1208,6 +1213,18 @@ export default function DocumentsInvoicesScreen() {
       </SectionCard>
 
       <SectionCard label={language === "he" ? "מע״מ ומספור" : "VAT & numbering"}>
+        <ToggleRow
+          isRTL={isRTL}
+          title={language === "he" ? "כלול מע״מ בקבלות" : "Include VAT on receipts"}
+          subtitle={
+            language === "he"
+              ? "כשכבוי, קבלות ודוחות לא יכללו מע״מ ויוצגו כעוסק פטור"
+              : "When off, receipts and reports show no VAT and are marked as exempt-dealer"
+          }
+          value={!!settingsForm.vat_enabled}
+          onChange={(v) => setSettingsForm((s) => ({ ...s, vat_enabled: v }))}
+        />
+        <View style={styles.cardDivider} />
         <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{language === "he" ? "אחוז מע״מ" : "VAT %"}</Text>
         <TextInput
           value={String(Math.round((settingsForm.vat_rate ?? 0.18) * 10000) / 100)}
@@ -1215,8 +1232,9 @@ export default function DocumentsInvoicesScreen() {
             const n = parseMoney(v);
             if (n != null) setSettingsForm((s) => ({ ...s, vat_rate: n / 100 }));
           }}
+          editable={!!settingsForm.vat_enabled}
           keyboardType="decimal-pad"
-          style={[styles.input, isRTL && styles.rtlInput]}
+          style={[styles.input, isRTL && styles.rtlInput, !settingsForm.vat_enabled && styles.inputDisabled]}
         />
         <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{language === "he" ? "קידומת מסמך" : "Document prefix"}</Text>
         <TextInput
@@ -1390,8 +1408,17 @@ export default function DocumentsInvoicesScreen() {
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryStat}>
-          <Text style={styles.summaryValue}>{formatIls(reportVatDisplay)}</Text>
-          <Text style={styles.summaryLabel}>{language === "he" ? "מע״מ" : "VAT"}</Text>
+          {settings?.vat_enabled ? (
+            <>
+              <Text style={styles.summaryValue}>{formatIls(reportVatDisplay)}</Text>
+              <Text style={styles.summaryLabel}>{language === "he" ? "מע״מ" : "VAT"}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.summaryValue}>{`ע.פ. ${settings?.business_id ?? ""}`}</Text>
+              <Text style={styles.summaryLabel}>{language === "he" ? "עוסק פטור" : "Exempt dealer"}</Text>
+            </>
+          )}
         </View>
       </View>
       <PrimaryButton label={language === "he" ? "ייצוא CSV לרו״ח" : "Export CSV"} onPress={exportCsv} />
@@ -1680,6 +1707,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
+  inputDisabled: { opacity: 0.5 },
   textArea: { minHeight: 140, textAlignVertical: "top" },
   rtlInput: { textAlign: "right", writingDirection: "rtl" },
   createBtn: { marginBottom: theme.spacing.sm },

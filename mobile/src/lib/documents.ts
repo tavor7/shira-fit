@@ -12,6 +12,7 @@ export type ReceiptSettings = {
   accountant_email: string;
   digital_receipts_enabled: boolean;
   vat_rate: number;
+  vat_enabled: boolean;
   document_prefix: string;
   next_document_number: number;
   staff_can_cancel_documents: boolean;
@@ -160,6 +161,7 @@ export async function updateReceiptSettings(patch: Partial<{
   accountant_email: string;
   digital_receipts_enabled: boolean;
   vat_rate: number;
+  vat_enabled: boolean;
   document_prefix: string;
   staff_can_cancel_documents: boolean;
   is_operational: boolean;
@@ -176,6 +178,7 @@ export async function updateReceiptSettings(patch: Partial<{
     p_accountant_email: patch.accountant_email ?? null,
     p_digital_receipts_enabled: patch.digital_receipts_enabled ?? null,
     p_vat_rate: patch.vat_rate ?? null,
+    p_vat_enabled: patch.vat_enabled ?? null,
     p_document_prefix: patch.document_prefix ?? null,
     p_staff_can_cancel_documents: patch.staff_can_cancel_documents ?? null,
     p_is_operational: patch.is_operational ?? null,

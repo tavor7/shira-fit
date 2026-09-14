@@ -1,0 +1,1 @@
+-- (No-op placeholder — the real change is in the next migration file.)

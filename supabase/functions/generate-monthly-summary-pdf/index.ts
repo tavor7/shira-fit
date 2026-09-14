@@ -173,8 +173,12 @@ async function renderMonthlySummaryPdf(
   drawSectionTitle("סיכום הכנסות");
   drawFullRow("מספר קבלות תקפות:", String(totals.activeCount));
   drawFullRow("סה״כ הכנסות ברוטו:", fmtMoney(totals.grossTotal));
-  drawFullRow("סה״כ נטו לפני מע״מ:", fmtMoney(totals.netTotal));
-  drawFullRow("סה״כ מע״מ:", fmtMoney(totals.vatTotal));
+  if (totals.vatTotal > 0) {
+    drawFullRow("סה״כ נטו לפני מע״מ:", fmtMoney(totals.netTotal));
+    drawFullRow("סה״כ מע״מ:", fmtMoney(totals.vatTotal));
+  } else {
+    drawFullRow("עוסק פטור:", `ע.פ. ${business.business_id}`);
+  }
   if (totals.cancelledCount > 0) {
     drawFullRow("מסמכים שבוטלו ואינם נכללים בסה״כ:", String(totals.cancelledCount));
   }

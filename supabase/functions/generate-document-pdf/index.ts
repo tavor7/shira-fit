@@ -259,7 +259,7 @@ async function renderHebrewPdf(doc: DocRow): Promise<Uint8Array> {
   });
   y -= brandSize + 12;
   const titleSize = 18;
-  drawMixedTextCentered(page, "קבלה / חשבונית מס", midX, y, titleSize, hebrewFont, bodyFont);
+  drawMixedTextCentered(page, doc.vat_amount > 0 ? "קבלה / חשבונית מס" : "קבלה", midX, y, titleSize, hebrewFont, bodyFont);
   y -= titleSize + 28;
 
   // Two-column header: document (left) + business (right)
@@ -341,12 +341,17 @@ async function renderHebrewPdf(doc: DocRow): Promise<Uint8Array> {
   y -= rowStep;
   drawFullRow("אמצעי תשלום:", PAYMENT_LABELS[doc.payment_method ?? ""] ?? "—", y);
   y -= rowStep;
-  drawFullRow("סכום לפני מע״מ:", fmtMoney(doc.net_amount), y);
-  y -= rowStep;
-  drawFullRow("אחוז מע״מ:", `${Math.round(doc.vat_rate * 10000) / 100}%`, y);
-  y -= rowStep;
-  drawFullRow("סכום מע״מ:", fmtMoney(doc.vat_amount), y);
-  y -= rowStep;
+  if (doc.vat_amount > 0) {
+    drawFullRow("סכום לפני מע״מ:", fmtMoney(doc.net_amount), y);
+    y -= rowStep;
+    drawFullRow("אחוז מע״מ:", `${Math.round(doc.vat_rate * 10000) / 100}%`, y);
+    y -= rowStep;
+    drawFullRow("סכום מע״מ:", fmtMoney(doc.vat_amount), y);
+    y -= rowStep;
+  } else {
+    drawFullRow("עוסק פטור:", `ע.פ. ${doc.business_id}`, y);
+    y -= rowStep;
+  }
   drawFullRow("סכום כולל ששולם:", fmtMoney(doc.gross_amount), y);
   y -= rowStep;
   drawFullRow("הערות:", doc.notes || "—", y);
