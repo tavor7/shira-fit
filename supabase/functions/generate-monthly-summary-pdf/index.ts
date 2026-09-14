@@ -163,7 +163,7 @@ async function renderMonthlySummaryPdf(
   // Business details
   drawSectionTitle("פרטי העסק");
   drawFullRow("שם העסק:", business.business_name);
-  drawFullRow("ע.פ:", business.business_id);
+  drawFullRow(totals.vatTotal > 0 ? "ע.מ:" : "ע.פ:", business.business_id);
   drawFullRow("כתובת:", business.address || "—");
   drawFullRow("טלפון:", business.phone);
   if (business.email.trim()) drawFullRow("אימייל:", business.email.trim());
@@ -176,8 +176,6 @@ async function renderMonthlySummaryPdf(
   if (totals.vatTotal > 0) {
     drawFullRow("סה״כ נטו לפני מע״מ:", fmtMoney(totals.netTotal));
     drawFullRow("סה״כ מע״מ:", fmtMoney(totals.vatTotal));
-  } else {
-    drawFullRow("עוסק פטור:", `ע.פ. ${business.business_id}`);
   }
   if (totals.cancelledCount > 0) {
     drawFullRow("מסמכים שבוטלו ואינם נכללים בסה״כ:", String(totals.cancelledCount));

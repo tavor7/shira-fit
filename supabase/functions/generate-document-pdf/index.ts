@@ -277,7 +277,7 @@ async function renderHebrewPdf(doc: DocRow): Promise<Uint8Array> {
 
   drawColRow("שם העסק:", doc.business_name, yRight, rightColLeft, rightColRight);
   yRight -= rowStep;
-  drawColRow("ע.פ:", doc.business_id, yRight, rightColLeft, rightColRight);
+  drawColRow(doc.vat_amount > 0 ? "ע.מ:" : "ע.פ:", doc.business_id, yRight, rightColLeft, rightColRight);
   yRight -= rowStep;
   drawColRow("כתובת:", doc.business_address || "—", yRight, rightColLeft, rightColRight);
   yRight -= rowStep;
@@ -347,9 +347,6 @@ async function renderHebrewPdf(doc: DocRow): Promise<Uint8Array> {
     drawFullRow("אחוז מע״מ:", `${Math.round(doc.vat_rate * 10000) / 100}%`, y);
     y -= rowStep;
     drawFullRow("סכום מע״מ:", fmtMoney(doc.vat_amount), y);
-    y -= rowStep;
-  } else {
-    drawFullRow("עוסק פטור:", `ע.פ. ${doc.business_id}`, y);
     y -= rowStep;
   }
   drawFullRow("סכום כולל ששולם:", fmtMoney(doc.gross_amount), y);
