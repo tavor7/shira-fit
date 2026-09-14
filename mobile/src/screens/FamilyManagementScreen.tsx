@@ -111,7 +111,7 @@ export default function FamilyManagementScreen() {
     let query = supabase
       .from("profiles")
       .select("user_id, full_name, username, phone")
-      .eq("role", "athlete")
+      .in("role", ["athlete", "coach"])
       .order("full_name", { ascending: true })
       .limit(200);
     if (q.length > 0) {

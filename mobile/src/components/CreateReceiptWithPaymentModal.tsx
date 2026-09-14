@@ -65,7 +65,7 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
       let profileQuery = supabase
         .from("profiles")
         .select("user_id, full_name, phone")
-        .eq("role", "athlete")
+        .in("role", ["athlete", "coach"])
         .order("full_name", { ascending: true })
         .limit(60);
       if (q) profileQuery = profileQuery.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`);

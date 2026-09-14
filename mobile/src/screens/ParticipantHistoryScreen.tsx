@@ -584,7 +584,7 @@ export default function ParticipantHistoryScreen({
     let query = supabase
       .from("profiles")
       .select("user_id, full_name, username, phone")
-      .eq("role", "athlete")
+      .in("role", ["athlete", "coach"])
       .is("disabled_at", null)
       .order("full_name", { ascending: true })
       .limit(200);

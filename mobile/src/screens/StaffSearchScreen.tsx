@@ -37,7 +37,7 @@ export default function StaffSearchScreen() {
       const { data: athletes } = await supabase
         .from("profiles")
         .select("user_id, full_name, username, phone")
-        .eq("role", "athlete")
+        .in("role", ["athlete", "coach"])
         .or(`full_name.ilike.%${term}%,username.ilike.%${term}%,phone.ilike.%${term}%`)
         .order("full_name", { ascending: true })
         .limit(40);

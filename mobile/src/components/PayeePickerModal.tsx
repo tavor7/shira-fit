@@ -33,7 +33,7 @@ export function PayeePickerModal({ visible, onClose, onSelect }: Props) {
     let profileQuery = supabase
       .from("profiles")
       .select("user_id, full_name, username, phone")
-      .eq("role", "athlete")
+      .in("role", ["athlete", "coach"])
       .order("full_name", { ascending: true })
       .limit(80);
     if (q) profileQuery = profileQuery.or(`full_name.ilike.%${q}%,username.ilike.%${q}%,phone.ilike.%${q}%`);
