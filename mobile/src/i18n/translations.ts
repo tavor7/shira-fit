@@ -1322,6 +1322,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "legal.accessibilityLink": "Accessibility Statement",
     "legal.readFull": "Read the full document",
     "legal.footerHeading": "Legal",
+    "legalHub.title": "Legal",
+    "legalHub.subtitle": "Terms, privacy, and accessibility information for Shira Fit.",
+    "legalHub.privacyDesc": "What we collect and why, and your rights.",
+    "legalHub.termsDesc": "The rules for using the app and studio services.",
+    "legalHub.accessibilityDesc": "Our accessibility approach and how to reach us.",
 
     "legalGate.title": "Updated legal terms",
     "legalGate.intro": "We've updated our legal documents. Please review and accept them to continue using the app.",
@@ -2688,6 +2693,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "legal.accessibilityLink": "הצהרת נגישות",
     "legal.readFull": "קריאת המסמך המלא",
     "legal.footerHeading": "משפטי",
+    "legalHub.title": "משפטי",
+    "legalHub.subtitle": "תקנון, פרטיות ומידע נגישות עבור Shira Fit.",
+    "legalHub.privacyDesc": "מה אנחנו אוספים, לשם מה, ומהן זכויותיך.",
+    "legalHub.termsDesc": "הכללים לשימוש באפליקציה ובשירותי הסטודיו.",
+    "legalHub.accessibilityDesc": "גישת הנגישות שלנו ואיך ליצור קשר.",
 
     "legalGate.title": "עדכון תנאים משפטיים",
     "legalGate.intro": "עדכנו את המסמכים המשפטיים שלנו. יש לעיין ולאשר אותם כדי להמשיך להשתמש באפליקציה.",

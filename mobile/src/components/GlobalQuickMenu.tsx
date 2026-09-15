@@ -62,6 +62,12 @@ export function GlobalQuickMenu() {
       isActive: () => false,
     };
 
+    const legalItem: RouteItem = {
+      label: t("legal.footerHeading"),
+      onPress: () => router.push("/legal" as never),
+      isActive: (p) => startsWithAny(p, ["/legal"]),
+    };
+
     if (profile?.role === "athlete" && (profile?.approval_status === "pending" || isAthleteAccountDisabled(profile))) {
       return [languageItem];
     }
@@ -185,6 +191,7 @@ export function GlobalQuickMenu() {
           onPress: () => router.push("/(app)/coach/create-session"),
           isActive: (p) => startsWithAny(p, ["/coach/create-session"]),
         },
+        legalItem,
         languageItem,
       ];
     }
@@ -216,7 +223,7 @@ export function GlobalQuickMenu() {
         isActive: () => false,
       });
     }
-    athleteItems.push(languageItem);
+    athleteItems.push(legalItem, languageItem);
     return athleteItems;
   }, [
     navRole,
