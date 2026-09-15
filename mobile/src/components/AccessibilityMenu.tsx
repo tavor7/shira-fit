@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
@@ -23,6 +24,10 @@ function AccessibilityMenuInner() {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<View>(null);
   const reduceMotionRef = useReduceMotionRef();
+  const insets = useSafeAreaInsets();
+  // Clears the global legal-links footer (visible on non-staff screens) plus the home
+  // indicator / gesture-bar safe area, so the button never sits on top of that text.
+  const fabBottom = insets.bottom + 76;
   const scale = useRef(new Animated.Value(1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
 
@@ -70,7 +75,12 @@ function AccessibilityMenuInner() {
       <Pressable
         ref={triggerRef}
         onPress={animatePress}
-        style={({ pressed }) => [styles.fab, isRTL ? styles.fabStart : styles.fabEnd, pressed && styles.fabPressed]}
+        style={({ pressed }) => [
+          styles.fab,
+          { bottom: fabBottom },
+          isRTL ? styles.fabStart : styles.fabEnd,
+          pressed && styles.fabPressed,
+        ]}
         accessibilityRole="button"
         accessibilityLabel={t("a11yMenu.open")}
       >
@@ -203,7 +213,6 @@ function ToggleRow({
 const styles = StyleSheet.create({
   fab: {
     position: "fixed" as "absolute",
-    bottom: 20,
     zIndex: 9500,
     width: 46,
     height: 46,

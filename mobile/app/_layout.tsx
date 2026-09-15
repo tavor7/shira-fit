@@ -42,7 +42,7 @@ function LegalFooterLinksGate() {
   const role = profile?.role;
   const isStaff = role === "coach" || role === "manager";
   if (isStaff) return null;
-  return <LegalFooterLinks />;
+  return <LegalFooterLinks fixed />;
 }
 
 export default function RootLayout() {
