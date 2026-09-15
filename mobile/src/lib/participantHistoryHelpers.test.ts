@@ -168,4 +168,31 @@ describe("computeBillingSummary", () => {
     const summary = computeBillingSummary(regs, [], globalTiers, [], [], {}, {});
     expect(summary.balance).toBe(60);
   });
+
+  it("a discount account payment reduces expected instead of adding to received", () => {
+    const regs = [makeRow({ reg_status: "active", attended: true, max_participants: 4 })];
+    const payments = [makePayment({ amount_ils: 50, payment_method: "discount" })];
+    const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {});
+    expect(summary.expected).toBe(50); // 100 owed - 50 discount
+    expect(summary.received).toBe(0);
+    expect(summary.balance).toBe(50);
+    expect(summary.byMethod).toContainEqual({ key: "discount", total: 50 });
+  });
+
+  it("a discount matching the full owed amount zeroes the balance", () => {
+    const regs = [makeRow({ reg_status: "active", attended: true, max_participants: 4 })];
+    const payments = [makePayment({ amount_ils: 100, payment_method: "discount" })];
+    const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {});
+    expect(summary.expected).toBe(0);
+    expect(summary.received).toBe(0);
+    expect(summary.balance).toBe(0);
+  });
+
+  it("clamps expected at 0 when the discount exceeds what was owed", () => {
+    const regs = [makeRow({ reg_status: "active", attended: true, max_participants: 4 })];
+    const payments = [makePayment({ amount_ils: 150, payment_method: "discount" })];
+    const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {});
+    expect(summary.expected).toBe(0);
+    expect(summary.balance).toBe(0);
+  });
 });

@@ -58,6 +58,11 @@ export function computeBillingSummary(
   }
 
   let received = 0;
+  // "Discount" account payments aren't real money received — they reduce what was
+  // expected instead (see below), so they're tracked separately here rather than added
+  // to `received`. Still counted in `byMethod` so the breakdown shows how much discount
+  // was given, same as any other method.
+  let discountTotal = 0;
   for (const r of regs) {
     const amt = parseMoney(r.amount_paid);
     if (amt !== null && amt > 0) {
@@ -68,7 +73,11 @@ export function computeBillingSummary(
   for (const p of payments) {
     const amt = parseMoney(p.amount_ils);
     if (amt !== null && amt > 0) {
-      received += amt;
+      if (normalizePaymentMethodKey(p.payment_method) === "discount") {
+        discountTotal += amt;
+      } else {
+        received += amt;
+      }
       addToMethod(p.payment_method, amt);
     }
   }
@@ -102,6 +111,8 @@ export function computeBillingSummary(
     if (price === null) missingRuleCount += 1;
     else expected += price;
   }
+  // Clamp rather than let expected go negative if a discount exceeds what was actually owed.
+  expected = Math.max(0, expected - discountTotal);
 
   for (const r of regs) {
     const pc = parseMoney(r.cancellation_penalty_collected);

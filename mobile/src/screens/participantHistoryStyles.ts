@@ -461,8 +461,9 @@ export const participantHistoryStyles = StyleSheet.create({
   billingMethodLabel: { fontSize: 10, fontWeight: "800", color: theme.colors.textMuted, textAlign: "center" },
   billingMethodValue: { fontSize: 13, fontWeight: "900", color: theme.colors.text, textAlign: "center" },
   billingWarn: { fontSize: 12, color: theme.colors.textSoft, marginTop: 4, lineHeight: 17 },
+  addPayBtnRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  addPayBtnRowRtl: { flexDirection: "row-reverse" },
   addPayBtn: {
-    marginTop: 8,
     alignSelf: "flex-start",
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -470,6 +471,16 @@ export const participantHistoryStyles = StyleSheet.create({
     backgroundColor: theme.colors.cta,
   },
   addPayBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 13 },
+  addDiscountBtn: {
+    alignSelf: "flex-start",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.warning,
+    backgroundColor: theme.colors.warningBg,
+  },
+  addDiscountBtnTxt: { color: theme.colors.warning, fontWeight: "900", fontSize: 13 },
   addPayBody: { padding: theme.spacing.md, gap: 8, paddingBottom: theme.spacing.lg },
   inputLight: {
     borderWidth: 1,

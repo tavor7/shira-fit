@@ -22,7 +22,7 @@ import {
  * SESSION_PAYMENT_METHOD_KEYS so it never shows up in the per-session amount editor.
  */
 const ACCOUNT_PAYMENT_METHOD_KEYS = [...SESSION_PAYMENT_METHOD_KEYS, "discount"] as const;
-type AccountPaymentMethodKey = SessionPaymentMethodKey | "discount";
+export type AccountPaymentMethodKey = SessionPaymentMethodKey | "discount";
 
 export type AccountPaymentEdit = {
   id: string;
@@ -46,6 +46,8 @@ type Props = {
   editPayment?: AccountPaymentEdit | null;
   /** Family billing: optional field for who physically paid. */
   showPayerName?: boolean;
+  /** New (non-edit) payments only — preselects the method chip, e.g. "discount" when opened from an "Add discount" shortcut. */
+  initialMethod?: AccountPaymentMethodKey;
   onSaved: () => void | Promise<void>;
 };
 
@@ -57,6 +59,7 @@ export function AddAccountPaymentModal({
   payeeLabel,
   editPayment,
   showPayerName = false,
+  initialMethod = "cash",
   onSaved,
 }: Props) {
   const { language, t, isRTL } = useI18n();
@@ -84,11 +87,11 @@ export function AddAccountPaymentModal({
       setAmount("");
       setNote("");
       setPayerName("");
-      setMethod("cash");
+      setMethod(initialMethod);
       setPaidAt(toISODateLocal(new Date()));
     }
     setBusy(false);
-  }, [visible, payeeId, editPayment?.id]);
+  }, [visible, payeeId, editPayment?.id, initialMethod]);
 
   function showError(msg: string) {
     showToast({ message: t("common.error"), detail: msg, variant: "error" });
