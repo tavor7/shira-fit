@@ -13,7 +13,7 @@ import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { formatSessionStartTime } from "../lib/sessionTime";
 import { isValidISODateString, lastNDaysRangeISO } from "../lib/isoDate";
-import { formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
+import { formatISODateWeekdayDayMonthYear } from "../lib/dateFormat";
 import type { ManagerCoachSessionReportRow } from "../types/database";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
@@ -58,8 +58,8 @@ function CoachSessionReportCard({
     >
       <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
         <View style={[styles.sessionHeadMain, isRTL && styles.sessionHeadMainRtl]}>
-          <Text style={[styles.cardDatePrimary, isRTL && styles.sessionHeadTextHe]} numberOfLines={2}>
-            {formatISODateFullWithWeekdayAfter(item.session_date, language as "en" | "he")}
+          <Text style={[styles.cardDatePrimary, isRTL && styles.sessionHeadTextHe]} numberOfLines={1}>
+            {formatISODateWeekdayDayMonthYear(item.session_date, language as "en" | "he")}
           </Text>
           <Text
             style={[

@@ -778,7 +778,6 @@ export default function ManagerDashboardScreen() {
 
           <View style={styles.financeCard}>
             <Text style={[styles.financeCardTitle, isRTL && styles.rtl]}>{t("dashboard.financeAthleteRevenue")}</Text>
-            <Text style={[styles.financeHint, isRTL && styles.rtl]}>{t("dashboard.financeHintAthlete")}</Text>
 
             <View style={styles.moneyGrid}>
               <Pressable

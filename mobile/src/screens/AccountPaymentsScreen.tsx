@@ -27,7 +27,7 @@ import { SelectionPulse } from "../components/SelectionPulse";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
-import { formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
+import { formatISODateFullWithWeekdayAfter, formatISODateWeekdayDayMonthYear } from "../lib/dateFormat";
 import { formatSessionTimeShort } from "../lib/financeBreakdownFormat";
 import { lastNDaysRangeISO } from "../lib/isoDate";
 import {
@@ -770,8 +770,8 @@ export default function AccountPaymentsScreen() {
             <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <View style={styles.paymentCard}>
               <View style={[styles.paymentHead, rtlRow && styles.paymentHeadRtl]}>
-                <Text style={[styles.paymentDate, isRTL && styles.rtl]} numberOfLines={2}>
-                  {formatISODateFullWithWeekdayAfter(item.paid_at, language)}
+                <Text style={[styles.paymentDate, isRTL && styles.rtl]} numberOfLines={1}>
+                  {formatISODateWeekdayDayMonthYear(item.paid_at, language)}
                 </Text>
                 <Text style={styles.paymentAmount}>{amtTxt}</Text>
               </View>

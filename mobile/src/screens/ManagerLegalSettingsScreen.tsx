@@ -8,6 +8,7 @@ import { AppText } from "../components/AppText";
 import { AppSwitch } from "../components/AppSwitch";
 import { AppModal } from "../components/AppModal";
 import { Skeleton } from "../components/Skeleton";
+import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { formatDateTimeForDisplay } from "../lib/dateFormat";
 import {
   fetchLegalConsentSettings,
@@ -65,6 +66,7 @@ export default function ManagerLegalSettingsScreen() {
   if (loading) {
     return (
       <View style={styles.root}>
+        <ManagerStudioSetupTabs />
         <Skeleton height={140} style={styles.skeleton} />
       </View>
     );
@@ -72,6 +74,7 @@ export default function ManagerLegalSettingsScreen() {
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.container}>
+      <ManagerStudioSetupTabs />
       <View style={styles.card}>
         <AppText variant="title" isRTL={isRTL} style={styles.cardTitle}>
           {t("managerLegal.title")}

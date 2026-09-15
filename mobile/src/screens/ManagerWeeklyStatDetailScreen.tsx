@@ -16,7 +16,7 @@ import type { LanguageCode } from "../i18n/translations";
 import type { TrainingSessionWithTrainer } from "../types/database";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import {
-  formatISODateFullWithWeekdayAfter,
+  formatISODateWeekdayDayMonthYear,
   formatISODateRangeCompact,
   formatDateTimeForDisplay,
 } from "../lib/dateFormat";
@@ -186,7 +186,7 @@ function NoShowRowCard({
           {row.name}
         </Text>
         <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={2}>
-          {formatISODateFullWithWeekdayAfter(row.session_date, language)} ·{" "}
+          {formatISODateWeekdayDayMonthYear(row.session_date, language)} ·{" "}
           {formatSessionTimeRange(row.start_time, row.duration_minutes)}
         </Text>
       </Pressable>
@@ -312,7 +312,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                 accessibilityLabel={language === "he" ? "פתיחת אימון" : "Open session"}
               >
                 <Text style={[styles.rowTitle, isRTL && styles.rtl]} numberOfLines={2}>
-                  {formatISODateFullWithWeekdayAfter(s.session_date, language)} ·{" "}
+                  {formatISODateWeekdayDayMonthYear(s.session_date, language)} ·{" "}
                   {formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60)}
                 </Text>
                 <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={1}>
@@ -385,7 +385,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                   </Text>
                   <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={2}>
                     {sess
-                      ? `${formatISODateFullWithWeekdayAfter(sess.session_date, language)} · ${formatSessionTimeRange(sess.start_time, sess.duration_minutes ?? 60)}`
+                      ? `${formatISODateWeekdayDayMonthYear(sess.session_date, language)} · ${formatSessionTimeRange(sess.start_time, sess.duration_minutes ?? 60)}`
                       : "—"}
                   </Text>
                   <Text style={[styles.rowDetail, isRTL && styles.rtl]} numberOfLines={3}>
@@ -540,7 +540,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                   </Text>
                   <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={2}>
                     {sess
-                      ? `${formatISODateFullWithWeekdayAfter(sess.session_date, language)} · ${formatSessionTimeRange(sess.start_time, 60)}`
+                      ? `${formatISODateWeekdayDayMonthYear(sess.session_date, language)} · ${formatSessionTimeRange(sess.start_time, 60)}`
                       : "—"}
                   </Text>
                   <Text style={styles.rowHint}>{formatDateTimeForDisplay(w.requested_at, language)}</Text>
@@ -628,7 +628,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                   {r.name}
                 </Text>
                 <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={2}>
-                  {formatISODateFullWithWeekdayAfter(r.session_date, language)} ·{" "}
+                  {formatISODateWeekdayDayMonthYear(r.session_date, language)} ·{" "}
                   {formatSessionTimeRange(r.start_time, r.duration_minutes)}
                 </Text>
               </Pressable>

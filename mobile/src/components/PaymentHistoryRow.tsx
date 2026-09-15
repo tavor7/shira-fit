@@ -2,7 +2,7 @@ import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { theme } from "../theme";
 import { parseMoney } from "../lib/participantHistoryHelpers";
 import { resolveFamilyMemberByPayee, type AthleteFamily } from "../lib/athleteFamilies";
-import { formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
+import { formatISODateWeekdayDayMonthYear } from "../lib/dateFormat";
 import { normalizePaymentMethodKey, paymentMethodHistoryLabel } from "../lib/paymentMethod";
 import { firstWordOfDisplayName } from "../lib/displayName";
 import type { AthleteAccountPayment } from "../types/database";
@@ -54,8 +54,8 @@ export function PaymentHistoryRow({
       <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
         {isRTL ? (
           <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
-            <Text style={[styles.cardDate, styles.rtlText, styles.sessionHeadMainFlex]} numberOfLines={2}>
-              {formatISODateFullWithWeekdayAfter(p.paid_at, language)}
+            <Text style={[styles.cardDate, styles.rtlText, styles.sessionHeadMainFlex]} numberOfLines={1}>
+              {formatISODateWeekdayDayMonthYear(p.paid_at, language)}
             </Text>
             <Text style={[styles.sessionAmount, styles.ltrText, isDiscount && styles.sessionAmountDiscount]}>
               {isDiscount ? "−" : ""}
@@ -65,7 +65,7 @@ export function PaymentHistoryRow({
         ) : (
           <View style={styles.sessionHeadRow}>
             <Text style={styles.cardDate} numberOfLines={1}>
-              {formatISODateFullWithWeekdayAfter(p.paid_at, language)}
+              {formatISODateWeekdayDayMonthYear(p.paid_at, language)}
             </Text>
             <Text style={[styles.sessionAmount, isDiscount && styles.sessionAmountDiscount]}>
               {isDiscount ? "−" : ""}

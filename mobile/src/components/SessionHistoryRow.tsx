@@ -7,7 +7,7 @@ import { attStatusFromRow, attStatusLabel } from "../lib/participantHistoryHelpe
 import { isSessionPaymentRecorded, paymentMethodHistoryLabel } from "../lib/paymentMethod";
 import { firstWordOfDisplayName } from "../lib/displayName";
 import { resolveSessionBillingPriceLocal } from "../lib/sessionSlotPrice";
-import { formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
+import { formatISODateWeekdayDayMonthYear } from "../lib/dateFormat";
 import { formatSessionStartTime } from "../lib/sessionTime";
 import type { AthleteFamily } from "../lib/athleteFamilies";
 import type { PricingRateTierRow } from "../lib/pricingRates";
@@ -227,8 +227,8 @@ export function SessionHistoryRow({
         {isRTL ? (
           <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
             <View style={[styles.sessionHeadMain, styles.sessionHeadMainRtl]}>
-              <Text style={[styles.cardDatePrimary, styles.sessionHeadTextHe]} numberOfLines={2}>
-                {formatISODateFullWithWeekdayAfter(reg.session_date, language)}
+              <Text style={[styles.cardDatePrimary, styles.sessionHeadTextHe]} numberOfLines={1}>
+                {formatISODateWeekdayDayMonthYear(reg.session_date, language)}
               </Text>
               <Text style={[styles.cardDateMeta, styles.sessionHeadTextHe, styles.sessionHeadTimeHe]} numberOfLines={1}>
                 {timeCoachPart}
@@ -258,8 +258,8 @@ export function SessionHistoryRow({
         ) : (
           <View style={styles.sessionHeadRow}>
             <View style={styles.sessionHeadMain}>
-              <Text style={styles.cardDatePrimary} numberOfLines={2}>
-                {formatISODateFullWithWeekdayAfter(reg.session_date, language)}
+              <Text style={styles.cardDatePrimary} numberOfLines={1}>
+                {formatISODateWeekdayDayMonthYear(reg.session_date, language)}
               </Text>
               <Text style={[styles.cardDateMeta, styles.ltrText]} numberOfLines={1}>
                 {timeCoachPart}
@@ -323,7 +323,7 @@ export function SessionHistoryRow({
             Platform.OS === "web" && styles.sessionCardBodyWeb,
           ]}
           accessibilityRole="button"
-          accessibilityLabel={`${formatISODateFullWithWeekdayAfter(reg.session_date, language)} · ${timeCoachPart}`}
+          accessibilityLabel={`${formatISODateWeekdayDayMonthYear(reg.session_date, language)} · ${timeCoachPart}`}
         >
           {sessionCardInner}
         </PressableScale>

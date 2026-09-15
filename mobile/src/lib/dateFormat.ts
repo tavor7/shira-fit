@@ -78,6 +78,23 @@ export function formatISODateFullWithWeekdayAfter(iso: string, language?: Langua
   return `${date} · ${weekday}`;
 }
 
+/**
+ * YYYY-MM-DD → "Wed, 16 Sep 2026" / Hebrew equivalent — short weekday + day + short month
+ * + year, all on one line. The full-word version ("16 September 2026 · Wednesday") kept
+ * wrapping to two lines in every narrow card-header it was used in (every call site had
+ * numberOfLines={2} to tolerate it) — this is the fix, matching the same "don't repeat
+ * more than needed" approach as formatISODateRangeCompact.
+ */
+export function formatISODateWeekdayDayMonthYear(iso: string, language?: LanguageCode): string {
+  const d = parseISODateLocal(iso);
+  if (!d) return iso;
+  const lang = langOrEn(language);
+  const locale = appLocale(lang);
+  const weekday = d.toLocaleDateString(locale, { weekday: "short" });
+  const dayMonthYear = d.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
+  return `${weekday}, ${dayMonthYear}`;
+}
+
 /** Sheet title: weekday + full date (day, month, year). */
 export function formatISODateLong(iso: string, language?: LanguageCode): string {
   const d = parseISODateLocal(iso);
