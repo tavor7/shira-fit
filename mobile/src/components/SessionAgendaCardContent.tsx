@@ -137,7 +137,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
           )}
         </View>
       ) : null}
-      {showFill && !staffLabels && !registered ? (
+      {showFill && !staffLabels && !registered && temporalPhase === "upcoming" ? (
         <Text style={[styles.fill, compact && styles.fillCompact]}>
           {c} / {m}
         </Text>
