@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAccessibilityPrefs, type AccessibilityPrefs } from "../context/AccessibilityContext";
+import { useAuth } from "../context/AuthContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { AppText } from "./AppText";
 
@@ -25,7 +26,12 @@ function AccessibilityMenuInner() {
   const triggerRef = useRef<View>(null);
   const reduceMotionRef = useReduceMotionRef();
   const insets = useSafeAreaInsets();
-  const fabBottom = insets.bottom + 20;
+  const { profile } = useAuth();
+  // StudioContactFooter (Instagram / Website / Call) is shown to everyone except staff —
+  // clear it instead of floating on top of it. It carries its own insets.bottom padding
+  // internally, so this only needs the row's own content height plus a small gap.
+  const isStaff = profile?.role === "coach" || profile?.role === "manager";
+  const fabBottom = insets.bottom + (isStaff ? 20 : 78);
   const scale = useRef(new Animated.Value(1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
 
