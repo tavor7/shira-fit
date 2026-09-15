@@ -15,6 +15,15 @@ import {
   type SessionPaymentMethodKey,
 } from "../lib/paymentMethod";
 
+/**
+ * "Discount" is an account-payment-only method (reports/account-payments screens), not a
+ * real payment — recording one reduces what's owed exactly like a real payment does,
+ * without money actually changing hands. Deliberately kept out of
+ * SESSION_PAYMENT_METHOD_KEYS so it never shows up in the per-session amount editor.
+ */
+const ACCOUNT_PAYMENT_METHOD_KEYS = [...SESSION_PAYMENT_METHOD_KEYS, "discount"] as const;
+type AccountPaymentMethodKey = SessionPaymentMethodKey | "discount";
+
 export type AccountPaymentEdit = {
   id: string;
   amount_ils: number | string;
@@ -54,7 +63,7 @@ export function AddAccountPaymentModal({
   const { showToast } = useToast();
   const isEdit = !!editPayment?.id;
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<SessionPaymentMethodKey>("cash");
+  const [method, setMethod] = useState<AccountPaymentMethodKey>("cash");
   const [note, setNote] = useState("");
   const [payerName, setPayerName] = useState("");
   const [paidAt, setPaidAt] = useState(() => toISODateLocal(new Date()));
@@ -66,7 +75,8 @@ export function AddAccountPaymentModal({
     if (editPayment) {
       const rawAmt = editPayment.amount_ils;
       setAmount(rawAmt !== null && rawAmt !== undefined ? String(rawAmt) : "");
-      setMethod(coerceSessionPaymentMethodKey(editPayment.payment_method, "other"));
+      const rawMethod = (editPayment.payment_method ?? "").trim().toLowerCase();
+      setMethod(rawMethod === "discount" ? "discount" : coerceSessionPaymentMethodKey(editPayment.payment_method, "other"));
       setNote((editPayment.note ?? "").trim());
       setPayerName((editPayment.payer_name ?? "").trim());
       setPaidAt(editPayment.paid_at.trim());
@@ -190,8 +200,9 @@ export function AddAccountPaymentModal({
         />
         <Text style={[styles.label, isRTL && styles.rtlText]}>{t("billing.method")}</Text>
         <View style={[styles.methodRow, isRTL && styles.methodRowRtl]}>
-          {SESSION_PAYMENT_METHOD_KEYS.map((m) => {
+          {ACCOUNT_PAYMENT_METHOD_KEYS.map((m) => {
             const on = method === m;
+            const isDiscount = m === "discount";
             return (
               <Pressable
                 key={m}
@@ -199,17 +210,25 @@ export function AddAccountPaymentModal({
                 disabled={busy}
                 style={({ pressed }) => [
                   styles.methodChip,
-                  on && styles.methodChipOn,
+                  on && (isDiscount ? styles.methodChipDiscountOn : styles.methodChipOn),
                   pressed && !on && { opacity: 0.9 },
                 ]}
               >
-                <Text style={[styles.methodChipTxt, on && styles.methodChipTxtOn]}>
+                <Text
+                  style={[
+                    styles.methodChipTxt,
+                    on && (isDiscount ? styles.methodChipTxtDiscountOn : styles.methodChipTxtOn),
+                  ]}
+                >
                   {paymentMethodHistoryLabel(m, language)}
                 </Text>
               </Pressable>
             );
           })}
         </View>
+        {method === "discount" ? (
+          <Text style={[styles.discountHint, isRTL && styles.rtlText]}>{t("billing.discountHint")}</Text>
+        ) : null}
         {showPayerName ? (
           <>
             <Text style={[styles.label, isRTL && styles.rtlText]}>{t("families.payerNameLabel")}</Text>
@@ -289,4 +308,12 @@ const styles = StyleSheet.create({
   methodChipOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   methodChipTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.text },
   methodChipTxtOn: { color: theme.colors.ctaText },
+  methodChipDiscountOn: { backgroundColor: theme.colors.warningBg, borderColor: theme.colors.warning },
+  methodChipTxtDiscountOn: { color: theme.colors.warning },
+  discountHint: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: theme.colors.warning,
+    marginTop: -2,
+  },
 });

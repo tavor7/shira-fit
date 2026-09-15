@@ -36,6 +36,7 @@ export function normalizePaymentMethodKey(raw: string | null | undefined): strin
   if (tl === "paybox" || tl === "pay box" || tl === "pay-box" || t === "PayBox" || t === "PAYBOX" || t === "פייבוקס")
     return "paybox";
   if (tl === "mom" || tl === "mother" || t === "Mom" || t === "MOM" || t === "אמא" || t === "לאמא") return "mom";
+  if (tl === "discount" || t === "הנחה" || t === "Discount" || t === "DISCOUNT") return "discount";
   if (tl === "other" || t === "אחר" || t === "Other" || t === "OTHER") return "other";
   if (/^[\x00-\x7F]+$/.test(t)) return tl;
   return t;
@@ -48,6 +49,7 @@ export function paymentMethodDashboardLabel(key: string, language: LanguageCode)
   if (k === "cash") return language === "he" ? "מזומן" : "Cash";
   if (k === "paybox") return "PayBox";
   if (k === "mom") return language === "he" ? "אמא" : "Mom";
+  if (k === "discount") return language === "he" ? "הנחה" : "Discount";
   if (k === "other") return language === "he" ? "אחר" : "Other";
   return key;
 }
@@ -59,6 +61,7 @@ export function paymentMethodAttendanceLabel(key: string | null | undefined, lan
   if (k === "cash") return language === "he" ? "מזומן" : "Cash";
   if (k === "paybox") return "PayBox";
   if (k === "mom") return language === "he" ? "אמא" : "Mom";
+  if (k === "discount") return language === "he" ? "הנחה" : "Discount";
   if (k === "other") return language === "he" ? "אחר" : "Other";
   const raw = String(key ?? "").trim();
   return raw || (language === "he" ? "אחר" : "Other");
