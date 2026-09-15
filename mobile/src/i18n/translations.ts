@@ -109,6 +109,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "menu.openingSchedule": "Opening schedule",
     "menu.birthdayMessages": "Birthdays",
     "menu.whatsappRollout": "WhatsApp",
+    "menu.legalSettings": "Legal",
     "menu.activityLog": "Activity log",
     "menu.superUserHidden": "Hidden workouts",
     "managerTools.superUserHiddenSub": "Manage hidden athlete records",
@@ -641,6 +642,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "staffUsers.searchPlaceholder": "Search name / username / phone…",
     "staffUsers.noUsers": "No users found.",
     "staffUsers.birthdayToday": "Birthday today",
+    "staffUsers.legalTerms": "Terms",
+    "staffUsers.legalPrivacy": "Privacy",
+    "staffUsers.legalMarketing": "Marketing",
 
     "manualParticipant.editTitle": "Edit participant",
     "manualParticipant.notes": "Notes",
@@ -971,6 +975,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "screen.managerTrainerColors": "Coach colors",
     "screen.managerRoles": "Roles",
     "screen.managerWhatsappRollout": "WhatsApp",
+    "screen.managerLegalSettings": "Legal",
     "screen.managerSession": "Session",
 
     "approve.title": "Pending athletes",
@@ -1225,8 +1230,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "health.openForm": "Open health declaration form",
     "health.confirmDone": "I completed the health declaration",
 
-    "consent.receiptsRequired": "Electronic receipts consent (required)",
-    "consent.receiptsConfirm": "I agree to receive receipts and business documents electronically",
     "profile.address": "Street address",
     "profile.zipCode": "Zip code",
 
@@ -1312,6 +1315,70 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
       "These notifications will be dismissed from this list. New alerts will still appear when relevant.",
     "homeAlerts.removeAllConfirm": "Remove all",
     "homeAlerts.newBadge": "New",
+
+    "legal.lastUpdated": "Last updated",
+    "legal.termsLink": "Terms of Use",
+    "legal.privacyLink": "Privacy Policy",
+    "legal.accessibilityLink": "Accessibility Statement",
+    "legal.readFull": "Read the full document",
+    "legal.footerHeading": "Legal",
+
+    "legalGate.title": "Updated legal terms",
+    "legalGate.intro": "We've updated our legal documents. Please review and accept them to continue using the app.",
+    "legalGate.viewDocument": "View full document",
+    "legalGate.accept": "I accept",
+    "legalGate.acceptAllDocs": "I accept the above",
+    "legalGate.acceptAll": "Accept and continue",
+    "legalGate.logout": "Log out",
+    "legalGate.mustAcceptAll": "Please accept all required documents to continue.",
+    "legalGate.error": "Something went wrong. Please try again.",
+
+    "consent.termsRequired": "Terms of Use",
+    "consent.termsConfirm": "I have read and agree to the Terms of Use, including receiving receipts and business documents electronically",
+    "consent.privacyRequired": "Privacy Policy",
+    "consent.privacyConfirm": "I have read and acknowledge the Privacy Policy",
+    "consent.viewDocument": "View",
+    "consent.marketingOptIn": "Marketing communications (optional)",
+    "consent.marketingConfirm": "I'd like to receive marketing and promotional messages",
+
+    "health.tepezDisclosure":
+      "This form is operated by Tepez, an independent third party — not Shira Fit — with its own Terms of Use and Privacy Policy; please review them before submitting. It collects sensitive medical and personal information, and Tepez separately asks whether it may use your details for its own marketing/commercial purposes — that choice is between you and Tepez, and Shira Fit has no control over it. Your completed declaration is then sent to the studio and handled under Shira Fit's Privacy Policy.",
+
+    "a11yMenu.open": "Accessibility",
+    "a11yMenu.title": "Accessibility settings",
+    "a11yMenu.textSize": "Text size",
+    "a11yMenu.increase": "Increase",
+    "a11yMenu.decrease": "Decrease",
+    "a11yMenu.highContrast": "High contrast",
+    "a11yMenu.focusVisibility": "Enhanced focus outline",
+    "a11yMenu.reduceMotion": "Reduce motion",
+    "a11yMenu.underlineLinks": "Underline links",
+    "a11yMenu.reset": "Reset to default",
+    "a11yMenu.close": "Close",
+
+    "settings.marketingTitle": "Marketing communications",
+    "settings.marketingDesc":
+      "Optional. Occasional promotions and offers from Shira Fit. Not required to use the app — you can change this anytime.",
+    "settings.marketingToggleOn": "Marketing messages on",
+    "settings.marketingToggleOff": "Marketing messages off",
+
+    "managerLegal.title": "Legal consent rollout",
+    "managerLegal.description":
+      "Controls whether existing users are required to review and accept the current Terms of Use and Privacy Policy before continuing to use the app. New users are always asked to accept them at signup, regardless of this switch.",
+    "managerLegal.gateOn": "Existing users must accept",
+    "managerLegal.gateOff": "Not required yet",
+    "managerLegal.currentVersions": "Current document versions",
+    "managerLegal.viewHistory": "view version history",
+    "managerLegal.historySubtitle": "Every published version, most recent first.",
+    "managerLegal.current": "Current",
+    "managerLegal.viewFullDocument": "Open the full document page",
+
+    "managerMessage.categoryLabel": "Message type",
+    "managerMessage.categoryOperational": "Operational",
+    "managerMessage.categoryMarketing": "Marketing",
+    "managerMessage.categoryOperationalHint": "Required studio communication. Sent to everyone.",
+    "managerMessage.categoryMarketingHint": "Promotional content. Only sent to recipients who opted in to marketing.",
+    "managerMessage.marketingConsentMissing": "This recipient hasn't opted in to marketing messages.",
   },
   he: {
     "lang.english": "English",
@@ -1419,6 +1486,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "menu.openingSchedule": "פתיחת הרשמה",
     "menu.birthdayMessages": "ימי הולדת",
     "menu.whatsappRollout": "WhatsApp",
+    "menu.legalSettings": "משפטי",
     "menu.activityLog": "יומן פעילות",
     "menu.superUserHidden": "אימונים מוסתרים",
     "managerTools.superUserHiddenSub": "ניהול רשומות מתאמנים מוסתרים",
@@ -1949,6 +2017,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "staffUsers.searchPlaceholder": "חיפוש שם / משתמש / טלפון…",
     "staffUsers.noUsers": "לא נמצאו משתמשים.",
     "staffUsers.birthdayToday": "יום הולדת היום",
+    "staffUsers.legalTerms": "תקנון",
+    "staffUsers.legalPrivacy": "פרטיות",
+    "staffUsers.legalMarketing": "שיווק",
 
     "manualParticipant.editTitle": "עריכת מתאמן",
     "manualParticipant.notes": "הערות",
@@ -2274,6 +2345,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "screen.managerTrainerColors": "צבעי מאמנים",
     "screen.managerRoles": "תפקידים",
     "screen.managerWhatsappRollout": "WhatsApp",
+    "screen.managerLegalSettings": "משפטי",
     "screen.managerSession": "אימון",
 
     "approve.title": "מתאמנים בהמתנה",
@@ -2528,8 +2600,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "health.openForm": "פתיחת טופס הצהרת בריאות",
     "health.confirmDone": "מילאתי את הצהרת הבריאות",
 
-    "consent.receiptsRequired": "הסכמה לקבלות אלקטרוניות (חובה)",
-    "consent.receiptsConfirm": "אני מסכים/ה לקבל קבלות ומסמכים עסקיים באופן אלקטרוני",
     "profile.address": "כתובת",
     "profile.zipCode": "מיקוד",
 
@@ -2611,6 +2681,69 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
       "ההתראות יוסרו מהרשימה. התראות חדשות יופיעו כשיהיו רלוונטיות.",
     "homeAlerts.removeAllConfirm": "הסר הכל",
     "homeAlerts.newBadge": "חדש",
+
+    "legal.lastUpdated": "עודכן לאחרונה",
+    "legal.termsLink": "תקנון ותנאי שימוש",
+    "legal.privacyLink": "מדיניות פרטיות",
+    "legal.accessibilityLink": "הצהרת נגישות",
+    "legal.readFull": "קריאת המסמך המלא",
+    "legal.footerHeading": "משפטי",
+
+    "legalGate.title": "עדכון תנאים משפטיים",
+    "legalGate.intro": "עדכנו את המסמכים המשפטיים שלנו. יש לעיין ולאשר אותם כדי להמשיך להשתמש באפליקציה.",
+    "legalGate.viewDocument": "צפייה במסמך המלא",
+    "legalGate.accept": "אני מאשר/ת",
+    "legalGate.acceptAllDocs": "אני מאשר/ת את האמור לעיל",
+    "legalGate.acceptAll": "אשר והמשך",
+    "legalGate.logout": "התנתקות",
+    "legalGate.mustAcceptAll": "יש לאשר את כל המסמכים הנדרשים כדי להמשיך.",
+    "legalGate.error": "משהו השתבש. נסו שוב.",
+
+    "consent.termsRequired": "תקנון ותנאי שימוש",
+    "consent.termsConfirm": "קראתי ואני מסכים/ה לתנאי השימוש, לרבות קבלת קבלות ומסמכים עסקיים באופן אלקטרוני",
+    "consent.privacyRequired": "מדיניות פרטיות",
+    "consent.privacyConfirm": "קראתי ומאשר/ת שקיבלתי את מדיניות הפרטיות",
+    "consent.viewDocument": "צפייה",
+    "consent.marketingOptIn": "הודעות שיווקיות (רשות)",
+    "consent.marketingConfirm": "אני מעוניין/ת לקבל הודעות שיווקיות ופרסומיות",
+
+    "health.tepezDisclosure":
+      "טופס זה מופעל על ידי Tepez, צד שלישי עצמאי — לא Shira Fit — עם תנאי שימוש ומדיניות פרטיות משלו; יש לעיין בהם לפני השליחה. הטופס אוסף מידע רפואי ואישי רגיש, ו-Tepez מבקשת בנפרד האם ניתן להשתמש בפרטיך למטרות שיווק/מסחר משלה — בחירה זו היא ביניכם לבין Tepez, ול-Shira Fit אין שליטה עליה. ההצהרה המלאה שלך נשלחת לאחר מכן לסטודיו ומטופלת לפי מדיניות הפרטיות של Shira Fit.",
+
+    "a11yMenu.open": "נגישות",
+    "a11yMenu.title": "הגדרות נגישות",
+    "a11yMenu.textSize": "גודל טקסט",
+    "a11yMenu.increase": "הגדל",
+    "a11yMenu.decrease": "הקטן",
+    "a11yMenu.highContrast": "ניגודיות גבוהה",
+    "a11yMenu.focusVisibility": "הדגשת מיקוד",
+    "a11yMenu.reduceMotion": "הפחתת אנימציה",
+    "a11yMenu.underlineLinks": "הדגשת קישורים בקו תחתון",
+    "a11yMenu.reset": "איפוס להגדרות ברירת מחדל",
+    "a11yMenu.close": "סגירה",
+
+    "settings.marketingTitle": "הודעות שיווקיות",
+    "settings.marketingDesc": "רשות. מבצעים והטבות מדי פעם מ-Shira Fit. אינו נדרש לשימוש באפליקציה — ניתן לשנות זאת בכל עת.",
+    "settings.marketingToggleOn": "הודעות שיווקיות פעילות",
+    "settings.marketingToggleOff": "הודעות שיווקיות כבויות",
+
+    "managerLegal.title": "הפעלת אישור מסמכים משפטיים",
+    "managerLegal.description":
+      "קובע האם משתמשים קיימים נדרשים לעיין ולאשר את התקנון ומדיניות הפרטיות הנוכחיים לפני המשך שימוש באפליקציה. משתמשים חדשים תמיד מתבקשים לאשר אותם בהרשמה, ללא קשר למתג זה.",
+    "managerLegal.gateOn": "משתמשים קיימים חייבים לאשר",
+    "managerLegal.gateOff": "לא נדרש עדיין",
+    "managerLegal.currentVersions": "גרסאות מסמכים נוכחיות",
+    "managerLegal.viewHistory": "צפייה בהיסטוריית גרסאות",
+    "managerLegal.historySubtitle": "כל הגרסאות שפורסמו, מהחדשה לישנה.",
+    "managerLegal.current": "נוכחית",
+    "managerLegal.viewFullDocument": "פתיחת עמוד המסמך המלא",
+
+    "managerMessage.categoryLabel": "סוג הודעה",
+    "managerMessage.categoryOperational": "תפעולי",
+    "managerMessage.categoryMarketing": "שיווקי",
+    "managerMessage.categoryOperationalHint": "תקשורת תפעולית נדרשת. נשלח לכולם.",
+    "managerMessage.categoryMarketingHint": "תוכן פרסומי. נשלח רק למי שהסכים לקבל הודעות שיווקיות.",
+    "managerMessage.marketingConsentMissing": "הנמען/ת לא הסכימו לקבל הודעות שיווקיות.",
   },
 };
 

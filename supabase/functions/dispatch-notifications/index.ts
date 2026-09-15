@@ -17,6 +17,7 @@ type DeliveryRow = {
   user_id: string;
   notification_type: string;
   payload: Record<string, unknown>;
+  category: "operational" | "marketing";
 };
 
 export async function processPendingDeliveries(
@@ -37,7 +38,7 @@ export async function processPendingDeliveries(
 
   const { data: rows, error } = await admin
     .from("notification_deliveries")
-    .select("id, user_id, notification_type, payload")
+    .select("id, user_id, notification_type, payload, category")
     .eq("channel", "whatsapp")
     .eq("status", "pending")
     .order("created_at", { ascending: true })
@@ -85,6 +86,20 @@ export async function processPendingDeliveries(
         .eq("id", row.id);
       stats.skipped += 1;
       continue;
+    }
+
+    if (!isManagerTest && row.category === "marketing") {
+      const { data: hasConsent } = await admin.rpc("has_current_marketing_consent", {
+        p_user_id: row.user_id,
+      });
+      if (!hasConsent) {
+        await admin
+          .from("notification_deliveries")
+          .update({ status: "skipped", skip_reason: "marketing_consent_missing" })
+          .eq("id", row.id);
+        stats.skipped += 1;
+        continue;
+      }
     }
 
     if (mode === "testing" && !isManagerTest) {

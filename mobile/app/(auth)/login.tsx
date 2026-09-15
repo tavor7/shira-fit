@@ -19,6 +19,7 @@ import { AppText } from "../../src/components/AppText";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
+import { LegalFooterLinks } from "../../src/components/LegalFooterLinks";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { useReduceMotionRef } from "../../src/hooks/useReduceMotion";
 import { logUserActivity } from "../../src/lib/logUserActivity";
@@ -333,6 +334,8 @@ export default function LoginScreen() {
             </Pressable>
           </View>
           <LanguageToggleChip />
+          {/* Web gets these from the global footer in app/_layout.tsx; avoid showing them twice. */}
+          {Platform.OS !== "web" ? <LegalFooterLinks style={styles.legalLinks} /> : null}
           </Animated.View>
         </FadeSlideIn>
       </ScrollView>
@@ -402,5 +405,6 @@ const styles = StyleSheet.create({
   linksRowRtl: { flexDirection: "row-reverse" },
   linkBtn: { padding: theme.spacing.sm },
   linkTxt: { color: theme.colors.cta, fontWeight: "700" },
+  legalLinks: { marginTop: theme.spacing.lg },
   linkDivider: { fontWeight: "700" },
 });

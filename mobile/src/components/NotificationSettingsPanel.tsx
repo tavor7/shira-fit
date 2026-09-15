@@ -18,6 +18,11 @@ import {
   setWhatsAppNotificationsEnabled,
   type WhatsAppFeatureState,
 } from "../lib/whatsappFeature";
+import {
+  fetchMarketingConsentStatus,
+  recordUserConsent,
+  type MarketingConsentStatus,
+} from "../lib/consent";
 
 type Props = {
   /** Standalone screen shows main title; embedded in Profile uses tab label only. */
@@ -41,6 +46,9 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
   const [waState, setWaState] = useState<WhatsAppFeatureState | null>(null);
   const [waLoading, setWaLoading] = useState(false);
+  const [marketing, setMarketing] = useState<MarketingConsentStatus | null>(null);
+  const [marketingLoading, setMarketingLoading] = useState(false);
+  const [customCategory, setCustomCategory] = useState<"operational" | "marketing">("operational");
   const [killSwitchOn, setKillSwitchOn] = useState<boolean | null>(null);
   const [killSwitchBusy, setKillSwitchBusy] = useState(false);
   const [testBusyType, setTestBusyType] = useState<TestNotificationType | null>(null);
@@ -53,6 +61,7 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
     setPrefs(await loadNotificationPrefs());
     const state = await fetchWhatsAppFeatureState();
     setWaState(state);
+    setMarketing(await fetchMarketingConsentStatus());
   }, []);
 
   useEffect(() => {
@@ -99,6 +108,24 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
     }
     const refreshed = await fetchWhatsAppFeatureState();
     setWaState(refreshed);
+  }
+
+  async function toggleMarketing() {
+    if (!marketing || marketingLoading) return;
+    const next = !marketing.accepted;
+    setMarketingLoading(true);
+    try {
+      await recordUserConsent({
+        consent_type: "marketing_communications",
+        status: next ? "accepted" : "declined",
+        consent_version: marketing.version,
+      });
+      setMarketing({ ...marketing, accepted: next });
+    } catch {
+      showToast({ message: t("common.failed"), variant: "error" });
+    } finally {
+      setMarketingLoading(false);
+    }
   }
 
   async function toggleKillSwitch() {
@@ -154,8 +181,14 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
           try {
             const { data, error } = await supabase.rpc("send_custom_push_notification", {
               p_body: body,
+              p_category: customCategory,
             });
-            const res = data as { ok?: boolean; notified?: number; error?: string } | null;
+            const res = data as {
+              ok?: boolean;
+              notified?: number;
+              skipped_no_marketing_consent?: number;
+              error?: string;
+            } | null;
             if (error || !res?.ok) {
               const msg =
                 res?.error === "push_disabled"
@@ -164,8 +197,10 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
               showToast({ message: t("common.error"), detail: msg, variant: "error" });
               return;
             }
+            const skipped = res.skipped_no_marketing_consent ?? 0;
             showToast({
               message: t("notifications.customSentToast").replace("{count}", String(res.notified ?? 0)),
+              detail: skipped > 0 ? t("managerMessage.categoryMarketingHint") : undefined,
               variant: "success",
             });
             setCustomBody("");
@@ -238,6 +273,25 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
         </View>
       ) : null}
 
+      {marketing?.available ? (
+        <View style={styles.waBlock}>
+          <Text style={[styles.waTitle, isRTL && styles.rtl]}>{t("settings.marketingTitle")}</Text>
+          <Text style={[styles.waSub, isRTL && styles.rtl]}>{t("settings.marketingDesc")}</Text>
+          <Pressable
+            style={({ pressed }) => [styles.row, surface.card, pressed && styles.rowPressed, marketingLoading && styles.rowDisabled]}
+            onPress={() => void toggleMarketing()}
+            disabled={marketingLoading}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: marketing.accepted }}
+          >
+            <Text style={[styles.rowLabel, isRTL && styles.rtl]}>
+              {marketing.accepted ? t("settings.marketingToggleOn") : t("settings.marketingToggleOff")}
+            </Text>
+            {pill(marketing.accepted)}
+          </Pressable>
+        </View>
+      ) : null}
+
       {isManager ? (
         <View style={styles.managerBlock}>
           <Text style={[styles.managerTitle, isRTL && styles.rtl]}>{t("notifications.managerSectionTitle")}</Text>
@@ -289,6 +343,32 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
 
           <Text style={[styles.testSectionTitle, isRTL && styles.rtl]}>{t("notifications.customSectionTitle")}</Text>
           <Text style={[styles.testSectionHint, isRTL && styles.rtl]}>{t("notifications.customSectionHint")}</Text>
+
+          <Text style={[styles.categoryLabel, isRTL && styles.rtl]}>{t("managerMessage.categoryLabel")}</Text>
+          <View style={styles.categoryRow}>
+            {(["operational", "marketing"] as const).map((cat) => (
+              <Pressable
+                key={cat}
+                style={({ pressed }) => [
+                  styles.categoryChip,
+                  customCategory === cat && styles.categoryChipOn,
+                  pressed && styles.rowPressed,
+                ]}
+                onPress={() => setCustomCategory(cat)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: customCategory === cat }}
+              >
+                <Text style={[styles.categoryChipTxt, customCategory === cat && styles.categoryChipTxtOn]}>
+                  {cat === "operational" ? t("managerMessage.categoryOperational") : t("managerMessage.categoryMarketing")}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={[styles.testSectionHint, isRTL && styles.rtl]}>
+            {customCategory === "operational"
+              ? t("managerMessage.categoryOperationalHint")
+              : t("managerMessage.categoryMarketingHint")}
+          </Text>
 
           <AppTextField
             variant="dark"
@@ -370,4 +450,17 @@ const styles = StyleSheet.create({
   testBtnTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 13 },
   customField: { marginTop: 8 },
   customSendBtn: { marginTop: 8 },
+  categoryLabel: { fontSize: 13, fontWeight: "700", color: theme.colors.textSoft, marginTop: 6 },
+  categoryRow: { flexDirection: "row", gap: 8, marginTop: 6 },
+  categoryChip: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.full,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  categoryChipOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  categoryChipTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 13 },
+  categoryChipTxtOn: { color: theme.colors.ctaText },
 });

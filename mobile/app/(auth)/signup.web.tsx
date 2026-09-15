@@ -25,7 +25,9 @@ import { buildAuthRedirectUrl } from "../../src/lib/authRedirect";
 import {
   fetchCurrentElectronicReceiptsConsentVersion,
   syncPendingSignupConsent,
+  syncPendingSignupLegalConsents,
 } from "../../src/lib/consent";
+import { LEGAL_VERSIONS } from "../../src/lib/legalContent";
 import { syncSignupProfileFromMetadata } from "../../src/lib/signupOnboarding";
 
 const today = new Date();
@@ -58,7 +60,9 @@ export default function SignupScreen() {
   const [dobText, setDobText] = useState("2000-01-15");
   const [gender, setGender] = useState<"male" | "female">("male");
   const [healthConfirmed, setHealthConfirmed] = useState(false);
-  const [receiptConsent, setReceiptConsent] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -92,11 +96,11 @@ export default function SignupScreen() {
       );
       return;
     }
-    if (!receiptConsent) {
+    if (!termsAccepted || !privacyAccepted) {
       setErrorMessage(
         language === "he"
-          ? "יש לאשר את ההסכמה לקבלת קבלות אלקטרוניות."
-          : "Please accept electronic receipt consent before signing up."
+          ? "יש לאשר את תקנון האתר ואת מדיניות הפרטיות כדי להירשם."
+          : "Please accept the Terms of Use and Privacy Policy to sign up."
       );
       return;
     }
@@ -133,6 +137,14 @@ export default function SignupScreen() {
           health_declaration_confirmed: true,
           electronic_receipts_consent_pending: true,
           electronic_receipts_consent_version: consentVersion,
+          legal_consent_pending: {
+            terms_of_service: { version: LEGAL_VERSIONS.termsOfService, status: "accepted" },
+            privacy_policy: { version: LEGAL_VERSIONS.privacyPolicy, status: "accepted" },
+            marketing_communications: {
+              version: LEGAL_VERSIONS.marketingCommunications,
+              status: marketingOptIn ? "accepted" : "declined",
+            },
+          },
         },
       },
     });
@@ -168,8 +180,9 @@ export default function SignupScreen() {
       try {
         await syncSignupProfileFromMetadata();
         await syncPendingSignupConsent();
+        await syncPendingSignupLegalConsents();
       } catch {
-        /* AuthContext syncs on first login if email confirmation delayed session */
+        /* AuthContext syncs on first login if email confirmation delayed the session */
       }
     }
     setBusy(false);
@@ -251,6 +264,9 @@ export default function SignupScreen() {
             <Text style={styles.healthLinkTxt}>{t("health.openForm")}</Text>
             <Text style={styles.healthLinkSub}>{healthUrl}</Text>
           </Pressable>
+          <Text style={[styles.healthDisclosureTxt, isRTL && styles.rtlText]}>
+            {t("health.tepezDisclosure")}
+          </Text>
           <Pressable
             style={({ pressed }) => [styles.checkRow, pressed && styles.linkPressed]}
             onPress={() => {
@@ -267,20 +283,64 @@ export default function SignupScreen() {
           </Pressable>
 
           <View style={styles.sectionDivider} />
-          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("consent.receiptsRequired")}</Text>
+          <View style={styles.legalBox}>
+            <View style={styles.legalBoxRow}>
+              <Pressable
+                style={({ pressed }) => [styles.legalBoxCheckArea, pressed && styles.linkPressed]}
+                onPress={() => {
+                  setTermsAccepted((v) => !v);
+                  setErrorMessage("");
+                }}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: termsAccepted }}
+              >
+                <View style={[styles.checkbox, termsAccepted && styles.checkboxOn]}>
+                  <AnimatedCheckMark visible={termsAccepted} style={styles.checkboxMark} />
+                </View>
+                <Text style={[styles.checkTxt, isRTL && styles.rtlText]}>{t("consent.termsConfirm")}</Text>
+              </Pressable>
+              <Pressable onPress={() => router.push("/legal/terms")} hitSlop={8}>
+                <Text style={styles.legalViewLink}>{t("consent.viewDocument")}</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.legalBoxDivider} />
+
+            <View style={styles.legalBoxRow}>
+              <Pressable
+                style={({ pressed }) => [styles.legalBoxCheckArea, pressed && styles.linkPressed]}
+                onPress={() => {
+                  setPrivacyAccepted((v) => !v);
+                  setErrorMessage("");
+                }}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: privacyAccepted }}
+              >
+                <View style={[styles.checkbox, privacyAccepted && styles.checkboxOn]}>
+                  <AnimatedCheckMark visible={privacyAccepted} style={styles.checkboxMark} />
+                </View>
+                <Text style={[styles.checkTxt, isRTL && styles.rtlText]}>{t("consent.privacyConfirm")}</Text>
+              </Pressable>
+              <Pressable onPress={() => router.push("/legal/privacy")} hitSlop={8}>
+                <Text style={styles.legalViewLink}>{t("consent.viewDocument")}</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.sectionDivider} />
+          <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("consent.marketingOptIn")}</Text>
           <Pressable
             style={({ pressed }) => [styles.checkRow, pressed && styles.linkPressed]}
             onPress={() => {
-              setReceiptConsent((v) => !v);
-              setErrorMessage("");
+              setMarketingOptIn((v) => !v);
             }}
             accessibilityRole="checkbox"
-            accessibilityState={{ checked: receiptConsent }}
+            accessibilityState={{ checked: marketingOptIn }}
           >
-            <View style={[styles.checkbox, receiptConsent && styles.checkboxOn]}>
-              <AnimatedCheckMark visible={receiptConsent} style={styles.checkboxMark} />
+            <View style={[styles.checkbox, marketingOptIn && styles.checkboxOn]}>
+              <AnimatedCheckMark visible={marketingOptIn} style={styles.checkboxMark} />
             </View>
-            <Text style={[styles.checkTxt, isRTL && styles.rtlText]}>{t("consent.receiptsConfirm")}</Text>
+            <Text style={[styles.checkTxt, isRTL && styles.rtlText]}>{t("consent.marketingConfirm")}</Text>
           </Pressable>
         </View>
 
@@ -404,6 +464,42 @@ const styles = StyleSheet.create({
   linkPressed: { opacity: 0.9 },
   healthLinkTxt: { color: theme.colors.cta, fontWeight: "800", fontSize: 15, letterSpacing: 0.15 },
   healthLinkSub: { marginTop: theme.spacing.xs, color: theme.colors.textMuted, fontSize: 12, lineHeight: 16 },
+  healthDisclosureTxt: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+  },
+  legalBox: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderInput,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  legalBoxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.xs,
+  },
+  legalBoxCheckArea: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+  },
+  legalBoxDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.borderMuted,
+  },
+  legalViewLink: {
+    color: theme.colors.cta,
+    fontWeight: "700",
+    fontSize: 12,
+    letterSpacing: 0.2,
+  },
   checkRow: {
     flexDirection: "row",
     alignItems: "center",

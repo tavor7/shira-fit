@@ -13,6 +13,7 @@ import { useI18n } from "../../src/context/I18nContext";
 import { NotificationSettingsPanel } from "../../src/components/NotificationSettingsPanel";
 import { ManagerSendMessagePanel } from "../../src/components/ManagerSendMessagePanel";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
+import { LegalFooterLinks } from "../../src/components/LegalFooterLinks";
 
 function getUpdateErrorMessage(message: string, t: (key: string) => string) {
   const msg = (message || "").toLowerCase();
@@ -327,6 +328,16 @@ export default function ProfileScreen() {
               style={{ marginTop: theme.spacing.lg }}
             />
 
+            {/* Web gets these from the global footer in app/_layout.tsx; avoid showing them twice. */}
+            {Platform.OS !== "web" ? (
+              <>
+                <AppText variant="label" muted isRTL={rtl} style={styles.legalHeading}>
+                  {t("legal.footerHeading")}
+                </AppText>
+                <LegalFooterLinks style={styles.legalLinksRow} />
+              </>
+            ) : null}
+
           </>
         ) : segment === "messages" && isManager ? (
           <ManagerSendMessagePanel />
@@ -344,6 +355,8 @@ const styles = StyleSheet.create({
   loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.colors.backgroundAlt },
   scrollContent: { flexGrow: 1, padding: theme.spacing.lg, paddingBottom: theme.spacing.xl },
   subtitle: { marginTop: theme.spacing.xs, marginBottom: theme.spacing.md },
+  legalHeading: { marginTop: theme.spacing.xl, marginBottom: theme.spacing.xs, textTransform: "uppercase" },
+  legalLinksRow: { justifyContent: "flex-start" },
   segmentTrack: {
     flexDirection: "row",
     backgroundColor: theme.colors.surface,

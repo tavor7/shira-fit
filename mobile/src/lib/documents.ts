@@ -87,6 +87,8 @@ export type RequiredConsent = {
   version: number;
   title: string;
   body_text: string;
+  title_en?: string | null;
+  body_text_en?: string | null;
 };
 
 export type GoLiveGapType = "address" | "zip" | "consent";
@@ -547,7 +549,10 @@ export async function getMonthlySummaryPdfSignedUrl(pdfPath: string): Promise<st
 }
 
 export async function publishLegalDocument(
-  consentType: "electronic_receipts" | "terms_of_service" | "privacy_policy",
+  // Server-side (publish_legal_document RPC) now rejects anything but electronic_receipts:
+  // Terms/Privacy/Marketing full content lives in the app bundle (legalContent.ts) and must
+  // ship as a migration + code deploy together, not through this ad-hoc manager-editable RPC.
+  consentType: "electronic_receipts",
   title: string,
   bodyText: string
 ): Promise<number> {

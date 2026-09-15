@@ -57,6 +57,7 @@ export function ManagerSendMessagePanel() {
   const { showConfirm } = useAppAlert();
   const [step, setStep] = useState<Step>("pick");
   const [messageTheme, setMessageTheme] = useState<ManagerMessageTheme>("love");
+  const [category, setCategory] = useState<"operational" | "marketing">("operational");
   const [search, setSearch] = useState("");
   const [hits, setHits] = useState<MessageRecipient[]>([]);
   const [searching, setSearching] = useState(false);
@@ -122,6 +123,7 @@ export function ManagerSendMessagePanel() {
     setSelected(null);
     setBody("");
     setMessageTheme("love");
+    setCategory("operational");
     setError(null);
   }
 
@@ -131,16 +133,21 @@ export function ManagerSendMessagePanel() {
     if (!selected || !canSend) return;
     setError(null);
     setSending(true);
-    const res = await sendManagerDirectMessage(selected.user_id, body, messageTheme);
+    const res = await sendManagerDirectMessage(selected.user_id, body, messageTheme, category);
     setSending(false);
     if (!res.ok) {
-      setError(res.error);
+      setError(
+        res.error === "recipient_marketing_consent_missing"
+          ? t("managerMessage.marketingConsentMissing")
+          : res.error
+      );
       return;
     }
     showToast({ message: t("managerMessage.sentOk"), variant: "success" });
     setBody("");
     setSelected(null);
     setMessageTheme("love");
+    setCategory("operational");
     setStep("pick");
     void loadSent();
   }
@@ -323,6 +330,33 @@ export function ManagerSendMessagePanel() {
                 );
               })}
             </View>
+
+            <AppText variant="label" muted isRTL={isRTL} style={styles.themeLabel}>
+              {t("managerMessage.categoryLabel")}
+            </AppText>
+            <View style={[styles.themeRow, isRTL && styles.themeRowRtl]}>
+              {(["operational", "marketing"] as const).map((key) => {
+                const active = category === key;
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => setCategory(key)}
+                    style={({ pressed }) => [styles.themeChip, active && styles.categoryChipOn, pressed && { opacity: 0.9 }]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: active }}
+                  >
+                    <AppText variant="caption" style={[styles.themeChipTxt, active && styles.categoryChipTxtOn]}>
+                      {key === "operational" ? t("managerMessage.categoryOperational") : t("managerMessage.categoryMarketing")}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <AppText variant="caption" muted isRTL={isRTL} style={styles.categoryHint}>
+              {category === "operational"
+                ? t("managerMessage.categoryOperationalHint")
+                : t("managerMessage.categoryMarketingHint")}
+            </AppText>
 
             <AppTextField
               isRTL={isRTL}
@@ -548,6 +582,9 @@ const styles = StyleSheet.create({
   },
   themeEmoji: { fontSize: 18, lineHeight: 22 },
   themeChipTxt: { color: theme.colors.textMuted, fontWeight: "700" },
+  categoryChipOn: { borderColor: theme.colors.cta, backgroundColor: theme.colors.surfaceElevated },
+  categoryChipTxtOn: { color: theme.colors.text, fontWeight: "800" },
+  categoryHint: { marginBottom: theme.spacing.sm, lineHeight: 16 },
   previewShell: {
     marginBottom: theme.spacing.md,
     padding: theme.spacing.sm,

@@ -7,12 +7,16 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { theme } from "../src/theme";
 import { appHeaderStyle, appHeaderTitleStyle } from "../src/theme/headerStyles";
 import { StudioContactFooter } from "../src/components/StudioContactFooter";
+import { LegalFooterLinks } from "../src/components/LegalFooterLinks";
 import { I18nProvider } from "../src/context/I18nContext";
 import { ManagerAthletePreviewProvider } from "../src/context/ManagerAthletePreviewContext";
 import { ToastProvider } from "../src/context/ToastContext";
 import { BulkJobsProvider } from "../src/context/BulkJobsContext";
 import { AppAlertProvider } from "../src/context/AppAlertContext";
 import { AppErrorBoundary } from "../src/components/AppErrorBoundary";
+import { AccessibilityProvider } from "../src/context/AccessibilityContext";
+import { AccessibilityStyleInjector } from "../src/components/AccessibilityStyleInjector";
+import { AccessibilityMenu } from "../src/components/AccessibilityMenu";
 import { RouteRestoreDebugPanel } from "../src/components/RouteRestoreDebugPanel";
 import { WebLastRouteTracker } from "../src/components/WebLastRouteTracker";
 import { initNotificationHandler } from "../src/lib/notificationsInit";
@@ -31,6 +35,14 @@ function StudioContactFooterGate() {
   const isStaff = role === "coach" || role === "manager";
   if (isStaff) return null;
   return <StudioContactFooter />;
+}
+
+function LegalFooterLinksGate() {
+  const { profile } = useAuth();
+  const role = profile?.role;
+  const isStaff = role === "coach" || role === "manager";
+  if (isStaff) return null;
+  return <LegalFooterLinks />;
 }
 
 export default function RootLayout() {
@@ -110,6 +122,7 @@ export default function RootLayout() {
         ) : null}
         <AuthProvider>
           <I18nProvider>
+            <AccessibilityProvider>
             <AppAlertProvider>
             <ManagerAthletePreviewProvider>
               <AppErrorBoundary>
@@ -117,6 +130,8 @@ export default function RootLayout() {
                   <BulkJobsProvider>
                     {Platform.OS === "web" ? <WebLastRouteTracker /> : null}
                     {Platform.OS === "web" && __DEV__ ? <RouteRestoreDebugPanel /> : null}
+                    {Platform.OS === "web" ? <AccessibilityStyleInjector /> : null}
+                    {Platform.OS === "web" ? <AccessibilityMenu /> : null}
                     <StatusBar style="light" />
                     <View style={{ flex: 1 }}>
                       <Stack
@@ -135,11 +150,13 @@ export default function RootLayout() {
                       />
                     </View>
                     <StudioContactFooterGate />
+                    {Platform.OS === "web" ? <LegalFooterLinksGate /> : null}
                   </BulkJobsProvider>
                 </ToastProvider>
               </AppErrorBoundary>
             </ManagerAthletePreviewProvider>
             </AppAlertProvider>
+            </AccessibilityProvider>
           </I18nProvider>
         </AuthProvider>
       </View>

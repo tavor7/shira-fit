@@ -71,12 +71,14 @@ export async function searchMessageRecipients(termRaw: string, limit = 30): Prom
 export async function sendManagerDirectMessage(
   recipientId: string,
   body: string,
-  messageTheme: ManagerMessageTheme = "love"
+  messageTheme: ManagerMessageTheme = "love",
+  category: "operational" | "marketing" = "operational"
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const { data, error } = await supabase.rpc("send_manager_direct_message", {
     p_recipient_id: recipientId,
     p_body: body.trim(),
     p_theme: messageTheme,
+    p_category: category,
   });
   if (error) return { ok: false, error: error.message };
   const o = parseRpcObject(data);

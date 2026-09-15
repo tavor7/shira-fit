@@ -9,7 +9,7 @@ import {
   isInvalidRefreshTokenMessage,
   refreshSupabaseSessionOnce,
 } from "../lib/sessionAuth";
-import { syncPendingSignupConsent } from "../lib/consent";
+import { syncPendingSignupConsent, syncPendingSignupLegalConsents } from "../lib/consent";
 import { syncSignupProfileFromMetadata } from "../lib/signupOnboarding";
 import type { Profile } from "../types/database";
 
@@ -68,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await syncSignupProfileFromMetadata();
         await syncPendingSignupConsent();
+        await syncPendingSignupLegalConsents();
         const { data: refreshed } = await supabase
           .from("profiles")
           .select("*")

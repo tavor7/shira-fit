@@ -377,6 +377,12 @@ export function ManagerStudioSetupTabs() {
         href: "/(app)/manager/whatsapp-rollout",
         isActive: (p) => startsWithAny(p, ["/manager/whatsapp-rollout"]),
       },
+      {
+        id: "legal",
+        label: t("menu.legalSettings"),
+        href: "/(app)/manager/legal-settings",
+        isActive: (p) => startsWithAny(p, ["/manager/legal-settings"]),
+      },
     ],
     [t]
   );
