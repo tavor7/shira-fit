@@ -1171,6 +1171,7 @@ export default function ParticipantHistoryScreen({
                     <Text
                       style={[
                         styles.billingStatValue,
+                        billingSummary.balance !== 0 && styles.billingStatValueCompact,
                         isRTL && styles.rtlText,
                         billingSummary.balance > 0
                           ? styles.billingStatValueOwed
@@ -1178,7 +1179,7 @@ export default function ParticipantHistoryScreen({
                             ? styles.billingStatValueCredit
                             : null,
                       ]}
-                      numberOfLines={2}
+                      numberOfLines={1}
                     >
                       {billingSummary.balance > 0
                         ? t("billing.balanceOwes").replace(
