@@ -89,6 +89,7 @@ export default function StaffSearchScreen() {
 
       <CrossfadeSwap
         loading={loading && rows.length === 0}
+        style={styles.crossfade}
         skeleton={
           <View style={styles.list}>
             <ListRowSkeleton />
@@ -166,6 +167,7 @@ export default function StaffSearchScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt, padding: theme.spacing.md },
+  crossfade: { flex: 1 },
   h: { marginBottom: theme.spacing.sm },
   searchField: { marginBottom: theme.spacing.sm },
   list: { paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },

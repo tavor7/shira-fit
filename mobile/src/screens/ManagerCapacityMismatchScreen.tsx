@@ -45,6 +45,8 @@ export default function ManagerCapacityMismatchScreen() {
   const [rangeEnd, setRangeEnd] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [ignoringId, setIgnoringId] = useState<string | null>(null);
+  const [showIgnored, setShowIgnored] = useState(false);
   const skipFocusReloadRef = useRef(true);
 
   const load = useCallback(async () => {
@@ -58,6 +60,7 @@ export default function ManagerCapacityMismatchScreen() {
     const { data, error: err } = await supabase.rpc("manager_capacity_mismatch", {
       p_anchor: anchor,
       p_mode: periodMode,
+      p_show_ignored: showIgnored,
     });
     setLoading(false);
     if (err) {
@@ -93,7 +96,7 @@ export default function ManagerCapacityMismatchScreen() {
         note: noteBySession[s.session_id] ?? null,
       }))
     );
-  }, [anchor, periodMode, t]);
+  }, [anchor, periodMode, showIgnored, t]);
 
   useEffect(() => {
     void load();
@@ -134,6 +137,23 @@ export default function ManagerCapacityMismatchScreen() {
     [showOk, t]
   );
 
+  const setIgnored = useCallback(
+    async (sessionId: string, ignored: boolean) => {
+      setIgnoringId(sessionId);
+      const { error: err } = await supabase.rpc("manager_set_capacity_mismatch_ignored", {
+        p_session_id: sessionId,
+        p_ignored: ignored,
+      });
+      setIgnoringId(null);
+      if (err) {
+        showOk(t("common.error"), err.message);
+        return;
+      }
+      setSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
+    },
+    [showOk, t]
+  );
+
   function openEditParticipants(sessionId: string) {
     router.push(`/(app)/manager/session/${sessionId}` as Href);
   }
@@ -160,6 +180,25 @@ export default function ManagerCapacityMismatchScreen() {
         {rangeLabel ? <Text style={[styles.sub, isRTL && styles.rtl]}>{rangeLabel}</Text> : null}
         <Text style={[styles.hint, isRTL && styles.rtl]}>{t("dashboard.capacityMismatchHint")}</Text>
 
+        <View style={[styles.segRow, isRTL && styles.segRowRtl]}>
+          <Pressable
+            onPress={() => setShowIgnored(false)}
+            style={({ pressed }) => [styles.segBtn, !showIgnored && styles.segBtnOn, pressed && { opacity: 0.9 }]}
+          >
+            <Text style={[styles.segBtnTxt, !showIgnored && styles.segBtnTxtOn]}>
+              {t("dashboard.capacityMismatchTabActive")}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setShowIgnored(true)}
+            style={({ pressed }) => [styles.segBtn, showIgnored && styles.segBtnOn, pressed && { opacity: 0.9 }]}
+          >
+            <Text style={[styles.segBtnTxt, showIgnored && styles.segBtnTxtOn]}>
+              {t("dashboard.capacityMismatchTabIgnored")}
+            </Text>
+          </Pressable>
+        </View>
+
         <CrossfadeSwap
           loading={loading}
           skeleton={
@@ -173,7 +212,13 @@ export default function ManagerCapacityMismatchScreen() {
           {error ? (
           <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
         ) : sessions.length === 0 ? (
-          <EmptyState icon="✅" title={t("dashboard.capacityMismatchEmpty")} isRTL={isRTL} />
+          <EmptyState
+            icon="✅"
+            title={
+              showIgnored ? t("dashboard.capacityMismatchEmptyIgnored") : t("dashboard.capacityMismatchEmpty")
+            }
+            isRTL={isRTL}
+          />
         ) : (
           sessions.map((s, index) => {
             const diff = s.registered_count - s.max_participants;
@@ -258,6 +303,25 @@ export default function ManagerCapacityMismatchScreen() {
                     </Text>
                   </Pressable>
                 </View>
+                <Pressable
+                  onPress={() => void setIgnored(s.session_id, !showIgnored)}
+                  disabled={ignoringId === s.session_id}
+                  style={({ pressed }) => [
+                    styles.cornerBtn,
+                    isRTL ? styles.cornerBtnRtl : styles.cornerBtnLtr,
+                    pressed && { opacity: 0.9 },
+                    ignoringId === s.session_id && styles.btnDisabled,
+                  ]}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    showIgnored ? t("dashboard.capacityMismatchUnignore") : t("dashboard.capacityMismatchIgnore")
+                  }
+                >
+                  <Text style={styles.cornerBtnTxt} numberOfLines={1}>
+                    {showIgnored ? t("dashboard.capacityMismatchUnignore") : t("dashboard.capacityMismatchIgnore")}
+                  </Text>
+                </Pressable>
               </View>
               </FadeSlideIn>
             );
@@ -276,6 +340,23 @@ const styles = StyleSheet.create({
   h: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginBottom: 4 },
   sub: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
   hint: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, marginBottom: theme.spacing.md },
+  segRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: theme.spacing.md,
+  },
+  segRowRtl: { flexDirection: "row-reverse" },
+  segBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  segBtnOn: { borderColor: theme.colors.cta, backgroundColor: theme.colors.cta },
+  segBtnTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
+  segBtnTxtOn: { color: theme.colors.ctaText },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   err: { color: theme.colors.error, fontWeight: "700", marginTop: 12 },
   muted: { color: theme.colors.textSoft, fontWeight: "600", marginTop: 12 },
@@ -286,8 +367,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     overflow: "hidden",
+    position: "relative",
   },
-  cardHead: { paddingVertical: 10, paddingHorizontal: 12 },
+  cardHead: { paddingVertical: 10, paddingHorizontal: 12, paddingTop: 30 },
+  cornerBtn: {
+    position: "absolute",
+    top: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  cornerBtnLtr: { right: 8 },
+  cornerBtnRtl: { left: 8 },
+  cornerBtnTxt: { fontSize: 11, fontWeight: "700", color: theme.colors.textSoft },
   cardHeadPressed: { opacity: 0.9 },
   cardDate: { fontSize: 14, fontWeight: "800", color: theme.colors.text, lineHeight: 20 },
   statsRow: {

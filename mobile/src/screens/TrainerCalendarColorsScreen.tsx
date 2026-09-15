@@ -81,6 +81,7 @@ export default function TrainerCalendarColorsScreen() {
     <View style={styles.screen}>
       <CrossfadeSwap
         loading={loading}
+        style={styles.crossfade}
         skeleton={
           <View style={styles.skeletonList}>
             <ListRowSkeleton />
@@ -163,6 +164,7 @@ export default function TrainerCalendarColorsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
+  crossfade: { flex: 1 },
   top: { paddingTop: theme.spacing.md, paddingBottom: theme.spacing.sm },
   skeletonList: { flex: 1, backgroundColor: theme.colors.backgroundAlt, padding: theme.spacing.md, gap: theme.spacing.sm },
   rtlText: { textAlign: "right" },

@@ -537,6 +537,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "dashboard.capacityMismatchUpdateConfirm": "Update max",
     "dashboard.capacityMismatchOpenSession": "Open session",
     "dashboard.capacityMismatchActions": "Capacity actions",
+    "dashboard.capacityMismatchIgnore": "Ignore",
+    "dashboard.capacityMismatchUnignore": "Unignore",
+    "dashboard.capacityMismatchTabActive": "Active",
+    "dashboard.capacityMismatchTabIgnored": "Ignored",
+    "dashboard.capacityMismatchEmptyIgnored": "No ignored rows.",
     "dashboard.a11yCapacityMismatch": "Sessions with capacity mismatch",
     "dashboard.a11yMissingAttendance": "Sessions missing attendance",
 
@@ -1919,6 +1924,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "dashboard.capacityMismatchUpdateConfirm": "עדכון מקסימום",
     "dashboard.capacityMismatchOpenSession": "פתיחת האימון",
     "dashboard.capacityMismatchActions": "פעולות קיבולת",
+    "dashboard.capacityMismatchIgnore": "התעלמות",
+    "dashboard.capacityMismatchUnignore": "ביטול התעלמות",
+    "dashboard.capacityMismatchTabActive": "פעילים",
+    "dashboard.capacityMismatchTabIgnored": "בהתעלמות",
+    "dashboard.capacityMismatchEmptyIgnored": "אין שורות בהתעלמות.",
     "dashboard.a11yCapacityMismatch": "אימונים עם אי-התאמה בקיבולת",
     "dashboard.a11yMissingAttendance": "אימונים ללא נוכחות",
 
