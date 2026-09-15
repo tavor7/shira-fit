@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
-import { formatISODateFull } from "../lib/dateFormat";
+import { formatISODateRangeCompact } from "../lib/dateFormat";
 import { ReportDateRangeControls } from "./ReportDateRangeControls";
 
 type Props = {
@@ -26,7 +26,7 @@ export function CollapsibleDateRangeCard({ start, end, onChange, label }: Props)
         <View style={styles.toggleCopy}>
           <Text style={[styles.label, isRTL && styles.rtl]}>{label}</Text>
           <Text style={[styles.summary, isRTL && styles.rtl]} numberOfLines={1}>
-            {formatISODateFull(start, language)} – {formatISODateFull(end, language)}
+            {formatISODateRangeCompact(start, end, language)}
           </Text>
         </View>
         <Text style={styles.chevron}>{open ? "︿" : "﹀"}</Text>

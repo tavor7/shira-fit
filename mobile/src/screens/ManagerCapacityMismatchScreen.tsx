@@ -12,7 +12,7 @@ import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { parseManagerPeriodMode } from "../lib/managerPeriodMode";
 import { useAppAlert } from "../context/AppAlertContext";
-import { formatISODateFull } from "../lib/dateFormat";
+import { formatISODateFull, formatISODateRangeCompact } from "../lib/dateFormat";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
@@ -114,7 +114,7 @@ export default function ManagerCapacityMismatchScreen() {
     rangeStart && rangeEnd
       ? rangeStart === rangeEnd
         ? formatISODateFull(rangeStart, language)
-        : `${formatISODateFull(rangeStart, language)} – ${formatISODateFull(rangeEnd, language)}`
+        : formatISODateRangeCompact(rangeStart, rangeEnd, language)
       : "";
 
   const updateMaxToRegistered = useCallback(

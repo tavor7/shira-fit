@@ -16,8 +16,8 @@ import type { LanguageCode } from "../i18n/translations";
 import type { TrainingSessionWithTrainer } from "../types/database";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import {
-  formatISODateFull,
   formatISODateFullWithWeekdayAfter,
+  formatISODateRangeCompact,
   formatDateTimeForDisplay,
 } from "../lib/dateFormat";
 import { formatSessionTimeRange, sessionStartsAt, isCancellationWithinHoursBeforeSession } from "../lib/sessionTime";
@@ -658,7 +658,7 @@ export default function ManagerWeeklyStatDetailScreen() {
   const rangeLabel = useMemo(() => {
     if (!weekStart || !weekEnd) return "";
     try {
-      return `${formatISODateFull(weekStart, language)} → ${formatISODateFull(weekEnd, language)}`;
+      return formatISODateRangeCompact(weekStart, weekEnd, language);
     } catch {
       return "";
     }

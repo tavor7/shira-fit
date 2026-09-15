@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Platf
 import { router, type Href } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
-import { formatISODateFull } from "../lib/dateFormat";
+import { formatISODateFull, formatISODateRangeCompact } from "../lib/dateFormat";
 import { firstDayOfMonthISOLocal, lastDayOfMonthISOLocal, monthRangeISO, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "../components/AppText";
@@ -499,9 +499,7 @@ export default function ManagerDashboardScreen() {
               {rangeLabelEnd ? (
                 <>
                   {" · "}
-                  {formatISODateFull(rangeLabelStart, language)}
-                  <Text style={styles.rangeDash}>{" — "}</Text>
-                  {formatISODateFull(rangeLabelEnd, language)}
+                  {formatISODateRangeCompact(rangeLabelStart, rangeLabelEnd, language)}
                 </>
               ) : null}
             </Text>
@@ -525,10 +523,8 @@ export default function ManagerDashboardScreen() {
           <Text style={styles.rangeChevron}>{"‹"}</Text>
         </Pressable>
         <View style={styles.rangeCenter}>
-          <Text style={[styles.rangeDates, isRTL && styles.rtl]} numberOfLines={2}>
-            {formatISODateFull(rangeLabelStart, language)}
-            <Text style={styles.rangeDash}>{" — "}</Text>
-            {formatISODateFull(rangeLabelEnd, language)}
+          <Text style={[styles.rangeDates, isRTL && styles.rtl]} numberOfLines={1}>
+            {formatISODateRangeCompact(rangeLabelStart, rangeLabelEnd, language)}
           </Text>
         </View>
         <Pressable
@@ -1066,10 +1062,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     letterSpacing: -0.15,
     lineHeight: 20,
-  },
-  rangeDash: {
-    fontWeight: "600",
-    color: theme.colors.textSoft,
   },
   err: { color: theme.colors.error, fontWeight: "700", marginTop: 8 },
   errBlock: { alignItems: "flex-start" },

@@ -91,6 +91,41 @@ export function formatISODateLong(iso: string, language?: LanguageCode): string 
   });
 }
 
+/**
+ * YYYY-MM-DD, YYYY-MM-DD → a compact one-line range, e.g. "13–19 September 2026" (same
+ * month), "28 August – 3 September 2026" (same year, different month), or
+ * "29 December 2026 – 4 January 2027" (different years) — never repeats the month/year
+ * needlessly, so it stays short enough to fit on one line where formatISODateFull(start)
+ * + " — " + formatISODateFull(end) would wrap.
+ */
+export function formatISODateRangeCompact(startIso: string, endIso: string, language?: LanguageCode): string {
+  const start = parseISODateLocal(startIso);
+  const end = parseISODateLocal(endIso);
+  if (!start || !end) return `${startIso} – ${endIso}`;
+  const lang = langOrEn(language);
+  const locale = appLocale(lang);
+  const dash = lang === "he" ? "–" : "–";
+
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const sameMonth = sameYear && start.getMonth() === end.getMonth();
+
+  if (sameMonth) {
+    const startDay = start.toLocaleDateString(locale, { day: "numeric" });
+    const endFull = end.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+    return `${startDay}${dash}${endFull}`;
+  }
+
+  if (sameYear) {
+    const startPart = start.toLocaleDateString(locale, { day: "numeric", month: "long" });
+    const endFull = end.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+    return `${startPart} ${dash} ${endFull}`;
+  }
+
+  const startFull = start.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+  const endFull = end.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+  return `${startFull} ${dash} ${endFull}`;
+}
+
 /** ISO datetime from server → local "day month year, time" */
 export function formatDateTimeForDisplay(iso: string, language?: LanguageCode): string {
   const d = parseInstantIso(iso);
