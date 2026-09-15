@@ -31,7 +31,7 @@ function AccessibilityMenuInner() {
   // clear it instead of floating on top of it. It carries its own insets.bottom padding
   // internally, so this only needs the row's own content height plus a small gap.
   const isStaff = profile?.role === "coach" || profile?.role === "manager";
-  const fabBottom = insets.bottom + (isStaff ? 20 : 78);
+  const fabBottom = insets.bottom + (isStaff ? 20 : 96);
   const scale = useRef(new Animated.Value(1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
 
