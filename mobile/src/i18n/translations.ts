@@ -986,7 +986,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "approve.rejectConfirmMessage": "Reject {name}'s request? They won't be able to register for sessions.",
     "approve.historyTitle": "Recently approved",
     "approve.historyEmpty": "No approvals yet.",
-    "approve.approvedBy": "Approved by {name} · {when}",
+    "approve.approvedByName": "Approved by {name}",
     "approve.unknownAthlete": "Unknown athlete",
     "approve.unknownManager": "Unknown manager",
 
@@ -2361,7 +2361,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "approve.rejectConfirmMessage": "לדחות את הבקשה של {name}? הם לא יוכלו להירשם לאימונים.",
     "approve.historyTitle": "אושרו לאחרונה",
     "approve.historyEmpty": "עדיין אין אישורים.",
-    "approve.approvedBy": "אושר על ידי {name} · {when}",
+    "approve.approvedByName": "אושר על ידי {name}",
     "approve.unknownAthlete": "מתאמן לא ידוע",
     "approve.unknownManager": "מנהל לא ידוע",
 

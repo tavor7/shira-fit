@@ -222,7 +222,7 @@ export default function ApproveAthletesScreen() {
               ) : (
                 history.map((item, index) => (
                   <FadeSlideIn key={item.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
-                    <View style={styles.historyRow}>
+                    <View style={styles.historyCard}>
                       <View style={[styles.historyRowTop, isRTL && styles.historyRowTopRtl]}>
                         <PressableScale
                           onPress={() => {
@@ -235,7 +235,7 @@ export default function ApproveAthletesScreen() {
                           accessibilityLabel={item.athleteName}
                         >
                           <AppText
-                            variant="body"
+                            variant="title"
                             isRTL={isRTL}
                             style={item.athleteUserId ? styles.historyNameLink : undefined}
                           >
@@ -257,11 +257,20 @@ export default function ApproveAthletesScreen() {
                           </AppText>
                         </PressableScale>
                       </View>
-                      <AppText variant="caption" muted isRTL={isRTL} style={styles.historyMeta}>
-                        {t("approve.approvedBy")
-                          .replace("{name}", item.actorUserId ? actorLabels[item.actorUserId] ?? item.actorUserId : t("approve.unknownManager"))
-                          .replace("{when}", formatDateTimeForDisplay(item.createdAt, language))}
-                      </AppText>
+                      <View style={[styles.historyMetaRow, isRTL && styles.historyMetaRowRtl]}>
+                        <AppText variant="caption" muted isRTL={isRTL} style={styles.historyMetaBy} numberOfLines={1}>
+                          {t("approve.approvedByName").replace(
+                            "{name}",
+                            item.actorUserId ? actorLabels[item.actorUserId] ?? item.actorUserId : t("approve.unknownManager")
+                          )}
+                        </AppText>
+                        <AppText variant="caption" style={styles.historyMetaDot}>
+                          ·
+                        </AppText>
+                        <AppText variant="caption" muted isRTL={isRTL} style={styles.historyMetaWhen}>
+                          {formatDateTimeForDisplay(item.createdAt, language)}
+                        </AppText>
+                      </View>
                     </View>
                   </FadeSlideIn>
                 ))
@@ -304,17 +313,20 @@ const styles = StyleSheet.create({
   historySection: {
     marginTop: theme.spacing.lg,
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
+    paddingTop: theme.spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.colors.borderMuted,
   },
   historyTitle: { marginBottom: theme.spacing.sm },
   historySkeletonList: { gap: theme.spacing.sm },
   historyEmpty: { paddingVertical: theme.spacing.sm },
-  historyRow: {
-    paddingVertical: theme.spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.borderMuted,
+  historyCard: {
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
   },
   historyRowTop: {
     flexDirection: "row",
@@ -324,7 +336,7 @@ const styles = StyleSheet.create({
   },
   historyRowTopRtl: { flexDirection: "row-reverse" },
   historyNameBtn: { flexShrink: 1 },
-  historyNameLink: { color: theme.colors.cta, fontWeight: "800" },
+  historyNameLink: { color: theme.colors.cta },
   historyConfirmEmailBtn: {
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
@@ -336,5 +348,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   historyConfirmEmailTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 12, letterSpacing: 0.2 },
-  historyMeta: { marginTop: 2 },
+  historyMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: theme.spacing.xs,
+    gap: 4,
+  },
+  historyMetaRowRtl: { flexDirection: "row-reverse" },
+  historyMetaBy: { flexShrink: 1 },
+  historyMetaDot: { color: theme.colors.textSoft },
+  historyMetaWhen: { flexShrink: 0 },
 });
