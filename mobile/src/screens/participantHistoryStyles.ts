@@ -154,6 +154,10 @@ export const participantHistoryStyles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     overflow: "hidden",
   },
+  rowDiscount: {
+    borderColor: theme.colors.warning,
+    backgroundColor: theme.colors.warningBg,
+  },
   sessionCardBody: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: 14,
@@ -206,6 +210,7 @@ export const participantHistoryStyles = StyleSheet.create({
   cardDatePrimary: { fontSize: 15, fontWeight: "800", color: theme.colors.text, lineHeight: 21 },
   cardDateMeta: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 20 },
   sessionSubline: { fontSize: 13, color: theme.colors.textMuted, lineHeight: 18 },
+  sessionSublineDiscount: { color: theme.colors.warning, fontWeight: "800" },
   receiptSublineRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
   receiptSublineRowRtl: { flexDirection: "row-reverse" },
   receiptBadge: {
@@ -257,6 +262,7 @@ export const participantHistoryStyles = StyleSheet.create({
   },
   sessionFootnote: { fontSize: 12, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 17 },
   sessionAmount: { fontSize: 17, fontWeight: "800", color: theme.colors.success, flexShrink: 0 },
+  sessionAmountDiscount: { color: theme.colors.warning },
   actionBar: {
     flexDirection: "row",
     alignItems: "stretch",

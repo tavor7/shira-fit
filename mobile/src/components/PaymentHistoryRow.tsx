@@ -3,7 +3,7 @@ import { theme } from "../theme";
 import { parseMoney } from "../lib/participantHistoryHelpers";
 import { resolveFamilyMemberByPayee, type AthleteFamily } from "../lib/athleteFamilies";
 import { formatISODateFullWithWeekdayAfter } from "../lib/dateFormat";
-import { paymentMethodHistoryLabel } from "../lib/paymentMethod";
+import { normalizePaymentMethodKey, paymentMethodHistoryLabel } from "../lib/paymentMethod";
 import { firstWordOfDisplayName } from "../lib/displayName";
 import type { AthleteAccountPayment } from "../types/database";
 import type { LanguageCode } from "../i18n/translations";
@@ -38,6 +38,7 @@ export function PaymentHistoryRow({
   onViewReceipt,
 }: Props) {
   const p = pay;
+  const isDiscount = normalizePaymentMethodKey(p.payment_method) === "discount";
   const amt = parseMoney(p.amount_ils);
   const amtTxt = amt !== null && amt > 0 ? `${amt} ₪` : "—";
   const busyPay = deletingPaymentId === p.id;
@@ -49,26 +50,37 @@ export function PaymentHistoryRow({
   const assignedName = payeeMember?.name?.trim() || null;
   const payerName = (p.payer_name ?? "").trim();
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, isDiscount && styles.rowDiscount]}>
       <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
         {isRTL ? (
           <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
             <Text style={[styles.cardDate, styles.rtlText, styles.sessionHeadMainFlex]} numberOfLines={2}>
               {formatISODateFullWithWeekdayAfter(p.paid_at, language)}
             </Text>
-            <Text style={[styles.sessionAmount, styles.ltrText]}>{amtTxt}</Text>
+            <Text style={[styles.sessionAmount, styles.ltrText, isDiscount && styles.sessionAmountDiscount]}>
+              {isDiscount ? "−" : ""}
+              {amtTxt}
+            </Text>
           </View>
         ) : (
           <View style={styles.sessionHeadRow}>
             <Text style={styles.cardDate} numberOfLines={1}>
               {formatISODateFullWithWeekdayAfter(p.paid_at, language)}
             </Text>
-            <Text style={styles.sessionAmount}>{amtTxt}</Text>
+            <Text style={[styles.sessionAmount, isDiscount && styles.sessionAmountDiscount]}>
+              {isDiscount ? "−" : ""}
+              {amtTxt}
+            </Text>
           </View>
         )}
         <View style={[styles.receiptSublineRow, rtlRowFlip && styles.receiptSublineRowRtl]}>
-          <Text style={[styles.sessionSubline, isRTL && styles.rtlText]} numberOfLines={1}>
-            {t("billing.accountPayment")} · {paymentMethodHistoryLabel(p.payment_method, language)}
+          <Text
+            style={[styles.sessionSubline, isDiscount && styles.sessionSublineDiscount, isRTL && styles.rtlText]}
+            numberOfLines={1}
+          >
+            {isDiscount
+              ? paymentMethodHistoryLabel(p.payment_method, language)
+              : `${t("billing.accountPayment")} · ${paymentMethodHistoryLabel(p.payment_method, language)}`}
           </Text>
           {receiptDocumentNumber ? (
             <Pressable
