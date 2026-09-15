@@ -9,7 +9,8 @@ import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useCountUp } from "../hooks/useCountUp";
 import { theme } from "../theme";
-import { AddAccountPaymentModal, type AccountPaymentMethodKey } from "../components/AddAccountPaymentModal";
+import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
+import { AddDiscountModal } from "../components/AddDiscountModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
 import { athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
@@ -132,7 +133,7 @@ export default function ParticipantHistoryScreen({
   const [familyContext, setFamilyContext] = useState<AthleteFamily | null>(null);
   const [athleteTiersByMember, setAthleteTiersByMember] = useState<Record<string, PricingRateTierRow[]>>({});
   const [addPayOpen, setAddPayOpen] = useState(false);
-  const [addPayInitialMethod, setAddPayInitialMethod] = useState<AccountPaymentMethodKey>("cash");
+  const [addDiscountOpen, setAddDiscountOpen] = useState(false);
   const [editAccountPayment, setEditAccountPayment] = useState<AthleteAccountPayment | null>(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
   /** True after a successful Load for the current athlete/date range (hides billing card on fetch error). */
@@ -1018,7 +1019,15 @@ export default function ParticipantHistoryScreen({
         }
         editPayment={editAccountPayment}
         showPayerName={!!familyContext}
-        initialMethod={addPayInitialMethod}
+        onSaved={() => load({ silent: true })}
+      />
+
+      <AddDiscountModal
+        visible={addDiscountOpen}
+        onClose={() => setAddDiscountOpen(false)}
+        payeeId={athleteId}
+        payeeIsManual={payeeIsManual}
+        payeeLabel={athleteLabel}
         onSaved={() => load({ silent: true })}
       />
 
@@ -1224,7 +1233,6 @@ export default function ParticipantHistoryScreen({
                     style={({ pressed }) => [styles.addPayBtn, pressed && { opacity: 0.9 }]}
                     onPress={() => {
                       setEditAccountPayment(null);
-                      setAddPayInitialMethod("cash");
                       setAddPayOpen(true);
                     }}
                   >
@@ -1232,11 +1240,7 @@ export default function ParticipantHistoryScreen({
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [styles.addDiscountBtn, pressed && { opacity: 0.9 }]}
-                    onPress={() => {
-                      setEditAccountPayment(null);
-                      setAddPayInitialMethod("discount");
-                      setAddPayOpen(true);
-                    }}
+                    onPress={() => setAddDiscountOpen(true)}
                   >
                     <Text style={styles.addDiscountBtnTxt}>{t("billing.addDiscount")}</Text>
                   </Pressable>

@@ -16,12 +16,10 @@ import {
 } from "../lib/paymentMethod";
 
 /**
- * "Discount" is an account-payment-only method (reports/account-payments screens), not a
- * real payment — recording one reduces what's owed exactly like a real payment does,
- * without money actually changing hands. Deliberately kept out of
- * SESSION_PAYMENT_METHOD_KEYS so it never shows up in the per-session amount editor.
+ * "Discount" is recorded through the separate AddDiscountModal, not offered as a chip
+ * here — this modal is for real payments only. An existing discount payment can still be
+ * opened for editing (its chip is shown, but only in that case — see methodChoices below).
  */
-const ACCOUNT_PAYMENT_METHOD_KEYS = [...SESSION_PAYMENT_METHOD_KEYS, "discount"] as const;
 export type AccountPaymentMethodKey = SessionPaymentMethodKey | "discount";
 
 export type AccountPaymentEdit = {
@@ -46,8 +44,6 @@ type Props = {
   editPayment?: AccountPaymentEdit | null;
   /** Family billing: optional field for who physically paid. */
   showPayerName?: boolean;
-  /** New (non-edit) payments only — preselects the method chip, e.g. "discount" when opened from an "Add discount" shortcut. */
-  initialMethod?: AccountPaymentMethodKey;
   onSaved: () => void | Promise<void>;
 };
 
@@ -59,7 +55,6 @@ export function AddAccountPaymentModal({
   payeeLabel,
   editPayment,
   showPayerName = false,
-  initialMethod = "cash",
   onSaved,
 }: Props) {
   const { language, t, isRTL } = useI18n();
@@ -87,11 +82,16 @@ export function AddAccountPaymentModal({
       setAmount("");
       setNote("");
       setPayerName("");
-      setMethod(initialMethod);
+      setMethod("cash");
       setPaidAt(toISODateLocal(new Date()));
     }
     setBusy(false);
-  }, [visible, payeeId, editPayment?.id, initialMethod]);
+  }, [visible, payeeId, editPayment?.id]);
+
+  // Only offer the "discount" chip when editing a payment that's already a discount —
+  // never for a brand-new entry (use AddDiscountModal for that).
+  const methodChoices: readonly AccountPaymentMethodKey[] =
+    isEdit && method === "discount" ? [...SESSION_PAYMENT_METHOD_KEYS, "discount"] : SESSION_PAYMENT_METHOD_KEYS;
 
   function showError(msg: string) {
     showToast({ message: t("common.error"), detail: msg, variant: "error" });
@@ -203,7 +203,7 @@ export function AddAccountPaymentModal({
         />
         <Text style={[styles.label, isRTL && styles.rtlText]}>{t("billing.method")}</Text>
         <View style={[styles.methodRow, isRTL && styles.methodRowRtl]}>
-          {ACCOUNT_PAYMENT_METHOD_KEYS.map((m) => {
+          {methodChoices.map((m) => {
             const on = method === m;
             const isDiscount = m === "discount";
             return (
