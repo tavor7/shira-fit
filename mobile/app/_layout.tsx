@@ -7,7 +7,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { theme } from "../src/theme";
 import { appHeaderStyle, appHeaderTitleStyle } from "../src/theme/headerStyles";
 import { StudioContactFooter } from "../src/components/StudioContactFooter";
-import { LegalFooterLinks } from "../src/components/LegalFooterLinks";
 import { I18nProvider } from "../src/context/I18nContext";
 import { ManagerAthletePreviewProvider } from "../src/context/ManagerAthletePreviewContext";
 import { ToastProvider } from "../src/context/ToastContext";
@@ -35,14 +34,6 @@ function StudioContactFooterGate() {
   const isStaff = role === "coach" || role === "manager";
   if (isStaff) return null;
   return <StudioContactFooter />;
-}
-
-function LegalFooterLinksGate() {
-  const { profile } = useAuth();
-  const role = profile?.role;
-  const isStaff = role === "coach" || role === "manager";
-  if (isStaff) return null;
-  return <LegalFooterLinks fixed />;
 }
 
 export default function RootLayout() {
@@ -150,7 +141,6 @@ export default function RootLayout() {
                       />
                     </View>
                     <StudioContactFooterGate />
-                    {Platform.OS === "web" ? <LegalFooterLinksGate /> : null}
                   </BulkJobsProvider>
                 </ToastProvider>
               </AppErrorBoundary>

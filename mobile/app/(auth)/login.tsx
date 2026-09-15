@@ -334,8 +334,7 @@ export default function LoginScreen() {
             </Pressable>
           </View>
           <LanguageToggleChip />
-          {/* Web gets these from the global footer in app/_layout.tsx; avoid showing them twice. */}
-          {Platform.OS !== "web" ? <LegalFooterLinks style={styles.legalLinks} /> : null}
+          <LegalFooterLinks style={styles.legalLinks} />
           </Animated.View>
         </FadeSlideIn>
       </ScrollView>

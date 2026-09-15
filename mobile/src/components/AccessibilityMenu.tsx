@@ -25,9 +25,7 @@ function AccessibilityMenuInner() {
   const triggerRef = useRef<View>(null);
   const reduceMotionRef = useReduceMotionRef();
   const insets = useSafeAreaInsets();
-  // Clears the global legal-links footer (visible on non-staff screens) plus the home
-  // indicator / gesture-bar safe area, so the button never sits on top of that text.
-  const fabBottom = insets.bottom + 76;
+  const fabBottom = insets.bottom + 20;
   const scale = useRef(new Animated.Value(1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
 

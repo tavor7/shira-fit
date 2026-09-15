@@ -328,15 +328,10 @@ export default function ProfileScreen() {
               style={{ marginTop: theme.spacing.lg }}
             />
 
-            {/* Web gets these from the global footer in app/_layout.tsx; avoid showing them twice. */}
-            {Platform.OS !== "web" ? (
-              <>
-                <AppText variant="label" muted isRTL={rtl} style={styles.legalHeading}>
-                  {t("legal.footerHeading")}
-                </AppText>
-                <LegalFooterLinks style={styles.legalLinksRow} />
-              </>
-            ) : null}
+            <AppText variant="label" muted isRTL={rtl} style={styles.legalHeading}>
+              {t("legal.footerHeading")}
+            </AppText>
+            <LegalFooterLinks style={styles.legalLinksRow} />
 
           </>
         ) : segment === "messages" && isManager ? (
