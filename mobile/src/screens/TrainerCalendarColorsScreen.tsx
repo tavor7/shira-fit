@@ -170,15 +170,12 @@ const styles = StyleSheet.create({
   crossfade: { flex: 1 },
   top: {
     paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.borderMuted,
-    marginBottom: theme.spacing.sm,
+    paddingBottom: theme.spacing.sm,
   },
+  header: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
   skeletonList: { flex: 1, backgroundColor: theme.colors.backgroundAlt, padding: theme.spacing.md, gap: theme.spacing.sm },
   rtlText: { textAlign: "right" },
-  header: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
-  list: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.md },
+  list: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
   card: {
     padding: theme.spacing.md,
     borderRadius: theme.radius.lg,
