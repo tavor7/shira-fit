@@ -71,7 +71,6 @@ Deno.serve(async (req) => {
   const target = targetProfile as { role?: string; must_change_password?: boolean } | null;
   const targetRole = target?.role ?? "";
   if (!targetRole) return json(404, { ok: false, error: "user_not_found" });
-  if (targetRole === "manager") return json(403, { ok: false, error: "cannot_edit_manager" });
   if (target?.must_change_password === true) return json(409, { ok: false, error: "temp_password_already_pending" });
 
   const tempPassword = generateTempPassword();
