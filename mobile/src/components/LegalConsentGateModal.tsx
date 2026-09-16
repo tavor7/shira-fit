@@ -18,11 +18,12 @@ const DOC_ROUTE: Record<string, string> = {
 /**
  * Existing-user mandatory re-consent gate for Terms of Use / Privacy Policy.
  * Rendered as an overlay (not a route redirect) inside (app)/_layout.tsx, matching the
- * existing ReceiptRequirementsGateModal pattern — no redirect loops, survives refresh,
- * and (unlike that modal) always offers a way out via logout.
+ * existing ReceiptRequirementsGateModal pattern — no redirect loops, survives refresh.
+ * Deliberately has no logout/dismiss escape hatch: accepting is the only way through,
+ * and the gate re-appears on every login/foreground until they do.
  */
 export function LegalConsentGateModal() {
-  const { session, signOut } = useAuth();
+  const { session } = useAuth();
   const { language, t, isRTL } = useI18n();
   const { loading, required, blocksApp, reload } = useLegalConsentGate();
   const [checked, setChecked] = useState(false);
@@ -127,11 +128,6 @@ export function LegalConsentGateModal() {
               onPress={onAcceptAll}
               style={styles.acceptBtn}
             />
-            <Pressable onPress={() => void signOut()} style={({ pressed }) => [styles.logoutBtn, pressed && { opacity: 0.7 }]}>
-              <AppText variant="caption" muted>
-                {t("legalGate.logout")}
-              </AppText>
-            </Pressable>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -183,5 +179,4 @@ const styles = StyleSheet.create({
   errorTxt: { color: theme.colors.error, marginBottom: theme.spacing.sm },
   hintTxt: { marginBottom: theme.spacing.sm },
   acceptBtn: { marginTop: theme.spacing.xs },
-  logoutBtn: { alignSelf: "center", padding: theme.spacing.sm, marginTop: theme.spacing.xs },
 });
