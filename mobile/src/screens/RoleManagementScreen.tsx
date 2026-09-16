@@ -120,7 +120,6 @@ export default function RoleManagementScreen() {
           <View style={styles.top}>
             <ManagerStudioSetupTabs />
             <Text style={[styles.title, isRTL && styles.rtlText]}>{t("menu.roles")}</Text>
-            <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("roles.hint")}</Text>
             <AppSearchField
               value={q}
               onChangeText={setQ}

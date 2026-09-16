@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
@@ -162,10 +162,6 @@ export default function StaffUsersScreen() {
     }, [loadDuplicateNameCounts, loadManualDuplicateIndexes])
   );
 
-  const subtitle = useMemo(() => {
-    return isManager ? t("staffUsers.hintManager") : t("staffUsers.hintCoach");
-  }, [isManager, t]);
-
   return (
     <View style={styles.screen}>
       <FlatList
@@ -177,7 +173,6 @@ export default function StaffUsersScreen() {
           <View style={styles.top}>
             {isManager ? <ManagerStudioSetupTabs /> : null}
             <Text style={[styles.title, isRTL && styles.rtlText]}>{t("screen.staffUsers")}</Text>
-            <Text style={[styles.hint, isRTL && styles.rtlText]}>{subtitle}</Text>
             <AppSearchField
               value={q}
               onChangeText={setQ}

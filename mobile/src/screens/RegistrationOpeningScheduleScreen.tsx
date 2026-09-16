@@ -102,11 +102,6 @@ export default function RegistrationOpeningScheduleScreen() {
       <Text style={[styles.title, isRTL && styles.rtlText]}>
         {language === "he" ? "פתיחת הרשמה" : "Registration opening"}
       </Text>
-      <Text style={[styles.hint, isRTL && styles.rtlText]}>
-        {language === "he"
-          ? "אימונים של שבוע הבא נשארים סגורים עד זמן הפתיחה. בזמן הפתיחה, כל האימונים שאינם מוסתרים בשבוע הבא (א׳–ש׳) ייפתחו להרשמה."
-          : "Next-week sessions stay closed until the opening time. At the opening, all non-hidden sessions in next week (Sun–Sat) become open for registration."}
-      </Text>
 
       <View style={styles.card}>
         <View style={styles.section}>

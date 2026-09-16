@@ -274,7 +274,6 @@ export default function FamilyManagementScreen() {
           <>
             <ManagerStudioSetupTabs />
             <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.families")}</Text>
-            <Text style={[styles.subtitle, isRTL && styles.rtl]}>{t("families.subtitle")}</Text>
             {families.length > 0 ? (
               <View style={[styles.searchRow, isRTL && styles.searchRowRtl]}>
                 <AppSearchField

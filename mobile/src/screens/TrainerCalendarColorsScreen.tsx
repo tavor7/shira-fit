@@ -99,7 +99,6 @@ export default function TrainerCalendarColorsScreen() {
           <View style={styles.top}>
             <ManagerStudioSetupTabs />
             <Text style={[styles.header, isRTL && styles.rtlText]}>{t("menu.trainerColors")}</Text>
-            <Text style={[styles.subhead, isRTL && styles.rtlText]}>{t("trainerColors.autoSaveHint")}</Text>
           </View>
         }
         renderItem={({ item, index }) => {

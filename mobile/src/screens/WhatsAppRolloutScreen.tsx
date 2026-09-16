@@ -214,7 +214,6 @@ export default function WhatsAppRolloutScreen() {
       <ManagerStudioSetupTabs />
 
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("whatsapp.rolloutTitle")}</Text>
-      <Text style={[styles.hint, isRTL && styles.rtl]}>{t("whatsapp.rolloutSubtitle")}</Text>
 
       <CrossfadeSwap
         loading={loading}
