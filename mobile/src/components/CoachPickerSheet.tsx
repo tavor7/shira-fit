@@ -103,9 +103,6 @@ export function CoachPickerSheet({ visible, onClose, onSelect, selectedCoachId }
                 <Text style={[styles.rowName, isRTL && styles.rtlText]} numberOfLines={1}>
                   {item.full_name}
                 </Text>
-                <Text style={[styles.rowMeta, isRTL && styles.rtlText]} numberOfLines={1}>
-                  @{item.username}
-                </Text>
               </View>
             </View>
             <View style={[styles.rolePill, item.role === "manager" && styles.rolePillManager]}>

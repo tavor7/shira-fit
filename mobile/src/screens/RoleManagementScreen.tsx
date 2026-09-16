@@ -150,7 +150,7 @@ export default function RoleManagementScreen() {
             <View style={styles.card}>
               <Text style={styles.name}>{item.full_name}</Text>
               <Text style={styles.meta}>
-                @{item.username} · {item.phone} · {item.approval_status}
+                {item.phone} · {item.approval_status}
               </Text>
               <View style={styles.row}>
                 <RoleChip

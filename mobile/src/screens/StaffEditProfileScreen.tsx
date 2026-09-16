@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
@@ -14,6 +14,17 @@ import { isValidISODateString } from "../lib/isoDate";
 import { formatDateTimeForDisplay } from "../lib/dateFormat";
 import { useAuth } from "../context/AuthContext";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
+import { fetchUsersLegalConsentSummary, type UserLegalConsentStatus } from "../lib/consent";
+
+function LegalChip({ label, ok, optional }: { label: string; ok: boolean; optional?: boolean }) {
+  return (
+    <View style={[styles.legalChip, ok ? styles.legalChipOn : optional ? styles.legalChipOptionalOff : styles.legalChipOff]}>
+      <Text style={[styles.legalChipTxt, ok && styles.legalChipTxtOn]}>
+        {ok ? "✓" : "✕"} {label}
+      </Text>
+    </View>
+  );
+}
 
 /** How long the save checkmark holds before navigating back. */
 const SAVE_SUCCESS_HOLD_MS = 1200;
@@ -41,13 +52,13 @@ export default function StaffEditProfileScreen() {
   const [metaLoading, setMetaLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [disabledAt, setDisabledAt] = useState<string | null>(null);
-  const [username, setUsername] = useState("");
+  const [legalConsent, setLegalConsent] = useState<UserLegalConsentStatus | null>(null);
   const [togglingDisabled, setTogglingDisabled] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [settingTempPassword, setSettingTempPassword] = useState(false);
   const [tempPasswordResult, setTempPasswordResult] = useState<string | null>(null);
   const [duplicateNames, setDuplicateNames] = useState<
-    { user_id: string; full_name: string; username: string; phone: string; role: string }[]
+    { user_id: string; full_name: string; phone: string; role: string }[]
   >([]);
   const [duplicateNamesLoading, setDuplicateNamesLoading] = useState(false);
 
@@ -61,7 +72,7 @@ export default function StaffEditProfileScreen() {
       setDuplicateNamesLoading(true);
       const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, full_name, username, phone, role")
+        .select("user_id, full_name, phone, role")
         .ilike("full_name", trimmed)
         .neq("user_id", userId)
         .limit(20);
@@ -72,7 +83,7 @@ export default function StaffEditProfileScreen() {
       }
       const normalized = trimmed.toLowerCase();
       setDuplicateNames(
-        ((data as { user_id: string; full_name: string; username: string; phone: string; role: string }[]) ?? []).filter(
+        ((data as { user_id: string; full_name: string; phone: string; role: string }[]) ?? []).filter(
           (row) => row.full_name.trim().toLowerCase() === normalized
         )
       );
@@ -87,7 +98,7 @@ export default function StaffEditProfileScreen() {
       const [profileRes, metaRes] = await Promise.all([
         supabase
           .from("profiles")
-          .select("full_name, phone, gender, date_of_birth, disabled_at, username, address, zip_code, must_change_password")
+          .select("full_name, phone, gender, date_of_birth, disabled_at, address, zip_code, must_change_password")
           .eq("user_id", userId)
           .single(),
         supabase.rpc("staff_get_user_auth_meta", { p_user_id: userId }),
@@ -104,7 +115,6 @@ export default function StaffEditProfileScreen() {
       setGender(g === "male" || g === "female" ? (g as any) : "");
       setDob((data as any).date_of_birth ?? "");
       setDisabledAt(typeof (data as any).disabled_at === "string" ? (data as any).disabled_at : null);
-      setUsername(String((data as any).username ?? "").trim());
       const pendingChange = (data as any).must_change_password === true;
       setMustChangePassword(pendingChange);
       if (pendingChange && isManager) {
@@ -120,6 +130,11 @@ export default function StaffEditProfileScreen() {
       }
     })();
   }, [userId]);
+
+  useEffect(() => {
+    if (!isManager || !userId) return;
+    void fetchUsersLegalConsentSummary().then((map) => setLegalConsent(map?.[userId] ?? null));
+  }, [isManager, userId]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -289,14 +304,16 @@ export default function StaffEditProfileScreen() {
 
       {userId ? (
         <View style={styles.metaCard}>
-          {username ? (
+          {isManager && legalConsent ? (
             <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
               <AppText variant="label" soft isRTL={isRTL}>
-                {t("profile.username")}
+                {t("staffUsers.legalStatus")}
               </AppText>
-              <AppText isRTL={isRTL} selectable numberOfLines={2}>
-                @{username}
-              </AppText>
+              <View style={[styles.legalChips, isRTL && styles.legalChipsRtl]}>
+                <LegalChip label={t("staffUsers.legalTerms")} ok={legalConsent.terms_ok} />
+                <LegalChip label={t("staffUsers.legalPrivacy")} ok={legalConsent.privacy_ok} />
+                <LegalChip label={t("staffUsers.legalMarketing")} ok={legalConsent.marketing_ok} optional />
+              </View>
             </View>
           ) : null}
           <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
@@ -385,7 +402,6 @@ export default function StaffEditProfileScreen() {
             >
               <AppText variant="caption" isRTL={isRTL} style={styles.duplicateRowTxt} numberOfLines={2}>
                 {t("profile.duplicateNameLine")
-                  .replace("{username}", row.username)
                   .replace("{phone}", row.phone || "—")
                   .replace("{role}", row.role)}
               </AppText>
@@ -545,6 +561,19 @@ const styles = StyleSheet.create({
   metaRowRtl: { alignItems: "flex-end" },
   metaDisabled: { color: theme.colors.error },
   metaPending: { color: theme.colors.cta },
+  legalChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 2 },
+  legalChipsRtl: { flexDirection: "row-reverse" },
+  legalChip: {
+    borderRadius: theme.radius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+  },
+  legalChipOn: { backgroundColor: theme.colors.successBg, borderColor: "transparent" },
+  legalChipOff: { backgroundColor: theme.colors.errorBg, borderColor: "transparent" },
+  legalChipOptionalOff: { backgroundColor: "transparent", borderColor: theme.colors.borderMuted },
+  legalChipTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.textMuted },
+  legalChipTxtOn: { color: theme.colors.success },
   tempPasswordCard: {
     marginBottom: theme.spacing.md,
     padding: theme.spacing.md,

@@ -112,9 +112,7 @@ export default function TrainerCalendarColorsScreen() {
                 <View style={[styles.swatch, { backgroundColor: preview }]} />
                 <View style={styles.cardHeadText}>
                   <Text style={styles.name}>{item.full_name}</Text>
-                  <Text style={styles.meta}>
-                    @{item.username} · {item.role}
-                  </Text>
+                  <Text style={styles.meta}>{item.role}</Text>
                 </View>
                 {busy ? <ActivityIndicator size="small" color={theme.colors.cta} /> : null}
               </View>

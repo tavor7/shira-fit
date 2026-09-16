@@ -158,9 +158,6 @@ export function GoLiveReadinessSection({ isRTL, language }: Props) {
                           : "Athlete"}
                   </Text>
                 ) : null}
-                  {item.username ? (
-                    <Text style={[styles.gapMeta, isRTL && styles.rtl]}>@{item.username}</Text>
-                  ) : null}
                   {item.phone ? (
                     <Text style={[styles.gapMeta, isRTL && styles.rtl]}>{item.phone}</Text>
                   ) : null}

@@ -20,7 +20,6 @@ import {
   normalizeParticipantName,
   type ManualDuplicateIndexes,
 } from "../lib/participantIdentity";
-import { fetchUsersLegalConsentSummary, type UserLegalConsentStatus } from "../lib/consent";
 
 type ProfileRow = {
   kind: "profile";
@@ -46,16 +45,6 @@ type ManualRow = {
 
 type Row = ProfileRow | ManualRow;
 
-function LegalChip({ label, ok, optional }: { label: string; ok: boolean; optional?: boolean }) {
-  return (
-    <View style={[styles.legalChip, ok ? styles.legalChipOn : optional ? styles.legalChipOptionalOff : styles.legalChipOff]}>
-      <Text style={[styles.legalChipTxt, ok && styles.legalChipTxtOn]}>
-        {ok ? "✓" : "✕"} {label}
-      </Text>
-    </View>
-  );
-}
-
 export default function StaffUsersScreen() {
   const { profile } = useAuth();
   const isManager = profile?.role === "manager";
@@ -70,13 +59,7 @@ export default function StaffUsersScreen() {
     nameCounts: {},
     phoneCounts: {},
   });
-  const [legalConsent, setLegalConsent] = useState<Record<string, UserLegalConsentStatus> | null>(null);
   const listBottomPad = useSearchListBottomPadding();
-
-  useEffect(() => {
-    if (!isManager) return;
-    void fetchUsersLegalConsentSummary().then(setLegalConsent);
-  }, [isManager]);
 
   const loadDuplicateNameCounts = useCallback(async () => {
     let query = supabase.from("profiles").select("full_name");
@@ -274,20 +257,13 @@ export default function StaffUsersScreen() {
               ) : null}
               <Text style={styles.meta}>
                 {item.kind === "profile"
-                  ? `${t("profile.username")}: @${item.username} · ${item.phone} · ${item.role} · ${item.approval_status}${
+                  ? `${item.phone} · ${item.role} · ${item.approval_status}${
                       item.disabled_at ? ` · ${t("profile.accountDisabledBadge")}` : ""
                     }`
                   : `${item.phone} · ${t("pricing.quickAddLabel")}${
                       item.disabled_at ? ` · ${t("profile.accountDisabledBadge")}` : ""
                     }`}
               </Text>
-              {item.kind === "profile" && legalConsent?.[item.user_id] ? (
-                <View style={[styles.legalChips, isRTL && styles.legalChipsRtl]}>
-                  <LegalChip label={t("staffUsers.legalTerms")} ok={legalConsent[item.user_id]!.terms_ok} />
-                  <LegalChip label={t("staffUsers.legalPrivacy")} ok={legalConsent[item.user_id]!.privacy_ok} />
-                  <LegalChip label={t("staffUsers.legalMarketing")} ok={legalConsent[item.user_id]!.marketing_ok} optional />
-                </View>
-              ) : null}
             </PressableScale>
             </FadeSlideIn>
           );
@@ -334,17 +310,4 @@ const styles = StyleSheet.create({
   name: { color: theme.colors.text, fontWeight: "900", fontSize: 15 },
   bday: { color: theme.colors.cta, fontWeight: "900" },
   meta: { marginTop: 4, color: theme.colors.textMuted, fontSize: 12 },
-  legalChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
-  legalChipsRtl: { flexDirection: "row-reverse" },
-  legalChip: {
-    borderRadius: theme.radius.full,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderWidth: 1,
-  },
-  legalChipOn: { backgroundColor: theme.colors.successBg, borderColor: "transparent" },
-  legalChipOff: { backgroundColor: theme.colors.errorBg, borderColor: "transparent" },
-  legalChipOptionalOff: { backgroundColor: "transparent", borderColor: theme.colors.borderMuted },
-  legalChipTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.textMuted },
-  legalChipTxtOn: { color: theme.colors.success },
 });

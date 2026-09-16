@@ -212,12 +212,11 @@ async function fetchProfileLabels(userIds: string[]): Promise<Record<string, str
   const chunkSize = 100;
   for (let i = 0; i < unique.length; i += chunkSize) {
     const chunk = unique.slice(i, i + chunkSize);
-    const { data } = await supabase.from("profiles").select("user_id, full_name, username").in("user_id", chunk);
+    const { data } = await supabase.from("profiles").select("user_id, full_name").in("user_id", chunk);
     for (const p of data ?? []) {
-      const row = p as { user_id: string; full_name: string | null; username: string | null };
+      const row = p as { user_id: string; full_name: string | null };
       const fn = (row.full_name ?? "").trim();
-      const un = (row.username ?? "").trim();
-      out[row.user_id] = fn ? (un ? `${fn} (@${un})` : fn) : un ? `@${un}` : row.user_id;
+      out[row.user_id] = fn || row.user_id;
     }
   }
   return out;

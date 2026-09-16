@@ -272,7 +272,7 @@ export function ManagerSendMessagePanel() {
                         {h.full_name}
                       </AppText>
                       <AppText variant="caption" muted numberOfLines={1}>
-                        {h.username ? `@${h.username}` : h.role}
+                        {h.role}
                       </AppText>
                     </View>
                   </Pressable>
@@ -293,7 +293,7 @@ export function ManagerSendMessagePanel() {
                   {selected.full_name}
                 </AppText>
                 <AppText variant="caption" muted isRTL={isRTL}>
-                  {selected.username ? `@${selected.username}` : selected.role}
+                  {selected.role}
                 </AppText>
               </View>
             </View>
