@@ -10,8 +10,6 @@ type Tool = { titleKey: string; subtitleKey: string; path: string; icon: string 
 const tools: Tool[] = [
   { titleKey: "menu.approve", subtitleKey: "managerTools.approveSub", path: "/(app)/manager/approve", icon: "✅" },
   { titleKey: "menu.activityLog", subtitleKey: "managerTools.activityLogSub", path: "/(app)/manager/activity-log", icon: "📋" },
-  { titleKey: "menu.roles", subtitleKey: "managerTools.rolesSub", path: "/(app)/manager/roles", icon: "🎚️" },
-  { titleKey: "menu.trainerColors", subtitleKey: "managerTools.trainerColorsSub", path: "/(app)/manager/trainer-colors", icon: "🎨" },
   { titleKey: "menu.athleteActivity", subtitleKey: "managerTools.athleteActivitySub", path: "/(app)/manager/participant-history", icon: "🔍" },
   { titleKey: "menu.coachHistory", subtitleKey: "managerTools.coachHistorySub", path: "/(app)/manager/coach-sessions-report", icon: "📊" },
   { titleKey: "menu.openingSchedule", subtitleKey: "managerTools.openingScheduleSub", path: "/(app)/manager/opening-schedule", icon: "🕒" },

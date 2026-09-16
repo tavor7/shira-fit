@@ -15,6 +15,37 @@ import { formatDateTimeForDisplay } from "../lib/dateFormat";
 import { useAuth } from "../context/AuthContext";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { fetchUsersLegalConsentSummary, type UserLegalConsentStatus } from "../lib/consent";
+import { TRAINER_COLOR_PRESETS, resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
+
+type Role = "athlete" | "coach" | "manager";
+
+function RoleChip({
+  label,
+  active,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.roleChip,
+        active ? styles.roleChipActive : styles.roleChipInactive,
+        pressed && !disabled && { opacity: 0.9 },
+        disabled && !active && { opacity: 0.5 },
+      ]}
+      accessibilityRole="button"
+    >
+      <Text style={[styles.roleChipTxt, active ? styles.roleChipTxtActive : styles.roleChipTxtInactive]}>{label}</Text>
+    </Pressable>
+  );
+}
 
 function LegalChip({ label, ok, optional }: { label: string; ok: boolean; optional?: boolean }) {
   return (
@@ -53,6 +84,10 @@ export default function StaffEditProfileScreen() {
   const [email, setEmail] = useState("");
   const [disabledAt, setDisabledAt] = useState<string | null>(null);
   const [legalConsent, setLegalConsent] = useState<UserLegalConsentStatus | null>(null);
+  const [role, setRole] = useState<Role | null>(null);
+  const [changingRole, setChangingRole] = useState(false);
+  const [calendarColor, setCalendarColor] = useState<string | null>(null);
+  const [savingColor, setSavingColor] = useState(false);
   const [togglingDisabled, setTogglingDisabled] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [settingTempPassword, setSettingTempPassword] = useState(false);
@@ -98,7 +133,9 @@ export default function StaffEditProfileScreen() {
       const [profileRes, metaRes] = await Promise.all([
         supabase
           .from("profiles")
-          .select("full_name, phone, gender, date_of_birth, disabled_at, address, zip_code, must_change_password")
+          .select(
+            "full_name, phone, gender, date_of_birth, disabled_at, address, zip_code, must_change_password, role, calendar_color"
+          )
           .eq("user_id", userId)
           .single(),
         supabase.rpc("staff_get_user_auth_meta", { p_user_id: userId }),
@@ -115,6 +152,9 @@ export default function StaffEditProfileScreen() {
       setGender(g === "male" || g === "female" ? (g as any) : "");
       setDob((data as any).date_of_birth ?? "");
       setDisabledAt(typeof (data as any).disabled_at === "string" ? (data as any).disabled_at : null);
+      const r = String((data as any).role ?? "").trim();
+      setRole(r === "athlete" || r === "coach" || r === "manager" ? (r as Role) : null);
+      setCalendarColor(typeof (data as any).calendar_color === "string" ? (data as any).calendar_color : null);
       const pendingChange = (data as any).must_change_password === true;
       setMustChangePassword(pendingChange);
       if (pendingChange && isManager) {
@@ -218,6 +258,52 @@ export default function StaffEditProfileScreen() {
   }
 
   const isDisabled = disabledAt != null;
+
+  function confirmSetRole(nextRole: Role) {
+    if (!role || nextRole === role || changingRole) return;
+    const roleLabel =
+      nextRole === "athlete" ? t("roles.athlete") : nextRole === "coach" ? t("roles.coach") : t("roles.manager");
+    showConfirm({
+      title: t("roles.changeConfirmTitle"),
+      message: t("roles.changeConfirmMessage").replace("{name}", fullName).replace("{role}", roleLabel),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.confirm"),
+      onConfirm: () => {
+        void (async () => {
+          setChangingRole(true);
+          try {
+            const { data, error } = await supabase.rpc("set_user_role", { p_user_id: userId, p_role: nextRole });
+            if (error) {
+              showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+              return;
+            }
+            if (!data?.ok) {
+              showToast({ message: t("common.failed"), detail: String(data?.error ?? ""), variant: "error" });
+              return;
+            }
+            setRole(nextRole);
+            showToast({ message: t("common.saved"), variant: "success" });
+          } catch (err) {
+            showToast({ message: t("common.error"), detail: err instanceof Error ? err.message : String(err), variant: "error" });
+          } finally {
+            setChangingRole(false);
+          }
+        })();
+      },
+    });
+  }
+
+  async function saveCalendarColor(value: string | null) {
+    if (savingColor) return;
+    setSavingColor(true);
+    const { error } = await supabase.from("profiles").update({ calendar_color: value }).eq("user_id", userId);
+    setSavingColor(false);
+    if (error) {
+      showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+      return;
+    }
+    setCalendarColor(value);
+  }
 
   function setTempPassword() {
     if (!isManager || mustChangePassword) return;
@@ -359,6 +445,80 @@ export default function StaffEditProfileScreen() {
               </AppText>
             </View>
           ) : null}
+        </View>
+      ) : null}
+
+      {isManager && role ? (
+        <View style={styles.roleCard}>
+          <AppText variant="label" soft isRTL={isRTL}>
+            {t("menu.roles")}
+          </AppText>
+          <View style={[styles.roleChipRow, isRTL && styles.roleChipRowRtl]}>
+            <RoleChip
+              label={t("roles.athlete")}
+              active={role === "athlete"}
+              disabled={changingRole}
+              onPress={() => confirmSetRole("athlete")}
+            />
+            <RoleChip
+              label={t("roles.coach")}
+              active={role === "coach"}
+              disabled={changingRole}
+              onPress={() => confirmSetRole("coach")}
+            />
+            <RoleChip
+              label={t("roles.manager")}
+              active={role === "manager"}
+              disabled={changingRole}
+              onPress={() => confirmSetRole("manager")}
+            />
+          </View>
+
+          <AnimatedOptionExpand open={role === "coach" || role === "manager"}>
+            <View style={styles.colorSection}>
+              <View style={[styles.colorLabelRow, isRTL && styles.colorLabelRowRtl]}>
+                <View
+                  style={[styles.colorPreviewDot, { backgroundColor: resolveTrainerAccentColor(calendarColor, userId) }]}
+                />
+                <AppText variant="label" soft isRTL={isRTL}>
+                  {t("menu.trainerColors")}
+                </AppText>
+              </View>
+              <View style={[styles.colorPickerRow, isRTL && styles.colorPickerRowRtl]}>
+                <Pressable
+                  disabled={savingColor}
+                  onPress={() => void saveCalendarColor(null)}
+                  style={({ pressed }) => [
+                    styles.autoBtn,
+                    calendarColor == null && styles.autoBtnOn,
+                    pressed && !savingColor && { opacity: 0.9 },
+                  ]}
+                >
+                  <AppText style={[styles.autoTxt, calendarColor == null && styles.autoTxtOn]}>
+                    {t("trainerColors.auto")}
+                  </AppText>
+                </Pressable>
+                <View style={styles.presets}>
+                  {TRAINER_COLOR_PRESETS.map((hex) => {
+                    const selected = (calendarColor ?? "").toLowerCase() === hex.toLowerCase();
+                    return (
+                      <Pressable
+                        key={hex}
+                        disabled={savingColor}
+                        onPress={() => void saveCalendarColor(hex)}
+                        style={({ pressed }) => [
+                          styles.presetDot,
+                          { backgroundColor: hex },
+                          selected && styles.presetDotOn,
+                          pressed && !savingColor && { opacity: 0.9 },
+                        ]}
+                      />
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+          </AnimatedOptionExpand>
         </View>
       ) : null}
 
@@ -574,6 +734,43 @@ const styles = StyleSheet.create({
   legalChipOptionalOff: { backgroundColor: "transparent", borderColor: theme.colors.borderMuted },
   legalChipTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.textMuted },
   legalChipTxtOn: { color: theme.colors.success },
+  roleCard: {
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+    gap: theme.spacing.sm,
+  },
+  roleChipRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  roleChipRowRtl: { flexDirection: "row-reverse" },
+  roleChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: theme.radius.full, borderWidth: 1 },
+  roleChipActive: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  roleChipInactive: { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.borderMuted },
+  roleChipTxt: { fontWeight: "800", fontSize: 12, letterSpacing: 0.2 },
+  roleChipTxtActive: { color: theme.colors.ctaText },
+  roleChipTxtInactive: { color: theme.colors.text },
+  colorSection: { marginTop: theme.spacing.xs, gap: 8 },
+  colorLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  colorLabelRowRtl: { flexDirection: "row-reverse" },
+  colorPreviewDot: { width: 12, height: 12, borderRadius: 6 },
+  colorPickerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  colorPickerRowRtl: { flexDirection: "row-reverse" },
+  autoBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  autoBtnOn: { borderColor: theme.colors.cta, backgroundColor: theme.colors.cta, opacity: 0.95 },
+  autoTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
+  autoTxtOn: { color: theme.colors.ctaText },
+  presets: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  presetDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.borderInput },
+  presetDotOn: { borderColor: theme.colors.text, borderWidth: 2 },
   tempPasswordCard: {
     marginBottom: theme.spacing.md,
     padding: theme.spacing.md,
