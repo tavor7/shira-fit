@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
@@ -53,6 +53,11 @@ export default function RoleManagementScreen() {
     }
     setRows((data as Row[]) ?? []);
   }, [q, t, showOk]);
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function applyRole(userId: string, role: Role) {
     setChangingId(userId);
@@ -188,7 +193,7 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.borderMuted,
     marginBottom: theme.spacing.sm,
   },
-  title: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
+  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
   hint: { marginTop: 6, fontSize: 12, lineHeight: 18, color: theme.colors.textMuted },
   rtlText: { textAlign: "right" },
   skeletonList: { paddingHorizontal: theme.spacing.md, gap: theme.spacing.sm },

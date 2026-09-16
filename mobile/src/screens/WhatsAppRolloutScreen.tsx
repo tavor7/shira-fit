@@ -370,7 +370,7 @@ export default function WhatsAppRolloutScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl + theme.spacing.md },
-  title: { fontSize: 22, fontWeight: "900", color: theme.colors.text, letterSpacing: -0.3 },
+  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
   hint: { marginTop: 8, color: theme.colors.textMuted, lineHeight: 21, fontSize: 14, fontWeight: "500" },
   rtl: { textAlign: "right", alignSelf: "stretch" },
   skeletonList: { marginTop: 24, gap: theme.spacing.md },
