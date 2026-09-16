@@ -18,6 +18,8 @@ import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
+import { UserAvatar } from "../components/UserAvatar";
+import { Pill } from "../components/Pill";
 
 type Row = {
   user_id: string;
@@ -107,11 +109,15 @@ export default function TrainerCalendarColorsScreen() {
           return (
             <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <View style={styles.card}>
-              <View style={styles.cardHead}>
-                <View style={[styles.swatch, { backgroundColor: preview }]} />
+              <View style={[styles.cardHead, isRTL && styles.cardHeadRtl]}>
+                <UserAvatar name={item.full_name} seed={item.user_id} color={preview} />
                 <View style={styles.cardHeadText}>
-                  <Text style={styles.name}>{item.full_name}</Text>
-                  <Text style={styles.meta}>{item.role}</Text>
+                  <Text style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
+                    {item.full_name}
+                  </Text>
+                  <View style={[styles.pillRow, isRTL && styles.pillRowRtl]}>
+                    <Pill label={item.role} />
+                  </View>
                 </View>
                 {busy ? <ActivityIndicator size="small" color={theme.colors.cta} /> : null}
               </View>
@@ -181,10 +187,11 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   cardHead: { flexDirection: "row", alignItems: "center", gap: theme.spacing.md, marginBottom: theme.spacing.sm },
-  swatch: { width: 14, borderRadius: 4, alignSelf: "stretch", minHeight: 44 },
-  cardHeadText: { flex: 1 },
-  name: { fontSize: 17, fontWeight: "700", color: theme.colors.text },
-  meta: { marginTop: 4, fontSize: 13, color: theme.colors.textMuted },
+  cardHeadRtl: { flexDirection: "row-reverse" },
+  cardHeadText: { flex: 1, minWidth: 0 },
+  name: { fontSize: 15, fontWeight: "900", color: theme.colors.text },
+  pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
+  pillRowRtl: { flexDirection: "row-reverse" },
   pickerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   pickerRowRtl: { flexDirection: "row-reverse" },
   autoBtn: {

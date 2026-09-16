@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     gap: theme.spacing.sm,
   },
-  cardTitle: { fontSize: 17, fontWeight: "800", color: theme.colors.text },
+  cardTitle: { fontSize: 15, fontWeight: "900", color: theme.colors.text },
   cardMeta: { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
   chipRowRtl: { flexDirection: "row-reverse" },

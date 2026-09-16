@@ -10,17 +10,24 @@ import { EmptyState } from "../components/EmptyState";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
+import { UserAvatar } from "../components/UserAvatar";
+import { Pill, type PillTone } from "../components/Pill";
 import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 
 type Role = "athlete" | "coach" | "manager";
+type ApprovalStatus = "pending" | "approved" | "rejected";
 type Row = {
   user_id: string;
   username: string;
   full_name: string;
   phone: string;
   role: Role;
-  approval_status: "pending" | "approved" | "rejected";
+  approval_status: ApprovalStatus;
 };
+
+function approvalTone(status: ApprovalStatus): PillTone {
+  return status === "approved" ? "success" : status === "pending" ? "warning" : "danger";
+}
 
 export default function RoleManagementScreen() {
   const { t, isRTL } = useI18n();
@@ -152,10 +159,20 @@ export default function RoleManagementScreen() {
         renderItem={({ item, index }) => (
           <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <View style={styles.card}>
-              <Text style={styles.name}>{item.full_name}</Text>
-              <Text style={styles.meta}>
-                {item.phone} · {item.approval_status}
-              </Text>
+              <View style={[styles.cardRow, isRTL && styles.cardRowRtl]}>
+                <UserAvatar name={item.full_name} seed={item.user_id} />
+                <View style={styles.cardBody}>
+                  <Text style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
+                    {item.full_name}
+                  </Text>
+                  <Text style={[styles.phone, isRTL && styles.rtlText]} numberOfLines={1}>
+                    {item.phone}
+                  </Text>
+                  <View style={[styles.pillRow, isRTL && styles.pillRowRtl]}>
+                    <Pill label={item.approval_status} tone={approvalTone(item.approval_status)} />
+                  </View>
+                </View>
+              </View>
               <View style={styles.row}>
                 <RoleChip
                   label={t("roles.athlete")}
@@ -211,8 +228,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  name: { fontWeight: "800", color: theme.colors.text, fontSize: 15 },
-  meta: { marginTop: 4, color: theme.colors.textMuted, fontSize: 12 },
+  cardRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.md },
+  cardRowRtl: { flexDirection: "row-reverse" },
+  cardBody: { flex: 1, minWidth: 0 },
+  name: { fontWeight: "900", color: theme.colors.text, fontSize: 15 },
+  phone: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
+  pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
+  pillRowRtl: { flexDirection: "row-reverse" },
   row: { marginTop: theme.spacing.sm, flexDirection: "row", gap: 8, flexWrap: "wrap" },
   chip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: theme.radius.full, borderWidth: 1 },
   chipActive: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },

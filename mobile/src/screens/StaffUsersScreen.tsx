@@ -12,6 +12,8 @@ import { AppSearchField } from "../components/AppSearchField";
 import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { PressableScale } from "../components/PressableScale";
+import { UserAvatar } from "../components/UserAvatar";
+import { Pill, type PillTone } from "../components/Pill";
 import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 import {
   buildManualDuplicateIndexes,
@@ -44,6 +46,10 @@ type ManualRow = {
 };
 
 type Row = ProfileRow | ManualRow;
+
+function approvalTone(status: ProfileRow["approval_status"]): PillTone {
+  return status === "approved" ? "success" : status === "pending" ? "warning" : "danger";
+}
 
 export default function StaffUsersScreen() {
   const { profile } = useAuth();
@@ -225,40 +231,49 @@ export default function StaffUsersScreen() {
                 pressed && { opacity: 0.9 },
               ]}
             >
-              <Text style={styles.name}>
-                {item.full_name}
-                {(() => {
-                  const dob = (item as any).date_of_birth as string | null | undefined;
-                  if (!dob || dob.length < 10) return null;
-                  const md = dob.slice(5, 10);
-                  const now = new Date();
-                  const tmd = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-                  return md === tmd ? (
-                    <Text style={styles.bday} accessibilityLabel={t("staffUsers.birthdayToday")}>
-                      {"  "}🎂
-                    </Text>
-                  ) : null;
-                })()}
-              </Text>
-              {profileDuplicateName || manualDuplicateName ? (
-                <Text style={[styles.duplicateBadge, isRTL && styles.rtlText]}>
-                  {t("profile.duplicateNameBadge").replace("{n}", String(nameCount))}
-                </Text>
-              ) : null}
-              {manualDuplicatePhone ? (
-                <Text style={[styles.duplicateBadge, isRTL && styles.rtlText]}>
-                  {t("manualParticipant.duplicatePhoneBadge").replace("{n}", String(phoneCount))}
-                </Text>
-              ) : null}
-              <Text style={styles.meta}>
-                {item.kind === "profile"
-                  ? `${item.phone} · ${item.role} · ${item.approval_status}${
-                      item.disabled_at ? ` · ${t("profile.accountDisabledBadge")}` : ""
-                    }`
-                  : `${item.phone} · ${t("pricing.quickAddLabel")}${
-                      item.disabled_at ? ` · ${t("profile.accountDisabledBadge")}` : ""
-                    }`}
-              </Text>
+              <View style={[styles.cardRow, isRTL && styles.cardRowRtl]}>
+                <UserAvatar name={item.full_name} seed={item.kind === "profile" ? item.user_id : item.id} />
+                <View style={styles.cardBody}>
+                  <Text style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
+                    {item.full_name}
+                    {(() => {
+                      const dob = (item as any).date_of_birth as string | null | undefined;
+                      if (!dob || dob.length < 10) return null;
+                      const md = dob.slice(5, 10);
+                      const now = new Date();
+                      const tmd = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+                      return md === tmd ? (
+                        <Text style={styles.bday} accessibilityLabel={t("staffUsers.birthdayToday")}>
+                          {"  "}🎂
+                        </Text>
+                      ) : null;
+                    })()}
+                  </Text>
+                  <Text style={[styles.phone, isRTL && styles.rtlText]} numberOfLines={1}>
+                    {item.phone}
+                  </Text>
+                  <View style={[styles.pillRow, isRTL && styles.pillRowRtl]}>
+                    {item.kind === "profile" ? (
+                      <>
+                        <Pill label={item.role} />
+                        <Pill label={item.approval_status} tone={approvalTone(item.approval_status)} />
+                      </>
+                    ) : (
+                      <Pill label={t("pricing.quickAddLabel")} />
+                    )}
+                    {item.disabled_at ? <Pill label={t("profile.accountDisabledBadge")} tone="danger" /> : null}
+                    {profileDuplicateName || manualDuplicateName ? (
+                      <Pill label={t("profile.duplicateNameBadge").replace("{n}", String(nameCount))} tone="warning" />
+                    ) : null}
+                    {manualDuplicatePhone ? (
+                      <Pill
+                        label={t("manualParticipant.duplicatePhoneBadge").replace("{n}", String(phoneCount))}
+                        tone="warning"
+                      />
+                    ) : null}
+                  </View>
+                </View>
+              </View>
             </PressableScale>
             </FadeSlideIn>
           );
@@ -295,14 +310,12 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.cta,
     backgroundColor: theme.colors.infoBg,
   },
-  duplicateBadge: {
-    marginTop: 4,
-    fontSize: 12,
-    fontWeight: "800",
-    color: theme.colors.cta,
-    lineHeight: 16,
-  },
+  cardRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.md },
+  cardRowRtl: { flexDirection: "row-reverse" },
+  cardBody: { flex: 1, minWidth: 0 },
   name: { color: theme.colors.text, fontWeight: "900", fontSize: 15 },
   bday: { color: theme.colors.cta, fontWeight: "900" },
-  meta: { marginTop: 4, color: theme.colors.textMuted, fontSize: 12 },
+  phone: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
+  pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
+  pillRowRtl: { flexDirection: "row-reverse" },
 });
