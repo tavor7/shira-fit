@@ -86,6 +86,7 @@ export default function StaffEditProfileScreen() {
   const [legalConsent, setLegalConsent] = useState<UserLegalConsentStatus | null>(null);
   const [role, setRole] = useState<Role | null>(null);
   const [changingRole, setChangingRole] = useState(false);
+  const [roleSectionOpen, setRoleSectionOpen] = useState(false);
   const [calendarColor, setCalendarColor] = useState<string | null>(null);
   const [savingColor, setSavingColor] = useState(false);
   const [togglingDisabled, setTogglingDisabled] = useState(false);
@@ -450,73 +451,92 @@ export default function StaffEditProfileScreen() {
 
       {isManager && role ? (
         <View style={styles.roleCard}>
-          <AppText variant="label" soft isRTL={isRTL}>
-            {t("menu.roles")}
-          </AppText>
-          <View style={[styles.roleChipRow, isRTL && styles.roleChipRowRtl]}>
-            <RoleChip
-              label={t("roles.athlete")}
-              active={role === "athlete"}
-              disabled={changingRole}
-              onPress={() => confirmSetRole("athlete")}
-            />
-            <RoleChip
-              label={t("roles.coach")}
-              active={role === "coach"}
-              disabled={changingRole}
-              onPress={() => confirmSetRole("coach")}
-            />
-            <RoleChip
-              label={t("roles.manager")}
-              active={role === "manager"}
-              disabled={changingRole}
-              onPress={() => confirmSetRole("manager")}
-            />
-          </View>
+          <Pressable
+            onPress={() => setRoleSectionOpen((v) => !v)}
+            style={({ pressed }) => [styles.roleCardHead, isRTL && styles.roleCardHeadRtl, pressed && { opacity: 0.9 }]}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: roleSectionOpen }}
+          >
+            <AppText variant="label" soft isRTL={isRTL}>
+              {t("menu.roles")} ·{" "}
+              {role === "athlete" ? t("roles.athlete") : role === "coach" ? t("roles.coach") : t("roles.manager")}
+            </AppText>
+            <AppText soft style={[styles.roleCardChevron, roleSectionOpen && styles.roleCardChevronOpen]}>
+              ⌄
+            </AppText>
+          </Pressable>
 
-          <AnimatedOptionExpand open={role === "coach" || role === "manager"}>
-            <View style={styles.colorSection}>
-              <View style={[styles.colorLabelRow, isRTL && styles.colorLabelRowRtl]}>
-                <View
-                  style={[styles.colorPreviewDot, { backgroundColor: resolveTrainerAccentColor(calendarColor, userId) }]}
+          <AnimatedOptionExpand open={roleSectionOpen}>
+            <View style={styles.roleCardBody}>
+              <View style={[styles.roleChipRow, isRTL && styles.roleChipRowRtl]}>
+                <RoleChip
+                  label={t("roles.athlete")}
+                  active={role === "athlete"}
+                  disabled={changingRole}
+                  onPress={() => confirmSetRole("athlete")}
                 />
-                <AppText variant="label" soft isRTL={isRTL}>
-                  {t("menu.trainerColors")}
-                </AppText>
+                <RoleChip
+                  label={t("roles.coach")}
+                  active={role === "coach"}
+                  disabled={changingRole}
+                  onPress={() => confirmSetRole("coach")}
+                />
+                <RoleChip
+                  label={t("roles.manager")}
+                  active={role === "manager"}
+                  disabled={changingRole}
+                  onPress={() => confirmSetRole("manager")}
+                />
               </View>
-              <View style={[styles.colorPickerRow, isRTL && styles.colorPickerRowRtl]}>
-                <Pressable
-                  disabled={savingColor}
-                  onPress={() => void saveCalendarColor(null)}
-                  style={({ pressed }) => [
-                    styles.autoBtn,
-                    calendarColor == null && styles.autoBtnOn,
-                    pressed && !savingColor && { opacity: 0.9 },
-                  ]}
-                >
-                  <AppText style={[styles.autoTxt, calendarColor == null && styles.autoTxtOn]}>
-                    {t("trainerColors.auto")}
-                  </AppText>
-                </Pressable>
-                <View style={styles.presets}>
-                  {TRAINER_COLOR_PRESETS.map((hex) => {
-                    const selected = (calendarColor ?? "").toLowerCase() === hex.toLowerCase();
-                    return (
-                      <Pressable
-                        key={hex}
-                        disabled={savingColor}
-                        onPress={() => void saveCalendarColor(hex)}
-                        style={({ pressed }) => [
-                          styles.presetDot,
-                          { backgroundColor: hex },
-                          selected && styles.presetDotOn,
-                          pressed && !savingColor && { opacity: 0.9 },
-                        ]}
-                      />
-                    );
-                  })}
+
+              <AnimatedOptionExpand open={role === "coach" || role === "manager"}>
+                <View style={styles.colorSection}>
+                  <View style={[styles.colorLabelRow, isRTL && styles.colorLabelRowRtl]}>
+                    <View
+                      style={[
+                        styles.colorPreviewDot,
+                        { backgroundColor: resolveTrainerAccentColor(calendarColor, userId) },
+                      ]}
+                    />
+                    <AppText variant="label" soft isRTL={isRTL}>
+                      {t("menu.trainerColors")}
+                    </AppText>
+                  </View>
+                  <View style={[styles.colorPickerRow, isRTL && styles.colorPickerRowRtl]}>
+                    <Pressable
+                      disabled={savingColor}
+                      onPress={() => void saveCalendarColor(null)}
+                      style={({ pressed }) => [
+                        styles.autoBtn,
+                        calendarColor == null && styles.autoBtnOn,
+                        pressed && !savingColor && { opacity: 0.9 },
+                      ]}
+                    >
+                      <AppText style={[styles.autoTxt, calendarColor == null && styles.autoTxtOn]}>
+                        {t("trainerColors.auto")}
+                      </AppText>
+                    </Pressable>
+                    <View style={styles.presets}>
+                      {TRAINER_COLOR_PRESETS.map((hex) => {
+                        const selected = (calendarColor ?? "").toLowerCase() === hex.toLowerCase();
+                        return (
+                          <Pressable
+                            key={hex}
+                            disabled={savingColor}
+                            onPress={() => void saveCalendarColor(hex)}
+                            style={({ pressed }) => [
+                              styles.presetDot,
+                              { backgroundColor: hex },
+                              selected && styles.presetDotOn,
+                              pressed && !savingColor && { opacity: 0.9 },
+                            ]}
+                          />
+                        );
+                      })}
+                    </View>
+                  </View>
                 </View>
-              </View>
+              </AnimatedOptionExpand>
             </View>
           </AnimatedOptionExpand>
         </View>
@@ -741,8 +761,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     backgroundColor: theme.colors.surface,
-    gap: theme.spacing.sm,
   },
+  roleCardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  roleCardHeadRtl: { flexDirection: "row-reverse" },
+  roleCardChevron: { fontSize: 16, transform: [{ rotate: "0deg" }] },
+  roleCardChevronOpen: { transform: [{ rotate: "180deg" }] },
+  roleCardBody: { marginTop: theme.spacing.sm, gap: theme.spacing.sm },
   roleChipRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   roleChipRowRtl: { flexDirection: "row-reverse" },
   roleChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: theme.radius.full, borderWidth: 1 },

@@ -69,7 +69,7 @@ export default function StaffUsersScreen() {
 
   const loadDuplicateNameCounts = useCallback(async () => {
     let query = supabase.from("profiles").select("full_name");
-    query = isManager ? query.in("role", ["athlete", "coach"]) : query.eq("role", "athlete");
+    query = isManager ? query.in("role", ["athlete", "coach", "manager"]) : query.eq("role", "athlete");
     const { data, error } = await query;
     if (error) {
       setDuplicateNameCounts({});
@@ -102,7 +102,7 @@ export default function StaffUsersScreen() {
       .order("full_name", { ascending: true })
       .limit(200);
 
-    query = isManager ? query.in("role", ["athlete", "coach"]) : query.eq("role", "athlete");
+    query = isManager ? query.in("role", ["athlete", "coach", "manager"]) : query.eq("role", "athlete");
 
     if (qTrim.length > 0) {
       query = query.or(`full_name.ilike.%${qTrim}%,username.ilike.%${qTrim}%,phone.ilike.%${qTrim}%`);
