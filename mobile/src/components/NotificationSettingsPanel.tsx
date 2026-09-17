@@ -14,6 +14,7 @@ import { useAppAlert } from "../context/AppAlertContext";
 import { AppTextField } from "./AppTextField";
 import { PrimaryButton } from "./PrimaryButton";
 import { GlowHighlight } from "./GlowHighlight";
+import { activateAllNotifications, queueNotificationActivationPrompt } from "../lib/notificationActivation";
 import {
   fetchWhatsAppFeatureState,
   setWhatsAppNotificationsEnabled,
@@ -55,6 +56,8 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
   const [killSwitchOn, setKillSwitchOn] = useState<boolean | null>(null);
   const [killSwitchBusy, setKillSwitchBusy] = useState(false);
   const [activationStats, setActivationStats] = useState<{ total: number; active: number } | null>(null);
+  const [queueBusy, setQueueBusy] = useState(false);
+  const [queuedCount, setQueuedCount] = useState<number | null>(null);
   const [testBusyType, setTestBusyType] = useState<TestNotificationType | null>(null);
   const [customBody, setCustomBody] = useState("");
   const [customBusy, setCustomBusy] = useState(false);
@@ -92,10 +95,16 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
   async function toggleAll() {
     if (!prefs) return;
     const next = !(prefs.sessionReminders && prefs.waitlistAlerts);
-    const nextPrefs: NotificationPrefs = { sessionReminders: next, waitlistAlerts: next };
+    if (next) {
+      // Same call the activation popup makes — one code path for "turn notifications on".
+      setPrefs({ sessionReminders: true, waitlistAlerts: true });
+      await activateAllNotifications();
+      return;
+    }
+    const nextPrefs: NotificationPrefs = { sessionReminders: false, waitlistAlerts: false };
     setPrefs(nextPrefs);
     await saveNotificationPrefs(nextPrefs);
-    if (!next && Platform.OS !== "web") {
+    if (Platform.OS !== "web") {
       try {
         await Notifications.cancelAllScheduledNotificationsAsync();
       } catch {
@@ -157,6 +166,21 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
       });
     } finally {
       setKillSwitchBusy(false);
+    }
+  }
+
+  async function sendActivationPrompt() {
+    if (queueBusy) return;
+    setQueueBusy(true);
+    try {
+      const res = await queueNotificationActivationPrompt();
+      if (!res.ok) {
+        showToast({ message: t("common.error"), detail: res.error, variant: "error" });
+        return;
+      }
+      setQueuedCount(res.queued ?? 0);
+    } finally {
+      setQueueBusy(false);
     }
   }
 
@@ -325,6 +349,30 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
             </View>
           ) : null}
 
+          <View style={styles.promptCard}>
+            <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("notifications.promptTitle")}</Text>
+            <Text style={[styles.killSwitchHint, isRTL && styles.rtl]}>{t("notifications.promptHint")}</Text>
+            {queuedCount === null ? (
+              <Pressable
+                onPress={() => void sendActivationPrompt()}
+                disabled={queueBusy}
+                style={({ pressed }) => [
+                  styles.promptBtn,
+                  pressed && !queueBusy && styles.rowPressed,
+                  queueBusy && styles.rowDisabled,
+                ]}
+              >
+                <Text style={styles.promptBtnTxt}>
+                  {queueBusy ? t("common.loading") : t("notifications.promptSendBtn")}
+                </Text>
+              </Pressable>
+            ) : (
+              <Text style={[styles.promptSentTxt, isRTL && styles.rtl]}>
+                {t("notifications.promptSentToast").replace("{n}", String(queuedCount))}
+              </Text>
+            )}
+          </View>
+
           <Pressable
             style={({ pressed }) => [
               styles.row,
@@ -474,6 +522,24 @@ const styles = StyleSheet.create({
   },
   activationValue: { fontSize: 22, fontWeight: "900", color: theme.colors.text },
   activationLabel: { marginTop: 2, fontSize: 12, fontWeight: "600", color: theme.colors.textMuted },
+  promptCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.lg,
+    padding: 14,
+    gap: 4,
+  },
+  promptBtn: {
+    marginTop: 8,
+    alignSelf: "flex-start",
+    backgroundColor: theme.colors.cta,
+    borderRadius: theme.radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  promptBtnTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 13 },
+  promptSentTxt: { marginTop: 8, fontSize: 13, fontWeight: "800", color: theme.colors.success },
   killSwitchRow: { alignItems: "flex-start" },
   killSwitchHint: { fontSize: 12, color: theme.colors.textSoft, marginTop: 3, lineHeight: 16 },
   testSectionTitle: { fontSize: 14, fontWeight: "800", color: theme.colors.text, marginTop: 8 },

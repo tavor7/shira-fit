@@ -19,6 +19,7 @@ import { isAthleteAccountDisabled, isNotificationsOnboardingNeeded, isPasswordCh
 import { useI18n } from "../../src/context/I18nContext";
 import { ReceiptRequirementsGateModal } from "../../src/components/ReceiptRequirementsGateModal";
 import { LegalConsentGateModal } from "../../src/components/LegalConsentGateModal";
+import { NotificationActivationModal } from "../../src/components/NotificationActivationModal";
 import { ManagerDirectMessageModal } from "../../src/components/ManagerDirectMessageModal";
 import { getLoginHrefWithOptionalRedirectWeb } from "../../src/lib/webLastRoute";
 import { useManagerAthletePreview } from "../../src/context/ManagerAthletePreviewContext";
@@ -134,6 +135,7 @@ export default function AppLayout() {
     <AppPresenceProvider>
       <LegalConsentGateModal />
       <ReceiptRequirementsGateModal />
+      <NotificationActivationModal />
       <ManagerDirectMessageModal />
       <Stack
       screenOptions={{
