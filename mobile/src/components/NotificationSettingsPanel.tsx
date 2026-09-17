@@ -290,6 +290,19 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
         </Pressable>
       </GlowHighlight>
 
+      {marketing?.available ? (
+        <Pressable
+          style={({ pressed }) => [styles.row, surface.card, pressed && styles.rowPressed, marketingLoading && styles.rowDisabled]}
+          onPress={() => void toggleMarketing()}
+          disabled={marketingLoading}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: marketing.accepted }}
+        >
+          <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("settings.marketingTitle")}</Text>
+          {pill(marketing.accepted)}
+        </Pressable>
+      ) : null}
+
       {waState?.can_see_settings ? (
         <View style={styles.waBlock}>
           <Text style={[styles.waTitle, isRTL && styles.rtl]}>{t("whatsapp.settingsTitle")}</Text>
@@ -306,25 +319,6 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
           >
             <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("whatsapp.settingsEnable")}</Text>
             {pill(waState.whatsapp_enabled === true)}
-          </Pressable>
-        </View>
-      ) : null}
-
-      {marketing?.available ? (
-        <View style={styles.waBlock}>
-          <Text style={[styles.waTitle, isRTL && styles.rtl]}>{t("settings.marketingTitle")}</Text>
-          <Text style={[styles.waSub, isRTL && styles.rtl]}>{t("settings.marketingDesc")}</Text>
-          <Pressable
-            style={({ pressed }) => [styles.row, surface.card, pressed && styles.rowPressed, marketingLoading && styles.rowDisabled]}
-            onPress={() => void toggleMarketing()}
-            disabled={marketingLoading}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: marketing.accepted }}
-          >
-            <Text style={[styles.rowLabel, isRTL && styles.rtl]}>
-              {marketing.accepted ? t("settings.marketingToggleOn") : t("settings.marketingToggleOff")}
-            </Text>
-            {pill(marketing.accepted)}
           </Pressable>
         </View>
       ) : null}

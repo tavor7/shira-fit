@@ -1386,7 +1386,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "a11yMenu.reset": "Reset to default",
     "a11yMenu.close": "Close",
 
-    "settings.marketingTitle": "Marketing communications",
+    "settings.marketingTitle": "Marketing",
     "settings.marketingDesc":
       "Optional. Occasional promotions and offers from Shira Fit. Not required to use the app — you can change this anytime.",
     "settings.marketingToggleOn": "Marketing messages on",
@@ -2782,7 +2782,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "a11yMenu.reset": "איפוס להגדרות ברירת מחדל",
     "a11yMenu.close": "סגירה",
 
-    "settings.marketingTitle": "הודעות שיווקיות",
+    "settings.marketingTitle": "שיווק",
     "settings.marketingDesc": "רשות. מבצעים והטבות מדי פעם מ-Shira Fit. אינו נדרש לשימוש באפליקציה — ניתן לשנות זאת בכל עת.",
     "settings.marketingToggleOn": "הודעות שיווקיות פעילות",
     "settings.marketingToggleOff": "הודעות שיווקיות כבויות",
