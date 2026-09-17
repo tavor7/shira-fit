@@ -19,6 +19,7 @@ import {
 } from "./dateFormat";
 import { appLocale } from "./appLocale";
 import { isRtlScript } from "./bidiEmbed";
+import { loadNotificationPrefs } from "./notificationPrefs";
 
 function tr(lang: LanguageCode, key: string, params?: Record<string, string | number>): string {
   let s = translations[lang][key] ?? key;
@@ -36,6 +37,26 @@ function localYyyyMmDd(d: Date): string {
   const mo = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${mo}-${day}`;
+}
+
+/**
+ * Anyone with push notifications off (the single "All notifications" toggle) sees a
+ * reminder alongside the weekly-registration banner. Dated id (not a stable one) means
+ * dismissing it only hides it for the rest of that calendar day — it reappears daily
+ * until they actually turn notifications back on. Deep-links into the Alerts tab with a
+ * flag that tells the toggle row to glow.
+ */
+async function buildNotificationsOffReminderItem(
+  language: LanguageCode,
+  now = new Date()
+): Promise<HomePriorityAlertItem | null> {
+  const prefs = await loadNotificationPrefs();
+  if (prefs.sessionReminders && prefs.waitlistAlerts) return null;
+  return {
+    id: `notif-off-${localYyyyMmDd(now)}`,
+    label: tr(language, "homeAlerts.notificationsOffReminder"),
+    href: "/(app)/profile?tab=notifications&highlight=toggle" as Href,
+  };
 }
 
 /** Human-readable “when they cancelled” for late-cancellation alerts (local time). */
@@ -295,13 +316,15 @@ export async function mergeStaffHomeAlerts(
   now = new Date()
 ): Promise<HomePriorityAlertItem[]> {
   const a = buildStaffWaitlistFreeSpotItems(sessions, signupBySession, waitlistBySession, variant, language, now);
-  const [d, b] = await Promise.all([
+  const [d, b, notifOffItem] = await Promise.all([
     fetchStaffAthleteMultipleSessionsPerDayItems(variant, sessions, language, now),
     fetchStaffLateCancellationItems(variant, language, now),
+    buildNotificationsOffReminderItem(language, now),
   ]);
   const seen = new Set<string>();
   const out: HomePriorityAlertItem[] = [];
-  for (const x of [...a, ...d, ...b]) {
+  const leading = notifOffItem ? [notifOffItem] : [];
+  for (const x of [...leading, ...a, ...d, ...b]) {
     if (seen.has(x.id)) continue;
     seen.add(x.id);
     out.push(x);
@@ -498,13 +521,15 @@ export async function fetchAthleteHomeAlertItems(
   language: LanguageCode,
   now = new Date()
 ): Promise<HomePriorityAlertItem[]> {
-  const [state, waitItems, multiDayItems] = await Promise.all([
+  const [state, waitItems, multiDayItems, notifOffItem] = await Promise.all([
     fetchRegistrationBannerState(),
     fetchAthleteWaitlistOpenSpotItems(language, now),
     fetchAthleteMultipleSessionsPerDayItems(language, now),
+    buildNotificationsOffReminderItem(language, now),
   ]);
   const regItems = buildAthleteRegistrationItems(state, language);
-  return [...regItems, ...multiDayItems, ...waitItems];
+  const leading = notifOffItem ? [...regItems, notifOffItem] : regItems;
+  return [...leading, ...multiDayItems, ...waitItems];
 }
 
 const STUDIO_TZ = "Asia/Jerusalem";

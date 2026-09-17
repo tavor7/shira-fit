@@ -13,6 +13,7 @@ import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { AppTextField } from "./AppTextField";
 import { PrimaryButton } from "./PrimaryButton";
+import { GlowHighlight } from "./GlowHighlight";
 import {
   fetchWhatsAppFeatureState,
   setWhatsAppNotificationsEnabled,
@@ -27,6 +28,8 @@ import {
 type Props = {
   /** Standalone screen shows main title; embedded in Profile uses tab label only. */
   variant?: "screen" | "embedded";
+  /** Deep-linked from the "notifications off" home reminder — glow the toggle row to draw the eye. */
+  highlightToggle?: boolean;
 };
 
 const TEST_NOTIFICATION_TYPES = [
@@ -38,7 +41,7 @@ const TEST_NOTIFICATION_TYPES = [
 ] as const;
 type TestNotificationType = (typeof TEST_NOTIFICATION_TYPES)[number];
 
-export function NotificationSettingsPanel({ variant = "screen" }: Props) {
+export function NotificationSettingsPanel({ variant = "screen", highlightToggle = false }: Props) {
   const { isRTL, t } = useI18n();
   const { profile } = useAuth();
   const { showToast } = useToast();
@@ -251,15 +254,17 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
         <Text style={[styles.note, isRTL && styles.rtl]}>{t("notifications.webHint")}</Text>
       ) : null}
 
-      <Pressable
-        style={({ pressed }) => [styles.row, surface.card, pressed && styles.rowPressed]}
-        onPress={() => void toggleAll()}
-        accessibilityRole="switch"
-        accessibilityState={{ checked: allOn }}
-      >
-        <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("notifications.allLabel")}</Text>
-        {pill(allOn)}
-      </Pressable>
+      <GlowHighlight active={highlightToggle && !allOn} style={styles.glowWrap}>
+        <Pressable
+          style={({ pressed }) => [styles.row, surface.card, pressed && styles.rowPressed]}
+          onPress={() => void toggleAll()}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: allOn }}
+        >
+          <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("notifications.allLabel")}</Text>
+          {pill(allOn)}
+        </Pressable>
+      </GlowHighlight>
 
       {waState?.can_see_settings ? (
         <View style={styles.waBlock}>
@@ -437,6 +442,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: theme.radius.lg,
   },
+  glowWrap: { borderRadius: theme.radius.lg },
   rowPressed: { opacity: 0.92 },
   rowLabel: { flex: 1, color: theme.colors.text, fontWeight: "700", fontSize: 15, paddingEnd: 14 },
   rowDisabled: { opacity: 0.6 },

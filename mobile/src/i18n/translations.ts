@@ -1314,6 +1314,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     /** Line 1 of registration countdown alert; line 2 is date · weekday · time (see HomePriorityAlerts segments). */
     "homeAlerts.registrationOpensLead": "Next registration opens",
     "homeAlerts.registrationStillPending": "Some sessions are still closed for registration this week.",
+    "homeAlerts.notificationsOffReminder": "Notifications are off — turn them on to get session reminders and updates.",
     "homeAlerts.athleteWaitlistSpot": "Waitlist — a spot may be open: {date}",
     "homeAlerts.moreCount": "+{n} more",
     "homeAlerts.sheetTitle": "Important alerts",
@@ -2696,6 +2697,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "homeAlerts.athlete": "מתאמן",
     "homeAlerts.registrationOpensLead": "ההרשמה הבאה נפתחת",
     "homeAlerts.registrationStillPending": "חלק מהאימונים לשבוע הזה עדיין סגורים להרשמה.",
+    "homeAlerts.notificationsOffReminder": "ההתראות כבויות — הפעילו אותן כדי לקבל תזכורות ועדכונים על אימונים.",
     "homeAlerts.athleteWaitlistSpot": "רשימת המתנה — ייתכן שיש מקום: {date}",
     "homeAlerts.moreCount": "+{n} נוספים",
     "homeAlerts.sheetTitle": "התראות חשובות",

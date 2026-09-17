@@ -27,7 +27,7 @@ function getUpdateErrorMessage(message: string, t: (key: string) => string) {
 type Segment = "account" | "notifications" | "messages";
 
 export default function ProfileScreen() {
-  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const { tab, highlight } = useLocalSearchParams<{ tab?: string; highlight?: string }>();
   const { session, profile, refreshProfile } = useAuth();
   const { t, isRTL } = useI18n();
 
@@ -337,7 +337,7 @@ export default function ProfileScreen() {
         ) : segment === "messages" && isManager ? (
           <ManagerSendMessagePanel />
         ) : (
-          <NotificationSettingsPanel variant="embedded" />
+          <NotificationSettingsPanel variant="embedded" highlightToggle={highlight === "toggle"} />
         )}
         </FadeSlideIn>
         </FadeSlideIn>
