@@ -51,6 +51,7 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
   const [customCategory, setCustomCategory] = useState<"operational" | "marketing">("operational");
   const [killSwitchOn, setKillSwitchOn] = useState<boolean | null>(null);
   const [killSwitchBusy, setKillSwitchBusy] = useState(false);
+  const [activationStats, setActivationStats] = useState<{ total: number; active: number } | null>(null);
   const [testBusyType, setTestBusyType] = useState<TestNotificationType | null>(null);
   const [customBody, setCustomBody] = useState("");
   const [customBusy, setCustomBusy] = useState(false);
@@ -74,6 +75,13 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
       const { data } = await supabase.rpc("get_push_kill_switch");
       const res = data as { ok?: boolean; enabled?: boolean } | null;
       if (res?.ok) setKillSwitchOn(res.enabled !== false);
+    })();
+    void (async () => {
+      const { data } = await supabase.rpc("manager_notification_activation_stats");
+      const res = data as { ok?: boolean; total_users?: number; active_users?: number } | null;
+      if (res?.ok) {
+        setActivationStats({ total: res.total_users ?? 0, active: res.active_users ?? 0 });
+      }
     })();
   }, [isManager]);
 
@@ -296,6 +304,22 @@ export function NotificationSettingsPanel({ variant = "screen" }: Props) {
         <View style={styles.managerBlock}>
           <Text style={[styles.managerTitle, isRTL && styles.rtl]}>{t("notifications.managerSectionTitle")}</Text>
 
+          {activationStats ? (
+            <View style={styles.activationCard}>
+              <Text style={[styles.activationValue, isRTL && styles.rtl]}>
+                {activationStats.active} / {activationStats.total}
+              </Text>
+              <Text style={[styles.activationLabel, isRTL && styles.rtl]}>
+                {t("notifications.activationLabel").replace(
+                  "{pct}",
+                  String(
+                    activationStats.total > 0 ? Math.round((activationStats.active / activationStats.total) * 100) : 0
+                  )
+                )}
+              </Text>
+            </View>
+          ) : null}
+
           <Pressable
             style={({ pressed }) => [
               styles.row,
@@ -434,6 +458,16 @@ const styles = StyleSheet.create({
   pillTxtOff: { color: theme.colors.textSoft },
   managerBlock: { marginTop: 16, gap: 8, borderTopWidth: 1, borderTopColor: theme.colors.borderMuted, paddingTop: 16 },
   managerTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  activationCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.lg,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  activationValue: { fontSize: 22, fontWeight: "900", color: theme.colors.text },
+  activationLabel: { marginTop: 2, fontSize: 12, fontWeight: "600", color: theme.colors.textMuted },
   killSwitchRow: { alignItems: "flex-start" },
   killSwitchHint: { fontSize: 12, color: theme.colors.textSoft, marginTop: 3, lineHeight: 16 },
   testSectionTitle: { fontSize: 14, fontWeight: "800", color: theme.colors.text, marginTop: 8 },
