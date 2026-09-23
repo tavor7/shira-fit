@@ -257,6 +257,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "billing.deletePaymentConfirm": "Delete this account payment? This cannot be undone.",
     "billing.paymentDeleted": "Payment removed",
     "billing.paidOn": "Paid on",
+    "billing.backdatedReceiptWarningTitle": "Receipt numbers may end up out of order",
+    "billing.backdatedReceiptWarningMessage": "A receipt has already been issued for a later date. Saving a payment dated before it means its future receipt will get a higher number than one issued for an earlier date — this can affect how receipts are numbered and ordered in reports. Save anyway?",
+    "billing.saveAnyway": "Save anyway",
 
     "families.subtitle": "Group athletes and quick-add participants so balances and activity reports can be viewed together.",
     "families.create": "New family",
@@ -1664,6 +1667,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "billing.deletePaymentConfirm": "למחוק את תשלום החשבון? לא ניתן לבטל.",
     "billing.paymentDeleted": "התשלום הוסר",
     "billing.paidOn": "תאריך תשלום",
+    "billing.backdatedReceiptWarningTitle": "מספרי הקבלות עלולים לצאת לא לפי סדר",
+    "billing.backdatedReceiptWarningMessage": "כבר הופקה קבלה לתאריך מאוחר יותר. שמירת תשלום עם תאריך מוקדם ממנה תגרום לכך שהקבלה שתופק לו בעתיד תקבל מספר גבוה יותר מקבלה שהופקה לתאריך מוקדם יותר — זה עלול להשפיע על סדר ומספור הקבלות בדוחות. לשמור בכל זאת?",
+    "billing.saveAnyway": "לשמור בכל זאת",
 
     "families.subtitle": "קבצו מתאמנים ומשתתפי quick-add כדי לראות יחד יתרות ודוח פעילות.",
     "families.create": "משפחה חדשה",

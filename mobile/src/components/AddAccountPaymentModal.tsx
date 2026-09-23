@@ -8,6 +8,7 @@ import { supabase } from "../lib/supabase";
 import { toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
+import { useAppAlert } from "../context/AppAlertContext";
 import {
   coerceSessionPaymentMethodKey,
   paymentMethodHistoryLabel,
@@ -59,6 +60,7 @@ export function AddAccountPaymentModal({
 }: Props) {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
+  const { showConfirm } = useAppAlert();
   const isEdit = !!editPayment?.id;
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<AccountPaymentMethodKey>("cash");
@@ -97,6 +99,18 @@ export function AddAccountPaymentModal({
     showToast({ message: t("common.error"), detail: msg, variant: "error" });
   }
 
+  /** A receipt already issued for `paidAt` or later means a future receipt for this
+   * (earlier-dated) payment would get a higher document number than one already issued
+   * for a later date — worth a warning before saving. */
+  async function hasLaterIssuedReceipt(dateIso: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc("has_later_issued_receipt", {
+      p_paid_at: dateIso,
+      p_exclude_source_id: isEdit && editPayment ? editPayment.id : null,
+    });
+    if (error) return false; // fail open — don't block saving on a diagnostic query failure
+    return data === true;
+  }
+
   async function save() {
     const amt = Number.parseFloat(amount.replace(",", ".").trim());
     if (!Number.isFinite(amt) || amt <= 0) {
@@ -107,6 +121,21 @@ export function AddAccountPaymentModal({
       showError(t("common.error"));
       return;
     }
+    if (await hasLaterIssuedReceipt(paidAt.trim())) {
+      showConfirm({
+        title: t("billing.backdatedReceiptWarningTitle"),
+        message: t("billing.backdatedReceiptWarningMessage"),
+        cancelLabel: t("common.cancel"),
+        confirmLabel: t("billing.saveAnyway"),
+        confirmVariant: "danger",
+        onConfirm: () => void performSave(amt),
+      });
+      return;
+    }
+    await performSave(amt);
+  }
+
+  async function performSave(amt: number) {
     setBusy(true);
     const payload: {
       amount_ils: number;
