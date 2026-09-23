@@ -4,7 +4,12 @@ import { PressableScale } from "./PressableScale";
 import { AttStatusDot } from "./AttStatusDot";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 import { attStatusFromRow, attStatusLabel } from "../lib/participantHistoryHelpers";
-import { isSessionPaymentRecorded, paymentMethodHistoryLabel } from "../lib/paymentMethod";
+import {
+  isSessionPaymentRecorded,
+  paymentMethodHistoryLabel,
+  SESSION_PAYMENT_METHOD_KEYS,
+  type SessionPaymentMethodKey,
+} from "../lib/paymentMethod";
 import { firstWordOfDisplayName } from "../lib/displayName";
 import { resolveSessionBillingPriceLocal } from "../lib/sessionSlotPrice";
 import { formatISODateWeekdayDayMonthYear } from "../lib/dateFormat";
@@ -52,6 +57,13 @@ type Props = {
   confirmRemoveRegistration: (reg: ParticipantHistoryRow) => void;
   applyNoShowCharge: (reg: ParticipantHistoryRow, charge: boolean) => Promise<void>;
   applyLateCancellationCharge: (cancellationId: string, charge: boolean) => Promise<void>;
+  markCancellationPenaltyFull: (
+    cancellationId: string,
+    sessionId: string,
+    userId: string,
+    paymentMethod: SessionPaymentMethodKey | ""
+  ) => Promise<void>;
+  resetCancellationPenaltyCollected: (cancellationId: string) => Promise<void>;
 };
 
 export function SessionHistoryRow({
@@ -88,6 +100,8 @@ export function SessionHistoryRow({
   confirmRemoveRegistration,
   applyNoShowCharge,
   applyLateCancellationCharge,
+  markCancellationPenaltyFull,
+  resetCancellationPenaltyCollected,
 }: Props) {
   const hasPaymentMethod = isSessionPaymentRecorded(reg.payment_method);
   const amtRaw = reg.amount_paid;
@@ -121,6 +135,8 @@ export function SessionHistoryRow({
           : "Cancelled more than 12h before session"
         : null;
   const feeCharged = reg.cancellation_charged === true;
+  const penaltyNum = Number(reg.cancellation_penalty_collected ?? 0);
+  const penaltyCollected = Number.isFinite(penaltyNum) ? penaltyNum : 0;
   const staffCanEdit = isManagerHistory || isCoachHistory;
   const sessionPrice =
     typeof reg.max_participants === "number" && reg.max_participants > 0
@@ -287,28 +303,33 @@ export function SessionHistoryRow({
             ) : null}
           </View>
         )}
-        {showPaymentBlock && hasPaymentMethod ? (
-          <View style={[styles.sessionFootnoteRow, styles.receiptSublineRow, rtlRowFlip && styles.receiptSublineRowRtl]}>
-            <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]} numberOfLines={2}>
-              {[paymentMethodHistoryLabel(reg.payment_method, language), reporterLine].filter(Boolean).join(" · ")}
-            </Text>
-            {receiptDocumentNumber ? (
-              <Pressable
-                onPress={onViewReceipt}
-                hitSlop={6}
-                accessibilityRole="button"
-                accessibilityLabel={language === "he" ? "צפייה בקבלה" : "View receipt"}
-                style={({ pressed }) => [styles.receiptBadge, pressed && { opacity: 0.85 }]}
-              >
-                <Text style={styles.receiptBadgeTxt} numberOfLines={1}>
-                  {language === "he" ? `קבלה ${receiptDocumentNumber}` : `Receipt ${receiptDocumentNumber}`}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        ) : null}
     </>
   );
+
+  // Rendered as a sibling of the row's own open-session button, not nested inside it —
+  // a Pressable button nested inside another button is invalid HTML (react-native-web
+  // renders accessibilityRole="button" as an actual <button>, which breaks on web).
+  const paymentFootnote =
+    showPaymentBlock && hasPaymentMethod ? (
+      <View style={[styles.sessionFootnoteRow, styles.receiptSublineRow, rtlRowFlip && styles.receiptSublineRowRtl]}>
+        <Text style={[styles.sessionFootnote, isRTL && styles.rtlText]} numberOfLines={2}>
+          {[paymentMethodHistoryLabel(reg.payment_method, language), reporterLine].filter(Boolean).join(" · ")}
+        </Text>
+        {receiptDocumentNumber ? (
+          <Pressable
+            onPress={onViewReceipt}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={language === "he" ? "צפייה בקבלה" : "View receipt"}
+            style={({ pressed }) => [styles.receiptBadge, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.receiptBadgeTxt} numberOfLines={1}>
+              {language === "he" ? `קבלה ${receiptDocumentNumber}` : `Receipt ${receiptDocumentNumber}`}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+    ) : null;
 
   return (
     <View style={styles.row}>
@@ -330,6 +351,11 @@ export function SessionHistoryRow({
       ) : (
         <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>{sessionCardInner}</View>
       )}
+      {paymentFootnote ? (
+        <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl, styles.paymentFootnoteWrap]}>
+          {paymentFootnote}
+        </View>
+      ) : null}
 
       {reg.reg_status === "active" && staffCanEdit ? (
         <>
@@ -504,6 +530,49 @@ export function SessionHistoryRow({
                     {t("managerSession.cancelChargeApply")}
                   </Text>
                 </Pressable>
+              </View>
+            )
+          ) : null}
+          {within12 && isManagerHistory && reg.cancellation_id && feeCharged ? (
+            penaltyCollected > 0 ? (
+              <View style={[styles.penaltyPaidRow, rtlRowFlip && styles.penaltyPaidRowRtl, styles.lateFeeSegMargin]}>
+                <View style={[styles.payPill, styles.payPillPaid]}>
+                  <Text style={[styles.payPillTxt, styles.payPillTxtPaid]} numberOfLines={1}>
+                    {reg.cancellation_payment_method
+                      ? paymentMethodHistoryLabel(reg.cancellation_payment_method, language)
+                      : t("participantHistory.paidBadge")}
+                  </Text>
+                  <Text style={[styles.payPillAmt, styles.ltrText]} numberOfLines={1}>
+                    {penaltyCollected} ₪
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => void resetCancellationPenaltyCollected(String(reg.cancellation_id))}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("participantHistory.editShort")}
+                >
+                  <Text style={styles.penaltyEditLink}>{t("participantHistory.editShort")}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={[styles.policySeg, rtlRowFlip && styles.policySegRtl, styles.lateFeeSegMargin]}>
+                {SESSION_PAYMENT_METHOD_KEYS.map((m) => (
+                  <Pressable
+                    key={`cpm:${reg.cancellation_id}:${m}`}
+                    onPress={() =>
+                      void markCancellationPenaltyFull(
+                        String(reg.cancellation_id),
+                        reg.session_id,
+                        reg.cancellation_user_id ?? reg.athlete_user_id,
+                        m
+                      )
+                    }
+                    style={({ pressed }) => [styles.policyBtn, pressed && { opacity: 0.88 }]}
+                  >
+                    <Text style={styles.policyBtnTxt}>{paymentMethodHistoryLabel(m, language)}</Text>
+                  </Pressable>
+                ))}
               </View>
             )
           ) : null}

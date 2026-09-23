@@ -48,6 +48,11 @@ import { SessionPresenceBar } from "../../../../src/components/SessionPresenceBa
 import { useRealtimeRefetch } from "../../../../src/hooks/useRealtimeRefetch";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { usePersistedState } from "../../../../src/hooks/usePersistedState";
+import {
+  SESSION_PAYMENT_METHOD_KEYS,
+  paymentMethodHistoryLabel,
+  type SessionPaymentMethodKey,
+} from "../../../../src/lib/paymentMethod";
 import { uiDraftStorageKey } from "../../../../src/lib/uiDraftStorage";
 import { replaceToManagerSessions } from "../../../../src/lib/managerSessionsRedirectLog";
 import {
@@ -167,6 +172,7 @@ type CancellationRow = {
   reason: string;
   charged_full_price: boolean;
   penalty_collected_ils?: number | string | null;
+  payment_method?: string | null;
   profiles: { full_name: string } | { full_name: string }[] | null;
 };
 
@@ -664,7 +670,7 @@ export default function ManagerSessionDetail() {
   async function loadCancellations() {
     const { data, error } = await supabase
       .from("cancellations")
-      .select("id, user_id, cancelled_at, reason, charged_full_price, penalty_collected_ils, profiles(full_name)")
+      .select("id, user_id, cancelled_at, reason, charged_full_price, penalty_collected_ils, payment_method, profiles(full_name)")
       .eq("session_id", id)
       .order("cancelled_at", { ascending: false });
     if (error) {
@@ -694,10 +700,15 @@ export default function ManagerSessionDetail() {
     await loadCancellations();
   }
 
-  async function setCancellationPenaltyCollected(cancellationId: string, amount: number) {
+  async function setCancellationPenaltyCollected(
+    cancellationId: string,
+    amount: number,
+    paymentMethod: SessionPaymentMethodKey | ""
+  ) {
     const { data, error } = await supabase.rpc("manager_set_cancellation_penalty_collected", {
       p_cancellation_id: cancellationId,
       p_collected_ils: amount,
+      p_payment_method: paymentMethod || null,
     });
     if (error) {
       showOk(t("common.error"), error.message);
@@ -710,7 +721,11 @@ export default function ManagerSessionDetail() {
     await loadCancellations();
   }
 
-  async function markCancellationPenaltyFull(cancellationId: string, userId: string) {
+  async function markCancellationPenaltyFull(
+    cancellationId: string,
+    userId: string,
+    paymentMethod: SessionPaymentMethodKey | ""
+  ) {
     let amount: number;
     try {
       amount = await fetchSessionBillingPriceIls(supabase, String(id), userId);
@@ -719,7 +734,11 @@ export default function ManagerSessionDetail() {
       return;
     }
     if (amount <= 0) return;
-    await setCancellationPenaltyCollected(cancellationId, amount);
+    await setCancellationPenaltyCollected(cancellationId, amount, paymentMethod);
+  }
+
+  async function resetCancellationPenaltyCollected(cancellationId: string) {
+    await setCancellationPenaltyCollected(cancellationId, 0, "");
   }
 
   async function loadWaitlist() {
@@ -1975,17 +1994,40 @@ export default function ManagerSessionDetail() {
                     </Pressable>
                   </View>
                   {feeCharged ? (
-                    <View style={[styles.cancelPenaltyRow, isRTL && styles.cancelPenaltyRowRtl]}>
-                      <Text style={styles.cancelMeta}>
-                        {t("managerSession.penaltyCollected").replace("{amount}", formatIls(collected, language))}
-                      </Text>
-                      <Pressable
-                        onPress={() => void markCancellationPenaltyFull(c.id, c.user_id)}
-                        style={({ pressed }) => [styles.penaltyMarkBtn, pressed && { opacity: 0.88 }]}
-                      >
-                        <Text style={styles.penaltyMarkBtnTxt}>{t("managerSession.penaltyMarkFull")}</Text>
-                      </Pressable>
-                    </View>
+                    collected > 0 ? (
+                      <View style={[styles.penaltyPaidRow, isRTL && styles.penaltyPaidRowRtl]}>
+                        <View style={styles.penaltyPaidBadge}>
+                          <Text style={styles.penaltyPaidBadgeTxt} numberOfLines={1}>
+                            {c.payment_method
+                              ? paymentMethodHistoryLabel(c.payment_method, language)
+                              : t("participantHistory.paidBadge")}
+                          </Text>
+                          <Text style={styles.penaltyPaidBadgeAmt} numberOfLines={1}>
+                            {formatIls(collected, language)}
+                          </Text>
+                        </View>
+                        <Pressable
+                          onPress={() => void resetCancellationPenaltyCollected(c.id)}
+                          hitSlop={8}
+                          accessibilityRole="button"
+                          accessibilityLabel={t("participantHistory.editShort")}
+                        >
+                          <Text style={styles.penaltyEditLink}>{t("participantHistory.editShort")}</Text>
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <View style={styles.cancelMethodRow}>
+                        {SESSION_PAYMENT_METHOD_KEYS.map((m) => (
+                          <Pressable
+                            key={`cm:${c.id}:${m}`}
+                            onPress={() => void markCancellationPenaltyFull(c.id, c.user_id, m)}
+                            style={({ pressed }) => [styles.cancelMethodChip, pressed && { opacity: 0.9 }]}
+                          >
+                            <Text style={styles.cancelMethodChipTxt}>{paymentMethodHistoryLabel(m, language)}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )
                   ) : null}
                 </>
               ) : null}
@@ -2417,24 +2459,38 @@ const styles = StyleSheet.create({
   cancelChargeBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   cancelChargeBtnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
   cancelChargeBtnTxtOn: { color: theme.colors.ctaText },
-  cancelPenaltyRow: {
+  cancelMethodRow: {
     marginTop: 8,
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
+    gap: 6,
     flexWrap: "wrap",
   },
-  cancelPenaltyRowRtl: { flexDirection: "row-reverse" },
-  penaltyMarkBtn: {
-    paddingVertical: 6,
+  cancelMethodChip: {
+    paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: theme.radius.sm,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     backgroundColor: theme.colors.surface,
   },
-  penaltyMarkBtnTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.cta },
+  cancelMethodChipTxt: { fontSize: 11, fontWeight: "700", color: theme.colors.textMuted },
+  penaltyPaidRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 10 },
+  penaltyPaidRowRtl: { flexDirection: "row-reverse" },
+  penaltyEditLink: { fontSize: 12, fontWeight: "700", color: theme.colors.cta },
+  penaltyPaidBadge: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.successBg,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.35)",
+  },
+  penaltyPaidBadgeTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.success },
+  penaltyPaidBadgeAmt: { fontSize: 11, fontWeight: "900", color: theme.colors.success },
   summaryEndedRow: {
     marginTop: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,

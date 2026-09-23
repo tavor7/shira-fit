@@ -165,6 +165,7 @@ export const participantHistoryStyles = StyleSheet.create({
     gap: 0,
   },
   sessionCardBodyRtl: { alignItems: "stretch" },
+  paymentFootnoteWrap: { paddingTop: 0, paddingBottom: 14 },
   sessionCardBodyPressed: { opacity: 0.92, backgroundColor: theme.colors.surfaceElevated },
   sessionCardBodyWeb: { cursor: "pointer" } as const,
   sessionHeadRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 14 },
@@ -405,6 +406,9 @@ export const participantHistoryStyles = StyleSheet.create({
   policyBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   policyBtnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
   policyBtnTxtOn: { color: theme.colors.ctaText },
+  penaltyPaidRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  penaltyPaidRowRtl: { flexDirection: "row-reverse" },
+  penaltyEditLink: { fontSize: 12, fontWeight: "700", color: theme.colors.cta },
   empty: { textAlign: "center", color: theme.colors.textSoft, padding: theme.spacing.xl, fontSize: 14 },
   billingCard: {
     marginHorizontal: theme.spacing.md,

@@ -137,6 +137,10 @@ export type ParticipantHistoryRow = {
   /** Cancelled row: manager chose to charge late-cancel fee. */
   cancellation_charged?: boolean | null;
   cancellation_penalty_collected?: number | string | null;
+  /** How the late-cancellation penalty was collected (cash/paybox/mom/other). */
+  cancellation_payment_method?: string | null;
+  /** `cancellations.user_id` — may differ from athlete_user_id for linked manual participants. */
+  cancellation_user_id?: string | null;
   /** Populated for cancelled rows; used for manager fee toggle. */
   cancellation_id?: string | null;
 };

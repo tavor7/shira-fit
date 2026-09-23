@@ -47,6 +47,7 @@ import {
   type PickerRow,
   type QuickLinked,
 } from "../lib/participantHistoryHelpers";
+import { fetchSessionBillingPriceIls } from "../lib/sessionSlotPrice";
 import { participantHistoryStyles as styles } from "./participantHistoryStyles";
 import { PaymentHistoryRow } from "../components/PaymentHistoryRow";
 import { SessionHistoryRow } from "../components/SessionHistoryRow";
@@ -232,6 +233,60 @@ export default function ParticipantHistoryScreen({
         return;
       }
       await load({ silent: true });
+    } finally {
+      setPolicyBusyId(null);
+    }
+  }
+
+  async function setCancellationPenaltyCollected(
+    cancellationId: string,
+    amount: number,
+    paymentMethod: SessionPaymentMethodKey | ""
+  ) {
+    const { data, error } = await supabase.rpc("manager_set_cancellation_penalty_collected", {
+      p_cancellation_id: cancellationId,
+      p_collected_ils: amount,
+      p_payment_method: paymentMethod || null,
+    });
+    if (error) {
+      showError(error.message);
+      return;
+    }
+    if (data?.ok !== true) {
+      showError(String(data?.error ?? "failed"));
+      return;
+    }
+    await load({ silent: true });
+  }
+
+  async function markCancellationPenaltyFull(
+    cancellationId: string,
+    sessionId: string,
+    userId: string,
+    paymentMethod: SessionPaymentMethodKey | ""
+  ) {
+    if (policyBusyId) return;
+    setPolicyBusyId(`lc:${cancellationId}`);
+    try {
+      let amount: number;
+      try {
+        amount = await fetchSessionBillingPriceIls(supabase, sessionId, userId);
+      } catch (e) {
+        showError(e instanceof Error ? e.message : String(e));
+        return;
+      }
+      if (amount <= 0) return;
+      await setCancellationPenaltyCollected(cancellationId, amount, paymentMethod);
+    } finally {
+      setPolicyBusyId(null);
+    }
+  }
+
+  async function resetCancellationPenaltyCollected(cancellationId: string) {
+    if (policyBusyId) return;
+    setPolicyBusyId(`lc:${cancellationId}`);
+    try {
+      await setCancellationPenaltyCollected(cancellationId, 0, "");
     } finally {
       setPolicyBusyId(null);
     }
@@ -621,7 +676,10 @@ export default function ParticipantHistoryScreen({
     setAthletes([...quickDedup, ...base]);
   }, []);
 
+  const loadSeqRef = useRef(0);
+
   const load = useCallback(async (opts?: { silent?: boolean }) => {
+    const mySeq = ++loadSeqRef.current;
     const silent = opts?.silent === true;
     const s = start.trim();
     const e = end.trim();
@@ -643,6 +701,7 @@ export default function ParticipantHistoryScreen({
     }
 
     const activeFamily = await fetchAthleteFamilyForPayee(athleteId, payeeIsManual);
+    if (mySeq !== loadSeqRef.current) return;
     setFamilyContext(activeFamily);
 
     const familyId = activeFamily?.id ?? null;
@@ -718,6 +777,10 @@ export default function ParticipantHistoryScreen({
       acctPromise,
       ovPromise,
     ]);
+
+    // A newer load() call started while these were in flight — drop this stale response
+    // instead of letting it clobber the more recent (possibly broader) result.
+    if (mySeq !== loadSeqRef.current) return;
 
     if (histRes.error) {
       if (!silent) {
@@ -1324,6 +1387,8 @@ export default function ParticipantHistoryScreen({
               confirmRemoveRegistration={confirmRemoveRegistration}
               applyNoShowCharge={applyNoShowCharge}
               applyLateCancellationCharge={applyLateCancellationCharge}
+              markCancellationPenaltyFull={markCancellationPenaltyFull}
+              resetCancellationPenaltyCollected={resetCancellationPenaltyCollected}
             />
             </FadeSlideIn>
           )

@@ -28,7 +28,6 @@ import {
   listPaymentsWithoutReceipt,
   type PendingReceiptPayment,
 } from "../lib/pendingReceipts";
-import { markPaymentReceiptExternal } from "../lib/staffReceivedPayments";
 import { toISODateLocal } from "../lib/isoDate";
 
 /** Payments before this date are historical/testing data — never shown as pending a receipt. */
@@ -71,7 +70,6 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
   const [generatePdfs, setGeneratePdfs] = useState(true);
   const [emailCustomers, setEmailCustomers] = useState(false);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [markingRowId, setMarkingRowId] = useState<string | null>(null);
   const [payeeFilter, setPayeeFilter] = useState<
     { type: "all" } | { type: "app" | "manual"; id: string; label: string }
   >({ type: "all" });
@@ -223,28 +221,6 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
     cancelBulkJob("pendingReceipts.create");
   }
 
-  async function handleMarkManual(item: PendingReceiptPayment) {
-    setMarkingRowId(item.row_id);
-    try {
-      await markPaymentReceiptExternal(item.row_id);
-      setSelected((prev) => {
-        if (!prev.has(item.row_id)) return prev;
-        const next = new Set(prev);
-        next.delete(item.row_id);
-        return next;
-      });
-      await load();
-    } catch (e) {
-      showToast({
-        message: language === "he" ? "שגיאה" : "Error",
-        detail: e instanceof Error ? e.message : undefined,
-        variant: "error",
-      });
-    } finally {
-      setMarkingRowId(null);
-    }
-  }
-
   function renderRow({ item }: { item: PendingReceiptPayment }) {
     const isSelected = selected.has(item.row_id);
     const slotLabel = slotKindLabel(item.session_slot_kind, lang);
@@ -309,22 +285,6 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
               : "Unsupported payment method — update payment before issuing receipt"}
           </Text>
         ) : null}
-        <View style={[styles.rowFooter, isRTL && styles.rowFooterRtl]}>
-          <Pressable
-            onPress={() => void handleMarkManual(item)}
-            disabled={markingRowId === item.row_id}
-            hitSlop={8}
-            style={({ pressed }) => [styles.manualLink, pressed && { opacity: 0.7 }]}
-          >
-            {markingRowId === item.row_id ? (
-              <ActivityIndicator size="small" color={theme.colors.textMuted} />
-            ) : (
-              <Text style={[styles.manualLinkText, isRTL && styles.rtl]}>
-                {language === "he" ? "קבלה ניתנה ידנית" : "Receipt given manually"}
-              </Text>
-            )}
-          </Pressable>
-        </View>
       </Pressable>
     );
   }
@@ -699,10 +659,6 @@ const styles = StyleSheet.create({
   rowSub: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
   amount: { fontSize: 16, fontWeight: "800", color: theme.colors.cta },
   warn: { fontSize: 12, fontWeight: "700", color: theme.colors.error, marginTop: 4 },
-  rowFooter: { flexDirection: "row", justifyContent: "flex-end", marginTop: 4 },
-  rowFooterRtl: { flexDirection: "row-reverse" },
-  manualLink: { paddingVertical: 4, paddingHorizontal: 6 },
-  manualLinkText: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, textDecorationLine: "underline" },
   emptyBox: { paddingVertical: 40, alignItems: "center", gap: 8 },
   emptyTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
   emptyHint: { fontSize: 14, fontWeight: "500", color: theme.colors.textMuted, textAlign: "center" },
