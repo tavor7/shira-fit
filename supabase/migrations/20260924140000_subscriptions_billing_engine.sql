@@ -123,7 +123,6 @@ set search_path = public
 as $$
 declare
   v_bp_id uuid;
-  v_created_period boolean := false;
   v_version public.subscription_versions%rowtype;
   v_payee_id uuid;
   v_payee_is_manual boolean;
@@ -156,8 +155,6 @@ begin
     select id into v_bp_id
     from public.subscription_billing_periods
     where subscription_id = p_subscription_id and period_start = p_period_start;
-  else
-    v_created_period := true;
   end if;
 
   select * into v_days
@@ -171,7 +168,6 @@ begin
      and v_days.window_start = p_period_start
      and v_days.window_end = p_period_end
   then
-    v_new_type := 'recurring';
     v_new_amount := round(v_version.monthly_price_ils, 2);
   else
     if v_days.total_days = 0 then
@@ -179,20 +175,51 @@ begin
     else
       v_new_amount := round(v_version.monthly_price_ils * v_days.unfrozen_days / v_days.total_days, 2);
     end if;
-    -- Organic (never-before-billed) partial period is plain 'proration'. A correction of an
-    -- ALREADY-billed period must use a type outside the partial unique index's guarded set
-    -- ('recurring','proration') so the replacement charge can coexist with the untouched
-    -- original row — the caller supplies which (freeze_credit / stop_proration).
-    v_new_type := case when v_created_period then 'proration'::public.subscription_charge_type
-                       else p_correction_charge_type end;
   end if;
 
-  select * into v_existing
-  from public.subscription_charges
-  where billing_period_id = v_bp_id and charge_type in ('recurring', 'proration')
+  -- Find the CURRENTLY EFFECTIVE charge for this period — not "the original" — so a second (or
+  -- Nth) correction reverses whatever is actually in effect right now, not the first-ever charge.
+  -- Bug found and fixed during the pre-merge financial audit: the original version of this query
+  -- was `WHERE charge_type IN ('recurring','proration')`, which always finds the very first
+  -- charge, forever — a second correction to the same period (e.g. a freeze correcting ₪300 to
+  -- ₪250, then a further change correcting to ₪180) would reverse the ORIGINAL ₪300 a second
+  -- time instead of the ₪250 that was actually in effect, silently producing the wrong net total
+  -- (130 instead of 180 in that example). The "currently effective" charge is defined as: the one
+  -- non-reversal charge for this period that no reversal row points at yet (every correction
+  -- reverses exactly the charge that preceded it, forming a chain; exactly one un-reversed link
+  -- exists at any time). Ties are impossible by construction (each correction call produces at
+  -- most one such charge), but charge_type<>'reversal' plus the "not yet reversed" condition is
+  -- kept explicit rather than relying on insertion order/timestamps, which can coincide within a
+  -- single transaction (created_at defaults to now(), constant per transaction).
+  select c.* into v_existing
+  from public.subscription_charges c
+  where c.billing_period_id = v_bp_id
+    and c.charge_type <> 'reversal'
+    and not exists (
+      select 1 from public.subscription_charges rv
+      where rv.charge_type = 'reversal' and rv.reverses = c.id
+    )
+  order by c.created_at desc, c.id desc
   limit 1;
 
   if not found then
+    -- No charge exists yet for this period at all. This is either a brand-new period (typical
+    -- case) OR a period row that was already inserted by a PRIOR run that crashed/died before
+    -- reaching this point (found via the pre-merge audit: the original code used
+    -- v_created_period — "did *this* call insert the period row" — to decide 'recurring'/
+    -- 'proration' vs a caller-supplied correction type, which is wrong here: a crashed prior run
+    -- leaves v_created_period=false on THIS call even though no charge was ever written, so the
+    -- old logic would try to insert with charge_type = p_correction_charge_type, which is NULL
+    -- for the daily job's fresh-generation calls — a NOT NULL constraint violation that would
+    -- permanently strand the period as "row exists, still uncharged" since the daily job's next
+    -- run also finds the period row and stops walking forward past it without ever completing
+    -- the charge). Using "no charge found" (not "did I just create the row") correctly recovers
+    -- in both cases and always produces the right organic type.
+    v_new_type := case when v_days.total_days > 0 and v_days.unfrozen_days = v_days.total_days
+                          and v_days.window_start = p_period_start and v_days.window_end = p_period_end
+                        then 'recurring'::public.subscription_charge_type
+                        else 'proration'::public.subscription_charge_type
+                   end;
     insert into public.subscription_charges (
       billing_period_id, subscription_id, payee_id, payee_is_manual, amount_ils, charge_type, source_event_id
     ) values (
@@ -278,7 +305,12 @@ declare
   v_next_start date;
   v_next_end date;
   v_periods_touched int := 0;
+  v_failed int := 0;
   v_res json;
+  v_stranded_id uuid;
+  v_stranded_version uuid;
+  v_stranded_start date;
+  v_stranded_end date;
 begin
   for r in
     select s.id as subscription_id, v.id as version_id, v.anchor_day, v.plan_start_date,
@@ -289,38 +321,82 @@ begin
     where s.deleted_at is null
       and v.plan_start_date <= v_today
   loop
-    loop
-      select bp.period_start into v_next_start
-      from public.subscription_billing_periods bp
-      where bp.subscription_id = r.subscription_id
-      order by bp.period_start desc
-      limit 1;
+    -- Isolate each subscription: this is otherwise one single transaction for the whole job
+    -- (a plain PL/pgSQL loop has no per-iteration commit), so without this block, one bad
+    -- subscription raising an uncaught exception would abort every other subscription's work in
+    -- the same run too. A BEGIN/EXCEPTION block gives per-iteration savepoint semantics — an
+    -- exception here rolls back only this subscription's partial writes and lets the loop
+    -- continue; it does not give independent atomic commits per subscription (that would require
+    -- a real separate transaction per subscription, which a single SQL function body cannot do).
+    begin
+      loop
+        -- Crash-recovery, found and fixed during the pre-merge financial audit: the "find the
+        -- next period to generate" logic below always advanced PAST the most recent existing
+        -- subscription_billing_periods row, on the assumption that a period row existing at all
+        -- means it was fully completed (row + charge) together. That assumption breaks if a prior
+        -- run died between the period INSERT and the charge INSERT (a real, if rare, crash
+        -- window) — the period row would be silently skipped forever, permanently stranding it
+        -- as "processed but uncharged". Before walking forward, always check for and complete any
+        -- existing period for this subscription that has no original (recurring/proration)
+        -- charge yet, using that period's own recorded period_start/period_end/version_id, then
+        -- loop back — this recovers any number of stranded periods (even from repeated crashes)
+        -- before resuming the normal forward walk.
+        select bp.id, bp.version_id, bp.period_start, bp.period_end
+        into v_stranded_id, v_stranded_version, v_stranded_start, v_stranded_end
+        from public.subscription_billing_periods bp
+        where bp.subscription_id = r.subscription_id
+          and not exists (
+            select 1 from public.subscription_charges c
+            where c.billing_period_id = bp.id and c.charge_type in ('recurring', 'proration')
+          )
+        order by bp.period_start asc
+        limit 1;
 
-      if v_next_start is null then
-        v_next_start := r.plan_start_date;
-      else
-        v_next_start := public.subscription_next_anchor_date(r.anchor_day, v_next_start);
-      end if;
+        if v_stranded_id is not null then
+          v_res := public.subscription_generate_or_correct_billing_period(
+            r.subscription_id, v_stranded_version, v_stranded_start, v_stranded_end, null, null
+          );
+          if coalesce((v_res->>'ok')::boolean, false) then
+            v_periods_touched := v_periods_touched + 1;
+          end if;
+          continue;
+        end if;
 
-      exit when v_next_start > v_today;
+        select bp.period_start into v_next_start
+        from public.subscription_billing_periods bp
+        where bp.subscription_id = r.subscription_id
+        order by bp.period_start desc
+        limit 1;
 
-      -- Nothing left to bill once a period would start entirely at/after the stop date, or
-      -- entirely after plan_end_date.
-      exit when r.stopped_effective_date is not null and v_next_start >= r.stopped_effective_date;
-      exit when r.plan_end_date is not null and v_next_start > r.plan_end_date;
+        if v_next_start is null then
+          v_next_start := r.plan_start_date;
+        else
+          v_next_start := public.subscription_next_anchor_date(r.anchor_day, v_next_start);
+        end if;
 
-      v_next_end := public.subscription_next_anchor_date(r.anchor_day, v_next_start);
+        exit when v_next_start > v_today;
 
-      v_res := public.subscription_generate_or_correct_billing_period(
-        r.subscription_id, r.version_id, v_next_start, v_next_end, null, null
-      );
-      if coalesce((v_res->>'ok')::boolean, false) then
-        v_periods_touched := v_periods_touched + 1;
-      end if;
-    end loop;
+        -- Nothing left to bill once a period would start entirely at/after the stop date, or
+        -- entirely after plan_end_date.
+        exit when r.stopped_effective_date is not null and v_next_start >= r.stopped_effective_date;
+        exit when r.plan_end_date is not null and v_next_start > r.plan_end_date;
+
+        v_next_end := public.subscription_next_anchor_date(r.anchor_day, v_next_start);
+
+        v_res := public.subscription_generate_or_correct_billing_period(
+          r.subscription_id, r.version_id, v_next_start, v_next_end, null, null
+        );
+        if coalesce((v_res->>'ok')::boolean, false) then
+          v_periods_touched := v_periods_touched + 1;
+        end if;
+      end loop;
+    exception
+      when others then
+        v_failed := v_failed + 1;
+    end;
   end loop;
 
-  return json_build_object('ok', true, 'periods_touched', v_periods_touched);
+  return json_build_object('ok', true, 'periods_touched', v_periods_touched, 'subscriptions_failed', v_failed);
 end;
 $$;
 

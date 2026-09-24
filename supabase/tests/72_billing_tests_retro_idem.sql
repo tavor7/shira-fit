@@ -85,8 +85,17 @@ begin
     v_sub, v_ver, v_start, (select period_end from subscription_billing_periods where id=v_bp_id),
     v_freeze_id, 'freeze_credit'
   );
-  if v_res->>'action' <> 'already_corrected' then
-    raise exception 'B11 FAILED: retried correction should report already_corrected, got %', v_res;
+  -- Post-audit fix: the retry now resolves to 'unchanged' rather than 'already_corrected',
+  -- because the correction lookup was fixed to find the CURRENTLY EFFECTIVE charge (the
+  -- freeze_credit correction itself, amount 200) instead of always "the original" — on retry,
+  -- the freshly recomputed amount (200) matches the already-effective charge (200) exactly, so
+  -- it is correctly recognized as a no-op before ever considering source_event_id. The dedicated
+  -- 'already_corrected' (source_event_id-keyed) path remains as a defensive backstop for a true
+  -- concurrent race, but is no longer what a simple sequential retry hits. Either outcome is a
+  -- correct no-op; what matters (checked below) is that no duplicate reversal/correction rows
+  -- are created and the net amount is unchanged.
+  if v_res->>'action' not in ('unchanged', 'already_corrected') then
+    raise exception 'B11 FAILED: retried correction should be a no-op (unchanged/already_corrected), got %', v_res;
   end if;
 
   select count(*) into v_reversal_count from subscription_charges where billing_period_id=v_bp_id and charge_type='reversal';
@@ -158,8 +167,8 @@ begin
     v_sub, v_ver, v_start, (select period_end from subscription_billing_periods where id=v_bp_id),
     v_ver, 'stop_proration'
   );
-  if v_res->>'action' <> 'already_corrected' then
-    raise exception 'B10 FAILED: retry should be already_corrected, got %', v_res;
+  if v_res->>'action' not in ('unchanged', 'already_corrected') then
+    raise exception 'B10 FAILED: retry should be a no-op (unchanged/already_corrected), got %', v_res;
   end if;
   if (select count(*) from subscription_charges where billing_period_id=v_bp_id and charge_type='reversal') <> 1 then
     raise exception 'B10 FAILED: retry created a duplicate reversal';
