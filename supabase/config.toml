@@ -4,6 +4,11 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/open-weekly-registrations/index.ts"
 
+[functions.generate-subscription-charges]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/generate-subscription-charges/index.ts"
+
 [functions.notify-waitlist]
 enabled = true
 verify_jwt = false
