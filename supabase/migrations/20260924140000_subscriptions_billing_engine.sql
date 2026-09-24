@@ -15,78 +15,176 @@
 -- already created.
 
 -- ---------------------------------------------------------------------------
--- 1. subscription_billing_period_unfrozen_days — pure calendar-day calculation helper.
+-- 1. subscription_billing_period_segments / subscription_billing_period_amount — the unified
+--    segmentation model, replacing the freeze-only subscription_billing_period_unfrozen_days
+--    from the first draft of this migration.
 --
--- Given a period [p_period_start, p_period_end) and a version's own stop/end boundaries, returns
--- the version-window actually in force within the period, and how many of those days are NOT
--- covered by any (non-cancelled) freeze. All in actual calendar days — never assumes 30-day
--- months, matching the plan's explicit requirement.
+-- Post-merge-audit architectural revision: a billing period can span more than one
+-- subscription_versions row (a retroactive or future-dated edit can set a new version's
+-- effective_from to any date, including one inside an already-generated or not-yet-generated
+-- period). The ORIGINAL design priced an entire period from a single caller-supplied version_id
+-- — that is a "one version owns the whole period" shortcut and is financially wrong the moment
+-- more than one version is ever created for a subscription (which Phase 4's edit RPC will do).
+--
+-- The fix: split every period into calendar SEGMENTS at every financial-eligibility boundary —
+-- version effective_from/effective_to, a version's own plan_start_date/plan_end_date/
+-- stopped_effective_date, and every (non-cancelled) freeze's start/end — then price each segment
+-- under whichever version is effective for it, sum the segments, and round ONCE at the end (not
+-- per segment; see the rounding note on subscription_billing_period_amount). This is the ONE
+-- place proration math lives now — subscription_generate_or_correct_billing_period no longer has
+-- any separate/duplicated freeze-only or stop-only day-counting logic that could disagree with
+-- this.
 -- ---------------------------------------------------------------------------
 
-create or replace function public.subscription_billing_period_unfrozen_days(
+create or replace function public.subscription_billing_period_segments(
   p_subscription_id uuid,
   p_period_start date,
-  p_period_end date,
-  p_stopped_effective_date date,
-  p_plan_end_date date
+  p_period_end date
 )
 returns table (
-  total_days int,
-  window_start date,
-  window_end date,
-  unfrozen_days int
+  segment_start date,
+  segment_end date,
+  version_id uuid,
+  monthly_price_ils numeric,
+  is_billable boolean,
+  segment_days int
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  with bounds as (
-    select
-      p_period_start as window_start,
-      greatest(
-        p_period_start,
-        least(
-          p_period_end,
-          coalesce(p_stopped_effective_date, p_period_end),
-          coalesce(p_plan_end_date + 1, p_period_end)
-        )
-      ) as window_end
+  with boundary_points as (
+    -- The two period ends, plus every version/freeze boundary that falls STRICTLY inside the
+    -- period (a boundary exactly on p_period_start or p_period_end needs no extra split point).
+    select p_period_start as d
+    union
+    select p_period_end
+    union
+    select v.effective_from
+    from public.subscription_versions v
+    where v.subscription_id = p_subscription_id
+      and v.effective_from > p_period_start and v.effective_from < p_period_end
+    union
+    select v.effective_to
+    from public.subscription_versions v
+    where v.subscription_id = p_subscription_id
+      and v.effective_to is not null
+      and v.effective_to > p_period_start and v.effective_to < p_period_end
+    union
+    select v.plan_start_date
+    from public.subscription_versions v
+    where v.subscription_id = p_subscription_id
+      and v.plan_start_date > p_period_start and v.plan_start_date < p_period_end
+    union
+    select v.plan_end_date + 1
+    from public.subscription_versions v
+    where v.subscription_id = p_subscription_id
+      and v.plan_end_date is not null
+      and v.plan_end_date + 1 > p_period_start and v.plan_end_date + 1 < p_period_end
+    union
+    select v.stopped_effective_date
+    from public.subscription_versions v
+    where v.subscription_id = p_subscription_id
+      and v.stopped_effective_date is not null
+      and v.stopped_effective_date > p_period_start and v.stopped_effective_date < p_period_end
+    union
+    select f.freeze_from
+    from public.subscription_freezes f
+    where f.subscription_id = p_subscription_id and f.cancelled_at is null
+      and f.freeze_from > p_period_start and f.freeze_from < p_period_end
+    union
+    select f.freeze_until + 1
+    from public.subscription_freezes f
+    where f.subscription_id = p_subscription_id and f.cancelled_at is null
+      and f.freeze_until + 1 > p_period_start and f.freeze_until + 1 < p_period_end
   ),
-  frozen as (
-    -- The `filter` clause is load-bearing, not cosmetic: GREATEST/LEAST in Postgres *ignore*
-    -- NULL arguments instead of propagating them (documented behavior, easy to miss), so
-    -- without it, the LEFT JOIN's unmatched (all-NULL) row when there are zero freezes would
-    -- compute least(NULL, window_end)=window_end and greatest(NULL, window_start)=window_start,
-    -- i.e. "frozen for the entire window" instead of "no freeze at all" — a real bug caught by
-    -- testing (Test B1 returned a ₪0 charge for a plain, freeze-free subscription until this
-    -- fix). Filtering out the unmatched row before summing restores the correct "no freeze"
-    -- meaning of a LEFT JOIN miss.
-    select
-      coalesce(sum(
-        greatest(0,
-          least(f.freeze_until + 1, b.window_end) - greatest(f.freeze_from, b.window_start)
-        )
-      ) filter (where f.freeze_from is not null), 0)::int as frozen_days
-    from bounds b
-    left join public.subscription_freezes f
-      on f.subscription_id = p_subscription_id
-      and f.cancelled_at is null
-      and f.freeze_from < b.window_end
-      and f.freeze_until >= b.window_start
+  ordered as (
+    select d, lead(d) over (order by d) as next_d
+    from boundary_points
+  ),
+  segments as (
+    select d as segment_start, next_d as segment_end
+    from ordered
+    where next_d is not null and next_d > d
   )
   select
-    (p_period_end - p_period_start)::int as total_days,
-    b.window_start,
-    b.window_end,
-    greatest(0, (b.window_end - b.window_start) - fr.frozen_days)::int as unfrozen_days
-  from bounds b, frozen fr;
+    s.segment_start,
+    s.segment_end,
+    v.id as version_id,
+    v.monthly_price_ils,
+    (
+      -- Billable = a version is effective for this segment, that version's own plan window
+      -- covers it (plan_start_date inclusive, plan_end_date inclusive hence the <=, stop
+      -- exclusive hence the strict <), AND no non-cancelled freeze covers it. Checking only
+      -- segment_start is correct and sufficient because segments are constructed so that
+      -- nothing (version, plan window, freeze) changes within a segment.
+      v.id is not null
+      and s.segment_start >= v.plan_start_date
+      and (v.plan_end_date is null or s.segment_start <= v.plan_end_date)
+      and (v.stopped_effective_date is null or s.segment_start < v.stopped_effective_date)
+      and not exists (
+        select 1 from public.subscription_freezes f
+        where f.subscription_id = p_subscription_id and f.cancelled_at is null
+          and f.freeze_from <= s.segment_start and f.freeze_until >= s.segment_start
+      )
+    ) as is_billable,
+    (s.segment_end - s.segment_start)::int as segment_days
+  from segments s
+  left join public.subscription_versions v
+    on v.subscription_id = p_subscription_id
+    and v.effective_from <= s.segment_start
+    and (v.effective_to is null or v.effective_to > s.segment_start)
+  order by s.segment_start;
 $$;
 
-comment on function public.subscription_billing_period_unfrozen_days(uuid, date, date, date, date) is
-  'Actual-calendar-day window/freeze math for one billing period. window_end already accounts for '
-  'stopped_effective_date (exclusive) and plan_end_date (inclusive, hence +1). unfrozen_days '
-  'subtracts every non-cancelled freeze day inside that window. Pure/no writes.';
+comment on function public.subscription_billing_period_segments(uuid, date, date) is
+  'Splits [p_period_start, p_period_end) into calendar segments at every version/freeze boundary '
+  'inside the period, each tagged with its effective version, that version''s price, whether it '
+  'is billable (active window and not frozen), and its day count. The one authoritative source of '
+  'per-day pricing/eligibility for a billing period — never bypassed by a single-version shortcut.';
+
+create or replace function public.subscription_billing_period_amount(
+  p_subscription_id uuid,
+  p_period_start date,
+  p_period_end date
+)
+returns table (
+  amount_ils numeric,
+  is_full_recurring boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  -- Rounding rule: round the FINAL summed amount once, not each segment individually. Rounding
+  -- per segment first would let independent segment-level rounding errors accumulate (e.g. three
+  -- segments each rounded up by half a cent overstate the period by 1.5 cents versus rounding the
+  -- exact sum once) — summing the exact (unrounded) per-segment fractions first and rounding only
+  -- the total is both simpler and strictly more accurate; there is no correctness reason found to
+  -- prefer per-segment rounding here.
+  with segs as (
+    select * from public.subscription_billing_period_segments(p_subscription_id, p_period_start, p_period_end)
+  ),
+  totals as (
+    select
+      (p_period_end - p_period_start)::numeric as total_days,
+      coalesce(sum(case when is_billable then monthly_price_ils * segment_days else 0 end), 0) as weighted_sum,
+      count(*) as seg_count,
+      coalesce(bool_and(is_billable), false) as all_billable
+    from segs
+  )
+  select
+    round(case when total_days > 0 then weighted_sum / total_days else 0 end, 2) as amount_ils,
+    (seg_count = 1 and all_billable) as is_full_recurring
+  from totals;
+$$;
+
+comment on function public.subscription_billing_period_amount(uuid, date, date) is
+  'Sums subscription_billing_period_segments into one final amount for the period (rounded once, '
+  'at the end — see inline comment) and reports whether it is a single, fully-billable segment '
+  '(the "recurring, full price" case) or not (proration, whether organic or from a correction).';
 
 -- ---------------------------------------------------------------------------
 -- 2. subscription_generate_or_correct_billing_period — the one shared function for both:
@@ -123,19 +221,25 @@ set search_path = public
 as $$
 declare
   v_bp_id uuid;
-  v_version public.subscription_versions%rowtype;
   v_payee_id uuid;
   v_payee_is_manual boolean;
-  v_days record;
+  v_amount record;
   v_new_amount numeric(12, 2);
   v_new_type public.subscription_charge_type;
   v_existing public.subscription_charges%rowtype;
 begin
-  select * into v_version from public.subscription_versions where id = p_version_id;
-  if not found then
-    return json_build_object('ok', false, 'error', 'version_not_found');
-  end if;
-  if v_version.subscription_id <> p_subscription_id then
+  -- p_version_id is validated for existence/ownership and stored on the billing_periods row for
+  -- audit purposes only ("the version current when this call was made") — it is NEVER used for
+  -- pricing (see the schema-comment update below on subscription_billing_periods.version_id for
+  -- the full rationale). All pricing/eligibility comes exclusively from
+  -- subscription_billing_period_amount, which independently walks the subscription's real
+  -- version/freeze timeline for this exact period.
+  if not exists (
+    select 1 from public.subscription_versions where id = p_version_id and subscription_id = p_subscription_id
+  ) then
+    if not exists (select 1 from public.subscription_versions where id = p_version_id) then
+      return json_build_object('ok', false, 'error', 'version_not_found');
+    end if;
     return json_build_object('ok', false, 'error', 'version_subscription_mismatch');
   end if;
 
@@ -157,25 +261,15 @@ begin
     where subscription_id = p_subscription_id and period_start = p_period_start;
   end if;
 
-  select * into v_days
-  from public.subscription_billing_period_unfrozen_days(
-    p_subscription_id, p_period_start, p_period_end,
-    v_version.stopped_effective_date, v_version.plan_end_date
-  );
+  -- Keep version_id fresh as "most recently touched by" (informational only — see above) so a
+  -- correction call records which version/event prompted the most recent look at this period.
+  update public.subscription_billing_periods
+  set version_id = p_version_id
+  where id = v_bp_id and version_id is distinct from p_version_id;
 
-  if v_days.total_days > 0
-     and v_days.unfrozen_days = v_days.total_days
-     and v_days.window_start = p_period_start
-     and v_days.window_end = p_period_end
-  then
-    v_new_amount := round(v_version.monthly_price_ils, 2);
-  else
-    if v_days.total_days = 0 then
-      v_new_amount := 0;
-    else
-      v_new_amount := round(v_version.monthly_price_ils * v_days.unfrozen_days / v_days.total_days, 2);
-    end if;
-  end if;
+  select * into v_amount
+  from public.subscription_billing_period_amount(p_subscription_id, p_period_start, p_period_end);
+  v_new_amount := v_amount.amount_ils;
 
   -- Find the CURRENTLY EFFECTIVE charge for this period — not "the original" — so a second (or
   -- Nth) correction reverses whatever is actually in effect right now, not the first-ever charge.
@@ -190,7 +284,9 @@ begin
   -- exists at any time). Ties are impossible by construction (each correction call produces at
   -- most one such charge), but charge_type<>'reversal' plus the "not yet reversed" condition is
   -- kept explicit rather than relying on insertion order/timestamps, which can coincide within a
-  -- single transaction (created_at defaults to now(), constant per transaction).
+  -- single transaction (created_at defaults to now(), constant per transaction). This still holds
+  -- unchanged under the new multi-version segmentation: it operates purely on the charges ledger,
+  -- independent of how v_new_amount was computed.
   select c.* into v_existing
   from public.subscription_charges c
   where c.billing_period_id = v_bp_id
@@ -215,8 +311,7 @@ begin
     -- run also finds the period row and stops walking forward past it without ever completing
     -- the charge). Using "no charge found" (not "did I just create the row") correctly recovers
     -- in both cases and always produces the right organic type.
-    v_new_type := case when v_days.total_days > 0 and v_days.unfrozen_days = v_days.total_days
-                          and v_days.window_start = p_period_start and v_days.window_end = p_period_end
+    v_new_type := case when v_amount.is_full_recurring
                         then 'recurring'::public.subscription_charge_type
                         else 'proration'::public.subscription_charge_type
                    end;
@@ -279,7 +374,28 @@ $$;
 comment on function public.subscription_generate_or_correct_billing_period(uuid, uuid, date, date, uuid, public.subscription_charge_type) is
   'Shared generate-or-correct entry point for one billing period. p_source_event_id NULL = fresh '
   'generation (daily job); non-NULL = retroactive correction of an already-billed period, caller '
-  'must also pass p_correction_charge_type (freeze_credit / stop_proration).';
+  'must also pass p_correction_charge_type (freeze_credit / stop_proration). p_version_id is '
+  'validated and stored on the row for audit purposes only — pricing always comes from '
+  'subscription_billing_period_amount, which independently segments the period across every '
+  'version/freeze that actually applies, never from this one parameter.';
+
+-- Post-audit revision of subscription_billing_periods.version_id's meaning (defined in Phase 1,
+-- supabase/migrations/20260924100000_subscriptions_schema.sql — updating its documentation here
+-- rather than altering that migration, since nothing anywhere reads this column for pricing:
+-- confirmed by inspection that Phase 1's other helpers, Phase 2's registration/coverage logic,
+-- and _period_merged_athlete_finance's subscription_charges union arm never join to or select
+-- subscription_billing_periods.version_id at all). Left NOT NULL / FK-enforced (kept safe and
+-- simple — no ALTER TABLE needed) but its meaning is now purely informational: "the version that
+-- was current at generation time, or most recently touched this period via a correction call" —
+-- it is NEVER read for pricing/eligibility math anywhere. The authoritative price for a period is
+-- always recomputed on demand from subscription_billing_period_amount / _segments against the
+-- live subscription_versions/subscription_freezes timeline — never cached, never inferred from
+-- this column, so it can never drift out of sync with the real timeline.
+comment on column public.subscription_billing_periods.version_id is
+  'Informational only: the subscription_versions row current at generation time, or most recently '
+  'touched by a correction call. NEVER used for pricing — a period can span multiple versions; the '
+  'authoritative amount always comes from subscription_billing_period_amount, recomputed on demand '
+  'from the live version/freeze timeline, not read from or cached via this column.';
 
 -- ---------------------------------------------------------------------------
 -- 3. generate_due_subscription_charges — the daily job.

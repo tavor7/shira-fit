@@ -1,22 +1,17 @@
--- Pre-merge financial audit, batch 2: the §5 architectural finding (demonstrated, not "fixed"),
--- end-date boundaries, tombstone, rounding, crash-recovery, per-subscription isolation.
+-- Pre-merge financial audit, batch 2: multi-version segmentation (the §5 architectural finding,
+-- now IMPLEMENTED via unified segmentation, not just demonstrated), end-date boundaries,
+-- tombstone, rounding, crash-recovery, per-subscription isolation.
 set client_min_messages to notice;
 
--- Test AU4 (DEMONSTRATION, not a pass/fail assertion of correctness): a version whose
--- effective_from falls MID-period. subscription_generate_or_correct_billing_period takes exactly
--- one p_version_id and prices the ENTIRE [period_start, period_end) window using that one
--- version's monthly_price_ils -- there is no per-day blending across a version boundary that
--- falls inside a single period. This test proves that concretely: pricing the SAME period with
--- version1 vs version2 (whose effective_from is 10 days into the period) gives the OLD or NEW
--- price for the WHOLE period depending only on which version_id the caller passes -- never a
--- blended amount. This is the exact "version_id used as a whole-period-ownership shortcut"
--- question raised in the audit; see the report for the architectural discussion (not resolved
--- here -- Phase 4 must decide the intended policy for an off-anchor mid-period price change
--- before this can be called correct or incorrect).
+-- Test AU4 / "Test A": a version change landing MID-period (anchor stays fixed; price changes
+-- from ₪300 to ₪400 10 days into the period). Verifies the period is correctly SEGMENTED and
+-- BLENDED across the version boundary -- not priced entirely under whichever version_id happens
+-- to be passed to subscription_generate_or_correct_billing_period (that was the pre-fix bug).
 do $$
 declare
   v_p uuid; v_sub uuid; v_ver1 uuid; v_ver2 uuid; v_start date; v_anchor smallint;
-  v_end date; v_mid date; v_amt_v1 numeric; v_amt_v2 numeric;
+  v_end date; v_mid date; v_amt numeric; v_total_days int; v_seg1_days int; v_seg2_days int;
+  v_expected numeric;
 begin
   v_p := gen_random_uuid();
   insert into public.profiles (user_id, username, full_name, phone, role, approval_status)
@@ -31,21 +26,37 @@ begin
   insert into public.subscription_versions (subscription_id, version_no, effective_from, effective_to, monthly_price_ils, anchor_day, plan_start_date)
   values (v_sub, 1, v_start, v_mid, 300, v_anchor, v_start) returning id into v_ver1;
   insert into public.subscription_versions (subscription_id, version_no, effective_from, monthly_price_ils, anchor_day, plan_start_date)
-  values (v_sub, 2, v_mid, 450, v_anchor, v_start) returning id into v_ver2;
+  values (v_sub, 2, v_mid, 400, v_anchor, v_start) returning id into v_ver2;
 
-  -- Price the [v_start, v_end) window using version1's id -- observe the WHOLE period is priced
-  -- at version1's ₪300, with no awareness that version2 (₪450) becomes effective 10 days in.
-  perform public.subscription_generate_or_correct_billing_period(v_sub, v_ver1, v_start, v_end, null, null);
-  select amount_ils into v_amt_v1 from subscription_charges c
+  perform public.subscription_generate_or_correct_billing_period(v_sub, v_ver2, v_start, v_end, null, null);
+  select amount_ils into v_amt from subscription_charges c
     join subscription_billing_periods bp on bp.id=c.billing_period_id
     where bp.subscription_id=v_sub and bp.period_start=v_start and c.charge_type in ('recurring','proration');
 
-  raise notice 'AU4 DEMONSTRATION: period [%,%) priced entirely under version1 (price 300, effective_to %) => %.'
-    ' version_id is NOT informational-only here -- it is the sole source of monthly_price_ils/'
-    'stopped_effective_date/plan_end_date for the WHOLE period; there is no per-day segment '
-    'evaluation across the v_mid=% version boundary that falls inside this same period. Reported '
-    'as the architectural finding, not fixed in this pass.',
-    v_start, v_end, v_mid, v_amt_v1, v_mid;
+  v_total_days := v_end - v_start;
+  v_seg1_days := v_mid - v_start; -- 10 days at 300
+  v_seg2_days := v_end - v_mid;   -- remaining days at 400
+  v_expected := round((300::numeric * v_seg1_days + 400::numeric * v_seg2_days) / v_total_days, 2);
+
+  if v_amt <> v_expected then
+    raise exception 'AU4 FAILED: expected blended amount % (seg1 % days @300 + seg2 % days @400 / % total), got %',
+      v_expected, v_seg1_days, v_seg2_days, v_total_days, v_amt;
+  end if;
+
+  -- version_id passed to the call (v_ver2, the "current" version at call time) must have no
+  -- bearing on which price(s) applied -- confirm passing v_ver1 instead gives the IDENTICAL
+  -- result (same period, same real timeline), proving pricing is independent of which version_id
+  -- happens to be passed.
+  perform public.subscription_generate_or_correct_billing_period(v_sub, v_ver1, v_start, v_end, null, 'freeze_credit');
+  -- (this second call is a no-op / correction check only if the recomputed amount differs, which
+  -- it should NOT -- the amount is identical regardless of p_version_id)
+  if (select count(*) from subscription_charges c join subscription_billing_periods bp on bp.id=c.billing_period_id
+      where bp.subscription_id=v_sub and bp.period_start=v_start and c.charge_type='reversal') > 0 then
+    raise exception 'AU4 FAILED: calling with a different (but uninvolved) version_id triggered a spurious correction -- pricing is not independent of p_version_id';
+  end if;
+
+  raise notice 'AU4 (Test A) PASSED: mid-period version change (300->400 at day 10 of %) correctly segments and blends to exactly % — % days@300 + % days@400 over % total days, independent of which version_id is passed to the call',
+    v_total_days, v_amt, v_seg1_days, v_seg2_days, v_total_days;
 end $$;
 
 -- Test AU5: end-date boundary matrix.

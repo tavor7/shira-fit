@@ -115,17 +115,16 @@ begin
     where bp.subscription_id = v_sub
     order by bp.period_start
   loop
-    -- recompute expected using the same helper the engine itself uses (not reimplementing math
-    -- independently -- this test verifies the STORED charge matches a fresh call to the same
-    -- authoritative helper, catching drift/bugs in the generation path itself).
-    declare v_ufd int; v_exp numeric;
+    -- Recompute expected using the same authoritative segmentation helper the engine itself
+    -- uses (not reimplementing math independently) -- this test verifies the STORED charge
+    -- matches a fresh call to that helper, catching drift/bugs in the generation path itself.
+    declare v_exp numeric;
     begin
-      select unfrozen_days into v_ufd from public.subscription_billing_period_unfrozen_days(
-        v_sub, r.period_start, r.period_end, null, null
+      select amount_ils into v_exp from public.subscription_billing_period_amount(
+        v_sub, r.period_start, r.period_end
       );
-      v_exp := case when v_ufd = r.total_days then 300::numeric else round(300::numeric * v_ufd / r.total_days, 2) end;
       if r.amount_ils <> v_exp then
-        raise exception 'B7 FAILED: period % expected %, got % (unfrozen % of % days)', r.period_start, v_exp, r.amount_ils, v_ufd, r.total_days;
+        raise exception 'B7 FAILED: period % expected % (from subscription_billing_period_amount), got %', r.period_start, v_exp, r.amount_ils;
       end if;
     end;
   end loop;
