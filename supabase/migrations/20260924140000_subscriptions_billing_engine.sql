@@ -54,12 +54,20 @@ as $$
       ) as window_end
   ),
   frozen as (
+    -- The `filter` clause is load-bearing, not cosmetic: GREATEST/LEAST in Postgres *ignore*
+    -- NULL arguments instead of propagating them (documented behavior, easy to miss), so
+    -- without it, the LEFT JOIN's unmatched (all-NULL) row when there are zero freezes would
+    -- compute least(NULL, window_end)=window_end and greatest(NULL, window_start)=window_start,
+    -- i.e. "frozen for the entire window" instead of "no freeze at all" — a real bug caught by
+    -- testing (Test B1 returned a ₪0 charge for a plain, freeze-free subscription until this
+    -- fix). Filtering out the unmatched row before summing restores the correct "no freeze"
+    -- meaning of a LEFT JOIN miss.
     select
       coalesce(sum(
         greatest(0,
           least(f.freeze_until + 1, b.window_end) - greatest(f.freeze_from, b.window_start)
         )
-      ), 0)::int as frozen_days
+      ) filter (where f.freeze_from is not null), 0)::int as frozen_days
     from bounds b
     left join public.subscription_freezes f
       on f.subscription_id = p_subscription_id
