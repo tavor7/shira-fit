@@ -186,7 +186,7 @@ export function MoveParticipantSheet({
     if (!result.ok) {
       showToast({
         message: t("moveParticipant.failed"),
-        detail: moveParticipantErrorDetail(result.error, t),
+        detail: moveParticipantErrorDetail(result.error, t, result.reason),
         variant: "error",
       });
       return;

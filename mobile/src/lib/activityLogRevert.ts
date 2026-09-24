@@ -93,6 +93,32 @@ export function activityRevertReasonLabel(reason: string, language: string): str
   return reason;
 }
 
+/** Label for the subscription_limit_exceeded warning surfaced when undoing a cancellation would
+ * restore a registration that no longer fits the athlete's subscription (see
+ * manager_revert_activity_event's session_registration_status_changed case). */
+export function activityRevertSubscriptionWarningLabel(reason: string | undefined, language: string): string {
+  const he = language === "he";
+  const map: Record<string, { en: string; he: string }> = {
+    frozen: {
+      en: "This athlete's subscription is frozen for that date. Undoing will create a paid session instead.",
+      he: "המנוי של המתאמן מוקפא לתאריך הזה. הביטול ייצור אימון בתשלום במקום.",
+    },
+    tier_not_included: {
+      en: "This session type isn't included in the athlete's subscription. Undoing will create a paid session instead.",
+      he: "סוג האימון הזה לא כלול במנוי של המתאמן. הביטול ייצור אימון בתשלום במקום.",
+    },
+    allowance_exceeded: {
+      en: "This would exceed the athlete's weekly subscription allowance. Undoing will create a paid session instead.",
+      he: "הפעולה תחרוג ממכסת המנוי השבועית של המתאמן. הביטול ייצור אימון בתשלום במקום.",
+    },
+  };
+  const m = reason ? map[reason] : undefined;
+  if (m) return he ? m.he : m.en;
+  return he
+    ? "הפעולה תשפיע על המנוי של המתאמן ותיצור אימון בתשלום."
+    : "This would affect the athlete's subscription and create a paid session.";
+}
+
 function hasChanges(metadata: Record<string, unknown>): boolean {
   const changes = metadata.changes;
   return !!changes && typeof changes === "object" && Object.keys(changes as object).length > 0;

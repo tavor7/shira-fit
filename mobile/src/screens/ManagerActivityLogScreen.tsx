@@ -15,7 +15,11 @@ import { FadeSlideIn } from "../components/FadeSlideIn";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AppModal } from "../components/AppModal";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
-import { activityEventLooksRevertible, activityRevertReasonLabel } from "../lib/activityLogRevert";
+import {
+  activityEventLooksRevertible,
+  activityRevertReasonLabel,
+  activityRevertSubscriptionWarningLabel,
+} from "../lib/activityLogRevert";
 import {
   activityLogEventLabel,
   buildActivityLogDetailLines,
@@ -426,13 +430,30 @@ export default function ManagerActivityLogScreen() {
   }
 
   function requestRevert(item: Row) {
-    const run = async () => {
+    const run = async (acceptExtraSubscriptionCharge = false) => {
       setRevertingId(item.id);
       try {
-        const { data, error } = await supabase.rpc("manager_revert_activity_event", { p_event_id: item.id });
+        const { data, error } = await supabase.rpc("manager_revert_activity_event", {
+          p_event_id: item.id,
+          p_accept_extra_subscription_charge: acceptExtraSubscriptionCharge,
+        });
         if (error) throw error;
-        const parsed = data as { ok?: boolean; error?: string };
+        const parsed = data as { ok?: boolean; error?: string; reason?: string };
         if (!parsed?.ok) {
+          // Undo is not consent: restoring a cancelled registration that no longer fits the
+          // athlete's subscription requires an explicit second confirmation before it can
+          // complete as a paid/extra registration — same warn-then-retry shape used for moves.
+          if (parsed?.error === "subscription_limit_exceeded" && !acceptExtraSubscriptionCharge) {
+            showConfirm({
+              title: t("activityLog.revertSubscriptionWarningTitle"),
+              message: activityRevertSubscriptionWarningLabel(parsed.reason, language),
+              cancelLabel: t("common.cancel"),
+              confirmLabel: t("activityLog.revertAction"),
+              confirmVariant: "danger",
+              onConfirm: () => void run(true),
+            });
+            return;
+          }
           const reason = parsed?.error ?? "not_revertible";
           showOk(t("common.error"), activityRevertReasonLabel(reason, language));
           return;

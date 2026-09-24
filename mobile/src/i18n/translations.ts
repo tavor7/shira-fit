@@ -897,6 +897,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "moveParticipant.errorRosterLocked": "Clear attendance and payment before moving.",
     "moveParticipant.errorAccountDisabled": "This athlete's account is disabled for that date.",
     "moveParticipant.errorForbidden": "You don't have permission for that session.",
+    "moveParticipant.errorSubscriptionFrozen": "This athlete's subscription is frozen for that date.",
+    "moveParticipant.errorSubscriptionTierNotIncluded": "This session type isn't included in the athlete's subscription.",
+    "moveParticipant.errorSubscriptionAllowanceExceeded": "This would exceed the athlete's weekly subscription allowance.",
+    "moveParticipant.errorSubscriptionGeneric": "This move would affect the athlete's subscription. Please review before moving.",
     "a11y.appLogo": "Shira Fit logo",
     "a11y.loginError": "Login error",
 
@@ -1310,6 +1314,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "activityLog.revertConfirmBody": "This will undo the logged change where possible. You cannot revert the same entry twice.",
     "activityLog.revertDone": "Action reverted.",
     "activityLog.revertFailed": "Could not revert this action.",
+    "activityLog.revertSubscriptionWarningTitle": "This affects a subscription",
     "activityLog.revertedBadge": "Reverted",
 
     "homeAlerts.staffWaitlistFreeSpot": "Waitlist + free spot: {date} · {time}",
@@ -2301,6 +2306,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "moveParticipant.errorRosterLocked": "נקו נוכחות ותשלום לפני העברה.",
     "moveParticipant.errorAccountDisabled": "חשבון המתאמן מושבת לתאריך הזה.",
     "moveParticipant.errorForbidden": "אין הרשאה לאימון הזה.",
+    "moveParticipant.errorSubscriptionFrozen": "המנוי של המתאמן מוקפא לתאריך הזה.",
+    "moveParticipant.errorSubscriptionTierNotIncluded": "סוג האימון הזה לא כלול במנוי של המתאמן.",
+    "moveParticipant.errorSubscriptionAllowanceExceeded": "המעבר יחרוג ממכסת המנוי השבועית של המתאמן.",
+    "moveParticipant.errorSubscriptionGeneric": "המעבר ישפיע על המנוי של המתאמן. יש לבדוק לפני ההעברה.",
     "a11y.appLogo": "לוגו Shira Fit",
     "a11y.loginError": "שגיאת התחברות",
 
@@ -2713,6 +2722,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "activityLog.revertConfirmBody": "השינוי יבוטל ככל האפשר לפי הרישום. לא ניתן לבטל את אותה רשומה פעמיים.",
     "activityLog.revertDone": "הפעולה בוטלה.",
     "activityLog.revertFailed": "לא ניתן לבטל את הפעולה.",
+    "activityLog.revertSubscriptionWarningTitle": "הפעולה משפיעה על מנוי",
     "activityLog.revertedBadge": "בוטל",
 
     "homeAlerts.staffWaitlistFreeSpot": "רשימת המתנה + מקום פנוי: {date} · {time}",

@@ -1,5 +1,5 @@
 /** User-facing detail for staff_move_session_participant RPC error codes. */
-export function moveParticipantErrorDetail(code: string, t: (key: string) => string): string {
+export function moveParticipantErrorDetail(code: string, t: (key: string) => string, reason?: string): string {
   switch (code) {
     case "full":
       return t("moveParticipant.errorFull");
@@ -19,6 +19,17 @@ export function moveParticipantErrorDetail(code: string, t: (key: string) => str
       return t("moveParticipant.errorAccountDisabled");
     case "forbidden":
       return t("moveParticipant.errorForbidden");
+    case "subscription_limit_exceeded":
+      switch (reason) {
+        case "frozen":
+          return t("moveParticipant.errorSubscriptionFrozen");
+        case "tier_not_included":
+          return t("moveParticipant.errorSubscriptionTierNotIncluded");
+        case "allowance_exceeded":
+          return t("moveParticipant.errorSubscriptionAllowanceExceeded");
+        default:
+          return t("moveParticipant.errorSubscriptionGeneric");
+      }
     default:
       return code;
   }
