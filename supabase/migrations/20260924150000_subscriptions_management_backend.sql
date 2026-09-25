@@ -17,12 +17,31 @@
 --     a payee who already has a non-tombstoned subscription whose CURRENT version's display status
 --     (as of the new subscription's start date) is not 'stopped' or 'completed' — i.e. active,
 --     frozen, or scheduled lineages block a second concurrent lineage; stopped/completed do not.
---  3. is_unlimited: Phase 1-2 defined subscription_versions.is_unlimited but nothing in the
---     registration/reconciliation path (subscription_effective_context, subscription_reserve_or_
---     reject) ever reads it — allowance enforcement is 100% driven by
---     subscription_version_allowances.weekly_limit. To honor "unlimited" without touching that
---     tested Phase 2 logic, create/edit store is_unlimited for display purposes AND force every
---     tier's weekly_limit to a large sentinel (100000) when is_unlimited = true.
+--  3. [REVISED — pre-merge review round 2] has_no_end_date (renamed from is_unlimited in
+--     20260924146000_subscriptions_has_no_end_date.sql): re-inspection of the plan confirmed
+--     "unlimited / no end" refers exclusively to subscription DURATION (paired with plan_end_date
+--     in the plan's own field list, feeding subscription_version_display_status's 'completed'
+--     check), never to weekly session allowances. The original Phase 4A draft's 100000-sentinel
+--     workaround conflated the two and has been REMOVED ENTIRELY. has_no_end_date is now a
+--     GENERATED column (plan_end_date IS NULL) — no RPC ever sets it directly; a new p_clear_end_date
+--     boolean (create/edit) explicitly controls only plan_end_date, never weekly_limit. Weekly
+--     allowance is always stored exactly as configured, indefinitely, regardless of duration.
+--  3b. [Added — pre-merge review round 2] In-place version edits are now gated by an actual
+--     dependency check, not just date equality: edit_subscription_version/subscription_compute_impact
+--     query subscription_billing_periods.version_id and subscription_registration_coverage.version_id
+--     (the only two tables that reference subscription_versions.id — re-verified fresh against the
+--     live schema, see inline comment at the check site) before allowing an in-place update. If the
+--     version already has such history, the edit instead closes it with effective_to = its own
+--     effective_from (a relaxed, explicitly-safe zero-width case — see
+--     20260924146000_subscriptions_has_no_end_date.sql's constraint-relaxation comment for the proof
+--     that a zero-width version can never match any real billing segment) and inserts a genuinely new
+--     version, preserving the original row completely unmutated for audit purposes.
+--  3c. [Added — pre-merge review round 2] source_event_id for edit_subscription_version is now a hash
+--     of the FULL business payload (price, plan_end_date, clear_end_date, allowances), not just
+--     subscription+date, so two distinct edits effective on the same date never collide into a false
+--     "retry". freeze_subscription/stop_subscription's existing keys were re-audited and found already
+--     complete (freeze_from+freeze_until and stop_date respectively ARE their entire payload — no
+--     other business field varies independently), so those are unchanged.
 --  4. Family members are NOT a third payee kind: athlete_family_members (20260628000000) wraps an
 --     existing profiles.user_id or manual_participants.id purely for aggregated display; the
 --     existing payee_id/payee_is_manual dual-payee convention already covers a family member
@@ -99,7 +118,7 @@ create or replace function public.subscription_compute_impact(
   p_new_effective_from date default null,
   p_new_price numeric default null,
   p_new_plan_end_date date default null,
-  p_new_is_unlimited boolean default null,
+  p_clear_end_date boolean default false,
   p_new_allowances jsonb default null
 )
 returns jsonb
@@ -115,6 +134,8 @@ declare
   v_range_start date;
   v_items jsonb := '[]'::jsonb;
   v_count int := 0;
+  v_has_history boolean;
+  v_new_plan_end_date date;
   r record;
   v_after public.subscription_registration_coverage%rowtype;
 begin
@@ -170,39 +191,96 @@ begin
       where id = v_current.id;
 
     elsif p_action_type = 'edit' then
-      if p_new_effective_from <= v_current.effective_from then
-        -- "From the beginning" mode targeting a date at/before the current version's own
-        -- effective_from: there is no actual prior period under v_current to preserve (the
-        -- window [effective_from, p_new_effective_from) would be empty or negative-length, which
-        -- subscription_versions_dates_chk correctly forbids as a zero/negative-width version), so
-        -- update v_current's fields in place rather than opening a degenerate predecessor. This is
-        -- not "mutating history" in the sense the plan guards against: no billing period or
-        -- coverage decision could ever reference a window that never had any duration.
-        update public.subscription_versions
-        set monthly_price_ils = coalesce(p_new_price, v_current.monthly_price_ils),
-            plan_end_date = coalesce(p_new_plan_end_date, v_current.plan_end_date),
-            is_unlimited = coalesce(p_new_is_unlimited, v_current.is_unlimited)
-        where id = v_current.id;
-        v_new_version_id := v_current.id;
+      v_new_plan_end_date := case when p_clear_end_date then null else coalesce(p_new_plan_end_date, v_current.plan_end_date) end;
 
-        if p_new_allowances is not null then
-          delete from public.subscription_version_allowances where version_id = v_current.id;
-          insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
-          select v_current.id, (a->>'tier')::public.subscription_tier,
-                 case when coalesce(p_new_is_unlimited, v_current.is_unlimited) then 100000
-                      else (a->>'weekly_limit')::int end
-          from jsonb_array_elements(p_new_allowances) a;
-        elsif coalesce(p_new_is_unlimited, false) and not v_current.is_unlimited then
-          update public.subscription_version_allowances set weekly_limit = 100000 where version_id = v_current.id;
+      if p_new_effective_from < v_current.effective_from then
+        -- Targets a date before the current version even started (either before the subscription
+        -- existed at all, or inside an older, already-superseded version) — not supported by this
+        -- RPC; "from the beginning" always means the CURRENT version's own effective_from (see the
+        -- p_new_effective_from = v_current.effective_from branch below), never an earlier one.
+        return jsonb_build_object('ok', false, 'error', 'effective_from_before_current_version');
+      end if;
+
+      if p_new_effective_from = v_current.effective_from then
+        -- Re-verified fresh against the live schema (not assumed from the earlier Phase 4A pass):
+        -- the only two tables that reference subscription_versions.id are
+        -- subscription_billing_periods.version_id and subscription_registration_coverage.version_id
+        -- (subscription_version_allowances also references it, but every version — including a
+        -- brand-new one, immediately after creation — always has allowance rows; that is
+        -- configuration, not history, and is deliberately excluded from this check).
+        select exists (
+          select 1 from public.subscription_billing_periods where version_id = v_current.id
+          union all
+          select 1 from public.subscription_registration_coverage where version_id = v_current.id
+        ) into v_has_history;
+
+        if not v_has_history then
+          -- Case (a): truly brand-new version, nothing depends on it yet — safe to update in place.
+          -- No billing period or coverage decision could ever reference a window that never existed.
+          update public.subscription_versions
+          set monthly_price_ils = coalesce(p_new_price, v_current.monthly_price_ils),
+              plan_end_date = v_new_plan_end_date
+          where id = v_current.id;
+          v_new_version_id := v_current.id;
+
+          if p_new_allowances is not null then
+            delete from public.subscription_version_allowances where version_id = v_current.id;
+            insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
+            select v_current.id, (a->>'tier')::public.subscription_tier, (a->>'weekly_limit')::int
+            from jsonb_array_elements(p_new_allowances) a;
+          end if;
+        else
+          -- Case (b): history already exists against this exact version. Do NOT mutate it in place
+          -- (that would silently rewrite what billing/coverage already recorded as true). Instead
+          -- close it with effective_to = its OWN effective_from — a deliberate, explicitly-safe
+          -- zero-width case (see 20260924146000's constraint-relaxation comment: a zero-width
+          -- version can never match any real billing segment, so this is provably inert for
+          -- pricing/coverage) — and insert a genuinely new version at that same date. The original
+          -- row's own fields (price, dates, id) are never touched, preserving full auditability;
+          -- "from the beginning" semantics are honored because the new version's effective_from
+          -- equals the subscription's own start, and the normal correction loop below re-prices
+          -- every existing billing period under the new version.
+          update public.subscription_versions
+          set effective_to = p_new_effective_from
+          where id = v_current.id;
+
+          insert into public.subscription_versions (
+            subscription_id, version_no, effective_from, monthly_price_ils, anchor_day,
+            plan_start_date, plan_end_date, created_by
+          ) values (
+            p_subscription_id,
+            (select coalesce(max(version_no), 0) + 1 from public.subscription_versions where subscription_id = p_subscription_id),
+            p_new_effective_from,
+            coalesce(p_new_price, v_current.monthly_price_ils),
+            v_current.anchor_day,
+            v_current.plan_start_date,
+            v_new_plan_end_date,
+            v_current.created_by
+          ) returning id into v_new_version_id;
+
+          update public.subscription_versions set superseded_by = v_new_version_id where id = v_current.id;
+
+          if p_new_allowances is not null then
+            insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
+            select v_new_version_id, (a->>'tier')::public.subscription_tier, (a->>'weekly_limit')::int
+            from jsonb_array_elements(p_new_allowances) a;
+          else
+            insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
+            select v_new_version_id, tier, weekly_limit
+            from public.subscription_version_allowances where version_id = v_current.id;
+          end if;
         end if;
       else
+        -- p_new_effective_from > v_current.effective_from: the normal "from a specific date" path,
+        -- which may fall inside an already-generated billing period — Phase 3's segmentation engine
+        -- handles that automatically via the correction loop below.
         update public.subscription_versions
         set effective_to = p_new_effective_from
         where id = v_current.id;
 
         insert into public.subscription_versions (
           subscription_id, version_no, effective_from, monthly_price_ils, anchor_day,
-          plan_start_date, plan_end_date, is_unlimited, created_by
+          plan_start_date, plan_end_date, created_by
         ) values (
           p_subscription_id,
           (select coalesce(max(version_no), 0) + 1 from public.subscription_versions where subscription_id = p_subscription_id),
@@ -210,8 +288,7 @@ begin
           coalesce(p_new_price, v_current.monthly_price_ils),
           v_current.anchor_day,
           v_current.plan_start_date,
-          coalesce(p_new_plan_end_date, v_current.plan_end_date),
-          coalesce(p_new_is_unlimited, v_current.is_unlimited),
+          v_new_plan_end_date,
           v_current.created_by
         ) returning id into v_new_version_id;
 
@@ -219,14 +296,11 @@ begin
 
         if p_new_allowances is not null then
           insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
-          select v_new_version_id, (a->>'tier')::public.subscription_tier,
-                 case when coalesce(p_new_is_unlimited, v_current.is_unlimited) then 100000
-                      else (a->>'weekly_limit')::int end
+          select v_new_version_id, (a->>'tier')::public.subscription_tier, (a->>'weekly_limit')::int
           from jsonb_array_elements(p_new_allowances) a;
         else
           insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
-          select v_new_version_id, tier,
-                 case when coalesce(p_new_is_unlimited, v_current.is_unlimited) then 100000 else weekly_limit end
+          select v_new_version_id, tier, weekly_limit
           from public.subscription_version_allowances where version_id = v_current.id;
         end if;
       end if;
@@ -306,8 +380,7 @@ create or replace function public.create_subscription(
   p_payee_is_manual boolean,
   p_monthly_price_ils numeric,
   p_start_date date,
-  p_end_date date default null,
-  p_is_unlimited boolean default false,
+  p_end_date date default null, -- null = no end date (has_no_end_date derives to true); never affects allowances
   p_anchor_day smallint default null,
   p_allowances jsonb default '[]'::jsonb -- [{"tier":"pair","weekly_limit":2}, ...]
 )
@@ -378,15 +451,16 @@ begin
 
   insert into public.subscription_versions (
     subscription_id, version_no, effective_from, monthly_price_ils, anchor_day,
-    plan_start_date, plan_end_date, is_unlimited, created_by
+    plan_start_date, plan_end_date, created_by
   ) values (
     v_subscription_id, 1, p_start_date, p_monthly_price_ils, v_anchor,
-    p_start_date, p_end_date, coalesce(p_is_unlimited, false), v_uid
+    p_start_date, p_end_date, v_uid
   ) returning id into v_version_id;
 
   -- Normalize allowances: exactly one row per subscription_tier, defaulting an unspecified tier to
   -- weekly_limit 0 (tier not included), validating each supplied entry is a real tier with a
-  -- non-negative integer limit. is_unlimited forces every tier to the sentinel (see header §3).
+  -- non-negative integer limit. Stored exactly as configured, regardless of duration/end-date —
+  -- has_no_end_date (derived from p_end_date) never affects weekly_limit in any way.
   for v_tier in select unnest(enum_range(null::public.subscription_tier)) loop
     v_limit := 0;
     for a in select * from jsonb_array_elements(coalesce(p_allowances, '[]'::jsonb)) loop
@@ -396,9 +470,6 @@ begin
     end loop;
     if v_limit is null or v_limit < 0 then
       return json_build_object('ok', false, 'error', 'invalid_allowance', 'tier', v_tier::text);
-    end if;
-    if coalesce(p_is_unlimited, false) then
-      v_limit := 100000;
     end if;
     insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
     values (v_version_id, v_tier, v_limit);
@@ -420,12 +491,14 @@ begin
 end;
 $$;
 
-comment on function public.create_subscription(uuid, boolean, numeric, date, date, boolean, smallint, jsonb) is
+comment on function public.create_subscription(uuid, boolean, numeric, date, date, smallint, jsonb) is
   'Manager-only. Creates a new subscription lineage (subscriptions + first subscription_versions + '
   'subscription_version_allowances row), rejecting a conflicting non-tombstoned lineage for the '
-  'same payee, then invokes the existing Phase 3 billing engine for the first period if due today.';
+  'same payee, then invokes the existing Phase 3 billing engine for the first period if due today. '
+  'p_end_date = null means no end date (has_no_end_date derives to true); this never affects '
+  'p_allowances, which is always stored exactly as configured.';
 
-grant execute on function public.create_subscription(uuid, boolean, numeric, date, date, boolean, smallint, jsonb) to authenticated;
+grant execute on function public.create_subscription(uuid, boolean, numeric, date, date, smallint, jsonb) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 3. Read/list RPCs — manager-only. Tombstoned subscriptions never appear as a manageable entry
@@ -446,7 +519,7 @@ returns table (
   anchor_day smallint,
   plan_start_date date,
   plan_end_date date,
-  is_unlimited boolean,
+  has_no_end_date boolean,
   next_billing_date date,
   is_frozen boolean,
   current_weekly_limits jsonb
@@ -477,7 +550,7 @@ begin
     v.anchor_day,
     v.plan_start_date,
     v.plan_end_date,
-    v.is_unlimited,
+    v.has_no_end_date,
     public.subscription_next_anchor_date(v.anchor_day, coalesce(
       (select max(bp.period_start) from public.subscription_billing_periods bp where bp.subscription_id = s.id),
       v.plan_start_date - 1
@@ -639,7 +712,7 @@ create or replace function public.edit_subscription_version(
   p_effective_from date,
   p_new_price numeric default null,
   p_new_plan_end_date date default null,
-  p_new_is_unlimited boolean default null,
+  p_clear_end_date boolean default false, -- explicit "remove end date" intent; NEVER touches allowances
   p_new_allowances jsonb default null,
   p_confirmed boolean default false
 )
@@ -653,6 +726,8 @@ declare
   v_current public.subscription_versions%rowtype;
   v_impact jsonb;
   v_new_version_id uuid;
+  v_new_plan_end_date date;
+  v_has_history boolean;
   v_rows int;
   r record;
   v_res json;
@@ -680,7 +755,7 @@ begin
   v_impact := public.subscription_compute_impact(
     p_subscription_id, 'edit',
     null, null, null,
-    p_effective_from, p_new_price, p_new_plan_end_date, p_new_is_unlimited, p_new_allowances
+    p_effective_from, p_new_price, p_new_plan_end_date, p_clear_end_date, p_new_allowances
   );
   if not coalesce((v_impact->>'ok')::boolean, false) then
     return jsonb_build_object('ok', false, 'error', v_impact->>'error')::json;
@@ -690,41 +765,102 @@ begin
     return json_build_object('ok', true, 'action', 'preview', 'impact', v_impact);
   end if;
 
-  -- Idempotency: a confirmed retry of the exact same edit (same subscription + effective_from) is
-  -- recognized via subscription_impact_events' (subscription_id, action_type, action_source_id)
-  -- uniqueness, keyed by a deterministic id derived from subscription_id+effective_from so a
-  -- retried client call converges rather than creating a second version row.
+  v_new_plan_end_date := case when p_clear_end_date then null else coalesce(p_new_plan_end_date, v_current.plan_end_date) end;
+
+  -- Idempotency (fixed — pre-merge review round 2): the key MUST distinguish a true retry of the
+  -- identical request from a genuinely distinct edit that happens to share a subscription/date.
+  -- Hashing subscription+action+date ALONE (the original design) collapsed two different edits
+  -- effective on the same date into one "operation" — e.g. price 300 then a later, deliberate
+  -- price 350 correction for the same date would have been misread as a retry of the first and
+  -- silently dropped. The key now incorporates every business-relevant field actually being
+  -- changed (price, resulting plan_end_date, and the canonical text form of the allowances jsonb,
+  -- which is stable/order-independent since Postgres normalizes jsonb on parse) so two payloads
+  -- differing in ANY of those fields always produce different keys, while two calls with an
+  -- identical payload converge to the same key (a true retry).
   declare
-    v_source_id uuid := md5(p_subscription_id::text || '|edit|' || p_effective_from::text)::uuid;
+    v_source_id uuid := md5(
+      p_subscription_id::text || '|edit|' || p_effective_from::text || '|' ||
+      coalesce(p_new_price::text, 'null') || '|' ||
+      coalesce(v_new_plan_end_date::text, 'null') || '|' ||
+      coalesce(p_new_allowances::text, 'null')
+    )::uuid;
   begin
     if exists (select 1 from public.subscription_impact_events where subscription_id = p_subscription_id
                and action_type = 'edit' and action_source_id = v_source_id and confirmed = true) then
       return json_build_object('ok', true, 'action', 'already_applied');
     end if;
 
-    -- Apply for real. See the matching comment in subscription_compute_impact: an effective_from
-    -- at/before the current version's own effective_from has no actual prior period to preserve
-    -- (the schema's own dates_chk forbids a zero/negative-width version), so it updates v_current
-    -- in place instead of opening a degenerate predecessor. Anything strictly after goes through
-    -- the normal close-and-insert-new-version path (which subscription_compute_impact just proved,
-    -- under the same branch, produces the recomputed impact above).
-    if p_effective_from <= v_current.effective_from then
-      update public.subscription_versions
-      set monthly_price_ils = coalesce(p_new_price, v_current.monthly_price_ils),
-          plan_end_date = coalesce(p_new_plan_end_date, v_current.plan_end_date),
-          is_unlimited = coalesce(p_new_is_unlimited, v_current.is_unlimited)
-      where id = v_current.id;
-      v_new_version_id := v_current.id;
+    if p_effective_from < v_current.effective_from then
+      return json_build_object('ok', false, 'error', 'effective_from_before_current_version');
+    end if;
 
-      if p_new_allowances is not null then
-        delete from public.subscription_version_allowances where version_id = v_current.id;
-        insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
-        select v_current.id, (a->>'tier')::public.subscription_tier,
-               case when coalesce(p_new_is_unlimited, v_current.is_unlimited) then 100000
-                    else (a->>'weekly_limit')::int end
-        from jsonb_array_elements(p_new_allowances) a;
-      elsif coalesce(p_new_is_unlimited, false) and not v_current.is_unlimited then
-        update public.subscription_version_allowances set weekly_limit = 100000 where version_id = v_current.id;
+    if p_effective_from = v_current.effective_from then
+      -- Safety check (fixed — pre-merge review round 2): re-verified fresh against the live schema
+      -- that the only two tables referencing subscription_versions.id are
+      -- subscription_billing_periods.version_id and subscription_registration_coverage.version_id
+      -- (subscription_version_allowances also references it, but every version has allowance rows
+      -- immediately upon creation — that is configuration, not history, and is excluded here).
+      select exists (
+        select 1 from public.subscription_billing_periods where version_id = v_current.id
+        union all
+        select 1 from public.subscription_registration_coverage where version_id = v_current.id
+      ) into v_has_history;
+
+      if not v_has_history then
+        -- Case (a): brand-new version, nothing depends on it yet — safe to update in place.
+        update public.subscription_versions
+        set monthly_price_ils = coalesce(p_new_price, v_current.monthly_price_ils),
+            plan_end_date = v_new_plan_end_date
+        where id = v_current.id;
+        v_new_version_id := v_current.id;
+
+        if p_new_allowances is not null then
+          delete from public.subscription_version_allowances where version_id = v_current.id;
+          insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
+          select v_current.id, (a->>'tier')::public.subscription_tier, (a->>'weekly_limit')::int
+          from jsonb_array_elements(p_new_allowances) a;
+        end if;
+      else
+        -- Case (b): history already exists against this exact version. Never mutate it in place —
+        -- close it with effective_to = its OWN effective_from (a deliberate, explicitly-safe
+        -- zero-width case; see 20260924146000's constraint-relaxation comment for the proof that a
+        -- zero-width version can never match any real billing segment) and insert a genuinely new
+        -- version at that same date. The original row's fields are never touched, preserving full
+        -- auditability, while "from the beginning" semantics and correct corrections are honored
+        -- via the normal reconcile/billing-correction steps below.
+        update public.subscription_versions
+        set effective_to = p_effective_from
+        where id = v_current.id and effective_to is null;
+        get diagnostics v_rows = row_count;
+        if v_rows = 0 then
+          return json_build_object('ok', false, 'error', 'concurrent_modification');
+        end if;
+
+        insert into public.subscription_versions (
+          subscription_id, version_no, effective_from, monthly_price_ils, anchor_day,
+          plan_start_date, plan_end_date, created_by
+        ) values (
+          p_subscription_id,
+          (select coalesce(max(version_no), 0) + 1 from public.subscription_versions where subscription_id = p_subscription_id),
+          p_effective_from,
+          coalesce(p_new_price, v_current.monthly_price_ils),
+          v_current.anchor_day,
+          v_current.plan_start_date,
+          v_new_plan_end_date,
+          v_uid
+        ) returning id into v_new_version_id;
+
+        update public.subscription_versions set superseded_by = v_new_version_id where id = v_current.id;
+
+        if p_new_allowances is not null then
+          insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
+          select v_new_version_id, (a->>'tier')::public.subscription_tier, (a->>'weekly_limit')::int
+          from jsonb_array_elements(p_new_allowances) a;
+        else
+          insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
+          select v_new_version_id, tier, weekly_limit
+          from public.subscription_version_allowances where version_id = v_current.id;
+        end if;
       end if;
     else
       update public.subscription_versions
@@ -737,7 +873,7 @@ begin
 
       insert into public.subscription_versions (
         subscription_id, version_no, effective_from, monthly_price_ils, anchor_day,
-        plan_start_date, plan_end_date, is_unlimited, created_by
+        plan_start_date, plan_end_date, created_by
       ) values (
         p_subscription_id,
         (select coalesce(max(version_no), 0) + 1 from public.subscription_versions where subscription_id = p_subscription_id),
@@ -745,8 +881,7 @@ begin
         coalesce(p_new_price, v_current.monthly_price_ils),
         v_current.anchor_day,
         v_current.plan_start_date,
-        coalesce(p_new_plan_end_date, v_current.plan_end_date),
-        coalesce(p_new_is_unlimited, v_current.is_unlimited),
+        v_new_plan_end_date,
         v_uid
       ) returning id into v_new_version_id;
 
@@ -754,14 +889,11 @@ begin
 
       if p_new_allowances is not null then
         insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
-        select v_new_version_id, (a->>'tier')::public.subscription_tier,
-               case when coalesce(p_new_is_unlimited, v_current.is_unlimited) then 100000
-                    else (a->>'weekly_limit')::int end
+        select v_new_version_id, (a->>'tier')::public.subscription_tier, (a->>'weekly_limit')::int
         from jsonb_array_elements(p_new_allowances) a;
       else
         insert into public.subscription_version_allowances (version_id, tier, weekly_limit)
-        select v_new_version_id, tier,
-               case when coalesce(p_new_is_unlimited, v_current.is_unlimited) then 100000 else weekly_limit end
+        select v_new_version_id, tier, weekly_limit
         from public.subscription_version_allowances where version_id = v_current.id;
       end if;
     end if;
@@ -778,7 +910,8 @@ begin
 
     -- Billing corrections for every existing billing period that overlaps the new version's
     -- effective window, through the Phase 3 correction engine, keyed to this edit's deterministic
-    -- source_event_id (idempotent — a retry converges to 'unchanged'/'already_corrected').
+    -- (now payload-inclusive) source_event_id (idempotent — a retry converges to
+    -- 'unchanged'/'already_corrected').
     for r in
       select bp.id, bp.period_start, bp.period_end
       from public.subscription_billing_periods bp
@@ -805,10 +938,13 @@ $$;
 
 comment on function public.edit_subscription_version(uuid, date, numeric, date, boolean, jsonb, boolean) is
   'Manager-only. Mandatory impact-preview/p_confirmed pattern: recomputes impact via '
-  'subscription_compute_impact both for the initial preview and again at confirm time, closes the '
-  'current version and inserts a new one (never mutates history in place), reconciles affected '
-  'weeks, and corrects overlapping billing periods via the Phase 3 engine, keyed to a deterministic '
-  'source_event_id for idempotency.';
+  'subscription_compute_impact both for the initial preview and again at confirm time. Never '
+  'mutates a version with existing billing/coverage history in place (closes it at a verified-safe '
+  'zero-width boundary and inserts a new one instead — see inline comments); a brand-new version '
+  'with no history yet may be updated in place. Reconciles affected weeks and corrects overlapping '
+  'billing periods via the Phase 3 engine, keyed to a source_event_id that hashes the FULL business '
+  'payload (price/plan_end_date/allowances), not just subscription+date, so distinct same-date '
+  'edits never collide. p_clear_end_date explicitly controls only plan_end_date, never allowances.';
 
 grant execute on function public.edit_subscription_version(uuid, date, numeric, date, boolean, jsonb, boolean) to authenticated;
 
@@ -1128,12 +1264,15 @@ begin
   values (v_src_sub.payee_id, v_src_sub.payee_is_manual, v_uid)
   returning id into v_new_sub_id;
 
+  -- p_end_date (this call's own parameter) independently controls the new lineage's duration —
+  -- has_no_end_date derives automatically (generated column); the source's own has_no_end_date is
+  -- never copied, matching "Requires new start date and optional end date ... from caller".
   insert into public.subscription_versions (
     subscription_id, version_no, effective_from, monthly_price_ils, anchor_day,
-    plan_start_date, plan_end_date, is_unlimited, created_by
+    plan_start_date, plan_end_date, created_by
   ) values (
     v_new_sub_id, 1, p_start_date, v_src_version.monthly_price_ils, v_src_version.anchor_day,
-    p_start_date, p_end_date, v_src_version.is_unlimited, v_uid
+    p_start_date, p_end_date, v_uid
   ) returning id into v_new_version_id;
 
   -- Copies price/allowances/plan settings only — never freezes, charges, coverage, or billing

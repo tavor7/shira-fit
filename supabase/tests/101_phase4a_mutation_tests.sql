@@ -31,7 +31,7 @@ begin
     (v_athlete, 'p4a_ath', 'P4A Athlete', '9003', 'athlete', 'approved');
 
   perform set_config('app.current_uid', v_manager::text, true);
-  v_res := public.create_subscription(v_athlete, false, 300, v_start, null, false, extract(day from v_start)::smallint,
+  v_res := public.create_subscription(v_athlete, false, 300, v_start, null, extract(day from v_start)::smallint,
     jsonb_build_array(jsonb_build_object('tier', 'pair', 'weekly_limit', 1)));
   if not coalesce((v_res->>'ok')::boolean, false) then
     raise exception 'FIXTURE FAILED create_subscription: %', v_res;
@@ -203,14 +203,15 @@ begin
   raise notice 'T10 PASSED: confirmed-edit retry is idempotent (already_applied, no duplicate rows)';
 end $$;
 
--- === T10b: "from the beginning" edit (effective_from == the current version's own effective_from)
---     updates the sole version IN PLACE rather than opening a zero-width predecessor (a real bug
---     found during Phase 4A testing: the naive close+insert design violated
---     subscription_versions_dates_chk whenever effective_from == v_current.effective_from). ===
+-- === T10b: case (a) — a version with NO history yet (verified via an actual dependency check, not
+--     just date equality) is safe to update in place. Uses a FUTURE start date specifically so
+--     create_subscription's own immediate-billing call does NOT fire (a past/today start date
+--     always creates a billing_periods row immediately, which is real history — see T10c below for
+--     that far more common case). ===
 do $$
 declare
   v_manager uuid; v_athlete uuid; v_sub uuid; v_ver_before uuid; v_res json;
-  v_start date := current_date - 30;
+  v_start date := current_date + 30; -- future: no immediate billing, genuinely no history yet
   v_version_count int; v_price numeric;
 begin
   select v into v_manager from _p4a_ids where k = 'manager';
@@ -220,18 +221,22 @@ begin
   insert into profiles (user_id, username, full_name, phone, role, approval_status)
   values (v_athlete, 'p4a_ath_inplace', 'P4A Athlete InPlace', '9010', 'athlete', 'approved');
 
-  v_res := public.create_subscription(v_athlete, false, 200, v_start, null, false, extract(day from v_start)::smallint, '[]'::jsonb);
+  v_res := public.create_subscription(v_athlete, false, 200, v_start, null, extract(day from v_start)::smallint, '[]'::jsonb);
   v_sub := (v_res->>'subscription_id')::uuid;
   select id into v_ver_before from subscription_versions where subscription_id = v_sub;
 
+  if exists (select 1 from subscription_billing_periods where subscription_id = v_sub) then
+    raise exception 'T10b FIXTURE FAILED: future-dated subscription should have zero billing periods yet';
+  end if;
+
   -- Edit "from the beginning" == the version's own effective_from, with no impact (no
   -- registrations at all yet), so it applies immediately without needing p_confirmed.
-  v_res := public.edit_subscription_version(v_sub, v_start, 250, null, null, null, false);
+  v_res := public.edit_subscription_version(v_sub, v_start, 250, null, false, null, false);
   if v_res->>'action' <> 'applied' then
     raise exception 'T10b FAILED: expected immediate apply (no impact), got %', v_res;
   end if;
   if (v_res->>'version_id')::uuid <> v_ver_before then
-    raise exception 'T10b2 FAILED: expected the SAME version id to be reused (in-place update), got new id %', v_res;
+    raise exception 'T10b2 FAILED: expected the SAME version id to be reused (in-place update, no history), got %', v_res;
   end if;
 
   select count(*) into v_version_count from subscription_versions where subscription_id = v_sub;
@@ -244,7 +249,77 @@ begin
     raise exception 'T10b4 FAILED: expected price updated to 250 in place, got %', v_price;
   end if;
 
-  raise notice 'T10b PASSED: from-the-beginning edit at the version''s own effective_from updates in place, no degenerate version created';
+  raise notice 'T10b PASSED: case (a) no-history version updates in place, verified via a real dependency check';
+end $$;
+
+-- === T10c: case (b) — a version whose effective_from equals the subscription's own start date but
+--     which ALREADY has billing/coverage history (the common case: any past/today-started
+--     subscription immediately gets a billing period from create_subscription itself). Must NOT
+--     mutate the original row (full auditability preserved: same id, same original price/dates
+--     still readable), must still honor "from beginning" semantics (a genuinely new version takes
+--     over from that same date), and must produce a correct billing correction. ===
+do $$
+declare
+  v_manager uuid; v_athlete uuid; v_sub uuid; v_ver_before uuid; v_res json;
+  v_start date := current_date - 10;
+  v_version_count int; v_old_price numeric; v_new_ver uuid; v_bp_id uuid; v_reversal_count int;
+begin
+  select v into v_manager from _p4a_ids where k = 'manager';
+  perform set_config('app.current_uid', v_manager::text, true);
+
+  v_athlete := gen_random_uuid();
+  insert into profiles (user_id, username, full_name, phone, role, approval_status)
+  values (v_athlete, 'p4a_ath_history', 'P4A Athlete History', '9011', 'athlete', 'approved');
+
+  v_res := public.create_subscription(v_athlete, false, 300, v_start, null, extract(day from v_start)::smallint, '[]'::jsonb);
+  v_sub := (v_res->>'subscription_id')::uuid;
+  v_ver_before := (v_res->>'version_id')::uuid;
+
+  if not exists (select 1 from subscription_billing_periods where version_id = v_ver_before) then
+    raise exception 'T10c FIXTURE FAILED: expected immediate billing history against the first version';
+  end if;
+
+  -- "From the beginning" edit at the SAME date as the subscription's own start, with real history
+  -- already against v_ver_before.
+  v_res := public.edit_subscription_version(v_sub, v_start, 200, null, false, null, true);
+  if v_res->>'action' <> 'applied' then
+    raise exception 'T10c FAILED: expected applied, got %', v_res;
+  end if;
+  v_new_ver := (v_res->>'version_id')::uuid;
+
+  if v_new_ver = v_ver_before then
+    raise exception 'T10c2 FAILED: a version with existing history must NOT be reused in place — expected a new version id';
+  end if;
+
+  -- Full auditability: the ORIGINAL row is completely untouched (same price, same effective_from).
+  select monthly_price_ils into v_old_price from subscription_versions where id = v_ver_before;
+  if v_old_price <> 300 then
+    raise exception 'T10c3 FAILED: original version''s price was mutated (expected untouched 300, got %)', v_old_price;
+  end if;
+  if not exists (select 1 from subscription_versions where id = v_ver_before and effective_from = v_start) then
+    raise exception 'T10c4 FAILED: original version''s effective_from was mutated';
+  end if;
+  -- The zero-width closure: effective_to = its own effective_from (relaxed constraint), superseded.
+  if not exists (select 1 from subscription_versions where id = v_ver_before and effective_to = v_start and superseded_by = v_new_ver) then
+    raise exception 'T10c5 FAILED: original version not correctly closed at its own start date with superseded_by set';
+  end if;
+
+  select count(*) into v_version_count from subscription_versions where subscription_id = v_sub;
+  if v_version_count <> 2 then
+    raise exception 'T10c6 FAILED: expected exactly 2 version rows (original + new), got %', v_version_count;
+  end if;
+
+  -- Correct correction: the new version's price (200) must have re-priced the already-billed period.
+  select id into v_bp_id from subscription_billing_periods where subscription_id = v_sub;
+  select count(*) into v_reversal_count from subscription_charges where billing_period_id = v_bp_id and charge_type = 'reversal';
+  if v_reversal_count <> 1 then
+    raise exception 'T10c7 FAILED: expected exactly 1 reversal correcting the pre-existing 300 charge to 200, got %', v_reversal_count;
+  end if;
+  if not exists (select 1 from subscription_charges where billing_period_id = v_bp_id and charge_type = 'edit_correction' and amount_ils = 200) then
+    raise exception 'T10c8 FAILED: expected an edit_correction charge of exactly 200';
+  end if;
+
+  raise notice 'T10c PASSED: case (b) history-bearing same-date edit preserves the original version untouched, honors from-beginning semantics, produces a correct correction';
 end $$;
 
 -- === T11: freeze with impact — a fresh subscription/registration pair, since the shared fixture's
@@ -263,7 +338,7 @@ begin
   values (v_athlete, 'p4a_ath2', 'P4A Athlete Two', '9004', 'athlete', 'approved');
 
   perform set_config('app.current_uid', v_manager::text, true);
-  v_res := public.create_subscription(v_athlete, false, 300, current_date - 20, null, false, extract(day from (current_date-20))::smallint,
+  v_res := public.create_subscription(v_athlete, false, 300, current_date - 20, null, extract(day from (current_date-20))::smallint,
     jsonb_build_array(jsonb_build_object('tier', 'pair', 'weekly_limit', 1)));
   v_sub := (v_res->>'subscription_id')::uuid;
 
@@ -318,7 +393,7 @@ begin
   values (v_athlete, 'p4a_ath3', 'P4A Athlete Three', '9005', 'athlete', 'approved');
 
   perform set_config('app.current_uid', v_manager::text, true);
-  v_res := public.create_subscription(v_athlete, false, 300, v_start, null, false, extract(day from v_start)::smallint, '[]'::jsonb);
+  v_res := public.create_subscription(v_athlete, false, 300, v_start, null, extract(day from v_start)::smallint, '[]'::jsonb);
   v_sub := (v_res->>'subscription_id')::uuid;
 
   select bp.id into v_bp_id from subscription_billing_periods bp where bp.subscription_id = v_sub;
@@ -354,13 +429,13 @@ begin
   v_athlete := gen_random_uuid();
   insert into profiles (user_id, username, full_name, phone, role, approval_status)
   values (v_athlete, 'p4a_ath_del', 'P4A Athlete Del', '9006', 'athlete', 'approved');
-  v_res := public.create_subscription(v_athlete, false, 300, v_start, null, false, extract(day from v_start)::smallint, '[]'::jsonb);
+  v_res := public.create_subscription(v_athlete, false, 300, v_start, null, extract(day from v_start)::smallint, '[]'::jsonb);
   v_sub_del := (v_res->>'subscription_id')::uuid;
 
   v_athlete := gen_random_uuid();
   insert into profiles (user_id, username, full_name, phone, role, approval_status)
   values (v_athlete, 'p4a_ath_keep', 'P4A Athlete Keep', '9007', 'athlete', 'approved');
-  v_res := public.create_subscription(v_athlete, false, 300, v_start, null, false, extract(day from v_start)::smallint, '[]'::jsonb);
+  v_res := public.create_subscription(v_athlete, false, 300, v_start, null, extract(day from v_start)::smallint, '[]'::jsonb);
   v_sub_keep := (v_res->>'subscription_id')::uuid;
 
   select count(*) into v_bp_count_del_before from subscription_billing_periods where subscription_id = v_sub_del;
@@ -418,7 +493,7 @@ begin
   insert into profiles (user_id, username, full_name, phone, role, approval_status)
   values (v_athlete, 'p4a_ath_react', 'P4A Athlete Reactivate', '9008', 'athlete', 'approved');
 
-  v_res := public.create_subscription(v_athlete, false, 350, v_start, null, false, extract(day from v_start)::smallint,
+  v_res := public.create_subscription(v_athlete, false, 350, v_start, null, extract(day from v_start)::smallint,
     jsonb_build_array(jsonb_build_object('tier', 'trio', 'weekly_limit', 3)));
   v_src_sub := (v_res->>'subscription_id')::uuid;
 
@@ -471,7 +546,7 @@ begin
   insert into profiles (user_id, username, full_name, phone, role, approval_status)
   values (v_athlete, 'p4a_ath_conflict', 'P4A Athlete Conflict', '9009', 'athlete', 'approved');
 
-  v_res := public.create_subscription(v_athlete, false, 200, current_date, null, false, null, '[]'::jsonb);
+  v_res := public.create_subscription(v_athlete, false, 200, current_date, null, null, '[]'::jsonb);
   v_sub := (v_res->>'subscription_id')::uuid;
 
   v_res := public.reactivate_subscription(v_sub, current_date, null);
@@ -480,4 +555,80 @@ begin
   end if;
 
   raise notice 'T15 PASSED: reactivate rejects conflicting active lineage for the same payee';
+end $$;
+
+-- === T16: idempotency-key distinctness (item 4's exact required test) — edit price to 300
+--     effective date X, then a SECOND, legitimate edit sets price to 350 with the SAME effective
+--     date X. The second must be treated as a new, distinct operation, never mistaken for a retry
+--     of the first: two separate version/correction outcomes must exist, not one. ===
+do $$
+declare
+  v_manager uuid; v_athlete uuid; v_sub uuid; v_ver0 uuid; v_res json;
+  v_start date := current_date - 10;
+  v_x date := current_date - 3; -- the shared effective date X, mid-period
+  v_ver1 uuid; v_ver2 uuid;
+  v_version_count int;
+  v_bp_id uuid;
+  v_reversal_count int;
+  v_correction_300_count int;
+  v_correction_350_count int;
+  v_event_count int;
+begin
+  select v into v_manager from _p4a_ids where k = 'manager';
+  perform set_config('app.current_uid', v_manager::text, true);
+
+  v_athlete := gen_random_uuid();
+  insert into profiles (user_id, username, full_name, phone, role, approval_status)
+  values (v_athlete, 'p4a_ath_t16', 'P4A Athlete T16', '9012', 'athlete', 'approved');
+
+  v_res := public.create_subscription(v_athlete, false, 250, v_start, null, extract(day from v_start)::smallint, '[]'::jsonb);
+  v_sub := (v_res->>'subscription_id')::uuid;
+  v_ver0 := (v_res->>'version_id')::uuid;
+
+  -- First edit: price -> 300, effective X.
+  v_res := public.edit_subscription_version(v_sub, v_x, 300, null, false, null, true);
+  if v_res->>'action' <> 'applied' then raise exception 'T16 FIXTURE FAILED first edit: %', v_res; end if;
+  v_ver1 := (v_res->>'version_id')::uuid;
+
+  -- Second, DIFFERENT edit: price -> 350, SAME effective date X. Must NOT be swallowed as a retry.
+  v_res := public.edit_subscription_version(v_sub, v_x, 350, null, false, null, true);
+  if v_res->>'action' <> 'applied' then
+    raise exception 'T16 FAILED: second distinct edit (same date, different price) must apply as a new operation, got %', v_res;
+  end if;
+  v_ver2 := (v_res->>'version_id')::uuid;
+
+  if v_ver2 = v_ver1 then
+    raise exception 'T16b FAILED: second edit reused the first edit''s version id -- collided with the first as if it were a retry';
+  end if;
+
+  -- Three total version rows: v_ver0 (original, closed at X), v_ver1 (300, closed at X -- history
+  -- exists against it from the first correction, so it too must be closed rather than reused),
+  -- v_ver2 (350, current).
+  select count(*) into v_version_count from subscription_versions where subscription_id = v_sub;
+  if v_version_count <> 3 then
+    raise exception 'T16c FAILED: expected exactly 3 version rows (two distinct edits, not one collapsed), got %', v_version_count;
+  end if;
+  if not exists (select 1 from subscription_versions where id = v_ver2 and effective_to is null and monthly_price_ils = 350) then
+    raise exception 'T16d FAILED: expected v_ver2 to be the current version at price 350';
+  end if;
+
+  -- Two distinct subscription_impact_events rows for action_type='edit' (different source_event_id
+  -- hashes, since the payloads differ) -- not one.
+  select count(*) into v_event_count from subscription_impact_events
+  where subscription_id = v_sub and action_type = 'edit';
+  if v_event_count <> 2 then
+    raise exception 'T16e FAILED: expected exactly 2 distinct edit impact_events (proving the keys did not collide), got %', v_event_count;
+  end if;
+
+  -- Ledger: two separate correction outcomes exist (not one) -- a reversal of the original 250
+  -- charge plus an edit_correction of ~300-ish blended amount, THEN a further reversal of that
+  -- correcting to the final ~350-ish blended amount. At least 2 reversal rows and at least one
+  -- edit_correction charge reflecting each distinct price must exist.
+  select id into v_bp_id from subscription_billing_periods bp where bp.subscription_id = v_sub;
+  select count(*) into v_reversal_count from subscription_charges where billing_period_id = v_bp_id and charge_type = 'reversal';
+  if v_reversal_count < 2 then
+    raise exception 'T16f FAILED: expected at least 2 reversals (one per distinct edit''s correction), got %', v_reversal_count;
+  end if;
+
+  raise notice 'T16 PASSED: two distinct same-date edits produce two separate version/correction outcomes, never collapsed into one';
 end $$;
