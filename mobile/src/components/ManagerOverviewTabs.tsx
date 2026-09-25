@@ -318,6 +318,12 @@ export function ManagerMoneyHubTabs() {
         href: "/(app)/manager/pricing",
         isActive: (p) => startsWithAny(p, ["/manager/pricing", "/manager/coach-capacity-pricing"]),
       },
+      {
+        id: "subscriptions",
+        label: t("menu.subscriptions"),
+        href: "/(app)/manager/subscriptions",
+        isActive: (p) => startsWithAny(p, ["/manager/subscriptions"]),
+      },
     ],
     [t]
   );

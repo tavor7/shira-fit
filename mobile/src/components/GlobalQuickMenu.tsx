@@ -110,6 +110,7 @@ export function GlobalQuickMenu() {
               "/manager/documents-invoices",
               "/manager/pricing",
               "/manager/coach-capacity-pricing",
+              "/manager/subscriptions",
             ]),
         },
         {
