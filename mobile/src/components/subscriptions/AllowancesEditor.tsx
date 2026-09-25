@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { theme } from "../../theme";
 import { useI18n } from "../../context/I18nContext";
 import { SUBSCRIPTION_TIERS, tierLabelKey, type WeeklyLimits } from "../../lib/subscriptions";
@@ -10,6 +10,9 @@ type Props = {
   hint?: string;
 };
 
+const MIN_WEEKLY_LIMIT = 0;
+const MAX_WEEKLY_LIMIT = 999;
+
 /**
  * 7 independent weekly-allowance inputs (Personal…Group), one row per subscription_tier. Always
  * rendered as its own section, visually and logically separate from any duration/end-date field —
@@ -18,10 +21,15 @@ type Props = {
 export function AllowancesEditor({ value, onChange, label, hint }: Props) {
   const { t, isRTL } = useI18n();
 
-  function setTier(tier: (typeof SUBSCRIPTION_TIERS)[number], raw: string) {
+  function setTier(tier: (typeof SUBSCRIPTION_TIERS)[number], n: number) {
+    const clamped = Math.max(MIN_WEEKLY_LIMIT, Math.min(MAX_WEEKLY_LIMIT, n));
+    onChange({ ...value, [tier]: clamped });
+  }
+
+  function setTierFromText(tier: (typeof SUBSCRIPTION_TIERS)[number], raw: string) {
     const digitsOnly = raw.replace(/[^0-9]/g, "");
-    const n = digitsOnly === "" ? 0 : Math.min(999, Number.parseInt(digitsOnly, 10));
-    onChange({ ...value, [tier]: n });
+    const n = digitsOnly === "" ? 0 : Number.parseInt(digitsOnly, 10);
+    setTier(tier, n);
   }
 
   return (
@@ -29,23 +37,59 @@ export function AllowancesEditor({ value, onChange, label, hint }: Props) {
       <Text style={[styles.label, isRTL && styles.rtl]}>{label}</Text>
       {hint ? <Text style={[styles.hint, isRTL && styles.rtl]}>{hint}</Text> : null}
       <View style={styles.rows}>
-        {SUBSCRIPTION_TIERS.map((tier) => (
-          <View key={tier} style={[styles.row, isRTL && styles.rowRtl]}>
-            <Text style={[styles.tierLabel, isRTL && styles.rtl]} numberOfLines={1}>
-              {t(tierLabelKey(tier))}
-            </Text>
-            <TextInput
-              value={String(value[tier] ?? 0)}
-              onChangeText={(txt) => setTier(tier, txt)}
-              keyboardType="number-pad"
-              inputMode="numeric"
-              style={[styles.input, isRTL && styles.inputRtl]}
-              accessibilityLabel={t(tierLabelKey(tier))}
-              maxLength={3}
-            />
-            <Text style={[styles.perWeek, isRTL && styles.rtl]}>{t("subscriptions.perWeek")}</Text>
-          </View>
-        ))}
+        {SUBSCRIPTION_TIERS.map((tier) => {
+          const current = value[tier] ?? 0;
+          const tierLabel = t(tierLabelKey(tier));
+          return (
+            <View key={tier} style={[styles.row, isRTL && styles.rowRtl]}>
+              <Text style={[styles.tierLabel, isRTL && styles.rtl]} numberOfLines={1}>
+                {tierLabel}
+              </Text>
+              {/* Deliberately NOT mirrored for RTL: a +/- stepper is a mathematical control
+                  (like iOS's native stepper), not a reading-direction element — keeping minus
+                  on the left and plus on the right in both languages also avoids fragile
+                  corner-radius/border-seam mirroring for no real benefit. */}
+              <View style={styles.stepper}>
+                <Pressable
+                  onPress={() => setTier(tier, current - 1)}
+                  disabled={current <= MIN_WEEKLY_LIMIT}
+                  style={({ pressed }) => [
+                    styles.stepperButton,
+                    current <= MIN_WEEKLY_LIMIT && styles.stepperButtonDisabled,
+                    pressed && current > MIN_WEEKLY_LIMIT && styles.stepperButtonPressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t("subscriptions.decreaseAllowance")} ${tierLabel}`}
+                >
+                  <Text style={styles.stepperButtonTxt}>–</Text>
+                </Pressable>
+                <TextInput
+                  value={String(current)}
+                  onChangeText={(txt) => setTierFromText(tier, txt)}
+                  keyboardType="number-pad"
+                  inputMode="numeric"
+                  style={[styles.input, isRTL && styles.inputRtl]}
+                  accessibilityLabel={tierLabel}
+                  maxLength={3}
+                />
+                <Pressable
+                  onPress={() => setTier(tier, current + 1)}
+                  disabled={current >= MAX_WEEKLY_LIMIT}
+                  style={({ pressed }) => [
+                    styles.stepperButton,
+                    current >= MAX_WEEKLY_LIMIT && styles.stepperButtonDisabled,
+                    pressed && current < MAX_WEEKLY_LIMIT && styles.stepperButtonPressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t("subscriptions.increaseAllowance")} ${tierLabel}`}
+                >
+                  <Text style={styles.stepperButtonTxt}>+</Text>
+                </Pressable>
+              </View>
+              <Text style={[styles.perWeek, isRTL && styles.rtl]}>{t("subscriptions.perWeek")}</Text>
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -59,16 +103,30 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
   rowRtl: { flexDirection: "row-reverse" },
   tierLabel: { flex: 1, fontSize: 14, fontWeight: "600", color: theme.colors.text },
-  input: {
-    width: 64,
+  stepper: { flexDirection: "row", alignItems: "center", gap: 8 },
+  stepperButton: {
+    width: 32,
+    height: 32,
+    borderRadius: theme.radius.full,
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
-    borderColor: theme.colors.borderInput,
-    borderRadius: theme.radius.md,
-    padding: 10,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  stepperButtonPressed: { backgroundColor: theme.colors.accentLight, borderColor: theme.colors.borderInput },
+  stepperButtonDisabled: { opacity: 0.3 },
+  stepperButtonTxt: { fontSize: 17, fontWeight: "700", color: theme.colors.text, lineHeight: 19 },
+  input: {
+    width: 48,
+    height: 32,
+    borderRadius: theme.radius.full,
     fontSize: 15,
+    fontWeight: "700",
     textAlign: "center",
     backgroundColor: theme.colors.white,
     color: theme.colors.textOnLight,
+    paddingVertical: 0,
   },
   inputRtl: { textAlign: "center" },
   perWeek: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, minWidth: 56 },
