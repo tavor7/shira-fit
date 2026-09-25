@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
@@ -9,10 +9,6 @@ import { supabase } from "../lib/supabase";
 import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { formatISODateFull } from "../lib/dateFormat";
-import { EditSubscriptionModal } from "../components/subscriptions/EditSubscriptionModal";
-import { FreezeSubscriptionModal } from "../components/subscriptions/FreezeSubscriptionModal";
-import { StopSubscriptionModal } from "../components/subscriptions/StopSubscriptionModal";
-import { ReactivateSubscriptionModal } from "../components/subscriptions/ReactivateSubscriptionModal";
 import {
   currentEffectiveChargeAmount,
   rpcDeleteSubscription,
@@ -34,10 +30,6 @@ export function ManagerSubscriptionDetailScreen() {
   const [payeeName, setPayeeName] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
-  const [freezeOpen, setFreezeOpen] = useState(false);
-  const [stopOpen, setStopOpen] = useState(false);
-  const [reactivateOpen, setReactivateOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
@@ -67,9 +59,13 @@ export function ManagerSubscriptionDetailScreen() {
     }
   }, [id, t]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // Refetch on every focus (returning from the Edit/Freeze/Stop/Reactivate pushed screens must
+  // show fresh state, not stale data from before the action was taken).
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load])
+  );
 
   if (loading) {
     return (
@@ -211,13 +207,33 @@ export function ManagerSubscriptionDetailScreen() {
           <View style={styles.actions}>
             {!isTombstoned && isActiveGroup ? (
               <>
-                <PrimaryButton label={t("subscriptions.action.edit")} onPress={() => setEditOpen(true)} variant="ghost" style={styles.actionBtn} />
-                <PrimaryButton label={t("subscriptions.action.freeze")} onPress={() => setFreezeOpen(true)} variant="ghost" style={styles.actionBtn} />
-                <PrimaryButton label={t("subscriptions.action.stop")} onPress={() => setStopOpen(true)} variant="ghost" style={styles.actionBtn} />
+                <PrimaryButton
+                  label={t("subscriptions.action.edit")}
+                  onPress={() => router.push(`/(app)/manager/subscriptions/${id}/edit`)}
+                  variant="ghost"
+                  style={styles.actionBtn}
+                />
+                <PrimaryButton
+                  label={t("subscriptions.action.freeze")}
+                  onPress={() => router.push(`/(app)/manager/subscriptions/${id}/freeze`)}
+                  variant="ghost"
+                  style={styles.actionBtn}
+                />
+                <PrimaryButton
+                  label={t("subscriptions.action.stop")}
+                  onPress={() => router.push(`/(app)/manager/subscriptions/${id}/stop`)}
+                  variant="ghost"
+                  style={styles.actionBtn}
+                />
               </>
             ) : null}
             {!isTombstoned && !isActiveGroup ? (
-              <PrimaryButton label={t("subscriptions.action.reactivate")} onPress={() => setReactivateOpen(true)} variant="ghost" style={styles.actionBtn} />
+              <PrimaryButton
+                label={t("subscriptions.action.reactivate")}
+                onPress={() => router.push(`/(app)/manager/subscriptions/${id}/reactivate`)}
+                variant="ghost"
+                style={styles.actionBtn}
+              />
             ) : null}
             {!isTombstoned ? (
               <PrimaryButton label={t("subscriptions.action.delete")} onPress={requestDelete} loading={deleting} variant="danger" style={styles.actionBtn} />
@@ -225,53 +241,6 @@ export function ManagerSubscriptionDetailScreen() {
           </View>
         </Section>
       </ScrollView>
-
-      {current ? (
-        <>
-          <EditSubscriptionModal
-            visible={editOpen}
-            subscriptionId={String(id)}
-            subscriptionStartDate={versions[0]?.plan_start_date ?? current.plan_start_date}
-            currentPrice={current.monthly_price_ils}
-            currentEndDate={current.plan_end_date}
-            currentAllowances={current.allowances}
-            onClose={() => setEditOpen(false)}
-            onSaved={() => {
-              setEditOpen(false);
-              void load();
-            }}
-          />
-          <FreezeSubscriptionModal
-            visible={freezeOpen}
-            subscriptionId={String(id)}
-            onClose={() => setFreezeOpen(false)}
-            onSaved={() => {
-              setFreezeOpen(false);
-              void load();
-            }}
-          />
-          <StopSubscriptionModal
-            visible={stopOpen}
-            subscriptionId={String(id)}
-            onClose={() => setStopOpen(false)}
-            onSaved={() => {
-              setStopOpen(false);
-              void load();
-            }}
-          />
-          <ReactivateSubscriptionModal
-            visible={reactivateOpen}
-            sourceSubscriptionId={String(id)}
-            sourcePrice={current.monthly_price_ils}
-            sourceAllowances={current.allowances}
-            onClose={() => setReactivateOpen(false)}
-            onCreated={(newId) => {
-              setReactivateOpen(false);
-              router.replace(`/(app)/manager/subscriptions/${newId}`);
-            }}
-          />
-        </>
-      ) : null}
     </View>
   );
 }

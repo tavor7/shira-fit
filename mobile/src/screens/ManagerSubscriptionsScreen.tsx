@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { supabase } from "../lib/supabase";
@@ -11,7 +11,6 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { SlidingPillTabBar } from "../components/SlidingPillTabBar";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { ManagerMoneyHubTabs } from "../components/ManagerOverviewTabs";
-import { CreateSubscriptionModal } from "../components/subscriptions/CreateSubscriptionModal";
 import { formatISODateFull } from "../lib/dateFormat";
 import type { LanguageCode } from "../i18n/translations";
 import {
@@ -51,7 +50,6 @@ export function ManagerSubscriptionsScreen() {
   const [history, setHistory] = useState<SubscriptionHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,9 +65,13 @@ export function ManagerSubscriptionsScreen() {
     }
   }, [t]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // Refetch every time this screen regains focus (e.g. returning from Create/Edit/Freeze/Stop/
+  // Reactivate, which are now separate pushed routes, not modals that could refresh state inline).
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load])
+  );
 
   const filteredActive = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -97,7 +99,11 @@ export function ManagerSubscriptionsScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={[styles.headerRow, isRTL && styles.headerRowRtl]}>
           <Text style={[styles.title, isRTL && styles.rtl]}>{t("subscriptions.title")}</Text>
-          <PrimaryButton label={t("subscriptions.create")} onPress={() => setCreateOpen(true)} style={styles.createBtn} />
+          <PrimaryButton
+            label={t("subscriptions.create")}
+            onPress={() => router.push("/(app)/manager/subscriptions/create")}
+            style={styles.createBtn}
+          />
         </View>
 
         <SlidingPillTabBar tabs={tabs} active={tab} onChange={(id) => setTab(id as Tab)} style={styles.tabBar} />
@@ -156,16 +162,6 @@ export function ManagerSubscriptionsScreen() {
           )}
         </FadeSlideIn>
       </ScrollView>
-
-      <CreateSubscriptionModal
-        visible={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreated={(id) => {
-          setCreateOpen(false);
-          void load();
-          router.push(`/(app)/manager/subscriptions/${id}`);
-        }}
-      />
     </View>
   );
 }
