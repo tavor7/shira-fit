@@ -11,11 +11,13 @@ import { sessionFormStyles as sf } from "../sessionFormStyles";
 import { DateRangeFormPanel } from "../DateRangeFormPanel";
 import { PrimaryButton } from "../PrimaryButton";
 import { toISODateLocal } from "../../lib/isoDate";
+import { formatISODateFull } from "../../lib/dateFormat";
 import { SubscriptionImpactConfirmModal } from "./SubscriptionImpactConfirmModal";
 import { rpcFreezeSubscription, type SubscriptionImpact } from "../../lib/subscriptions";
+import { resumeDateFromFreezeUntil } from "../../lib/athleteSubscription";
 
 export function FreezeSubscriptionForm({ subscriptionId }: { subscriptionId: string }) {
-  const { t, isRTL } = useI18n();
+  const { t, isRTL, language } = useI18n();
   const { showToast } = useToast();
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const navigation = useNavigation();
@@ -80,7 +82,17 @@ export function FreezeSubscriptionForm({ subscriptionId }: { subscriptionId: str
         setImpactOpen(true);
         return;
       }
-      showToast({ message: t("subscriptions.freeze.success"), variant: "success" });
+      const resumeDate = freezeUntil ? resumeDateFromFreezeUntil(freezeUntil) : null;
+      showToast({
+        message: t("subscriptions.freeze.success"),
+        detail:
+          resumeDate && res.next_billing_date
+            ? t("subscriptions.freeze.successDetail")
+                .replace("{resume}", formatISODateFull(resumeDate, language))
+                .replace("{billing}", formatISODateFull(res.next_billing_date, language))
+            : undefined,
+        variant: "success",
+      });
       setImpactOpen(false);
       allowLeaveRef.current = true;
       router.back();

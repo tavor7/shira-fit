@@ -36,6 +36,7 @@ export default function AthleteLayout() {
         }}
       />
       <Tabs.Screen name="session/[id]" options={{ href: null }} />
+      <Tabs.Screen name="subscription" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   },
   action: {
     marginTop: theme.spacing.sm,
-    alignSelf: "stretch",
+    alignSelf: "center",
     maxWidth: 280,
   },
 });

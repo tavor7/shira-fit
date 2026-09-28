@@ -214,8 +214,12 @@ begin
 
   update public.session_registrations set attended = true where session_id = v_sess2 and user_id = v_a;
 
-  insert into public.subscription_billing_periods (id, subscription_id, version_id, period_start, period_end)
-  values (gen_random_uuid(), v_sub, v_ver, (select session_date from training_sessions where id=v_sess2) - 5, (select session_date from training_sessions where id=v_sess2) + 25)
+  insert into public.subscription_billing_periods (id, subscription_id, version_id, period_start, period_end, raw_period_start, raw_period_end)
+  values (
+    gen_random_uuid(), v_sub, v_ver,
+    (select session_date from training_sessions where id=v_sess2) - 5, (select session_date from training_sessions where id=v_sess2) + 25,
+    (select session_date from training_sessions where id=v_sess2) - 5, (select session_date from training_sessions where id=v_sess2) + 25
+  )
   returning id into v_bp;
 
   insert into public.subscription_charges (billing_period_id, subscription_id, payee_id, payee_is_manual, amount_ils, charge_type)

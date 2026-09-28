@@ -135,9 +135,16 @@ export function ManagerSubscriptionDetailScreen() {
           <KeyValue label={t("subscriptions.rowStart")} value={formatISODateFull(current?.plan_start_date ?? "", language)} isRTL={isRTL} />
           <KeyValue
             label={t("subscriptions.rowEnd")}
-            value={current?.has_no_end_date || !current?.plan_end_date ? t("subscriptions.noEndDate") : formatISODateFull(current.plan_end_date, language)}
+            value={
+              current?.has_no_end_date || !current?.effective_plan_end_date
+                ? t("subscriptions.noEndDate")
+                : formatISODateFull(current.effective_plan_end_date, language)
+            }
             isRTL={isRTL}
           />
+          {detail.next_billing_date ? (
+            <KeyValue label={t("subscriptions.rowNextBilling")} value={formatISODateFull(detail.next_billing_date, language)} isRTL={isRTL} />
+          ) : null}
           <KeyValue label={t("subscriptions.detail.anchorDay")} value={t("subscriptions.detail.anchorDayValue").replace("{day}", String(current?.anchor_day ?? ""))} isRTL={isRTL} />
           {activeFreeze ? (
             <KeyValue

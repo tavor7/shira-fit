@@ -370,9 +370,13 @@ begin
   select count(*) into v_covered_count from subscription_registration_coverage where subscription_id = v_sub and covered = true;
   if v_covered_count <> 0 then raise exception 'T11d FAILED: expected 0 covered after freeze, got %', v_covered_count; end if;
 
+  -- Freeze-as-pause correction: a freeze inside an otherwise-normal period is a pure pause (the
+  -- period's effective window extends by the freeze duration and still nets to the same full
+  -- price) -- it must NEVER produce a reversal/credit, only the earlier registration-coverage
+  -- drop (T11d) and a shifted billing schedule.
   select bp.id into v_bp_id from subscription_billing_periods bp where bp.subscription_id = v_sub;
   select count(*) into v_reversal_count from subscription_charges where billing_period_id = v_bp_id and charge_type = 'reversal';
-  if v_reversal_count <> 1 then raise exception 'T11e FAILED: expected 1 reversal from freeze correction, got %', v_reversal_count; end if;
+  if v_reversal_count <> 0 then raise exception 'T11e FAILED: expected 0 reversals from a pure-pause freeze correction, got %', v_reversal_count; end if;
 
   -- Overlap rejection reuses the existing exclusion constraint.
   v_res := public.freeze_subscription(v_sub, v_sun + 2, v_sun + 8, true);

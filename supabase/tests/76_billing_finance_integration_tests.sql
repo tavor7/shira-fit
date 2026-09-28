@@ -45,38 +45,51 @@ begin
   on conflict do nothing;
 end $$;
 
--- Test B14: reversal aggregates correctly against the original in the finance sum.
+-- Test B14: a freeze inside an already-billed period is a pure pause -- the finance function must
+-- keep showing exactly 300 (no reversal, no double-charge, no phantom discount), now attributed to
+-- the SHIFTED period_start rather than the original one.
 do $$
 declare
   v_p uuid; v_sub uuid; v_bp_id uuid; v_start date; v_end date; v_exp numeric; v_freeze_id uuid;
+  v_raw_start date; v_raw_end date; v_new_start date;
 begin
   select v into v_p from _billing_ids4 where k='b13_p';
   select v into v_sub from _billing_ids4 where k='b13_sub';
   select v into v_bp_id from _billing_ids4 where k='b13_bp';
-  select period_start, period_end into v_start, v_end from subscription_billing_periods where id=v_bp_id;
+  select period_start, period_end, raw_period_start, raw_period_end
+  into v_start, v_end, v_raw_start, v_raw_end
+  from subscription_billing_periods where id=v_bp_id;
 
   insert into public.subscription_freezes (subscription_id, freeze_from, freeze_until)
   values (v_sub, v_start + 2, v_start + 6)
   returning id into v_freeze_id;
 
   perform public.subscription_generate_or_correct_billing_period(
-    v_sub, (select id from subscription_versions where subscription_id=v_sub), v_start, v_end, v_freeze_id, 'freeze_credit'
+    v_sub, (select id from subscription_versions where subscription_id=v_sub), v_raw_start, v_raw_end, v_freeze_id, 'freeze_credit'
   );
 
-  -- Finance function sums ALL subscription_charges rows for the period (original 300 + reversal
-  -- -300 + freeze_credit correction) -- must net to the corrected amount, not 300 nor 0.
+  select period_start into v_new_start from subscription_billing_periods where id=v_bp_id;
+  if v_new_start <> v_start + 5 then
+    raise exception 'B14 FAILED: expected period_start shifted to % (5 frozen days), got %', v_start + 5, v_new_start;
+  end if;
+
+  if exists (select 1 from subscription_charges where billing_period_id=v_bp_id and charge_type='reversal') then
+    raise exception 'B14 FAILED: a pure-pause freeze must never produce a reversal';
+  end if;
+
+  -- Finance queried at the OLD period_start no longer finds it (the period genuinely moved);
+  -- queried at the NEW (shifted) period_start it still shows exactly 300, once.
   select expected_ils into v_exp from public._period_merged_athlete_finance(v_start, v_start) where kind='app' and pid=v_p::text;
+  if v_exp is not null and v_exp <> 0 then
+    raise exception 'B14 FAILED: finance at the OLD period_start should no longer show this charge, got %', v_exp;
+  end if;
 
-  declare v_total_days int; v_correction numeric;
-  begin
-    v_total_days := v_end - v_start;
-    v_correction := round(300::numeric * (v_total_days - 5) / v_total_days, 2);
-    if v_exp <> v_correction then
-      raise exception 'B14 FAILED: expected net % (300 - 300 + %), got %', v_correction, v_correction, v_exp;
-    end if;
-  end;
+  select expected_ils into v_exp from public._period_merged_athlete_finance(v_new_start, v_new_start) where kind='app' and pid=v_p::text;
+  if v_exp <> 300 then
+    raise exception 'B14 FAILED: finance at the shifted period_start should show exactly 300, got %', v_exp;
+  end if;
 
-  raise notice 'B14 PASSED: reversal (-300) + original (300) + freeze_credit correction nets correctly to %', v_exp;
+  raise notice 'B14 PASSED: freeze pause never reverses/double-charges -- finance correctly follows the shifted period_start, still exactly 300';
 end $$;
 
 -- Test B15: family roll-up still correct with a subscription charge present for one member.

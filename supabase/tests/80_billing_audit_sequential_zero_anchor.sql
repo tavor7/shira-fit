@@ -2,12 +2,14 @@
 -- on-anchor price cutover, end-date boundaries, tombstone, rounding, crash-recovery.
 set client_min_messages to notice;
 
--- Test AU1: SEQUENTIAL corrections to the SAME period. ₪300 -> freeze -> ₪250 -> a further
--- freeze change -> ₪180. Final net must be exactly ₪180, not 230/-70/430/etc.
+-- Test AU1 (rewritten for the pause correction): SEQUENTIAL freezes on the SAME already-billed
+-- period must compound cumulatively (not double-count, not reset), and each one remains a pure
+-- pause -- zero reversals, the charge stays exactly ₪300 throughout, only the effective window
+-- keeps extending by each freeze's own duration on top of the running total.
 do $$
 declare
-  v_p uuid; v_sub uuid; v_ver uuid; v_start date; v_end date; v_bp_id uuid;
-  v_freeze1 uuid; v_freeze2 uuid; v_res json; v_total int; v_net numeric;
+  v_p uuid; v_sub uuid; v_ver uuid; v_start date; v_raw_end date; v_bp_id uuid;
+  v_freeze1 uuid; v_freeze2 uuid; v_res json; v_period_start date; v_period_end date;
 begin
   v_p := gen_random_uuid();
   insert into public.profiles (user_id, username, full_name, phone, role, approval_status)
@@ -19,62 +21,51 @@ begin
   values (v_sub, 1, v_start, 300, extract(day from v_start)::int, v_start) returning id into v_ver;
 
   perform public.generate_due_subscription_charges(); -- bills full ₪300
-  select id, period_end into v_bp_id, v_end from subscription_billing_periods where subscription_id=v_sub and period_start=v_start;
-  select period_end - period_start into v_total from subscription_billing_periods where id=v_bp_id;
+  select id, raw_period_end into v_bp_id, v_raw_end from subscription_billing_periods where subscription_id=v_sub and raw_period_start=v_start;
 
-  -- First freeze: correct to ₪250 (i.e. unfrozen_days = round-trip such that 300*u/total=250).
-  -- Use a freeze length that gives an exact ₪250 for a 30-day period: 300*25/30=250 -> 5 frozen days.
   insert into public.subscription_freezes (subscription_id, freeze_from, freeze_until)
-  values (v_sub, v_start + 1, v_start + 5) returning id into v_freeze1; -- 5 days frozen
+  values (v_sub, v_start + 1, v_start + 5) returning id into v_freeze1; -- 5 days
 
-  v_res := public.subscription_generate_or_correct_billing_period(v_sub, v_ver, v_start, v_end, v_freeze1, 'freeze_credit');
-  if v_res->>'action' <> 'corrected' then raise exception 'AU1 FAILED: first correction did not apply: %', v_res; end if;
-  if (v_res->>'amount_ils')::numeric <> 250.00 then raise exception 'AU1 FAILED: expected first correction to 250, got %', v_res; end if;
+  v_res := public.subscription_generate_or_correct_billing_period(v_sub, v_ver, v_start, v_raw_end, v_freeze1, 'freeze_credit');
+  if v_res->>'action' <> 'unchanged' or (v_res->>'amount_ils')::numeric <> 300.00 then
+    raise exception 'AU1 FAILED: first freeze correction must be a pure pause (unchanged, ₪300), got %', v_res;
+  end if;
+  select period_start, period_end into v_period_start, v_period_end from subscription_billing_periods where id=v_bp_id;
+  if v_period_start <> v_start + 5 then raise exception 'AU1 FAILED: expected period_start shifted by 5, got %', v_period_start; end if;
 
-  -- Second, LATER, independent correction event: an ADJOINING freeze covering 7 more days
-  -- (start+6..start+12), bringing the total frozen days to 12 -> 300*18/30 = 180.
+  -- Second, LATER, adjoining freeze (7 more days) -- must compound to the FULL cumulative 12,
+  -- recomputed fresh from subscription_total_frozen_days, never additively re-applied on top of
+  -- the already-shifted dates (which would double-count).
   insert into public.subscription_freezes (subscription_id, freeze_from, freeze_until)
   values (v_sub, v_start + 6, v_start + 12) returning id into v_freeze2;
 
-  v_res := public.subscription_generate_or_correct_billing_period(v_sub, v_ver, v_start, v_end, v_freeze2, 'freeze_credit');
-  if v_res->>'action' <> 'corrected' then raise exception 'AU1 FAILED: second correction did not apply: %', v_res; end if;
-  if (v_res->>'amount_ils')::numeric <> 180.00 then raise exception 'AU1 FAILED: expected second correction to 180, got %', v_res; end if;
-
-  select sum(amount_ils) into v_net from subscription_charges where billing_period_id=v_bp_id;
-  if v_net <> 180.00 then
-    raise exception 'AU1 FAILED: final net must be exactly 180.00, got % (this is the naively-reverse-only-the-original bug if wrong)', v_net;
+  v_res := public.subscription_generate_or_correct_billing_period(v_sub, v_ver, v_start, v_raw_end, v_freeze2, 'freeze_credit');
+  if v_res->>'action' <> 'unchanged' or (v_res->>'amount_ils')::numeric <> 300.00 then
+    raise exception 'AU1 FAILED: second freeze correction must also be a pure pause (unchanged, ₪300), got %', v_res;
+  end if;
+  select period_start, period_end into v_period_start, v_period_end from subscription_billing_periods where id=v_bp_id;
+  if v_period_start <> v_start + 12 then
+    raise exception 'AU1 FAILED: expected period_start shifted by the FULL cumulative 12 days (%), got % -- double-shift or reset bug', v_start + 12, v_period_start;
   end if;
 
-  -- Also verify exactly 2 reversals and 2 corrections exist (one pair per correction event), and
-  -- the SECOND reversal points at the FIRST correction's charge (not the original ₪300 charge).
-  declare v_rev_count int; v_second_reversal record; v_first_correction_id uuid;
-  begin
-    select count(*) into v_rev_count from subscription_charges where billing_period_id=v_bp_id and charge_type='reversal';
-    if v_rev_count <> 2 then raise exception 'AU1 FAILED: expected exactly 2 reversals, got %', v_rev_count; end if;
+  if exists (select 1 from subscription_charges where billing_period_id=v_bp_id and charge_type='reversal') then
+    raise exception 'AU1 FAILED: sequential pure-pause freezes must never produce a reversal';
+  end if;
+  if (select sum(amount_ils) from subscription_charges where billing_period_id=v_bp_id) <> 300.00 then
+    raise exception 'AU1 FAILED: net must remain exactly 300.00 after both freezes';
+  end if;
 
-    select id into v_first_correction_id from subscription_charges
-    where billing_period_id=v_bp_id and charge_type='freeze_credit' and source_event_id=v_freeze1;
-
-    select * into v_second_reversal from subscription_charges
-    where billing_period_id=v_bp_id and charge_type='reversal' and source_event_id=v_freeze2;
-
-    if v_second_reversal.reverses <> v_first_correction_id then
-      raise exception 'AU1 FAILED: second reversal should point at the FIRST correction (%), points at %', v_first_correction_id, v_second_reversal.reverses;
-    end if;
-    if v_second_reversal.amount_ils <> -250.00 then
-      raise exception 'AU1 FAILED: second reversal should be -250.00 (reversing the currently-effective 250, not the original 300), got %', v_second_reversal.amount_ils;
-    end if;
-  end;
-
-  raise notice 'AU1 PASSED: sequential corrections 300 -> 250 -> 180, final net exactly 180.00, each reversal targets the currently-effective prior charge';
+  raise notice 'AU1 PASSED: two sequential freezes (5 + 7 days) compound to a cumulative 12-day shift, net stays exactly 300.00, zero reversals';
 end $$;
 
--- Test AU2: zero-charge (full freeze) period, then freeze shortened retroactively -> correct
--- positive charge exactly once (not stacked on stale zero-state, not duplicated).
+-- Test AU2 (rewritten for the pause correction): a period frozen from its own raw start is simply
+-- NOT DUE YET (0 rows) -- then the freeze is shortened retroactively, which pulls the effective
+-- start back into the past, making the period due; it must then bill cleanly at full price exactly
+-- once (not "corrected" from a stale ₪0, since it was never billed in the first place).
 do $$
 declare
   v_p uuid; v_sub uuid; v_ver uuid; v_start date; v_end date; v_bp_id uuid;
-  v_freeze_id uuid; v_res json; v_total int; v_net numeric; v_charge_count int;
+  v_freeze_id uuid; v_cnt int; v_amt numeric; v_type public.subscription_charge_type;
 begin
   v_p := gen_random_uuid();
   insert into public.profiles (user_id, username, full_name, phone, role, approval_status)
@@ -87,36 +78,30 @@ begin
 
   select public.subscription_next_anchor_date(extract(day from v_start)::int::smallint, v_start) into v_end;
   insert into public.subscription_freezes (subscription_id, freeze_from, freeze_until)
-  values (v_sub, v_start, v_end + 5) returning id into v_freeze_id; -- freezes the whole period
+  values (v_sub, v_start, v_end + 5) returning id into v_freeze_id; -- freezes the whole raw period + more
 
   perform public.generate_due_subscription_charges();
-  select id into v_bp_id from subscription_billing_periods where subscription_id=v_sub and period_start=v_start;
-  select period_end - period_start into v_total from subscription_billing_periods where id=v_bp_id;
+  select count(*) into v_cnt from subscription_billing_periods where subscription_id=v_sub;
+  if v_cnt <> 0 then raise exception 'AU2 FAILED: fully-frozen-from-start period should not be due yet, got % rows', v_cnt; end if;
 
-  if (select amount_ils from subscription_charges where billing_period_id=v_bp_id and charge_type='proration') <> 0 then
-    raise exception 'AU2 FAILED: fresh full-freeze charge should be exactly 0';
-  end if;
-
-  -- Retroactively shorten the freeze to only 5 days (freed the rest of the period).
+  -- Retroactively shorten the freeze to only 5 days (frees up the rest of the period).
   update public.subscription_freezes set freeze_until = v_start + 4 where id = v_freeze_id;
 
-  v_res := public.subscription_generate_or_correct_billing_period(v_sub, v_ver, v_start, v_end, v_freeze_id, 'freeze_credit');
-  if v_res->>'action' <> 'corrected' then raise exception 'AU2 FAILED: shortened-freeze correction did not apply: %', v_res; end if;
+  perform public.generate_due_subscription_charges();
+  select id into v_bp_id from subscription_billing_periods where subscription_id=v_sub and raw_period_start=v_start;
+  if v_bp_id is null then raise exception 'AU2 FAILED: shortening the freeze should have made the period due -- none generated'; end if;
 
-  select sum(amount_ils) into v_net from subscription_charges where billing_period_id=v_bp_id;
-  declare v_exp numeric := round(300::numeric * (v_total - 5) / v_total, 2);
-  begin
-    if v_net <> v_exp then raise exception 'AU2 FAILED: expected net %, got %', v_exp, v_net; end if;
-  end;
-
-  select count(*) into v_charge_count from subscription_charges c
-    join subscription_billing_periods bp on bp.id = c.billing_period_id
-    where bp.subscription_id = v_sub and c.charge_type not in ('reversal');
-  if v_charge_count <> 2 then -- original (0) + freeze_credit (positive), exactly once each
-    raise exception 'AU2 FAILED: expected exactly 2 non-reversal charges (original + one correction), got %', v_charge_count;
+  select amount_ils, charge_type into v_amt, v_type from subscription_charges
+  where billing_period_id=v_bp_id and charge_type in ('recurring','proration');
+  if v_amt <> 300.00 then raise exception 'AU2 FAILED: expected a clean full ₪300 charge once due, got %', v_amt; end if;
+  if exists (select 1 from subscription_charges where billing_period_id=v_bp_id and charge_type='reversal') then
+    raise exception 'AU2 FAILED: this period was never billed before -- there must be no reversal, only the fresh charge';
   end if;
 
-  raise notice 'AU2 PASSED: full-freeze (₪0) -> retroactively shortened -> correct positive charge exactly once, net %', v_net;
+  select count(*) into v_cnt from subscription_charges where billing_period_id=v_bp_id and charge_type not in ('reversal');
+  if v_cnt <> 1 then raise exception 'AU2 FAILED: expected exactly 1 non-reversal charge, got %', v_cnt; end if;
+
+  raise notice 'AU2 PASSED: fully-frozen-from-start period stayed undue until shortened, then billed cleanly at full ₪300 exactly once (type=%)', v_type;
 end $$;
 
 -- Test AU3: price change landing EXACTLY on the anchor date -> clean cutover, anchor unchanged,

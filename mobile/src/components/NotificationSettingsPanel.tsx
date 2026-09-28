@@ -25,6 +25,12 @@ import {
   recordUserConsent,
   type MarketingConsentStatus,
 } from "../lib/consent";
+import {
+  DEFAULT_MANAGER_OPERATIONAL_NOTIFICATION_PREFS,
+  rpcGetManagerOperationalNotificationPrefs,
+  rpcSetManagerOperationalNotificationPrefs,
+  type ManagerOperationalNotificationPrefs,
+} from "../lib/managerOperationalNotificationPrefs";
 
 type Props = {
   /** Standalone screen shows main title; embedded in Profile uses tab label only. */
@@ -55,6 +61,8 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
   const [customCategory, setCustomCategory] = useState<"operational" | "marketing">("operational");
   const [killSwitchOn, setKillSwitchOn] = useState<boolean | null>(null);
   const [killSwitchBusy, setKillSwitchBusy] = useState(false);
+  const [opNotifPrefs, setOpNotifPrefs] = useState<ManagerOperationalNotificationPrefs | null>(null);
+  const [opNotifBusyKey, setOpNotifBusyKey] = useState<keyof ManagerOperationalNotificationPrefs | null>(null);
   const [activationStats, setActivationStats] = useState<{ total: number; active: number } | null>(null);
   const [queueBusy, setQueueBusy] = useState(false);
   const [queuedCount, setQueuedCount] = useState<number | null>(null);
@@ -89,7 +97,30 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
         setActivationStats({ total: res.total_users ?? 0, active: res.active_users ?? 0 });
       }
     })();
+    void (async () => {
+      const res = await rpcGetManagerOperationalNotificationPrefs(supabase);
+      if ("error" in res) return;
+      setOpNotifPrefs(res);
+    })();
   }, [isManager]);
+
+  async function toggleOpNotifPref(key: keyof ManagerOperationalNotificationPrefs) {
+    if (!opNotifPrefs || opNotifBusyKey) return;
+    const next = { ...opNotifPrefs, [key]: !opNotifPrefs[key] };
+    setOpNotifBusyKey(key);
+    try {
+      const res = await rpcSetManagerOperationalNotificationPrefs(supabase, next);
+      if ("error" in res) {
+        showToast({ message: t("common.error"), detail: res.error, variant: "error" });
+        return;
+      }
+      setOpNotifPrefs(res);
+    } catch (e) {
+      showToast({ message: t("common.error"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+    } finally {
+      setOpNotifBusyKey(null);
+    }
+  }
 
   /** Single on/off — both underlying prefs always move together. */
   async function toggleAll() {
@@ -366,6 +397,60 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
               </Text>
             )}
           </View>
+
+          <Text style={[styles.testSectionTitle, isRTL && styles.rtl]}>{t("notifications.opsSectionTitle")}</Text>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.row,
+              surface.card,
+              styles.killSwitchRow,
+              pressed && styles.rowPressed,
+              (opNotifBusyKey === "notifyGroupSpotAvailable" || !opNotifPrefs) && styles.rowDisabled,
+            ]}
+            onPress={() => void toggleOpNotifPref("notifyGroupSpotAvailable")}
+            disabled={opNotifBusyKey === "notifyGroupSpotAvailable" || !opNotifPrefs}
+            accessibilityRole="switch"
+            accessibilityState={{
+              checked: (opNotifPrefs ?? DEFAULT_MANAGER_OPERATIONAL_NOTIFICATION_PREFS).notifyGroupSpotAvailable,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("notifications.groupSpotLabel")}</Text>
+              <Text style={[styles.killSwitchHint, isRTL && styles.rtl]}>{t("notifications.groupSpotHint")}</Text>
+            </View>
+            {!opNotifPrefs ? (
+              <ActivityIndicator color={theme.colors.cta} />
+            ) : (
+              pill(opNotifPrefs.notifyGroupSpotAvailable)
+            )}
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.row,
+              surface.card,
+              styles.killSwitchRow,
+              pressed && styles.rowPressed,
+              (opNotifBusyKey === "notifyNongroupRemoval" || !opNotifPrefs) && styles.rowDisabled,
+            ]}
+            onPress={() => void toggleOpNotifPref("notifyNongroupRemoval")}
+            disabled={opNotifBusyKey === "notifyNongroupRemoval" || !opNotifPrefs}
+            accessibilityRole="switch"
+            accessibilityState={{
+              checked: (opNotifPrefs ?? DEFAULT_MANAGER_OPERATIONAL_NOTIFICATION_PREFS).notifyNongroupRemoval,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("notifications.nongroupRemovalLabel")}</Text>
+              <Text style={[styles.killSwitchHint, isRTL && styles.rtl]}>{t("notifications.nongroupRemovalHint")}</Text>
+            </View>
+            {!opNotifPrefs ? (
+              <ActivityIndicator color={theme.colors.cta} />
+            ) : (
+              pill(opNotifPrefs.notifyNongroupRemoval)
+            )}
+          </Pressable>
 
           <Pressable
             style={({ pressed }) => [

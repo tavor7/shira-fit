@@ -12,6 +12,7 @@ import {
   useManagerAthletePreview,
 } from "../context/ManagerAthletePreviewContext";
 import { replaceToManagerSessions } from "../lib/managerSessionsRedirectLog";
+import { rpcGetMySubscription } from "../lib/athleteSubscription";
 
 type RouteItem = FoldableActionsMenuItem & {
   /** Match current pathname; when true we hide the item. */
@@ -29,6 +30,7 @@ export function GlobalQuickMenu() {
   const closeMenuA11y = t("a11y.closeMenu");
   const pathname = usePathname() ?? "";
   const [pendingApproveCount, setPendingApproveCount] = useState(0);
+  const [hasSubscription, setHasSubscription] = useState(false);
 
   useEffect(() => {
     if (profile?.role !== "manager") {
@@ -49,6 +51,30 @@ export function GlobalQuickMenu() {
       cancelled = true;
     };
   }, [profile?.role, pathname]);
+
+  // "My Subscription" only belongs in this menu for an athlete who actually has one -- an
+  // approved, non-disabled athlete with no subscription (the common case, since this is opt-in
+  // manager-side) should never see a menu item that only leads to an empty state.
+  useEffect(() => {
+    const eligible =
+      profile?.role === "athlete" && profile?.approval_status === "approved" && !isAthleteAccountDisabled(profile);
+    if (!eligible) {
+      setHasSubscription(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await rpcGetMySubscription(supabase);
+        if (!cancelled) setHasSubscription(res.ok && res.has_subscription === true);
+      } catch {
+        if (!cancelled) setHasSubscription(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.role, profile?.approval_status, profile?.disabled_at, pathname]);
 
   const navRole = useEffectiveNavRole(profile);
   const { setEnabled } = useManagerAthletePreview();
@@ -208,6 +234,13 @@ export function GlobalQuickMenu() {
         isActive: (p) => startsWithAny(p, ["/athlete/my-sessions"]),
       },
     ];
+    if (hasSubscription) {
+      athleteItems.push({
+        label: t("athleteSubscription.title"),
+        onPress: () => router.push("/(app)/athlete/subscription"),
+        isActive: (p) => startsWithAny(p, ["/athlete/subscription"]),
+      });
+    }
     if (profile?.role === "manager") {
       athleteItems.push({
         label: t("menu.backToStaff"),
@@ -229,6 +262,7 @@ export function GlobalQuickMenu() {
     profile?.role,
     profile?.approval_status,
     pendingApproveCount,
+    hasSubscription,
     t,
     language,
     toggleLanguage,

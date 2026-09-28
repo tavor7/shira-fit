@@ -28,8 +28,12 @@ export type SubscriptionListRow = {
   monthly_price_ils: number;
   anchor_day: number;
   plan_start_date: string;
+  /** As configured -- prefer effective_plan_end_date for display (extended by any freeze). */
   plan_end_date: string | null;
+  /** Configured plan_end_date extended by every applicable freeze day; null iff has_no_end_date. */
+  effective_plan_end_date: string | null;
   has_no_end_date: boolean;
+  /** Already reflects cumulative freeze shift -- never recompute this on the client. */
   next_billing_date: string | null;
   is_frozen: boolean;
   current_weekly_limits: WeeklyLimits;
@@ -58,6 +62,8 @@ export type SubscriptionVersionRow = {
   anchor_day: number;
   plan_start_date: string;
   plan_end_date: string | null;
+  /** Configured plan_end_date extended by every applicable freeze day; null iff has_no_end_date. */
+  effective_plan_end_date: string | null;
   has_no_end_date: boolean;
   stopped_effective_date: string | null;
   superseded_by: string | null;
@@ -108,6 +114,8 @@ export type SubscriptionDetail = {
   versions: SubscriptionVersionRow[];
   freezes: SubscriptionFreezeRow[];
   billing_periods: SubscriptionBillingPeriodRow[];
+  /** Already reflects cumulative freeze shift -- never recompute this on the client. */
+  next_billing_date: string | null;
 };
 
 export type ImpactRegistrationItem = {
@@ -125,6 +133,10 @@ export type SubscriptionImpact = {
   count: number;
   items: ImpactRegistrationItem[];
   current_monthly_price_ils?: number;
+  /** Freeze preview only -- computed by actually running the real correction logic inside a
+   * rolled-back transaction; null/absent for stop/edit previews. */
+  preview_next_billing_date?: string | null;
+  preview_effective_plan_end_date?: string | null;
   estimate_note?: string;
 };
 
@@ -257,13 +269,25 @@ export async function rpcEditSubscriptionVersion(
   return data as RpcOutcome<{ action: "preview" | "applied" | "already_applied"; impact?: SubscriptionImpact; version_id?: string }>;
 }
 
+export type FreezeSubscriptionOutcome = {
+  action: "preview" | "applied" | "already_applied";
+  impact?: SubscriptionImpact;
+  freeze_id?: string;
+  /** Only present on action="applied" -- the just-created freeze's own inclusive day count. */
+  frozen_days?: number;
+  /** Already reflects cumulative freeze shift -- never recompute this on the client. */
+  next_billing_date?: string | null;
+  /** Configured plan_end_date extended by every applicable freeze day; null iff no end date. */
+  effective_plan_end_date?: string | null;
+};
+
 export async function rpcFreezeSubscription(
   supabase: SupabaseClient,
   subscriptionId: string,
   freezeFrom: string,
   freezeUntil: string,
   confirmed: boolean
-): Promise<RpcOutcome<{ action: "preview" | "applied" | "already_applied"; impact?: SubscriptionImpact; freeze_id?: string }>> {
+): Promise<RpcOutcome<FreezeSubscriptionOutcome>> {
   const { data, error } = await supabase.rpc("freeze_subscription", {
     p_subscription_id: subscriptionId,
     p_freeze_from: freezeFrom,
@@ -271,7 +295,7 @@ export async function rpcFreezeSubscription(
     p_confirmed: confirmed,
   });
   if (error) throw error;
-  return data as RpcOutcome<{ action: "preview" | "applied" | "already_applied"; impact?: SubscriptionImpact; freeze_id?: string }>;
+  return data as RpcOutcome<FreezeSubscriptionOutcome>;
 }
 
 export async function rpcStopSubscription(

@@ -22,6 +22,8 @@ import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import { weekBoundsSunday } from "../lib/studioWeek";
 import { staffMoveSessionParticipant } from "../lib/staffMoveParticipant";
 import { moveParticipantErrorDetail } from "../lib/moveParticipantErrors";
+import { attemptWithSubscriptionConsent } from "../lib/subscriptionLimitConsent";
+import { promptMoveParticipantAcceptExtraSubscriptionCharge } from "../lib/moveParticipantSubscriptionWarning";
 
 export type MoveParticipantTarget = {
   kind: "registered" | "manual";
@@ -173,20 +175,26 @@ export function MoveParticipantSheet({
   }) {
     if (!participant || !picked) return;
     setMoving(true);
-    const result = await staffMoveSessionParticipant({
-      fromSessionId,
-      toSessionId: picked.id,
-      userId: participant.kind === "registered" ? participant.userId : undefined,
-      manualParticipantId: participant.kind === "manual" ? participant.manualId : undefined,
-      allowOverCapacity: opts.allowOverCapacity,
-      increaseDestMax: opts.increaseDestMax,
-      decreaseSourceMax: opts.decreaseSourceMax,
-    });
+    const result = await attemptWithSubscriptionConsent(
+      (acceptExtraSubscriptionCharge) =>
+        staffMoveSessionParticipant({
+          fromSessionId,
+          toSessionId: picked.id,
+          userId: participant.kind === "registered" ? participant.userId : undefined,
+          manualParticipantId: participant.kind === "manual" ? participant.manualId : undefined,
+          allowOverCapacity: opts.allowOverCapacity,
+          increaseDestMax: opts.increaseDestMax,
+          decreaseSourceMax: opts.decreaseSourceMax,
+          acceptExtraSubscriptionCharge,
+        }),
+      (reason) => promptMoveParticipantAcceptExtraSubscriptionCharge(showAlert, t, reason)
+    );
     setMoving(false);
     if (!result.ok) {
+      if (result.error === "cancelled") return;
       showToast({
         message: t("moveParticipant.failed"),
-        detail: moveParticipantErrorDetail(result.error, t, result.reason),
+        detail: moveParticipantErrorDetail(result.error, t, "reason" in result ? result.reason : undefined),
         variant: "error",
       });
       return;

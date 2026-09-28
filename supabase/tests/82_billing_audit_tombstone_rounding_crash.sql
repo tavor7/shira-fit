@@ -116,8 +116,8 @@ begin
 
   -- Manually insert ONLY the billing_period row -- simulating a crash right after that INSERT
   -- committed but before the charge INSERT ever ran.
-  insert into public.subscription_billing_periods (subscription_id, version_id, period_start, period_end)
-  values (v_sub, v_ver, v_start, v_end) returning id into v_bp_id;
+  insert into public.subscription_billing_periods (subscription_id, version_id, period_start, period_end, raw_period_start, raw_period_end)
+  values (v_sub, v_ver, v_start, v_end, v_start, v_end) returning id into v_bp_id;
 
   if exists (select 1 from subscription_charges where billing_period_id = v_bp_id) then
     raise exception 'AU8 setup FAILED: a charge already exists, simulation invalid';
