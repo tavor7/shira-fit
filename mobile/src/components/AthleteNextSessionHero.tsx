@@ -19,7 +19,13 @@ import {
 import { appendNetworkHint } from "../lib/networkErrors";
 import { scheduleSessionReminders, cancelSessionReminders } from "../lib/sessionReminders";
 import { clearWaitlistSpotFlag } from "../lib/waitlistSpotNotifier";
-import { athleteRegisterSessionErrorDetail } from "../lib/athleteRegisterSessionError";
+import {
+  athleteRegisterSessionErrorDetail,
+  athleteSubscriptionLimitMessage,
+  promptAcceptExtraSubscriptionCharge,
+} from "../lib/athleteRegisterSessionError";
+import { registerForSession } from "../lib/athleteRegisterSession";
+import { attemptWithSubscriptionConsent, isSubscriptionLimitExceeded } from "../lib/subscriptionLimitConsent";
 import {
   fetchSessionRegistrationOpenState,
   sessionRegistrationClosedHint,
@@ -124,13 +130,15 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
       }
     }
     setBusy(true);
-    const { data, error } = await supabase.rpc("register_for_session", { p_session_id: next.id });
+    // Guarded end-to-end by `busy` (disables the register button below) through the whole
+    // attempt-then-maybe-confirm-then-retry sequence, so a second tap can't fire a duplicate
+    // registration while the consent dialog is open or a retry is in flight.
+    const result = await attemptWithSubscriptionConsent(
+      (acceptExtraSubscriptionCharge) => registerForSession(next.id, acceptExtraSubscriptionCharge),
+      (reason) => promptAcceptExtraSubscriptionCharge(showAlert, t, reason)
+    );
     setBusy(false);
-    if (error) {
-      showOk(t("common.error"), appendNetworkHint(error, t("network.offlineHint")));
-      return;
-    }
-    if (data?.ok) {
+    if (result.ok) {
       const when = `${formatISODateFull(next.session_date, language)} · ${formatSessionTimeRange(next.start_time, next.duration_minutes ?? 60)}`;
       await scheduleSessionReminders({
         sessionId: next.id,
@@ -146,10 +154,19 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
         message: language === "he" ? "נרשמת לאימון" : "You’re registered",
         variant: "success",
       });
-    } else {
-      const err = String(data?.error ?? "");
-      if (err === "already_registered") await loadStatus();
-      showOk(t("athleteSession.couldNotRegister"), athleteRegisterSessionErrorDetail(err, t));
+    } else if (result.error !== "cancelled") {
+      // "cancelled" means the athlete declined the subscription-limit consent dialog: no
+      // registration, no error dialog, no state change.
+      if (isSubscriptionLimitExceeded(result)) {
+        // Rare: the confirmed retry itself still came back subscription_limit_exceeded (e.g. the
+        // allowance state changed between preview and confirm). Show the same reason-specific
+        // copy, never the raw code.
+        showOk(t("athleteSession.couldNotRegister"), athleteSubscriptionLimitMessage(result.reason, t));
+      } else {
+        const err = String(result.error ?? "");
+        if (err === "already_registered") await loadStatus();
+        showOk(t("athleteSession.couldNotRegister"), appendNetworkHint(athleteRegisterSessionErrorDetail(err, t), t("network.offlineHint")));
+      }
     }
   }
 

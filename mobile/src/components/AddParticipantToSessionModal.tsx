@@ -10,6 +10,11 @@ import { useAppAlert } from "../context/AppAlertContext";
 import { findExistingParticipantByNameOrPhone } from "../lib/findExistingParticipant";
 import { promptAddExistingParticipant } from "../lib/promptExistingParticipant";
 import { athleteSearchSubtitle } from "../lib/displayName";
+import { attemptWithSubscriptionConsent, isSubscriptionLimitExceeded, type RpcResult } from "../lib/subscriptionLimitConsent";
+import {
+  addParticipantSubscriptionLimitMessage,
+  promptAddParticipantAcceptExtraSubscriptionCharge,
+} from "../lib/addParticipantSubscriptionWarning";
 
 type Props = {
   sessionId: string;
@@ -33,19 +38,21 @@ function escapeIlike(term: string) {
 }
 
 /** Always pass p_allow_over_capacity so PostgREST matches the single 3-arg DB function. */
-function coachAddAthleteRpcArgs(sid: string, userId: string, allowOverCapacity: boolean) {
+function coachAddAthleteRpcArgs(sid: string, userId: string, allowOverCapacity: boolean, acceptExtraSubscriptionCharge = false) {
   return {
     p_session_id: sid,
     p_user_id: userId,
     p_allow_over_capacity: allowOverCapacity,
+    p_accept_extra_subscription_charge: acceptExtraSubscriptionCharge,
   };
 }
 
-function addManualParticipantRpcArgs(sid: string, manualId: string, allowOverCapacity: boolean) {
+function addManualParticipantRpcArgs(sid: string, manualId: string, allowOverCapacity: boolean, acceptExtraSubscriptionCharge = false) {
   return {
     p_session_id: sid,
     p_manual_participant_id: manualId,
     p_allow_over_capacity: allowOverCapacity,
+    p_accept_extra_subscription_charge: acceptExtraSubscriptionCharge,
   };
 }
 
@@ -265,21 +272,31 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         );
         return;
       }
-      const { data, error } = await supabase.rpc("coach_add_athlete", coachAddAthleteRpcArgs(sid, userId, allowOverCapacity));
-      if (error) {
-        toastError(t("common.error"), error.message);
-        return;
-      }
-      if (data?.ok) {
+      const result = await attemptWithSubscriptionConsent<RpcResult>(
+        async (acceptExtraSubscriptionCharge) => {
+          const { data, error } = await supabase.rpc("coach_add_athlete", coachAddAthleteRpcArgs(sid, userId, allowOverCapacity, acceptExtraSubscriptionCharge));
+          if (error) return { ok: false, error: error.message };
+          if (data?.ok) return { ok: true, ...data };
+          return { ok: false, error: String(data?.error ?? "failed"), reason: data?.reason ?? undefined };
+        },
+        (reason) => promptAddParticipantAcceptExtraSubscriptionCharge(showAlert, t, reason)
+      );
+      if (result.ok) {
         toastSuccess(language === "he" ? "נוסף" : "Added");
         onClose();
         setQ("");
         setResults([]);
         await loadCounts();
         onAdded();
-      } else {
-        const errCode = String(data?.error ?? "");
-        toastError(t("common.failed"), rpcErrorMessage(errCode) || errCode || t("common.failed"));
+      } else if (result.error !== "cancelled") {
+        // "cancelled" means the manager declined the subscription-limit consent dialog: no add,
+        // no error toast, no state change.
+        if (isSubscriptionLimitExceeded(result)) {
+          toastError(t("common.failed"), addParticipantSubscriptionLimitMessage(result.reason, t));
+        } else {
+          const errCode = String(result.error ?? "");
+          toastError(t("common.failed"), rpcErrorMessage(errCode) || errCode || t("common.failed"));
+        }
       }
     } catch (e) {
       toastError(t("common.error"), e instanceof Error ? e.message : String(e));
@@ -308,21 +325,25 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         );
         return;
       }
-      const { data, error } = await supabase.rpc(
-        "add_manual_participant_to_session",
-        addManualParticipantRpcArgs(sid, manualId, allowOverCapacity)
+      const result = await attemptWithSubscriptionConsent<RpcResult>(
+        async (acceptExtraSubscriptionCharge) => {
+          const { data, error } = await supabase.rpc(
+            "add_manual_participant_to_session",
+            addManualParticipantRpcArgs(sid, manualId, allowOverCapacity, acceptExtraSubscriptionCharge)
+          );
+          if (error) return { ok: false, error: error.message };
+          if (data?.ok) return { ok: true, ...data };
+          return { ok: false, error: String(data?.error ?? "failed"), reason: data?.reason ?? undefined };
+        },
+        (reason) => promptAddParticipantAcceptExtraSubscriptionCharge(showAlert, t, reason)
       );
-      if (error) {
-        toastError(t("common.error"), error.message);
-        return;
-      }
-      if (data?.ok) {
+      if (result.ok) {
         toastSuccess(language === "he" ? "נוסף" : "Added");
         onClose();
         await loadCounts();
         onAdded();
-      } else {
-        const e = String(data?.error ?? "");
+      } else if (result.error !== "cancelled") {
+        const e = String(result.error ?? "");
         if (e === "already_in_session") {
           toastInfo(
             language === "he" ? "כבר רשום" : "Already registered",
@@ -330,6 +351,8 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
           );
         } else if (e === "full") {
           toastInfo(language === "he" ? "האימון מלא" : "Session full");
+        } else if (isSubscriptionLimitExceeded(result)) {
+          toastError(t("common.failed"), addParticipantSubscriptionLimitMessage(result.reason, t));
         } else {
           toastError(t("common.failed"), rpcErrorMessage(e) || e || t("common.failed"));
         }
@@ -379,23 +402,31 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         toastError(t("common.failed"), up?.error ?? (language === "he" ? "לא ניתן ליצור" : "Could not create"));
         return;
       }
-      const { data, error } = await supabase.rpc(
-        "add_manual_participant_to_session",
-        addManualParticipantRpcArgs(sid, mid, allowOverCapacity)
+      const result = await attemptWithSubscriptionConsent<RpcResult>(
+        async (acceptExtraSubscriptionCharge) => {
+          const { data, error } = await supabase.rpc(
+            "add_manual_participant_to_session",
+            addManualParticipantRpcArgs(sid, mid, allowOverCapacity, acceptExtraSubscriptionCharge)
+          );
+          if (error) return { ok: false, error: error.message };
+          if (data?.ok) return { ok: true, ...data };
+          return { ok: false, error: String(data?.error ?? "failed"), reason: data?.reason ?? undefined };
+        },
+        (reason) => promptAddParticipantAcceptExtraSubscriptionCharge(showAlert, t, reason)
       );
-      if (error) {
-        toastError(t("common.error"), error.message);
-        return;
-      }
-      if (data?.ok) {
+      if (result.ok) {
         toastSuccess(language === "he" ? "נוסף" : "Added");
         setQuickName("");
         setQuickPhone("");
         onClose();
         await loadCounts();
         onAdded();
-      } else {
-        toastError(t("common.failed"), String(data?.error ?? ""));
+      } else if (result.error !== "cancelled") {
+        if (isSubscriptionLimitExceeded(result)) {
+          toastError(t("common.failed"), addParticipantSubscriptionLimitMessage(result.reason, t));
+        } else {
+          toastError(t("common.failed"), String(result.error ?? ""));
+        }
       }
     } catch (e) {
       toastError(t("common.error"), e instanceof Error ? e.message : String(e));

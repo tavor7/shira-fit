@@ -26,7 +26,13 @@ import { fetchActiveSignupCountsBySession } from "../../../../src/lib/sessionSig
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
 import { embedLtrInMixed, embedRtlInLtr, isRtlScript } from "../../../../src/lib/bidiEmbed";
-import { athleteRegisterSessionErrorDetail } from "../../../../src/lib/athleteRegisterSessionError";
+import {
+  athleteRegisterSessionErrorDetail,
+  athleteSubscriptionLimitMessage,
+  promptAcceptExtraSubscriptionCharge,
+} from "../../../../src/lib/athleteRegisterSessionError";
+import { registerForSession } from "../../../../src/lib/athleteRegisterSession";
+import { attemptWithSubscriptionConsent, isSubscriptionLimitExceeded } from "../../../../src/lib/subscriptionLimitConsent";
 import {
   fetchSessionRegistrationOpenState,
   sessionRegistrationClosedHint,
@@ -189,10 +195,15 @@ export default function AthleteSessionDetail() {
       }
     }
     setRegistering(true);
-    const { data, error } = await supabase.rpc("register_for_session", { p_session_id: sessionId });
+    // `registering` guards the button through this entire attempt-then-maybe-confirm-then-retry
+    // sequence (see the early-return above), so a second tap can't fire a duplicate registration
+    // while the consent dialog is open or a retry is in flight.
+    const result = await attemptWithSubscriptionConsent(
+      (acceptExtraSubscriptionCharge) => registerForSession(sessionId, acceptExtraSubscriptionCharge),
+      (reason) => promptAcceptExtraSubscriptionCharge(showAlert, t, reason)
+    );
     setRegistering(false);
-    if (error) showToast({ message: t("common.error"), detail: error.message, variant: "error" });
-    else if (data?.ok) {
+    if (result.ok) {
       if (Platform.OS === "ios" || Platform.OS === "android") {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -213,14 +224,24 @@ export default function AthleteSessionDetail() {
       }
       await clearWaitlistSpotFlag(sessionId);
       await refreshCount();
-    } else {
-      const err = String(data?.error ?? "");
-      if (err === "already_registered") await load(true);
-      showToast({
-        message: t("athleteSession.couldNotRegister"),
-        detail: athleteRegisterSessionErrorDetail(err, t),
-        variant: "error",
-      });
+    } else if (result.error !== "cancelled") {
+      // "cancelled" means the athlete declined the subscription-limit consent dialog: no
+      // registration, no error toast, no state change.
+      if (isSubscriptionLimitExceeded(result)) {
+        showToast({
+          message: t("athleteSession.couldNotRegister"),
+          detail: athleteSubscriptionLimitMessage(result.reason, t),
+          variant: "error",
+        });
+      } else {
+        const err = String(result.error ?? "");
+        if (err === "already_registered") await load(true);
+        showToast({
+          message: t("athleteSession.couldNotRegister"),
+          detail: athleteRegisterSessionErrorDetail(err, t),
+          variant: "error",
+        });
+      }
     }
   }
 
