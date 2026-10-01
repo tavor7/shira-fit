@@ -43,6 +43,7 @@ import {
   computeBillingSummary,
   mergedHistorySections,
   parseMoney,
+  rosterOverrideKey,
   type Athlete,
   type PickerRow,
   type QuickLinked,
@@ -128,6 +129,7 @@ export default function ParticipantHistoryScreen({
   const [athleteTiers, setAthleteTiers] = useState<PricingRateTierRow[]>([]);
   const [globalKickboxTiers, setGlobalKickboxTiers] = useState<PricingRateTierRow[]>([]);
   const [sessionCustomPriceById, setSessionCustomPriceById] = useState<Record<string, number | null>>({});
+  const [sessionRosterPriceByKey, setSessionRosterPriceByKey] = useState<Record<string, number>>({});
   const [sessionKickboxById, setSessionKickboxById] = useState<Record<string, boolean>>({});
   const [sessionCoachById, setSessionCoachById] = useState<Record<string, string>>({});
   const [payeeIsManual, setPayeeIsManual] = useState(false);
@@ -540,6 +542,8 @@ export default function ParticipantHistoryScreen({
       globalKickboxTiers,
       sessionCustomPriceById,
       sessionKickboxById,
+      sessionRosterPriceByKey,
+      isManualHistoryRow,
       familyContext ? athleteTiersByMember : undefined,
       familyContext ? memberKeyForRow : undefined
     );
@@ -555,6 +559,7 @@ export default function ParticipantHistoryScreen({
     globalKickboxTiers,
     sessionCustomPriceById,
     sessionKickboxById,
+    sessionRosterPriceByKey,
     payeeIsManual,
   ]);
 
@@ -978,10 +983,29 @@ export default function ParticipantHistoryScreen({
       setSessionCustomPriceById(customMap);
       setSessionKickboxById(kickboxMap);
       setSessionCoachById(coachMap);
+
+      const { data: rosterPriceRows } = await supabase
+        .from("session_roster_slot_prices")
+        .select("session_id, user_id, manual_participant_id, price_ils")
+        .in("session_id", sessionIds);
+      const rosterMap: Record<string, number> = {};
+      for (const row of (rosterPriceRows as {
+        session_id: string;
+        user_id: string | null;
+        manual_participant_id: string | null;
+        price_ils: number | string;
+      }[]) ?? []) {
+        const n = Number(row.price_ils);
+        const payeeId = row.user_id ?? row.manual_participant_id;
+        if (!Number.isFinite(n) || !payeeId) continue;
+        rosterMap[rosterOverrideKey(row.session_id, row.manual_participant_id != null, payeeId)] = n;
+      }
+      setSessionRosterPriceByKey(rosterMap);
     } else {
       setSessionCustomPriceById({});
       setSessionKickboxById({});
       setSessionCoachById({});
+      setSessionRosterPriceByKey({});
     }
 
     if (next.length === 0 && ((acctRes.data as unknown[]) ?? []).length === 0) {
@@ -1369,6 +1393,8 @@ export default function ParticipantHistoryScreen({
               isManagerHistory={isManagerHistory}
               isCoachHistory={isCoachHistory}
               memberKeyForRow={memberKeyForRow}
+              isManualRow={isManualHistoryRow}
+              rosterPriceByKey={sessionRosterPriceByKey}
               athleteTiersByMember={athleteTiersByMember}
               athleteTiers={athleteTiers}
               globalTiers={globalTiers}

@@ -12,6 +12,7 @@ import {
 } from "../lib/paymentMethod";
 import { firstWordOfDisplayName } from "../lib/displayName";
 import { resolveSessionBillingPriceLocal } from "../lib/sessionSlotPrice";
+import { rosterOverrideKey } from "../lib/participantHistoryHelpers";
 import { formatISODateWeekdayDayMonthYear } from "../lib/dateFormat";
 import { formatSessionStartTime } from "../lib/sessionTime";
 import type { AthleteFamily } from "../lib/athleteFamilies";
@@ -39,6 +40,8 @@ type Props = {
   isManagerHistory: boolean;
   isCoachHistory: boolean;
   memberKeyForRow: (reg: ParticipantHistoryRow) => string | null;
+  isManualRow: (reg: ParticipantHistoryRow) => boolean;
+  rosterPriceByKey: Record<string, number>;
   athleteTiersByMember: Record<string, PricingRateTierRow[]>;
   athleteTiers: PricingRateTierRow[];
   globalTiers: PricingRateTierRow[];
@@ -82,6 +85,8 @@ export function SessionHistoryRow({
   isManagerHistory,
   isCoachHistory,
   memberKeyForRow,
+  isManualRow,
+  rosterPriceByKey,
   athleteTiersByMember,
   athleteTiers,
   globalTiers,
@@ -146,6 +151,9 @@ export function SessionHistoryRow({
             mk && athleteTiersByMember[mk] && athleteTiersByMember[mk]!.length > 0
               ? athleteTiersByMember[mk]!
               : athleteTiers;
+          const overrideKey = rosterOverrideKey(reg.session_id, isManualRow(reg), reg.athlete_user_id);
+          const override = rosterPriceByKey[overrideKey];
+          if (override != null) return override;
           return resolveSessionBillingPriceLocal({
             customSlotPriceIls: sessionCustomPriceById[reg.session_id],
             maxParticipants: reg.max_participants,

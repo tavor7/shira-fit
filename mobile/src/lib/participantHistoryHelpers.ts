@@ -17,6 +17,11 @@ export function parseMoney(raw: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Key into a roster-slot-price-override map: one override per (session, payee). */
+export function rosterOverrideKey(sessionId: string, isManual: boolean, payeeId: string): string {
+  return `${sessionId}:${isManual ? "m" : "u"}:${payeeId}`;
+}
+
 export type AttStatus = "unset" | "arrived" | "absent";
 
 export function attStatusFromRow(reg: ParticipantHistoryRow): AttStatus {
@@ -45,6 +50,8 @@ export function computeBillingSummary(
   globalKickboxTiers: PricingRateTierRow[],
   sessionCustomById: Record<string, number | null>,
   sessionKickboxById: Record<string, boolean>,
+  rosterPriceByKey: Record<string, number>,
+  isManualRow: (reg: ParticipantHistoryRow) => boolean,
   athleteTiersByMember?: Record<string, PricingRateTierRow[]>,
   memberKeyForRow?: (reg: ParticipantHistoryRow) => string | null
 ): BillingSummary {
@@ -99,15 +106,18 @@ export function computeBillingSummary(
     const memberKey = memberKeyForRow?.(r) ?? null;
     const rowAthleteTiers =
       memberKey && athleteTiersByMember?.[memberKey] ? athleteTiersByMember[memberKey]! : athleteTiers;
-    const price = resolveSessionBillingPriceLocal({
-      customSlotPriceIls: sessionCustomById[r.session_id],
-      maxParticipants: cap,
-      isKickbox: sessionKickboxById[r.session_id] ?? false,
-      sessionDate,
-      athleteTiers: rowAthleteTiers,
-      globalTiers,
-      globalKickboxTiers,
-    });
+    const overrideKey = rosterOverrideKey(r.session_id, isManualRow(r), r.athlete_user_id);
+    const price =
+      rosterPriceByKey[overrideKey] ??
+      resolveSessionBillingPriceLocal({
+        customSlotPriceIls: sessionCustomById[r.session_id],
+        maxParticipants: cap,
+        isKickbox: sessionKickboxById[r.session_id] ?? false,
+        sessionDate,
+        athleteTiers: rowAthleteTiers,
+        globalTiers,
+        globalKickboxTiers,
+      });
     if (price === null) missingRuleCount += 1;
     else expected += price;
   }

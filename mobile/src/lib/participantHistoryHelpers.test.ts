@@ -4,6 +4,7 @@ import {
   computeBillingSummary,
   mergedHistorySections,
   parseMoney,
+  rosterOverrideKey,
 } from "./participantHistoryHelpers";
 import type { AthleteFamily } from "./athleteFamilies";
 import type { PricingRateTierRow } from "./pricingRates";
@@ -112,7 +113,7 @@ describe("computeBillingSummary", () => {
   it("sums received amounts from session payments and account payments", () => {
     const regs = [makeRow({ amount_paid: 50, payment_method: "cash" })];
     const payments = [makePayment({ amount_ils: 30, payment_method: "paybox" })];
-    const summary = computeBillingSummary(regs, payments, [], [], [], {}, {});
+    const summary = computeBillingSummary(regs, payments, [], [], [], {}, {}, {}, () => false);
     expect(summary.received).toBe(80);
     expect(summary.byMethod).toEqual(
       expect.arrayContaining([
@@ -124,21 +125,21 @@ describe("computeBillingSummary", () => {
 
   it("counts expected billing for owed sessions using the global tier price", () => {
     const regs = [makeRow({ reg_status: "active", attended: true, max_participants: 4 })];
-    const summary = computeBillingSummary(regs, [], globalTiers, [], [], {}, {});
+    const summary = computeBillingSummary(regs, [], globalTiers, [], [], {}, {}, {}, () => false);
     expect(summary.expected).toBe(100);
     expect(summary.missingRuleCount).toBe(0);
   });
 
   it("increments missingRuleCount when no tier price resolves for an owed session", () => {
     const regs = [makeRow({ reg_status: "active", attended: true, max_participants: 9 })];
-    const summary = computeBillingSummary(regs, [], globalTiers, [], [], {}, {});
+    const summary = computeBillingSummary(regs, [], globalTiers, [], [], {}, {}, {}, () => false);
     expect(summary.expected).toBe(0);
     expect(summary.missingRuleCount).toBe(1);
   });
 
   it("does not count a session as owed when not attended and no no-show charge", () => {
     const regs = [makeRow({ reg_status: "active", attended: false, charge_no_show: false })];
-    const summary = computeBillingSummary(regs, [], globalTiers, [], [], {}, {});
+    const summary = computeBillingSummary(regs, [], globalTiers, [], [], {}, {}, {}, () => false);
     expect(summary.expected).toBe(0);
     expect(summary.missingRuleCount).toBe(0);
   });
@@ -152,27 +153,27 @@ describe("computeBillingSummary", () => {
         max_participants: 4,
       }),
     ];
-    const summary = computeBillingSummary(regs, [], globalTiers, [], [], {}, {});
+    const summary = computeBillingSummary(regs, [], globalTiers, [], [], {}, {}, {}, () => false);
     expect(summary.expected).toBe(100);
   });
 
   it("adds a collected cancellation penalty to received, grouped as 'other'", () => {
     const regs = [makeRow({ cancellation_penalty_collected: 60 })];
-    const summary = computeBillingSummary(regs, [], [], [], [], {}, {});
+    const summary = computeBillingSummary(regs, [], [], [], [], {}, {}, {}, () => false);
     expect(summary.received).toBe(60);
     expect(summary.byMethod).toContainEqual({ key: "other", total: 60 });
   });
 
   it("computes balance as expected minus received", () => {
     const regs = [makeRow({ reg_status: "active", attended: true, max_participants: 4, amount_paid: 40 })];
-    const summary = computeBillingSummary(regs, [], globalTiers, [], [], {}, {});
+    const summary = computeBillingSummary(regs, [], globalTiers, [], [], {}, {}, {}, () => false);
     expect(summary.balance).toBe(60);
   });
 
   it("a discount account payment reduces expected instead of adding to received", () => {
     const regs = [makeRow({ reg_status: "active", attended: true, max_participants: 4 })];
     const payments = [makePayment({ amount_ils: 50, payment_method: "discount" })];
-    const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {});
+    const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {}, {}, () => false);
     expect(summary.expected).toBe(50); // 100 owed - 50 discount
     expect(summary.received).toBe(0);
     expect(summary.balance).toBe(50);
@@ -182,7 +183,7 @@ describe("computeBillingSummary", () => {
   it("a discount matching the full owed amount zeroes the balance", () => {
     const regs = [makeRow({ reg_status: "active", attended: true, max_participants: 4 })];
     const payments = [makePayment({ amount_ils: 100, payment_method: "discount" })];
-    const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {});
+    const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {}, {}, () => false);
     expect(summary.expected).toBe(0);
     expect(summary.received).toBe(0);
     expect(summary.balance).toBe(0);
@@ -191,8 +192,27 @@ describe("computeBillingSummary", () => {
   it("clamps expected at 0 when the discount exceeds what was owed", () => {
     const regs = [makeRow({ reg_status: "active", attended: true, max_participants: 4 })];
     const payments = [makePayment({ amount_ils: 150, payment_method: "discount" })];
-    const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {});
+    const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {}, {}, () => false);
     expect(summary.expected).toBe(0);
     expect(summary.balance).toBe(0);
+  });
+
+  it("uses a per-participant roster rate override instead of the tier price when set", () => {
+    const regs = [
+      makeRow({ session_id: "sess-1", athlete_user_id: "user-1", reg_status: "active", attended: true, max_participants: 4 }),
+    ];
+    const rosterPriceByKey = { [rosterOverrideKey("sess-1", false, "user-1")]: 60 };
+    const summary = computeBillingSummary(
+      regs,
+      [],
+      globalTiers,
+      [],
+      [],
+      {},
+      {},
+      rosterPriceByKey,
+      () => false
+    );
+    expect(summary.expected).toBe(60);
   });
 });
