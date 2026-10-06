@@ -29,10 +29,10 @@ begin
   -- T1: exactly these monitoring tables exist (a new system_* table must be reviewed and added here).
   select coalesce(array_agg(c.relname::text order by c.relname), '{}') into v_found
   from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and c.relname like 'system\_%';
-  if v_found <> (select array_agg(x order by x) from unnest(v_tables) x) then
+  if v_found <> (select array_agg(x order by x) from unnest(v_tables || array['system_job_state']) x) then
     raise exception 'T1 FAILED: system_* tables are %, expected %', v_found, v_tables;
   end if;
-  raise notice 'T1 PASSED: the 7 approved monitoring tables exist and no others';
+  raise notice 'T1 PASSED: the 8 approved monitoring tables exist (7 Phase 1 + system_job_state) and no others';
 
   -- T2: ownership, RLS enabled.
   foreach v_t in array v_tables loop
@@ -162,6 +162,9 @@ declare
   v_def boolean;
   v_expected constant text[] := array[
     '_report_system_error', '_system_cfg', '_system_fingerprint', '_system_flag', '_system_ingest',
+    '_system_cron_jobs', '_system_cron_max_runid', '_system_cron_recent_runs', '_system_cron_runs',
+    '_system_job_key', '_system_job_observe', '_system_job_stale_after_s', '_system_jobcfg_bool',
+    '_system_jobcfg_int', '_system_jobcfg_paused_until',
     '_system_ingest_impl', '_system_limit', '_system_monitoring_maintenance', '_system_normalize_template',
     '_system_pick_rule', '_system_pick_text', '_system_rank_sev', '_system_reapply_rules', '_system_redact',
     '_system_ret', '_system_sanitize_map', '_system_sev_rank', '_system_stack_origin',
@@ -178,7 +181,7 @@ begin
   if v_found <> (select array_agg(x order by x) from unnest(v_expected) x) then
     raise exception 'T7 FAILED: monitoring functions are %, expected %', v_found, v_expected;
   end if;
-  raise notice 'T7 PASSED: the monitoring function set is exactly the approved 26 functions';
+  raise notice 'T7 PASSED: the monitoring function set is exactly the approved 36 functions (26 Phase 1 + 10 observer)';
 
   -- T8: ownership, definer/invoker, pinned search_path, EXECUTE matrix.
   for r in
@@ -194,7 +197,10 @@ begin
     -- SECURITY INVOKER helpers vs SECURITY DEFINER entry points / workers
     v_def := r.proname not in ('_system_sev_rank', '_system_rank_sev', '_system_cfg', '_system_limit', '_system_flag',
       '_system_redact', '_system_normalize_template', '_system_sanitize_map', '_system_fingerprint',
-      '_system_pick_rule', '_system_pick_text', '_system_stack_origin', '_system_ret');
+      '_system_pick_rule', '_system_pick_text', '_system_stack_origin', '_system_ret',
+      '_system_cron_jobs', '_system_cron_max_runid', '_system_cron_recent_runs', '_system_cron_runs',
+      '_system_job_key', '_system_job_stale_after_s', '_system_jobcfg_bool', '_system_jobcfg_int',
+      '_system_jobcfg_paused_until');
     if r.prosecdef <> v_def then
       raise exception 'T8 FAILED: % has prosecdef=% (expected %)', r.sig, r.prosecdef, v_def;
     end if;
@@ -218,8 +224,8 @@ begin
       raise exception 'T8 FAILED: % has a PUBLIC grantee', r.sig;
     end if;
   end loop;
-  if v_n <> 26 then raise exception 'T8 FAILED: inspected % functions, expected 26', v_n; end if;
-  raise notice 'T8 PASSED: ownership, definer/invoker, search_path and the full EXECUTE matrix are exact (26 functions)';
+  if v_n <> 36 then raise exception 'T8 FAILED: inspected % functions, expected 36', v_n; end if;
+  raise notice 'T8 PASSED: ownership, definer/invoker, search_path and the full EXECUTE matrix are exact (36 functions)';
 
   -- T9: the monitoring authorization model must not depend on is_super_user or on the arbitrary-uid
   -- is_manager(uid) helper, in any function or policy.
@@ -272,7 +278,7 @@ declare
   v_cron boolean;
 begin
   select coalesce(array_agg(c.key order by c.key), '{}') into v_keys from public.system_monitoring_config c;
-  if v_keys <> array['client_ingest_enabled', 'context_allowed_keys', 'ingest_enabled', 'limits', 'retention'] then
+  if v_keys <> array['client_ingest_enabled', 'context_allowed_keys', 'ingest_enabled', 'job_monitoring', 'limits', 'retention'] then
     raise exception 'T11 FAILED: config keys are %', v_keys;
   end if;
   if (select value from public.system_monitoring_config where key = 'client_ingest_enabled') <> 'false'::jsonb then
@@ -281,14 +287,14 @@ begin
   if (select value from public.system_monitoring_config where key = 'ingest_enabled') <> 'true'::jsonb then
     raise exception 'T11 FAILED: ingest_enabled must be true';
   end if;
-  raise notice 'T11 PASSED: config contains exactly the 5 seeded keys; client ingestion is disabled by default';
+  raise notice 'T11 PASSED: config contains exactly the 6 seeded keys; client ingestion is disabled by default';
 
   -- No cron job references the monitoring system (maintenance is built but not scheduled).
-  select exists (select 1 from cron.job j where j.command ~* '(_system_|system_issue|system_monitoring|_report_system_error|report_client_error)') into v_cron;
+  select exists (select 1 from cron.job j where j.command ~* '(_system_|system_issue|system_monitoring|_report_system_error|report_client_error)' and not (j.jobname = 'system-monitor-observe' and j.command = 'select public._system_job_observe();')) into v_cron;
   if v_cron then
     raise exception 'T12 FAILED: a cron job references the monitoring system';
   end if;
-  raise notice 'T12 PASSED: no pg_cron job references the monitoring system';
+  raise notice 'T12 PASSED: no pg_cron job references the monitoring system except the observer';
 
   -- Not wired into Realtime.
   if exists (select 1 from pg_publication_tables t where t.schemaname = 'public' and t.tablename like 'system\_%') then
