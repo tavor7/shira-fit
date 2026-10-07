@@ -208,7 +208,7 @@ export function SessionsWeekCalendar({
 
   /** Periodic refresh so “live” / “ended” styling updates without navigating away. */
   const [, setTemporalTick] = useState(0);
-  const { language, t, isRTL } = useI18n();
+  const { language, t, isRTL, rowFlip } = useI18n();
   const locale = language === "he" ? "he-IL" : "en-US";
   const dayNames = language === "he" ? DAY_NAMES_HE : DAY_NAMES_EN;
 
@@ -219,14 +219,26 @@ export function SessionsWeekCalendar({
     const dir = pendingScrollDirRef.current;
     if (dir == null) return;
     pendingScrollDirRef.current = null;
-    // Column order is row-reversed under RTL, so "start of row" and "start of week" swap sides.
-    const scrollToWeekStart = dir > 0 ? !isRTL : isRTL;
-    if (scrollToWeekStart) {
-      scrollRef.current?.scrollTo({ x: 0, animated: true });
-    } else {
-      scrollRef.current?.scrollToEnd({ animated: true });
+    // Moving forward shows the start of the new week (Sunday); moving back shows its end (Saturday).
+    const edge = dir > 0 ? "start" : "end";
+    const sv = scrollRef.current;
+    if (!sv) return;
+    if (Platform.OS === "web" && isRTL) {
+      // Browser-mirrored RTL scroller: the week start is at scrollLeft 0 and the end at a negative offset.
+      const node = (sv as unknown as { getScrollableNode?: () => HTMLElement | null }).getScrollableNode?.();
+      if (node) {
+        // react-native-web replaces the host node's scrollTo with its own {x, y} API; call the DOM method directly.
+        (Element.prototype.scrollTo as (this: Element, options: ScrollToOptions) => void).call(node, {
+          left: edge === "start" ? 0 : -(node.scrollWidth - node.clientWidth),
+          behavior: "smooth",
+        });
+        return;
+      }
     }
-  }, [weekOffset, isRTL]);
+    // Otherwise x=0 is the content start, which is the week end when the row is manually reversed.
+    if ((edge === "start") !== rowFlip) sv.scrollTo({ x: 0, animated: true });
+    else sv.scrollToEnd({ animated: true });
+  }, [weekOffset, isRTL, rowFlip]);
 
   const weekStart = useMemo(() => {
     const base = startOfWeekSunday(new Date());
@@ -323,10 +335,10 @@ export function SessionsWeekCalendar({
   return (
     <View style={styles.wrap}>
       {/*
-        Under `dir=rtl` (Hebrew web) or I18nManager RTL, flex `row` still mirrors main axis,
-        which swaps the two buttons. Isolate this bar as LTR so prev stays screen-left with `<`.
+        The bar follows the UI direction like the day columns: in Hebrew the week runs right-to-left,
+        so "previous" sits on the right pointing right and "next" on the left pointing left.
       */}
-      <View style={styles.header}>
+      <View style={[styles.header, rowFlip && styles.headerFlip]}>
         {hideWeekNavigation ? (
           <Text style={[styles.weekTitle, styles.weekTitleStatic]} numberOfLines={1}>
             {weekLabel}
@@ -345,7 +357,7 @@ export function SessionsWeekCalendar({
               accessibilityLabel={t("dashboard.a11yPrevWeek")}
               accessibilityState={{ disabled: !canGoPrev }}
             >
-              <Text style={[styles.navChevron, !canGoPrev && styles.navChevronDisabled]}>{"←"}</Text>
+              <Text style={[styles.navChevron, !canGoPrev && styles.navChevronDisabled]}>{isRTL ? "→" : "←"}</Text>
             </Pressable>
             <Text style={styles.weekTitle} numberOfLines={1}>
               {weekLabel}
@@ -366,7 +378,7 @@ export function SessionsWeekCalendar({
               accessibilityLabel={t("dashboard.a11yNextWeek")}
               accessibilityState={{ disabled: !canGoNext }}
             >
-              <Text style={[styles.navChevron, !canGoNext && styles.navChevronDisabled]}>{"→"}</Text>
+              <Text style={[styles.navChevron, !canGoNext && styles.navChevronDisabled]}>{isRTL ? "←" : "→"}</Text>
             </Pressable>
           </>
         )}
@@ -377,14 +389,14 @@ export function SessionsWeekCalendar({
           ref={scrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.scrollerContent, isRTL && styles.scrollerContentRtl]}
+          contentContainerStyle={[styles.scrollerContent, rowFlip && styles.scrollerContentRtl]}
           style={styles.scroller}
         >
           {weekDays.map((d) => {
             const dayList = byDate.get(d.iso) ?? [];
             const isToday = d.iso === todayIso;
             const dayNotes = notesByDate.get(d.iso) ?? [];
-            // Column order is row-reversed under RTL, mirroring the scroll-anchor logic above.
+            // Visual direction of time: in Hebrew the next week enters from the left.
             const fromRight = weekDirRef.current > 0 ? !isRTL : isRTL;
             return (
               <WeekDayEnter
@@ -534,8 +546,6 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, paddingBottom: theme.spacing.xl },
   header: {
     flexDirection: "row",
-    /** Override document / parent RTL so flex order is [prev][title][next] left-to-right. */
-    writingDirection: "ltr",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: theme.spacing.md,
@@ -554,6 +564,7 @@ const styles = StyleSheet.create({
     flex: 0,
     width: "100%",
   },
+  headerFlip: { flexDirection: "row-reverse" },
   navBtn: {
     paddingHorizontal: 12,
     paddingVertical: 9,

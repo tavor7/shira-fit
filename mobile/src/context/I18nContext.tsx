@@ -12,10 +12,16 @@ import {
   resolveLanguage,
   writeStoredLanguage,
 } from "../lib/languagePreference";
+import { shouldFlipRows } from "../lib/layoutDirection";
 
 type I18nCtx = {
   language: LanguageCode;
   isRTL: boolean;
+  /**
+   * Apply manual `row-reverse` mirroring only when this is true (see lib/layoutDirection). Never on web,
+   * where <html dir> already mirrors rows; on native, only while I18nManager disagrees with the language.
+   */
+  rowFlip: boolean;
   t: (key: string) => string;
   setLanguage: (lang: LanguageCode) => Promise<void>;
   toggleLanguage: () => Promise<void>;
@@ -69,6 +75,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }, [userId]);
 
   const isRTL = isRtlLanguage(language);
+  const rowFlip = shouldFlipRows(Platform.OS, isRTL, I18nManager.isRTL === true);
 
   useIsomorphicLayoutEffect(() => {
     // - Web: <html lang dir> is the single source of layout direction (react-native-web's I18nManager is a no-op).
@@ -107,7 +114,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     await setLanguage(language === "he" ? "en" : "he");
   }
 
-  return <Ctx.Provider value={{ language, isRTL, t, setLanguage, toggleLanguage }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ language, isRTL, rowFlip, t, setLanguage, toggleLanguage }}>{children}</Ctx.Provider>;
 }
 
 export function useI18n() {
