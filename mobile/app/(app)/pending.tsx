@@ -8,7 +8,6 @@ import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
 import { logRedirectToManagerSessions } from "../../src/lib/managerSessionsRedirectLog";
 import { AppText } from "../../src/components/AppText";
 import { ActionButton } from "../../src/components/ActionButton";
-import { StudioContactFooter } from "../../src/components/StudioContactFooter";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 
 export default function PendingScreen() {
@@ -86,7 +85,6 @@ export default function PendingScreen() {
         </View>
         </FadeSlideIn>
       </ScrollView>
-      <StudioContactFooter />
     </View>
   );
 }

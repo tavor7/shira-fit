@@ -7,7 +7,6 @@ import { useI18n } from "../../src/context/I18nContext";
 import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
 import { AppText } from "../../src/components/AppText";
 import { ActionButton } from "../../src/components/ActionButton";
-import { StudioContactFooter } from "../../src/components/StudioContactFooter";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 
 export default function DisabledAccountScreen() {
@@ -75,7 +74,6 @@ export default function DisabledAccountScreen() {
         </View>
         </FadeSlideIn>
       </ScrollView>
-      <StudioContactFooter />
     </View>
   );
 }
