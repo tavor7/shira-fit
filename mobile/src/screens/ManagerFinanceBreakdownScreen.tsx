@@ -26,8 +26,8 @@ import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AnimatedChevron } from "../components/AnimatedChevron";
 import { FadeSlideIn } from "../components/FadeSlideIn";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 function AmountPair({
   expected,
   collected,

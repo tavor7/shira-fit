@@ -1,8 +1,8 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { PricingRowMoreMenu } from "./PricingRowMoreMenu";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   title: string;
   subtitle?: string;

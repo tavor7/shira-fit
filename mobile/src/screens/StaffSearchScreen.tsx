@@ -14,8 +14,8 @@ import { AppText } from "../components/AppText";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type AthleteRow = { kind: "athlete"; id: string; title: string; subtitle: string };
 type ManualRow = { kind: "manual"; id: string; title: string; subtitle: string };
 

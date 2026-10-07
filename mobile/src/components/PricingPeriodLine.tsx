@@ -1,7 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   priceLabel: string;
   rangeLabel: string;

@@ -18,8 +18,8 @@ import { globalOverviewRangeISO } from "../lib/managerPeriodMode";
 import { isValidISODateString } from "../lib/isoDate";
 import { parseMoney } from "../lib/participantHistoryHelpers";
 import type { SuperUserHiddenRecord } from "../types/database";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type AthletePickerRow = { user_id: string; full_name: string; phone: string };
 
 export default function SuperUserHiddenWorkoutsScreen() {

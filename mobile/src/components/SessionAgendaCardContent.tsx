@@ -7,8 +7,8 @@ import { KickboxSessionBadge } from "./KickboxSessionBadge";
 import { SessionSeriesIndicator } from "./SessionSeriesIndicator";
 import { type SessionTemporalPhase, formatSessionStartTime, getSessionTemporalPhase } from "../lib/sessionTime";
 import { firstWordOfDisplayName } from "../lib/displayName";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   item: SessionsWeekItem;
   /** Narrow column (week grid); slightly smaller type */

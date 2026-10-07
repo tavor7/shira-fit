@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, Text } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type SortOrder = "asc" | "desc";
 
 type Props = {

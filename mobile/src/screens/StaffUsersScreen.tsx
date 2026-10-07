@@ -22,8 +22,8 @@ import {
   normalizeParticipantName,
   type ManualDuplicateIndexes,
 } from "../lib/participantIdentity";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type ProfileRow = {
   kind: "profile";
   user_id: string;

@@ -29,8 +29,8 @@ import {
   type PendingReceiptPayment,
 } from "../lib/pendingReceipts";
 import { toISODateLocal } from "../lib/isoDate";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 /** Payments before this date are historical/testing data — never shown as pending a receipt. */
 const PENDING_RECEIPTS_FLOOR_DATE = "2026-06-14";
 

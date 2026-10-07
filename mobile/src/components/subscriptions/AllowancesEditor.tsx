@@ -2,8 +2,8 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { theme } from "../../theme";
 import { useI18n } from "../../context/I18nContext";
 import { SUBSCRIPTION_TIERS, tierLabelKey, type WeeklyLimits } from "../../lib/subscriptions";
-
 import { rowFlipFor } from "../../lib/layoutDirection";
+
 type Props = {
   value: WeeklyLimits;
   onChange: (next: WeeklyLimits) => void;

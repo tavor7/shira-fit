@@ -3,8 +3,8 @@ import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   value: string;
   onChangeValue: (v: string) => void;

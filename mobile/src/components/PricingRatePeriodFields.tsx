@@ -2,8 +2,8 @@ import { View, Text, StyleSheet } from "react-native";
 import { DatePickerField } from "./DatePickerField";
 import { pricingScreenStyles as ps } from "./pricingScreenStyles";
 import { theme } from "../theme";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   fromLabel: string;
   toLabel: string;

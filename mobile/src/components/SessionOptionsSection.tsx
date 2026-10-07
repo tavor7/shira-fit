@@ -5,8 +5,8 @@ import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { KICKBOX_SESSION_ACCENT, KICKBOX_SESSION_BG } from "../lib/kickboxSessionStyle";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 import { AppSwitch } from "./AppSwitch";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 /** Visual cue when the toggle is on (off rows share the same neutral look). */
 export type SessionOptionTone = "open" | "hidden" | "kickbox" | "repeat";
 

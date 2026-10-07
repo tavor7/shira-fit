@@ -5,8 +5,8 @@ import { AppModal } from "../AppModal";
 import { PrimaryButton } from "../PrimaryButton";
 import { formatISODateFull } from "../../lib/dateFormat";
 import { tierLabelKey, type SubscriptionImpact } from "../../lib/subscriptions";
-
 import { rowFlipFor } from "../../lib/layoutDirection";
+
 export type ImpactConfirmAction = "edit" | "freeze" | "stop";
 
 type Props = {

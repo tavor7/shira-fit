@@ -15,8 +15,8 @@ import { isBirthdayToday } from "../lib/birthday";
 import { formatISODateFull, formatISODateLong } from "../lib/dateFormat";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 function truncateNotePreview(body: string, maxLen: number): string {
   const oneLine = body.replace(/\s+/g, " ").trim();
   if (oneLine.length <= maxLen) return oneLine;

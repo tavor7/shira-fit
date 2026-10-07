@@ -29,8 +29,8 @@ import type { StudioCalendarNote } from "../lib/studioCalendarNotes";
 import { studioNoteCoversDate } from "../lib/studioCalendarNotes";
 import { studioCalendarNoteAccent } from "../lib/studioCalendarNoteAccent";
 import { FadeSlideIn } from "./FadeSlideIn";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 export type DaySheetVariant = "athlete" | "coach" | "manager";
 
 type TrainingSessionRow = {

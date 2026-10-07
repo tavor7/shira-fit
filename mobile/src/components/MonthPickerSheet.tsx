@@ -7,8 +7,8 @@ import { formatMonthYear } from "../lib/dateFormat";
 import { appLocale } from "../lib/appLocale";
 import { useI18n } from "../context/I18nContext";
 import type { LanguageCode } from "../i18n/translations";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 const MIN_YEAR = 2020;
 
 type Props = {

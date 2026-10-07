@@ -15,8 +15,8 @@ import {
   SESSION_PAYMENT_METHOD_KEYS,
   type SessionPaymentMethodKey,
 } from "../lib/paymentMethod";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 /**
  * "Discount" is recorded through the separate AddDiscountModal, not offered as a chip
  * here — this modal is for real payments only. An existing discount payment can still be

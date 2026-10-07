@@ -31,8 +31,8 @@ import {
 } from "../lib/managerMessageThemes";
 import { formatISODateDayMonthWithWeekday, parseInstantIso } from "../lib/dateFormat";
 import { appLocale } from "../lib/appLocale";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 const STUDIO_TZ = "Asia/Jerusalem";
 
 function formatSentWhen(iso: string, language: "en" | "he"): string {

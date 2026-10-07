@@ -12,8 +12,8 @@ import {
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   tabs: { id: string; label: string }[];
   active: string;

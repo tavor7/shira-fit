@@ -5,8 +5,8 @@ import { useI18n } from "../context/I18nContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 import type { PresentStaffMember } from "../hooks/useSessionPresence";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";

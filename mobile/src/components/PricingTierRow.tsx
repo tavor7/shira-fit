@@ -3,8 +3,8 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { sessionFormIsCompact } from "./sessionFormStyles";
 import { PressableScale } from "./PressableScale";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   title: string;
   priceLabel: string;

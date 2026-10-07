@@ -11,8 +11,8 @@ import {
   type ViewStyle,
 } from "react-native";
 import { theme } from "../theme";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   value: string;
   onChangeText: (next: string) => void;

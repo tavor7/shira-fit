@@ -43,8 +43,8 @@ import { fetchActiveGlobalTierPrice, parseCustomSlotPriceDraft } from "../lib/se
 import { AppSearchSheet } from "./AppSearchSheet";
 import { CoachPickerSheet } from "./CoachPickerSheet";
 import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
 
 type Props = {

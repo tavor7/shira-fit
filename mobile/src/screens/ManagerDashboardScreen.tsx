@@ -36,8 +36,8 @@ import { AnimatedChevron } from "../components/AnimatedChevron";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useAuth } from "../context/AuthContext";
 import { parseMoney } from "../lib/participantHistoryHelpers";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type PeriodMode = ManagerPeriodMode;
 
 /** Local-calendar Sunday (matches server `public._week_start_sunday`). */

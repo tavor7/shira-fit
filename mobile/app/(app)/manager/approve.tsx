@@ -14,8 +14,8 @@ import { ListRowSkeleton } from "../../../src/components/ListRowSkeleton";
 import { formatDateTimeForDisplay } from "../../../src/lib/dateFormat";
 import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
 import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
-
 import { rowFlipFor } from "../../../src/lib/layoutDirection";
+
 type Row = { user_id: string; username: string; full_name: string; phone: string };
 
 type HistoryItem = {

@@ -20,8 +20,8 @@ import type { PricingRateTierRow } from "../lib/pricingRates";
 import type { ParticipantHistoryRow } from "../types/database";
 import type { LanguageCode } from "../i18n/translations";
 import { participantHistoryStyles as styles } from "../screens/participantHistoryStyles";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   reg: ParticipantHistoryRow;
   /** Super User only: this registration is currently hidden from the athlete/debt. Never set for other roles. */

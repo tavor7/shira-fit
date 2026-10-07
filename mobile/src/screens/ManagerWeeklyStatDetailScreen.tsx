@@ -27,8 +27,8 @@ import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type SessionBrief = {
   session_date: string;
   start_time: string;

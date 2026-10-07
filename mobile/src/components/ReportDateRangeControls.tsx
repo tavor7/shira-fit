@@ -16,8 +16,8 @@ import {
 import { formatISODateRangeCompact, formatMonthYear } from "../lib/dateFormat";
 import { useI18n } from "../context/I18nContext";
 import { globalOverviewRangeISO, isGlobalOverviewRange } from "../lib/managerPeriodMode";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type QuickPreset = "7" | "30" | "45" | "60";
 type DateMode = "recent" | "month" | "global" | "range";
 

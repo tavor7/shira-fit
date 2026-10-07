@@ -1,8 +1,8 @@
 import { StyleSheet, View } from "react-native";
 import { theme } from "../theme";
 import { AppText } from "./AppText";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   /** Human tier label, already translated (e.g. from subscriptions.tierLabelKey). */
   title: string;

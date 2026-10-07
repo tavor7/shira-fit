@@ -27,8 +27,8 @@ import {
   type WhatsAppTestCandidate,
   type WhatsAppTestUser,
 } from "../lib/whatsappFeature";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 const MODES: WhatsAppRolloutMode[] = ["off", "testing", "live"];
 
 export default function WhatsAppRolloutScreen() {

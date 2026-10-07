@@ -24,8 +24,8 @@ import { staffMoveSessionParticipant } from "../lib/staffMoveParticipant";
 import { moveParticipantErrorDetail } from "../lib/moveParticipantErrors";
 import { attemptWithSubscriptionConsent } from "../lib/subscriptionLimitConsent";
 import { promptMoveParticipantAcceptExtraSubscriptionCharge } from "../lib/moveParticipantSubscriptionWarning";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 export type MoveParticipantTarget = {
   kind: "registered" | "manual";
   name: string;

@@ -8,8 +8,8 @@ import { supabase } from "../lib/supabase";
 import { toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   visible: boolean;
   onClose: () => void;

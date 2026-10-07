@@ -14,8 +14,8 @@ import { NotificationSettingsPanel } from "../../src/components/NotificationSett
 import { ManagerSendMessagePanel } from "../../src/components/ManagerSendMessagePanel";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { LegalFooterLinks } from "../../src/components/LegalFooterLinks";
-
 import { rowFlipFor } from "../../src/lib/layoutDirection";
+
 function getUpdateErrorMessage(message: string, t: (key: string) => string) {
   const msg = (message || "").toLowerCase();
   if (msg.includes("already registered") || msg.includes("already exists") || msg.includes("already in use")) {

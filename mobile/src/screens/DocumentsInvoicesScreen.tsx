@@ -68,8 +68,8 @@ import { documentServiceTypeLabel } from "../lib/documentServiceTypes";
 import { buildCsv, downloadCsvWeb } from "../lib/csvExport";
 import { supabase } from "../lib/supabase";
 import { formatDateTimeForDisplay, formatISODateFull } from "../lib/dateFormat";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type HubSection = "pending" | "documents" | "reports" | "settings";
 
 function customerTypeBadgeLabel(type: DocumentCustomerType | null | undefined, language: "he" | "en"): string | null {

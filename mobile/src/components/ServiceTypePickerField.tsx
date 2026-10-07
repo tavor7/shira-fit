@@ -7,8 +7,8 @@ import {
   type DocumentServiceTypeKey,
   documentServiceTypeLabel,
 } from "../lib/documentServiceTypes";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   label: string;
   value: DocumentServiceTypeKey;

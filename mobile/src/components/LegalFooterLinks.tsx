@@ -3,8 +3,8 @@ import { router } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "./AppText";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 /** Compact Privacy / Terms / Accessibility links row — sits inline wherever it's placed. */
 export function LegalFooterLinks({ style }: { style?: object }) {
   const { t, isRTL } = useI18n();

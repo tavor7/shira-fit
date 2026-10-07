@@ -19,8 +19,8 @@ import {
   type SubscriptionHistoryRow,
   type SubscriptionListRow,
 } from "../lib/subscriptions";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Tab = "active" | "history";
 
 function statusLabelKey(status: string): string {

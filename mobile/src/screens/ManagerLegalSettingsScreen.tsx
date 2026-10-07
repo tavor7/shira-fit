@@ -18,8 +18,8 @@ import {
   type LegalConsentSettings,
   type LegalDocumentVersion,
 } from "../lib/consent";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 export default function ManagerLegalSettingsScreen() {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();

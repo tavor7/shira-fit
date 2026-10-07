@@ -1,8 +1,8 @@
 import { View, Text, TextInput, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { pricingScreenStyles as ps } from "./pricingScreenStyles";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type FieldProps = {
   label: string;
   value: string;

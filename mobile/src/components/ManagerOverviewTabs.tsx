@@ -6,8 +6,8 @@ import { useI18n } from "../context/I18nContext";
 import { logRedirectToManagerSessions } from "../lib/managerSessionsRedirectLog";
 import { useAuth } from "../context/AuthContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 export type ManagerPillTabItem = {
   id: string;
   label: string;

@@ -1,8 +1,8 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { AppModal } from "./AppModal";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 export type AppAlertActionVariant = "primary" | "secondary" | "danger";
 
 export type AppAlertAction = {

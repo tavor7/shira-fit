@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { theme } from "../theme";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   title: string;
   hint?: string;

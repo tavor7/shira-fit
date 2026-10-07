@@ -53,8 +53,8 @@ import { participantHistoryStyles as styles } from "./participantHistoryStyles";
 import { PaymentHistoryRow } from "../components/PaymentHistoryRow";
 import { SessionHistoryRow } from "../components/SessionHistoryRow";
 import { EditSessionAmountModal } from "../components/EditSessionAmountModal";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 export default function ParticipantHistoryScreen({
   hideTitle = false,
   headerExtra,

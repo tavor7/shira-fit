@@ -4,8 +4,8 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { FadeSlideIn } from "../components/FadeSlideIn";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Tool = { titleKey: string; subtitleKey: string; path: string; icon: string };
 
 const tools: Tool[] = [

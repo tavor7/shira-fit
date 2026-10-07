@@ -7,8 +7,8 @@ import { useActiveUsers, type ActiveUser } from "../context/AppPresenceContext";
 import { AppModal } from "./AppModal";
 import { PressableScale } from "./PressableScale";
 import { FadeSlideIn } from "./FadeSlideIn";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 function roleLabel(role: ActiveUser["role"], t: (key: string) => string): string {
   if (role === "coach") return t("roles.coach");
   if (role === "manager") return t("roles.manager");

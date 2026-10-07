@@ -5,8 +5,8 @@ import { resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { AppSearchSheet } from "./AppSearchSheet";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 export type CoachPickOption = {
   user_id: string;
   full_name: string;

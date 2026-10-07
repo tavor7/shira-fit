@@ -24,8 +24,8 @@ import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useCountUp } from "../hooks/useCountUp";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 function formatPayout(n: number) {
   return `${Math.round(n * 100) / 100} ₪`;
 }

@@ -44,8 +44,8 @@ import { AppTextField } from "../../../../src/components/AppTextField";
 import { Skeleton } from "../../../../src/components/Skeleton";
 import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
-
 import { rowFlipFor } from "../../../../src/lib/layoutDirection";
+
 /** Same visual anchor for Hebrew + Latin names in the participants list. */
 function participantListLabel(name: string, uiRtl: boolean): string {
   const trimmed = name.trim();

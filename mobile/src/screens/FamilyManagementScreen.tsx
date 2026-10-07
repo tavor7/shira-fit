@@ -29,8 +29,8 @@ import {
   memberPayeeKey,
   parseFamilyMembers,
 } from "../lib/athleteFamilies";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type PickerRow =
   | { kind: "app"; id: string; full_name: string; username?: string; phone?: string }
   | { kind: "manual"; id: string; full_name: string; phone?: string };

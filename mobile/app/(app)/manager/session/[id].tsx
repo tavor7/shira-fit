@@ -87,8 +87,8 @@ import { CrossfadeSwap } from "../../../../src/components/CrossfadeSwap";
 import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../../src/components/PressableScale";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
-
 import { rowFlipFor } from "../../../../src/lib/layoutDirection";
+
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
 

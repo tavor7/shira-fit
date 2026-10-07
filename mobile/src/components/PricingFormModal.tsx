@@ -3,8 +3,8 @@ import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { AppModal } from "./AppModal";
 import { PrimaryButton } from "./PrimaryButton";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   visible: boolean;
   title: string;

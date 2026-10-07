@@ -27,8 +27,8 @@ import {
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { PressableScale } from "../components/PressableScale";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 function formatSessionTimeShort(isoTime: string): string {
   const s = String(isoTime ?? "").trim();
   return s.length >= 5 ? s.slice(0, 5) : s;

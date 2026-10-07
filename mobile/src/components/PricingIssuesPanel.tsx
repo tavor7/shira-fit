@@ -4,8 +4,8 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import type { PricingIssue, PricingIssueKind, PricingIssueParams, PricingIssueSection } from "../lib/pricingIssues";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   issues: PricingIssue[];
   onFix: (issue: PricingIssue) => void;

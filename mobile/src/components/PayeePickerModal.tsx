@@ -7,8 +7,8 @@ import { athleteSearchSubtitle } from "../lib/displayName";
 import { AppModal } from "./AppModal";
 import { AppSearchField } from "./AppSearchField";
 import { EmptyState } from "./EmptyState";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 export type PayeePickerRow =
   | { kind: "app"; id: string; full_name: string; username?: string; phone?: string }
   | { kind: "manual"; id: string; full_name: string; phone?: string; linked_user_id?: string | null };

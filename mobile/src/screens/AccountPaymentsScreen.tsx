@@ -47,8 +47,8 @@ import { fetchReceiptSettings } from "../lib/documents";
 import type { AthleteAccountPayment } from "../types/database";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { useCountUp } from "../hooks/useCountUp";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type DateMode = "all" | "range";
 type PaymentMethodFilter = "all" | SessionPaymentMethodKey;
 type SortOrder = "asc" | "desc";

@@ -2,8 +2,8 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "
 import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 const ACCENT = "#818cf8";
 const ACCENT_SOFT = "rgba(129, 140, 248, 0.14)";
 const ACCENT_BORDER = "rgba(129, 140, 248, 0.42)";

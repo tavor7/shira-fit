@@ -26,8 +26,8 @@ import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueri
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { hasSessionNotStarted } from "../lib/sessionTime";
 import type { MoveParticipantTarget } from "./MoveParticipantSheet";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type RegRow = {
   user_id: string;
   attended: boolean | null;

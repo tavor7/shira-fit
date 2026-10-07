@@ -6,8 +6,8 @@ import type { PricingListRow, PricingListCluster, PricingRateTierRow } from "../
 import { clusterPricingListRows, formatPricingEffectiveRange } from "../lib/pricingRates";
 import { PricingRowMoreMenu } from "./PricingRowMoreMenu";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props<T extends PricingRateTierRow> = {
   rows: PricingListRow<T>[];
   /** `groupKey` = one row per capacity; `title` = one row per athlete name. */

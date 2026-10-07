@@ -4,8 +4,8 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useSearchSheetFocus } from "../context/SearchSheetFocusContext";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   name: string;
   phone: string;

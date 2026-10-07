@@ -22,8 +22,8 @@ import { EmptyState } from "../../../src/components/EmptyState";
 import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../src/components/PressableScale";
 import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHidden";
-
 import { rowFlipFor } from "../../../src/lib/layoutDirection";
+
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
   return iso >= weekStartIso && iso <= weekEndIso;

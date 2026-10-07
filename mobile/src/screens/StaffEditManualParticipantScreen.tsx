@@ -16,8 +16,8 @@ import {
   participantPhonesMatch,
   type ManualParticipantIdentity,
 } from "../lib/participantIdentity";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 export default function StaffEditManualParticipantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const manualId = String(id ?? "");

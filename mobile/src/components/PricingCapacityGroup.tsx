@@ -4,8 +4,8 @@ import { theme } from "../theme";
 import type { PricingRateTierRow } from "../lib/pricingRates";
 import { splitPricingPeriods } from "../lib/pricingRates";
 import { PricingPeriodLine } from "./PricingPeriodLine";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type PeriodRow = PricingRateTierRow & { id?: string };
 
 type Props<T extends PeriodRow> = {

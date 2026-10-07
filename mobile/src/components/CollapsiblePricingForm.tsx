@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   title: string;
   expanded: boolean;

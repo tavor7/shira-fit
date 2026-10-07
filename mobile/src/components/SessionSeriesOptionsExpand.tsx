@@ -3,8 +3,8 @@ import { theme } from "../theme";
 import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { useI18n } from "../context/I18nContext";
 import { AppSwitch } from "./AppSwitch";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   repeatOngoing: boolean;
   onRepeatOngoingChange: (v: boolean) => void;

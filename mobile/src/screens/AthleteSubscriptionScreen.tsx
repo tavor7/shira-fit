@@ -18,8 +18,8 @@ import {
   usedOfLimitLabel,
   type AthleteSubscriptionViewModel,
 } from "../lib/athleteSubscription";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 export function AthleteSubscriptionScreen() {
   const { t, language, isRTL } = useI18n();
   const [vm, setVm] = useState<AthleteSubscriptionViewModel | null>(null);

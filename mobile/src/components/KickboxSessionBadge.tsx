@@ -2,8 +2,8 @@ import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { KICKBOX_SESSION_ACCENT, KICKBOX_SESSION_BG, KICKBOX_SESSION_BORDER } from "../lib/kickboxSessionStyle";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   compact?: boolean;
   isRTL?: boolean;

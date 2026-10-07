@@ -10,8 +10,8 @@ import { formatISODateWeekdayDayMonth } from "../lib/dateFormat";
 import { formatSessionStartTime } from "../lib/sessionTime";
 import { firstWordOfDisplayName } from "../lib/displayName";
 import { CrossfadeSwap } from "./CrossfadeSwap";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   variant: "coach" | "manager";
 };

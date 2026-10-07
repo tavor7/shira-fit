@@ -26,8 +26,8 @@ import {
   collectActivityLogIds,
   type ActivityLogRow,
 } from "../lib/activityLogDetails";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Row = ActivityLogRow;
 
 type SessionRow = {

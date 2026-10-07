@@ -21,8 +21,8 @@ import { useVisualViewport } from "../hooks/useVisualViewport";
 import { theme } from "../theme";
 import { AppSearchField } from "./AppSearchField";
 import { FadeSlideIn } from "./FadeSlideIn";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 export type AppSearchSheetSearchConfig = {
   value: string;
   onChangeText: (next: string) => void;

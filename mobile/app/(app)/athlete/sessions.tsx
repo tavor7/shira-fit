@@ -32,8 +32,8 @@ import { AppText } from "../../../src/components/AppText";
 import { EmptyState } from "../../../src/components/EmptyState";
 import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../src/components/PressableScale";
-
 import { rowFlipFor } from "../../../src/lib/layoutDirection";
+
 export default function AthleteSessionsScreen() {
   const { profile, session } = useAuth();
   const { language, t, isRTL } = useI18n();

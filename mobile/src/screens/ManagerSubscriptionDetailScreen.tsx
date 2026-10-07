@@ -17,8 +17,8 @@ import {
   type SubscriptionDetail,
   type SubscriptionVersionRow,
 } from "../lib/subscriptions";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 const ACTIVE_STATUSES = new Set(["active", "frozen", "scheduled"]);
 
 export function ManagerSubscriptionDetailScreen() {

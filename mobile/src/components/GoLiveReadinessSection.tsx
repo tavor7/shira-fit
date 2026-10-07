@@ -10,8 +10,8 @@ import {
   type GoLiveGapType,
   type GoLiveStats,
 } from "../lib/documents";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   isRTL: boolean;
   language: "he" | "en";

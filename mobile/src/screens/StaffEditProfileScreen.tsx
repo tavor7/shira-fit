@@ -16,8 +16,8 @@ import { useAuth } from "../context/AuthContext";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { fetchUsersLegalConsentSummary, type UserLegalConsentStatus } from "../lib/consent";
 import { TRAINER_COLOR_PRESETS, resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Role = "athlete" | "coach" | "manager";
 
 function RoleChip({

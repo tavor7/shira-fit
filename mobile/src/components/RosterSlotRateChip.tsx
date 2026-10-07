@@ -9,8 +9,8 @@ import { AppModal } from "./AppModal";
 import { PrimaryButton } from "./PrimaryButton";
 import { ActionButton } from "./ActionButton";
 import { parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 export type SessionRateMeta = {
   max_participants: number;
   is_kickbox: boolean;

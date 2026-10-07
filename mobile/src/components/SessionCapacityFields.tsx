@@ -3,8 +3,8 @@ import { theme } from "../theme";
 import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { useI18n } from "../context/I18nContext";
 import { SESSION_MAX_PRESETS } from "../lib/sessionCapacityOptions";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   duration: string;
   max: string;

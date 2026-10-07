@@ -1,7 +1,7 @@
 import { Pressable, Text, StyleSheet } from "react-native";
 import { theme } from "../theme";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   label: string;
   onPress: () => void;

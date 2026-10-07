@@ -7,8 +7,8 @@ import { KickboxSessionBadge } from "./KickboxSessionBadge";
 import { SessionSeriesIndicator } from "./SessionSeriesIndicator";
 import { StatusChip } from "./StatusChip";
 import { useI18n } from "../context/I18nContext";
-
 import { rowFlipFor } from "../lib/layoutDirection";
+
 type Props = {
   item: SessionsWeekItem;
   onPress: () => void;
