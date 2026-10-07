@@ -4,6 +4,7 @@ import { AuthProvider } from "../src/context/AuthContext";
 import { Platform, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { BottomChromeProvider } from "../src/context/BottomChromeContext";
 import { theme } from "../src/theme";
 import { appHeaderStyle, appHeaderTitleStyle } from "../src/theme/headerStyles";
 import { StudioContactFooter } from "../src/components/StudioContactFooter";
@@ -54,6 +55,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      <BottomChromeProvider>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         {Platform.OS === "web" ? (
           <Head>
@@ -162,6 +164,7 @@ export default function RootLayout() {
           </I18nProvider>
         </AuthProvider>
       </View>
+      </BottomChromeProvider>
     </SafeAreaProvider>
   );
 }
