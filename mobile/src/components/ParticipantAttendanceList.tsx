@@ -27,7 +27,7 @@ import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { hasSessionNotStarted } from "../lib/sessionTime";
 import type { MoveParticipantTarget } from "./MoveParticipantSheet";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
-import { displayMoney } from "../lib/displayFormat";
+import { displayLtr, displayMoney } from "../lib/displayFormat";
 
 type RegRow = {
   user_id: string;
@@ -836,7 +836,7 @@ export function ParticipantAttendanceList({
                 </Text>
                 {item.phone ? (
                   <Text style={[styles.sub, isRTL && styles.rtlText]} numberOfLines={1}>
-                    {item.phone}
+                    {displayLtr(item.phone)}
                   </Text>
                 ) : null}
                 {sessionMeta && effectivePrice > 0 ? (

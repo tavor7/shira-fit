@@ -5,6 +5,7 @@ import { STUDIO_CONTACT } from "../constants/studioContact";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "./AppText";
+import { displayLtr } from "../lib/displayFormat";
 
 type CellProps = {
   title: string;
@@ -23,8 +24,9 @@ function Cell({ title, subtitle, onPress }: CellProps) {
       <AppText variant="label" style={styles.cellTitle}>
         {title}
       </AppText>
+      {/* Handles and numbers ("@shira.fit.studio") keep their leading symbol first in Hebrew too. */}
       <AppText variant="caption" muted numberOfLines={1} style={styles.cellSub}>
-        {subtitle}
+        {displayLtr(subtitle)}
       </AppText>
     </Pressable>
   );
