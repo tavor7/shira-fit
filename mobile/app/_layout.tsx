@@ -108,6 +108,17 @@ export default function RootLayout() {
               [role="button"]:focus:not(:focus-visible) {
                 outline: none;
               }
+              /*
+                react-native-web renders every root <Text> with dir="auto", so each paragraph took its
+                direction from its first letter: a Hebrew name turned an English row right-to-left (and
+                reversed its times), and number-only text sat left-aligned inside Hebrew cards. Paragraphs
+                follow the UI language (<html dir>) instead; embedded values keep their own order through
+                the display helpers in src/lib/displayFormat.ts. :where() keeps this at zero specificity, so
+                explicit writingDirection styles still win, and inputs keep dir="auto" for typed text.
+              */
+              :where([dir="auto"]:not(input):not(textarea)) {
+                direction: inherit;
+              }
             `}</style>
           </Head>
         ) : null}
