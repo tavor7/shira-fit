@@ -22,6 +22,7 @@ import {
   type WeeklyLimits,
 } from "../../lib/subscriptions";
 import { rowFlipFor } from "../../lib/layoutDirection";
+import { displayMoney } from "../../lib/displayFormat";
 
 /**
  * Full pushed-screen create form, matching CreateSessionForm's shell (sessionFormStyles card
@@ -130,7 +131,7 @@ export function CreateSubscriptionForm() {
   const summaryLine = payee && Number.isFinite(priceNum) && priceNum >= 0
     ? t("subscriptions.create.summaryLine")
         .replace("{name}", payee.full_name)
-        .replace("{price}", priceNum.toFixed(2))
+        .replace("{price}", displayMoney(priceNum))
         .replace("{start}", formatISODateFull(startDate, language))
     : null;
 

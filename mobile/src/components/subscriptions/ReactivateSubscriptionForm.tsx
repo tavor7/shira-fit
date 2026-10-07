@@ -21,6 +21,7 @@ import {
   type WeeklyLimits,
 } from "../../lib/subscriptions";
 import { rowFlipFor } from "../../lib/layoutDirection";
+import { displayMoney } from "../../lib/displayFormat";
 
 export function ReactivateSubscriptionForm({ sourceSubscriptionId }: { sourceSubscriptionId: string }) {
   const { t, isRTL } = useI18n();
@@ -147,7 +148,7 @@ export function ReactivateSubscriptionForm({ sourceSubscriptionId }: { sourceSub
         <View style={sf.sections}>
           <View style={sf.card}>
             <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl, styles.explanation]}>{t("subscriptions.reactivate.explanation")}</Text>
-            <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>₪{sourcePrice.toFixed(2)}</Text>
+            <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>{displayMoney(sourcePrice)}</Text>
             {activeTiers.map((tier) => (
               <Text key={tier} style={[styles.summarySub, isRTL && styles.rtlText]}>
                 {t(tierLabelKey(tier))} — {sourceAllowances[tier]} {t("subscriptions.perWeek")}

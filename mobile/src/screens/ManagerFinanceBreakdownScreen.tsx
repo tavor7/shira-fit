@@ -11,7 +11,7 @@ import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { parseManagerPeriodMode } from "../lib/managerPeriodMode";
-import { formatISODateFull, formatISODateRangeCompact } from "../lib/dateFormat";
+import { formatISODateFull } from "../lib/dateFormat";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
@@ -27,6 +27,7 @@ import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AnimatedChevron } from "../components/AnimatedChevron";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayDateRange } from "../lib/displayFormat";
 
 function AmountPair({
   expected,
@@ -133,7 +134,7 @@ export default function ManagerFinanceBreakdownScreen() {
   const rangeLabel = useMemo(() => {
     if (!rangeStart || !rangeEnd) return "";
     if (rangeStart === rangeEnd) return formatISODateFull(rangeStart, language);
-    return formatISODateRangeCompact(rangeStart, rangeEnd, language);
+    return displayDateRange(rangeStart, rangeEnd, language);
   }, [rangeStart, rangeEnd, language]);
 
   return (

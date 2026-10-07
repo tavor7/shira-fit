@@ -88,6 +88,7 @@ import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../../src/components/PressableScale";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
 import { rowFlipFor } from "../../../../src/lib/layoutDirection";
+import { displayMoney } from "../../../../src/lib/displayFormat";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
@@ -193,8 +194,7 @@ function coachDisplayNameFromLabel(label: string): string {
 }
 
 function formatIls(n: number, language: string): string {
-  const r = Math.round(n * 100) / 100;
-  return language === "he" ? `${r.toLocaleString("he-IL")} ₪` : `${r.toLocaleString("en-US")} ₪`;
+  return displayMoney(n);
 }
 
 export default function ManagerSessionDetail() {

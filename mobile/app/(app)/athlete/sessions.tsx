@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
-import { formatSessionTimeRange, hasSessionNotEnded, sessionStartsAt } from "../../../src/lib/sessionTime";
+import { hasSessionNotEnded, sessionStartsAt } from "../../../src/lib/sessionTime";
 import { supabase } from "../../../src/lib/supabase";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
 import { fetchAthleteOpenSessionsForCalendar } from "../../../src/lib/trainingSessionQueries";
@@ -33,6 +33,7 @@ import { EmptyState } from "../../../src/components/EmptyState";
 import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../src/components/PressableScale";
 import { rowFlipFor } from "../../../src/lib/layoutDirection";
+import { displayTimeRange } from "../../../src/lib/displayFormat";
 
 export default function AthleteSessionsScreen() {
   const { profile, session } = useAuth();
@@ -242,7 +243,7 @@ export default function AthleteSessionsScreen() {
           session_date: s.session_date,
           start_time: s.start_time,
           durationMinutes: s.duration_minutes ?? 60,
-          timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
+          timeLabel: displayTimeRange(s.start_time, s.duration_minutes ?? 60),
           trainerName: s.trainer?.full_name ?? undefined,
           coachId: s.coach_id,
           signedUpCount: c,
@@ -307,7 +308,7 @@ export default function AthleteSessionsScreen() {
             <View style={styles.myUpcomingList}>
               {myUpcoming.map((s, index) => {
                 const trainer = s.trainer?.full_name ? firstWordOfDisplayName(s.trainer.full_name) : "";
-                const time = formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60);
+                const time = displayTimeRange(s.start_time, s.duration_minutes ?? 60);
                 const meta = trainer ? `${time} · ${trainer}` : time;
                 const accent = resolveTrainerAccentColor(s.trainer?.calendar_color, s.coach_id);
                 return (

@@ -7,6 +7,7 @@ import { clusterPricingListRows, formatPricingEffectiveRange } from "../lib/pric
 import { PricingRowMoreMenu } from "./PricingRowMoreMenu";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 type Props<T extends PricingRateTierRow> = {
   rows: PricingListRow<T>[];
@@ -25,7 +26,7 @@ type Props<T extends PricingRateTierRow> = {
 
 function priceLabel(row: PricingRateTierRow) {
   const n = Number(row.price_ils);
-  return Number.isFinite(n) ? `${n} ₪` : `${row.price_ils}`;
+  return Number.isFinite(n) ? displayMoney(n) : `${row.price_ils}`;
 }
 
 function RatePeriodLines({

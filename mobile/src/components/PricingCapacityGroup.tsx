@@ -5,6 +5,7 @@ import type { PricingRateTierRow } from "../lib/pricingRates";
 import { splitPricingPeriods } from "../lib/pricingRates";
 import { PricingPeriodLine } from "./PricingPeriodLine";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 type PeriodRow = PricingRateTierRow & { id?: string };
 
@@ -43,7 +44,7 @@ export function PricingCapacityGroup<T extends PeriodRow>({
 
   const priceFor = (row: T) => {
     const n = Number(row.price_ils);
-    return Number.isFinite(n) ? `${n} ₪` : `${row.price_ils}`;
+    return Number.isFinite(n) ? displayMoney(n) : `${row.price_ils}`;
   };
 
   const renderLine = (row: T, muted?: boolean) => (

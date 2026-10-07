@@ -20,6 +20,7 @@ import {
   type SubscriptionListRow,
 } from "../lib/subscriptions";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 type Tab = "active" | "history";
 
@@ -197,7 +198,7 @@ function ActiveSubscriptionRow({
           </View>
         </View>
       </View>
-      <Text style={[styles.rowSub, isRTL && styles.rtl]}>₪{row.monthly_price_ils.toFixed(2)} / mo</Text>
+      <Text style={[styles.rowSub, isRTL && styles.rtl]}>{displayMoney(row.monthly_price_ils)} / mo</Text>
       <View style={[styles.rowMeta, rowFlipFor(isRTL) && styles.rowMetaRtl]}>
         <Text style={[styles.rowMetaText, isRTL && styles.rtl]}>
           {t("subscriptions.rowStart")}: {formatISODateFull(row.plan_start_date, language)}
@@ -246,7 +247,7 @@ function HistorySubscriptionRow({
           )}
         </View>
       </View>
-      <Text style={[styles.rowSub, isRTL && styles.rtl]}>₪{row.monthly_price_ils.toFixed(2)} / mo</Text>
+      <Text style={[styles.rowSub, isRTL && styles.rtl]}>{displayMoney(row.monthly_price_ils)} / mo</Text>
     </Pressable>
   );
 }

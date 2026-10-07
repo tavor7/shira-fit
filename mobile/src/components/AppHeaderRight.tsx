@@ -6,6 +6,7 @@ import { useI18n } from "../context/I18nContext";
 import { useManagerAthletePreview } from "../context/ManagerAthletePreviewContext";
 import { isAthleteAccountDisabled } from "../lib/profileAccount";
 
+import { userContentTextProps } from "../lib/layoutDirection";
 function formatRole(role: string | undefined) {
   if (!role) return "";
   return role.charAt(0).toUpperCase() + role.slice(1);
@@ -49,6 +50,7 @@ export function AppHeaderRight() {
     >
       <View style={[styles.nameBlock, isNative && { flex: 0, minWidth: undefined, maxWidth: undefined }, rowFlip && styles.nameBlockRtl]}>
         <Text
+          {...userContentTextProps}
           style={[styles.name, rowFlip && styles.nameRtl]}
           numberOfLines={1}
           ellipsizeMode="tail"

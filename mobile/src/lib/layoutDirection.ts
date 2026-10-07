@@ -28,3 +28,11 @@ export function shouldFlipRows(platformOS: string, uiIsRTL: boolean, nativeI18nI
 export function rowFlipFor(uiIsRTL: boolean | undefined): boolean {
   return shouldFlipRows(Platform.OS, uiIsRTL === true, I18nManager.isRTL === true);
 }
+
+/**
+ * Props for a <Text> that shows user-provided content on its own (a name, a free-text note).
+ * Text normally follows the UI direction (see app/_layout.tsx), but a single truncated line of
+ * Latin content inside a Hebrew screen would then lose its beginning to the ellipsis; marked text
+ * keeps react-native-web's content-based `dir="auto"`. Web only (native has no global override).
+ */
+export const userContentTextProps: object = Platform.OS === "web" ? { dataSet: { bidi: "content" } } : {};

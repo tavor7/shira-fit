@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Platf
 import { router, type Href } from "expo-router";
 import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
-import { formatISODateFull, formatISODateRangeCompact } from "../lib/dateFormat";
+import { formatISODateFull } from "../lib/dateFormat";
 import { firstDayOfMonthISOLocal, lastDayOfMonthISOLocal, monthRangeISO, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "../components/AppText";
@@ -37,6 +37,7 @@ import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useAuth } from "../context/AuthContext";
 import { parseMoney } from "../lib/participantHistoryHelpers";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayDateRange, displayMoney } from "../lib/displayFormat";
 
 type PeriodMode = ManagerPeriodMode;
 
@@ -82,8 +83,7 @@ type StatsPayload = {
 };
 
 function formatIls(n: number, language: string): string {
-  const r = Math.round(n * 100) / 100;
-  return language === "he" ? `${r.toLocaleString("he-IL")} ₪` : `${r.toLocaleString("en-US")} ₪`;
+  return displayMoney(n);
 }
 
 function formatSessionTimeShort(isoTime: string): string {
@@ -488,7 +488,7 @@ export default function ManagerDashboardScreen() {
           <Text style={[styles.hiddenBannerTxt, isRTL && styles.rtl]}>
             {t("superUser.dashboardBanner")
               .replace("{count}", String(hiddenPeriodSummary.count))
-              .replace("{amount}", String(hiddenPeriodSummary.totalIls))}
+              .replace("{amount}", displayMoney(hiddenPeriodSummary.totalIls))}
           </Text>
         </Pressable>
       ) : null}
@@ -500,7 +500,7 @@ export default function ManagerDashboardScreen() {
               {rangeLabelEnd ? (
                 <>
                   {" · "}
-                  {formatISODateRangeCompact(rangeLabelStart, rangeLabelEnd, language)}
+                  {displayDateRange(rangeLabelStart, rangeLabelEnd, language)}
                 </>
               ) : null}
             </Text>
@@ -525,7 +525,7 @@ export default function ManagerDashboardScreen() {
         </Pressable>
         <View style={styles.rangeCenter}>
           <Text style={[styles.rangeDates, isRTL && styles.rtl]} numberOfLines={1}>
-            {formatISODateRangeCompact(rangeLabelStart, rangeLabelEnd, language)}
+            {displayDateRange(rangeLabelStart, rangeLabelEnd, language)}
           </Text>
         </View>
         <Pressable

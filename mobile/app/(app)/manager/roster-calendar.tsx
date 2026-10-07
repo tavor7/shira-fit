@@ -9,7 +9,7 @@ import { fetchStaffTrainingSessionsForCalendar } from "../../../src/lib/training
 import { fetchActiveSignupCountsBySession, fetchVisibleSignupCountsBySession } from "../../../src/lib/sessionSignupCounts";
 import { fetchWaitlistCountsBySession } from "../../../src/lib/waitlistCounts";
 import { resolveTrainerAccentColor } from "../../../src/lib/trainerCalendarColor";
-import { formatSessionTimeRange, sessionStartsAt } from "../../../src/lib/sessionTime";
+import { sessionStartsAt } from "../../../src/lib/sessionTime";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { fetchRegistrationAthletesBySessionIds } from "../../../src/lib/sessionRosterQueries";
@@ -23,6 +23,7 @@ import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../src/components/PressableScale";
 import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHidden";
 import { rowFlipFor } from "../../../src/lib/layoutDirection";
+import { displayTimeRange } from "../../../src/lib/displayFormat";
 
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
@@ -129,7 +130,7 @@ export default function ManagerRosterCalendarScreen() {
             session_date: s.session_date,
             start_time: s.start_time,
             durationMinutes: s.duration_minutes ?? 60,
-            timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
+            timeLabel: displayTimeRange(s.start_time, s.duration_minutes ?? 60),
             timeBadgeText: badge,
             timeBadgeText2: wl > 0 ? String(wl) : undefined,
             waitlistCount: wl,
@@ -150,7 +151,7 @@ export default function ManagerRosterCalendarScreen() {
           session_date: s.session_date,
           start_time: s.start_time,
           durationMinutes: s.duration_minutes ?? 60,
-          timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
+          timeLabel: displayTimeRange(s.start_time, s.duration_minutes ?? 60),
           trainerName: s.trainer?.full_name ?? undefined,
           coachId: s.coach_id,
           signedUpCount: visibleSignupBySession[s.id] ?? 0,
@@ -178,7 +179,7 @@ export default function ManagerRosterCalendarScreen() {
         session_date: s.session_date,
         start_time: s.start_time,
         durationMinutes: s.duration_minutes ?? 60,
-        timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
+        timeLabel: displayTimeRange(s.start_time, s.duration_minutes ?? 60),
         trainerName: s.trainer?.full_name ?? undefined,
         coachId: s.coach_id,
         signedUpCount: visibleSignupBySession[s.id] ?? 0,
@@ -399,7 +400,7 @@ export default function ManagerRosterCalendarScreen() {
                         <View style={styles.cardBody}>
                           <View style={[styles.cardTop, rowFlipFor(isRTL) && styles.cardTopRtl]}>
                             <Text style={[styles.time, isRTL && styles.rtlText]}>
-                              {formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60)}
+                              {displayTimeRange(s.start_time, s.duration_minutes ?? 60)}
                             </Text>
                             <Text style={styles.count}>
                               {c} / {m}

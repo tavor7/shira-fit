@@ -13,10 +13,11 @@ import {
   shiftMonthAnchorISOLocal,
   toISODateLocal,
 } from "../lib/isoDate";
-import { formatISODateRangeCompact, formatMonthYear } from "../lib/dateFormat";
+import { formatMonthYear } from "../lib/dateFormat";
 import { useI18n } from "../context/I18nContext";
 import { globalOverviewRangeISO, isGlobalOverviewRange } from "../lib/managerPeriodMode";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayDateRange } from "../lib/displayFormat";
 
 type QuickPreset = "7" | "30" | "45" | "60";
 type DateMode = "recent" | "month" | "global" | "range";
@@ -138,7 +139,7 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
     applyMonthAnchor(next);
   }
 
-  const summary = t("reports.periodShowing").replace("{range}", formatISODateRangeCompact(start, end, language));
+  const summary = t("reports.periodShowing").replace("{range}", displayDateRange(start, end, language));
 
   return (
     <View style={styles.wrap}>
@@ -245,7 +246,7 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
         <Text style={[styles.globalSummary, isRTL && styles.rtlText]} numberOfLines={2}>
           {t("dashboard.rangeAllTime")}
           {" · "}
-          {formatISODateRangeCompact(start, end, language)}
+          {displayDateRange(start, end, language)}
         </Text>
       ) : null}
 

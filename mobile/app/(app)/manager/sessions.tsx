@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
-import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
+
 import { fetchStaffTrainingSessionsForCalendar } from "../../../src/lib/trainingSessionQueries";
 import { fetchActiveSignupCountsBySession, fetchVisibleSignupCountsBySession } from "../../../src/lib/sessionSignupCounts";
 import { fetchWaitlistCountsBySession } from "../../../src/lib/waitlistCounts";
@@ -30,6 +30,7 @@ import { useRealtimeRefetch } from "../../../src/hooks/useRealtimeRefetch";
 import { useLiveActivityBanner } from "../../../src/hooks/useLiveActivityBanner";
 import { LiveActivityBanner } from "../../../src/components/LiveActivityBanner";
 import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHidden";
+import { displayTimeRange } from "../../../src/lib/displayFormat";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
@@ -134,7 +135,7 @@ export default function ManagerSessionsScreen() {
     profile?.role === "manager",
     (sessionId) => {
       const row = rowsRef.current.find((r) => r.id === sessionId);
-      return row ? formatSessionTimeRange(row.start_time, row.duration_minutes ?? 60) : null;
+      return row ? displayTimeRange(row.start_time, row.duration_minutes ?? 60) : null;
     }
   );
 
@@ -150,7 +151,7 @@ export default function ManagerSessionsScreen() {
         session_date: s.session_date,
         start_time: s.start_time,
         durationMinutes: s.duration_minutes ?? 60,
-        timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
+        timeLabel: displayTimeRange(s.start_time, s.duration_minutes ?? 60),
         trainerName: s.trainer?.full_name ?? undefined,
         coachId: s.coach_id,
         signedUpCount: visibleSignupBySession[s.id] ?? 0,

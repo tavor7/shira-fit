@@ -4,18 +4,14 @@ import { router, type Href } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
 import type { TrainingSessionWithTrainer } from "../types/database";
-import {
-  formatSessionTimeRange,
-  hasSessionNotEnded,
-  isSessionInProgress,
-  sessionStartsAt,
-} from "../lib/sessionTime";
+import { hasSessionNotEnded, isSessionInProgress, sessionStartsAt } from "../lib/sessionTime";
 import { useI18n } from "../context/I18nContext";
 import { isBirthdayToday } from "../lib/birthday";
 import { formatISODateFull, formatISODateLong } from "../lib/dateFormat";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayTimeRange } from "../lib/displayFormat";
 
 function truncateNotePreview(body: string, maxLen: number): string {
   const oneLine = body.replace(/\s+/g, " ").trim();
@@ -267,7 +263,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
   }) {
     const names = participantMap[s.id] ?? [];
     const note = noteMap[s.id] ?? null;
-    const label = `${formatISODateLong(s.session_date, language)} · ${formatSessionTimeRange(s.start_time, durMin(s))}`;
+    const label = `${formatISODateLong(s.session_date, language)} · ${displayTimeRange(s.start_time, durMin(s))}`;
     const nameAlign = isRTL ? styles.participantNameRtlUi : styles.participantNameLtrUi;
     const isCurrent = emphasis === "current";
     return (
@@ -399,7 +395,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
               <AnimatedOptionExpand open={expanded}>
                 <View style={styles.groupBody}>
                   {g.items.map((s) => {
-                    const time = formatSessionTimeRange(s.start_time, durMin(s));
+                    const time = displayTimeRange(s.start_time, durMin(s));
                     const signedUp = signupBySession[s.id] ?? 0;
                     const cap = s.max_participants ?? 0;
                     const notePv = notePreviewBySession[s.id];

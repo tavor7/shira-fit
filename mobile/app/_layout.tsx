@@ -114,9 +114,10 @@ export default function RootLayout() {
                 reversed its times), and number-only text sat left-aligned inside Hebrew cards. Paragraphs
                 follow the UI language (<html dir>) instead; embedded values keep their own order through
                 the display helpers in src/lib/displayFormat.ts. :where() keeps this at zero specificity, so
-                explicit writingDirection styles still win, and inputs keep dir="auto" for typed text.
+                explicit writingDirection styles still win, and inputs keep dir="auto" for typed text. Text that shows
+                user content on its own (userContentTextProps) also keeps dir="auto".
               */
-              :where([dir="auto"]:not(input):not(textarea)) {
+              :where([dir="auto"]:not(input):not(textarea):not([data-bidi="content"])) {
                 direction: inherit;
               }
             `}</style>

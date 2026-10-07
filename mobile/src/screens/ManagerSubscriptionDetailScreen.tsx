@@ -18,6 +18,7 @@ import {
   type SubscriptionVersionRow,
 } from "../lib/subscriptions";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 const ACTIVE_STATUSES = new Set(["active", "frozen", "scheduled"]);
 
@@ -132,7 +133,7 @@ export function ManagerSubscriptionDetailScreen() {
         <Text style={[styles.title, isRTL && styles.rtl]}>{payeeName || t("subscriptions.detail.title")}</Text>
 
         <Section title={t("subscriptions.detail.overview")} isRTL={isRTL}>
-          <KeyValue label={t("subscriptions.detail.price")} value={`₪${(current?.monthly_price_ils ?? 0).toFixed(2)}`} isRTL={isRTL} />
+          <KeyValue label={t("subscriptions.detail.price")} value={displayMoney(current?.monthly_price_ils ?? 0)} isRTL={isRTL} />
           <KeyValue label={t("subscriptions.rowStart")} value={formatISODateFull(current?.plan_start_date ?? "", language)} isRTL={isRTL} />
           <KeyValue
             label={t("subscriptions.rowEnd")}
@@ -177,7 +178,7 @@ export function ManagerSubscriptionDetailScreen() {
               {t("subscriptions.detail.versionLine")
                 .replace("{start}", formatISODateFull(v.effective_from, language))
                 .replace("{end}", v.effective_to ? formatISODateFull(v.effective_to, language) : t("subscriptions.detail.versionOngoing"))
-                .replace("{price}", v.monthly_price_ils.toFixed(2))}
+                .replace("{price}", displayMoney(v.monthly_price_ils))}
             </Text>
           ))}
         </Section>
@@ -204,7 +205,7 @@ export function ManagerSubscriptionDetailScreen() {
               return (
                 <Text key={p.period_id} style={[styles.historyLine, isRTL && styles.rtl]}>
                   {t("subscriptions.detail.periodLabel").replace("{start}", formatISODateFull(p.period_start, language)).replace("{end}", formatISODateFull(p.period_end, language))}
-                  {amount != null ? `: ₪${amount.toFixed(2)}` : ""}
+                  {amount != null ? `: ${displayMoney(amount)}` : ""}
                 </Text>
               );
             })

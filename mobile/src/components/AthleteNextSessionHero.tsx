@@ -32,6 +32,7 @@ import {
   type SessionRegistrationOpenState,
 } from "../lib/registrationOpeningSchedule";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayTimeRange } from "../lib/displayFormat";
 
 function sessionStartMs(s: Pick<TrainingSessionWithTrainer, "session_date" | "start_time">): number {
   const t = s.start_time.length >= 5 ? s.start_time.slice(0, 5) : s.start_time;
@@ -278,7 +279,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
     <View style={[styles.hero, surface.hero]}>
       <Text style={[styles.kicker, isRTL && styles.rtl]}>{language === "he" ? "היום / הקרוב" : "Up next"}</Text>
       <Text style={[styles.title, isRTL && styles.rtl]}>{formatISODateFull(next.session_date, language)}</Text>
-      <Text style={[styles.sub, isRTL && styles.rtl]}>{formatSessionTimeRange(next.start_time, next.duration_minutes ?? 60)}</Text>
+      <Text style={[styles.sub, isRTL && styles.rtl]}>{displayTimeRange(next.start_time, next.duration_minutes ?? 60)}</Text>
       {next.trainer?.full_name ? (
         <Text style={[styles.sub, isRTL && styles.rtl]} numberOfLines={1}>
           {next.trainer.full_name}

@@ -1,13 +1,7 @@
 import type { Href } from "expo-router";
 import { supabase } from "./supabase";
 import type { TrainingSessionWithTrainer } from "../types/database";
-import {
-  hasSessionNotEnded,
-  sessionStartsAt,
-  formatSessionTimeRange,
-  formatSessionStartTime,
-  isCancellationWithinHoursBeforeSession,
-} from "./sessionTime";
+import { hasSessionNotEnded, sessionStartsAt, formatSessionStartTime, isCancellationWithinHoursBeforeSession } from "./sessionTime";
 import { fetchActiveSignupCountsBySession } from "./sessionSignupCounts";
 import type { LanguageCode } from "../i18n/translations";
 import { translations } from "../i18n/translations";
@@ -20,6 +14,7 @@ import {
 import { appLocale } from "./appLocale";
 import { isRtlScript } from "./bidiEmbed";
 import { loadNotificationPrefs } from "./notificationPrefs";
+import { displayTimeRange } from "./displayFormat";
 
 function tr(lang: LanguageCode, key: string, params?: Record<string, string | number>): string {
   let s = translations[lang][key] ?? key;
@@ -139,7 +134,7 @@ export function buildStaffWaitlistFreeSpotItems(
     const dur = s.duration_minutes ?? 60;
     if (!hasSessionNotEnded(s.session_date, s.start_time, dur, now)) continue;
     const dateStr = formatISODateFull(s.session_date, language);
-    const timeStr = formatSessionTimeRange(s.start_time, dur);
+    const timeStr = displayTimeRange(s.start_time, dur);
     rows.push({
       session: s,
       label: tr(language, "homeAlerts.staffWaitlistFreeSpot", { date: dateStr, time: timeStr }),

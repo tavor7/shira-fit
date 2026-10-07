@@ -45,6 +45,7 @@ import { Skeleton } from "../../../../src/components/Skeleton";
 import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
 import { rowFlipFor } from "../../../../src/lib/layoutDirection";
+import { displayTimeRange } from "../../../../src/lib/displayFormat";
 
 /** Same visual anchor for Hebrew + Latin names in the participants list. */
 function participantListLabel(name: string, uiRtl: boolean): string {
@@ -409,7 +410,7 @@ export default function AthleteSessionDetail() {
           {formatISODateFullWithWeekdayAfter(session.session_date, language)}
         </AppText>
         <AppText variant="body" muted style={styles.sub}>
-          {formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}
+          {displayTimeRange(session.start_time, session.duration_minutes ?? 60)}
         </AppText>
         {session.trainer?.full_name ? (
           <AppText variant="body" muted isRTL={isRTL} style={styles.sub}>

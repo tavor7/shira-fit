@@ -4,6 +4,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 type Props = {
   value: string;
@@ -21,9 +22,7 @@ type Props = {
 };
 
 function formatIls(n: number, language: string): string {
-  const rounded = Math.round(n * 100) / 100;
-  const s = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
-  return language === "he" ? `${s} ₪` : `₪${s}`;
+  return displayMoney(n);
 }
 
 function resolveDisplayPrice(

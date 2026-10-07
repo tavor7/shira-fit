@@ -25,9 +25,10 @@ import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useCountUp } from "../hooks/useCountUp";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 function formatPayout(n: number) {
-  return `${Math.round(n * 100) / 100} ₪`;
+  return displayMoney(n);
 }
 
 function CoachSessionReportCard({

@@ -21,6 +21,7 @@ import type { ParticipantHistoryRow } from "../types/database";
 import type { LanguageCode } from "../i18n/translations";
 import { participantHistoryStyles as styles } from "../screens/participantHistoryStyles";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 type Props = {
   reg: ParticipantHistoryRow;
@@ -169,7 +170,7 @@ export function SessionHistoryRow({
   const metaLine =
     typeof reg.max_participants === "number" && reg.max_participants > 0
       ? sessionPrice != null
-        ? t("participantHistory.sessionMeta").replace("{spots}", String(reg.max_participants)).replace("{price}", String(sessionPrice))
+        ? t("participantHistory.sessionMeta").replace("{spots}", String(reg.max_participants)).replace("{price}", displayMoney(Number(sessionPrice)))
         : t("participantHistory.sessionMetaSpotsOnly").replace("{spots}", String(reg.max_participants))
       : null;
   const coachName = firstWordOfDisplayName(sessionCoachById[reg.session_id] ?? "");
@@ -235,7 +236,7 @@ export function SessionHistoryRow({
         </Text>
         {showPaidStatus && amtOk ? (
           <Text style={[styles.payPillAmt, styles.ltrText]} numberOfLines={1}>
-            {amt} ₪
+            {displayMoney(Number(amt))}
           </Text>
         ) : null}
       </View>
@@ -552,7 +553,7 @@ export function SessionHistoryRow({
                       : t("participantHistory.paidBadge")}
                   </Text>
                   <Text style={[styles.payPillAmt, styles.ltrText]} numberOfLines={1}>
-                    {penaltyCollected} ₪
+                    {displayMoney(Number(penaltyCollected))}
                   </Text>
                 </View>
                 <Pressable

@@ -1,4 +1,5 @@
 import { paymentMethodAttendanceLabel } from "./paymentMethod";
+import { displayMoney } from "./displayFormat";
 
 export type ActivityLogRow = {
   id: string;
@@ -193,7 +194,7 @@ function attendanceValueFormatter(key: string, v: unknown, he: boolean, language
     if (v === null || v === undefined || v === "") return "—";
     const n = Number(v);
     if (Number.isFinite(n) && (key.includes("ils") || key === "amount_paid")) {
-      return `${n} ₪`;
+      return displayMoney(n);
     }
     return str(v);
   }

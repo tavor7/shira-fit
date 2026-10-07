@@ -47,7 +47,8 @@ import { fetchReceiptSettings } from "../lib/documents";
 import type { AthleteAccountPayment } from "../types/database";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { useCountUp } from "../hooks/useCountUp";
-import { rowFlipFor } from "../lib/layoutDirection";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 type DateMode = "all" | "range";
 type PaymentMethodFilter = "all" | SessionPaymentMethodKey;
@@ -710,7 +711,7 @@ export default function AccountPaymentsScreen() {
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryStat}>
-            <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{`${Math.round(totalReceivedDisplay * 100) / 100} ₪`}</Text>
+            <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{displayMoney(totalReceivedDisplay)}</Text>
             <Text style={[styles.summaryLabel, isRTL && styles.rtl]}>{t("billing.received")}</Text>
           </View>
         </View>
@@ -751,7 +752,7 @@ export default function AccountPaymentsScreen() {
         }
         renderItem={({ item, index }) => {
           const amt = parseMoney(item.amount_ils);
-          const amtTxt = amt !== null && amt > 0 ? `${amt} ₪` : "—";
+          const amtTxt = amt !== null && amt > 0 ? displayMoney(amt) : "—";
           const busy = deletingId === item.record_id;
           const isAccount = item.source === "account";
           const kindLabel =
@@ -777,7 +778,7 @@ export default function AccountPaymentsScreen() {
                 <Text style={styles.paymentAmount}>{amtTxt}</Text>
               </View>
               <View style={[styles.payeeRow, rowFlipFor(rtlRow) && styles.payeeRowRtl]}>
-                <Text style={[styles.payeeName, isRTL && styles.rtl]} numberOfLines={1}>
+                <Text {...userContentTextProps} style={[styles.payeeName, isRTL && styles.rtl]} numberOfLines={1}>
                   {item.payee_label}
                 </Text>
                 <View style={styles.kindBadge}>
@@ -803,8 +804,13 @@ export default function AccountPaymentsScreen() {
                 {item.payment_method
                   ? paymentMethodHistoryLabel(item.payment_method, language)
                   : t("accountPayments.methodUnknown")}
-                {(item.note ?? "").trim() ? ` · ${item.note}` : ""}
               </Text>
+              {/* The note is user text in either language: its own line keeps it readable when truncated (as in PaymentHistoryRow). */}
+              {(item.note ?? "").trim() ? (
+                <Text {...userContentTextProps} style={[styles.metaLine, isRTL && styles.rtl]} numberOfLines={1}>
+                  {item.note}
+                </Text>
+              ) : null}
               {item.payer_name?.trim() ? (
                 <Text style={[styles.metaLine, isRTL && styles.rtl]} numberOfLines={1}>
                   {t("families.paidBy").replace("{name}", item.payer_name.trim())}

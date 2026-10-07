@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
-import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
+
 import { fetchStaffTrainingSessionsForCalendar } from "../../../src/lib/trainingSessionQueries";
 import { fetchActiveSignupCountsBySession, fetchVisibleSignupCountsBySession } from "../../../src/lib/sessionSignupCounts";
 import { fetchWaitlistCountsBySession } from "../../../src/lib/waitlistCounts";
@@ -21,6 +21,7 @@ import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRe
 import { isSessionInActiveSeries, maintainSessionSeriesHorizon } from "../../../src/lib/sessionSeries";
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
 import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySlot";
+import { displayTimeRange } from "../../../src/lib/displayFormat";
 
 export default function CoachSessionsScreen() {
   const { profile } = useAuth();
@@ -113,7 +114,7 @@ export default function CoachSessionsScreen() {
         session_date: s.session_date,
         start_time: s.start_time,
         durationMinutes: s.duration_minutes ?? 60,
-        timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
+        timeLabel: displayTimeRange(s.start_time, s.duration_minutes ?? 60),
         trainerName: s.trainer?.full_name ?? undefined,
         coachId: s.coach_id,
         signedUpCount: visibleSignupBySession[s.id] ?? 0,

@@ -12,7 +12,7 @@ import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { parseManagerPeriodMode } from "../lib/managerPeriodMode";
 import { useAppAlert } from "../context/AppAlertContext";
-import { formatISODateFull, formatISODateRangeCompact } from "../lib/dateFormat";
+import { formatISODateFull } from "../lib/dateFormat";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
@@ -24,6 +24,7 @@ import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { PressableScale } from "../components/PressableScale";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayDateRange } from "../lib/displayFormat";
 
 function formatSessionTimeShort(isoTime: string): string {
   const s = String(isoTime ?? "").trim();
@@ -118,7 +119,7 @@ export default function ManagerCapacityMismatchScreen() {
     rangeStart && rangeEnd
       ? rangeStart === rangeEnd
         ? formatISODateFull(rangeStart, language)
-        : formatISODateRangeCompact(rangeStart, rangeEnd, language)
+        : displayDateRange(rangeStart, rangeEnd, language)
       : "";
 
   const updateMaxToRegistered = useCallback(

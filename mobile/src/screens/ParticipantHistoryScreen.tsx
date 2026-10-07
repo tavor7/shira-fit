@@ -14,7 +14,7 @@ import { AddDiscountModal } from "../components/AddDiscountModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
 import { supabase } from "../lib/supabase";
 import { athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
-import { formatSessionTimeRange } from "../lib/sessionTime";
+
 import { isValidISODateString, lastNDaysRangeISO } from "../lib/isoDate";
 import { formatISODateFull } from "../lib/dateFormat";
 import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/database";
@@ -54,6 +54,7 @@ import { PaymentHistoryRow } from "../components/PaymentHistoryRow";
 import { SessionHistoryRow } from "../components/SessionHistoryRow";
 import { EditSessionAmountModal } from "../components/EditSessionAmountModal";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayTimeRange, displayMoney } from "../lib/displayFormat";
 
 export default function ParticipantHistoryScreen({
   hideTitle = false,
@@ -450,7 +451,7 @@ export default function ParticipantHistoryScreen({
 
   function confirmRemoveRegistration(reg: ParticipantHistoryRow) {
     const name = (reg.athlete_name || athleteLabel).trim() || (language === "he" ? "המתאמן" : "this athlete");
-    const when = `${formatISODateFull(reg.session_date, language)} · ${formatSessionTimeRange(reg.start_time, reg.duration_minutes ?? 60)}`;
+    const when = `${formatISODateFull(reg.session_date, language)} · ${displayTimeRange(reg.start_time, reg.duration_minutes ?? 60)}`;
     showConfirm({
       title: t("participantHistory.removeRegistrationTitle"),
       message: t("participantHistory.removeRegistrationMessage").replace("{name}", name).replace("{when}", when),
@@ -1247,13 +1248,13 @@ export default function ParticipantHistoryScreen({
                   <View style={styles.billingStatTile}>
                     <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.received")}</Text>
                     <Text style={[styles.billingStatValue, isRTL && styles.rtlText]}>
-                      {`${Math.round(billingReceivedDisplay * 100) / 100} ₪`}
+                      {displayMoney(billingReceivedDisplay)}
                     </Text>
                   </View>
                   <View style={styles.billingStatTile}>
                     <Text style={[styles.billingStatLabel, isRTL && styles.rtlText]}>{t("billing.expected")}</Text>
                     <Text style={[styles.billingStatValue, isRTL && styles.rtlText]}>
-                      {`${Math.round(billingExpectedDisplay * 100) / 100} ₪`}
+                      {displayMoney(billingExpectedDisplay)}
                     </Text>
                   </View>
                   <View
@@ -1283,12 +1284,12 @@ export default function ParticipantHistoryScreen({
                       {billingSummary.balance > 0
                         ? t("billing.balanceOwes").replace(
                             "{n}",
-                            String(Math.round(Math.abs(billingBalanceDisplay) * 100) / 100)
+                            displayMoney(Math.abs(billingBalanceDisplay))
                           )
                         : billingSummary.balance < 0
                           ? t("billing.balanceCredit").replace(
                               "{n}",
-                              String(Math.round(Math.abs(billingBalanceDisplay) * 100) / 100)
+                              displayMoney(Math.abs(billingBalanceDisplay))
                             )
                           : t("billing.balanceEven")}
                     </Text>
@@ -1304,7 +1305,7 @@ export default function ParticipantHistoryScreen({
                             {paymentMethodHistoryLabel(x.key, language)}
                           </Text>
                           <Text style={[styles.billingMethodValue, isRTL && styles.rtlText]}>
-                            {`${Math.round(x.total * 100) / 100} ₪`}
+                            {displayMoney(x.total)}
                           </Text>
                         </View>
                       ))}

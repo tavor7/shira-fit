@@ -29,7 +29,7 @@ import {
   type PendingReceiptPayment,
 } from "../lib/pendingReceipts";
 import { toISODateLocal } from "../lib/isoDate";
-import { rowFlipFor } from "../lib/layoutDirection";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 
 /** Payments before this date are historical/testing data — never shown as pending a receipt. */
 const PENDING_RECEIPTS_FLOOR_DATE = "2026-06-14";
@@ -243,7 +243,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
             {isSelected ? <Text style={styles.checkMark}>✓</Text> : null}
           </View>
           <View style={styles.rowMain}>
-            <Text style={[styles.payeeName, isRTL && styles.rtl]} numberOfLines={1}>
+            <Text {...userContentTextProps} style={[styles.payeeName, isRTL && styles.userContentRtl]} numberOfLines={1}>
               {item.payee_name}
             </Text>
             {item.source === "account" ? (
@@ -693,4 +693,6 @@ const styles = StyleSheet.create({
   },
   disabledText: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, textAlign: "center" },
   rtl: { textAlign: "right", writingDirection: "rtl" },
+  /** User content keeps its own writing direction (so Latin names truncate at their end); only the alignment follows the UI. */
+  userContentRtl: { textAlign: "right" },
 });

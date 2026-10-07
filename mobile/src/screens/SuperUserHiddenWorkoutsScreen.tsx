@@ -12,13 +12,14 @@ import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { formatISODateFull } from "../lib/dateFormat";
-import { formatSessionTimeRange } from "../lib/sessionTime";
+
 import { athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
 import { globalOverviewRangeISO } from "../lib/managerPeriodMode";
 import { isValidISODateString } from "../lib/isoDate";
 import { parseMoney } from "../lib/participantHistoryHelpers";
 import type { SuperUserHiddenRecord } from "../types/database";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayTimeRange, displayMoney } from "../lib/displayFormat";
 
 type AthletePickerRow = { user_id: string; full_name: string; phone: string };
 
@@ -275,7 +276,7 @@ export default function SuperUserHiddenWorkoutsScreen() {
                 </View>
                 <View style={styles.totalsCell}>
                   <Text style={styles.totalsLabel}>{t("superUser.totalMoney")}</Text>
-                  <Text style={styles.totalsValue}>{`${totals.totalIls} ₪`}</Text>
+                  <Text style={styles.totalsValue}>{displayMoney(totals.totalIls)}</Text>
                 </View>
               </View>
             ) : null}
@@ -306,12 +307,12 @@ export default function SuperUserHiddenWorkoutsScreen() {
                 </View>
                 <Text style={[styles.meta, isRTL && styles.rtlText]} numberOfLines={1}>
                   {formatISODateFull(item.session_date, language)} ·{" "}
-                  {formatSessionTimeRange(item.start_time, item.duration_minutes)}
+                  {displayTimeRange(item.start_time, item.duration_minutes)}
                   {item.coach_name ? ` · ${item.coach_name}` : ""}
                 </Text>
                 <View style={[styles.cardFooter, rowFlipFor(isRTL) && styles.cardFooterRtl]}>
                   <Text style={[styles.expected, isRTL && styles.rtlText]}>
-                    {parseMoney(item.expected_ils) ?? 0} ₪
+                    {displayMoney(parseMoney(item.expected_ils) ?? 0)}
                   </Text>
                   <Text style={[styles.metaMuted, isRTL && styles.rtlText]} numberOfLines={1}>
                     {formatISODateFull(item.hidden_at.slice(0, 10), language)}

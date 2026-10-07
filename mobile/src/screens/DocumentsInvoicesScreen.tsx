@@ -68,7 +68,7 @@ import { documentServiceTypeLabel } from "../lib/documentServiceTypes";
 import { buildCsv, downloadCsvWeb } from "../lib/csvExport";
 import { supabase } from "../lib/supabase";
 import { formatDateTimeForDisplay, formatISODateFull } from "../lib/dateFormat";
-import { rowFlipFor } from "../lib/layoutDirection";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 
 type HubSection = "pending" | "documents" | "reports" | "settings";
 
@@ -850,7 +850,7 @@ export default function DocumentsInvoicesScreen() {
                 </View>
               ) : null}
             </View>
-            <Text style={[styles.docCustomer, isRTL && styles.rtl]} numberOfLines={1}>
+            <Text {...userContentTextProps} style={[styles.docCustomer, isRTL && styles.userContentRtl]} numberOfLines={1}>
               {item.customer_name}
             </Text>
           </View>
@@ -1833,4 +1833,6 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
   emptyHint: { fontSize: 14, fontWeight: "500", color: theme.colors.textMuted, textAlign: "center", lineHeight: 20 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
+  /** User content keeps its own writing direction (so Latin names truncate at their end); only the alignment follows the UI. */
+  userContentRtl: { textAlign: "right" },
 });

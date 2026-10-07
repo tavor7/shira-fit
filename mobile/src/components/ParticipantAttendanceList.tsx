@@ -26,7 +26,8 @@ import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueri
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { hasSessionNotStarted } from "../lib/sessionTime";
 import type { MoveParticipantTarget } from "./MoveParticipantSheet";
-import { rowFlipFor } from "../lib/layoutDirection";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 type RegRow = {
   user_id: string;
@@ -829,7 +830,7 @@ export function ParticipantAttendanceList({
             {entering ? <EnteringHighlight /> : null}
             <View style={[styles.nameRow, rowFlipFor(isRTL) && styles.nameRowRtl]}>
               <View style={[styles.nameBlock, rowFlipFor(isRTL) && styles.nameBlockRtl]}>
-                <Text style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
+                <Text {...userContentTextProps} style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
                   {item.name}
                   {item.birthdayToday ? <Text style={styles.bday}>{"  "}🎂</Text> : null}
                 </Text>
@@ -880,11 +881,7 @@ export function ParticipantAttendanceList({
                           ? "לא שולם"
                           : "Unpaid"
                         : paymentMethodAttendanceLabel(item.paymentMethod, language)}
-                      {item.amountPaid != null
-                        ? language === "he"
-                          ? ` · ${item.amountPaid} ₪`
-                          : ` · ${item.amountPaid}`
-                        : ""}
+                      {item.amountPaid != null ? ` · ${displayMoney(item.amountPaid)}` : ""}
                     </Text>
                   </Pressable>
                 ) : item.attended === false && item.chargeNoShow ? (
@@ -913,11 +910,7 @@ export function ParticipantAttendanceList({
                           ? "לא שולם"
                           : "Unpaid"
                         : paymentMethodAttendanceLabel(item.paymentMethod, language)}
-                      {item.amountPaid != null
-                        ? language === "he"
-                          ? ` · ${item.amountPaid} ₪`
-                          : ` · ${item.amountPaid}`
-                        : ""}
+                      {item.amountPaid != null ? ` · ${displayMoney(item.amountPaid)}` : ""}
                     </Text>
                   </Pressable>
                 ) : null}

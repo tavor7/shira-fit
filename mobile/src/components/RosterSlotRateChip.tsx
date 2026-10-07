@@ -10,6 +10,7 @@ import { PrimaryButton } from "./PrimaryButton";
 import { ActionButton } from "./ActionButton";
 import { parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 export type SessionRateMeta = {
   max_participants: number;
@@ -30,9 +31,7 @@ type Props = {
 };
 
 export function formatRosterIls(n: number, language: string): string {
-  const rounded = Math.round(n * 100) / 100;
-  const s = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
-  return language === "he" ? `${s} ₪` : `₪${s}`;
+  return displayMoney(n);
 }
 
 export function RosterSlotRateChip({

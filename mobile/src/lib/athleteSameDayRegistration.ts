@@ -1,8 +1,9 @@
 import type { ShowAppAlertOptions } from "../context/AppAlertContext";
 import type { LanguageCode } from "../i18n/translations";
 import { formatISODateFullWithWeekdayAfter } from "./dateFormat";
-import { formatSessionTimeRange } from "./sessionTime";
+
 import { supabase } from "./supabase";
+import { displayTimeRange } from "./displayFormat";
 
 export type SameDaySessionBrief = {
   session_id: string;
@@ -47,7 +48,7 @@ export async function fetchSameDayActiveRegistrations(
 
 export function formatSameDayTimesForConfirm(sessions: SameDaySessionBrief[], language: LanguageCode): string {
   return sessions
-    .map((s) => formatSessionTimeRange(s.start_time, s.duration_minutes))
+    .map((s) => displayTimeRange(s.start_time, s.duration_minutes))
     .join(language === "he" ? " · " : ", ");
 }
 

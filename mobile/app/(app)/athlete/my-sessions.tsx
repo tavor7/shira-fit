@@ -7,9 +7,10 @@ import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/compon
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { EmptyState } from "../../../src/components/EmptyState";
 import { SessionCardSkeleton } from "../../../src/components/SessionCardSkeleton";
-import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
+
 import { useI18n } from "../../../src/context/I18nContext";
 import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
+import { displayTimeRange } from "../../../src/lib/displayFormat";
 
 type TsNested = {
   id: string;
@@ -96,7 +97,7 @@ export default function MySessionsScreen() {
           session_date: ts.session_date,
           start_time: ts.start_time,
           durationMinutes: dm,
-          timeLabel: formatSessionTimeRange(ts.start_time, dm),
+          timeLabel: displayTimeRange(ts.start_time, dm),
           subtitle: t("athleteMySessions.registeredBadge"),
           athleteRegistered: true,
           isKickbox: !!ts.is_kickbox,

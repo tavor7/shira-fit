@@ -8,6 +8,7 @@ import { firstWordOfDisplayName } from "../lib/displayName";
 import type { AthleteAccountPayment } from "../types/database";
 import type { LanguageCode } from "../i18n/translations";
 import { participantHistoryStyles as styles } from "../screens/participantHistoryStyles";
+import { displayMoney } from "../lib/displayFormat";
 
 type Props = {
   pay: AthleteAccountPayment;
@@ -40,7 +41,7 @@ export function PaymentHistoryRow({
   const p = pay;
   const isDiscount = normalizePaymentMethodKey(p.payment_method) === "discount";
   const amt = parseMoney(p.amount_ils);
-  const amtTxt = amt !== null && amt > 0 ? `${amt} ₪` : "—";
+  const amtTxt = amt !== null && amt > 0 ? displayMoney(amt) : "—";
   const busyPay = deletingPaymentId === p.id;
   const recorder = (p.created_by_name ?? "").trim();
   const reporterLine = recorder

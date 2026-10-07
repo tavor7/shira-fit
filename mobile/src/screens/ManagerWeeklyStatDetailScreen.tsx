@@ -15,12 +15,8 @@ import { useAppAlert } from "../context/AppAlertContext";
 import type { LanguageCode } from "../i18n/translations";
 import type { TrainingSessionWithTrainer } from "../types/database";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
-import {
-  formatISODateWeekdayDayMonthYear,
-  formatISODateRangeCompact,
-  formatDateTimeForDisplay,
-} from "../lib/dateFormat";
-import { formatSessionTimeRange, sessionStartsAt, isCancellationWithinHoursBeforeSession } from "../lib/sessionTime";
+import { formatISODateWeekdayDayMonthYear, formatDateTimeForDisplay } from "../lib/dateFormat";
+import { sessionStartsAt, isCancellationWithinHoursBeforeSession } from "../lib/sessionTime";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
@@ -28,6 +24,7 @@ import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { displayTimeRange, displayDateRange } from "../lib/displayFormat";
 
 type SessionBrief = {
   session_date: string;
@@ -188,7 +185,7 @@ function NoShowRowCard({
         </Text>
         <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={2}>
           {formatISODateWeekdayDayMonthYear(row.session_date, language)} ·{" "}
-          {formatSessionTimeRange(row.start_time, row.duration_minutes)}
+          {displayTimeRange(row.start_time, row.duration_minutes)}
         </Text>
       </Pressable>
       <View style={[styles.noShowFeeRow, rowFlipFor(isRTL) && styles.noShowFeeRowRtl]}>
@@ -314,7 +311,7 @@ export default function ManagerWeeklyStatDetailScreen() {
               >
                 <Text style={[styles.rowTitle, isRTL && styles.rtl]} numberOfLines={2}>
                   {formatISODateWeekdayDayMonthYear(s.session_date, language)} ·{" "}
-                  {formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60)}
+                  {displayTimeRange(s.start_time, s.duration_minutes ?? 60)}
                 </Text>
                 <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={1}>
                   {s.trainer?.full_name ?? "—"}
@@ -386,7 +383,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                   </Text>
                   <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={2}>
                     {sess
-                      ? `${formatISODateWeekdayDayMonthYear(sess.session_date, language)} · ${formatSessionTimeRange(sess.start_time, sess.duration_minutes ?? 60)}`
+                      ? `${formatISODateWeekdayDayMonthYear(sess.session_date, language)} · ${displayTimeRange(sess.start_time, sess.duration_minutes ?? 60)}`
                       : "—"}
                   </Text>
                   <Text style={[styles.rowDetail, isRTL && styles.rtl]} numberOfLines={3}>
@@ -541,7 +538,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                   </Text>
                   <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={2}>
                     {sess
-                      ? `${formatISODateWeekdayDayMonthYear(sess.session_date, language)} · ${formatSessionTimeRange(sess.start_time, 60)}`
+                      ? `${formatISODateWeekdayDayMonthYear(sess.session_date, language)} · ${displayTimeRange(sess.start_time, 60)}`
                       : "—"}
                   </Text>
                   <Text style={styles.rowHint}>{formatDateTimeForDisplay(w.requested_at, language)}</Text>
@@ -630,7 +627,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                 </Text>
                 <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={2}>
                   {formatISODateWeekdayDayMonthYear(r.session_date, language)} ·{" "}
-                  {formatSessionTimeRange(r.start_time, r.duration_minutes)}
+                  {displayTimeRange(r.start_time, r.duration_minutes)}
                 </Text>
               </Pressable>
               </FadeSlideIn>
@@ -659,7 +656,7 @@ export default function ManagerWeeklyStatDetailScreen() {
   const rangeLabel = useMemo(() => {
     if (!weekStart || !weekEnd) return "";
     try {
-      return formatISODateRangeCompact(weekStart, weekEnd, language);
+      return displayDateRange(weekStart, weekEnd, language);
     } catch {
       return "";
     }

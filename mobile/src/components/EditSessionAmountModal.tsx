@@ -3,11 +3,12 @@ import { theme } from "../theme";
 import { AppModal } from "./AppModal";
 import { PrimaryButton } from "./PrimaryButton";
 import { formatISODateFull } from "../lib/dateFormat";
-import { formatSessionTimeRange } from "../lib/sessionTime";
+
 import { paymentMethodHistoryLabel, SESSION_PAYMENT_METHOD_KEYS, type SessionPaymentMethodKey } from "../lib/paymentMethod";
 import type { ParticipantHistoryRow } from "../types/database";
 import type { LanguageCode } from "../i18n/translations";
 import { participantHistoryStyles as styles } from "../screens/participantHistoryStyles";
+import { displayTimeRange } from "../lib/displayFormat";
 
 type Props = {
   visible: boolean;
@@ -59,7 +60,7 @@ export function EditSessionAmountModal({
           <>
             <Text style={[styles.hint, isRTL && styles.rtlText]}>
               {formatISODateFull(reg.session_date, language)} ·{" "}
-              {formatSessionTimeRange(reg.start_time, reg.duration_minutes ?? 60)}
+              {displayTimeRange(reg.start_time, reg.duration_minutes ?? 60)}
             </Text>
           </>
         ) : null}
