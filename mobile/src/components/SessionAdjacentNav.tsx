@@ -25,7 +25,7 @@ const PATH: Record<SessionAdjacentNavVariant, string> = {
 };
 
 export function SessionAdjacentNav({ variant, sessionId }: Props) {
-  const { t } = useI18n();
+  const { t, isRTL, rowFlip } = useI18n();
   const insets = useSafeAreaInsets();
   const [adj, setAdj] = useState<AdjacentSessionIds | null>(null);
 
@@ -60,7 +60,8 @@ export function SessionAdjacentNav({ variant, sessionId }: Props) {
       style={[styles.wrap, { paddingBottom: bottomPad }]}
       accessibilityRole="toolbar"
     >
-      <View style={styles.splitRow}>
+      {/* Follows the UI direction (like the week calendar): in Hebrew "previous" is on the right pointing right. */}
+      <View style={[styles.splitRow, rowFlip && styles.splitRowFlip]}>
         <Pressable
           onPress={() => adj.prevId && go(adj.prevId)}
           disabled={!adj.prevId}
@@ -75,7 +76,7 @@ export function SessionAdjacentNav({ variant, sessionId }: Props) {
           accessibilityState={{ disabled: !adj.prevId }}
         >
           <Text style={[styles.arrow, !adj.prevId && styles.arrowMuted]} allowFontScaling={false}>
-            ←
+            {isRTL ? "→" : "←"}
           </Text>
         </Pressable>
         <View style={styles.divider} pointerEvents="none" />
@@ -93,7 +94,7 @@ export function SessionAdjacentNav({ variant, sessionId }: Props) {
           accessibilityState={{ disabled: !adj.nextId }}
         >
           <Text style={[styles.arrow, !adj.nextId && styles.arrowMuted]} allowFontScaling={false}>
-            →
+            {isRTL ? "←" : "→"}
           </Text>
         </Pressable>
       </View>
@@ -113,8 +114,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
     minHeight: 36,
-    writingDirection: "ltr",
   },
+  splitRowFlip: { flexDirection: "row-reverse" },
   /** Full-width halves — large horizontal tap targets; arrows only (no circle). */
   half: {
     flex: 1,

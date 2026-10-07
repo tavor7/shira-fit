@@ -4,6 +4,7 @@ import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { useI18n } from "../context/I18nContext";
 import { SESSION_MAX_PRESETS } from "../lib/sessionCapacityOptions";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   duration: string;
   max: string;
@@ -31,7 +32,7 @@ export function SessionCapacityFields({
 
   return (
     <View style={sf.formPanel}>
-      <View style={[styles.row, isRTL && styles.rowRtl]}>
+      <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
         <View style={styles.col}>
           <Text style={[sf.label, isRTL && sf.labelRtl]}>{durationLabel}</Text>
           <TextInput
@@ -58,7 +59,7 @@ export function SessionCapacityFields({
             placeholderTextColor={theme.colors.textSoft}
             accessibilityLabel={maxLabel}
           />
-          <View style={[styles.presetRow, isRTL && styles.presetRowRtl]}>
+          <View style={[styles.presetRow, rowFlipFor(isRTL) && styles.presetRowRtl]}>
             {SESSION_MAX_PRESETS.map((n) => {
               const on = maxNum === n;
               return (

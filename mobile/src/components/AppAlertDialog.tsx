@@ -2,6 +2,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { AppModal } from "./AppModal";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 export type AppAlertActionVariant = "primary" | "secondary" | "danger";
 
 export type AppAlertAction = {
@@ -42,7 +43,7 @@ export function AppAlertDialog({ visible, title, message, actions, onRequestClos
           </Text>
         ) : null}
         <Text style={[styles.body, isRTL && styles.rtlText]}>{message}</Text>
-        <View style={[styles.actions, isRTL && styles.actionsRtl]}>
+        <View style={[styles.actions, rowFlipFor(isRTL) && styles.actionsRtl]}>
           {actions.map((a, i) => {
             const key = `${a.label}-${i}`;
             if (a.variant === "danger") {

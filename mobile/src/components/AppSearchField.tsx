@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { theme } from "../theme";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   value: string;
   onChangeText: (next: string) => void;
@@ -91,7 +92,7 @@ export function AppSearchField({
   }
 
   return (
-    <View style={[styles.shell, isRTL && styles.shellRtl, style]} accessibilityRole="search">
+    <View style={[styles.shell, rowFlipFor(isRTL) && styles.shellRtl, style]} accessibilityRole="search">
       <Text style={styles.glyph} accessibilityElementsHidden importantForAccessibility="no">
         ⌕
       </Text>

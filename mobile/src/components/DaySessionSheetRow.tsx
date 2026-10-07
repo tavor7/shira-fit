@@ -8,6 +8,7 @@ import { SessionSeriesIndicator } from "./SessionSeriesIndicator";
 import { StatusChip } from "./StatusChip";
 import { useI18n } from "../context/I18nContext";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   item: SessionsWeekItem;
   onPress: () => void;
@@ -35,7 +36,7 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
         style={({ pressed }) => [styles.bodyPressable, pressed && styles.cardPressed]}
         accessibilityRole="button"
       >
-        <View style={[styles.body, isRTL && styles.bodyRtl]}>
+        <View style={[styles.body, rowFlipFor(isRTL) && styles.bodyRtl]}>
           <View style={[styles.timeCol, phase === "past" && styles.timeColPast]}>
             <Text style={[styles.time, phase === "past" && styles.timePast]}>{start}</Text>
             {phase === "live" ? (
@@ -54,7 +55,7 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
                 {item.trainerName}
               </Text>
             ) : null}
-            <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+            <View style={[styles.chips, rowFlipFor(isRTL) && styles.chipsRtl]}>
               {item.athleteRegistered ? (
                 <View style={styles.registeredBannerSheet}>
                   <Text style={styles.registeredBannerSheetTxt}>

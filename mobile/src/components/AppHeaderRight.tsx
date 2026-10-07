@@ -16,7 +16,7 @@ function formatRole(role: string | undefined) {
  */
 export function AppHeaderRight() {
   const { profile, loading, signOut } = useAuth();
-  const { t, isRTL, language } = useI18n();
+  const { t, isRTL, rowFlip, language } = useI18n();
   const { enabled: athletePreview } = useManagerAthletePreview();
 
   const name = profile?.full_name || profile?.username || t("common.account");
@@ -41,13 +41,15 @@ export function AppHeaderRight() {
         // there has no parent extent to grow into or shrink against, so the row hugs its
         // content instead, letting name text + chips render at their natural size.
         isNative && { flex: 0, minWidth: undefined },
-        isRTL && styles.wrapRTL,
+        // Direction compensations apply only when rows are flipped manually (see lib/layoutDirection);
+        // on web, <html dir> already places Profile beside the name and Log out at the screen edge.
+        rowFlip && styles.wrapRTL,
         isRTL && styles.wrapRtlSpacing,
       ]}
     >
-      <View style={[styles.nameBlock, isNative && { flex: 0, minWidth: undefined, maxWidth: undefined }, isRTL && styles.nameBlockRtl]}>
+      <View style={[styles.nameBlock, isNative && { flex: 0, minWidth: undefined, maxWidth: undefined }, rowFlip && styles.nameBlockRtl]}>
         <Text
-          style={[styles.name, isRTL && styles.nameRtl]}
+          style={[styles.name, rowFlip && styles.nameRtl]}
           numberOfLines={1}
           ellipsizeMode="tail"
           maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}
@@ -56,7 +58,7 @@ export function AppHeaderRight() {
         </Text>
         {roleLine ? (
           <Text
-            style={[styles.role, isRTL && styles.roleRtl]}
+            style={[styles.role, rowFlip && styles.roleRtl]}
             numberOfLines={1}
             ellipsizeMode="tail"
             maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}
@@ -66,7 +68,7 @@ export function AppHeaderRight() {
         ) : null}
       </View>
       {/* Keep Profile + Log out on one row — wrapping stacked them and overlapped page content on narrow web / athlete preview. */}
-      <View style={[styles.chipsRow, isRTL && styles.chipsRowRtl]}>
+      <View style={[styles.chipsRow, rowFlip && styles.chipsRowRtl]}>
         <Pressable
           onPress={() => router.push("/(app)/profile")}
           disabled={loading || blockedAthlete}

@@ -9,6 +9,7 @@ import { toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -91,7 +92,7 @@ export function AddDiscountModal({ visible, onClose, payeeId, payeeIsManual, pay
       backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
       cardStyle={styles.card}
     >
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
         <View style={styles.headerText}>
           <Text style={[styles.title, isRTL && styles.rtlText]}>{t("billing.addDiscountTitle")}</Text>
           {payeeLabel?.trim() ? (

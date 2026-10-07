@@ -3,6 +3,7 @@ import { DatePickerField } from "./DatePickerField";
 import { pricingScreenStyles as ps } from "./pricingScreenStyles";
 import { theme } from "../theme";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   fromLabel: string;
   toLabel: string;
@@ -26,7 +27,7 @@ export function PricingRatePeriodFields({
 }: Props) {
   return (
     <View style={styles.wrap}>
-      <View style={[styles.row, isRTL && styles.rowRtl]}>
+      <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
         <View style={styles.field}>
           <DatePickerField label={fromLabel} value={fromValue} onChange={onFromChange} />
         </View>

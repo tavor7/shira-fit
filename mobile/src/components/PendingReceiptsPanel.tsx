@@ -30,6 +30,7 @@ import {
 } from "../lib/pendingReceipts";
 import { toISODateLocal } from "../lib/isoDate";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 /** Payments before this date are historical/testing data — never shown as pending a receipt. */
 const PENDING_RECEIPTS_FLOOR_DATE = "2026-06-14";
 
@@ -237,7 +238,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
           pressed && !disabled && { opacity: 0.9 },
         ]}
       >
-        <View style={[styles.rowTop, isRTL && styles.rowTopRtl]}>
+        <View style={[styles.rowTop, rowFlipFor(isRTL) && styles.rowTopRtl]}>
           <View style={[styles.check, isSelected && styles.checkOn, disabled && styles.checkDisabled]}>
             {isSelected ? <Text style={styles.checkMark}>✓</Text> : null}
           </View>
@@ -355,7 +356,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
       />
       {selectableRows.length > 0 ? (
         <View style={styles.bulkOpts}>
-          <View style={[styles.toggleRow, isRTL && styles.toggleRowRtl]}>
+          <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
             <Text style={[styles.toggleLabel, isRTL && styles.rtl]}>
               {language === "he" ? "צור PDF לכל הנוצרים" : "Generate PDF for all created"}
             </Text>
@@ -366,7 +367,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
               accessibilityLabel={language === "he" ? "צור PDF לכל הנוצרים" : "Generate PDF for all created"}
             />
           </View>
-          <View style={[styles.toggleRow, isRTL && styles.toggleRowRtl]}>
+          <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
             <Text style={[styles.toggleLabel, isRTL && styles.rtl]}>
               {language === "he" ? "שלח אימייל (כשיש כתובת)" : "Email customers (when address exists)"}
             </Text>
@@ -385,7 +386,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
             ? `${totalCount} תשלומים ללא קבלה · ${formatIls(totalAmount)}`
             : `${totalCount} payments without receipt · ${formatIls(totalAmount)}`}
         </Text>
-        <View style={[styles.summaryStripActions, isRTL && styles.summaryStripActionsRtl]}>
+        <View style={[styles.summaryStripActions, rowFlipFor(isRTL) && styles.summaryStripActionsRtl]}>
         <SortToggleButton
           value={sortOrder}
           onChange={setSortOrder}
@@ -468,7 +469,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
       />
 
       {selectedCount > 0 || creating ? (
-        <View style={[styles.footer, isRTL && styles.footerRtl]}>
+        <View style={[styles.footer, rowFlipFor(isRTL) && styles.footerRtl]}>
           <View style={styles.footerCopy}>
             <Text style={[styles.footerTitle, isRTL && styles.rtl]}>
               {creating && createProgress

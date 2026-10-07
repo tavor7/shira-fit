@@ -5,6 +5,7 @@ import type { PricingRateTierRow } from "../lib/pricingRates";
 import { splitPricingPeriods } from "../lib/pricingRates";
 import { PricingPeriodLine } from "./PricingPeriodLine";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type PeriodRow = PricingRateTierRow & { id?: string };
 
 type Props<T extends PeriodRow> = {
@@ -63,7 +64,7 @@ export function PricingCapacityGroup<T extends PeriodRow>({
 
   return (
     <View style={styles.card}>
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
         <View style={styles.headerText}>
           <Text style={[styles.title, isRTL && styles.rtl]} numberOfLines={2}>
             {title}
@@ -83,7 +84,7 @@ export function PricingCapacityGroup<T extends PeriodRow>({
             <Text style={[styles.soleRange, isRTL && styles.rtl]} numberOfLines={1}>
               {formatRange(sole.effective_from, sole.effective_to)}
             </Text>
-            <View style={[styles.soleActions, isRTL && styles.soleActionsRtl]}>
+            <View style={[styles.soleActions, rowFlipFor(isRTL) && styles.soleActionsRtl]}>
               <Pressable onPress={() => onEdit(sole)} hitSlop={8} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={styles.actionEdit}>{editLabel}</Text>
               </Pressable>

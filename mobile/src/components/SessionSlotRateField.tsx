@@ -4,6 +4,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   value: string;
   onChangeValue: (v: string) => void;
@@ -78,13 +79,13 @@ export function SessionSlotRateField({
     <View style={layout === "form" ? styles.cardForm : styles.cardStandalone}>
       <Pressable
         onPress={() => setExpanded((e) => !e)}
-        style={({ pressed }) => [styles.header, isRTL && styles.headerRtl, pressed && { opacity: 0.9 }]}
+        style={({ pressed }) => [styles.header, rowFlipFor(isRTL) && styles.headerRtl, pressed && { opacity: 0.9 }]}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel={`${t("managerSession.customSlotPriceTitle")}. ${summaryText}`}
       >
         <Text style={[styles.title, isRTL && styles.rtlText]}>{t("managerSession.customSlotPriceTitle")}</Text>
-        <View style={[styles.headerEnd, isRTL && styles.headerEndRtl]}>
+        <View style={[styles.headerEnd, rowFlipFor(isRTL) && styles.headerEndRtl]}>
           <Text style={[styles.summary, isRTL && styles.rtlText]} numberOfLines={1}>
             {summaryText}
           </Text>
@@ -102,7 +103,7 @@ export function SessionSlotRateField({
               {t("managerSession.customSlotPriceTierShort").replace("{amount}", formatIls(tierPriceIls, language))}
             </Text>
           ) : null}
-          <View style={[styles.inputRow, isRTL && styles.inputRowRtl]}>
+          <View style={[styles.inputRow, rowFlipFor(isRTL) && styles.inputRowRtl]}>
             <TextInput
               style={[styles.input, isRTL && styles.inputRtl, disabled && styles.inputDisabled]}
               value={value}

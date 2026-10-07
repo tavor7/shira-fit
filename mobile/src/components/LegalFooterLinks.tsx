@@ -4,6 +4,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "./AppText";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 /** Compact Privacy / Terms / Accessibility links row — sits inline wherever it's placed. */
 export function LegalFooterLinks({ style }: { style?: object }) {
   const { t, isRTL } = useI18n();
@@ -15,7 +16,7 @@ export function LegalFooterLinks({ style }: { style?: object }) {
   ];
 
   return (
-    <View style={[styles.row, isRTL && styles.rowRtl, Platform.OS === "web" && styles.webPad, style]}>
+    <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl, Platform.OS === "web" && styles.webPad, style]}>
       {links.map((l, i) => (
         <Pressable
           key={l.key}

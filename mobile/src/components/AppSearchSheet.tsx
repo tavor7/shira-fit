@@ -22,6 +22,7 @@ import { theme } from "../theme";
 import { AppSearchField } from "./AppSearchField";
 import { FadeSlideIn } from "./FadeSlideIn";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 export type AppSearchSheetSearchConfig = {
   value: string;
   onChangeText: (next: string) => void;
@@ -192,7 +193,7 @@ export function AppSearchSheet<T>({
         cardStyle,
       ]}
     >
-      <View style={[styles.header, showCompactHeader && styles.headerCompact, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, showCompactHeader && styles.headerCompact, rowFlipFor(isRTL) && styles.headerRtl]}>
         <View style={styles.headerText}>
           <Text style={[styles.title, showCompactHeader && styles.titleCompact, isRTL && styles.rtlText]} numberOfLines={2}>
             {title}

@@ -8,6 +8,7 @@ import { appLocale } from "../lib/appLocale";
 import { useI18n } from "../context/I18nContext";
 import type { LanguageCode } from "../i18n/translations";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 const MIN_YEAR = 2020;
 
 type Props = {
@@ -70,7 +71,7 @@ export function MonthPickerSheet({ visible, anchor, onClose, onSelect }: Props) 
       maxHeightPct={0.72}
     >
       <View style={styles.sheet}>
-        <View style={[styles.toolbar, isRTL && styles.toolbarRtl]}>
+        <View style={[styles.toolbar, rowFlipFor(isRTL) && styles.toolbarRtl]}>
           <Pressable onPress={onClose} hitSlop={12}>
             <Text style={styles.tbMuted}>{t("common.cancel")}</Text>
           </Pressable>
@@ -80,7 +81,7 @@ export function MonthPickerSheet({ visible, anchor, onClose, onSelect }: Props) 
           </Pressable>
         </View>
 
-        <View style={[styles.yearRow, isRTL && styles.yearRowRtl]}>
+        <View style={[styles.yearRow, rowFlipFor(isRTL) && styles.yearRowRtl]}>
           <Pressable
             style={({ pressed }) => [styles.yearNav, !canPrevYear && styles.yearNavDisabled, pressed && canPrevYear && styles.yearNavPressed]}
             onPress={() => canPrevYear && setDraftYear((y) => y - 1)}
@@ -101,7 +102,7 @@ export function MonthPickerSheet({ visible, anchor, onClose, onSelect }: Props) 
         </View>
 
         <ScrollView contentContainerStyle={styles.gridWrap} keyboardShouldPersistTaps="handled">
-          <View style={[styles.grid, isRTL && styles.gridRtl]}>
+          <View style={[styles.grid, rowFlipFor(isRTL) && styles.gridRtl]}>
             {months.map((label, monthIndex) => {
               const future = isFutureMonth(draftYear, monthIndex);
               const highlighted = monthIndex === draftMonth;

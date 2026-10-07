@@ -5,6 +5,7 @@ import { useI18n } from "../context/I18nContext";
 import type { PricingIssue, PricingIssueKind, PricingIssueParams, PricingIssueSection } from "../lib/pricingIssues";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   issues: PricingIssue[];
   onFix: (issue: PricingIssue) => void;
@@ -93,7 +94,7 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
     <View style={[styles.wrap, { borderLeftColor: accent }]}>
       <Pressable
         onPress={() => setExpanded((v) => !v)}
-        style={({ pressed }) => [styles.header, isRTL && styles.headerRtl, pressed && { opacity: 0.92 }]}
+        style={({ pressed }) => [styles.header, rowFlipFor(isRTL) && styles.headerRtl, pressed && { opacity: 0.92 }]}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel={t("pricing.issuesBannerA11y").replace("{n}", String(issues.length))}
@@ -123,10 +124,10 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
             return (
               <View
                 key={issue.id}
-                style={[styles.row, idx < issues.length - 1 && styles.rowBorder, isRTL && styles.rowRtl]}
+                style={[styles.row, idx < issues.length - 1 && styles.rowBorder, rowFlipFor(isRTL) && styles.rowRtl]}
               >
                 <View style={styles.rowBody}>
-                  <View style={[styles.rowMeta, isRTL && styles.rowMetaRtl]}>
+                  <View style={[styles.rowMeta, rowFlipFor(isRTL) && styles.rowMetaRtl]}>
                     <Text style={[styles.sectionTag, isRTL && styles.rtl]}>{t(SECTION_KEYS[issue.section])}</Text>
                     <View
                       style={[

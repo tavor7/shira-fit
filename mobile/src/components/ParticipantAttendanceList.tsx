@@ -27,6 +27,7 @@ import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { hasSessionNotStarted } from "../lib/sessionTime";
 import type { MoveParticipantTarget } from "./MoveParticipantSheet";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type RegRow = {
   user_id: string;
   attended: boolean | null;
@@ -826,7 +827,7 @@ export function ParticipantAttendanceList({
             style={styles.card}
           >
             {entering ? <EnteringHighlight /> : null}
-            <View style={[styles.nameRow, isRTL && styles.nameRowRtl]}>
+            <View style={[styles.nameRow, rowFlipFor(isRTL) && styles.nameRowRtl]}>
               <View style={[styles.nameBlock, isRTL && styles.nameBlockRtl]}>
                 <Text style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
                   {item.name}
@@ -921,7 +922,7 @@ export function ParticipantAttendanceList({
                   </Pressable>
                 ) : null}
               </View>
-              <View style={[styles.nameRight, isRTL && styles.nameRightRtl]}>
+              <View style={[styles.nameRight, rowFlipFor(isRTL) && styles.nameRightRtl]}>
                 {sessionMeta ? (
                   <RosterSlotRateChip
                     sessionId={sessionId}
@@ -943,7 +944,7 @@ export function ParticipantAttendanceList({
                     const isHidden = superUserHiddenUserIds.has(item.userId);
                     const toggleBusy = hideToggleBusyUserId === item.userId;
                     return (
-                      <View style={[styles.hideControl, isRTL && styles.hideControlRtl]}>
+                      <View style={[styles.hideControl, rowFlipFor(isRTL) && styles.hideControlRtl]}>
                         {isHidden ? (
                           <View style={styles.hiddenBadge}>
                             <Text style={styles.hiddenBadgeTxt}>{t("superUser.hiddenBadge")}</Text>
@@ -1012,7 +1013,7 @@ export function ParticipantAttendanceList({
               </View>
             </View>
             <Text style={[styles.hint, isRTL && styles.rtlText]}>{language === "he" ? "נוכחות" : "Attendance"}</Text>
-            <View style={[styles.seg, isRTL && styles.segRtl]}>
+            <View style={[styles.seg, rowFlipFor(isRTL) && styles.segRtl]}>
               {(["unset", "arrived", "absent"] as const).map((st) => (
                 <Pressable
                   key={st}
@@ -1047,11 +1048,11 @@ export function ParticipantAttendanceList({
               ))}
             </View>
             {current === "absent" ? (
-              <View style={[styles.noShowFeeRow, isRTL && styles.noShowFeeRowRtl]}>
+              <View style={[styles.noShowFeeRow, rowFlipFor(isRTL) && styles.noShowFeeRowRtl]}>
                 <Text style={[styles.noShowFeeLabel, isRTL && styles.rtlText]}>
                   {language === "he" ? "חיוב על נעדרות" : "Charge no-show fee"}
                 </Text>
-                <View style={[styles.noShowFeeSeg, isRTL && styles.noShowFeeSegRtl]}>
+                <View style={[styles.noShowFeeSeg, rowFlipFor(isRTL) && styles.noShowFeeSegRtl]}>
                   <Pressable
                     disabled={busy}
                     onPress={() => void setStatus(item, "absent", null, null, false)}

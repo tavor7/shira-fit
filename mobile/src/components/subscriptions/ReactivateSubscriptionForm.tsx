@@ -21,6 +21,7 @@ import {
   type WeeklyLimits,
 } from "../../lib/subscriptions";
 
+import { rowFlipFor } from "../../lib/layoutDirection";
 export function ReactivateSubscriptionForm({ sourceSubscriptionId }: { sourceSubscriptionId: string }) {
   const { t, isRTL } = useI18n();
   const { showToast } = useToast();
@@ -158,7 +159,7 @@ export function ReactivateSubscriptionForm({ sourceSubscriptionId }: { sourceSub
             <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.reactivate.startDateLabel")}</Text>
             <DatePickerField appearance="embedded" label={t("subscriptions.reactivate.startDateLabel")} value={startDate} onChange={setStartDate} />
 
-            <View style={[styles.toggleRow, styles.spaced, isRTL && styles.toggleRowRtl]}>
+            <View style={[styles.toggleRow, styles.spaced, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
               <Text style={[sf.label, isRTL && sf.labelRtl]}>{t("subscriptions.reactivate.noEndDateToggle")}</Text>
               <AppSwitch value={noEndDate} onValueChange={setNoEndDate} accessibilityLabel={t("subscriptions.reactivate.noEndDateToggle")} />
             </View>

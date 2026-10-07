@@ -17,6 +17,7 @@ import { formatISODateRangeCompact, formatMonthYear } from "../lib/dateFormat";
 import { useI18n } from "../context/I18nContext";
 import { globalOverviewRangeISO, isGlobalOverviewRange } from "../lib/managerPeriodMode";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type QuickPreset = "7" | "30" | "45" | "60";
 type DateMode = "recent" | "month" | "global" | "range";
 
@@ -67,7 +68,7 @@ function detectReportRangeState(start: string, end: string): {
 
 export function ReportDateRangeControls({ start, end, onChange }: Props) {
   const { t, isRTL, language } = useI18n();
-  const rtlRowFlip = isRTL;
+  const rtlRowFlip = rowFlipFor(isRTL);
   const initial = useMemo(() => detectReportRangeState(start, end), []);
   const [mode, setMode] = useState<DateMode>(initial.mode);
   const [recentPreset, setRecentPreset] = useState<QuickPreset>(initial.recentPreset);

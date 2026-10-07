@@ -4,6 +4,7 @@ import { useI18n } from "../context/I18nContext";
 import { sessionFormIsCompact } from "./sessionFormStyles";
 import { PressableScale } from "./PressableScale";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   title: string;
   priceLabel: string;
@@ -28,7 +29,7 @@ export function PricingTierRow({ title, priceLabel, subtitle, onEdit, onRemove, 
   );
 
   const actions = (
-    <View style={[styles.actions, isRTL && styles.actionsRtl]}>
+    <View style={[styles.actions, rowFlipFor(isRTL) && styles.actionsRtl]}>
       <PressableScale
         onPress={onEdit}
         style={[styles.actionBtn, styles.editBtn]}
@@ -59,7 +60,7 @@ export function PricingTierRow({ title, priceLabel, subtitle, onEdit, onRemove, 
             </Text>
           ) : null}
         </View>
-        <View style={[styles.bottomRow, isRTL && styles.bottomRowRtl]}>
+        <View style={[styles.bottomRow, rowFlipFor(isRTL) && styles.bottomRowRtl]}>
           {pricePill}
           {actions}
         </View>
@@ -68,7 +69,7 @@ export function PricingTierRow({ title, priceLabel, subtitle, onEdit, onRemove, 
   }
 
   return (
-    <View style={[styles.row, isRTL && styles.rowRtl]}>
+    <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
       <View style={styles.titleBlock}>
         <Text style={[styles.rowCap, isRTL && styles.rtl]} numberOfLines={2}>
           {title}
@@ -79,7 +80,7 @@ export function PricingTierRow({ title, priceLabel, subtitle, onEdit, onRemove, 
           </Text>
         ) : null}
       </View>
-      <View style={[styles.rowEnd, isRTL && styles.rowEndRtl]}>
+      <View style={[styles.rowEnd, rowFlipFor(isRTL) && styles.rowEndRtl]}>
         {pricePill}
         {actions}
       </View>

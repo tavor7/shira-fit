@@ -4,6 +4,7 @@ import { theme } from "../theme";
 import { AppModal } from "./AppModal";
 import { PrimaryButton } from "./PrimaryButton";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   visible: boolean;
   title: string;
@@ -37,7 +38,7 @@ export function PricingFormModal({
       maxHeightPct={0.85}
       backdropAccessibilityLabel={cancelLabel}
     >
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
         <Text style={[styles.title, isRTL && styles.rtl]} numberOfLines={2}>
           {title}
         </Text>

@@ -13,6 +13,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   tabs: { id: string; label: string }[];
   active: string;
@@ -80,7 +81,9 @@ export function SlidingPillTabBar({ tabs, active, onChange, style }: Props) {
   };
 
   return (
-    <View style={[styles.track, isRTL && styles.trackRtl, style]}>
+    // Keyed on direction: a language switch moves the tabs to mirrored positions without resizing them, and
+    // react-native-web only reports onLayout on resize, so remount to re-measure and re-place the indicator.
+    <View key={isRTL ? "rtl" : "ltr"} style={[styles.track, rowFlipFor(isRTL) && styles.trackRtl, style]}>
       <Animated.View
         pointerEvents="none"
         style={[

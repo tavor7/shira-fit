@@ -6,6 +6,7 @@ import { KICKBOX_SESSION_ACCENT, KICKBOX_SESSION_BG } from "../lib/kickboxSessio
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 import { AppSwitch } from "./AppSwitch";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 /** Visual cue when the toggle is on (off rows share the same neutral look). */
 export type SessionOptionTone = "open" | "hidden" | "kickbox" | "repeat";
 
@@ -56,7 +57,7 @@ function OptionList({ options, isRTL }: Pick<Props, "options" | "isRTL">) {
           <View key={opt.key}>
             {index > 0 ? <View style={styles.divider} /> : null}
             <View style={[styles.rowShell, toneStyle]}>
-            <View style={[styles.row, isRTL && styles.rowRtl]}>
+            <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
               <Pressable
                 style={({ pressed }) => [styles.labelBlock, pressed && { opacity: 0.7 }]}
                 onPress={() => opt.onValueChange(!opt.value)}

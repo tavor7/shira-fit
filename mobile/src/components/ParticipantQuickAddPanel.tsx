@@ -5,6 +5,7 @@ import { useI18n } from "../context/I18nContext";
 import { useSearchSheetFocus } from "../context/SearchSheetFocusContext";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   name: string;
   phone: string;
@@ -52,7 +53,7 @@ export function ParticipantQuickAddPanel({
         accessibilityState={{ expanded }}
         accessibilityLabel={t("sessionForm.quickAdd")}
       >
-        <View style={[styles.head, isRTL && styles.headRtl]}>
+        <View style={[styles.head, rowFlipFor(isRTL) && styles.headRtl]}>
           <View style={styles.iconWrap}>
             <Text style={styles.icon}>+</Text>
           </View>
@@ -68,7 +69,7 @@ export function ParticipantQuickAddPanel({
 
       <AnimatedOptionExpand open={expanded}>
         <View style={styles.body}>
-          <View style={[styles.fields, isRTL && styles.fieldsRtl]}>
+          <View style={[styles.fields, rowFlipFor(isRTL) && styles.fieldsRtl]}>
             <TextInput
               value={name}
               onChangeText={onNameChange}

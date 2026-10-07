@@ -44,6 +44,7 @@ import { AppSearchSheet } from "./AppSearchSheet";
 import { CoachPickerSheet } from "./CoachPickerSheet";
 import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
 
 type Props = {
@@ -783,7 +784,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         />
 
         <View style={sf.card}>
-          <View style={[sf.sectionHeaderRow, isRTL && sf.sectionHeaderRowRtl]}>
+          <View style={[sf.sectionHeaderRow, rowFlipFor(isRTL) && sf.sectionHeaderRowRtl]}>
             <Text style={[sf.cardTitle, styles.sectionTitleInline, isRTL && styles.rtlText]}>{t("sessionForm.trainees")}</Text>
             {traineeCount > 0 ? (
               <View style={sf.countBadge}>
@@ -1055,7 +1056,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderMuted,
   },
-  modalHeaderRtl: { flexDirection: "row-reverse" },
   modalTitle: { fontSize: 17, fontWeight: "800", letterSpacing: 0.2, color: theme.colors.text },
   modalClose: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "800" },
   modalLoader: { paddingVertical: theme.spacing.xl },
@@ -1098,7 +1098,6 @@ const styles = StyleSheet.create({
   chipXTxt: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 12, lineHeight: 14 },
 
   traineeSearchRow: { flexDirection: "row", gap: theme.spacing.sm, alignItems: "center" },
-  traineeSearchRowRtl: { flexDirection: "row-reverse" },
   traineeSearchInput: { flex: 1 },
   traineeSearchBtn: {
     paddingVertical: theme.spacing.sm,

@@ -7,6 +7,7 @@ import { clusterPricingListRows, formatPricingEffectiveRange } from "../lib/pric
 import { PricingRowMoreMenu } from "./PricingRowMoreMenu";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props<T extends PricingRateTierRow> = {
   rows: PricingListRow<T>[];
   /** `groupKey` = one row per capacity; `title` = one row per athlete name. */
@@ -87,7 +88,7 @@ function RateRowCard<T extends PricingRateTierRow>({
   muted?: boolean;
 }) {
   return (
-    <View style={[styles.rateCard, muted && styles.rateCardMuted, isRTL && styles.rateCardRtl]}>
+    <View style={[styles.rateCard, muted && styles.rateCardMuted, rowFlipFor(isRTL) && styles.rateCardRtl]}>
       <RatePeriodLines
         period={period}
         tierLine={tierLine}
@@ -153,7 +154,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
   return (
     <View style={styles.cluster}>
       {collapsibleHeader ? (
-        <View style={[styles.header, isRTL && styles.headerRtl]}>
+        <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
           <Pressable
             onPress={() => setExpanded((e) => !e)}
             style={({ pressed }) => [

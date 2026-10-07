@@ -16,6 +16,7 @@ import { formatISODateFull, formatISODateLong } from "../lib/dateFormat";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 function truncateNotePreview(body: string, maxLen: number): string {
   const oneLine = body.replace(/\s+/g, " ").trim();
   if (oneLine.length <= maxLen) return oneLine;
@@ -409,7 +410,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
                         style={({ pressed }) => [styles.sessionRow, pressed && styles.sessionRowPressed]}
                         onPress={() => router.push(sessionPath(variant, s.id) as Href)}
                       >
-                        <View style={[styles.sessionRowTop, alignRight && styles.sessionRowTopRtl]}>
+                        <View style={[styles.sessionRowTop, rowFlipFor(alignRight) && styles.sessionRowTopRtl]}>
                           <Text style={[styles.sessionTime, edgeStyle, alignRight && styles.rtlText]} numberOfLines={1}>
                             {time}
                           </Text>

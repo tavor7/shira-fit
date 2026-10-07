@@ -10,6 +10,7 @@ import { PrimaryButton } from "./PrimaryButton";
 import { ActionButton } from "./ActionButton";
 import { parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 export type SessionRateMeta = {
   max_participants: number;
   is_kickbox: boolean;
@@ -115,7 +116,7 @@ export function RosterSlotRateChip({
         style={({ pressed }) => [
           styles.chip,
           hasOverride && styles.chipCustom,
-          isRTL && styles.chipRtl,
+          rowFlipFor(isRTL) && styles.chipRtl,
           disabled && styles.chipDisabled,
           pressed && !disabled && { opacity: 0.88 },
         ]}
@@ -138,7 +139,7 @@ export function RosterSlotRateChip({
         backdropAccessibilityLabel={t("common.cancel")}
       >
         <View style={styles.dialog}>
-          <View style={[styles.sheetHeader, isRTL && styles.sheetHeaderRtl]}>
+          <View style={[styles.sheetHeader, rowFlipFor(isRTL) && styles.sheetHeaderRtl]}>
             <View style={styles.sheetHeaderText}>
               <Text style={[styles.sheetTitle, isRTL && styles.rtlText]}>{t("managerSession.rosterSlotRateTitle")}</Text>
               <Text style={[styles.sheetName, isRTL && styles.rtlText]} numberOfLines={2}>
@@ -156,7 +157,7 @@ export function RosterSlotRateChip({
             </Pressable>
           </View>
 
-          <View style={[styles.inputRow, isRTL && styles.inputRowRtl]}>
+          <View style={[styles.inputRow, rowFlipFor(isRTL) && styles.inputRowRtl]}>
             <TextInput
               style={[styles.input, isRTL && styles.inputRtl, saving && styles.inputDisabled]}
               value={draft}

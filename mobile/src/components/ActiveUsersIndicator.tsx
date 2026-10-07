@@ -8,6 +8,7 @@ import { AppModal } from "./AppModal";
 import { PressableScale } from "./PressableScale";
 import { FadeSlideIn } from "./FadeSlideIn";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 function roleLabel(role: ActiveUser["role"], t: (key: string) => string): string {
   if (role === "coach") return t("roles.coach");
   if (role === "manager") return t("roles.manager");
@@ -31,7 +32,7 @@ export function ActiveUsersIndicator() {
         accessibilityRole="button"
         accessibilityLabel={t("activeUsers.now").replace("{n}", String(users.length))}
       >
-        <View style={[styles.row, isRTL && styles.rowRtl]}>
+        <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
           <View style={styles.dot} />
           <Text style={styles.txt}>{t("activeUsers.now").replace("{n}", String(users.length))}</Text>
         </View>
@@ -47,7 +48,7 @@ export function ActiveUsersIndicator() {
         <View style={styles.list}>
           {sorted.map((u, index) => (
             <FadeSlideIn key={u.userId} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
-              <View style={[styles.userRow, isRTL && styles.userRowRtl]}>
+              <View style={[styles.userRow, rowFlipFor(isRTL) && styles.userRowRtl]}>
                 <View style={styles.avatarDot} />
                 <View style={styles.userTextWrap}>
                   <Text style={[styles.userName, isRTL && styles.rtlText]} numberOfLines={1}>

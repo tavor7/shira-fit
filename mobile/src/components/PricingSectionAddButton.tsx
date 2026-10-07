@@ -1,6 +1,7 @@
 import { Pressable, Text, StyleSheet } from "react-native";
 import { theme } from "../theme";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   label: string;
   onPress: () => void;
@@ -15,7 +16,7 @@ export function PricingSectionAddButton({ label, onPress, isRTL, disabled }: Pro
       disabled={disabled}
       style={({ pressed }) => [
         styles.btn,
-        isRTL && styles.btnRtl,
+        rowFlipFor(isRTL) && styles.btnRtl,
         disabled && styles.btnDisabled,
         pressed && !disabled && { opacity: 0.9 },
       ]}

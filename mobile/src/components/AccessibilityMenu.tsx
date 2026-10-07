@@ -9,6 +9,7 @@ import { useAuth } from "../context/AuthContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { AppText } from "./AppText";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 /**
  * Web/PWA-only floating accessibility control. Supplements — does not replace — the
  * underlying accessibility work (labels, roles, focus order, contrast) done elsewhere;
@@ -198,7 +199,7 @@ function ToggleRow({
 }) {
   return (
     <Pressable
-      style={[styles.row, isRTL && styles.rowRtl]}
+      style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}
       onPress={() => onChange(!value)}
       accessibilityRole="switch"
       accessibilityState={{ checked: value }}

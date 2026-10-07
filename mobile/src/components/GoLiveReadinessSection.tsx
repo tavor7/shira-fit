@@ -11,6 +11,7 @@ import {
   type GoLiveStats,
 } from "../lib/documents";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   isRTL: boolean;
   language: "he" | "en";
@@ -88,7 +89,7 @@ export function GoLiveReadinessSection({ isRTL, language }: Props) {
             ? "ספירת מתאמנים (ממתינים ומאושרים) ומנהלים שחסרים פרטים. לחצו על מספר לרשימה."
             : "Pending and approved athletes and managers missing details. Tap a count to see the list."}
         </Text>
-        <View style={[styles.statsRow, isRTL && styles.statsRowRtl]}>
+        <View style={[styles.statsRow, rowFlipFor(isRTL) && styles.statsRowRtl]}>
           {items.map((item) => (
             <Pressable
               key={item.key}

@@ -16,6 +16,7 @@ import {
   type SessionPaymentMethodKey,
 } from "../lib/paymentMethod";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 /**
  * "Discount" is recorded through the separate AddDiscountModal, not offered as a chip
  * here — this modal is for real payments only. An existing discount payment can still be
@@ -190,7 +191,7 @@ export function AddAccountPaymentModal({
       backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
       cardStyle={styles.card}
     >
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
         <View style={styles.headerText}>
           <Text style={[styles.title, isRTL && styles.rtlText]}>
             {isEdit ? t("billing.editPaymentTitle") : t("billing.addPaymentTitle")}
@@ -231,7 +232,7 @@ export function AddAccountPaymentModal({
           editable={!busy}
         />
         <Text style={[styles.label, isRTL && styles.rtlText]}>{t("billing.method")}</Text>
-        <View style={[styles.methodRow, isRTL && styles.methodRowRtl]}>
+        <View style={[styles.methodRow, rowFlipFor(isRTL) && styles.methodRowRtl]}>
           {methodChoices.map((m) => {
             const on = method === m;
             const isDiscount = m === "discount";

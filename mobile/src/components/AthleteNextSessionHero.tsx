@@ -32,6 +32,7 @@ import {
   type SessionRegistrationOpenState,
 } from "../lib/registrationOpeningSchedule";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 function sessionStartMs(s: Pick<TrainingSessionWithTrainer, "session_date" | "start_time">): number {
   const t = s.start_time.length >= 5 ? s.start_time.slice(0, 5) : s.start_time;
   return new Date(`${s.session_date}T${t}:00`).getTime();
@@ -261,7 +262,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
         : "Register";
 
   const chips = (
-    <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+    <View style={[styles.chips, rowFlipFor(isRTL) && styles.chipsRtl]}>
       {regOpen ? (
         <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
       ) : (

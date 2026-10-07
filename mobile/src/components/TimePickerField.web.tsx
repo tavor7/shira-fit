@@ -4,6 +4,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import type { TimePickerFieldProps } from "./TimePickerField";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 
@@ -129,7 +130,7 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
               </Pressable>
             </View>
 
-            <View style={[styles.pickersRow, isRTL && styles.pickersRowRtl]}>
+            <View style={[styles.pickersRow, rowFlipFor(isRTL) && styles.pickersRowRtl]}>
               <View style={styles.pickerCol}>
                 <Text style={styles.wheelColLabel}>{hourLabel}</Text>
                 <View style={styles.selectFrame}>

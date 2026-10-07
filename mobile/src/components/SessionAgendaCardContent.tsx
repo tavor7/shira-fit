@@ -8,6 +8,7 @@ import { SessionSeriesIndicator } from "./SessionSeriesIndicator";
 import { type SessionTemporalPhase, formatSessionStartTime, getSessionTemporalPhase } from "../lib/sessionTime";
 import { firstWordOfDisplayName } from "../lib/displayName";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   item: SessionsWeekItem;
   /** Narrow column (week grid); slightly smaller type */
@@ -117,7 +118,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
         </View>
       ) : null}
       {showRegState && showFill && !staffLabels && temporalPhase !== "past" && !showRegistered && !(full && waitlistInvite) ? (
-        <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+        <View style={[styles.chips, rowFlipFor(isRTL) && styles.chipsRtl]}>
           {full && onWaitlist ? (
             <StatusChip
               label={compact ? t("athleteCalendar.onWaitlistCompact") : t("athleteCalendar.onWaitlistStatus")}

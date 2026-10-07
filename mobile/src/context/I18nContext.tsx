@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { I18nManager, Platform } from "react-native";
+import { I18nManager, Platform, StyleSheet, View } from "react-native";
 import { translations, type LanguageCode } from "../i18n/translations";
 import { useAuth } from "./AuthContext";
 import {
@@ -12,7 +12,7 @@ import {
   resolveLanguage,
   writeStoredLanguage,
 } from "../lib/languagePreference";
-import { shouldFlipRows } from "../lib/layoutDirection";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 type I18nCtx = {
   language: LanguageCode;
@@ -75,7 +75,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }, [userId]);
 
   const isRTL = isRtlLanguage(language);
-  const rowFlip = shouldFlipRows(Platform.OS, isRTL, I18nManager.isRTL === true);
+  const rowFlip = rowFlipFor(isRTL);
 
   useIsomorphicLayoutEffect(() => {
     // - Web: <html lang dir> is the single source of layout direction (react-native-web's I18nManager is a no-op).
@@ -114,8 +114,25 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     await setLanguage(language === "he" ? "en" : "he");
   }
 
-  return <Ctx.Provider value={{ language, isRTL, rowFlip, t, setLanguage, toggleLanguage }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ language, isRTL, rowFlip, t, setLanguage, toggleLanguage }}>
+      {Platform.OS === "web" ? (
+        // react-native-web resolves logical styles (marginStart, paddingEnd, borderStartWidth, start/end,
+        // textAlign "start"/"end") from its own locale context, not from <html dir>; a View with `dir`
+        // provides that context to the whole app. Native resolves them through I18nManager instead.
+        <View style={styles.localeRoot} {...({ dir: isRTL ? "rtl" : "ltr", lang: language } as object)}>
+          {children}
+        </View>
+      ) : (
+        children
+      )}
+    </Ctx.Provider>
+  );
 }
+
+const styles = StyleSheet.create({
+  localeRoot: { flex: 1 },
+});
 
 export function useI18n() {
   const v = useContext(Ctx);

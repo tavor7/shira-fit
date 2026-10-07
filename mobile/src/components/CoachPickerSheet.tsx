@@ -6,6 +6,7 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { AppSearchSheet } from "./AppSearchSheet";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 export type CoachPickOption = {
   user_id: string;
   full_name: string;
@@ -88,7 +89,7 @@ export function CoachPickerSheet({ visible, onClose, onSelect, selectedCoachId }
           <Pressable
             style={({ pressed }) => [
               styles.row,
-              isRTL && styles.rowRtl,
+              rowFlipFor(isRTL) && styles.rowRtl,
               selected && styles.rowSelected,
               pressed && { opacity: 0.88 },
             ]}
@@ -97,7 +98,7 @@ export function CoachPickerSheet({ visible, onClose, onSelect, selectedCoachId }
             accessibilityState={{ selected }}
             accessibilityLabel={item.full_name}
           >
-            <View style={[styles.rowLeading, isRTL && styles.rowLeadingRtl]}>
+            <View style={[styles.rowLeading, rowFlipFor(isRTL) && styles.rowLeadingRtl]}>
               <View style={[styles.colorDot, { backgroundColor: accent }]} />
               <View style={styles.rowTextCol}>
                 <Text style={[styles.rowName, isRTL && styles.rtlText]} numberOfLines={1}>

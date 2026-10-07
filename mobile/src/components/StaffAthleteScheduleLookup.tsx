@@ -11,6 +11,7 @@ import { formatSessionStartTime } from "../lib/sessionTime";
 import { firstWordOfDisplayName } from "../lib/displayName";
 import { CrossfadeSwap } from "./CrossfadeSwap";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   variant: "coach" | "manager";
 };
@@ -95,7 +96,7 @@ export function StaffAthleteScheduleLookup({ variant }: Props) {
       >
       {selected ? (
         <View style={styles.panel}>
-          <View style={[styles.panelHead, isRTL && styles.panelHeadRtl]}>
+          <View style={[styles.panelHead, rowFlipFor(isRTL) && styles.panelHeadRtl]}>
             <Text style={[styles.panelName, isRTL && styles.rtlText]} numberOfLines={1}>
               {selected.fullName}
               {selected.kind === "manual" ? (
@@ -127,7 +128,7 @@ export function StaffAthleteScheduleLookup({ variant }: Props) {
                   onPress={() => router.push(sessionPath(variant, s.sessionId))}
                   style={({ pressed }) => [
                     styles.sessionRow,
-                    isRTL && styles.sessionRowRtl,
+                    rowFlipFor(isRTL) && styles.sessionRowRtl,
                     i > 0 && styles.sessionRowBorder,
                     pressed && styles.sessionRowPressed,
                   ]}

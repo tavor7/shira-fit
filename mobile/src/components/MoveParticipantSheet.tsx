@@ -25,6 +25,7 @@ import { moveParticipantErrorDetail } from "../lib/moveParticipantErrors";
 import { attemptWithSubscriptionConsent } from "../lib/subscriptionLimitConsent";
 import { promptMoveParticipantAcceptExtraSubscriptionCharge } from "../lib/moveParticipantSubscriptionWarning";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 export type MoveParticipantTarget = {
   kind: "registered" | "manual";
   name: string;
@@ -292,7 +293,7 @@ export function MoveParticipantSheet({
       </Text>
       <Text style={[styles.confirmCoach, isRTL && styles.rtlText]}>{picked.coachName}</Text>
       {preview ? (
-        <View style={[styles.previewRow, isRTL && styles.previewRowRtl]}>
+        <View style={[styles.previewRow, rowFlipFor(isRTL) && styles.previewRowRtl]}>
           <View style={styles.previewCell}>
             <Text style={[styles.previewLbl, isRTL && styles.rtlText]}>{t("moveParticipant.from")}</Text>
             <Text style={styles.previewVal}>
@@ -368,7 +369,7 @@ export function MoveParticipantSheet({
       maxHeightPct={0.88}
       backdropAccessibilityLabel={t("common.cancel")}
     >
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>{t("moveParticipant.title")}</Text>
         <Pressable onPress={handleClose} hitSlop={12} disabled={moving}>
           <Text style={styles.close}>{t("common.cancel")}</Text>

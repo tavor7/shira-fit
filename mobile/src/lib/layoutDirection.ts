@@ -1,3 +1,5 @@
+import { I18nManager, Platform } from "react-native";
+
 /**
  * Directionality model (Phase 4A).
  *
@@ -17,4 +19,12 @@ export function platformLayoutIsRTL(platformOS: string, uiIsRTL: boolean, native
 /** True when a component must apply `flexDirection: "row-reverse"` itself to match the UI direction. */
 export function shouldFlipRows(platformOS: string, uiIsRTL: boolean, nativeI18nIsRTL: boolean): boolean {
   return uiIsRTL !== platformLayoutIsRTL(platformOS, uiIsRTL, nativeI18nIsRTL);
+}
+
+/**
+ * `shouldFlipRows` for the current platform. For components that receive the UI direction as a prop
+ * (`isRTL`); components that call `useI18n()` can use its `rowFlip`, which is the same value.
+ */
+export function rowFlipFor(uiIsRTL: boolean | undefined): boolean {
+  return shouldFlipRows(Platform.OS, uiIsRTL === true, I18nManager.isRTL === true);
 }

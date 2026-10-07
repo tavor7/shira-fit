@@ -30,6 +30,7 @@ import { studioNoteCoversDate } from "../lib/studioCalendarNotes";
 import { studioCalendarNoteAccent } from "../lib/studioCalendarNoteAccent";
 import { FadeSlideIn } from "./FadeSlideIn";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 export type DaySheetVariant = "athlete" | "coach" | "manager";
 
 type TrainingSessionRow = {
@@ -458,7 +459,7 @@ export function DaySessionsSheet({
           >
             <View style={styles.sheetHeader}>
               <View style={styles.handle} />
-              <View style={[styles.titleRow, isRTL && styles.titleRowRtl]}>
+              <View style={[styles.titleRow, rowFlipFor(isRTL) && styles.titleRowRtl]}>
                 <View style={styles.titleBlock}>
                   <Text style={[styles.sheetTitle, isRTL && styles.rtlText]}>{title}</Text>
                   {items.length > 0 ? (
@@ -510,12 +511,12 @@ export function DaySessionsSheet({
                     key={n.id}
                     style={[styles.studioNoteCard, { borderColor: studioCalendarNoteAccent(n.kind).border }]}
                   >
-                    <View style={[styles.studioNoteTop, isRTL && styles.studioNoteTopRtl]}>
+                    <View style={[styles.studioNoteTop, rowFlipFor(isRTL) && styles.studioNoteTopRtl]}>
                       <Text style={[styles.studioNoteEyebrow, isRTL && styles.rtlText]} numberOfLines={1}>
                         {t(kindTKey(n.kind))}, {t(audienceTKey(n.audience))}
                       </Text>
                       {isManager ? (
-                        <View style={[styles.studioNoteActions, isRTL && styles.studioNoteActionsRtl]}>
+                        <View style={[styles.studioNoteActions, rowFlipFor(isRTL) && styles.studioNoteActionsRtl]}>
                           <Pressable
                             onPress={() => openEditStudioNote(n)}
                             style={({ pressed }) => [styles.studioNoteMiniBtn, pressed && { opacity: 0.85 }]}
@@ -650,7 +651,7 @@ export function DaySessionsSheet({
                   onEndChange={setNfEnd}
                 />
                 <Text style={[styles.studioNoteFormLabel, isRTL && styles.rtlText]}>{t("calendarNotes.fieldKind")}</Text>
-                <View style={[styles.chipRow, isRTL && styles.chipRowRtl]}>
+                <View style={[styles.chipRow, rowFlipFor(isRTL) && styles.chipRowRtl]}>
                   {(["holiday", "closure", "info"] as const).map((k) => {
                     const acc = studioCalendarNoteAccent(k);
                     return (
@@ -669,7 +670,7 @@ export function DaySessionsSheet({
                   })}
                 </View>
                 <Text style={[styles.studioNoteFormLabel, isRTL && styles.rtlText]}>{t("calendarNotes.fieldAudience")}</Text>
-                <View style={[styles.chipRow, isRTL && styles.chipRowRtl]}>
+                <View style={[styles.chipRow, rowFlipFor(isRTL) && styles.chipRowRtl]}>
                   {(["all", "athletes", "staff"] as const).map((a) => (
                     <Pressable
                       key={a}
@@ -747,7 +748,7 @@ export function DaySessionsSheet({
 
             {isManager ? (
               <View style={styles.dayToolsBlock}>
-                <View style={[styles.dayToolsRow, isRTL && styles.dayToolsRowRtl]}>
+                <View style={[styles.dayToolsRow, rowFlipFor(isRTL) && styles.dayToolsRowRtl]}>
                   <Pressable
                     onPress={() => setDupOpen(true)}
                     disabled={bulkBusy}
@@ -1011,7 +1012,6 @@ const styles = StyleSheet.create({
   },
   deleteBannerTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.text, textAlign: "center" },
   deleteBannerRow: { flexDirection: "row", justifyContent: "center", gap: 20 },
-  deleteBannerRowRtl: { flexDirection: "row-reverse" },
   deleteBannerCancel: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 14 },
   deleteBannerOk: { color: theme.colors.error, fontWeight: "800", fontSize: 14 },
   undoBar: {

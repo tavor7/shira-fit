@@ -7,6 +7,7 @@ import { logRedirectToManagerSessions } from "../lib/managerSessionsRedirectLog"
 import { useAuth } from "../context/AuthContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 export type ManagerPillTabItem = {
   id: string;
   label: string;
@@ -102,7 +103,7 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
 
   return (
     <View style={styles.strip}>
-      <View style={[styles.row, isRTL && styles.rowRtl]}>
+      <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
         <Animated.View
           pointerEvents="none"
           style={[

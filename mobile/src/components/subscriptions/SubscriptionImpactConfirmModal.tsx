@@ -6,6 +6,7 @@ import { PrimaryButton } from "../PrimaryButton";
 import { formatISODateFull } from "../../lib/dateFormat";
 import { tierLabelKey, type SubscriptionImpact } from "../../lib/subscriptions";
 
+import { rowFlipFor } from "../../lib/layoutDirection";
 export type ImpactConfirmAction = "edit" | "freeze" | "stop";
 
 type Props = {
@@ -52,7 +53,7 @@ export function SubscriptionImpactConfirmModal({ visible, action, impact, busy, 
             <Text style={[styles.detailHeader, isRTL && styles.rtl]}>{t("subscriptions.impact.detailHeader")}</Text>
             <ScrollView style={styles.detailList} keyboardShouldPersistTaps="handled">
               {shown.map((item, idx) => (
-                <View key={`${item.registration_id ?? item.manual_participant_id ?? idx}`} style={[styles.detailRow, isRTL && styles.detailRowRtl]}>
+                <View key={`${item.registration_id ?? item.manual_participant_id ?? idx}`} style={[styles.detailRow, rowFlipFor(isRTL) && styles.detailRowRtl]}>
                   <Text style={[styles.detailDate, isRTL && styles.rtl]}>{formatISODateFull(item.session_date, language)}</Text>
                   <Text style={[styles.detailTier, isRTL && styles.rtl]}>{t(tierLabelKey(item.tier))}</Text>
                 </View>
@@ -66,7 +67,7 @@ export function SubscriptionImpactConfirmModal({ visible, action, impact, busy, 
           </View>
         ) : null}
 
-        <View style={[styles.actions, isRTL && styles.actionsRtl]}>
+        <View style={[styles.actions, rowFlipFor(isRTL) && styles.actionsRtl]}>
           <PrimaryButton label={t("subscriptions.impact.cancel")} onPress={onCancel} variant="ghost" style={styles.btn} />
           <PrimaryButton
             label={t("subscriptions.impact.confirm")}

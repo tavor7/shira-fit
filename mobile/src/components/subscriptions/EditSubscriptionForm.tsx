@@ -22,6 +22,7 @@ import {
   type WeeklyLimits,
 } from "../../lib/subscriptions";
 
+import { rowFlipFor } from "../../lib/layoutDirection";
 type Mode = "beginning" | "date";
 
 /** Full pushed-screen edit form (was a modal; converted to match this app's actual creation/edit
@@ -186,7 +187,7 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
         <View style={sf.sections}>
           <View style={sf.card}>
             <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.edit.modeLabel")}</Text>
-            <View style={[styles.modeRow, isRTL && styles.modeRowRtl]}>
+            <View style={[styles.modeRow, rowFlipFor(isRTL) && styles.modeRowRtl]}>
               <ModeChip label={t("subscriptions.edit.modeFromBeginning")} active={mode === "beginning"} onPress={() => setMode("beginning")} />
               <ModeChip label={t("subscriptions.edit.modeFromDate")} active={mode === "date"} onPress={() => setMode("date")} />
             </View>
@@ -205,7 +206,7 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
           </View>
 
           <View style={sf.card}>
-            <View style={[styles.toggleRow, isRTL && styles.toggleRowRtl]}>
+            <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
               <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.edit.clearEndDateToggle")}</Text>
               <AppSwitch value={clearEndDate} onValueChange={setClearEndDate} accessibilityLabel={t("subscriptions.edit.clearEndDateToggle")} />
             </View>

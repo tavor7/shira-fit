@@ -3,6 +3,7 @@ import { theme } from "../../theme";
 import { useI18n } from "../../context/I18nContext";
 import { SUBSCRIPTION_TIERS, tierLabelKey, type WeeklyLimits } from "../../lib/subscriptions";
 
+import { rowFlipFor } from "../../lib/layoutDirection";
 type Props = {
   value: WeeklyLimits;
   onChange: (next: WeeklyLimits) => void;
@@ -41,7 +42,7 @@ export function AllowancesEditor({ value, onChange, label, hint }: Props) {
           const current = value[tier] ?? 0;
           const tierLabel = t(tierLabelKey(tier));
           return (
-            <View key={tier} style={[styles.row, isRTL && styles.rowRtl]}>
+            <View key={tier} style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
               <Text style={[styles.tierLabel, isRTL && styles.rtl]} numberOfLines={1}>
                 {tierLabel}
               </Text>

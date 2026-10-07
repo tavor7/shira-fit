@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   priceLabel: string;
   rangeLabel: string;
@@ -23,14 +24,14 @@ export function PricingPeriodLine({
   muted,
 }: Props) {
   return (
-    <View style={[styles.row, isRTL && styles.rowRtl, muted && styles.muted]}>
+    <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl, muted && styles.muted]}>
       <View style={styles.main}>
         <Text style={[styles.price, isRTL && styles.rtl]}>{priceLabel}</Text>
         <Text style={[styles.range, isRTL && styles.rtl]} numberOfLines={1}>
           {rangeLabel}
         </Text>
       </View>
-      <View style={[styles.actions, isRTL && styles.actionsRtl]}>
+      <View style={[styles.actions, rowFlipFor(isRTL) && styles.actionsRtl]}>
         <Pressable
           onPress={onEdit}
           hitSlop={6}

@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 const ACCENT = "#818cf8";
 const ACCENT_SOFT = "rgba(129, 140, 248, 0.14)";
 const ACCENT_BORDER = "rgba(129, 140, 248, 0.42)";
@@ -39,7 +40,7 @@ export function AthleteWaitlistInviteStripe({ onPress, disabled, joining, compac
       accessibilityRole="button"
       accessibilityLabel={`${t("athleteCalendar.joinWaitlistCta")}. ${t("athleteCalendar.joinWaitlistSub")}`}
     >
-      <View style={[styles.inviteRow, compact && styles.inviteRowCompact, isRTL && !compact && styles.inviteRowRtl]}>
+      <View style={[styles.inviteRow, compact && styles.inviteRowCompact, rowFlipFor(isRTL) && !compact && styles.inviteRowRtl]}>
         {compact ? (
           joining ? (
             <ActivityIndicator color={ACCENT} size="small" />
@@ -95,7 +96,7 @@ export function AthleteWaitlistJoinedStripe({ compact }: JoinedProps) {
       accessibilityRole="text"
       accessibilityLabel={t("athleteCalendar.onWaitlistStatus")}
     >
-      <View style={[styles.joinedRow, compact && styles.joinedRowCompact, isRTL && !compact && styles.joinedRowRtl]}>
+      <View style={[styles.joinedRow, compact && styles.joinedRowCompact, rowFlipFor(isRTL) && !compact && styles.joinedRowRtl]}>
         {compact ? (
           <Text
             style={styles.joinedTxtCompact}

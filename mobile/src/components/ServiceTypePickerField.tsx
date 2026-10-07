@@ -8,6 +8,7 @@ import {
   documentServiceTypeLabel,
 } from "../lib/documentServiceTypes";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   label: string;
   value: DocumentServiceTypeKey;
@@ -30,7 +31,7 @@ export function ServiceTypePickerField({ label, value, onChange, language, isRTL
     <View style={styles.wrap}>
       <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{label}</Text>
       <Pressable
-        style={({ pressed }) => [styles.field, isRTL && styles.fieldRtl, pressed && { opacity: 0.92 }]}
+        style={({ pressed }) => [styles.field, rowFlipFor(isRTL) && styles.fieldRtl, pressed && { opacity: 0.92 }]}
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -62,7 +63,7 @@ export function ServiceTypePickerField({ label, value, onChange, language, isRTL
                   <Pressable
                     style={({ pressed }) => [
                       styles.option,
-                      isRTL && styles.optionRtl,
+                      rowFlipFor(isRTL) && styles.optionRtl,
                       selected && styles.optionSelected,
                       pressed && !selected && { opacity: 0.88 },
                     ]}

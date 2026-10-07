@@ -15,7 +15,7 @@ import { supabase } from "../lib/supabase";
 import { isRtlScript } from "../lib/bidiEmbed";
 
 function LateCancelChargeRow({ cancellationId, charged }: { cancellationId: string; charged: boolean }) {
-  const { t, isRTL } = useI18n();
+  const { t, rowFlip } = useI18n();
   const [busy, setBusy] = useState(false);
   const [localCharged, setLocalCharged] = useState(charged);
   useEffect(() => {
@@ -38,7 +38,7 @@ function LateCancelChargeRow({ cancellationId, charged }: { cancellationId: stri
   }
 
   return (
-    <View style={[lateCancelStyles.row, isRTL && lateCancelStyles.rowRtl]}>
+    <View style={[lateCancelStyles.row, rowFlip && lateCancelStyles.rowRtl]}>
       <Pressable
         disabled={busy}
         onPress={() => void apply(false)}
@@ -146,7 +146,7 @@ function AlertLabel({
   variant: "strip" | "sheet";
   numberOfLines?: number;
 }) {
-  const { isRTL } = useI18n();
+  const { isRTL, rowFlip } = useI18n();
   const accent = alertAccent(item.tone);
   const textStyle = variant === "strip" ? styles.text : modalStyles.sheetRowText;
   const bodyTextStyle =
@@ -195,7 +195,7 @@ function AlertLabel({
 
     if (stacked) {
       return (
-        <View style={[styles.labelStack, isRTL && styles.labelStackRtl]}>
+        <View style={[styles.labelStack, rowFlip && styles.labelStackRtl]}>
           {segmentRun(subjectSegs, 1)}
           {segmentRun(bodySegs, numberOfLines)}
         </View>
@@ -217,7 +217,7 @@ export function HomePriorityAlerts({
   dismissStorageUserId,
   onVisibleCountChange,
 }: Props) {
-  const { isRTL, t } = useI18n();
+  const { isRTL, rowFlip, t } = useI18n();
   const { showConfirm } = useAppAlert();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -300,7 +300,7 @@ export function HomePriorityAlerts({
     const rowBgStyle = accent.rowBg ? { backgroundColor: accent.rowBg } : null;
     const a11y = `${it.isNew ? `${t("homeAlerts.newBadge")}. ` : ""}${it.label}`;
     const body = (
-      <View style={[styles.rowContent, isRTL && styles.rowContentRtl]}>
+      <View style={[styles.rowContent, rowFlip && styles.rowContentRtl]}>
         {it.isNew ? (
           <View style={styles.newBadge}>
             <Text style={styles.newBadgeTxt}>{t("homeAlerts.newBadge")}</Text>

@@ -8,6 +8,7 @@ import { AppModal } from "./AppModal";
 import { AppSearchField } from "./AppSearchField";
 import { EmptyState } from "./EmptyState";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 export type PayeePickerRow =
   | { kind: "app"; id: string; full_name: string; username?: string; phone?: string }
   | { kind: "manual"; id: string; full_name: string; phone?: string; linked_user_id?: string | null };
@@ -76,7 +77,7 @@ export function PayeePickerModal({ visible, onClose, onSelect }: Props) {
       backdropAccessibilityLabel={t("common.cancel")}
       cardStyle={styles.sheet}
     >
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
         <Text style={[styles.title, isRTL && styles.rtl]}>{t("accountPayments.pickPayeeFilter")}</Text>
         <Pressable onPress={onClose} hitSlop={12}>
           <Text style={styles.close}>{t("common.cancel")}</Text>

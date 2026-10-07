@@ -4,6 +4,7 @@ import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { useI18n } from "../context/I18nContext";
 import { AppSwitch } from "./AppSwitch";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   repeatOngoing: boolean;
   onRepeatOngoingChange: (v: boolean) => void;
@@ -25,7 +26,7 @@ export function SessionSeriesOptionsExpand({
 
   return (
     <View style={styles.panel}>
-      <View style={[styles.optionCard, isRTL && styles.optionCardRtl]}>
+      <View style={[styles.optionCard, rowFlipFor(isRTL) && styles.optionCardRtl]}>
         <View style={styles.optionMain}>
           <Text style={[styles.optionTitle, isRTL && styles.rtl]}>{t("session.seriesOngoing")}</Text>
           <Text style={[styles.optionHint, isRTL && styles.rtl]}>{t("session.seriesOngoingHint")}</Text>
@@ -54,7 +55,7 @@ export function SessionSeriesOptionsExpand({
 
       <View style={styles.divider} />
 
-      <View style={[styles.optionCard, isRTL && styles.optionCardRtl]}>
+      <View style={[styles.optionCard, rowFlipFor(isRTL) && styles.optionCardRtl]}>
         <View style={styles.optionMain}>
           <Text style={[styles.optionTitle, isRTL && styles.rtl]}>{t("session.seriesCopyRoster")}</Text>
           <Text style={[styles.optionHint, isRTL && styles.rtl]}>{t("session.seriesCopyRosterHint")}</Text>

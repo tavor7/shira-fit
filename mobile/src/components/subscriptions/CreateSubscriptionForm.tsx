@@ -22,6 +22,7 @@ import {
   type WeeklyLimits,
 } from "../../lib/subscriptions";
 
+import { rowFlipFor } from "../../lib/layoutDirection";
 /**
  * Full pushed-screen create form, matching CreateSessionForm's shell (sessionFormStyles card
  * sections, footer save + secondary cancel link, discard-changes guard on back navigation) rather
@@ -165,7 +166,7 @@ export function CreateSubscriptionForm() {
             <DatePickerField appearance="embedded" label={t("subscriptions.create.startDateLabel")} value={startDate} onChange={setStartDate} />
             {errors.has("startDate") ? <Text style={[sf.error, isRTL && styles.rtlText]}>{t("subscriptions.errStartDateInvalid")}</Text> : null}
 
-            <View style={[styles.toggleRow, styles.spaced, isRTL && styles.toggleRowRtl]}>
+            <View style={[styles.toggleRow, styles.spaced, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
               <Text style={[sf.label, isRTL && sf.labelRtl]}>{t("subscriptions.create.noEndDateToggle")}</Text>
               <AppSwitch value={noEndDate} onValueChange={setNoEndDate} accessibilityLabel={t("subscriptions.create.noEndDateToggle")} />
             </View>

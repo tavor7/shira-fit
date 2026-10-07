@@ -2,6 +2,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { PricingRowMoreMenu } from "./PricingRowMoreMenu";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   title: string;
   subtitle?: string;
@@ -36,9 +37,9 @@ export function PricingRateRow({
 }: Props) {
   return (
     <View style={[styles.wrap, muted && styles.muted]}>
-      <View style={[styles.row, isRTL && styles.rowRtl]}>
+      <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
         <View style={styles.main}>
-          <View style={[styles.top, isRTL && styles.topRtl]}>
+          <View style={[styles.top, rowFlipFor(isRTL) && styles.topRtl]}>
             <Text style={[styles.title, isRTL && styles.rtl]} numberOfLines={2}>
               {title}
             </Text>

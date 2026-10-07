@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { theme } from "../theme";
 import { AppText } from "./AppText";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   /** Human tier label, already translated (e.g. from subscriptions.tierLabelKey). */
   title: string;
@@ -25,7 +26,7 @@ export function WeeklyAllowanceMeter({ title, used, limit, usedLabel, statusLabe
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.headerRow, isRTL && styles.headerRowRtl]}>
+      <View style={[styles.headerRow, rowFlipFor(isRTL) && styles.headerRowRtl]}>
         <AppText variant="title" isRTL={isRTL} style={styles.title} numberOfLines={1}>
           {title}
         </AppText>
