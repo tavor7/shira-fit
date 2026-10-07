@@ -28,6 +28,7 @@ import {
   type WhatsAppTestUser,
 } from "../lib/whatsappFeature";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 const MODES: WhatsAppRolloutMode[] = ["off", "testing", "live"];
 
 export default function WhatsAppRolloutScreen() {
@@ -227,7 +228,7 @@ export default function WhatsAppRolloutScreen() {
         <>
           <View style={[styles.card, surface.card]}>
             <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>{t("whatsapp.rolloutTitle")}</Text>
-            <View style={[styles.modeRow, isRTL && styles.modeRowRtl]}>
+            <View style={[styles.modeRow, rowFlipFor(isRTL) && styles.modeRowRtl]}>
               {MODES.map((m) => {
                 const on = mode === m;
                 return (
@@ -258,13 +259,13 @@ export default function WhatsAppRolloutScreen() {
               <Text style={[styles.testHint, isRTL && styles.rtl]}>{t("whatsapp.testSendHintHello")}</Text>
 
               {selected.length > 0 ? (
-                <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+                <View style={[styles.chips, rowFlipFor(isRTL) && styles.chipsRtl]}>
                   {selected.map((u) => {
                     const active = sendTarget?.user_id === u.user_id;
                     return (
                       <View
                         key={u.user_id}
-                        style={[styles.chip, styles.chipRemovable, active && styles.chipActive, isRTL && styles.chipRemovableRtl]}
+                        style={[styles.chip, styles.chipRemovable, active && styles.chipActive, rowFlipFor(isRTL) && styles.chipRemovableRtl]}
                       >
                         <Pressable onPress={() => setSendTargetId(u.user_id)} style={({ pressed }) => [pressed && styles.pressed]}>
                           <Text style={[styles.chipTxt, active && styles.chipTxtActive, isRTL && styles.rtl]} numberOfLines={1}>
@@ -346,7 +347,7 @@ export default function WhatsAppRolloutScreen() {
           <AnimatedOptionExpand open={mode === "testing" && manageOpen}>
             <View style={[styles.card, surface.card]}>
               <Text style={[styles.testHint, isRTL && styles.rtl]}>{t("whatsapp.testUsersHint")}</Text>
-              <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+              <View style={[styles.chips, rowFlipFor(isRTL) && styles.chipsRtl]}>
                 {selected.map((u) => (
                   <Pressable
                     key={u.user_id}

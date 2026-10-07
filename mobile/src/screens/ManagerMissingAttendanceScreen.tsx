@@ -28,6 +28,7 @@ import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { PressableScale } from "../components/PressableScale";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 function formatSessionTimeShort(isoTime: string): string {
   const s = String(isoTime ?? "").trim();
   return s.length >= 5 ? s.slice(0, 5) : s;
@@ -160,7 +161,7 @@ export default function ManagerMissingAttendanceScreen() {
                   accessibilityState={{ expanded: open }}
                 >
                   <View style={styles.cardHeadRow}>
-                    <View style={[styles.cardHeadMain, isRTL && styles.cardHeadMainRtl]}>
+                    <View style={[styles.cardHeadMain, rowFlipFor(isRTL) && styles.cardHeadMainRtl]}>
                       <Text style={[styles.cardDate, isRTL && styles.rtl]}>
                         {formatISODateFull(s.session_date, language)} · {formatSessionTimeShort(s.start_time)}
                       </Text>

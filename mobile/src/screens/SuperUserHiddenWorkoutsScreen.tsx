@@ -19,6 +19,7 @@ import { isValidISODateString } from "../lib/isoDate";
 import { parseMoney } from "../lib/participantHistoryHelpers";
 import type { SuperUserHiddenRecord } from "../types/database";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type AthletePickerRow = { user_id: string; full_name: string; phone: string };
 
 export default function SuperUserHiddenWorkoutsScreen() {
@@ -229,9 +230,9 @@ export default function SuperUserHiddenWorkoutsScreen() {
                 </Pressable>
               ) : null}
 
-              <View style={[styles.scopeChipsRow, isRTL && styles.scopeChipsRowRtl]}>
+              <View style={[styles.scopeChipsRow, rowFlipFor(isRTL) && styles.scopeChipsRowRtl]}>
                 <Text style={[styles.scopeCardTitle, isRTL && styles.rtlText]}>{t("superUser.scopeGlobalTitle")}</Text>
-                <View style={[styles.scopeChipGroup, isRTL && styles.scopeChipGroupRtl]}>
+                <View style={[styles.scopeChipGroup, rowFlipFor(isRTL) && styles.scopeChipGroupRtl]}>
                   {(["athlete", "coach", "manager"] as const).map((key) => {
                     const on = globalScope[key];
                     const busy = scopeBulkBusy === key;
@@ -293,7 +294,7 @@ export default function SuperUserHiddenWorkoutsScreen() {
             return (
             <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
               <View style={styles.card}>
-                <View style={[styles.cardHead, isRTL && styles.cardHeadRtl]}>
+                <View style={[styles.cardHead, rowFlipFor(isRTL) && styles.cardHeadRtl]}>
                   <Text style={[styles.athleteName, isRTL && styles.rtlText]} numberOfLines={1}>
                     {item.athlete_name}
                   </Text>
@@ -308,7 +309,7 @@ export default function SuperUserHiddenWorkoutsScreen() {
                   {formatSessionTimeRange(item.start_time, item.duration_minutes)}
                   {item.coach_name ? ` · ${item.coach_name}` : ""}
                 </Text>
-                <View style={[styles.cardFooter, isRTL && styles.cardFooterRtl]}>
+                <View style={[styles.cardFooter, rowFlipFor(isRTL) && styles.cardFooterRtl]}>
                   <Text style={[styles.expected, isRTL && styles.rtlText]}>
                     {parseMoney(item.expected_ils) ?? 0} ₪
                   </Text>

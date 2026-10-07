@@ -69,6 +69,7 @@ import { buildCsv, downloadCsvWeb } from "../lib/csvExport";
 import { supabase } from "../lib/supabase";
 import { formatDateTimeForDisplay, formatISODateFull } from "../lib/dateFormat";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type HubSection = "pending" | "documents" | "reports" | "settings";
 
 function customerTypeBadgeLabel(type: DocumentCustomerType | null | undefined, language: "he" | "en"): string | null {
@@ -125,7 +126,7 @@ function ToggleRow({
   isRTL: boolean;
 }) {
   return (
-    <View style={[styles.toggleRow, isRTL && styles.toggleRowRtl]}>
+    <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
       <View style={styles.toggleCopy}>
         <Text style={[styles.toggleTitle, isRTL && styles.rtl]}>{title}</Text>
         {subtitle ? <Text style={[styles.toggleSub, isRTL && styles.rtl]}>{subtitle}</Text> : null}
@@ -839,9 +840,9 @@ export default function DocumentsInvoicesScreen() {
     return (
       <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
       <View style={styles.docCard}>
-        <View style={[styles.docHead, isRTL && styles.docHeadRtl]}>
+        <View style={[styles.docHead, rowFlipFor(isRTL) && styles.docHeadRtl]}>
           <View style={styles.docHeadMain}>
-            <View style={[styles.docTitleRow, isRTL && styles.docTitleRowRtl]}>
+            <View style={[styles.docTitleRow, rowFlipFor(isRTL) && styles.docTitleRowRtl]}>
               <Text style={[styles.docNumber, isRTL && styles.rtl]}>{item.document_number}</Text>
               {typeBadge ? (
                 <View style={styles.typeBadge}>
@@ -901,7 +902,7 @@ export default function DocumentsInvoicesScreen() {
           </View>
         ) : null}
 
-        <View style={[styles.actionBar, isRTL && styles.actionBarRtl]}>
+        <View style={[styles.actionBar, rowFlipFor(isRTL) && styles.actionBarRtl]}>
           {!needsMethod && item.pdf_url ? (
             <Pressable onPress={() => void openPdf(item)} style={({ pressed }) => [styles.actionItem, pressed && styles.actionItemPressed]}>
               <Text style={[styles.actionText, isRTL && styles.rtl]}>{language === "he" ? "צפייה" : "View"}</Text>
@@ -1377,7 +1378,7 @@ export default function DocumentsInvoicesScreen() {
           </View>
         ) : null}
       </View>
-      <View style={[styles.sortRow, isRTL && styles.sortRowRtl]}>
+      <View style={[styles.sortRow, rowFlipFor(isRTL) && styles.sortRowRtl]}>
         <SortToggleButton
           value={docsSortOrder}
           onChange={setDocsSortOrder}
@@ -1397,7 +1398,7 @@ export default function DocumentsInvoicesScreen() {
         onChange={({ start, end }) => { setDateStart(start); setDateEnd(end); }}
         label={language === "he" ? "טווח תאריכים" : "Date range"}
       />
-      <View style={[styles.summaryRow, isRTL && styles.summaryRowRtl]}>
+      <View style={[styles.summaryRow, rowFlipFor(isRTL) && styles.summaryRowRtl]}>
         <View style={styles.summaryStat}>
           <Text style={styles.summaryValue}>{Math.round(reportCountDisplay)}</Text>
           <Text style={styles.summaryLabel}>{language === "he" ? "מסמכים" : "Documents"}</Text>
@@ -1451,7 +1452,7 @@ export default function DocumentsInvoicesScreen() {
           {filteredMonthlySummaries.map((row) => {
             const rowDeleting = deletingSummaryId === row.id;
             return (
-              <View key={row.id} style={[styles.summaryHistoryRow, isRTL && styles.docHeadRtl]}>
+              <View key={row.id} style={[styles.summaryHistoryRow, rowFlipFor(isRTL) && styles.docHeadRtl]}>
                 <Pressable onPress={() => void viewMonthlySummary(row)} style={{ flex: 1 }}>
                   <Text style={[styles.summaryHistoryPeriod, isRTL && styles.rtl]}>
                     {new Date(row.period_start).toLocaleDateString(language === "he" ? "he-IL" : "en-GB", {

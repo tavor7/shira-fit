@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Platform,
   ActivityIndicator,
 } from "react-native";
 import { router, type Href } from "expo-router";
@@ -26,6 +25,7 @@ import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useCountUp } from "../hooks/useCountUp";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 function formatPayout(n: number) {
   return `${Math.round(n * 100) / 100} ₪`;
 }
@@ -42,7 +42,7 @@ function CoachSessionReportCard({
   onPress: () => void;
 }) {
   const { t } = useI18n();
-  const rtlRowFlip = isRTL && Platform.OS !== "web";
+  const rtlRowFlip = rowFlipFor(isRTL);
   const due = Number(item.coach_earnings_ils ?? 0);
   const lateCancels =
     typeof item.late_cancellations_within_24h === "number" ? item.late_cancellations_within_24h : 0;
@@ -250,7 +250,7 @@ export default function ManagerCoachSessionsReportScreen({
             >
             {hasSearched && coachId && !loading ? (
               <View style={styles.payoutCard}>
-                <View style={[styles.payoutTop, isRTL && Platform.OS !== "web" && styles.payoutTopRtl]}>
+                <View style={[styles.payoutTop, rowFlipFor(isRTL) && styles.payoutTopRtl]}>
                   <View style={styles.payoutTopMain}>
                     <Text style={[styles.payoutEyebrow, isRTL && styles.rtlText]}>{t("coachReport.payoutTitle")}</Text>
                     <Text style={[styles.payoutBig, isRTL && styles.rtlText]}>{formatPayout(payoutTotalDisplay)}</Text>

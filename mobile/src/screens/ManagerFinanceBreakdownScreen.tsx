@@ -27,6 +27,7 @@ import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AnimatedChevron } from "../components/AnimatedChevron";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 function AmountPair({
   expected,
   collected,
@@ -45,7 +46,7 @@ function AmountPair({
   const expectedDisplay = useCountUp(expected);
   const collectedDisplay = useCountUp(collected);
   return (
-    <View style={[styles.amountPair, isRTL && styles.amountPairRtl, compact && styles.amountPairCompact]}>
+    <View style={[styles.amountPair, rowFlipFor(isRTL) && styles.amountPairRtl, compact && styles.amountPairCompact]}>
       <View style={[styles.amountCol, compact ? styles.amountColCompact : styles.amountColBanner]}>
         <Text style={[styles.amountLbl, compact && styles.amountLblCompact, isRTL && styles.rtl]}>
           {t("dashboard.financeBreakdownExpected")}
@@ -187,7 +188,7 @@ export default function ManagerFinanceBreakdownScreen() {
                     accessibilityState={{ expanded: open }}
                   >
                     <Text style={[styles.dayDate, isRTL && styles.rtl]}>{formatISODateFull(d.date, language)}</Text>
-                    <View style={[styles.dayAmtPair, isRTL && styles.dayAmtPairRtl]}>
+                    <View style={[styles.dayAmtPair, rowFlipFor(isRTL) && styles.dayAmtPairRtl]}>
                       <Text style={[styles.dayAmtExpected, isRTL && styles.rtl]}>
                         {formatFinanceIls(d.expected_ils, language)}
                       </Text>
@@ -255,7 +256,7 @@ export default function ManagerFinanceBreakdownScreen() {
                           <Text style={[styles.sectionLbl, isRTL && styles.rtl]}>
                             {t("dashboard.financeDailyAccountPayments")}
                           </Text>
-                          <View style={[styles.accountRow, isRTL && styles.accountRowRtl]}>
+                          <View style={[styles.accountRow, rowFlipFor(isRTL) && styles.accountRowRtl]}>
                             <Text style={[styles.accountLbl, isRTL && styles.rtl]}>
                               {t("dashboard.financeDailyAccountPaymentsDesc")}
                             </Text>

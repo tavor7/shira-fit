@@ -17,6 +17,7 @@ import {
   type ManualParticipantIdentity,
 } from "../lib/participantIdentity";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 export default function StaffEditManualParticipantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const manualId = String(id ?? "");
@@ -209,7 +210,7 @@ export default function StaffEditManualParticipantScreen() {
 
       {manualId ? (
         <View style={styles.metaCard}>
-          <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+          <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
             <AppText variant="label" soft isRTL={isRTL}>
               {t("manualParticipant.lastSession")}
             </AppText>
@@ -222,7 +223,7 @@ export default function StaffEditManualParticipantScreen() {
             </AppText>
           </View>
           {lastSessionAddedAt ? (
-            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+            <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
               <AppText variant="label" soft isRTL={isRTL}>
                 {t("manualParticipant.lastSessionAdded")}
               </AppText>
@@ -232,7 +233,7 @@ export default function StaffEditManualParticipantScreen() {
             </View>
           ) : null}
           {isDisabled ? (
-            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+            <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
               <AppText variant="label" soft isRTL={isRTL}>
                 {t("profile.accountStatus")}
               </AppText>

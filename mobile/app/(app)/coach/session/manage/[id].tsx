@@ -45,6 +45,7 @@ import {
   type SeriesScopeChoice,
 } from "../../../../../src/components/SessionSeriesScopeSheet";
 
+import { rowFlipFor } from "../../../../../src/lib/layoutDirection";
 type EditSnapshot = {
   date: string;
   time: string;
@@ -583,7 +584,7 @@ export default function CoachSessionManageScreen() {
             <Text style={[styles.dupSectionLabel, isRTL && styles.rtlText]}>
               {t("sessionDetail.participants")}
             </Text>
-            <View style={[styles.dupChoiceRow, isRTL && styles.dupChoiceRowRtl]}>
+            <View style={[styles.dupChoiceRow, rowFlipFor(isRTL) && styles.dupChoiceRowRtl]}>
               <Pressable
                 style={({ pressed }) => [
                   styles.dupChoice,

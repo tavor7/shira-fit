@@ -15,6 +15,7 @@ import { ManagerSendMessagePanel } from "../../src/components/ManagerSendMessage
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { LegalFooterLinks } from "../../src/components/LegalFooterLinks";
 
+import { rowFlipFor } from "../../src/lib/layoutDirection";
 function getUpdateErrorMessage(message: string, t: (key: string) => string) {
   const msg = (message || "").toLowerCase();
   if (msg.includes("already registered") || msg.includes("already exists") || msg.includes("already in use")) {
@@ -172,7 +173,7 @@ export default function ProfileScreen() {
           {t("profile.selfSubtitle").replace("{role}", profile.role)}
         </AppText>
 
-        <View style={[styles.segmentTrack, rtl && styles.segmentTrackRtl]} accessibilityRole="tablist">
+        <View style={[styles.segmentTrack, rowFlipFor(rtl) && styles.segmentTrackRtl]} accessibilityRole="tablist">
           <Pressable
             onPress={() => setSegment("account")}
             style={({ pressed }) => [

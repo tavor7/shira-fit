@@ -15,6 +15,7 @@ import { formatDateTimeForDisplay } from "../../../src/lib/dateFormat";
 import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
 import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 
+import { rowFlipFor } from "../../../src/lib/layoutDirection";
 type Row = { user_id: string; username: string; full_name: string; phone: string };
 
 type HistoryItem = {
@@ -223,7 +224,7 @@ export default function ApproveAthletesScreen() {
                 history.map((item, index) => (
                   <FadeSlideIn key={item.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
                     <View style={styles.historyCard}>
-                      <View style={[styles.historyRowTop, isRTL && styles.historyRowTopRtl]}>
+                      <View style={[styles.historyRowTop, rowFlipFor(isRTL) && styles.historyRowTopRtl]}>
                         <PressableScale
                           onPress={() => {
                             if (!item.athleteUserId) return;
@@ -257,7 +258,7 @@ export default function ApproveAthletesScreen() {
                           </AppText>
                         </PressableScale>
                       </View>
-                      <View style={[styles.historyMetaRow, isRTL && styles.historyMetaRowRtl]}>
+                      <View style={[styles.historyMetaRow, rowFlipFor(isRTL) && styles.historyMetaRowRtl]}>
                         <AppText variant="caption" muted isRTL={isRTL} style={styles.historyMetaBy} numberOfLines={1}>
                           {t("approve.approvedByName").replace(
                             "{name}",

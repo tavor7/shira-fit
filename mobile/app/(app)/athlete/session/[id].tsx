@@ -45,6 +45,7 @@ import { Skeleton } from "../../../../src/components/Skeleton";
 import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
 
+import { rowFlipFor } from "../../../../src/lib/layoutDirection";
 /** Same visual anchor for Hebrew + Latin names in the participants list. */
 function participantListLabel(name: string, uiRtl: boolean): string {
   const trimmed = name.trim();
@@ -415,7 +416,7 @@ export default function AthleteSessionDetail() {
             {t("athleteSession.trainerLabel")} {session.trainer.full_name}
           </AppText>
         ) : null}
-        <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+        <View style={[styles.chips, rowFlipFor(isRTL) && styles.chipsRtl]}>
           {!sessionNotEnded ? (
             <StatusChip label={t("athleteSession.sessionEnded")} tone="neutral" />
           ) : (
@@ -483,7 +484,7 @@ export default function AthleteSessionDetail() {
       </View>
 
       <View style={styles.partCard}>
-        <View style={[styles.partHeader, isRTL && styles.partHeaderRtl]}>
+        <View style={[styles.partHeader, rowFlipFor(isRTL) && styles.partHeaderRtl]}>
           <AppText variant="label" isRTL={isRTL} style={styles.partTitle}>
             {t("athleteSession.participants")}
           </AppText>

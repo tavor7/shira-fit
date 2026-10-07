@@ -17,6 +17,7 @@ import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { fetchUsersLegalConsentSummary, type UserLegalConsentStatus } from "../lib/consent";
 import { TRAINER_COLOR_PRESETS, resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Role = "athlete" | "coach" | "manager";
 
 function RoleChip({
@@ -392,18 +393,18 @@ export default function StaffEditProfileScreen() {
       {userId ? (
         <View style={styles.metaCard}>
           {isManager && legalConsent ? (
-            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+            <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
               <AppText variant="label" soft isRTL={isRTL}>
                 {t("staffUsers.legalStatus")}
               </AppText>
-              <View style={[styles.legalChips, isRTL && styles.legalChipsRtl]}>
+              <View style={[styles.legalChips, rowFlipFor(isRTL) && styles.legalChipsRtl]}>
                 <LegalChip label={t("staffUsers.legalTerms")} ok={legalConsent.terms_ok} />
                 <LegalChip label={t("staffUsers.legalPrivacy")} ok={legalConsent.privacy_ok} />
                 <LegalChip label={t("staffUsers.legalMarketing")} ok={legalConsent.marketing_ok} optional />
               </View>
             </View>
           ) : null}
-          <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+          <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
             <AppText variant="label" soft isRTL={isRTL}>
               {t("auth.email")}
             </AppText>
@@ -411,7 +412,7 @@ export default function StaffEditProfileScreen() {
               {metaLoading ? t("common.loading") : email.trim() || "—"}
             </AppText>
           </View>
-          <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+          <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
             <AppText variant="label" soft isRTL={isRTL}>
               {t("profile.lastLogin")}
             </AppText>
@@ -424,7 +425,7 @@ export default function StaffEditProfileScreen() {
             </AppText>
           </View>
           {isDisabled ? (
-            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+            <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
               <AppText variant="label" soft isRTL={isRTL}>
                 {t("profile.accountStatus")}
               </AppText>
@@ -437,7 +438,7 @@ export default function StaffEditProfileScreen() {
             </View>
           ) : null}
           {mustChangePassword ? (
-            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+            <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
               <AppText variant="label" soft isRTL={isRTL}>
                 {t("profile.accountStatus")}
               </AppText>
@@ -453,7 +454,7 @@ export default function StaffEditProfileScreen() {
         <View style={styles.roleCard}>
           <Pressable
             onPress={() => setRoleSectionOpen((v) => !v)}
-            style={({ pressed }) => [styles.roleCardHead, isRTL && styles.roleCardHeadRtl, pressed && { opacity: 0.9 }]}
+            style={({ pressed }) => [styles.roleCardHead, rowFlipFor(isRTL) && styles.roleCardHeadRtl, pressed && { opacity: 0.9 }]}
             accessibilityRole="button"
             accessibilityState={{ expanded: roleSectionOpen }}
           >
@@ -468,7 +469,7 @@ export default function StaffEditProfileScreen() {
 
           <AnimatedOptionExpand open={roleSectionOpen}>
             <View style={styles.roleCardBody}>
-              <View style={[styles.roleChipRow, isRTL && styles.roleChipRowRtl]}>
+              <View style={[styles.roleChipRow, rowFlipFor(isRTL) && styles.roleChipRowRtl]}>
                 <RoleChip
                   label={t("roles.athlete")}
                   active={role === "athlete"}
@@ -491,7 +492,7 @@ export default function StaffEditProfileScreen() {
 
               <AnimatedOptionExpand open={role === "coach" || role === "manager"}>
                 <View style={styles.colorSection}>
-                  <View style={[styles.colorLabelRow, isRTL && styles.colorLabelRowRtl]}>
+                  <View style={[styles.colorLabelRow, rowFlipFor(isRTL) && styles.colorLabelRowRtl]}>
                     <View
                       style={[
                         styles.colorPreviewDot,
@@ -502,7 +503,7 @@ export default function StaffEditProfileScreen() {
                       {t("menu.trainerColors")}
                     </AppText>
                   </View>
-                  <View style={[styles.colorPickerRow, isRTL && styles.colorPickerRowRtl]}>
+                  <View style={[styles.colorPickerRow, rowFlipFor(isRTL) && styles.colorPickerRowRtl]}>
                     <Pressable
                       disabled={savingColor}
                       onPress={() => void saveCalendarColor(null)}
@@ -621,7 +622,7 @@ export default function StaffEditProfileScreen() {
       <AppText variant="label" muted isRTL={isRTL} style={styles.genderLabel}>
         {t("profile.gender")}
       </AppText>
-      <View style={[styles.genderRow, isRTL && styles.genderRowRtl]}>
+      <View style={[styles.genderRow, rowFlipFor(isRTL) && styles.genderRowRtl]}>
         <Pressable
           onPress={() => setGender("male")}
           style={({ pressed }) => [styles.genderBtn, gender === "male" && styles.genderBtnOn, pressed && { opacity: 0.9 }]}

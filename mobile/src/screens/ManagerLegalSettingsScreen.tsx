@@ -19,6 +19,7 @@ import {
   type LegalDocumentVersion,
 } from "../lib/consent";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 export default function ManagerLegalSettingsScreen() {
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
@@ -83,7 +84,7 @@ export default function ManagerLegalSettingsScreen() {
           {t("managerLegal.description")}
         </AppText>
 
-        <View style={[styles.toggleRow, isRTL && styles.toggleRowRtl]}>
+        <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
           <AppText variant="body" isRTL={isRTL} style={styles.toggleLabel}>
             {settings?.gate_enabled ? t("managerLegal.gateOn") : t("managerLegal.gateOff")}
           </AppText>
@@ -156,7 +157,7 @@ export default function ManagerLegalSettingsScreen() {
           ) : (
             history.map((v) => (
               <View key={v.version} style={styles.historyRow}>
-                <View style={[styles.historyRowHeader, isRTL && styles.toggleRowRtl]}>
+                <View style={[styles.historyRowHeader, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
                   <AppText variant="body" isRTL={isRTL} style={styles.historyRowTitle}>
                     {language === "en" && v.title_en ? v.title_en : v.title}
                   </AppText>

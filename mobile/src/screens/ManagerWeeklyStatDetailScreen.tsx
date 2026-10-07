@@ -28,6 +28,7 @@ import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type SessionBrief = {
   session_date: string;
   start_time: string;
@@ -190,11 +191,11 @@ function NoShowRowCard({
           {formatSessionTimeRange(row.start_time, row.duration_minutes)}
         </Text>
       </Pressable>
-      <View style={[styles.noShowFeeRow, isRTL && styles.noShowFeeRowRtl]}>
+      <View style={[styles.noShowFeeRow, rowFlipFor(isRTL) && styles.noShowFeeRowRtl]}>
         <Text style={[styles.noShowFeeLabel, isRTL && styles.rtl]}>
           {t("participantHistory.noShowChargeHeading")}
         </Text>
-        <View style={[styles.noShowFeeSeg, isRTL && styles.noShowFeeSegRtl]}>
+        <View style={[styles.noShowFeeSeg, rowFlipFor(isRTL) && styles.noShowFeeSegRtl]}>
           <Pressable
             disabled={busy}
             onPress={() => void setCharge(false)}

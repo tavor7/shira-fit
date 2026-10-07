@@ -48,6 +48,7 @@ import type { AthleteAccountPayment } from "../types/database";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { useCountUp } from "../hooks/useCountUp";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type DateMode = "all" | "range";
 type PaymentMethodFilter = "all" | SessionPaymentMethodKey;
 type SortOrder = "asc" | "desc";
@@ -644,7 +645,7 @@ export default function AccountPaymentsScreen() {
             ) : null}
 
             <Text style={[styles.sectionLabel, styles.sectionSpaced, isRTL && styles.rtl]}>{t("accountPayments.dateFilter")}</Text>
-            <View style={[styles.dateModeRow, rtlRow && styles.dateModeRowRtl]}>
+            <View style={[styles.dateModeRow, rowFlipFor(rtlRow) && styles.dateModeRowRtl]}>
               {dateModeOptions.map((opt) => {
                 const on = dateMode === opt.id;
                 return (
@@ -678,7 +679,7 @@ export default function AccountPaymentsScreen() {
             ) : null}
 
             <Text style={[styles.sectionLabel, styles.sectionSpaced, isRTL && styles.rtl]}>{t("accountPayments.methodFilter")}</Text>
-            <View style={[styles.methodChipRow, rtlRow && styles.methodChipRowRtl]}>
+            <View style={[styles.methodChipRow, rowFlipFor(rtlRow) && styles.methodChipRowRtl]}>
               {paymentMethodOptions.map((opt) => {
                 const on = paymentMethodFilter === opt.id;
                 return (
@@ -702,7 +703,7 @@ export default function AccountPaymentsScreen() {
           </View>
         ) : null}
 
-        <View style={[styles.summaryRow, rtlRow && styles.summaryRowRtl]}>
+        <View style={[styles.summaryRow, rowFlipFor(rtlRow) && styles.summaryRowRtl]}>
           <View style={styles.summaryStat}>
             <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{Math.round(totalCountDisplay)}</Text>
             <Text style={[styles.summaryLabel, isRTL && styles.rtl]}>{t("accountPayments.paymentCount")}</Text>
@@ -716,7 +717,7 @@ export default function AccountPaymentsScreen() {
 
         <PrimaryButton label={t("billing.addPayment")} onPress={onAddPayment} style={styles.addBtn} />
       </View>
-      <View style={[styles.sortRow, isRTL && styles.sortRowRtl]}>
+      <View style={[styles.sortRow, rowFlipFor(isRTL) && styles.sortRowRtl]}>
         <SortToggleButton
           value={sortOrder}
           onChange={setSortOrder}
@@ -769,13 +770,13 @@ export default function AccountPaymentsScreen() {
           return (
             <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <View style={styles.paymentCard}>
-              <View style={[styles.paymentHead, rtlRow && styles.paymentHeadRtl]}>
+              <View style={[styles.paymentHead, rowFlipFor(rtlRow) && styles.paymentHeadRtl]}>
                 <Text style={[styles.paymentDate, isRTL && styles.rtl]} numberOfLines={1}>
                   {formatISODateWeekdayDayMonthYear(item.paid_at, language)}
                 </Text>
                 <Text style={styles.paymentAmount}>{amtTxt}</Text>
               </View>
-              <View style={[styles.payeeRow, rtlRow && styles.payeeRowRtl]}>
+              <View style={[styles.payeeRow, rowFlipFor(rtlRow) && styles.payeeRowRtl]}>
                 <Text style={[styles.payeeName, isRTL && styles.rtl]} numberOfLines={1}>
                   {item.payee_label}
                 </Text>
@@ -815,7 +816,7 @@ export default function AccountPaymentsScreen() {
                 </Text>
               ) : null}
               {amt !== null && amt > 0 ? (
-                <View style={[styles.manualReceiptRow, rtlRow && styles.manualReceiptRowRtl]}>
+                <View style={[styles.manualReceiptRow, rowFlipFor(rtlRow) && styles.manualReceiptRowRtl]}>
                   {manualReceiptBusyRowId === item.row_id ? (
                     <ActivityIndicator size="small" color={theme.colors.textMuted} />
                   ) : item.has_manual_receipt ? (
@@ -833,7 +834,7 @@ export default function AccountPaymentsScreen() {
                   )}
                 </View>
               ) : null}
-              <View style={[styles.actionBar, rtlRow && styles.actionBarRtl]}>
+              <View style={[styles.actionBar, rowFlipFor(rtlRow) && styles.actionBarRtl]}>
                 {documentsEnabled && amt !== null && amt > 0 && !item.has_manual_receipt ? (
                   <>
                     <Pressable
@@ -891,7 +892,7 @@ export default function AccountPaymentsScreen() {
         backdropAccessibilityLabel={t("common.cancel")}
         cardStyle={styles.pickerSheet}
       >
-        <View style={[styles.pickerHeader, rtlRow && styles.pickerHeaderRtl]}>
+        <View style={[styles.pickerHeader, rowFlipFor(rtlRow) && styles.pickerHeaderRtl]}>
           <Text style={[styles.pickerTitle, isRTL && styles.rtl]}>
             {payeePickerMode === "add" ? t("accountPayments.pickPayeeAdd") : t("accountPayments.pickPayeeFilter")}
           </Text>
@@ -955,7 +956,7 @@ export default function AccountPaymentsScreen() {
         backdropAccessibilityLabel={t("common.cancel")}
         cardStyle={styles.pickerSheet}
       >
-        <View style={[styles.pickerHeader, rtlRow && styles.pickerHeaderRtl]}>
+        <View style={[styles.pickerHeader, rowFlipFor(rtlRow) && styles.pickerHeaderRtl]}>
           <Text style={[styles.pickerTitle, isRTL && styles.rtl]}>{t("accountPayments.pickMember")}</Text>
           <Pressable onPress={() => setMemberPickOpen(false)} hitSlop={12}>
             <Text style={styles.pickerClose}>{t("common.cancel")}</Text>

@@ -20,6 +20,7 @@ import {
   type SubscriptionListRow,
 } from "../lib/subscriptions";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Tab = "active" | "history";
 
 function statusLabelKey(status: string): string {
@@ -97,7 +98,7 @@ export function ManagerSubscriptionsScreen() {
     <View style={styles.screen}>
       <ManagerMoneyHubTabs />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={[styles.headerRow, isRTL && styles.headerRowRtl]}>
+        <View style={[styles.headerRow, rowFlipFor(isRTL) && styles.headerRowRtl]}>
           <Text style={[styles.title, isRTL && styles.rtl]}>{t("subscriptions.title")}</Text>
           <PrimaryButton
             label={t("subscriptions.create")}
@@ -181,11 +182,11 @@ function ActiveSubscriptionRow({
 }) {
   return (
     <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={onPress} accessibilityRole="button">
-      <View style={[styles.rowTop, isRTL && styles.rowTopRtl]}>
+      <View style={[styles.rowTop, rowFlipFor(isRTL) && styles.rowTopRtl]}>
         <Text style={[styles.rowName, isRTL && styles.rtl]} numberOfLines={1}>
           {row.payee_display_name}
         </Text>
-        <View style={[styles.badges, isRTL && styles.badgesRtl]}>
+        <View style={[styles.badges, rowFlipFor(isRTL) && styles.badgesRtl]}>
           {row.is_frozen ? (
             <View style={[styles.badge, styles.badgeFrozen]}>
               <Text style={styles.badgeText}>{t("subscriptions.frozenBadge")}</Text>
@@ -197,7 +198,7 @@ function ActiveSubscriptionRow({
         </View>
       </View>
       <Text style={[styles.rowSub, isRTL && styles.rtl]}>₪{row.monthly_price_ils.toFixed(2)} / mo</Text>
-      <View style={[styles.rowMeta, isRTL && styles.rowMetaRtl]}>
+      <View style={[styles.rowMeta, rowFlipFor(isRTL) && styles.rowMetaRtl]}>
         <Text style={[styles.rowMetaText, isRTL && styles.rtl]}>
           {t("subscriptions.rowStart")}: {formatISODateFull(row.plan_start_date, language)}
         </Text>
@@ -229,11 +230,11 @@ function HistorySubscriptionRow({
 }) {
   return (
     <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={onPress} accessibilityRole="button">
-      <View style={[styles.rowTop, isRTL && styles.rowTopRtl]}>
+      <View style={[styles.rowTop, rowFlipFor(isRTL) && styles.rowTopRtl]}>
         <Text style={[styles.rowName, isRTL && styles.rtl]} numberOfLines={1}>
           {row.payee_display_name}
         </Text>
-        <View style={[styles.badges, isRTL && styles.badgesRtl]}>
+        <View style={[styles.badges, rowFlipFor(isRTL) && styles.badgesRtl]}>
           {row.is_tombstoned ? (
             <View style={[styles.badge, styles.badgeMuted]}>
               <Text style={styles.badgeText}>{t("subscriptions.tombstonedBadge")}</Text>

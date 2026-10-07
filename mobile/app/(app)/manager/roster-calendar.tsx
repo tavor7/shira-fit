@@ -23,6 +23,7 @@ import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../src/components/PressableScale";
 import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHidden";
 
+import { rowFlipFor } from "../../../src/lib/layoutDirection";
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
   return iso >= weekStartIso && iso <= weekEndIso;
@@ -323,7 +324,7 @@ export default function ManagerRosterCalendarScreen() {
         <View style={styles.headerRow}>
           <Text style={[styles.h1, isRTL && styles.rtlText]}>{t("rosterCalendar.title")}</Text>
           <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("rosterCalendar.hint")}</Text>
-          <View style={[styles.modeWrap, isRTL && styles.modeWrapRtl]}>
+          <View style={[styles.modeWrap, rowFlipFor(isRTL) && styles.modeWrapRtl]}>
             {(
               [
                 { key: "small" as const, on: showSmall, toggle: () => setShowSmall((v) => !v), label: t("rosterCalendar.filterSmall") },
@@ -396,7 +397,7 @@ export default function ManagerRosterCalendarScreen() {
                         <View style={styles.cardRow}>
                         <View style={[styles.accent, accent ? { backgroundColor: accent } : null]} />
                         <View style={styles.cardBody}>
-                          <View style={[styles.cardTop, isRTL && styles.cardTopRtl]}>
+                          <View style={[styles.cardTop, rowFlipFor(isRTL) && styles.cardTopRtl]}>
                             <Text style={[styles.time, isRTL && styles.rtlText]}>
                               {formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60)}
                             </Text>

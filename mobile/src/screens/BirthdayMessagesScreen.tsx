@@ -33,6 +33,7 @@ import {
 import { formatISODateDayMonthWithWeekday, parseInstantIso } from "../lib/dateFormat";
 import { appLocale } from "../lib/appLocale";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 const STUDIO_TZ = "Asia/Jerusalem";
 
 function previewBody(template: string, sampleName: string): string {
@@ -169,7 +170,7 @@ export default function BirthdayMessagesScreen() {
       ) : (
         <>
           <View style={[styles.card, surface.card]}>
-            <View style={[styles.toggleRow, isRTL && styles.toggleRowRtl]}>
+            <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
               <View style={styles.toggleCopy}>
                 <Text style={[styles.toggleLabel, isRTL && styles.rtl]}>{t("birthdayMessages.toggleLabel")}</Text>
                 <Text style={[styles.toggleHint, isRTL && styles.rtl]}>{t("birthdayMessages.toggleHint")}</Text>
@@ -188,7 +189,7 @@ export default function BirthdayMessagesScreen() {
             <Text style={[styles.sectionHint, isRTL && styles.rtl]}>{t("birthdayMessages.namePlaceholderHint")}</Text>
 
             <Text style={[styles.themeLabel, isRTL && styles.rtl]}>{t("managerMessage.themeLabel")}</Text>
-            <View style={[styles.themeRow, isRTL && styles.themeRowRtl]}>
+            <View style={[styles.themeRow, rowFlipFor(isRTL) && styles.themeRowRtl]}>
               {MANAGER_MESSAGE_THEMES.map((key) => {
                 const active = messageTheme === key;
                 const palette = getManagerMessageThemeStyle(key);

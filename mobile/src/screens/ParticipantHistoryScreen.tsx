@@ -54,6 +54,7 @@ import { PaymentHistoryRow } from "../components/PaymentHistoryRow";
 import { SessionHistoryRow } from "../components/SessionHistoryRow";
 import { EditSessionAmountModal } from "../components/EditSessionAmountModal";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 export default function ParticipantHistoryScreen({
   hideTitle = false,
   headerExtra,
@@ -79,7 +80,7 @@ export default function ParticipantHistoryScreen({
   const awaitingPresetAthlete = !!(presetUid || presetManual);
   const { language, t, isRTL } = useI18n();
   /** Web sets `html dir=rtl`; extra row-reverse there mirrors layout twice. */
-  const rtlRowFlip = isRTL && Platform.OS !== "web";
+  const rtlRowFlip = rowFlipFor(isRTL);
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
   const { profile } = useAuth();
@@ -1315,7 +1316,7 @@ export default function ParticipantHistoryScreen({
                     {t("billing.missingRules").replace("{n}", String(billingSummary.missingRuleCount))}
                   </Text>
                 </AnimatedOptionExpand>
-                <View style={[styles.addPayBtnRow, isRTL && styles.addPayBtnRowRtl]}>
+                <View style={[styles.addPayBtnRow, rowFlipFor(isRTL) && styles.addPayBtnRowRtl]}>
                   <Pressable
                     style={({ pressed }) => [styles.addPayBtn, pressed && { opacity: 0.9 }]}
                     onPress={() => {
@@ -1338,7 +1339,7 @@ export default function ParticipantHistoryScreen({
           </>
         }
         renderSectionHeader={({ section: { title } }) => (
-          <View style={[styles.sectionHead, isRTL && styles.sectionHeadRtl]}>
+          <View style={[styles.sectionHead, rowFlipFor(isRTL) && styles.sectionHeadRtl]}>
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]} numberOfLines={1} ellipsizeMode="tail">
               {title}
             </Text>

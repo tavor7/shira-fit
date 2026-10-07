@@ -203,7 +203,7 @@ export function ManagerSendMessagePanel() {
               isRTL={isRTL}
               previewLabel={t("managerMessage.sentPreviewTitle")}
             />
-            <View style={[styles.previewModalMeta, isRTL && styles.sentMetaRtl]}>
+            <View style={[styles.previewModalMeta, rowFlipFor(isRTL) && styles.sentMetaRtl]}>
               <AppText variant="caption" soft isRTL={isRTL}>
                 {t("managerMessage.sentAt").replace("{when}", formatSentWhen(previewSent.created_at, language))}
               </AppText>
@@ -268,7 +268,7 @@ export function ManagerSendMessagePanel() {
                         {initialsFromName(h.full_name)}
                       </AppText>
                     </View>
-                    <View style={[styles.hitBody, isRTL && styles.hitBodyRtl]}>
+                    <View style={[styles.hitBody, rowFlipFor(isRTL) && styles.hitBodyRtl]}>
                       <AppText variant="body" isRTL={isRTL} numberOfLines={1}>
                         {h.full_name}
                       </AppText>
@@ -289,7 +289,7 @@ export function ManagerSendMessagePanel() {
                   {initialsFromName(selected.full_name)}
                 </AppText>
               </View>
-              <View style={[styles.selectedMeta, isRTL && styles.selectedMetaRtl]}>
+              <View style={[styles.selectedMeta, rowFlipFor(isRTL) && styles.selectedMetaRtl]}>
                 <AppText variant="body" isRTL={isRTL} style={styles.selectedName}>
                   {selected.full_name}
                 </AppText>
@@ -432,7 +432,7 @@ export function ManagerSendMessagePanel() {
                         {initialsFromName(row.recipient_name)}
                       </AppText>
                     </View>
-                    <View style={[styles.sentBody, isRTL && styles.sentBodyRtl]}>
+                    <View style={[styles.sentBody, rowFlipFor(isRTL) && styles.sentBodyRtl]}>
                       <View style={[styles.sentTop, rowFlipFor(isRTL) && styles.sentTopRtl]}>
                         <AppText variant="body" isRTL={isRTL} numberOfLines={1} style={styles.sentName}>
                           {getManagerMessageThemeStyle(row.message_theme).emoji} {row.recipient_name}
@@ -446,7 +446,7 @@ export function ManagerSendMessagePanel() {
                       <AppText variant="caption" muted isRTL={isRTL} numberOfLines={2}>
                         {row.body}
                       </AppText>
-                      <View style={[styles.sentMeta, isRTL && styles.sentMetaRtl]}>
+                      <View style={[styles.sentMeta, rowFlipFor(isRTL) && styles.sentMetaRtl]}>
                         <AppText variant="caption" soft isRTL={isRTL}>
                           {t("managerMessage.sentAt").replace("{when}", formatSentWhen(row.created_at, language))}
                         </AppText>
@@ -464,7 +464,7 @@ export function ManagerSendMessagePanel() {
                       disabled={cancellingId === row.id}
                       style={({ pressed }) => [
                         styles.cancelBtn,
-                        isRTL && styles.cancelBtnRtl,
+                        rowFlipFor(isRTL) && styles.cancelBtnRtl,
                         pressed && { opacity: 0.85 },
                         cancellingId === row.id && { opacity: 0.5 },
                       ]}

@@ -23,6 +23,7 @@ import {
   type ManualDuplicateIndexes,
 } from "../lib/participantIdentity";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type ProfileRow = {
   kind: "profile";
   user_id: string;
@@ -231,7 +232,7 @@ export default function StaffUsersScreen() {
                 pressed && { opacity: 0.9 },
               ]}
             >
-              <View style={[styles.cardRow, isRTL && styles.cardRowRtl]}>
+              <View style={[styles.cardRow, rowFlipFor(isRTL) && styles.cardRowRtl]}>
                 <UserAvatar name={item.full_name} seed={item.kind === "profile" ? item.user_id : item.id} />
                 <View style={styles.cardBody}>
                   <Text style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
@@ -252,7 +253,7 @@ export default function StaffUsersScreen() {
                   <Text style={[styles.phone, isRTL && styles.rtlText]} numberOfLines={1}>
                     {item.phone}
                   </Text>
-                  <View style={[styles.pillRow, isRTL && styles.pillRowRtl]}>
+                  <View style={[styles.pillRow, rowFlipFor(isRTL) && styles.pillRowRtl]}>
                     {item.kind === "profile" ? (
                       <>
                         <Pill label={item.role} />

@@ -5,6 +5,7 @@ import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Tool = { titleKey: string; subtitleKey: string; path: string; icon: string };
 
 const tools: Tool[] = [
@@ -39,7 +40,7 @@ export default function ManagerToolsScreen() {
               style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
               accessibilityRole="button"
             >
-              <View style={[styles.cardRow, isRTL && styles.cardRowRtl]}>
+              <View style={[styles.cardRow, rowFlipFor(isRTL) && styles.cardRowRtl]}>
                 <Text style={styles.cardIcon} accessibilityElementsHidden>
                   {tool.icon}
                 </Text>

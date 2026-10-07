@@ -27,6 +27,7 @@ import {
   type ActivityLogRow,
 } from "../lib/activityLogDetails";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Row = ActivityLogRow;
 
 type SessionRow = {
@@ -524,11 +525,11 @@ export default function ManagerActivityLogScreen() {
     <View style={styles.headerBlock}>
       <View style={styles.filterCard}>
         <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("activityLog.filtersTitle")}</Text>
-        <View style={[styles.filterRow, isRTL && styles.filterRowRtl]}>
+        <View style={[styles.filterRow, rowFlipFor(isRTL) && styles.filterRowRtl]}>
           <Pressable
             style={({ pressed }) => [
               styles.iconField,
-              isRTL && styles.iconFieldRtl,
+              rowFlipFor(isRTL) && styles.iconFieldRtl,
               datePreset !== "14" && styles.iconFieldActive,
               pressed && styles.typeFieldPressed,
             ]}
@@ -550,7 +551,7 @@ export default function ManagerActivityLogScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.iconField,
-              isRTL && styles.iconFieldRtl,
+              rowFlipFor(isRTL) && styles.iconFieldRtl,
               activityGroup !== "all" && styles.iconFieldActive,
               pressed && styles.typeFieldPressed,
             ]}
@@ -589,7 +590,7 @@ export default function ManagerActivityLogScreen() {
                     <Pressable
                       style={({ pressed }) => [
                         styles.typeSheetOption,
-                        isRTL && styles.typeSheetOptionRtl,
+                        rowFlipFor(isRTL) && styles.typeSheetOptionRtl,
                         selected && styles.typeSheetOptionSelected,
                         pressed && !selected && styles.typeFieldPressed,
                       ]}
@@ -664,7 +665,7 @@ export default function ManagerActivityLogScreen() {
                     <Pressable
                       style={({ pressed }) => [
                         styles.typeSheetOption,
-                        isRTL && styles.typeSheetOptionRtl,
+                        rowFlipFor(isRTL) && styles.typeSheetOptionRtl,
                         selected && styles.typeSheetOptionSelected,
                         pressed && !selected && styles.typeFieldPressed,
                       ]}
@@ -707,11 +708,11 @@ export default function ManagerActivityLogScreen() {
           accessibilityLabel={t("a11y.activityLogToggleRetention")}
           style={({ pressed }) => [
             styles.retentionHeader,
-            isRTL && styles.retentionHeaderRtl,
+            rowFlipFor(isRTL) && styles.retentionHeaderRtl,
             pressed && styles.retentionHeaderPressed,
           ]}
         >
-          <View style={[styles.retentionHeaderMain, isRTL && styles.retentionHeaderMainRtl]}>
+          <View style={[styles.retentionHeaderMain, rowFlipFor(isRTL) && styles.retentionHeaderMainRtl]}>
             <Text style={[styles.retentionHeaderTitle, isRTL && styles.rtl]}>{t("activityLog.retentionTitle")}</Text>
             <Text style={[styles.retentionHeaderSummary, isRTL && styles.rtl]}>
               {t("activityLog.currentRetention").replace(/\{d\}/g, String(retentionDays))}
@@ -769,7 +770,7 @@ export default function ManagerActivityLogScreen() {
         <ActivityIndicator style={styles.footerLoading} color={theme.colors.cta} />
       ) : null}
       {totalCount !== null && totalCount > 0 ? (
-        <View style={[styles.paginationBar, isRTL && styles.paginationBarRtl]}>
+        <View style={[styles.paginationBar, rowFlipFor(isRTL) && styles.paginationBarRtl]}>
           <Pressable
             disabled={loading || pageIndex <= 0}
             onPress={() => setPageIndex((p) => Math.max(0, p - 1))}
@@ -852,9 +853,9 @@ export default function ManagerActivityLogScreen() {
             return (
               <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
               <View style={[styles.card, isReverted && styles.cardReverted]}>
-                <View style={[styles.cardHeaderRow, isRTL && styles.cardHeaderRowRtl]}>
+                <View style={[styles.cardHeaderRow, rowFlipFor(isRTL) && styles.cardHeaderRowRtl]}>
                   <Text style={[styles.when, isRTL && styles.rtl, styles.whenInHeader]}>{formatWhen(item.created_at, language)}</Text>
-                  <View style={[styles.cardHeaderActions, isRTL && styles.cardHeaderActionsRtl]}>
+                  <View style={[styles.cardHeaderActions, rowFlipFor(isRTL) && styles.cardHeaderActionsRtl]}>
                     {isReverted ? (
                       <View style={styles.revertedBadge}>
                         <Text style={styles.revertedBadgeText}>{t("activityLog.revertedBadge")}</Text>
@@ -866,7 +867,7 @@ export default function ManagerActivityLogScreen() {
                         accessibilityLabel={t("activityLog.revertAction")}
                         style={({ pressed }) => [
                           styles.revertLink,
-                          isRTL && styles.revertLinkRtl,
+                          rowFlipFor(isRTL) && styles.revertLinkRtl,
                           pressed && styles.revertLinkPressed,
                           revertBusy && styles.revertLinkDisabled,
                         ]}

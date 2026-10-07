@@ -88,6 +88,7 @@ import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../../src/components/PressableScale";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
 
+import { rowFlipFor } from "../../../../src/lib/layoutDirection";
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
 
@@ -1656,7 +1657,7 @@ export default function ManagerSessionDetail() {
         }
       >
         <View style={styles.summaryCard}>
-          <View style={[styles.summaryTitleRow, isRTL && styles.summaryTitleRowRtl]}>
+          <View style={[styles.summaryTitleRow, rowFlipFor(isRTL) && styles.summaryTitleRowRtl]}>
             <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{t("sessionDetail.session")}</Text>
             {session.series_id && !session.series_detached ? (
               <View style={styles.seriesBadge}>
@@ -1699,8 +1700,8 @@ export default function ManagerSessionDetail() {
                   {t("managerSession.summaryNoRegistrations")}
                 </Text>
               ) : (
-                <View style={[styles.summaryTilesRow, isRTL && styles.summaryTilesRowRtl]}>
-                  <View style={[styles.summaryTile, isRTL && styles.summaryTileRtl]}>
+                <View style={[styles.summaryTilesRow, rowFlipFor(isRTL) && styles.summaryTilesRowRtl]}>
+                  <View style={[styles.summaryTile, rowFlipFor(isRTL) && styles.summaryTileRtl]}>
                     <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
                       {t("managerSession.summaryTileAttendance")}
                     </Text>
@@ -1716,7 +1717,7 @@ export default function ManagerSessionDetail() {
                         .replace("{pct}", String(arrivalRatePct))}
                     </Text>
                   </View>
-                  <View style={[styles.summaryTile, isRTL && styles.summaryTileRtl]}>
+                  <View style={[styles.summaryTile, rowFlipFor(isRTL) && styles.summaryTileRtl]}>
                     <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
                       {t("managerSession.summaryTilePayments")}
                     </Text>
@@ -1750,7 +1751,7 @@ export default function ManagerSessionDetail() {
                 </View>
               )}
               {sessionHasEnded && extraFeeSummary.hasAny ? (
-                <View style={[styles.summaryFeesBox, isRTL && styles.summaryTileRtl]}>
+                <View style={[styles.summaryFeesBox, rowFlipFor(isRTL) && styles.summaryTileRtl]}>
                   <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
                     {t("managerSession.summaryFeesTitle")}
                   </Text>
@@ -1822,7 +1823,7 @@ export default function ManagerSessionDetail() {
             <Text style={[styles.dupSectionLabel, isRTL && styles.rtlText]}>
               {t("sessionDetail.participants")}
             </Text>
-            <View style={[styles.dupChoiceRow, isRTL && styles.dupChoiceRowRtl]}>
+            <View style={[styles.dupChoiceRow, rowFlipFor(isRTL) && styles.dupChoiceRowRtl]}>
               <Pressable
                 style={({ pressed }) => [
                   styles.dupChoice,
@@ -1911,7 +1912,7 @@ export default function ManagerSessionDetail() {
           return (
             <FadeSlideIn key={item.user_id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
               <View style={styles.waitCard}>
-              <View style={[styles.waitCardRow, isRTL && styles.waitCardRowRtl]}>
+              <View style={[styles.waitCardRow, rowFlipFor(isRTL) && styles.waitCardRowRtl]}>
                 <View style={styles.waitCardMain}>
                   <Text style={[styles.waitName, isRTL && styles.rtlText]}>{name}</Text>
                   {phone ? <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>{phone}</Text> : null}
@@ -1967,7 +1968,7 @@ export default function ManagerSessionDetail() {
                   <Text style={styles.chargeWarn}>
                     {t("managerSession.lateCancelBadge")}
                   </Text>
-                  <View style={[styles.cancelChargeRow, isRTL && styles.cancelChargeRowRtl]}>
+                  <View style={[styles.cancelChargeRow, rowFlipFor(isRTL) && styles.cancelChargeRowRtl]}>
                     <Pressable
                       onPress={() => void setCancellationCharge(c.id, false)}
                       style={({ pressed }) => [
@@ -1995,7 +1996,7 @@ export default function ManagerSessionDetail() {
                   </View>
                   {feeCharged ? (
                     collected > 0 ? (
-                      <View style={[styles.penaltyPaidRow, isRTL && styles.penaltyPaidRowRtl]}>
+                      <View style={[styles.penaltyPaidRow, rowFlipFor(isRTL) && styles.penaltyPaidRowRtl]}>
                         <View style={styles.penaltyPaidBadge}>
                           <Text style={styles.penaltyPaidBadgeTxt} numberOfLines={1}>
                             {c.payment_method
@@ -2065,7 +2066,7 @@ export default function ManagerSessionDetail() {
               multiline
               autoFocus
             />
-            <View style={[styles.noteComposerActions, isRTL && styles.noteComposerActionsRtl]}>
+            <View style={[styles.noteComposerActions, rowFlipFor(isRTL) && styles.noteComposerActionsRtl]}>
               <Pressable
                 onPress={() => {
                   setNoteComposerOpen(false);
@@ -2122,7 +2123,7 @@ export default function ManagerSessionDetail() {
                         multiline
                         autoFocus
                       />
-                      <View style={[styles.noteEditActions, isRTL && styles.noteEditActionsRtl]}>
+                      <View style={[styles.noteEditActions, rowFlipFor(isRTL) && styles.noteEditActionsRtl]}>
                         <Pressable
                           onPress={() => {
                             setEditingNoteId(null);
@@ -2154,7 +2155,7 @@ export default function ManagerSessionDetail() {
                     <Text style={[styles.noteBody, isRTL && styles.rtlText]}>{n.body}</Text>
                   )}
                   {!isEditing && canDelete ? (
-                    <View style={[styles.noteRowActions, isRTL && styles.noteRowActionsRtl]}>
+                    <View style={[styles.noteRowActions, rowFlipFor(isRTL) && styles.noteRowActionsRtl]}>
                       <PressableScale
                         onPress={() => {
                           setNoteComposerOpen(false);

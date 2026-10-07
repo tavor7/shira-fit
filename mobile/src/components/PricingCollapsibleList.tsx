@@ -47,7 +47,7 @@ function RatePeriodLines({
       : null;
 
   return (
-    <View style={[styles.rateTextCol, isRTL && styles.rateTextColRtl]}>
+    <View style={[styles.rateTextCol, rowFlipFor(isRTL) && styles.rateTextColRtl]}>
       <Text style={[styles.tierLine, isRTL && styles.rtl]} numberOfLines={2}>
         {tierLine}
       </Text>
@@ -159,7 +159,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
             onPress={() => setExpanded((e) => !e)}
             style={({ pressed }) => [
               styles.headerMain,
-              isRTL && styles.headerMainRtl,
+              rowFlipFor(isRTL) && styles.headerMainRtl,
               pressed && { opacity: 0.9 },
             ]}
             accessibilityRole="button"

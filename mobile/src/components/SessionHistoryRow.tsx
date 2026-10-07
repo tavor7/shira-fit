@@ -21,6 +21,7 @@ import type { ParticipantHistoryRow } from "../types/database";
 import type { LanguageCode } from "../i18n/translations";
 import { participantHistoryStyles as styles } from "../screens/participantHistoryStyles";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type Props = {
   reg: ParticipantHistoryRow;
   /** Super User only: this registration is currently hidden from the athlete/debt. Never set for other roles. */
@@ -189,7 +190,7 @@ export function SessionHistoryRow({
   ) : null;
   const hideToggleButton =
     canToggleHide && onToggleHideAthlete ? (
-      <View style={[styles.hideToggleWrap, isRTL && styles.hideToggleWrapRtl]}>
+      <View style={[styles.hideToggleWrap, rowFlipFor(isRTL) && styles.hideToggleWrapRtl]}>
         {hideToggleBusy ? (
           <ActivityIndicator size="small" color={theme.colors.cta} />
         ) : (
@@ -219,7 +220,7 @@ export function SessionHistoryRow({
         style={[
           styles.payPill,
           showPaidStatus ? styles.payPillPaid : styles.payPillUnpaid,
-          isRTL && styles.payPillRtl,
+          rowFlipFor(isRTL) && styles.payPillRtl,
         ]}
       >
         <Text
@@ -239,7 +240,7 @@ export function SessionHistoryRow({
         ) : null}
       </View>
     ) : reg.reg_status === "active" && !staffCanEdit ? (
-      <View style={[styles.payPill, styles.payPillMuted, isRTL && styles.payPillRtl]}>
+      <View style={[styles.payPill, styles.payPillMuted, rowFlipFor(isRTL) && styles.payPillRtl]}>
         <AttStatusDot status={attCurrent} />
         <Text style={[styles.payPillTxt, styles.payPillTxtMuted, isRTL && styles.rtlText]} numberOfLines={1}>
           {attLabel}

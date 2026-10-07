@@ -19,6 +19,7 @@ import {
   type AthleteSubscriptionViewModel,
 } from "../lib/athleteSubscription";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 export function AthleteSubscriptionScreen() {
   const { t, language, isRTL } = useI18n();
   const [vm, setVm] = useState<AthleteSubscriptionViewModel | null>(null);
@@ -118,7 +119,7 @@ export function AthleteSubscriptionScreen() {
               {t("athleteSubscription.priceLine").replace("{price}", formatIls(vm.monthlyPriceIls))}
             </AppText>
             {vm.nextBillingDate ? (
-              <View style={[styles.summaryRow, isRTL && styles.summaryRowRtl]}>
+              <View style={[styles.summaryRow, rowFlipFor(isRTL) && styles.summaryRowRtl]}>
                 <AppText variant="caption" muted isRTL={isRTL}>
                   {t("athleteSubscription.nextBilling")}
                 </AppText>
@@ -128,7 +129,7 @@ export function AthleteSubscriptionScreen() {
               </View>
             ) : null}
             {!vm.hasNoEndDate && vm.planEndDate ? (
-              <View style={[styles.summaryRow, isRTL && styles.summaryRowRtl]}>
+              <View style={[styles.summaryRow, rowFlipFor(isRTL) && styles.summaryRowRtl]}>
                 <AppText variant="caption" muted isRTL={isRTL}>
                   {t("athleteSubscription.validUntil")}
                 </AppText>
@@ -155,7 +156,7 @@ export function AthleteSubscriptionScreen() {
 
         {vm.tiers.length > 0 ? (
           <View style={styles.section}>
-            <View style={[styles.sectionHeaderRow, isRTL && styles.sectionHeaderRowRtl]}>
+            <View style={[styles.sectionHeaderRow, rowFlipFor(isRTL) && styles.sectionHeaderRowRtl]}>
               <AppText variant="headline" isRTL={isRTL}>
                 {t("athleteSubscription.thisWeekTitle")}
               </AppText>
@@ -200,7 +201,7 @@ export function AthleteSubscriptionScreen() {
 
 function KeyValue({ label, value, isRTL }: { label: string; value: string; isRTL: boolean }) {
   return (
-    <View style={[styles.kv, isRTL && styles.kvRtl]}>
+    <View style={[styles.kv, rowFlipFor(isRTL) && styles.kvRtl]}>
       <AppText variant="caption" muted isRTL={isRTL}>
         {label}
       </AppText>

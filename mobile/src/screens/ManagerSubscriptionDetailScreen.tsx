@@ -18,6 +18,7 @@ import {
   type SubscriptionVersionRow,
 } from "../lib/subscriptions";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 const ACTIVE_STATUSES = new Set(["active", "frozen", "scheduled"]);
 
 export function ManagerSubscriptionDetailScreen() {
@@ -263,7 +264,7 @@ function Section({ title, isRTL, children }: { title: string; isRTL: boolean; ch
 
 function KeyValue({ label, value, isRTL }: { label: string; value: string; isRTL: boolean }) {
   return (
-    <View style={[styles.kv, isRTL && styles.kvRtl]}>
+    <View style={[styles.kv, rowFlipFor(isRTL) && styles.kvRtl]}>
       <Text style={[styles.kvLabel, isRTL && styles.rtl]}>{label}</Text>
       <Text style={[styles.kvValue, isRTL && styles.rtl]}>{value}</Text>
     </View>

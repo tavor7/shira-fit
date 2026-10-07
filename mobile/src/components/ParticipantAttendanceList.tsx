@@ -828,7 +828,7 @@ export function ParticipantAttendanceList({
           >
             {entering ? <EnteringHighlight /> : null}
             <View style={[styles.nameRow, rowFlipFor(isRTL) && styles.nameRowRtl]}>
-              <View style={[styles.nameBlock, isRTL && styles.nameBlockRtl]}>
+              <View style={[styles.nameBlock, rowFlipFor(isRTL) && styles.nameBlockRtl]}>
                 <Text style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
                   {item.name}
                   {item.birthdayToday ? <Text style={styles.bday}>{"  "}🎂</Text> : null}

@@ -15,6 +15,7 @@ import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type AthleteRow = { kind: "athlete"; id: string; title: string; subtitle: string };
 type ManualRow = { kind: "manual"; id: string; title: string; subtitle: string };
 
@@ -125,7 +126,7 @@ export default function StaffSearchScreen() {
                 {item.subtitle}
               </AppText>
             ) : null}
-            <View style={[styles.actions, isRTL && styles.actionsRtl]}>
+            <View style={[styles.actions, rowFlipFor(isRTL) && styles.actionsRtl]}>
               {item.kind === "athlete" ? (
                 <>
                   <Pressable

@@ -24,6 +24,7 @@ import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { PressableScale } from "../components/PressableScale";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 function formatSessionTimeShort(isoTime: string): string {
   const s = String(isoTime ?? "").trim();
   return s.length >= 5 ? s.slice(0, 5) : s;
@@ -180,7 +181,7 @@ export default function ManagerCapacityMismatchScreen() {
         {rangeLabel ? <Text style={[styles.sub, isRTL && styles.rtl]}>{rangeLabel}</Text> : null}
         <Text style={[styles.hint, isRTL && styles.rtl]}>{t("dashboard.capacityMismatchHint")}</Text>
 
-        <View style={[styles.segRow, isRTL && styles.segRowRtl]}>
+        <View style={[styles.segRow, rowFlipFor(isRTL) && styles.segRowRtl]}>
           <Pressable
             onPress={() => setShowIgnored(false)}
             style={({ pressed }) => [styles.segBtn, !showIgnored && styles.segBtnOn, pressed && { opacity: 0.9 }]}
@@ -241,7 +242,7 @@ export default function ManagerCapacityMismatchScreen() {
                     {" · "}
                     {s.coach_name?.trim() || "—"}
                   </Text>
-                  <View style={[styles.statsRow, isRTL && styles.statsRowRtl]}>
+                  <View style={[styles.statsRow, rowFlipFor(isRTL) && styles.statsRowRtl]}>
                     <Text
                       style={[styles.diffLine, isOver ? styles.diffOver : styles.diffUnder, isRTL && styles.rtl]}
                       numberOfLines={1}
@@ -263,7 +264,7 @@ export default function ManagerCapacityMismatchScreen() {
                     </View>
                   ) : null}
                 </PressableScale>
-                <View style={[styles.cardActions, isRTL && styles.cardActionsRtl]}>
+                <View style={[styles.cardActions, rowFlipFor(isRTL) && styles.cardActionsRtl]}>
                   {canSetMax ? (
                     <Pressable
                       onPress={() => confirmUpdateMax(s)}

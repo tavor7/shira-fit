@@ -11,6 +11,7 @@ import { useToast } from "../context/ToastContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import type { LanguageCode } from "../i18n/translations";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 const WEEKDAY_IDS = [0, 1, 2, 3, 4, 5, 6] as const;
 
 /** Jan 7 2024 is a Sunday — anchor for weekday labels. */
@@ -106,7 +107,7 @@ export default function RegistrationOpeningScheduleScreen() {
       <View style={styles.card}>
         <View style={styles.section}>
           <Text style={[styles.sectionEyebrow, isRTL && styles.rtlText]}>{dayLabel}</Text>
-          <View style={[styles.dayTrack, isRTL && styles.dayTrackRtl]}>
+          <View style={[styles.dayTrack, rowFlipFor(isRTL) && styles.dayTrackRtl]}>
             {WEEKDAY_IDS.map((id) => {
               const on = id === weekday;
               return (

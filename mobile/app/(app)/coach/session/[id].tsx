@@ -22,6 +22,7 @@ import { SessionPresenceBar } from "../../../../src/components/SessionPresenceBa
 import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { AnimatedOptionExpand } from "../../../../src/components/AnimatedOptionExpand";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
+import { rowFlipFor } from "../../../../src/lib/layoutDirection";
 type W = {
   user_id: string;
   requested_at: string;
@@ -357,7 +358,7 @@ export default function CoachSessionDetail() {
           return (
             <FadeSlideIn key={item.user_id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
               <View style={styles.waitCard}>
-                <View style={[styles.waitCardRow, isRTL && styles.waitCardRowRtl]}>
+                <View style={[styles.waitCardRow, rowFlipFor(isRTL) && styles.waitCardRowRtl]}>
                   <View style={styles.waitCardMain}>
                     <Text style={[styles.waitName, isRTL && styles.rtlText]}>{name}</Text>
                     {phone ? <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>{phone}</Text> : null}
@@ -465,7 +466,7 @@ export default function CoachSessionDetail() {
               isRTL={isRTL}
               style={styles.noteInputMultiline}
             />
-            <View style={[styles.noteComposerActions, isRTL && styles.noteComposerActionsRtl]}>
+            <View style={[styles.noteComposerActions, rowFlipFor(isRTL) && styles.noteComposerActionsRtl]}>
               <Pressable
                 onPress={() => {
                   setNoteComposerOpen(false);
@@ -526,7 +527,7 @@ export default function CoachSessionDetail() {
                         containerStyle={styles.noteEditField}
                         style={styles.noteInputMultiline}
                       />
-                      <View style={[styles.noteEditActions, isRTL && styles.noteEditActionsRtl]}>
+                      <View style={[styles.noteEditActions, rowFlipFor(isRTL) && styles.noteEditActionsRtl]}>
                         <Pressable
                           onPress={() => {
                             setEditingNoteId(null);
@@ -556,7 +557,7 @@ export default function CoachSessionDetail() {
                     </View>
                   </AnimatedOptionExpand>
                   {!isEditing && canDelete ? (
-                    <View style={[styles.noteRowActions, isRTL && styles.noteRowActionsRtl]}>
+                    <View style={[styles.noteRowActions, rowFlipFor(isRTL) && styles.noteRowActionsRtl]}>
                       <TouchableOpacity
                         activeOpacity={0.75}
                         delayPressIn={0}

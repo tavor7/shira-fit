@@ -33,6 +33,7 @@ import { EmptyState } from "../../../src/components/EmptyState";
 import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../src/components/PressableScale";
 
+import { rowFlipFor } from "../../../src/lib/layoutDirection";
 export default function AthleteSessionsScreen() {
   const { profile, session } = useAuth();
   const { language, t, isRTL } = useI18n();
@@ -319,7 +320,7 @@ export default function AthleteSessionsScreen() {
                     >
                       <View style={styles.upcomingRowInner}>
                         {accent ? <View style={[styles.upcomingAccent, { backgroundColor: accent }]} /> : null}
-                        <View style={[styles.upcomingBody, isRTL && styles.upcomingBodyRtl]}>
+                        <View style={[styles.upcomingBody, rowFlipFor(isRTL) && styles.upcomingBodyRtl]}>
                           <AppText variant="body" isRTL={isRTL} style={styles.upcomingDay}>
                             {formatISODateWeekdayDayMonth(s.session_date, language)}
                           </AppText>

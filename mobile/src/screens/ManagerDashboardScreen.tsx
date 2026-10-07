@@ -37,6 +37,7 @@ import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useAuth } from "../context/AuthContext";
 import { parseMoney } from "../lib/participantHistoryHelpers";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type PeriodMode = ManagerPeriodMode;
 
 /** Local-calendar Sunday (matches server `public._week_start_sunday`). */
@@ -361,7 +362,7 @@ export default function ManagerDashboardScreen() {
           onPress={() => openAthleteHistory(a)}
           style={({ pressed }) => [pressed && styles.athleteRowPressed]}
         >
-          <View style={[styles.athleteRowTop, isRTL && styles.athleteRowTopRtl]}>
+          <View style={[styles.athleteRowTop, rowFlipFor(isRTL) && styles.athleteRowTopRtl]}>
             <Text style={[styles.athleteName, isRTL && styles.rtl]} numberOfLines={1}>
               {a.name?.trim() || "—"}
               {a.kind === "manual" ? ` · ${t("dashboard.financeQuickAdd")}` : ""}
@@ -427,9 +428,9 @@ export default function ManagerDashboardScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.cta} />}
     >
       <ManagerOverviewHubTabs />
-      <View style={[styles.titleBlock, isRTL && styles.titleBlockRtl]}>
+      <View style={[styles.titleBlock, rowFlipFor(isRTL) && styles.titleBlockRtl]}>
         <Text style={[styles.h, isRTL && styles.rtl]}>{t(overviewTitleKey(periodMode))}</Text>
-        <View style={[styles.periodTrack, isRTL && styles.periodTrackRtl]}>
+        <View style={[styles.periodTrack, rowFlipFor(isRTL) && styles.periodTrackRtl]}>
           <Pressable
             onPress={setWeekMode}
             style={({ pressed }) => [
@@ -506,7 +507,7 @@ export default function ManagerDashboardScreen() {
           </View>
         </View>
       ) : (
-      <View style={[styles.rangeRow, isRTL && styles.rangeRowRtl]}>
+      <View style={[styles.rangeRow, rowFlipFor(isRTL) && styles.rangeRowRtl]}>
         <Pressable
           style={({ pressed }) => [styles.rangeNavHit, pressed && styles.rangeNavPressed]}
           onPress={() =>
@@ -577,7 +578,7 @@ export default function ManagerDashboardScreen() {
             <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>{t(sectionEyebrowKey(periodMode))}</Text>
             <View style={styles.statsCard}>
               <View style={styles.statsGrid}>
-                <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
+                <View style={[styles.statsPair, rowFlipFor(isRTL) && styles.statsPairRtl]}>
                   <Pressable
                     onPress={() => openWeeklyDetail("avg_fill")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
@@ -597,7 +598,7 @@ export default function ManagerDashboardScreen() {
                     <AppText variant="display" style={styles.tileV}>{Math.round(cancellationsDisplay)}</AppText>
                   </Pressable>
                 </View>
-                <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
+                <View style={[styles.statsPair, rowFlipFor(isRTL) && styles.statsPairRtl]}>
                   <Pressable
                     onPress={() => openWeeklyDetail("no_shows")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
@@ -617,7 +618,7 @@ export default function ManagerDashboardScreen() {
                     <AppText variant="display" style={styles.tileV}>{Math.round(sessionCountDisplay)}</AppText>
                   </Pressable>
                 </View>
-                <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
+                <View style={[styles.statsPair, rowFlipFor(isRTL) && styles.statsPairRtl]}>
                   <Pressable
                     onPress={() => openWeeklyDetail("waitlist")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
@@ -655,7 +656,7 @@ export default function ManagerDashboardScreen() {
       ) : null}
 
       {showStats && showAlertRow ? (
-        <View style={[styles.alertRow, isRTL && styles.alertRowRtl]}>
+        <View style={[styles.alertRow, rowFlipFor(isRTL) && styles.alertRowRtl]}>
           {showMissingAttendanceTile ? (
             <Pressable
               onPress={missingAttendance.count > 0 ? openMissingAttendance : undefined}
@@ -706,7 +707,7 @@ export default function ManagerDashboardScreen() {
           <View style={styles.financeCard}>
             <Text style={[styles.financeCardTitle, isRTL && styles.rtl]}>{t("dashboard.financeCoachPayouts")}</Text>
             <Text style={[styles.financeHint, isRTL && styles.rtl]}>{t("dashboard.financeHintCoach")}</Text>
-            <View style={[styles.moneyHero, isRTL && styles.moneyHeroRtl]}>
+            <View style={[styles.moneyHero, rowFlipFor(isRTL) && styles.moneyHeroRtl]}>
               <Text style={[styles.moneyHeroLbl, isRTL && styles.rtl]}>{t("dashboard.financeTotalToCoaches")}</Text>
               <Text style={[styles.moneyHeroVal, isRTL && styles.rtl]}>{formatIls(coachPayoutTotalDisplay, language)}</Text>
             </View>
@@ -727,7 +728,7 @@ export default function ManagerDashboardScreen() {
                         accessibilityLabel={`${c.name?.trim() || "—"} · ${formatIls(c.payout_ils, language)}`}
                         accessibilityHint={open ? t("dashboard.a11yCoachCollapse") : t("dashboard.a11yCoachExpand")}
                       >
-                        <View style={[styles.coachRowMain, isRTL && styles.coachRowMainRtl]}>
+                        <View style={[styles.coachRowMain, rowFlipFor(isRTL) && styles.coachRowMainRtl]}>
                           <Text style={[styles.coachName, isRTL && styles.rtl]} numberOfLines={1}>
                             {c.name?.trim() || "—"}
                           </Text>
@@ -750,7 +751,7 @@ export default function ManagerDashboardScreen() {
                               accessibilityRole="button"
                               accessibilityLabel={`${formatISODateFull(s.session_date, language)} ${formatSessionTimeShort(s.start_time)}`}
                             >
-                              <View style={[styles.sessionLineTop, isRTL && styles.sessionLineTopRtl]}>
+                              <View style={[styles.sessionLineTop, rowFlipFor(isRTL) && styles.sessionLineTopRtl]}>
                                 <Text style={[styles.sessionDate, isRTL && styles.rtl]} numberOfLines={1}>
                                   {formatISODateFull(s.session_date, language)} · {formatSessionTimeShort(s.start_time)}
                                 </Text>
@@ -849,7 +850,7 @@ export default function ManagerDashboardScreen() {
                 <Text style={[styles.subhSm, styles.amountsHeading, isRTL && styles.rtl]}>{t("dashboard.financeAmountsByMethod")}</Text>
                 <View style={[styles.payList, isRTL && styles.payListRtl]}>
                   {amountRows.map(([method, n]) => (
-                    <View key={method} style={[styles.payRow, isRTL && styles.payRowRtl]}>
+                    <View key={method} style={[styles.payRow, rowFlipFor(isRTL) && styles.payRowRtl]}>
                       <StatusChip label={paymentMethodDashboardLabel(method, language)} tone="neutral" />
                       <Text style={styles.payAmt}>{formatIls(n, language)}</Text>
                     </View>
@@ -888,7 +889,7 @@ export default function ManagerDashboardScreen() {
                               canTapFamily && pressed && styles.athleteRowPressed,
                             ]}
                           >
-                            <View style={[styles.athleteRowTop, isRTL && styles.athleteRowTopRtl]}>
+                            <View style={[styles.athleteRowTop, rowFlipFor(isRTL) && styles.athleteRowTopRtl]}>
                               <Text style={[styles.familyName, isRTL && styles.rtl]} numberOfLines={1}>
                                 {family.name}
                               </Text>

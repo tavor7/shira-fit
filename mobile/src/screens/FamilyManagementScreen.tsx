@@ -30,6 +30,7 @@ import {
   parseFamilyMembers,
 } from "../lib/athleteFamilies";
 
+import { rowFlipFor } from "../lib/layoutDirection";
 type PickerRow =
   | { kind: "app"; id: string; full_name: string; username?: string; phone?: string }
   | { kind: "manual"; id: string; full_name: string; phone?: string };
@@ -275,7 +276,7 @@ export default function FamilyManagementScreen() {
             <ManagerStudioSetupTabs />
             <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.families")}</Text>
             {families.length > 0 ? (
-              <View style={[styles.searchRow, isRTL && styles.searchRowRtl]}>
+              <View style={[styles.searchRow, rowFlipFor(isRTL) && styles.searchRowRtl]}>
                 <AppSearchField
                   value={familySearchQ}
                   onChangeText={setFamilySearchQ}
@@ -306,7 +307,7 @@ export default function FamilyManagementScreen() {
               <Text style={[styles.cardMeta, isRTL && styles.rtl]}>
                 {t("families.memberCount").replace("{n}", String(item.members.length))}
               </Text>
-              <View style={[styles.chipRow, isRTL && styles.chipRowRtl]}>
+              <View style={[styles.chipRow, rowFlipFor(isRTL) && styles.chipRowRtl]}>
                 {item.members.map((m) => (
                   <View key={memberPayeeKey(m.kind, m.id)} style={styles.chip}>
                     <Text style={styles.chipTxt} numberOfLines={1}>
@@ -316,7 +317,7 @@ export default function FamilyManagementScreen() {
                 ))}
               </View>
             </Pressable>
-            <View style={[styles.cardActions, isRTL && styles.cardActionsRtl]}>
+            <View style={[styles.cardActions, rowFlipFor(isRTL) && styles.cardActionsRtl]}>
               <Pressable
                 onPress={() => confirmDelete(item)}
                 accessibilityRole="button"
@@ -412,7 +413,7 @@ export default function FamilyManagementScreen() {
                       disabled={saving}
                       style={({ pressed }) => [
                         styles.choiceRow,
-                        isRTL && styles.choiceRowRtl,
+                        rowFlipFor(isRTL) && styles.choiceRowRtl,
                         selected && styles.choiceRowOn,
                         pressed && !saving && styles.choiceRowPressed,
                       ]}

@@ -400,7 +400,7 @@ export function MoveParticipantSheet({
                 style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
                 accessibilityRole="button"
               >
-                <View style={[styles.rowMain, isRTL && styles.rowMainRtl]}>
+                <View style={[styles.rowMain, rowFlipFor(isRTL) && styles.rowMainRtl]}>
                   <Text style={[styles.rowDate, isRTL && styles.rtlText]}>
                     {formatISODateWeekdayDayMonth(item.session_date, language)}
                   </Text>

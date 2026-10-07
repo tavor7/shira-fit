@@ -25,6 +25,7 @@ import { useReduceMotionRef } from "../../src/hooks/useReduceMotion";
 import { logUserActivity } from "../../src/lib/logUserActivity";
 import { canRoleAccessWebPath, normalizeWebRedirectTarget, webPublicPathToExpoHref } from "../../src/lib/webLastRoute";
 
+import { rowFlipFor } from "../../src/lib/layoutDirection";
 /** Loose client-side check; server remains authoritative. */
 const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -312,7 +313,7 @@ export default function LoginScreen() {
             success={success}
             onPress={onLogin}
           />
-          <View style={[styles.linksRow, isRTL && styles.linksRowRtl]}>
+          <View style={[styles.linksRow, rowFlipFor(isRTL) && styles.linksRowRtl]}>
             <Pressable
               onPress={() => router.push("/(auth)/forgot-password")}
               style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}

@@ -278,7 +278,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
         ]}
       >
         {isCurrent ? (
-          <View style={[styles.nowBadgeWrap, isRTL && styles.nowBadgeWrapRtl]}>
+          <View style={[styles.nowBadgeWrap, rowFlipFor(isRTL) && styles.nowBadgeWrapRtl]}>
             <View style={styles.nowBadge}>
               <Text style={styles.nowBadgeText}>{language === "he" ? "עכשיו" : "Now"}</Text>
             </View>
