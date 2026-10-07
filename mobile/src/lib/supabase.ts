@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { withTransportCapture } from "./techReporting/transportCapture";
 
 /**
  * SecureStore is native-only; on web it breaks at runtime.
@@ -142,7 +143,9 @@ export const supabase = createClient(url, key, {
     detectSessionInUrl: Platform.OS === "web",
   },
   global: {
-    fetch: authAwareFetch,
+    // Phase 3B: observe transport failures only (rejections, 5xx/408/429); the response and errors pass through unchanged.
+    // Outermost on purpose, so a 401 recovered by authAwareFetch's refresh-and-retry is judged on its final outcome.
+    fetch: withTransportCapture(authAwareFetch, { supabaseUrl: url }),
   },
 });
 
