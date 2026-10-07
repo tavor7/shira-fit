@@ -266,7 +266,12 @@ export default function AthleteSessionDetail() {
       });
       setOnWaitlist(true);
       await loadNames();
-    } else showToast({ message: t("athleteCalendar.waitlistHeading"), detail: data?.error ?? "", variant: "error" });
+    } else
+      showToast({
+        message: t("athleteCalendar.waitlistHeading"),
+        detail: data?.error === "session_started" ? t("athleteSession.waitlistSessionStarted") : data?.error ?? "",
+        variant: "error",
+      });
   }
 
   async function leaveWaitlist() {

@@ -182,7 +182,11 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
         message: language === "he" ? "נרשמתם לרשימת המתנה" : "You’re on the waitlist",
         variant: "success",
       });
-    } else showOk(t("athleteCalendar.waitlistHeading"), data?.error ?? "");
+    } else
+      showOk(
+        t("athleteCalendar.waitlistHeading"),
+        data?.error === "session_started" ? t("athleteSession.waitlistSessionStarted") : data?.error ?? ""
+      );
   }
 
   async function onCancel() {

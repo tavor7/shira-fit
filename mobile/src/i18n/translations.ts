@@ -964,6 +964,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "screen.athleteSession": "Session",
     "athleteSession.sessionEnded": "Session ended",
     "athleteSession.sessionEndedNoRegister": "This workout has already ended — you can’t register or join the waitlist.",
+    "athleteSession.waitlistSessionStarted": "The session has already started, so you can no longer join the waitlist.",
     "athleteSession.sessionStartedNoCancel": "This workout has already started — you can’t cancel your registration.",
     "athleteSession.sameDayConfirmTitle": "Another workout that day",
     "athleteSession.sameDayConfirmMessage":
@@ -2545,6 +2546,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "screen.athleteSession": "אימון",
     "athleteSession.sessionEnded": "האימון הסתיים",
     "athleteSession.sessionEndedNoRegister": "האימון כבר הסתיים — לא ניתן להירשם או להצטרף לרשימת המתנה.",
+    "athleteSession.waitlistSessionStarted": "האימון כבר התחיל ולא ניתן להצטרף לרשימת ההמתנה.",
     "athleteSession.sessionStartedNoCancel": "האימון כבר החל — לא ניתן לבטל את ההרשמה.",
     "athleteSession.sameDayConfirmTitle": "עוד אימון באותו יום",
     "athleteSession.sameDayConfirmMessage":

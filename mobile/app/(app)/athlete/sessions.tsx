@@ -147,7 +147,12 @@ export default function AthleteSessionsScreen() {
         } else {
           showToast({
             message: t("athleteCalendar.waitlistHeading"),
-            detail: typeof data?.error === "string" ? data.error : "",
+            detail:
+              data?.error === "session_started"
+                ? t("athleteSession.waitlistSessionStarted")
+                : typeof data?.error === "string"
+                  ? data.error
+                  : "",
             variant: "error",
           });
         }
