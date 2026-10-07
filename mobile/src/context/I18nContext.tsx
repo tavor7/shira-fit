@@ -1,8 +1,17 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { I18nManager, Platform } from "react-native";
-import * as SecureStore from "expo-secure-store";
 import { translations, type LanguageCode } from "../i18n/translations";
 import { useAuth } from "./AuthContext";
+import {
+  LANGUAGE_STORAGE_KEY_GLOBAL,
+  languageStorageKeyForUser,
+  parseStoredLanguage,
+  readDeviceLanguageTags,
+  readStoredLanguage,
+  readStoredLanguageSyncWeb,
+  resolveLanguage,
+  writeStoredLanguage,
+} from "../lib/languagePreference";
 
 type I18nCtx = {
   language: LanguageCode;
@@ -12,58 +21,64 @@ type I18nCtx = {
   toggleLanguage: () => Promise<void>;
 };
 
-const STORAGE_KEY_GLOBAL = "shira_fit_language";
-
-function userKey(userId: string) {
-  // expo-secure-store keys must be alphanumeric plus ".", "-", "_" only — no ":".
-  return `shira_fit_language_${userId}`;
-}
-
 const Ctx = createContext<I18nCtx | null>(null);
 
 function isRtlLanguage(lang: LanguageCode) {
   return lang === "he";
 }
 
+/** Runs before paint on web so `lang`/`dir` never lag a language change; plain effect elsewhere. */
+const useIsomorphicLayoutEffect = Platform.OS === "web" ? useLayoutEffect : useEffect;
+
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
   const userId = session?.user?.id ?? null;
-  const [language, setLanguageState] = useState<LanguageCode>("en");
+  // Web reads the saved choice synchronously, so the first render is already in the right language
+  // (public/index.html has set the matching lang/dir before React mounted). Native starts from the
+  // device language and applies the saved choice once SecureStore answers.
+  const [language, setLanguageState] = useState<LanguageCode>(() =>
+    resolveLanguage({
+      globalStored: readStoredLanguageSyncWeb(LANGUAGE_STORAGE_KEY_GLOBAL),
+      deviceTags: readDeviceLanguageTags(),
+    })
+  );
 
   useEffect(() => {
-    (async () => {
-      try {
-        // Default before login: English. If a prior selection exists on this device, use it.
-        const v = await SecureStore.getItemAsync(STORAGE_KEY_GLOBAL);
-        if (v === "en" || v === "he") setLanguageState(v);
-      } catch {
-        // ignore
-      }
-    })();
+    if (Platform.OS === "web") return;
+    let cancelled = false;
+    void readStoredLanguage(LANGUAGE_STORAGE_KEY_GLOBAL).then((v) => {
+      const saved = parseStoredLanguage(v);
+      if (!cancelled && saved) setLanguageState(saved);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (!userId) return;
-    (async () => {
-      try {
-        // If this user has a saved preference, apply it on login.
-        const v = await SecureStore.getItemAsync(userKey(userId));
-        if (v === "en" || v === "he") setLanguageState(v);
-      } catch {
-        // ignore
-      }
-    })();
+    let cancelled = false;
+    // A saved per-account choice wins over the device-level one on sign-in.
+    void readStoredLanguage(languageStorageKeyForUser(userId)).then((v) => {
+      const saved = parseStoredLanguage(v);
+      if (!cancelled && saved) setLanguageState(saved);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
 
   const isRTL = isRtlLanguage(language);
 
-  useEffect(() => {
-    // Best-effort RTL support:
-    // - On web: set <html dir="rtl|ltr">
-    // - On native: configure I18nManager. Some changes may require app restart to fully apply.
+  useIsomorphicLayoutEffect(() => {
+    // - Web: <html lang dir> is the single source of layout direction (react-native-web's I18nManager is a no-op).
+    // - Native: configure I18nManager. Some changes may require an app restart to fully apply.
     if (Platform.OS === "web") {
       try {
-        if (typeof document !== "undefined") document.documentElement.dir = isRTL ? "rtl" : "ltr";
+        if (typeof document !== "undefined") {
+          document.documentElement.lang = language;
+          document.documentElement.dir = isRTL ? "rtl" : "ltr";
+        }
       } catch {
         // ignore
       }
@@ -75,7 +90,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
-  }, [isRTL]);
+  }, [language, isRTL]);
 
   const t = useMemo(() => {
     const dict = translations[language] ?? translations.en;
@@ -84,12 +99,8 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   async function setLanguage(lang: LanguageCode) {
     setLanguageState(lang);
-    try {
-      await SecureStore.setItemAsync(STORAGE_KEY_GLOBAL, lang);
-      if (userId) await SecureStore.setItemAsync(userKey(userId), lang);
-    } catch {
-      // ignore
-    }
+    await writeStoredLanguage(LANGUAGE_STORAGE_KEY_GLOBAL, lang);
+    if (userId) await writeStoredLanguage(languageStorageKeyForUser(userId), lang);
   }
 
   async function toggleLanguage() {
@@ -104,4 +115,3 @@ export function useI18n() {
   if (!v) throw new Error("useI18n outside I18nProvider");
   return v;
 }
-

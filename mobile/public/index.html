@@ -6,6 +6,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <title>%WEB_TITLE%</title>
 
+    <!--
+      First-paint lang/dir only, so a Hebrew session never flashes LTR before React mounts.
+      I18nContext (src/lib/languagePreference.ts) stays the authoritative language state and re-applies both
+      attributes; this mirrors its device-level fallback (saved choice → browser language → English).
+      languagePreference.test.ts runs this exact script against resolveLanguage to keep them in sync.
+    -->
+    <script id="initial-language">
+      (function () {
+        try {
+          var lang = null;
+          try {
+            var saved = localStorage.getItem("shira_fit_language");
+            if (saved === "he" || saved === "en") lang = saved;
+          } catch (e) {}
+          if (!lang) {
+            var tags = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+            for (var i = 0; i < tags.length && !lang; i++) {
+              var primary = String(tags[i] || "").toLowerCase().split(/[-_]/)[0];
+              if (primary === "he" || primary === "iw") lang = "he";
+              else if (primary === "en") lang = "en";
+            }
+          }
+          lang = lang === "he" ? "he" : "en";
+          document.documentElement.lang = lang;
+          document.documentElement.dir = lang === "he" ? "rtl" : "ltr";
+        } catch (e) {}
+      })();
+    </script>
+
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" href="/favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
