@@ -375,6 +375,7 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     session_ended: B,
     session_not_available: B,
     session_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
+    session_started: [B, "Athletes may join a waitlist only before the studio-local session start (Asia/Jerusalem); at or after the start the request is refused. Same code and meaning as cancel_registration / staff_move_session_participant."],
   },
   save_whatsapp_rollout_config: {
     invalid_mode: V,
