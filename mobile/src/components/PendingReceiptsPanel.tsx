@@ -29,6 +29,8 @@ import {
   type PendingReceiptPayment,
 } from "../lib/pendingReceipts";
 import { toISODateLocal } from "../lib/isoDate";
+import { useBottomChrome, useReportBottomBar } from "../context/BottomChromeContext";
+import { barBottomInset } from "../lib/screenLayout";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 
 /** Payments before this date are historical/testing data — never shown as pending a receipt. */
@@ -50,6 +52,7 @@ function slotKindLabel(kind: string | null, language: "he" | "en"): string | nul
 
 export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode = false }: Props) {
   const { language, t, isRTL } = useI18n();
+  const chrome = useBottomChrome();
   const { showToast } = useToast();
   const { job: bulkJob, runJob: runBulkJob, cancelJob: cancelBulkJob } = useBulkJobs();
   const lang = language === "he" ? "he" : "en";
@@ -130,6 +133,8 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
   const selectableRows = useMemo(() => filteredRows.filter((r) => !r.needs_payment_method), [filteredRows]);
   const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selected.has(r.row_id));
   const selectedCount = selected.size;
+  // The selection bar sits at the bottom of the screen: keep the floating button and toasts above it.
+  const onSelectionBarLayout = useReportBottomBar(selectedCount > 0 || creating);
   const selectedTotal = useMemo(
     () => rows.filter((r) => selected.has(r.row_id)).reduce((s, r) => s + r.amount_ils, 0),
     [rows, selected]
@@ -469,7 +474,10 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
       />
 
       {selectedCount > 0 || creating ? (
-        <View style={[styles.footer, rowFlipFor(isRTL) && styles.footerRtl]}>
+        <View
+          style={[styles.footer, rowFlipFor(isRTL) && styles.footerRtl, { paddingBottom: theme.spacing.lg + barBottomInset(chrome, 0) }]}
+          onLayout={onSelectionBarLayout}
+        >
           <View style={styles.footerCopy}>
             <Text style={[styles.footerTitle, isRTL && styles.rtl]}>
               {creating && createProgress

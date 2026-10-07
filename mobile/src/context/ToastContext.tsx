@@ -2,6 +2,8 @@ import React, { createContext, useCallback, useContext, useRef, useState } from 
 import { AccessibilityInfo, Animated, Easing, Platform, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
+import { useBottomChrome } from "./BottomChromeContext";
+import { toastBottomOffset } from "../lib/screenLayout";
 
 type ToastPayload = {
   message: string;
@@ -21,6 +23,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progress = useRef(new Animated.Value(0)).current;
   const reduceMotionRef = useReduceMotionRef();
+  // Above the contact footer, bottom bars and the floating accessibility button (lib/screenLayout).
+  const toastBottom = toastBottomOffset(useBottomChrome());
 
   const showToast = useCallback(
     (p: ToastPayload) => {
@@ -53,7 +57,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastCtx.Provider value={{ showToast }}>
       {children}
       {toast ? (
-        <View style={styles.layer} pointerEvents="none" accessibilityLiveRegion="polite">
+        <View style={[styles.layer, { paddingBottom: toastBottom }]} pointerEvents="none" accessibilityLiveRegion="polite">
           <Animated.View
             style={[
               styles.toastWrap,
@@ -97,7 +101,6 @@ const styles = StyleSheet.create({
   layer: {
     ...StyleSheet.absoluteFill,
     justifyContent: "flex-end",
-    paddingBottom: 56,
     paddingHorizontal: theme.spacing.md,
     zIndex: 999_999,
     elevation: 80,

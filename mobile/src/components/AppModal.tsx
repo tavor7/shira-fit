@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { screenContentFrame } from "../lib/screenLayout";
 import { theme } from "../theme";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
@@ -122,6 +123,8 @@ export function AppModal({
     styles.card,
     cardBase,
     variant === "sheet" ? styles.cardSheet : isDialog ? styles.cardDialog : styles.cardPopover,
+    // Sheets: as wide as a form on larger screens (lib/screenLayout) and clear of the home indicator.
+    variant === "sheet" ? { maxWidth: screenContentFrame(screenW, "narrow").maxWidth, paddingBottom: insets.bottom } : null,
     { maxHeight: maxH },
     isDialog ? { width: dialogWidth } : width && !popoverPos ? { width } : null,
     popoverPos
@@ -224,6 +227,7 @@ const styles = StyleSheet.create({
   },
   cardSheet: {
     width: "100%",
+    alignSelf: "center",
     borderBottomWidth: 0,
   },
 });

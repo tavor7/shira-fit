@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View, Platform, type ViewStyle } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBottomChrome, useReportBottomBar } from "../context/BottomChromeContext";
+import { barBottomInset } from "../lib/screenLayout";
 import * as Haptics from "expo-haptics";
 import { router, type Href } from "expo-router";
 import { theme } from "../theme";
@@ -26,7 +27,7 @@ const PATH: Record<SessionAdjacentNavVariant, string> = {
 
 export function SessionAdjacentNav({ variant, sessionId }: Props) {
   const { t, isRTL, rowFlip } = useI18n();
-  const insets = useSafeAreaInsets();
+  const chrome = useBottomChrome();
   const [adj, setAdj] = useState<AdjacentSessionIds | null>(null);
 
   useEffect(() => {
@@ -44,6 +45,9 @@ export function SessionAdjacentNav({ variant, sessionId }: Props) {
     };
   }, [variant, sessionId]);
 
+  const hasBar = adj !== null && !!(adj.prevId || adj.nextId);
+  const onBarLayout = useReportBottomBar(hasBar);
+
   if (adj === null || (!adj.prevId && !adj.nextId)) return null;
 
   function go(targetId: string) {
@@ -53,11 +57,13 @@ export function SessionAdjacentNav({ variant, sessionId }: Props) {
     router.replace(`${PATH[variant]}${targetId}` as Href);
   }
 
-  const bottomPad = Math.max(insets.bottom, theme.spacing.xs);
+  // The contact footer (athletes) already sits below this bar and owns the safe-area inset.
+  const bottomPad = barBottomInset(chrome, theme.spacing.xs);
 
   return (
     <View
       style={[styles.wrap, { paddingBottom: bottomPad }]}
+      onLayout={onBarLayout}
       accessibilityRole="toolbar"
     >
       {/* Follows the UI direction (like the week calendar): in Hebrew "previous" is on the right pointing right. */}

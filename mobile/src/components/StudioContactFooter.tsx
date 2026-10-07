@@ -6,6 +6,8 @@ import { useAppAlert } from "../context/AppAlertContext";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "./AppText";
 import { displayLtr } from "../lib/displayFormat";
+import { useReportFooterHeight } from "../context/BottomChromeContext";
+import { LAYOUT } from "../lib/screenLayout";
 
 type CellProps = {
   title: string;
@@ -37,6 +39,7 @@ export function StudioContactFooter() {
   const bottom = Math.max(insets.bottom, 10);
   const { showOk } = useAppAlert();
   const { t } = useI18n();
+  const onLayout = useReportFooterHeight();
 
   async function openUrl(url: string) {
     try {
@@ -56,7 +59,7 @@ export function StudioContactFooter() {
   }
 
   return (
-    <View style={[styles.wrap, { paddingBottom: bottom }]}>
+    <View style={[styles.wrap, { paddingBottom: bottom }]} onLayout={onLayout}>
       <View style={styles.row}>
         <Cell
           title={t("footer.instagram")}
@@ -79,6 +82,9 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
   },
   row: {
+    width: "100%",
+    maxWidth: LAYOUT.maxContentWidth.standard,
+    alignSelf: "center",
     flexDirection: "row",
     alignItems: "stretch",
     paddingTop: 12,
