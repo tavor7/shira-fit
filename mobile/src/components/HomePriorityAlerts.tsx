@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { LAYOUT } from "../lib/screenLayout";
 import type { HomePriorityAlertItem, HomePriorityAlertTone, HomePriorityLabelSegment } from "../lib/homePriorityAlerts";
 import {
@@ -334,7 +335,7 @@ export function HomePriorityAlerts({
         accessibilityLabel={t("homeAlerts.dismissA11y")}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Text style={styles.dismissGlyph}>×</Text>
+        <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
       </Pressable>
     ) : null;
 
@@ -346,7 +347,7 @@ export function HomePriorityAlerts({
             showBottomBorder && styles.rowBorder,
             isRTL && styles.rowOuterRtl,
             rowBgStyle,
-            { borderStartWidth: 4, borderStartColor: accent.border },
+            { borderStartWidth: theme.accentStripeWidth, borderStartColor: accent.border },
           ]}
         >
           <View style={styles.rowMain}>
@@ -377,7 +378,7 @@ export function HomePriorityAlerts({
           showBottomBorder && modalStyles.sheetRowBorder,
           isRTL && modalStyles.sheetRowOuterRtl,
           rowBgStyle,
-          { borderStartWidth: 4, borderStartColor: accent.border },
+          { borderStartWidth: theme.accentStripeWidth, borderStartColor: accent.border },
         ]}
       >
         <View style={styles.rowMain}>
@@ -542,23 +543,18 @@ const styles = StyleSheet.create({
     textAlign: "right",
     alignSelf: "stretch",
   },
+  /** 44px touch target around a small close icon; negative margins keep the row layout compact. */
   dismissHit: {
-    justifyContent: "flex-start",
     alignSelf: "flex-start",
-    paddingTop: 1,
-    paddingHorizontal: 4,
-    minWidth: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: theme.controls.minTouch,
+    minHeight: theme.controls.minTouch,
+    marginTop: -12,
+    marginBottom: -12,
+    marginHorizontal: -10,
   },
-  dismissHitRtl: {
-    paddingStart: 6,
-    paddingEnd: 4,
-  },
-  dismissGlyph: {
-    color: theme.colors.textMuted,
-    fontSize: 20,
-    fontWeight: "400",
-    lineHeight: 22,
-  },
+  dismissHitRtl: {},
   newBadge: {
     marginTop: 1,
     paddingHorizontal: 6,

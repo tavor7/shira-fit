@@ -139,6 +139,8 @@ export const theme = {
       letterSpacing: 0.15,
     },
   },
+  /** Width of the start-edge stripe that carries meaning (coach colour, alert kind, severity, paid). */
+  accentStripeWidth: 3,
   /** Interactive control sizes. 44 is the minimum touch target (WCAG 2.5.5 / Apple HIG). */
   controls: {
     minTouch: 44,

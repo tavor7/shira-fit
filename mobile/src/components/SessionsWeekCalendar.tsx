@@ -23,6 +23,7 @@ import { getSessionTemporalPhase } from "../lib/sessionTime";
 import type { StudioCalendarNote } from "../lib/studioCalendarNotes";
 import { studioNoteCoversDate } from "../lib/studioCalendarNotes";
 import { studioCalendarNoteAccent } from "../lib/studioCalendarNoteAccent";
+import { EdgeFade, useHorizontalOverflow } from "./ScrollEdgeFade";
 
 export type SessionsWeekItem = {
   key: string;
@@ -218,6 +219,8 @@ export function SessionsWeekCalendar({
   /** Periodic refresh so “live” / “ended” styling updates without navigating away. */
   const [, setTemporalTick] = useState(0);
   const { language, t, isRTL, rowFlip } = useI18n();
+  /** Soft edge fades show that more days continue beyond the visible columns (phones). */
+  const { edges: overflowEdges, scrollProps: overflowScrollProps } = useHorizontalOverflow(isRTL);
   const locale = language === "he" ? "he-IL" : "en-US";
   const dayNames = language === "he" ? DAY_NAMES_HE : DAY_NAMES_EN;
 
@@ -425,7 +428,13 @@ export function SessionsWeekCalendar({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={[styles.scrollerContent, rowFlip && styles.scrollerContentRtl]}
           style={styles.scroller}
-          onLayout={onScrollerLayout}
+          onLayout={(e) => {
+            onScrollerLayout(e);
+            overflowScrollProps.onLayout(e);
+          }}
+          onContentSizeChange={overflowScrollProps.onContentSizeChange}
+          onScroll={overflowScrollProps.onScroll}
+          scrollEventThrottle={overflowScrollProps.scrollEventThrottle}
         >
           {weekDays.map((d) => {
             const dayList = byDate.get(d.iso) ?? [];
@@ -558,6 +567,8 @@ export function SessionsWeekCalendar({
             );
           })}
         </ScrollView>
+        <EdgeFade side="start" visible={overflowEdges.start} isRTL={isRTL} />
+        <EdgeFade side="end" visible={overflowEdges.end} isRTL={isRTL} />
 
         {weekItemsCount === 0 ? (
           <View style={styles.empty}>
@@ -601,6 +612,10 @@ const styles = StyleSheet.create({
   },
   headerFlip: { flexDirection: "row-reverse" },
   navBtn: {
+    minWidth: theme.controls.minTouch,
+    minHeight: theme.controls.minTouch,
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: theme.radius.full,
@@ -703,8 +718,9 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     overflow: "hidden",
   },
+  /** Ended: de-emphasised but readable — at 0.78 muted text keeps ~4.9:1 contrast (0.52 dropped it to ~2:1). */
   cardPast: {
-    opacity: 0.52,
+    opacity: 0.78,
     backgroundColor: theme.colors.surfaceElevated,
     borderColor: theme.colors.border,
   },

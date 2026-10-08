@@ -91,7 +91,7 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
   const accent = errorCount > 0 ? theme.colors.error : "#f59e0b";
 
   return (
-    <View style={[styles.wrap, { borderLeftColor: accent }]}>
+    <View style={[styles.wrap, { borderStartColor: accent }]}>
       <Pressable
         onPress={() => setExpanded((v) => !v)}
         style={({ pressed }) => [styles.header, rowFlipFor(isRTL) && styles.headerRtl, pressed && { opacity: 0.92 }]}
@@ -161,7 +161,7 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     marginBottom: theme.spacing.md,
-    borderLeftWidth: 4,
+    borderStartWidth: theme.accentStripeWidth,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.md,
     borderWidth: 1,

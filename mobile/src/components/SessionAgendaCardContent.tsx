@@ -44,13 +44,13 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
         ? [styles.time, compact && styles.timeCompact, styles.timeLive]
         : [styles.time, compact && styles.timeCompact];
 
-  const leftAccentWidth = showRegistered ? 4 : 3;
 
   return (
     <View
       style={[
         styles.inner,
-        accent ? { borderLeftWidth: leftAccentWidth, borderLeftColor: accent, paddingLeft: 8 } : null,
+        // Coach colour on the reading-start edge (mirrors in Hebrew).
+        accent ? { borderStartWidth: theme.accentStripeWidth, borderStartColor: accent, paddingStart: 8 } : null,
       ]}
     >
       <View style={[styles.timeRow, item.isRecurringSeries && styles.timeRowWithRepeatPin]}>
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  endedPillTxt: { color: theme.colors.textSoft, fontSize: 9, fontWeight: "800" },
+  endedPillTxt: { color: theme.colors.textMuted, fontSize: 10, fontWeight: "800" },
   hiddenPill: {
     paddingHorizontal: 7,
     paddingVertical: 2,

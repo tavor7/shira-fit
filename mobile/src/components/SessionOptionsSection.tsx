@@ -99,10 +99,9 @@ export function SessionOptionsSection({ options, isRTL, embedded = false }: Prop
   return <View style={sf.card}>{list}</View>;
 }
 
+/** An enabled option is shown by its tinted row and its switch; no extra stripe (DESIGN.md: stripes only carry meaning). */
 const rowAccent = {
-  borderStartWidth: 3,
   paddingStart: 10,
-  marginStart: -2,
   borderRadius: theme.radius.sm,
 } as const;
 
@@ -115,24 +114,18 @@ const styles = StyleSheet.create({
   rowOpenOn: {
     ...rowAccent,
     backgroundColor: theme.colors.successBg,
-    borderStartColor: theme.colors.success,
   },
   rowHiddenOn: {
     ...rowAccent,
     backgroundColor: theme.colors.errorBg,
-    borderStartColor: theme.colors.error,
   },
   rowKickboxOn: {
     ...rowAccent,
     backgroundColor: KICKBOX_SESSION_BG,
-    borderStartColor: KICKBOX_SESSION_ACCENT,
   },
   rowRepeatOn: {
     ...rowAccent,
     backgroundColor: theme.colors.surfaceElevated,
-    borderStartColor: theme.colors.cta,
-    borderWidth: 0,
-    borderStartWidth: 3,
   },
   expandWrap: {
     marginBottom: 4,

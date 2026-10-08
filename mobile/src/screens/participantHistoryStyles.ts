@@ -502,7 +502,7 @@ export const participantHistoryStyles = StyleSheet.create({
   methodChipOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   methodChipTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.text },
   methodChipTxtOn: { color: theme.colors.ctaText },
-  paymentRow: { borderLeftWidth: 3, borderLeftColor: theme.colors.success },
+  paymentRow: { borderStartWidth: theme.accentStripeWidth, borderStartColor: theme.colors.success },
   paymentStatusRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   paymentStatusRowRtl: { flexDirection: "row-reverse" },
   paymentPaidAmount: { fontSize: 18, fontWeight: "900", color: theme.colors.success },
