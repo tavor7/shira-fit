@@ -91,7 +91,7 @@ export function PrimaryButton({
         styles.btn,
         compact && styles.btnCompact,
         isCta ? styles.btnCta : isDanger ? styles.btnDanger : styles.btnGhost,
-        (loading || disabled) && styles.disabled,
+        disabled && !loading && !success ? styles.disabled : loading && styles.busy,
         pressed && !busy && (isCta ? styles.pressedCta : styles.pressedGhost),
         style,
       ]}
@@ -119,7 +119,7 @@ export function PrimaryButton({
           <Text style={[styles.text, compact && styles.textCompact, textStyle]}>{loadingLabel ?? t("common.loading")}</Text>
         </View>
       ) : (
-        <Text style={[styles.text, compact && styles.textCompact, textStyle]} maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}>
+        <Text style={[styles.text, compact && styles.textCompact, textStyle, disabled && !loading && styles.disabledText]} maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}>
           {label}
         </Text>
       )}
@@ -161,7 +161,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.errorBorder,
   },
-  disabled: { opacity: 0.5 },
+  // Disabled reads as unavailable (neutral fill, muted label), not as a faded call to action.
+  disabled: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  disabledText: { color: theme.colors.textMuted },
+  busy: { opacity: 0.7 },
   pressedCta: { opacity: 0.92, transform: [{ scale: 0.99 }] },
   pressedGhost: { opacity: 0.88 },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
