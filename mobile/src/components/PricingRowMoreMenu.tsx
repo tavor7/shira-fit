@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { theme } from "../theme";
 import { FoldableActionsMenu } from "./FoldableActionsMenu";
+import { AppIcon } from "./AppIcon";
 
 type Props = {
   editLabel: string;
@@ -33,11 +34,13 @@ export function PricingRowMoreMenu({
       renderTrigger={(open) => (
         <Pressable
           onPress={open}
-          style={({ pressed }) => [styles.trigger, pressed && { opacity: 0.85 }]}
+          style={({ pressed }) => [styles.triggerHit, pressed && { opacity: 0.85 }]}
           accessibilityRole="button"
           accessibilityLabel={menuAccessibilityLabel}
         >
-          <Text style={styles.triggerTxt}>⋮</Text>
+          <View style={styles.trigger}>
+            <AppIcon name="ellipsis-vertical" size="sm" color={theme.colors.textMuted} />
+          </View>
         </Pressable>
       )}
     />
@@ -45,6 +48,8 @@ export function PricingRowMoreMenu({
 }
 
 const styles = StyleSheet.create({
+  // 36px visual circle inside a 44px hit area (padding cancelled by a negative margin).
+  triggerHit: { padding: 4, margin: -4 },
   trigger: {
     width: 36,
     height: 36,
@@ -54,12 +59,5 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
-  },
-  triggerTxt: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: theme.colors.textMuted,
-    lineHeight: 20,
-    marginTop: -2,
   },
 });

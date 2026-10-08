@@ -112,14 +112,16 @@ export function RosterSlotRateChip({
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel={`${t("managerSession.rosterSlotRateTitle")}. ${chipLabel}`}
-        style={({ pressed }) => [
-          styles.chip,
-          hasOverride && styles.chipCustom,
-          rowFlipFor(isRTL) && styles.chipRtl,
-          disabled && styles.chipDisabled,
-          pressed && !disabled && { opacity: 0.88 },
-        ]}
+        style={({ pressed }) => [styles.hitArea, pressed && !disabled && { opacity: 0.88 }]}
       >
+        <View
+          style={[
+            styles.chip,
+            hasOverride && styles.chipCustom,
+            rowFlipFor(isRTL) && styles.chipRtl,
+            disabled && styles.chipDisabled,
+          ]}
+        >
         <Ionicons
           name="pricetag-outline"
           size={13}
@@ -129,6 +131,7 @@ export function RosterSlotRateChip({
         <Text style={[styles.chipTxt, hasOverride && styles.chipTxtCustom]} numberOfLines={1}>
           {chipLabel}
         </Text>
+        </View>
       </Pressable>
 
       <AppModal
@@ -193,6 +196,8 @@ export function RosterSlotRateChip({
 }
 
 const styles = StyleSheet.create({
+  // Transparent padding (cancelled by a negative margin) takes the small chip to a 44px hit area without changing the row layout.
+  hitArea: { paddingVertical: 9, marginVertical: -9, paddingHorizontal: 4, marginHorizontal: -4 },
   chip: {
     flexDirection: "row",
     alignItems: "center",

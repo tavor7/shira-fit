@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
-    minHeight: 36,
+    minHeight: theme.controls.minTouch,
   },
   headerRtl: { flexDirection: "row-reverse" },
   title: {
@@ -232,6 +232,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     paddingHorizontal: 10,
     paddingVertical: 8,
+    minHeight: theme.controls.minTouch,
     fontSize: 15,
     fontWeight: "600",
     color: theme.colors.text,
@@ -247,6 +248,8 @@ const styles = StyleSheet.create({
   applyBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
+    minHeight: theme.controls.minTouch,
+    justifyContent: "center",
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.cta,
   },

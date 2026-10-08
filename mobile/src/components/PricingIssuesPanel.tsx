@@ -147,11 +147,13 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
                 {issue.fix ? (
                   <Pressable
                     onPress={() => onFix(issue)}
-                    style={({ pressed }) => [styles.fixBtn, pressed && { opacity: 0.88 }]}
+                    style={({ pressed }) => [styles.fixHit, pressed && { opacity: 0.88 }]}
                     accessibilityRole="button"
                     accessibilityLabel={t("pricing.issuesFix")}
                   >
-                    <Text style={styles.fixBtnTxt}>{t("pricing.issuesFix")}</Text>
+                    <View style={styles.fixBtn}>
+                      <Text style={styles.fixBtnTxt}>{t("pricing.issuesFix")}</Text>
+                    </View>
                   </Pressable>
                 ) : null}
               </View>
@@ -219,13 +221,13 @@ const styles = StyleSheet.create({
   severityWarn: { backgroundColor: "#f59e0b" },
   rowTitle: { fontSize: 14, fontWeight: "800", color: theme.colors.text, lineHeight: 19 },
   rowDetail: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 18 },
+  // The pill stays compact; transparent padding (cancelled by a negative margin) makes the hit area 44px.
+  fixHit: { alignSelf: "flex-start", padding: 7, margin: -7, marginTop: -5 },
   fixBtn: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.cta,
-    alignSelf: "flex-start",
-    marginTop: 2,
   },
   fixBtnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.ctaText },
   rtl: { textAlign: "right" },

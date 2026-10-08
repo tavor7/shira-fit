@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
-    minHeight: 32,
+    minHeight: theme.controls.minTouch,
   },
   headerInline: {
     paddingVertical: 4,

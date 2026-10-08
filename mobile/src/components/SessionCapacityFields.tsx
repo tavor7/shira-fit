@@ -115,10 +115,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   presetRowRtl: { flexDirection: "row-reverse" },
+  // Even 2×2 grid: four chips never fit one row in the half-width column, and a wrapped row left "12" alone.
   presetChip: {
-    flex: 1,
-    minWidth: 36,
-    height: 34,
+    flexGrow: 1,
+    flexBasis: "40%",
+    minHeight: theme.controls.minTouch,
     paddingHorizontal: 8,
     borderRadius: theme.radius.md,
     borderWidth: 1,

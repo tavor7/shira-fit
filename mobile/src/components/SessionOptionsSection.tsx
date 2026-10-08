@@ -141,9 +141,12 @@ const styles = StyleSheet.create({
   rowRtl: {
     flexDirection: "row-reverse",
   },
+  // The label toggles too, so its tap area spans the row height, not just the text line.
   labelBlock: {
     flex: 1,
     minWidth: 0,
+    alignSelf: "stretch",
+    minHeight: theme.controls.minTouch,
     justifyContent: "center",
   },
   label: {

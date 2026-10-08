@@ -492,9 +492,13 @@ const styles = StyleSheet.create({
     paddingStart: theme.spacing.sm,
     paddingEnd: theme.spacing.sm + 4,
   },
+  // Tap area reaches into the row padding (negative margin) and is at least 44px tall.
   rowTap: {
     alignSelf: "stretch",
     minWidth: 0,
+    minHeight: theme.controls.minTouch,
+    paddingVertical: 7,
+    marginVertical: -7,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -589,8 +593,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.06,
   },
   rtl: { writingDirection: "rtl", textAlign: "right" },
+  // 44px tap height; the negative margin keeps the strip layout unchanged.
   moreRow: {
-    paddingVertical: 6,
+    paddingVertical: 14,
+    marginVertical: -8,
     paddingHorizontal: theme.spacing.sm,
   },
   moreText: {

@@ -122,11 +122,13 @@ export function AppSearchField({
         <Pressable
           onPress={handleClear}
           hitSlop={10}
-          style={({ pressed }) => [styles.clearBtn, pressed && { opacity: 0.75 }]}
+          style={({ pressed }) => [styles.clearHit, pressed && { opacity: 0.75 }]}
           accessibilityRole="button"
           accessibilityLabel={t("common.clearSearch")}
         >
-          <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
+          <View style={styles.clearBtn}>
+            <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
+          </View>
         </Pressable>
       ) : null}
     </View>
@@ -158,9 +160,13 @@ const styles = StyleSheet.create({
     ...theme.typography.body,
     color: theme.colors.text,
     paddingVertical: Platform.OS === "ios" ? 10 : 8,
+    // Fill the shell height so a tap anywhere on the field focuses it (web has no tap-through to the input).
+    alignSelf: "stretch",
   },
   inputRtl: { textAlign: "right", writingDirection: "rtl" },
   trail: { marginStart: 2 },
+  // hitSlop is ignored on web: transparent padding (cancelled by a negative margin) gives the 28px button a 44px hit area.
+  clearHit: { padding: 8, margin: -8 },
   clearBtn: {
     width: 28,
     height: 28,
