@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Animated, type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { theme } from "../theme";
+import { selectionA11y } from "../lib/a11ySelection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { useI18n } from "../context/I18nContext";
 import { logRedirectToManagerSessions } from "../lib/managerSessionsRedirectLog";
@@ -127,9 +128,7 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
                 compact ? styles.tabCompact : styles.tab,
                 pressed && !active && styles.tabPressed,
               ]}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              aria-selected={active}
+              {...selectionA11y("tab", active)}
               accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
             >
               <Text

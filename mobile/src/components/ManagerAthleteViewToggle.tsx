@@ -55,6 +55,7 @@ export function ManagerAthleteViewToggle({ size = "default" }: ToggleProps) {
       ]}
       accessibilityRole="switch"
       accessibilityState={{ checked: enabled }}
+      aria-checked={enabled}
       accessibilityLabel={a11yLabel}
     >
       <Text style={[styles.pillTxt, toolbar && styles.pillTxtToolbar, enabled && styles.pillTxtOn]} numberOfLines={1}>

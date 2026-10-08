@@ -340,6 +340,7 @@ export default function ManagerRosterCalendarScreen() {
                 style={({ pressed }) => [styles.filterBtn, on && styles.filterBtnOn, pressed && !on && styles.filterBtnPressed]}
                 accessibilityRole="switch"
                 accessibilityState={{ checked: on }}
+                aria-checked={on}
                 accessibilityLabel={label}
               >
                 <Text style={[styles.filterTxt, on && styles.filterTxtOn]} numberOfLines={1}>

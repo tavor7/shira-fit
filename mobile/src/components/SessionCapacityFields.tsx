@@ -4,6 +4,7 @@ import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { useI18n } from "../context/I18nContext";
 import { SESSION_MAX_PRESETS } from "../lib/sessionCapacityOptions";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { selectionA11y } from "../lib/a11ySelection";
 
 type Props = {
   duration: string;
@@ -71,8 +72,7 @@ export function SessionCapacityFields({
                     on && styles.presetChipOn,
                     pressed && !on && styles.presetChipPressed,
                   ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
+                  {...selectionA11y("radio", on)}
                   accessibilityLabel={String(n)}
                 >
                   <Text style={[styles.presetChipTxt, on && styles.presetChipTxtOn]}>{n}</Text>

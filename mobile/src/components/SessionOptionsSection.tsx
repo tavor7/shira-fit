@@ -63,6 +63,7 @@ function OptionList({ options, isRTL }: Pick<Props, "options" | "isRTL">) {
                 onPress={() => opt.onValueChange(!opt.value)}
                 accessibilityRole="switch"
                 accessibilityState={{ checked: opt.value }}
+                aria-checked={opt.value}
                 accessibilityLabel={opt.label}
               >
                 <Text style={[styles.label, isRTL && styles.rtl, toneStyle && styles.labelEmphasis]}>{opt.label}</Text>

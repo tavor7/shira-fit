@@ -5,6 +5,7 @@ import { useLocalSearchParams, Stack } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../src/context/AuthContext";
 import { theme } from "../../src/theme";
+import { selectionA11y } from "../../src/lib/a11ySelection";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { AppTextField } from "../../src/components/AppTextField";
 import { AppText } from "../../src/components/AppText";
@@ -183,9 +184,7 @@ export default function ProfileScreen() {
               segment === "account" && styles.segmentSlotActive,
               pressed && segment !== "account" && styles.segmentSlotPressed,
             ]}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: segment === "account" }}
-            aria-selected={segment === "account"}
+            {...selectionA11y("tab", segment === "account")}
           >
             <AppText
               variant="caption"
@@ -203,9 +202,7 @@ export default function ProfileScreen() {
               segment === "notifications" && styles.segmentSlotActive,
               pressed && segment !== "notifications" && styles.segmentSlotPressed,
             ]}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: segment === "notifications" }}
-            aria-selected={segment === "notifications"}
+            {...selectionA11y("tab", segment === "notifications")}
           >
             <AppText
               variant="caption"
@@ -224,9 +221,7 @@ export default function ProfileScreen() {
                 segment === "messages" && styles.segmentSlotActive,
                 pressed && segment !== "messages" && styles.segmentSlotPressed,
               ]}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: segment === "messages" }}
-              aria-selected={segment === "messages"}
+              {...selectionA11y("tab", segment === "messages")}
             >
               <AppText
                 variant="caption"

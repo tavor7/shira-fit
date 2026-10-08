@@ -315,6 +315,7 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
           onPress={() => void toggleAll()}
           accessibilityRole="switch"
           accessibilityState={{ checked: allOn }}
+          aria-checked={allOn}
         >
           <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("notifications.allLabel")}</Text>
           {pill(allOn)}
@@ -328,6 +329,7 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
           disabled={marketingLoading}
           accessibilityRole="switch"
           accessibilityState={{ checked: marketing.accepted }}
+          aria-checked={marketing.accepted}
         >
           <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("settings.marketingTitle")}</Text>
           {pill(marketing.accepted)}
@@ -414,6 +416,7 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
             accessibilityState={{
               checked: (opNotifPrefs ?? DEFAULT_MANAGER_OPERATIONAL_NOTIFICATION_PREFS).notifyGroupSpotAvailable,
             }}
+            aria-checked={(opNotifPrefs ?? DEFAULT_MANAGER_OPERATIONAL_NOTIFICATION_PREFS).notifyGroupSpotAvailable}
           >
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("notifications.groupSpotLabel")}</Text>
@@ -440,6 +443,7 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
             accessibilityState={{
               checked: (opNotifPrefs ?? DEFAULT_MANAGER_OPERATIONAL_NOTIFICATION_PREFS).notifyNongroupRemoval,
             }}
+            aria-checked={(opNotifPrefs ?? DEFAULT_MANAGER_OPERATIONAL_NOTIFICATION_PREFS).notifyNongroupRemoval}
           >
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("notifications.nongroupRemovalLabel")}</Text>
@@ -464,6 +468,7 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
             disabled={killSwitchBusy || killSwitchOn === null}
             accessibilityRole="switch"
             accessibilityState={{ checked: killSwitchOn === true }}
+            aria-checked={killSwitchOn === true}
           >
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowLabel, isRTL && styles.rtl]}>{t("notifications.killSwitchLabel")}</Text>
@@ -513,6 +518,7 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
                 onPress={() => setCustomCategory(cat)}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: customCategory === cat }}
+                aria-checked={customCategory === cat}
               >
                 <Text style={[styles.categoryChipTxt, customCategory === cat && styles.categoryChipTxtOn]}>
                   {cat === "operational" ? t("managerMessage.categoryOperational") : t("managerMessage.categoryMarketing")}

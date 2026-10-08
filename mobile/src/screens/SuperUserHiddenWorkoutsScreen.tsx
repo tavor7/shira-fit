@@ -21,6 +21,7 @@ import type { SuperUserHiddenRecord } from "../types/database";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayTimeRange, displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { selectionA11y } from "../lib/a11ySelection";
 
 type AthletePickerRow = { user_id: string; full_name: string; phone: string };
 
@@ -247,8 +248,7 @@ export default function SuperUserHiddenWorkoutsScreen() {
                         key={key}
                         disabled={rows.length === 0 || scopeBulkBusy !== null}
                         onPress={() => void setGlobalScope(key, !on)}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: on }}
+                        {...selectionA11y("checkbox", on)}
                         accessibilityLabel={label}
                         style={({ pressed }) => [
                           styles.scopeToggleChip,

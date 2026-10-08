@@ -23,6 +23,7 @@ import {
 } from "../../lib/subscriptions";
 import { rowFlipFor } from "../../lib/layoutDirection";
 import { useScreenContentStyle } from "../../hooks/useScreenLayout";
+import { selectionA11y } from "../../lib/a11ySelection";
 
 type Mode = "beginning" | "date";
 
@@ -252,7 +253,7 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
 
 function ModeChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]} accessibilityRole="button" accessibilityState={{ selected: active }}>
+    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]} {...selectionA11y("radio", active)}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
     </Pressable>
   );

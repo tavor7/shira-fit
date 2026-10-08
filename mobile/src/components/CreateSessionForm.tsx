@@ -46,6 +46,7 @@ import { CoachPickerSheet } from "./CoachPickerSheet";
 import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { selectionA11y } from "../lib/a11ySelection";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
 
@@ -954,8 +955,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                         else addManualPick(row.manual);
                       }
                     }}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: already }}
+                    {...selectionA11y("checkbox", already)}
                   >
                     <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
                       {row.full_name}

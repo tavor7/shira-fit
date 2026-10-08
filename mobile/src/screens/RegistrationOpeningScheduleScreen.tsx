@@ -12,6 +12,7 @@ import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import type { LanguageCode } from "../i18n/translations";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { selectionA11y } from "../lib/a11ySelection";
 
 const WEEKDAY_IDS = [0, 1, 2, 3, 4, 5, 6] as const;
 
@@ -121,8 +122,7 @@ export default function RegistrationOpeningScheduleScreen() {
                     on && styles.dayBtnOn,
                     pressed && !on && styles.dayBtnPressed,
                   ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
+                  {...selectionA11y("radio", on)}
                   accessibilityLabel={weekdayLong[id]}
                 >
                   <Text style={[styles.dayBtnTxt, on && styles.dayBtnTxtOn, isRTL && styles.rtlText]} numberOfLines={1}>

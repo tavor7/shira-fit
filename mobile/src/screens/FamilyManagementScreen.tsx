@@ -422,6 +422,7 @@ export default function FamilyManagementScreen() {
                       ]}
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: selected }}
+                      aria-checked={selected}
                     >
                       <View style={[styles.choiceCheck, selected && styles.choiceCheckOn]}>
                         {selected ? <AppIcon name="checkmark" size={14} color={theme.colors.ctaText} /> : null}

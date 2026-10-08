@@ -29,6 +29,7 @@ import {
 } from "../lib/activityLogDetails";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { selectionA11y } from "../lib/a11ySelection";
 
 type Row = ActivityLogRow;
 
@@ -601,8 +602,7 @@ export default function ManagerActivityLogScreen() {
                         onPickDatePreset(preset);
                         setDateRangePickerOpen(false);
                       }}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
+                      {...selectionA11y("radio", selected)}
                     >
                       <Text
                         style={[
@@ -677,8 +677,7 @@ export default function ManagerActivityLogScreen() {
                         setActivityGroup(id);
                         setActivityPickerOpen(false);
                       }}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
+                      {...selectionA11y("radio", selected)}
                     >
                       <Text
                         style={[

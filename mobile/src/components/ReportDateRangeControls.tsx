@@ -18,6 +18,7 @@ import { useI18n } from "../context/I18nContext";
 import { globalOverviewRangeISO, isGlobalOverviewRange } from "../lib/managerPeriodMode";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayDateRange } from "../lib/displayFormat";
+import { selectionA11y } from "../lib/a11ySelection";
 
 type QuickPreset = "7" | "30" | "45" | "60";
 type DateMode = "recent" | "month" | "global" | "range";
@@ -143,7 +144,7 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.segmentTrack, rtlRowFlip && styles.segmentTrackRtl]}>
+      <View style={[styles.segmentTrack, rtlRowFlip && styles.segmentTrackRtl]} accessibilityRole="radiogroup">
         {modeOptions.map((opt, idx) => {
           const on = mode === opt.id;
           const edgeStart = idx === 0;
@@ -162,8 +163,7 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
                 on && styles.segmentBtnOn,
                 pressed && !on && styles.segmentBtnPressed,
               ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
+              {...selectionA11y("radio", on)}
             >
               <SelectionPulse trigger={on && justPickedMode === opt.id}>
                 <Text style={[styles.segmentTxt, on && styles.segmentTxtOn]} numberOfLines={1}>
@@ -176,7 +176,7 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
       </View>
 
       {mode === "recent" ? (
-        <View style={[styles.presetGrid, rtlRowFlip && styles.presetGridRtl]}>
+        <View style={[styles.presetGrid, rtlRowFlip && styles.presetGridRtl]} accessibilityRole="radiogroup">
           {recentOptions.map((opt) => {
             const on = recentPreset === opt.id;
             return (
@@ -187,9 +187,8 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
                   setJustPickedPreset(opt.id);
                 }}
                 style={({ pressed }) => [styles.presetCell, on && styles.presetCellOn, pressed && !on && styles.presetCellPressed]}
-                accessibilityRole="button"
                 accessibilityLabel={opt.a11y}
-                accessibilityState={{ selected: on }}
+                {...selectionA11y("radio", on)}
               >
                 <SelectionPulse trigger={on && justPickedPreset === opt.id}>
                   <Text style={[styles.presetNum, on && styles.presetNumOn]}>{opt.id}</Text>

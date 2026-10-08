@@ -40,6 +40,7 @@ import { parseMoney } from "../lib/participantHistoryHelpers";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayDateRange, displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { selectionA11y } from "../lib/a11ySelection";
 
 type PeriodMode = ManagerPeriodMode;
 
@@ -433,7 +434,7 @@ export default function ManagerDashboardScreen() {
       <ManagerOverviewHubTabs />
       <View style={[styles.titleBlock, rowFlipFor(isRTL) && styles.titleBlockRtl]}>
         <Text style={[styles.h, isRTL && styles.rtl]}>{t(overviewTitleKey(periodMode))}</Text>
-        <View style={[styles.periodTrack, rowFlipFor(isRTL) && styles.periodTrackRtl]}>
+        <View style={[styles.periodTrack, rowFlipFor(isRTL) && styles.periodTrackRtl]} accessibilityRole="radiogroup">
           <Pressable
             onPress={setWeekMode}
             style={({ pressed }) => [
@@ -441,8 +442,7 @@ export default function ManagerDashboardScreen() {
               periodMode === "week" && styles.periodChipOn,
               pressed && periodMode !== "week" && styles.periodChipPressed,
             ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: periodMode === "week" }}
+            {...selectionA11y("radio", periodMode === "week")}
           >
             <Text style={[styles.periodChipTxt, periodMode === "week" && styles.periodChipTxtOn]} numberOfLines={1}>
               {t("dashboard.periodWeek")}
@@ -455,8 +455,7 @@ export default function ManagerDashboardScreen() {
               periodMode === "month" && styles.periodChipOn,
               pressed && periodMode !== "month" && styles.periodChipPressed,
             ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: periodMode === "month" }}
+            {...selectionA11y("radio", periodMode === "month")}
           >
             <Text style={[styles.periodChipTxt, periodMode === "month" && styles.periodChipTxtOn]} numberOfLines={1}>
               {t("dashboard.periodMonth")}
@@ -469,8 +468,7 @@ export default function ManagerDashboardScreen() {
               periodMode === "global" && styles.periodChipOn,
               pressed && periodMode !== "global" && styles.periodChipPressed,
             ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: periodMode === "global" }}
+            {...selectionA11y("radio", periodMode === "global")}
           >
             <Text style={[styles.periodChipTxt, periodMode === "global" && styles.periodChipTxtOn]} numberOfLines={1}>
               {t("dashboard.periodGlobal")}

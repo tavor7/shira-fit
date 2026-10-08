@@ -132,6 +132,7 @@ export function NotificationActivationModal() {
               onPress={() => setMarketingChecked((v) => !v)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: marketingChecked }}
+              aria-checked={marketingChecked}
             >
               <View style={[styles.checkbox, marketingChecked && styles.checkboxOn]}>
                 <AnimatedCheckMark visible={marketingChecked} style={styles.checkboxMark} />

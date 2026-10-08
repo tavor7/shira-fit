@@ -32,6 +32,7 @@ import {
 import { formatISODateDayMonthWithWeekday, parseInstantIso } from "../lib/dateFormat";
 import { appLocale } from "../lib/appLocale";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { selectionA11y } from "../lib/a11ySelection";
 
 const STUDIO_TZ = "Asia/Jerusalem";
 
@@ -315,8 +316,7 @@ export function ManagerSendMessagePanel() {
                       active && { borderColor: palette.avatarBg, backgroundColor: palette.bubbleBg },
                       pressed && { opacity: 0.9 },
                     ]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
+                    {...selectionA11y("radio", active)}
                   >
                     <AppText variant="body" style={styles.themeEmoji}>
                       {palette.emoji}
@@ -345,6 +345,7 @@ export function ManagerSendMessagePanel() {
                     style={({ pressed }) => [styles.themeChip, active && styles.categoryChipOn, pressed && { opacity: 0.9 }]}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: active }}
+                    aria-checked={active}
                   >
                     <AppText variant="caption" style={[styles.themeChipTxt, active && styles.categoryChipTxtOn]}>
                       {key === "operational" ? t("managerMessage.categoryOperational") : t("managerMessage.categoryMarketing")}

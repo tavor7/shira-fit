@@ -10,6 +10,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { theme } from "../theme";
+import { selectionA11y } from "../lib/a11ySelection";
 import { useI18n } from "../context/I18nContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { rowFlipFor } from "../lib/layoutDirection";
@@ -102,9 +103,7 @@ export function SlidingPillTabBar({ tabs, active, onChange, style }: Props) {
               moveTo(x.id, true);
             }}
             style={({ pressed }) => [styles.slot, pressed && !on && styles.slotPressed]}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            aria-selected={on}
+            {...selectionA11y("tab", on)}
             accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
           >
             <Text style={[styles.slotTxt, on && styles.slotTxtOn]} numberOfLines={1}>

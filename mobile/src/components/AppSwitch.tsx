@@ -51,6 +51,7 @@ export function AppSwitch({
       disabled={disabled}
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled: !!disabled }}
+      aria-checked={value}
       accessibilityLabel={accessibilityLabel}
       hitSlop={8}
       style={[disabled && styles.disabled, style]}

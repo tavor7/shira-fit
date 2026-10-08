@@ -30,6 +30,7 @@ import {
 import { LEGAL_VERSIONS } from "../../src/lib/legalContent";
 import { syncSignupProfileFromMetadata } from "../../src/lib/signupOnboarding";
 import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
+import { selectionA11y } from "../../src/lib/a11ySelection";
 
 const today = new Date();
 const minDob = new Date(1900, 0, 1);
@@ -237,7 +238,7 @@ export default function SignupScreen() {
           />
 
           <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("profile.gender")}</Text>
-          <View style={styles.genderRow}>
+          <View style={styles.genderRow} accessibilityRole="radiogroup">
             {(["male", "female"] as const).map((g) => (
               <Pressable
                 key={g}
@@ -247,8 +248,7 @@ export default function SignupScreen() {
                   pressed && styles.genderBtnPressed,
                 ]}
                 onPress={() => setGender(g)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: gender === g }}
+                {...selectionA11y("radio", gender === g)}
               >
                 <Text style={[styles.genderTxt, gender === g && styles.genderTxtOn]}>
                   {g === "male" ? t("profile.male") : t("profile.female")}
@@ -277,6 +277,7 @@ export default function SignupScreen() {
             }}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: healthConfirmed }}
+            aria-checked={healthConfirmed}
           >
             <View style={[styles.checkbox, healthConfirmed && styles.checkboxOn]}>
               <AnimatedCheckMark visible={healthConfirmed} style={styles.checkboxMark} />
@@ -295,6 +296,7 @@ export default function SignupScreen() {
                 }}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: termsAccepted }}
+                aria-checked={termsAccepted}
               >
                 <View style={[styles.checkbox, termsAccepted && styles.checkboxOn]}>
                   <AnimatedCheckMark visible={termsAccepted} style={styles.checkboxMark} />
@@ -317,6 +319,7 @@ export default function SignupScreen() {
                 }}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: privacyAccepted }}
+                aria-checked={privacyAccepted}
               >
                 <View style={[styles.checkbox, privacyAccepted && styles.checkboxOn]}>
                   <AnimatedCheckMark visible={privacyAccepted} style={styles.checkboxMark} />
@@ -338,6 +341,7 @@ export default function SignupScreen() {
             }}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: marketingOptIn }}
+            aria-checked={marketingOptIn}
           >
             <View style={[styles.checkbox, marketingOptIn && styles.checkboxOn]}>
               <AnimatedCheckMark visible={marketingOptIn} style={styles.checkboxMark} />

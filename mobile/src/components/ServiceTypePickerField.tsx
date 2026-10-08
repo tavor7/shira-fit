@@ -9,6 +9,7 @@ import {
   documentServiceTypeLabel,
 } from "../lib/documentServiceTypes";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { selectionA11y } from "../lib/a11ySelection";
 
 type Props = {
   label: string;
@@ -69,8 +70,7 @@ export function ServiceTypePickerField({ label, value, onChange, language, isRTL
                       pressed && !selected && { opacity: 0.88 },
                     ]}
                     onPress={() => pick(k)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
+                    {...selectionA11y("radio", selected)}
                   >
                     <Text style={[styles.optionText, selected && styles.optionTextSelected, isRTL && styles.rtl]}>
                       {documentServiceTypeLabel(k, lang)}

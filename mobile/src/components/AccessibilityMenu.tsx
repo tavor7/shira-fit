@@ -198,6 +198,7 @@ function ToggleRow({
       onPress={() => onChange(!value)}
       accessibilityRole="switch"
       accessibilityState={{ checked: value }}
+      aria-checked={value}
       accessibilityLabel={label}
     >
       <AppText variant="body" isRTL={isRTL} style={styles.rowLabel}>

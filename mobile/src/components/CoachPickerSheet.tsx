@@ -7,6 +7,7 @@ import { AppIcon } from "./AppIcon";
 import { useI18n } from "../context/I18nContext";
 import { AppSearchSheet } from "./AppSearchSheet";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { selectionA11y } from "../lib/a11ySelection";
 
 export type CoachPickOption = {
   user_id: string;
@@ -95,8 +96,7 @@ export function CoachPickerSheet({ visible, onClose, onSelect, selectedCoachId }
               pressed && { opacity: 0.88 },
             ]}
             onPress={() => pick(item)}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
+            {...selectionA11y("radio", selected)}
             accessibilityLabel={item.full_name}
           >
             <View style={[styles.rowLeading, rowFlipFor(isRTL) && styles.rowLeadingRtl]}>

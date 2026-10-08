@@ -100,6 +100,7 @@ export function LegalConsentGateModal() {
               onPress={() => setChecked((v) => !v)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked }}
+              aria-checked={checked}
             >
               <View style={[styles.checkbox, checked && styles.checkboxOn]}>
                 <AnimatedCheckMark visible={checked} style={styles.checkboxMark} />

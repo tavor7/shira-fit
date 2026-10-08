@@ -34,6 +34,7 @@ import { formatISODateDayMonthWithWeekday, parseInstantIso } from "../lib/dateFo
 import { appLocale } from "../lib/appLocale";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { selectionA11y } from "../lib/a11ySelection";
 
 const STUDIO_TZ = "Asia/Jerusalem";
 
@@ -204,8 +205,7 @@ export default function BirthdayMessagesScreen() {
                       active && { borderColor: palette.avatarBg, backgroundColor: palette.bubbleBg },
                       pressed && { opacity: 0.9 },
                     ]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
+                    {...selectionA11y("radio", active)}
                   >
                     <Text style={styles.themeEmoji}>{palette.emoji}</Text>
                     <Text
