@@ -1,3 +1,4 @@
+import { displayLtr } from "../lib/displayFormat";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { theme } from "../theme";
@@ -228,9 +229,9 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
                   <Text style={[styles.listRowTitle, isRTL && styles.rtl]}>{row.full_name}</Text>
                   <Text style={[styles.listRowSub, isRTL && styles.rtl]}>
                     {row.kind === "manual"
-                      ? "Quick-add"
+                      ? t("accountPayments.kindManual")
                       : t("ui.createReceiptWithPayment.athlete")}
-                    {row.phone ? ` · ${row.phone}` : ""}
+                    {row.phone ? ` · ${displayLtr(row.phone)}` : ""}
                   </Text>
                 </Pressable>
               ))

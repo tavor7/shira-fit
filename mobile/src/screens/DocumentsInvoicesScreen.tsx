@@ -76,7 +76,7 @@ type HubSection = "pending" | "documents" | "reports" | "settings";
 
 function customerTypeBadgeLabel(type: DocumentCustomerType | null | undefined, language: "he" | "en"): string | null {
   if (!type || type === "regular") return null;
-  if (type === "manual") return language === "he" ? "מהיר" : "Quick-add";
+  if (type === "manual") return language === "he" ? "מהיר" : "Quick add";
   return language === "he" ? "משפחה" : "Family";
 }
 
@@ -1603,6 +1603,10 @@ const styles = StyleSheet.create({
   tabBarRow: { flexDirection: "row", alignItems: "flex-end" },
   tabBarFill: {},
   settingsGear: {
+    minWidth: theme.controls.minTouch,
+    minHeight: theme.controls.minTouch,
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 10,
     paddingVertical: 10,
     marginBottom: theme.spacing.sm,
