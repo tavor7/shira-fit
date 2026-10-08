@@ -23,6 +23,7 @@ import { initNotificationHandler } from "../src/lib/notificationsInit";
 import { useEffect } from "react";
 import * as Updates from "expo-updates";
 import { useAuth } from "../src/context/AuthContext";
+import { OfflineNotice } from "../src/components/OfflineNotice";
 
 initNotificationHandler();
 
@@ -137,6 +138,7 @@ export default function RootLayout() {
                     {Platform.OS === "web" && __DEV__ ? <RouteRestoreDebugPanel /> : null}
                     {Platform.OS === "web" ? <AccessibilityStyleInjector /> : null}
                     {Platform.OS === "web" ? <AccessibilityMenu /> : null}
+                    <OfflineNotice />
                     <StatusBar style="light" />
                     <View style={{ flex: 1 }}>
                       <Stack
@@ -149,6 +151,7 @@ export default function RootLayout() {
                           headerStyle: rootHeaderStyle as object,
                           headerTintColor: theme.colors.text,
                           headerTitleStyle: rootHeaderTitleStyle as object,
+                          contentStyle: { backgroundColor: theme.colors.backgroundAlt },
                           // Auth<->app group swap isn't a drill-in — a fade reads better than a lateral slide.
                           animation: "fade",
                         }}
