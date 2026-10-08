@@ -377,6 +377,7 @@ const styles = StyleSheet.create({
   scopeChipGroupRtl: { flexDirection: "row-reverse" },
   scopeToggleChip: {
     minWidth: 40,
+    minHeight: theme.controls.buttonCompactHeight,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,

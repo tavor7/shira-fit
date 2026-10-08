@@ -684,7 +684,7 @@ const styles = StyleSheet.create({
     minWidth: 72,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: theme.controls.minTouch,
   },
   waitQuickBtnTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 13 },
   waitName: { color: theme.colors.text, fontWeight: "800", fontSize: 15 },

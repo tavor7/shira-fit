@@ -1,3 +1,4 @@
+import { pluralKey } from "../lib/pluralKey";
 import { useEffect, useMemo, useState } from "react";
 import {
   Modal,
@@ -454,9 +455,7 @@ export function DaySessionsSheet({
                   <Text style={[styles.sheetTitle, isRTL && styles.rtlText]}>{title}</Text>
                   {items.length > 0 ? (
                     <Text style={[styles.sessionCount, isRTL && styles.rtlText]}>
-                      {language === "he"
-                        ? `${items.length} אימונים`
-                        : `${items.length} session${items.length === 1 ? "" : "s"}`}
+                      {pluralKey(t, "ui.daySessions.sessionCount", items.length).replace("{n}", String(items.length))}
                     </Text>
                   ) : (
                     <Text style={[styles.sessionCount, isRTL && styles.rtlText]}>

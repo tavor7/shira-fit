@@ -1,3 +1,4 @@
+import { pluralKey } from "../lib/pluralKey";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
@@ -28,13 +29,14 @@ export function ActiveUsersIndicator() {
   return (
     <>
       <PressableScale
+        style={styles.hit}
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel={t("activeUsers.now").replace("{n}", String(users.length))}
+        accessibilityLabel={pluralKey(t, "activeUsers.now", users.length).replace("{n}", String(users.length))}
       >
         <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
           <View style={styles.dot} />
-          <Text style={styles.txt}>{t("activeUsers.now").replace("{n}", String(users.length))}</Text>
+          <Text style={styles.txt}>{pluralKey(t, "activeUsers.now", users.length).replace("{n}", String(users.length))}</Text>
         </View>
       </PressableScale>
 
@@ -67,7 +69,9 @@ export function ActiveUsersIndicator() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start" },
+  row: { flexDirection: "row", alignItems: "center", gap: 6 },
+  // 15px line with a 45px tap height; the negative margin keeps the header layout unchanged.
+  hit: { alignSelf: "flex-start", paddingVertical: 15, marginVertical: -15 },
   rowRtl: { flexDirection: "row-reverse" },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.colors.success },
   txt: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },

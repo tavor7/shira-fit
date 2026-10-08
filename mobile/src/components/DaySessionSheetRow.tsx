@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { theme } from "../theme";
 import { PressableScale } from "./PressableScale";
+import { AppIcon } from "./AppIcon";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { formatSessionStartTime, getSessionTemporalPhase } from "../lib/sessionTime";
 import { KickboxSessionBadge } from "./KickboxSessionBadge";
@@ -86,16 +87,18 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
         <Pressable
           onPress={onDelete}
           disabled={deleting}
-          style={({ pressed }) => [styles.deleteHit, isRTL && styles.deleteHitRtl, pressed && { opacity: 0.65 }]}
+          style={({ pressed }) => [styles.deleteHit, rowFlipFor(isRTL) && styles.deleteHitRtl, pressed && { opacity: 0.65 }]}
           accessibilityRole="button"
           accessibilityLabel={t("ui.daySessionSheetRow.delete")}
           hitSlop={10}
         >
-          {deleting ? (
-            <ActivityIndicator size="small" color={theme.colors.textSoft} />
-          ) : (
-            <Text style={styles.deleteIcon}>×</Text>
-          )}
+          <View style={styles.deleteCircle}>
+            {deleting ? (
+              <ActivityIndicator size="small" color={theme.colors.textSoft} />
+            ) : (
+              <AppIcon name="close" size="sm" color={theme.colors.textSoft} />
+            )}
+          </View>
         </Pressable>
       ) : null}
     </View>
@@ -190,10 +193,18 @@ const styles = StyleSheet.create({
     fontWeight: "300",
     color: theme.colors.textSoft,
   },
+  // `end` is already the UI end on web; only swap where the platform direction differs from the UI (rowFlipFor).
+  // 44px transparent hit area around the 28px visual circle (hitSlop is ignored on web).
   deleteHit: {
     position: "absolute",
-    top: 6,
-    end: 6,
+    top: -2,
+    end: -2,
+    width: theme.controls.minTouch,
+    height: theme.controls.minTouch,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteCircle: {
     width: 28,
     height: 28,
     borderRadius: theme.radius.full,
@@ -203,12 +214,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  deleteHitRtl: { end: undefined, start: 6 },
-  deleteIcon: {
-    fontSize: 18,
-    fontWeight: "400",
-    color: theme.colors.textSoft,
-    lineHeight: 20,
-    marginTop: -1,
-  },
+  deleteHitRtl: { end: undefined, start: -2 },
 });

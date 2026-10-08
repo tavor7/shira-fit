@@ -1674,8 +1674,8 @@ export default function ManagerSessionDetail() {
             </View>
           ) : null}
           <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>
-            {formatISODateFullWithWeekdayAfter(date, language)} · {formatSessionStartTime(time)} · {durationMin}{" "}
-            {t("sessionDetail.durationMinAbbr")}
+            {formatISODateFullWithWeekdayAfter(date, language)} · {formatSessionStartTime(time)} · {/* non-breaking space: "60 min" never splits across lines */}
+            {`${durationMin}\u00A0${t("sessionDetail.durationMinAbbr")}`}
           </Text>
           <Text style={[styles.summaryCoachLine, isRTL && styles.rtlText]}>
             {t("managerSession.coachHeading")}:{" "}
@@ -2564,7 +2564,7 @@ const styles = StyleSheet.create({
     minWidth: 72,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: theme.controls.minTouch,
   },
   waitQuickBtnTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 13 },
   waitName: { color: theme.colors.text, fontWeight: "800", fontSize: 15 },
