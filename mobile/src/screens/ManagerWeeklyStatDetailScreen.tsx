@@ -20,12 +20,13 @@ import { sessionStartsAt, isCancellationWithinHoursBeforeSession } from "../lib/
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
-import { EmptyState } from "../components/EmptyState";
+import { EmptyState, ErrorState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayTimeRange, displayDateRange } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { userFacingErrorMessage } from "../lib/userFacingError";
 
 type SessionBrief = {
   session_date: string;
@@ -98,18 +99,6 @@ function oneRelation<T>(x: T | T[] | null | undefined): T | null {
   return Array.isArray(x) ? (x[0] ?? null) : x;
 }
 
-function errorMessage(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  if (e && typeof e === "object" && "message" in e) {
-    const msg = (e as { message: unknown }).message;
-    if (typeof msg === "string" && msg.trim()) return msg;
-  }
-  try {
-    return JSON.stringify(e);
-  } catch {
-    return String(e);
-  }
-}
 
 type NoShowRow = {
   key: string;
@@ -204,7 +193,7 @@ function NoShowRowCard({
             ]}
           >
             <Text style={[styles.noShowFeeBtnTxt, !chargeNoShow && styles.noShowFeeBtnTxtOn]}>
-              {language === "he" ? "לא" : "No"}
+              {t("ui.managerWeeklyStatDetail.no")}
             </Text>
           </Pressable>
           <Pressable
@@ -217,7 +206,7 @@ function NoShowRowCard({
             ]}
           >
             <Text style={[styles.noShowFeeBtnTxt, chargeNoShow && styles.noShowFeeBtnTxtOn]}>
-              {language === "he" ? "כן" : "Yes"}
+              {t("ui.managerWeeklyStatDetail.yes")}
             </Text>
           </Pressable>
         </View>
@@ -248,7 +237,9 @@ export default function ManagerWeeklyStatDetailScreen() {
   }, [kind, t]);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  /** Opened without a week or a statistic (e.g. a stale or hand-typed link): nothing to show, not a failure. */
+  const missingParams = !weekStart || !weekEnd || !kind;
   const [body, setBody] = useState<ReactNode>(null);
 
   const load = useCallback(async () => {
@@ -257,7 +248,6 @@ export default function ManagerWeeklyStatDetailScreen() {
 
     try {
       if (!weekStart || !weekEnd || !kind) {
-        setError(language === "he" ? "פרמטרים חסרים או לא תקינים" : "Missing or invalid parameters");
         setBody(null);
         return;
       }
@@ -309,7 +299,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                 onPress={() => router.push(`/(app)/manager/session/${s.id}` as Href)}
                 style={({ pressed }) => [styles.rowCard, pressed && styles.rowCardPressed]}
                 accessibilityRole="button"
-                accessibilityLabel={language === "he" ? "פתיחת אימון" : "Open session"}
+                accessibilityLabel={t("ui.managerWeeklyStatDetail.openSession")}
               >
                 <Text style={[styles.rowTitle, isRTL && styles.rtl]} numberOfLines={2}>
                   {formatISODateWeekdayDayMonthYear(s.session_date, language)} ·{" "}
@@ -318,11 +308,11 @@ export default function ManagerWeeklyStatDetailScreen() {
                 <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={1}>
                   {s.trainer?.full_name ?? "—"}
                   {" · "}
-                  {language === "he" ? "נרשמו" : "Signed up"} {n}/{s.max_participants || "—"}
+                  {t("ui.managerWeeklyStatDetail.signedUp")} {n}/{s.max_participants || "—"}
                   {kind === "avg_fill" ? ` · ${pct}%` : ""}
                 </Text>
                 {s.is_hidden ? (
-                  <Text style={styles.rowHint}>{language === "he" ? "מוסתר" : "Hidden"}</Text>
+                  <Text style={styles.rowHint}>{t("ui.managerWeeklyStatDetail.hidden")}</Text>
                 ) : null}
               </Pressable>
               </FadeSlideIn>
@@ -389,15 +379,15 @@ export default function ManagerWeeklyStatDetailScreen() {
                       : "—"}
                   </Text>
                   <Text style={[styles.rowDetail, isRTL && styles.rtl]} numberOfLines={3}>
-                    {language === "he" ? "סיבה: " : "Reason: "}
+                    {t("ui.managerWeeklyStatDetail.reason")}
                     {c.reason}
                   </Text>
                   <Text style={styles.rowHint}>
                     {formatDateTimeForDisplay(c.cancelled_at, language)}
                     {isLate
                       ? c.charged_full_price
-                        ? ` · ${language === "he" ? "חיוב סטודיו" : "Studio fee on"}`
-                        : ` · ${language === "he" ? "ללא חיוב" : "Fee waived"}`
+                        ? ` · ${t("ui.managerWeeklyStatDetail.studioFeeOn")}`
+                        : ` · ${t("ui.managerWeeklyStatDetail.feeWaived")}`
                       : ""}
                   </Text>
                 </Pressable>
@@ -475,7 +465,7 @@ export default function ManagerWeeklyStatDetailScreen() {
             manualParticipantId: r.manual_participant_id,
             name:
               manualNames.get(r.manual_participant_id) ??
-              (language === "he" ? "משתתף ידני" : "Manual participant"),
+              (t("ui.managerWeeklyStatDetail.manualParticipant")),
             session_id: r.session_id,
             session_date: sess.session_date,
             start_time: sess.start_time,
@@ -606,7 +596,7 @@ export default function ManagerWeeklyStatDetailScreen() {
           rows.push({
             name:
               manualNames.get(r.manual_participant_id) ??
-              (language === "he" ? "משתתף ידני" : "Manual participant"),
+              (t("ui.managerWeeklyStatDetail.manualParticipant")),
             session_id: r.session_id,
             session_date: sess.session_date,
             start_time: sess.start_time,
@@ -644,7 +634,7 @@ export default function ManagerWeeklyStatDetailScreen() {
 
       setBody(null);
     } catch (e: unknown) {
-      setError(errorMessage(e));
+      setError(e);
       setBody(null);
     } finally {
       setLoading(false);
@@ -687,7 +677,26 @@ export default function ManagerWeeklyStatDetailScreen() {
             </View>
           }
         >
-          {error ? <Text style={styles.err}>{error}</Text> : body}
+          {missingParams ? (
+            <EmptyState
+              tone="notFound"
+              title={t("dashboard.detailMissingTitle")}
+              body={t("dashboard.detailMissingBody")}
+              actionLabel={t("a11y.headerBackToOverview")}
+              onAction={() => router.replace("/(app)/manager/dashboard" as Href)}
+              isRTL={isRTL}
+            />
+          ) : error ? (
+            <ErrorState
+              title={t("errors.loadFailedTitle")}
+              body={userFacingErrorMessage(error, t)}
+              actionLabel={t("auth.retryConnection")}
+              onAction={() => void load()}
+              isRTL={isRTL}
+            />
+          ) : (
+            body
+          )}
         </CrossfadeSwap>
       </ScrollView>
     </>
@@ -707,7 +716,6 @@ const styles = StyleSheet.create({
   },
   hint: { fontSize: 13, color: theme.colors.textSoft, marginBottom: 12, lineHeight: 18 },
   rtl: { textAlign: "right", alignSelf: "stretch" },
-  err: { color: theme.colors.error, fontWeight: "700", marginTop: 12 },
   list: { gap: 10, marginTop: 8 },
   rowCard: {
     padding: theme.spacing.md,
