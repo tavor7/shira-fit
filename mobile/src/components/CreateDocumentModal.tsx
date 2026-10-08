@@ -51,6 +51,11 @@ function FieldLabel({ children, isRTL }: { children: string; isRTL: boolean }) {
   return <Text style={[modalStyles.fieldLabel, isRTL && modalStyles.rtl]}>{children}</Text>;
 }
 
+function formatAmountInput(n: number): string {
+  if (!Number.isFinite(n)) return "";
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
 export function CreateDocumentModal({ visible, onClose, prefill, onCreated }: Props) {
   const { language, t, isRTL } = useI18n();
   const [gross, setGross] = useState("");
@@ -66,7 +71,8 @@ export function CreateDocumentModal({ visible, onClose, prefill, onCreated }: Pr
 
   useEffect(() => {
     if (!visible) return;
-    setGross(prefill?.gross_amount != null ? String(prefill.gross_amount) : "");
+    // Same convention as displayMoney: whole amounts as-is, fractional ones with two decimals (1250.50, not 1250.5).
+    setGross(prefill?.gross_amount != null ? formatAmountInput(Number(prefill.gross_amount)) : "");
     setCustomerName(prefill?.customer_name ?? "");
     setCustomerEmail(prefill?.customer_email ?? "");
     setCustomerPhone(prefill?.customer_phone ?? "");

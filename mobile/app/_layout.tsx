@@ -116,6 +116,11 @@ export default function RootLayout() {
                 around the inner input. The enhanced-focus accessibility mode (!important) still applies.
               */
               [data-search-input]:focus { outline: none; }
+              /*
+                A modal root takes focus when it opens (so screen readers land inside it); a ring around the whole
+                full-screen container is noise. Controls inside the dialog keep their own focus rings.
+              */
+              [aria-modal="true"]:focus { outline: none; }
               [data-search-shell]:focus-within { border-color: ${theme.colors.text}; }
               /*
                 react-native-web renders every root <Text> with dir="auto", so each paragraph took its

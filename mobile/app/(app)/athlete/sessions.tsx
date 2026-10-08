@@ -307,6 +307,8 @@ export default function AthleteSessionsScreen() {
             />
           </View>
         ) : null}
+        {/* Both loads failed (offline): one error with one retry below, not two identical ones. */}
+        {upcomingStatus === "error" && calendarError && rows.length === 0 ? null : (
         <View
           style={[
             styles.myUpcomingCard,
@@ -369,13 +371,17 @@ export default function AthleteSessionsScreen() {
             </View>
           )}
         </View>
+        )}
 
         {calendarError && rows.length === 0 ? (
           <ErrorState
             title={t("errors.loadFailedTitle")}
             body={t("errors.network")}
             actionLabel={t("auth.retryConnection")}
-            onAction={() => void load(false)}
+            onAction={() => {
+              void load(false);
+              if (upcomingStatus === "error") void loadMyUpcoming();
+            }}
             isRTL={isRTL}
           />
         ) : (

@@ -132,7 +132,6 @@ export function AddDiscountModal({ visible, onClose, payeeId, payeeIsManual, pay
         <TextInput
           value={note}
           onChangeText={setNote}
-          placeholder="…"
           placeholderTextColor={theme.colors.placeholderOnLight}
           style={[styles.input, isRTL && styles.inputRtl]}
           editable={!busy}

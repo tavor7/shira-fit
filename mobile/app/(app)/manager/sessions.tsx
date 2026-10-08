@@ -1,3 +1,4 @@
+import { ListRowSkeleton } from "../../../src/components/ListRowSkeleton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
@@ -23,7 +24,6 @@ import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRe
 import { isSessionInActiveSeries, maintainSessionSeriesHorizon } from "../../../src/lib/sessionSeries";
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
 import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySlot";
-import { EmptyState } from "../../../src/components/EmptyState";
 import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
 import { ActiveUsersIndicator } from "../../../src/components/ActiveUsersIndicator";
 import { useRealtimeRefetch } from "../../../src/hooks/useRealtimeRefetch";
@@ -37,7 +37,7 @@ import { pluralKey } from "../../../src/lib/pluralKey";
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
   const screenContent = useScreenContentStyle("wide", { selfInset: theme.spacing.md });
-  const { language, t, isRTL } = useI18n();
+  const { language, t } = useI18n();
   const { showOk, showConfirm } = useAppAlert();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
@@ -232,7 +232,13 @@ export default function ManagerSessionsScreen() {
         <StaffAthleteScheduleLookup variant="manager" />
         <CrossfadeSwap
           loading={loading && rows.length === 0}
-          skeleton={<EmptyState title={t("common.loading")} isRTL={isRTL} style={styles.initialLoading} />}
+          skeleton={
+            <View style={styles.initialLoading}>
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+            </View>
+          }
         >
           <SessionsWeekCalendar
             items={items}
@@ -289,5 +295,5 @@ const styles = StyleSheet.create({
   activeUsersWrap: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm },
   alertsWrap: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm },
   weekActions: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md },
-  initialLoading: { paddingVertical: theme.spacing.xl },
+  initialLoading: { gap: theme.spacing.sm, paddingVertical: theme.spacing.md },
 });

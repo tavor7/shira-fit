@@ -1,3 +1,4 @@
+import { displayLtr } from "../lib/displayFormat";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -434,7 +435,7 @@ export default function FamilyManagementScreen() {
                         </Text>
                         <Text style={[styles.choiceSub, isRTL && styles.rtl]} numberOfLines={1}>
                           {row.kind === "manual"
-                            ? `${row.phone ?? ""} · ${t("ui.familyManagement.quickAdd")}`
+                            ? [row.phone?.trim() ? displayLtr(row.phone.trim()) : "", t("accountPayments.kindManual")].filter(Boolean).join(" · ")
                             : athleteSearchSubtitle(row.phone)}
                         </Text>
                       </View>
