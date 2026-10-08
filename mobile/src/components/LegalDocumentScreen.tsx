@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { theme } from "../theme";
+import { formatISODateLong } from "../lib/dateFormat";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "./AppText";
 import { fetchPublicBusinessInfo, fillLegalTokens, type PublicBusinessInfo } from "../lib/legalBusinessInfo";
@@ -40,7 +41,7 @@ export function LegalDocumentScreen({ document }: Props) {
         {document.title}
       </AppText>
       <AppText variant="caption" muted isRTL={isRTL} style={styles.updated}>
-        {t("legal.lastUpdated")}: {document.lastUpdated}
+        {t("legal.lastUpdated")}: {/^\d{4}-\d{2}-\d{2}$/.test(document.lastUpdated) ? formatISODateLong(document.lastUpdated, language) : document.lastUpdated}
       </AppText>
 
       {document.intro ? (

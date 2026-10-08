@@ -30,6 +30,8 @@ import {
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { selectionA11y } from "../lib/a11ySelection";
+import { formatISODateLong } from "../lib/dateFormat";
+import type { LanguageCode } from "../i18n/translations";
 
 type Row = ActivityLogRow;
 
@@ -262,9 +264,13 @@ async function fetchSessionsRaw(ids: string[]): Promise<SessionRow[]> {
   return out;
 }
 
-function sessionOneLine(s: SessionRow, _language: string): string {
+function sessionOneLine(s: SessionRow, language: LanguageCode, t: (key: string) => string): string {
   const time = String(s.start_time ?? "").slice(0, 5);
-  return `${s.session_date} · ${time} · max ${s.max_participants} · ${s.duration_minutes} min`;
+  return t("activityLog.sessionLine")
+    .replace("{date}", formatISODateLong(s.session_date, language))
+    .replace("{time}", time)
+    .replace("{max}", String(s.max_participants))
+    .replace("{duration}", String(s.duration_minutes));
 }
 
 export default function ManagerActivityLogScreen() {
@@ -358,7 +364,7 @@ export default function ManagerActivityLogScreen() {
         const sessions = await fetchSessionsRaw([...sessionIds]);
         const sum: Record<string, string> = {};
         for (const s of sessions) {
-          sum[s.id] = sessionOneLine(s, language);
+          sum[s.id] = sessionOneLine(s, language, t);
           profileIds.add(s.coach_id);
         }
         setSessionSummaries(sum);
@@ -373,7 +379,7 @@ export default function ManagerActivityLogScreen() {
         setLoading(false);
       }
     },
-    [activityGroup, dateFrom, dateTo, language, pageIndex]
+    [activityGroup, dateFrom, dateTo, language, pageIndex, t]
   );
 
   useEffect(() => {
