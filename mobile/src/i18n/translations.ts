@@ -555,6 +555,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "dashboard.a11yMissingAttendance": "Sessions missing attendance",
 
     "header.profile": "Profile",
+    "header.managerAthleteView": "Manager · Athlete view",
     "header.logout": "Log out",
     "common.account": "Account",
     "common.loading": "Loading…",
@@ -2141,6 +2142,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "dashboard.a11yMissingAttendance": "אימונים ללא נוכחות",
 
     "header.profile": "פרופיל",
+    "header.managerAthleteView": "מנהל · תצוגת מתאמן",
     "header.logout": "התנתקות",
     "common.account": "חשבון",
     "common.loading": "טוען…",

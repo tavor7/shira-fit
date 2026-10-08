@@ -5,31 +5,21 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useManagerAthletePreview } from "../context/ManagerAthletePreviewContext";
 import { isAthleteAccountDisabled } from "../lib/profileAccount";
-
 import { userContentTextProps } from "../lib/layoutDirection";
-function formatRole(role: string | undefined) {
-  if (!role) return "";
-  return role.charAt(0).toUpperCase() + role.slice(1);
-}
 
 /**
  * Right side of the app header: compact identity + profile + log out (language & athlete preview live in the menu).
  */
 export function AppHeaderRight() {
   const { profile, loading, signOut } = useAuth();
-  const { t, isRTL, rowFlip, language } = useI18n();
+  const { t, isRTL, rowFlip } = useI18n();
   const { enabled: athletePreview } = useManagerAthletePreview();
 
   const name = profile?.full_name || profile?.username || t("common.account");
   const pendingAthlete = profile?.role === "athlete" && profile?.approval_status === "pending";
   const blockedAthlete = pendingAthlete || isAthleteAccountDisabled(profile);
-  const baseRole = formatRole(profile?.role);
-  const roleLine =
-    profile?.role === "manager" && athletePreview
-      ? language === "he"
-        ? "מנהל · תצוגת מתאמן"
-        : "Manager · Athlete view"
-      : baseRole;
+  const baseRole = profile?.role ? t(`roles.${profile.role}`) : "";
+  const roleLine = profile?.role === "manager" && athletePreview ? t("header.managerAthleteView") : baseRole;
 
   const isNative = Platform.OS !== "web";
 
@@ -73,6 +63,7 @@ export function AppHeaderRight() {
       <View style={[styles.chipsRow, rowFlip && styles.chipsRowRtl]}>
         <Pressable
           onPress={() => router.push("/(app)/profile")}
+          hitSlop={2}
           disabled={loading || blockedAthlete}
           accessibilityRole="button"
           accessibilityLabel={t("header.profile")}
@@ -84,6 +75,7 @@ export function AppHeaderRight() {
         </Pressable>
         <Pressable
           onPress={() => void signOut()}
+          hitSlop={2}
           disabled={loading}
           accessibilityRole="button"
           accessibilityLabel={t("header.logout")}
@@ -145,7 +137,7 @@ const styles = StyleSheet.create({
   nameRtl: { textAlign: "right", writingDirection: "rtl", alignSelf: "stretch" },
   role: {
     marginTop: 1,
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "700",
     color: theme.colors.textSoft,
     textTransform: "uppercase",
@@ -156,18 +148,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.cta,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 40,
     minWidth: 40,
   },
-  chipTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 12, letterSpacing: 0.15 },
+  chipTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 12, letterSpacing: 0.15 },
   chipMuted: {
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.surfaceElevated,
+    backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     alignItems: "center",
@@ -175,6 +169,6 @@ const styles = StyleSheet.create({
     minHeight: 40,
     minWidth: 40,
   },
-  chipMutedTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 11, letterSpacing: 0.1 },
+  chipMutedTxt: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 12, letterSpacing: 0.1 },
   pressed: { opacity: 0.88 },
 });
