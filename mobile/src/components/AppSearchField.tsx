@@ -95,7 +95,7 @@ export function AppSearchField({
   }
 
   return (
-    <View style={[styles.shell, rowFlipFor(isRTL) && styles.shellRtl, style]} accessibilityRole="search">
+    <View style={[styles.shell, rowFlipFor(isRTL) && styles.shellRtl, style]} accessibilityRole="search" {...searchShellWebProps}>
       <Text style={styles.glyph} accessibilityElementsHidden importantForAccessibility="no">
         ⌕
       </Text>
@@ -113,6 +113,7 @@ export function AppSearchField({
         autoFocus={autoFocus}
         returnKeyType="search"
         onFocus={handleFocus}
+        {...searchInputWebProps}
         onBlur={onBlur}
         onSubmitEditing={() => void onSearchRef.current(value)}
       />
@@ -134,6 +135,10 @@ export function AppSearchField({
     </View>
   );
 }
+
+/** Web: hooks for the search focus style in app/_layout.tsx (the shell shows focus, not the inner input). */
+const searchShellWebProps: object = Platform.OS === "web" ? { dataSet: { searchShell: "" } } : {};
+const searchInputWebProps: object = Platform.OS === "web" ? { dataSet: { searchInput: "" } } : {};
 
 const styles = StyleSheet.create({
   shell: {

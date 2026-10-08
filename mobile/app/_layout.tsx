@@ -112,6 +112,12 @@ export default function RootLayout() {
                 outline: none;
               }
               /*
+                Search fields: the field shell shows focus (the whole 48px control), not a second ring
+                around the inner input. The enhanced-focus accessibility mode (!important) still applies.
+              */
+              [data-search-input]:focus { outline: none; }
+              [data-search-shell]:focus-within { border-color: ${theme.colors.text}; }
+              /*
                 react-native-web renders every root <Text> with dir="auto", so each paragraph took its
                 direction from its first letter: a Hebrew name turned an English row right-to-left (and
                 reversed its times), and number-only text sat left-aligned inside Hebrew cards. Paragraphs

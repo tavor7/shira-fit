@@ -1,3 +1,4 @@
+import { displayLtr } from "../lib/displayFormat";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, type Href } from "expo-router";
@@ -197,11 +198,11 @@ export function StaffAthleteScheduleLookup({ variant }: Props) {
             </Text>
             {item.kind === "app" && item.phone ? (
               <Text style={[styles.hitMeta, isRTL && styles.rtlText]} numberOfLines={1}>
-                {item.phone}
+                {displayLtr(item.phone)}
               </Text>
             ) : item.kind === "manual" && item.phone ? (
               <Text style={[styles.hitMeta, isRTL && styles.rtlText]} numberOfLines={1}>
-                {item.phone}
+                {displayLtr(item.phone)}
               </Text>
             ) : null}
           </Pressable>

@@ -514,6 +514,8 @@ const styles = StyleSheet.create({
   cardActionsRtl: { flexDirection: "row-reverse" },
   deleteBtn: {
     paddingVertical: 8,
+    minHeight: theme.controls.buttonCompactHeight,
+    justifyContent: "center",
     paddingHorizontal: 14,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.errorBg,

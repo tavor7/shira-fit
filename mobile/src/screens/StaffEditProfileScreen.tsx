@@ -1,3 +1,4 @@
+import { selectionA11y } from "../lib/a11ySelection";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
@@ -44,7 +45,7 @@ function RoleChip({
         pressed && !disabled && { opacity: 0.9 },
         disabled && !active && { opacity: 0.5 },
       ]}
-      accessibilityRole="button"
+      {...selectionA11y("radio", active, disabled)}
     >
       <Text style={[styles.roleChipTxt, active ? styles.roleChipTxtActive : styles.roleChipTxtInactive]}>{label}</Text>
     </Pressable>
@@ -473,7 +474,7 @@ export default function StaffEditProfileScreen() {
 
           <AnimatedOptionExpand open={roleSectionOpen}>
             <View style={styles.roleCardBody}>
-              <View style={[styles.roleChipRow, rowFlipFor(isRTL) && styles.roleChipRowRtl]}>
+              <View style={[styles.roleChipRow, rowFlipFor(isRTL) && styles.roleChipRowRtl]} accessibilityRole="radiogroup">
                 <RoleChip
                   label={t("roles.athlete")}
                   active={role === "athlete"}
@@ -762,14 +763,29 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     backgroundColor: theme.colors.surface,
   },
-  roleCardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  // 44px tap area reaching into the card padding (negative margin keeps the card height).
+  roleCardHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: theme.controls.minTouch,
+    paddingVertical: 10,
+    marginVertical: -10,
+  },
   roleCardHeadRtl: { flexDirection: "row-reverse" },
   roleCardChevron: { fontSize: 16, transform: [{ rotate: "0deg" }] },
   roleCardChevronOpen: { transform: [{ rotate: "180deg" }] },
   roleCardBody: { marginTop: theme.spacing.sm, gap: theme.spacing.sm },
   roleChipRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   roleChipRowRtl: { flexDirection: "row-reverse" },
-  roleChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: theme.radius.full, borderWidth: 1 },
+  roleChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minHeight: theme.controls.buttonCompactHeight,
+    justifyContent: "center",
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+  },
   roleChipActive: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   roleChipInactive: { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.borderMuted },
   roleChipTxt: { fontWeight: "800", fontSize: 12, letterSpacing: 0.2 },

@@ -1,3 +1,4 @@
+import { displayLtr } from "../lib/displayFormat";
 import { useCallback, useEffect, useState } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
@@ -256,7 +257,7 @@ export default function StaffUsersScreen() {
                     })()}
                   </Text>
                   <Text style={[styles.phone, isRTL && styles.rtlText]} numberOfLines={1}>
-                    {item.phone}
+                    {displayLtr(item.phone)}
                   </Text>
                   <View style={[styles.pillRow, rowFlipFor(isRTL) && styles.pillRowRtl]}>
                     {item.kind === "profile" ? (
