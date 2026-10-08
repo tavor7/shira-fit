@@ -25,6 +25,7 @@ import {
 } from "../lib/participantIdentity";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { roleLabel, approvalStatusLabel } from "../lib/displayLabels";
 
 type ProfileRow = {
   kind: "profile";
@@ -260,8 +261,8 @@ export default function StaffUsersScreen() {
                   <View style={[styles.pillRow, rowFlipFor(isRTL) && styles.pillRowRtl]}>
                     {item.kind === "profile" ? (
                       <>
-                        <Pill label={item.role} />
-                        <Pill label={item.approval_status} tone={approvalTone(item.approval_status)} />
+                        <Pill label={roleLabel(item.role, t)} />
+                        <Pill label={approvalStatusLabel(item.approval_status, t)} tone={approvalTone(item.approval_status)} />
                       </>
                     ) : (
                       <Pill label={t("pricing.quickAddLabel")} />

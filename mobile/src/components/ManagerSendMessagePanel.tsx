@@ -33,6 +33,7 @@ import { formatISODateDayMonthWithWeekday, parseInstantIso } from "../lib/dateFo
 import { appLocale } from "../lib/appLocale";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { selectionA11y } from "../lib/a11ySelection";
+import { roleLabel } from "../lib/displayLabels";
 
 const STUDIO_TZ = "Asia/Jerusalem";
 
@@ -274,7 +275,7 @@ export function ManagerSendMessagePanel() {
                         {h.full_name}
                       </AppText>
                       <AppText variant="caption" muted numberOfLines={1}>
-                        {h.role}
+                        {roleLabel(h.role, t)}
                       </AppText>
                     </View>
                   </Pressable>
@@ -295,7 +296,7 @@ export function ManagerSendMessagePanel() {
                   {selected.full_name}
                 </AppText>
                 <AppText variant="caption" muted isRTL={isRTL}>
-                  {selected.role}
+                  {roleLabel(selected.role, t)}
                 </AppText>
               </View>
             </View>

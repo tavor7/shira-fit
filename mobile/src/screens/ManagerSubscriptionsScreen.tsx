@@ -200,7 +200,7 @@ function ActiveSubscriptionRow({
           </View>
         </View>
       </View>
-      <Text style={[styles.rowSub, isRTL && styles.rtl]}>{displayMoney(row.monthly_price_ils)} / mo</Text>
+      <Text style={[styles.rowSub, isRTL && styles.rtl]}>{t("athleteSubscription.priceLine").replace("{price}", displayMoney(row.monthly_price_ils))}</Text>
       <View style={[styles.rowMeta, rowFlipFor(isRTL) && styles.rowMetaRtl]}>
         <Text style={[styles.rowMetaText, isRTL && styles.rtl]}>
           {t("subscriptions.rowStart")}: {formatISODateFull(row.plan_start_date, language)}
@@ -249,7 +249,7 @@ function HistorySubscriptionRow({
           )}
         </View>
       </View>
-      <Text style={[styles.rowSub, isRTL && styles.rtl]}>{displayMoney(row.monthly_price_ils)} / mo</Text>
+      <Text style={[styles.rowSub, isRTL && styles.rtl]}>{t("athleteSubscription.priceLine").replace("{price}", displayMoney(row.monthly_price_ils))}</Text>
     </Pressable>
   );
 }

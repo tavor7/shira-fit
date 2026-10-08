@@ -47,6 +47,7 @@ import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { selectionA11y } from "../lib/a11ySelection";
+import { roleLabel } from "../lib/displayLabels";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
 
@@ -300,7 +301,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
   function selectCoach(opt: CoachOption) {
     setCoachId(opt.user_id);
-    setCoachLabel(`${opt.full_name} — ${opt.role}`);
+    setCoachLabel(`${opt.full_name} — ${roleLabel(opt.role, t)}`);
     setCoachColor(opt.calendar_color ?? null);
     setShowCoachPicker(false);
   }

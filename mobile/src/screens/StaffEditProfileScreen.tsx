@@ -18,6 +18,8 @@ import { fetchUsersLegalConsentSummary, type UserLegalConsentStatus } from "../l
 import { TRAINER_COLOR_PRESETS, resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { roleLabel } from "../lib/displayLabels";
+import { SegmentedChoice } from "../components/SegmentedChoice";
 
 type Role = "athlete" | "coach" | "manager";
 
@@ -586,7 +588,7 @@ export default function StaffEditProfileScreen() {
               <AppText variant="caption" isRTL={isRTL} style={styles.duplicateRowTxt} numberOfLines={2}>
                 {t("profile.duplicateNameLine")
                   .replace("{phone}", row.phone || "—")
-                  .replace("{role}", row.role)}
+                  .replace("{role}", roleLabel(row.role, t))}
               </AppText>
             </Pressable>
           ))}
@@ -624,22 +626,17 @@ export default function StaffEditProfileScreen() {
       <AppText variant="label" muted isRTL={isRTL} style={styles.genderLabel}>
         {t("profile.gender")}
       </AppText>
-      <View style={[styles.genderRow, rowFlipFor(isRTL) && styles.genderRowRtl]}>
-        <Pressable
-          onPress={() => setGender("male")}
-          style={({ pressed }) => [styles.genderBtn, gender === "male" && styles.genderBtnOn, pressed && { opacity: 0.9 }]}
-          accessibilityRole="button"
-        >
-          <AppText style={[styles.genderTxt, gender === "male" && styles.genderTxtOn]}>{t("profile.male")}</AppText>
-        </Pressable>
-        <Pressable
-          onPress={() => setGender("female")}
-          style={({ pressed }) => [styles.genderBtn, gender === "female" && styles.genderBtnOn, pressed && { opacity: 0.9 }]}
-          accessibilityRole="button"
-        >
-          <AppText style={[styles.genderTxt, gender === "female" && styles.genderTxtOn]}>{t("profile.female")}</AppText>
-        </Pressable>
-      </View>
+      <SegmentedChoice
+        options={[
+          { value: "male", label: t("profile.male") },
+          { value: "female", label: t("profile.female") },
+        ]}
+        value={gender}
+        onChange={setGender}
+        isRTL={isRTL}
+        accessibilityLabel={t("profile.gender")}
+        style={styles.genderRow}
+      />
 
       <DatePickerField label={t("profile.dob")} value={dob} onChange={setDob} />
 
@@ -845,23 +842,6 @@ const styles = StyleSheet.create({
   enableAccountTxt: { color: theme.colors.text, fontWeight: "900", letterSpacing: 0.2 },
   rtlText: { textAlign: "right" },
   genderRow: { flexDirection: "row", gap: 10, marginTop: 6 },
-  genderRowRtl: { flexDirection: "row-reverse" },
-  genderBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surfaceElevated,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  genderBtnOn: {
-    backgroundColor: theme.colors.cta,
-    borderColor: theme.colors.cta,
-  },
-  genderTxt: { fontWeight: "900", color: theme.colors.textMuted, letterSpacing: 0.2 },
-  genderTxtOn: { color: theme.colors.ctaText },
   duplicateHint: { marginTop: 6 },
   duplicateCard: {
     marginTop: 8,

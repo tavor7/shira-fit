@@ -17,6 +17,7 @@ import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { LegalFooterLinks } from "../../src/components/LegalFooterLinks";
 import { rowFlipFor } from "../../src/lib/layoutDirection";
 import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
+import { roleLabel } from "../../src/lib/displayLabels";
 
 function getUpdateErrorMessage(message: string, t: (key: string) => string) {
   const msg = (message || "").toLowerCase();
@@ -173,7 +174,7 @@ export default function ProfileScreen() {
           {t("profile.selfTitle")}
         </AppText>
         <AppText muted isRTL={rtl} style={styles.subtitle}>
-          {t("profile.selfSubtitle").replace("{role}", profile.role)}
+          {t("profile.selfSubtitle").replace("{role}", roleLabel(profile.role, t))}
         </AppText>
 
         <View style={[styles.segmentTrack, rowFlipFor(rtl) && styles.segmentTrackRtl]} accessibilityRole="tablist">

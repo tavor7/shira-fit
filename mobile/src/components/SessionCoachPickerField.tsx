@@ -4,6 +4,7 @@ import { theme } from "../theme";
 import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { useI18n } from "../context/I18nContext";
 import { CoachPickerSheet } from "./CoachPickerSheet";
+import { roleLabel } from "../lib/displayLabels";
 
 export type CoachOption = {
   user_id: string;
@@ -13,8 +14,9 @@ export type CoachOption = {
   calendar_color?: string | null;
 };
 
-export function formatCoachOptionLabel(opt: CoachOption): string {
-  return `${opt.full_name} — ${opt.role}`;
+/** "Name — Role"; pass `t` so the role is shown in the UI language instead of the stored value. */
+export function formatCoachOptionLabel(opt: CoachOption, t?: (key: string) => string): string {
+  return `${opt.full_name} — ${t ? roleLabel(opt.role, t) : opt.role}`;
 }
 
 type Props = {

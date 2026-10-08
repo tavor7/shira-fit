@@ -345,14 +345,14 @@ export default function CoachSessionManageScreen() {
       .select("user_id, full_name, role, username, calendar_color")
       .eq("user_id", session.coach_id)
       .maybeSingle();
-    if (data) setDupCoachLabel(formatCoachOptionLabel(data as CoachOption));
+    if (data) setDupCoachLabel(formatCoachOptionLabel(data as CoachOption, t));
     else setDupCoachLabel("");
     setDupOpen(true);
   }
 
   function selectDupCoach(opt: CoachOption) {
     setDupCoachId(opt.user_id);
-    setDupCoachLabel(formatCoachOptionLabel(opt));
+    setDupCoachLabel(formatCoachOptionLabel(opt, t));
   }
 
   async function duplicateSession() {

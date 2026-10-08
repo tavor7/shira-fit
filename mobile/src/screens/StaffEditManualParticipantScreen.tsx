@@ -18,6 +18,7 @@ import {
 } from "../lib/participantIdentity";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { SegmentedChoice } from "../components/SegmentedChoice";
 
 export default function StaffEditManualParticipantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -294,13 +295,20 @@ export default function StaffEditManualParticipantScreen() {
         containerStyle={styles.field}
       />
 
-      <AppTextField
-        label={t("profile.gender")}
+      <AppText variant="label" muted isRTL={isRTL} style={styles.choiceLabel}>
+        {t("profile.gender")}
+      </AppText>
+      {/* Male/female choice; any other stored value is kept unless a choice is made. */}
+      <SegmentedChoice
+        options={[
+          { value: "male", label: t("profile.male") },
+          { value: "female", label: t("profile.female") },
+        ]}
         value={gender}
-        onChangeText={setGender}
-        placeholder={t("manualParticipant.genderPlaceholder")}
+        onChange={setGender}
         isRTL={isRTL}
-        containerStyle={styles.field}
+        accessibilityLabel={t("profile.gender")}
+        style={styles.field}
       />
 
       <AppTextField
@@ -381,6 +389,7 @@ const styles = StyleSheet.create({
   metaRowRtl: { alignItems: "flex-end" },
   metaDisabled: { color: theme.colors.warning, fontWeight: "800" },
   field: { marginTop: theme.spacing.sm },
+  choiceLabel: { marginTop: theme.spacing.sm, marginBottom: theme.spacing.xs, textTransform: "uppercase" },
   duplicateHint: { marginTop: theme.spacing.xs },
   duplicateCard: {
     marginTop: theme.spacing.sm,

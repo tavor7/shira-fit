@@ -938,12 +938,12 @@ export default function ManagerSessionDetail() {
         .eq("user_id", coachId)
         .single();
       if (cancelled || !data) return;
-      setCoachLabel(formatCoachOptionLabel(data as CoachOption));
+      setCoachLabel(formatCoachOptionLabel(data as CoachOption, t));
     })();
     return () => {
       cancelled = true;
     };
-  }, [coachId]);
+  }, [coachId, t]);
 
   useEffect(() => {
     load();
@@ -1187,7 +1187,7 @@ export default function ManagerSessionDetail() {
 
   function selectDupCoach(opt: SessionCoachOption) {
     setDupCoachId(opt.user_id);
-    setDupCoachLabel(formatCoachOptionLabel(opt));
+    setDupCoachLabel(formatCoachOptionLabel(opt, t));
   }
 
   async function runDeleteWithScope(scope?: SeriesScope) {
@@ -1561,7 +1561,7 @@ export default function ManagerSessionDetail() {
               onSelect={(opt) => {
                 pushUndo();
                 setCoachId(opt.user_id);
-                setCoachLabel(formatCoachOptionLabel(opt));
+                setCoachLabel(formatCoachOptionLabel(opt, t));
               }}
             />
           </View>

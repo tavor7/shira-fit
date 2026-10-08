@@ -29,6 +29,7 @@ import {
 } from "../lib/whatsappFeature";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { roleLabel } from "../lib/displayLabels";
 
 const MODES: WhatsAppRolloutMode[] = ["off", "testing", "live"];
 
@@ -313,7 +314,7 @@ export default function WhatsAppRolloutScreen() {
                       >
                         <Text style={[styles.hitName, isRTL && styles.rtl]}>{h.full_name}</Text>
                         <Text style={[styles.hitMeta, isRTL && styles.rtl]}>
-                          {h.role} · {h.phone}
+                          {roleLabel(h.role, t)} · {h.phone}
                         </Text>
                       </Pressable>
                     ))
