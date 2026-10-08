@@ -203,8 +203,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
-    padding: 3,
-    gap: 3,
+    // Tight enough that seven days are each ≥44px wide on a 375px phone.
+    padding: 2,
+    gap: 2,
   },
   dayTrackRtl: { flexDirection: "row-reverse" },
   dayBtn: {

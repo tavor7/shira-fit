@@ -1,3 +1,5 @@
+import { selectionA11y } from "../lib/a11ySelection";
+import { AppIcon } from "../components/AppIcon";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -231,7 +233,7 @@ export default function WhatsAppRolloutScreen() {
         <>
           <View style={[styles.card, surface.card]}>
             <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>{t("whatsapp.rolloutTitle")}</Text>
-            <View style={[styles.modeRow, rowFlipFor(isRTL) && styles.modeRowRtl]}>
+            <View style={[styles.modeRow, rowFlipFor(isRTL) && styles.modeRowRtl]} accessibilityRole="radiogroup">
               {MODES.map((m) => {
                 const on = mode === m;
                 return (
@@ -239,8 +241,9 @@ export default function WhatsAppRolloutScreen() {
                     key={m}
                     onPress={() => setMode(m)}
                     style={({ pressed }) => [styles.modeBtn, on && styles.modeBtnOn, pressed && !on && styles.pressed]}
+                    {...selectionA11y("radio", on)}
                   >
-                    <Text style={[styles.modeBtnTxt, on && styles.modeBtnTxtOn, isRTL && styles.rtl]} numberOfLines={1}>
+                    <Text style={[styles.modeBtnTxt, on && styles.modeBtnTxtOn]} numberOfLines={1}>
                       {modeLabel(m)}
                     </Text>
                   </Pressable>
@@ -282,7 +285,7 @@ export default function WhatsAppRolloutScreen() {
                           accessibilityLabel={t("common.remove")}
                           style={({ pressed }) => [styles.chipRemove, pressed && { opacity: 0.7 }]}
                         >
-                          <Text style={styles.chipRemoveTxt}>×</Text>
+                          <AppIcon name="close" size="sm" color={theme.colors.textSoft} />
                         </Pressable>
                       </View>
                     );
@@ -417,8 +420,8 @@ const styles = StyleSheet.create({
   chipActive: { borderColor: theme.colors.cta, backgroundColor: theme.colors.surface },
   chipRemovable: { flexDirection: "row", alignItems: "center", gap: 6 },
   chipRemovableRtl: { flexDirection: "row-reverse" },
-  chipRemove: { marginLeft: 2 },
-  chipRemoveTxt: { fontSize: 15, fontWeight: "800", color: theme.colors.textSoft, lineHeight: 16 },
+  // 44px hit area around a small icon inside the chip (padding cancelled by a negative margin).
+  chipRemove: { padding: 12, margin: -12, marginStart: -10 },
   chipTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
   chipTxtActive: { color: theme.colors.text },
   search: {
@@ -427,6 +430,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    minHeight: theme.controls.minTouch,
     color: theme.colors.text,
     backgroundColor: theme.colors.surfaceElevated,
   },
