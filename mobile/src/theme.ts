@@ -65,6 +65,12 @@ export const theme = {
     xl: 28,
     full: 9999,
   },
+  /**
+   * Type hierarchy (DESIGN.md §3). Roles: display = page title; headline = section title;
+   * title = card / row title; body = primary text; secondary = supporting text; caption = metadata;
+   * label = field labels and eyebrows; helper = field help and error text; button / buttonCompact;
+   * tab = tabs, segments and chips.
+   */
   typography: {
     display: {
       fontSize: 22,
@@ -93,7 +99,7 @@ export const theme = {
     label: {
       fontSize: 12,
       fontWeight: "700" as const,
-      lineHeight: 14,
+      lineHeight: 16,
       letterSpacing: 0.3,
     },
     caption: {
@@ -102,6 +108,45 @@ export const theme = {
       lineHeight: 18,
       letterSpacing: 0.15,
     },
+    secondary: {
+      fontSize: 14,
+      fontWeight: "500" as const,
+      lineHeight: 20,
+      letterSpacing: 0.15,
+    },
+    helper: {
+      fontSize: 13,
+      fontWeight: "500" as const,
+      lineHeight: 18,
+      letterSpacing: 0.1,
+    },
+    button: {
+      fontSize: 16,
+      fontWeight: "600" as const,
+      lineHeight: 20,
+      letterSpacing: 0.2,
+    },
+    buttonCompact: {
+      fontSize: 14,
+      fontWeight: "600" as const,
+      lineHeight: 18,
+      letterSpacing: 0.15,
+    },
+    tab: {
+      fontSize: 13,
+      fontWeight: "700" as const,
+      lineHeight: 18,
+      letterSpacing: 0.15,
+    },
+  },
+  /** Interactive control sizes. 44 is the minimum touch target (WCAG 2.5.5 / Apple HIG). */
+  controls: {
+    minTouch: 44,
+    buttonHeight: 52,
+    buttonCompactHeight: 44,
+    inputHeight: 48,
+    segmentHeight: 40,
+    chipHeight: 32,
   },
   overlay: {
     backdrop: "rgba(0,0,0,0.55)",
