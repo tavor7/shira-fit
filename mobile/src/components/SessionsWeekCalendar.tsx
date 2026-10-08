@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
@@ -98,6 +99,11 @@ type Props = {
 
 const DAY_NAMES_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_NAMES_HE = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+
+/** Day column geometry (see styles.dayCol / styles.scrollerContent), used to open the week on today. */
+const DAY_COLUMN_WIDTH = 124;
+const DAY_COLUMN_GAP = theme.spacing.sm;
+const DAY_SCROLLER_PADDING = theme.spacing.md;
 
 function addDays(d: Date, days: number) {
   const next = new Date(d);
@@ -192,11 +198,14 @@ export function SessionsWeekCalendar({
   const pendingScrollDirRef = useRef<1 | -1 | null>(null);
   /** Last navigation direction, for the day columns' direction-aware enter animation. Not cleared like the scroll ref. */
   const weekDirRef = useRef<1 | -1>(1);
+  /** Today's column is brought into view once, on first layout, unless the user has already changed week. */
+  const anchoredTodayRef = useRef(false);
 
   function bumpWeek(delta: number) {
     const next = weekOffset + delta;
     if (minWeekOffset != null && next < minWeekOffset) return;
     if (maxWeekOffset != null && next > maxWeekOffset) return;
+    anchoredTodayRef.current = true;
     pendingScrollDirRef.current = delta > 0 ? 1 : -1;
     weekDirRef.current = delta > 0 ? 1 : -1;
     if (controlled) {
@@ -257,6 +266,31 @@ export function SessionsWeekCalendar({
 
   const weekStartIso = weekDays[0]?.iso ?? "";
   const weekEndIso = weekDays[6]?.iso ?? "";
+
+  /** Opening position: when the week does not fit, centre today's column instead of showing the week's first days. */
+  function onScrollerLayout(e: LayoutChangeEvent) {
+    if (anchoredTodayRef.current) return;
+    const todayIndex = weekDays.findIndex((d) => d.iso === todayIso);
+    const sv = scrollRef.current;
+    if (todayIndex < 0 || !sv) return;
+    anchoredTodayRef.current = true;
+    const viewport = e.nativeEvent.layout.width;
+    const content = DAY_SCROLLER_PADDING * 2 + weekDays.length * DAY_COLUMN_WIDTH + (weekDays.length - 1) * DAY_COLUMN_GAP;
+    const maxScroll = content - viewport;
+    if (maxScroll <= 0) return;
+    // Columns run right to left in the browser-mirrored (web RTL) or manually reversed row.
+    const webRtl = Platform.OS === "web" && isRTL;
+    const fromLeft = webRtl || rowFlip ? weekDays.length - 1 - todayIndex : todayIndex;
+    const centre = DAY_SCROLLER_PADDING + fromLeft * (DAY_COLUMN_WIDTH + DAY_COLUMN_GAP) + DAY_COLUMN_WIDTH / 2;
+    const left = Math.min(maxScroll, Math.max(0, centre - viewport / 2));
+    if (webRtl) {
+      // Browser-mirrored RTL scroller: offsets run from 0 (right edge) to -maxScroll (left edge).
+      const node = (sv as unknown as { getScrollableNode?: () => HTMLElement | null }).getScrollableNode?.();
+      if (node) (Element.prototype.scrollTo as (this: Element, options: ScrollToOptions) => void).call(node, { left: left - maxScroll });
+      return;
+    }
+    sv.scrollTo({ x: left, animated: false });
+  }
   const onWeekChangeRef = useRef(onWeekChange);
   onWeekChangeRef.current = onWeekChange;
   const lastReportedWeekRef = useRef<{ start: string; end: string } | null>(null);
@@ -391,6 +425,7 @@ export function SessionsWeekCalendar({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={[styles.scrollerContent, rowFlip && styles.scrollerContentRtl]}
           style={styles.scroller}
+          onLayout={onScrollerLayout}
         >
           {weekDays.map((d) => {
             const dayList = byDate.get(d.iso) ?? [];
@@ -589,15 +624,15 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "flex-start",
-    gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
+    gap: DAY_COLUMN_GAP,
+    paddingHorizontal: DAY_SCROLLER_PADDING,
     paddingVertical: 2,
     ...(Platform.OS === "web" ? ({ minWidth: "100%" } as const) : {}),
   },
   scrollerContentRtl: { flexDirection: "row-reverse" },
   dayCol: {
     /** Slightly wider so session + waitlist CTA stay readable without ellipsis */
-    width: 124,
+    width: DAY_COLUMN_WIDTH,
     borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.surfaceElevated,
     paddingHorizontal: theme.spacing.sm,
