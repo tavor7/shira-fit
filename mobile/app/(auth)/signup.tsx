@@ -38,9 +38,7 @@ const minDob = new Date(1900, 0, 1);
 const SUCCESS_HOLD_MS = 550;
 
 function emailInUseMessage(language: string): string {
-  return language === "he"
-    ? "האימייל הזה כבר בשימוש. התחברו או השתמשו ב\"שכחתי סיסמה\"."
-    : "This email is already in use. Sign in or use Forgot password.";
+  return language === "he" ? "האימייל הזה כבר בשימוש. התחברו או השתמשו ב\"שכחתי סיסמה\"." : "This email is already in use. Sign in or use Forgot password.";
 }
 
 function getSignupErrorMessage(error: { message: string }, language: string): string {
@@ -93,35 +91,29 @@ export default function SignupScreen() {
     setSubmitAttempts((n) => n + 1);
     if (!email.trim() || password.length < 6 || !fullName.trim() || !phone.trim() || !address.trim() || !zipCode.trim()) {
       setErrorMessage(
-        language === "he"
-          ? "אנא מלאו אימייל, סיסמה (מינימום 6), שם מלא, טלפון, כתובת ומיקוד."
-          : "Please fill in email, password (min 6), full name, phone, address, and zip code."
+        t("ui.signup.pleaseFillInEmailPasswordMin")
       );
       return;
     }
     if (!healthConfirmed) {
       setErrorMessage(
-        language === "he"
-          ? "אנא מלאו את הצהרת הבריאות ואשרו זאת לפני ההרשמה."
-          : "Please complete the health declaration and confirm it before signing up."
+        t("ui.signup.pleaseCompleteTheHealthDeclarationAnd")
       );
       return;
     }
     if (!termsAccepted || !privacyAccepted) {
       setErrorMessage(
-        language === "he"
-          ? "יש לאשר את תקנון האתר ואת מדיניות הפרטיות כדי להירשם."
-          : "Please accept the Terms of Use and Privacy Policy to sign up."
+        t("ui.signup.pleaseAcceptTheTermsOfUse")
       );
       return;
     }
     if (!isValidISODateString(dobText.trim())) {
-      setErrorMessage(language === "he" ? "בחרו תאריך לידה תקין." : "Please choose a valid date of birth.");
+      setErrorMessage(t("ui.signup.pleaseChooseAValidDateOf"));
       return;
     }
     const dobFinal = parseISODateLocal(dobText.trim())!;
     if (dobFinal > today || dobFinal < minDob) {
-      setErrorMessage(language === "he" ? "תאריך הלידה חייב להיות בין 1900 להיום." : "Date of birth must be between 1900 and today.");
+      setErrorMessage(t("ui.signup.dateOfBirthMustBeBetween"));
       return;
     }
     const dobIso = toISODateLocal(dobFinal);
@@ -235,7 +227,7 @@ export default function SignupScreen() {
             variant="dark"
             label={t("auth.email")}
             isRTL={isRTL}
-            placeholder={t("auth.email")}
+           
             autoCapitalize="none"
             keyboardType="email-address"
             error={missing(email)}
@@ -250,7 +242,7 @@ export default function SignupScreen() {
             variant="dark"
             label={t("auth.passwordMin6")}
             isRTL={isRTL}
-            placeholder={t("auth.passwordMin6")}
+           
             secureTextEntry
             error={submitAttempts > 0 && password.length < 6}
             value={password}
@@ -261,7 +253,7 @@ export default function SignupScreen() {
             variant="dark"
             label={t("profile.fullName")}
             isRTL={isRTL}
-            placeholder={t("profile.fullName")}
+           
             error={missing(fullName)}
             value={fullName}
             onChangeText={setFullName}
@@ -271,7 +263,7 @@ export default function SignupScreen() {
             variant="dark"
             label={t("profile.phone")}
             isRTL={isRTL}
-            placeholder={t("profile.phone")}
+           
             keyboardType="phone-pad"
             error={missing(phone)}
             value={phone}
@@ -282,7 +274,7 @@ export default function SignupScreen() {
             variant="dark"
             label={t("profile.address")}
             isRTL={isRTL}
-            placeholder={t("profile.address")}
+           
             error={missing(address)}
             value={address}
             onChangeText={setAddress}
@@ -292,7 +284,7 @@ export default function SignupScreen() {
             variant="dark"
             label={t("profile.zipCode")}
             isRTL={isRTL}
-            placeholder={t("profile.zipCode")}
+           
             keyboardType="number-pad"
             error={missing(zipCode)}
             value={zipCode}

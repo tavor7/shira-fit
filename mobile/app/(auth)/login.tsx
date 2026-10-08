@@ -242,7 +242,7 @@ export default function LoginScreen() {
           </View>
         </FadeSlideIn>
         <FadeSlideIn delay={160}>
-          <AppText variant="title" isRTL={isRTL} style={styles.title}>
+          <AppText variant="headline" isRTL={isRTL} style={styles.title} accessibilityRole="header">
             {t("auth.loginTitle")}
           </AppText>
         </FadeSlideIn>
@@ -378,11 +378,10 @@ const styles = StyleSheet.create({
     width: 200,
     height: 41,
   },
+  /** The screen's heading (it is the only title on the login screen). */
   title: {
     textAlign: "center",
     marginBottom: theme.spacing.lg,
-    color: theme.colors.alertSubject,
-    fontWeight: "600",
   },
   errorBox: {
     backgroundColor: theme.colors.errorBg,

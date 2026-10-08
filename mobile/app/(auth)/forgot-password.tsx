@@ -19,6 +19,7 @@ import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { buildAuthRedirectUrl } from "../../src/lib/authRedirect";
 import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
+import { userFacingErrorMessage } from "../../src/lib/userFacingError";
 
 const MAX_EMAIL_LEN = 254;
 
@@ -35,6 +36,10 @@ export default function ForgotPasswordScreen() {
       setErrorMessage(t("auth.loginErrorEmailRequired"));
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setErrorMessage(t("auth.loginErrorInvalidEmail"));
+      return;
+    }
     setBusy(true);
     try {
       const redirectTo = buildAuthRedirectUrl("/(auth)/reset-password");
@@ -42,7 +47,7 @@ export default function ForgotPasswordScreen() {
         redirectTo,
       });
       if (error) {
-        setErrorMessage(error.message);
+        setErrorMessage(userFacingErrorMessage(error, t));
         return;
       }
       router.replace({
@@ -95,6 +100,8 @@ export default function ForgotPasswordScreen() {
           autoComplete="email"
           textContentType="emailAddress"
           autoCorrect={false}
+          returnKeyType="send"
+          onSubmitEditing={() => void sendReset()}
           value={email}
           maxLength={MAX_EMAIL_LEN}
           onChangeText={(v) => {
