@@ -16,7 +16,7 @@ import { PrimaryButton } from "./PrimaryButton";
 import { DEFAULT_SESSION_START_TIME, suggestNextSessionStartTime } from "../lib/sessionTime";
 import { isMissingSessionSeriesRpc, staffCreateSessionSeries } from "../lib/sessionSeries";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
-import { appendNetworkHint } from "../lib/networkErrors";
+import { userFacingErrorMessage } from "../lib/userFacingError";
 import { toISODateLocal, isValidISODateString } from "../lib/isoDate";
 import { SessionWhenFields } from "./SessionWhenFields";
 import { SessionCapacityFields } from "./SessionCapacityFields";
@@ -872,7 +872,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         <View style={styles.footer}>
           {error ? (
             <Text style={[sf.error, isRTL && styles.rtlText]} accessibilityLiveRegion="polite">
-              {appendNetworkHint(error, t("network.offlineHint"))}
+              {userFacingErrorMessage(error, t)}
             </Text>
           ) : null}
           <PrimaryButton

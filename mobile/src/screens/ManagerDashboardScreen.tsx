@@ -8,7 +8,8 @@ import { formatISODateFull } from "../lib/dateFormat";
 import { firstDayOfMonthISOLocal, lastDayOfMonthISOLocal, monthRangeISO, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "../components/AppText";
-import { ActionButton } from "../components/ActionButton";
+import { ErrorState } from "../components/EmptyState";
+import { userFacingErrorMessage } from "../lib/userFacingError";
 import { Skeleton } from "../components/Skeleton";
 import { StatusChip } from "../components/StatusChip";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
@@ -647,10 +648,13 @@ export default function ManagerDashboardScreen() {
       </CrossfadeSwap>
 
       {!loading && data && !data.ok ? (
-        <View style={styles.errBlock}>
-          <Text style={styles.err}>{data.error ?? t("common.error")}</Text>
-          <ActionButton label={t("auth.retryConnection")} onPress={() => void load()} style={styles.errRetryBtn} />
-        </View>
+        <ErrorState
+          title={t("errors.loadFailedTitle")}
+          body={userFacingErrorMessage(data.error, t)}
+          actionLabel={t("auth.retryConnection")}
+          onAction={() => void load()}
+          isRTL={isRTL}
+        />
       ) : null}
 
       {showStats && (data.session_count ?? 0) === 0 ? (
@@ -1065,9 +1069,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.15,
     lineHeight: 20,
   },
-  err: { color: theme.colors.error, fontWeight: "700", marginTop: 8 },
-  errBlock: { alignItems: "flex-start" },
-  errRetryBtn: { marginTop: theme.spacing.sm },
   statsCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.xl,

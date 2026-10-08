@@ -9,6 +9,8 @@ import { formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateForma
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { ActionButton } from "../../../../src/components/ActionButton";
+import { EmptyState, ErrorState } from "../../../../src/components/EmptyState";
+import { classifyUserError, userFacingErrorMessage } from "../../../../src/lib/userFacingError";
 import { ConfettiBurst } from "../../../../src/components/ConfettiBurst";
 import { DeflatingCard } from "../../../../src/components/DeflatingCard";
 import { useI18n } from "../../../../src/context/I18nContext";
@@ -363,25 +365,31 @@ export default function AthleteSessionDetail() {
         <Skeleton height={52} radius={theme.radius.md} style={{ marginTop: theme.spacing.sm }} />
       </View>
     );
-  if (loadError)
+  if (loadError && classifyUserError(loadError) !== "notFound")
     return (
       <View style={[styles.box, screenContent]}>
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
-        <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
-          {loadError}
-        </AppText>
-        <View style={{ marginTop: theme.spacing.md }}>
-          <ActionButton label={t("auth.retryConnection")} onPress={() => router.replace(`/(app)/athlete/session/${sessionId}`)} />
-        </View>
+        <ErrorState
+          title={t("errors.loadFailedTitle")}
+          body={userFacingErrorMessage(loadError, t)}
+          actionLabel={t("auth.retryConnection")}
+          onAction={() => router.replace(`/(app)/athlete/session/${sessionId}`)}
+          isRTL={isRTL}
+        />
       </View>
     );
   if (!session)
     return (
       <View style={[styles.box, screenContent]}>
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
-        <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
-          {t("athleteSession.notFound")}
-        </AppText>
+        <EmptyState
+          tone="notFound"
+          title={t("errors.notFoundTitle")}
+          body={t("athleteSession.notFound")}
+          actionLabel={t("common.back")}
+          onAction={() => router.replace("/(app)/athlete/sessions")}
+          isRTL={isRTL}
+        />
       </View>
     );
   const full = count >= session.max_participants;

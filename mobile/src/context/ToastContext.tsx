@@ -4,6 +4,8 @@ import { theme } from "../theme";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { useBottomChrome } from "./BottomChromeContext";
 import { toastBottomOffset } from "../lib/screenLayout";
+import { useI18n } from "./I18nContext";
+import { toUserFacingText } from "../lib/userFacingError";
 
 type ToastPayload = {
   message: string;
@@ -26,9 +28,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   // Above the contact footer, bottom bars and the floating accessibility button (lib/screenLayout).
   const toastBottom = toastBottomOffset(useBottomChrome());
 
+  const { t } = useI18n();
+
   const showToast = useCallback(
-    (p: ToastPayload) => {
+    (raw: ToastPayload) => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
+      // Never show raw technical error text (see lib/userFacingError).
+      const p = { ...raw, message: toUserFacingText(raw.message, t) ?? raw.message, detail: toUserFacingText(raw.detail, t) };
       setToast(p);
       if (Platform.OS === "ios" || Platform.OS === "android") {
         const a11y = p.detail ? `${p.message}. ${p.detail}` : p.message;
@@ -50,7 +56,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         }).start(() => setToast(null));
       }, TOAST_MS);
     },
-    [progress]
+    [progress, t]
   );
 
   return (

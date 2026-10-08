@@ -29,7 +29,8 @@ import {
   ATHLETE_BROWSE_MAX_WEEK_OFFSET,
 } from "../../../src/lib/studioWeek";
 import { AppText } from "../../../src/components/AppText";
-import { EmptyState } from "../../../src/components/EmptyState";
+import { EmptyState, ErrorState } from "../../../src/components/EmptyState";
+import { ListRowSkeleton } from "../../../src/components/ListRowSkeleton";
 import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../src/components/PressableScale";
 import { rowFlipFor } from "../../../src/lib/layoutDirection";
@@ -49,10 +50,14 @@ export default function AthleteSessionsScreen() {
   const waitlistBusyRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  /** The week's sessions failed to load: show an error with retry instead of an empty (or endlessly loading) calendar. */
+  const [calendarError, setCalendarError] = useState(false);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
   const defaultWeek = useMemo(() => weekBoundsSunday(studioTodayIso()), []);
   const [myUpcoming, setMyUpcoming] = useState<TrainingSessionWithTrainer[]>([]);
+  /** Loading and failure are distinct from "no upcoming sessions" (which is only shown after a successful load). */
+  const [upcomingStatus, setUpcomingStatus] = useState<"loading" | "ready" | "error">("loading");
   const [homeAlerts, setHomeAlerts] = useState<HomePriorityAlertItem[]>([]);
   const [priorityAlertsVisibleCount, setPriorityAlertsVisibleCount] = useState<number | null>(null);
   const [weekRange, setWeekRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
@@ -74,39 +79,47 @@ export default function AthleteSessionsScreen() {
     else setLoading(true);
     // Idempotent server-side backup for a late cron; doesn't need to block the fetch below.
     void touchWeeklyRegistrationOpenIfDue();
-    const [calendarRes, alertItems] = await Promise.all([
-      fetchAthleteOpenSessionsForCalendar(),
-      fetchAthleteHomeAlertItems(language),
-    ]);
-    setHomeAlerts(alertItems);
-    const { data, error } = calendarRes;
-    const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
-    setRows(list);
-    setSignupBySession(await fetchActiveSignupCountsBySession(list.map((s) => s.id)));
-
-    const uid = (await supabase.auth.getUser()).data.user?.id;
-    if (uid && list.length > 0) {
-      const ids = list.map((s) => s.id);
-      const [regRes, wlRes] = await Promise.all([
-        supabase.from("session_registrations").select("session_id").eq("user_id", uid).eq("status", "active").in("session_id", ids),
-        supabase.from("waitlist_requests").select("session_id").eq("user_id", uid).in("session_id", ids),
+    try {
+      const [calendarRes, alertItems] = await Promise.all([
+        fetchAthleteOpenSessionsForCalendar(),
+        fetchAthleteHomeAlertItems(language),
       ]);
-      setMyRegSessionIds((regRes.data ?? []).map((r) => String((r as { session_id: string }).session_id)));
-      setMyWaitlistSessionIds((wlRes.data ?? []).map((r) => String((r as { session_id: string }).session_id)));
-    } else {
-      setMyRegSessionIds([]);
-      setMyWaitlistSessionIds([]);
-    }
+      setHomeAlerts(alertItems);
+      const { data, error } = calendarRes;
+      setCalendarError(!!error);
+      // Nothing else on the calendar can be shown without its sessions; fail fast instead of retrying each dependent query.
+      if (error) return;
+      const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
+      setRows(list);
+      setSignupBySession(await fetchActiveSignupCountsBySession(list.map((s) => s.id)));
 
-    const w = weekRangeRef.current;
-    if (w.start && w.end) {
-      setStudioNotes(await fetchStudioCalendarNotesForRange(w.start, w.end));
-    } else {
-      setStudioNotes(await fetchStudioCalendarNotesForRange(defaultWeek.start, defaultWeek.end));
-    }
+      const uid = (await supabase.auth.getUser()).data.user?.id;
+      if (uid && list.length > 0) {
+        const ids = list.map((s) => s.id);
+        const [regRes, wlRes] = await Promise.all([
+          supabase.from("session_registrations").select("session_id").eq("user_id", uid).eq("status", "active").in("session_id", ids),
+          supabase.from("waitlist_requests").select("session_id").eq("user_id", uid).in("session_id", ids),
+        ]);
+        setMyRegSessionIds((regRes.data ?? []).map((r) => String((r as { session_id: string }).session_id)));
+        setMyWaitlistSessionIds((wlRes.data ?? []).map((r) => String((r as { session_id: string }).session_id)));
+      } else {
+        setMyRegSessionIds([]);
+        setMyWaitlistSessionIds([]);
+      }
 
-    if (isRefresh) setRefreshing(false);
-    else setLoading(false);
+      const w = weekRangeRef.current;
+      if (w.start && w.end) {
+        setStudioNotes(await fetchStudioCalendarNotesForRange(w.start, w.end));
+      } else {
+        setStudioNotes(await fetchStudioCalendarNotesForRange(defaultWeek.start, defaultWeek.end));
+      }
+
+    } catch {
+      setCalendarError(true);
+    } finally {
+      if (isRefresh) setRefreshing(false);
+      else setLoading(false);
+    }
   }, [language, defaultWeek.start, defaultWeek.end]);
 
   useEffect(() => {
@@ -173,6 +186,7 @@ export default function AthleteSessionsScreen() {
     const uid = authUser?.user?.id;
     if (!uid) {
       setMyUpcoming([]);
+      setUpcomingStatus("ready");
       return;
     }
 
@@ -196,6 +210,7 @@ export default function AthleteSessionsScreen() {
 
     if (error || !data) {
       setMyUpcoming([]);
+      setUpcomingStatus("error");
       return;
     }
 
@@ -213,6 +228,7 @@ export default function AthleteSessionsScreen() {
       (a, b) => sessionStartsAt(a.session_date, a.start_time).getTime() - sessionStartsAt(b.session_date, b.start_time).getTime()
     );
     setMyUpcoming(sessions);
+    setUpcomingStatus("ready");
   }, []);
 
   useFocusEffect(
@@ -300,8 +316,22 @@ export default function AthleteSessionsScreen() {
           <AppText variant="title" isRTL={isRTL} style={styles.myUpcomingTitle}>
             {t("athleteSessions.upcomingTitle")}
           </AppText>
-          {myUpcoming.length === 0 ? (
+          {upcomingStatus === "loading" && myUpcoming.length === 0 ? (
+            <View style={styles.myUpcomingList}>
+              <ListRowSkeleton />
+            </View>
+          ) : upcomingStatus === "error" ? (
+            <ErrorState
+              compact
+              title={t("errors.loadFailedTitle")}
+              body={t("errors.network")}
+              actionLabel={t("auth.retryConnection")}
+              onAction={() => void loadMyUpcoming()}
+              isRTL={isRTL}
+            />
+          ) : myUpcoming.length === 0 ? (
             <EmptyState
+              compact
               title={t("athleteSessions.noUpcoming")}
               isRTL={isRTL}
               style={styles.myUpcomingEmpty}
@@ -340,17 +370,27 @@ export default function AthleteSessionsScreen() {
           )}
         </View>
 
-        <SessionsWeekCalendar
-          items={items}
-          isLoading={loading}
-          emptyLabel={t("dashboard.noSessionsThisWeek")}
-          onDayPress={(iso) => setSheetDay(iso)}
-          weekOffset={calendarWeekOffset}
-          onWeekOffsetChange={setCalendarWeekOffset}
-          maxWeekOffset={ATHLETE_BROWSE_MAX_WEEK_OFFSET}
-          onWeekChange={(startIso, endIso) => setWeekRange({ start: startIso, end: endIso })}
-          calendarNotes={studioNotes}
-        />
+        {calendarError && rows.length === 0 ? (
+          <ErrorState
+            title={t("errors.loadFailedTitle")}
+            body={t("errors.network")}
+            actionLabel={t("auth.retryConnection")}
+            onAction={() => void load(false)}
+            isRTL={isRTL}
+          />
+        ) : (
+          <SessionsWeekCalendar
+            items={items}
+            isLoading={loading}
+            emptyLabel={t("dashboard.noSessionsThisWeek")}
+            onDayPress={(iso) => setSheetDay(iso)}
+            weekOffset={calendarWeekOffset}
+            onWeekOffsetChange={setCalendarWeekOffset}
+            maxWeekOffset={ATHLETE_BROWSE_MAX_WEEK_OFFSET}
+            onWeekChange={(startIso, endIso) => setWeekRange({ start: startIso, end: endIso })}
+            calendarNotes={studioNotes}
+          />
+        )}
       </ScrollView>
       <DaySessionsSheet
         visible={sheetDay !== null}

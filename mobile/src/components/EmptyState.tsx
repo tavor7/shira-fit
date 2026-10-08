@@ -23,6 +23,8 @@ type Props = {
   actionLabel?: string;
   onAction?: () => void;
   isRTL?: boolean;
+  /** Inside a card: no icon, tighter spacing. */
+  compact?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -32,17 +34,19 @@ const DEFAULT_ICON: Record<StateTone, AppIconName> = {
   notFound: "help-circle-outline",
 };
 
-export function EmptyState({ title, body, icon, tone = "empty", actionLabel, onAction, isRTL, style }: Props) {
+export function EmptyState({ title, body, icon, tone = "empty", actionLabel, onAction, isRTL, compact, style }: Props) {
   const isError = tone === "error";
   return (
     <FadeSlideIn
-      style={[styles.wrap, style]}
+      style={[styles.wrap, compact && styles.wrapCompact, style]}
       accessibilityRole={isError ? "alert" : "text"}
       accessibilityLiveRegion={isError ? "polite" : undefined}
     >
-      <View style={[styles.iconWrap, isError && styles.iconWrapError]}>
-        <AppIcon name={icon ?? DEFAULT_ICON[tone]} size="lg" color={isError ? theme.colors.error : theme.colors.textMuted} />
-      </View>
+      {compact ? null : (
+        <View style={[styles.iconWrap, isError && styles.iconWrapError]}>
+          <AppIcon name={icon ?? DEFAULT_ICON[tone]} size="lg" color={isError ? theme.colors.error : theme.colors.textMuted} />
+        </View>
+      )}
       <AppText variant="title" isRTL={isRTL} style={styles.title}>
         {title}
       </AppText>
@@ -52,7 +56,7 @@ export function EmptyState({ title, body, icon, tone = "empty", actionLabel, onA
         </AppText>
       ) : null}
       {actionLabel && onAction ? (
-        <PrimaryButton label={actionLabel} onPress={onAction} variant="ghost" style={styles.action} />
+        <PrimaryButton label={actionLabel} onPress={onAction} variant="ghost" size={compact ? "compact" : "regular"} style={styles.action} />
       ) : null}
     </FadeSlideIn>
   );
@@ -70,6 +74,11 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.xl,
     paddingHorizontal: theme.spacing.lg,
     gap: theme.spacing.sm,
+  },
+  wrapCompact: {
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: 0,
+    gap: theme.spacing.xs,
   },
   iconWrap: {
     width: 56,
