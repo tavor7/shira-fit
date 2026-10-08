@@ -69,6 +69,7 @@ import { buildCsv, downloadCsvWeb } from "../lib/csvExport";
 import { supabase } from "../lib/supabase";
 import { formatDateTimeForDisplay, formatISODateFull } from "../lib/dateFormat";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type HubSection = "pending" | "documents" | "reports" | "settings";
 
@@ -157,6 +158,7 @@ function HubTabs({
 
 export default function DocumentsInvoicesScreen() {
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { profile } = useAuth();
   const { showConfirm, showAlert } = useAppAlert();
   const { showToast } = useToast();
@@ -1076,7 +1078,7 @@ export default function DocumentsInvoicesScreen() {
   );
 
   const settingsContent = (
-    <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={[styles.scrollContent, screenContent]} keyboardShouldPersistTaps="handled">
       {pageHeader}
       <GoLiveReadinessSection isRTL={isRTL} language={lang} />
       <ReceiptRequirementsTestingSection
@@ -1390,7 +1392,7 @@ export default function DocumentsInvoicesScreen() {
   );
 
   const reportsContent = (
-    <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={[styles.scrollContent, screenContent]} keyboardShouldPersistTaps="handled">
       {pageHeader}
       <CollapsibleDateRangeCard
         start={dateStart}
@@ -1568,7 +1570,7 @@ export default function DocumentsInvoicesScreen() {
               </View>
             }
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={theme.colors.cta} />}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, screenContent]}
           />
         </FadeSlideIn>
       )}

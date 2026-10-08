@@ -27,6 +27,7 @@ import {
   type ActivityLogRow,
 } from "../lib/activityLogDetails";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type Row = ActivityLogRow;
 
@@ -266,6 +267,7 @@ function sessionOneLine(s: SessionRow, _language: string): string {
 
 export default function ManagerActivityLogScreen() {
   const { language, isRTL, t } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showOk, showConfirm } = useAppAlert();
   const initRange = computePresetRange("14", 14);
   const [dateFrom, setDateFrom] = useState(initRange.from);
@@ -828,7 +830,7 @@ export default function ManagerActivityLogScreen() {
         keyExtractor={(i) => i.id}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.cta} />}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, screenContent]}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
           loading ? (

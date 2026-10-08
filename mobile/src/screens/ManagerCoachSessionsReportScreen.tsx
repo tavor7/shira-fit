@@ -26,6 +26,7 @@ import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useCountUp } from "../hooks/useCountUp";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 function formatPayout(n: number) {
   return displayMoney(n);
@@ -133,6 +134,7 @@ export default function ManagerCoachSessionsReportScreen({
   headerExtra,
 }: { hideTitle?: boolean; headerExtra?: ReactNode } = {}) {
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showOk } = useAppAlert();
   const defaultRange = useMemo(() => lastNDaysRangeISO(30), []);
   const [start, setStart] = useState(defaultRange.start);
@@ -218,7 +220,7 @@ export default function ManagerCoachSessionsReportScreen({
         style={styles.list}
         data={rows}
         keyExtractor={(item) => item.session_id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, screenContent]}
         ListHeaderComponent={
           <>
             {headerExtra}

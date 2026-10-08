@@ -21,6 +21,7 @@ import {
 } from "../lib/subscriptions";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type Tab = "active" | "history";
 
@@ -45,6 +46,7 @@ function statusLabelKey(status: string): string {
 
 export function ManagerSubscriptionsScreen() {
   const { t, language, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
 
   const [tab, setTab] = useState<Tab>("active");
   const [query, setQuery] = useState("");
@@ -98,7 +100,7 @@ export function ManagerSubscriptionsScreen() {
   return (
     <View style={styles.screen}>
       <ManagerMoneyHubTabs />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, screenContent]} keyboardShouldPersistTaps="handled">
         <View style={[styles.headerRow, rowFlipFor(isRTL) && styles.headerRowRtl]}>
           <Text style={[styles.title, isRTL && styles.rtl]}>{t("subscriptions.title")}</Text>
           <PrimaryButton

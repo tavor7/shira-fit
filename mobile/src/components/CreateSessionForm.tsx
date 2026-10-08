@@ -44,6 +44,7 @@ import { AppSearchSheet } from "./AppSearchSheet";
 import { CoachPickerSheet } from "./CoachPickerSheet";
 import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
 
@@ -64,6 +65,7 @@ function escapeIlike(term: string) {
 
 export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }: Props) {
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showToast } = useToast();
   const { showAlert } = useAppAlert();
@@ -685,7 +687,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
   return (
     <>
-    <ScrollView contentContainerStyle={sf.content} style={sf.screen} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={[sf.content, screenContent]} style={sf.screen} keyboardShouldPersistTaps="handled">
       <View style={sf.sections}>
         <View style={sf.card}>
           <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("sessionForm.when")}</Text>

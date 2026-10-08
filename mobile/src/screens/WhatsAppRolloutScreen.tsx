@@ -28,11 +28,13 @@ import {
   type WhatsAppTestUser,
 } from "../lib/whatsappFeature";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 const MODES: WhatsAppRolloutMode[] = ["off", "testing", "live"];
 
 export default function WhatsAppRolloutScreen() {
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { showOk, showConfirm } = useAppAlert();
   const [loading, setLoading] = useState(true);
@@ -208,7 +210,7 @@ export default function WhatsAppRolloutScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, screenContent]}
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
     >

@@ -11,6 +11,7 @@ import { useToast } from "../context/ToastContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import type { LanguageCode } from "../i18n/translations";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 const WEEKDAY_IDS = [0, 1, 2, 3, 4, 5, 6] as const;
 
@@ -31,6 +32,7 @@ export default function RegistrationOpeningScheduleScreen() {
   const [weekday, setWeekday] = useState<number>(4);
   const [time, setTime] = useState<string>("08:00");
   const [loading, setLoading] = useState(false);
+  const screenContent = useScreenContentStyle("narrow");
   const [saving, setSaving] = useState(false);
   const { language, t, isRTL } = useI18n();
   const { showOk } = useAppAlert();
@@ -94,7 +96,7 @@ export default function RegistrationOpeningScheduleScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, screenContent]}
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
     >

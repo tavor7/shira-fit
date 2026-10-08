@@ -3,6 +3,7 @@ import { View, StyleSheet, Image } from "react-native";
 import { router } from "expo-router";
 import { logUserActivity } from "../../src/lib/logUserActivity";
 import { theme } from "../../src/theme";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
@@ -11,13 +12,14 @@ import { PrimaryButton } from "../../src/components/PrimaryButton";
 
 export default function PasswordUpdatedScreen() {
   const { t, isRTL } = useI18n();
+  const screenFrame = useScreenContentStyle("narrow", { scrolls: false });
 
   useEffect(() => {
     void logUserActivity("password_reset_completed");
   }, []);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, screenFrame]}>
       <FadeSlideIn>
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" accessibilityLabel={t("a11y.appLogo")} />

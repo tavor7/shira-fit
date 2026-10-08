@@ -15,6 +15,7 @@ import { formatDateTimeForDisplay } from "../../../src/lib/dateFormat";
 import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
 import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 import { rowFlipFor } from "../../../src/lib/layoutDirection";
+import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 
 type Row = { user_id: string; username: string; full_name: string; phone: string };
 
@@ -43,6 +44,8 @@ async function fetchActorLabels(userIds: string[]): Promise<Record<string, strin
 
 export default function ApproveAthletesScreen() {
   const { t, isRTL, language } = useI18n();
+  const screenContent = useScreenContentStyle("standard", { selfInset: theme.spacing.md });
+  const titleFrame = useScreenContentStyle("standard", { scrolls: false });
   const { showOk, showConfirm } = useAppAlert();
   const [rows, setRows] = useState<Row[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -161,13 +164,15 @@ export default function ApproveAthletesScreen() {
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ title: t("screen.managerApprove") }} />
-      <AppText variant="headline" isRTL={isRTL} style={styles.title}>
-        {t("approve.title")}
-      </AppText>
+      <View style={titleFrame}>
+        <AppText variant="headline" isRTL={isRTL} style={styles.title}>
+          {t("approve.title")}
+        </AppText>
+      </View>
       <FlatList
         data={rows}
         keyExtractor={(i) => i.user_id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, screenContent]}
         ListEmptyComponent={<EmptyState title={t("approve.empty")} isRTL={isRTL} />}
         renderItem={({ item }) => (
           <FlyOffRow
@@ -286,7 +291,7 @@ export default function ApproveAthletesScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  title: { padding: theme.spacing.md },
+  title: { paddingVertical: theme.spacing.md },
   list: { paddingBottom: theme.spacing.xl, flexGrow: 1 },
   card: {
     marginHorizontal: theme.spacing.md,

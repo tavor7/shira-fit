@@ -89,6 +89,7 @@ import { PressableScale } from "../../../../src/components/PressableScale";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
 import { rowFlipFor } from "../../../../src/lib/layoutDirection";
 import { displayMoney } from "../../../../src/lib/displayFormat";
+import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
@@ -200,6 +201,7 @@ function formatIls(n: number, language: string): string {
 export default function ManagerSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
+  const screenContent = useScreenContentStyle("standard");
   const { language, t, isRTL } = useI18n();
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showOk, showConfirm } = useAppAlert();
@@ -1495,7 +1497,7 @@ export default function ManagerSessionDetail() {
 
   if (!session)
     return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.backgroundAlt }}>
+      <View style={[{ flex: 1, backgroundColor: theme.colors.backgroundAlt }, screenContent]}>
         <Stack.Screen options={{ title: t("screen.managerSession") }} />
         <Text style={[styles.loading, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
       </View>
@@ -1521,7 +1523,7 @@ export default function ManagerSessionDetail() {
         <ScrollView
           ref={scrollRef}
           style={styles.screen}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, screenContent]}
           onScroll={(e) => {
             scrollYRef.current = e.nativeEvent.contentOffset.y;
           }}

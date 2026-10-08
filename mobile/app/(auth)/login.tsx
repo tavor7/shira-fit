@@ -25,6 +25,7 @@ import { useReduceMotionRef } from "../../src/hooks/useReduceMotion";
 import { logUserActivity } from "../../src/lib/logUserActivity";
 import { canRoleAccessWebPath, normalizeWebRedirectTarget, webPublicPathToExpoHref } from "../../src/lib/webLastRoute";
 import { rowFlipFor } from "../../src/lib/layoutDirection";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 
 /** Loose client-side check; server remains authoritative. */
 const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -73,6 +74,7 @@ function classifyLoginError(error: { message: string }): ClassifiedLoginError {
 export default function LoginScreen() {
   const params = useLocalSearchParams<{ redirect?: string | string[] }>();
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -209,7 +211,7 @@ export default function LoginScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         style={styles.scrollRoot}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, screenContent]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}

@@ -49,6 +49,7 @@ import { FadeSlideIn } from "../components/FadeSlideIn";
 import { useCountUp } from "../hooks/useCountUp";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 import { displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type DateMode = "all" | "range";
 type PaymentMethodFilter = "all" | SessionPaymentMethodKey;
@@ -96,6 +97,7 @@ function payeeFilterLabel(filter: PayeeFilter, t: (k: string) => string): string
 
 export default function AccountPaymentsScreen() {
   const router = useRouter();
+  const screenContent = useScreenContentStyle("standard");
   const { language, t, isRTL } = useI18n();
   const { showConfirm } = useAppAlert();
   const { showToast } = useToast();
@@ -737,7 +739,7 @@ export default function AccountPaymentsScreen() {
         data={sortedRows}
         keyExtractor={(item) => item.row_id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.cta} />}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, screenContent]}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
           loading ? (

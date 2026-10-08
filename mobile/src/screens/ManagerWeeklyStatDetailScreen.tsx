@@ -25,6 +25,7 @@ import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayTimeRange, displayDateRange } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type SessionBrief = {
   session_date: string;
@@ -227,6 +228,7 @@ function NoShowRowCard({
 
 export default function ManagerWeeklyStatDetailScreen() {
   const { language, isRTL, t } = useI18n();
+  const screenContent = useScreenContentStyle("wide");
   const params = useLocalSearchParams<{ weekStart?: string; weekEnd?: string; kind?: string }>();
   const weekStart = String(params.weekStart ?? "").trim();
   const weekEnd = String(params.weekEnd ?? "").trim();
@@ -665,7 +667,7 @@ export default function ManagerWeeklyStatDetailScreen() {
   return (
     <>
       <Stack.Screen options={{ title }} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.screen} contentContainerStyle={[styles.content, screenContent]}>
         <ManagerOverviewHubTabs />
         {kind ? <Text style={[styles.h, isRTL && styles.rtl]}>{title}</Text> : null}
         {rangeLabel ? (

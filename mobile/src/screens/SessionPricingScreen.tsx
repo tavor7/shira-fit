@@ -45,6 +45,7 @@ import {
   type PricingIssue,
   type PricingIssuesDetectOpts,
 } from "../lib/pricingIssues";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type Props = { hideIntro?: boolean };
 
@@ -69,6 +70,7 @@ function parseMoneyInput(raw: string): number | null {
 
 export default function SessionPricingScreen({ hideIntro = false }: Props) {
   const { t, language, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showConfirm, showOk } = useAppAlert();
   const [capStr, setCapStr] = useState("");
   const [priceStr, setPriceStr] = useState("");
@@ -923,7 +925,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   }
 
   return (
-    <ScrollView style={ps.screen} contentContainerStyle={ps.content} keyboardShouldPersistTaps="handled">
+    <ScrollView style={ps.screen} contentContainerStyle={[ps.content, screenContent]} keyboardShouldPersistTaps="handled">
       <Text style={[ps.intro, isRTL && ps.rtl]}>{t("pricing.titleHint")}</Text>
       {body}
     </ScrollView>

@@ -28,6 +28,7 @@ import { AnimatedChevron } from "../components/AnimatedChevron";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayDateRange } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 function AmountPair({
   expected,
@@ -71,6 +72,7 @@ function AmountPair({
 
 export default function ManagerFinanceBreakdownScreen() {
   const { language, isRTL, t } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const params = useLocalSearchParams<{ anchor?: string; periodMode?: string }>();
   const anchor = String(params.anchor ?? "").trim();
   const periodMode = parseManagerPeriodMode(
@@ -140,7 +142,7 @@ export default function ManagerFinanceBreakdownScreen() {
   return (
     <>
       <Stack.Screen options={{ title: t("dashboard.financeBreakdownTitle") }} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.screen} contentContainerStyle={[styles.content, screenContent]} keyboardShouldPersistTaps="handled">
         <ManagerOverviewHubTabs />
         <Text style={[styles.h, isRTL && styles.rtl]}>{t("dashboard.financeBreakdownTitle")}</Text>
         {rangeLabel ? <Text style={[styles.sub, isRTL && styles.rtl]}>{rangeLabel}</Text> : null}

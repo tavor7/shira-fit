@@ -6,6 +6,7 @@ import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ActionButton } from "../../src/components/ActionButton";
 import { AppText } from "../../src/components/AppText";
 import { theme } from "../../src/theme";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 import { useI18n } from "../../src/context/I18nContext";
 import { useAuth } from "../../src/context/AuthContext";
 import { saveNotificationPrefs } from "../../src/lib/notificationPrefs";
@@ -20,6 +21,7 @@ import { FadeSlideIn } from "../../src/components/FadeSlideIn";
  */
 export default function NotificationsOnboardingScreen() {
   const { t, isRTL } = useI18n();
+  const screenFrame = useScreenContentStyle("narrow", { scrolls: false });
   const { refreshProfile } = useAuth();
   const [busy, setBusy] = useState<"enable" | "skip" | null>(null);
 
@@ -46,7 +48,7 @@ export default function NotificationsOnboardingScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, screenFrame]}>
       <Stack.Screen options={{ title: t("screen.notificationsOnboarding") }} />
       <FadeSlideIn>
         <View style={styles.logoWrap}>

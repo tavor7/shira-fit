@@ -30,6 +30,7 @@ import {
   parseFamilyMembers,
 } from "../lib/athleteFamilies";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type PickerRow =
   | { kind: "app"; id: string; full_name: string; username?: string; phone?: string }
@@ -52,6 +53,7 @@ function familyRpcError(code: string, t: (k: string) => string, language: string
 
 export default function FamilyManagementScreen() {
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showToast } = useToast();
   const { showOk, showConfirm } = useAppAlert();
   const [families, setFamilies] = useState<AthleteFamilyListItem[]>([]);
@@ -270,7 +272,7 @@ export default function FamilyManagementScreen() {
       <FlatList
         data={visibleFamilies}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, screenContent]}
         ListHeaderComponent={
           <>
             <ManagerStudioSetupTabs />

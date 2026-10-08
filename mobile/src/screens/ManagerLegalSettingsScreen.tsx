@@ -19,9 +19,11 @@ import {
   type LegalDocumentVersion,
 } from "../lib/consent";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 export default function ManagerLegalSettingsScreen() {
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -74,7 +76,7 @@ export default function ManagerLegalSettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.container}>
+    <ScrollView style={styles.root} contentContainerStyle={[styles.container, screenContent]}>
       <ManagerStudioSetupTabs />
       <View style={styles.card}>
         <AppText variant="title" isRTL={isRTL} style={styles.cardTitle}>

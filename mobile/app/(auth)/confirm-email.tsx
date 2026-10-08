@@ -14,11 +14,13 @@ import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { LoadingState } from "../../src/components/LoadingState";
 import { AnimatedCheckMark } from "../../src/components/AnimatedCheckMark";
 import { surface } from "../../src/theme/surfaces";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 
 const REDIRECT_MS = 2800;
 
 export default function ConfirmEmailScreen() {
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -113,7 +115,7 @@ export default function ConfirmEmailScreen() {
   }, [state, goLogin]);
 
   return (
-    <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.scrollRoot} contentContainerStyle={[styles.scroll, screenContent]} keyboardShouldPersistTaps="handled">
       <FadeSlideIn>
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" accessibilityLabel={t("a11y.appLogo")} />

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View, Platform, type ViewStyle } from "react-native";
 import { useBottomChrome, useReportBottomBar } from "../context/BottomChromeContext";
-import { barBottomInset } from "../lib/screenLayout";
+import { LAYOUT, barBottomInset } from "../lib/screenLayout";
 import * as Haptics from "expo-haptics";
 import { router, type Href } from "expo-router";
 import { theme } from "../theme";
@@ -117,6 +117,9 @@ const styles = StyleSheet.create({
     borderTopColor: theme.colors.borderMuted,
   },
   splitRow: {
+    width: "100%",
+    maxWidth: LAYOUT.maxContentWidth.standard,
+    alignSelf: "center",
     flexDirection: "row",
     alignItems: "stretch",
     minHeight: 36,

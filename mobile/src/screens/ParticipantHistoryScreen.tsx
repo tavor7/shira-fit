@@ -55,6 +55,7 @@ import { SessionHistoryRow } from "../components/SessionHistoryRow";
 import { EditSessionAmountModal } from "../components/EditSessionAmountModal";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayTimeRange, displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 export default function ParticipantHistoryScreen({
   hideTitle = false,
@@ -80,6 +81,7 @@ export default function ParticipantHistoryScreen({
     typeof presetEnd === "string" ? presetEnd : Array.isArray(presetEnd) ? presetEnd[0] : undefined;
   const awaitingPresetAthlete = !!(presetUid || presetManual);
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard", { selfInset: theme.spacing.md });
   /** Web sets `html dir=rtl`; extra row-reverse there mirrors layout twice. */
   const rtlRowFlip = rowFlipFor(isRTL);
   const { showToast } = useToast();
@@ -1428,7 +1430,7 @@ export default function ParticipantHistoryScreen({
             <EmptyState icon="📭" title={emptyHint} isRTL={isRTL} />
           )
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, screenContent]}
         stickySectionHeadersEnabled={false}
       />
     </View>

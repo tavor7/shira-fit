@@ -17,6 +17,7 @@ import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { fetchUsersLegalConsentSummary, type UserLegalConsentStatus } from "../lib/consent";
 import { TRAINER_COLOR_PRESETS, resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type Role = "athlete" | "coach" | "manager";
 
@@ -65,6 +66,7 @@ export default function StaffEditProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = String(id ?? "");
   const { t, isRTL, language } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
   const { profile } = useAuth();
@@ -377,7 +379,7 @@ export default function StaffEditProfileScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, screenContent]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >

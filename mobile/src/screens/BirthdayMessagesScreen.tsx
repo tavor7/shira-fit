@@ -33,6 +33,7 @@ import {
 import { formatISODateDayMonthWithWeekday, parseInstantIso } from "../lib/dateFormat";
 import { appLocale } from "../lib/appLocale";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 const STUDIO_TZ = "Asia/Jerusalem";
 
@@ -57,6 +58,7 @@ function formatUpdatedWhen(iso: string, language: "en" | "he"): string {
 
 export default function BirthdayMessagesScreen() {
   const { t, isRTL, language } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showOk } = useAppAlert();
   const { showToast } = useToast();
 
@@ -145,7 +147,7 @@ export default function BirthdayMessagesScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, screenContent]}
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
     >

@@ -5,6 +5,7 @@ import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type Tool = { titleKey: string; subtitleKey: string; path: string; icon: string };
 
@@ -25,10 +26,11 @@ const superUserTool: Tool = {
 
 export default function ManagerToolsScreen() {
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { profile } = useAuth();
   const visibleTools = profile?.is_super_user === true ? [...tools, superUserTool] : tools;
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, screenContent]}>
       <Text style={[styles.title, isRTL && styles.rtlText]}>{t("managerTools.title")}</Text>
       <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("managerTools.hint")}</Text>
 

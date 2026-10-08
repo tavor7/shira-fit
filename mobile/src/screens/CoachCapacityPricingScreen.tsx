@@ -34,6 +34,7 @@ import {
   mergePricingIssues,
   type PricingIssue,
 } from "../lib/pricingIssues";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type Props = {
   /** Manager: show coach picker. Ignored when lockedCoachId is set. */
@@ -49,6 +50,7 @@ export default function CoachCapacityPricingScreen({
   hideIntro = false,
 }: Props) {
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showConfirm, showOk } = useAppAlert();
   const [pickedCoachId, setPickedCoachId] = useState("");
   const [coachLabel, setCoachLabel] = useState("");
@@ -419,7 +421,7 @@ export default function CoachCapacityPricingScreen({
   }
 
   return (
-    <ScrollView style={ps.screen} contentContainerStyle={ps.content} keyboardShouldPersistTaps="handled">
+    <ScrollView style={ps.screen} contentContainerStyle={[ps.content, screenContent]} keyboardShouldPersistTaps="handled">
       <Text style={[ps.intro, isRTL && ps.rtl]}>{t("coachPricing.titleHint")}</Text>
       {body}
     </ScrollView>

@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
@@ -30,7 +31,8 @@ import {
 } from "../lib/pendingReceipts";
 import { toISODateLocal } from "../lib/isoDate";
 import { useBottomChrome, useReportBottomBar } from "../context/BottomChromeContext";
-import { barBottomInset } from "../lib/screenLayout";
+import { barBottomInset, fullBleedInnerPadding } from "../lib/screenLayout";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 
 /** Payments before this date are historical/testing data — never shown as pending a receipt. */
@@ -53,6 +55,8 @@ function slotKindLabel(kind: string | null, language: "he" | "en"): string | nul
 export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode = false }: Props) {
   const { language, t, isRTL } = useI18n();
   const chrome = useBottomChrome();
+  const screenContent = useScreenContentStyle("standard");
+  const { width: viewportWidth } = useWindowDimensions();
   const { showToast } = useToast();
   const { job: bulkJob, runJob: runBulkJob, cancelJob: cancelBulkJob } = useBulkJobs();
   const lang = language === "he" ? "he" : "en";
@@ -470,12 +474,24 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
             tintColor={theme.colors.cta}
           />
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          screenContent,
+          // The selection bar overlays the list; keep the last row clear of it and of the accessibility button.
+          { paddingBottom: Number(screenContent.paddingBottom ?? 0) + chrome.barsHeight },
+        ]}
       />
 
       {selectedCount > 0 || creating ? (
         <View
-          style={[styles.footer, rowFlipFor(isRTL) && styles.footerRtl, { paddingBottom: theme.spacing.lg + barBottomInset(chrome, 0) }]}
+          style={[
+            styles.footer,
+            rowFlipFor(isRTL) && styles.footerRtl,
+            {
+              paddingHorizontal: fullBleedInnerPadding(viewportWidth, "standard"),
+              paddingBottom: theme.spacing.lg + barBottomInset(chrome, 0),
+            },
+          ]}
           onLayout={onSelectionBarLayout}
         >
           <View style={styles.footerCopy}>

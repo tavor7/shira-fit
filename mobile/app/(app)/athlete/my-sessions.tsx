@@ -3,6 +3,7 @@ import { View, StyleSheet } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
+import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { EmptyState } from "../../../src/components/EmptyState";
@@ -24,6 +25,7 @@ type Row = { session_id: string; training_sessions: TsNested };
 
 export default function MySessionsScreen() {
   const { t, isRTL } = useI18n();
+  const calendarFrame = useScreenContentStyle("wide", { selfInset: theme.spacing.md });
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -146,14 +148,16 @@ export default function MySessionsScreen() {
           />
         ) : (
           <>
-            <SessionsWeekCalendar
-              items={items}
-              isLoading={false}
-              emptyLabel={t("empty.noSessionsWeek")}
-              onDayPress={(iso) => setSheetDay(iso)}
-              weekOffset={calendarWeekOffset}
-              onWeekOffsetChange={setCalendarWeekOffset}
-            />
+            <View style={[styles.calendarWrap, calendarFrame]}>
+              <SessionsWeekCalendar
+                items={items}
+                isLoading={false}
+                emptyLabel={t("empty.noSessionsWeek")}
+                onDayPress={(iso) => setSheetDay(iso)}
+                weekOffset={calendarWeekOffset}
+                onWeekOffsetChange={setCalendarWeekOffset}
+              />
+            </View>
             <DaySessionsSheet
               visible={sheetDay !== null}
               onClose={() => setSheetDay(null)}
@@ -176,4 +180,5 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
   },
   emptyPage: { flex: 1 },
+  calendarWrap: { flex: 1 },
 });

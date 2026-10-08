@@ -20,11 +20,13 @@ import { parseMoney } from "../lib/participantHistoryHelpers";
 import type { SuperUserHiddenRecord } from "../types/database";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayTimeRange, displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type AthletePickerRow = { user_id: string; full_name: string; phone: string };
 
 export default function SuperUserHiddenWorkoutsScreen() {
   const { t, isRTL, language } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
   const { start: presetStart, end: presetEnd } = useLocalSearchParams<{ start?: string; end?: string }>();
@@ -197,7 +199,7 @@ export default function SuperUserHiddenWorkoutsScreen() {
         style={styles.list}
         data={loading ? [] : rows}
         keyExtractor={(row) => row.hide_id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, screenContent]}
         ListHeaderComponent={
           <>
             <View style={styles.filters}>

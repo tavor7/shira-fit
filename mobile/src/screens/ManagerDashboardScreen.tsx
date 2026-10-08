@@ -38,6 +38,7 @@ import { useAuth } from "../context/AuthContext";
 import { parseMoney } from "../lib/participantHistoryHelpers";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayDateRange, displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type PeriodMode = ManagerPeriodMode;
 
@@ -104,6 +105,7 @@ function isMissingRpcSignature(err: { message?: string } | null | undefined): bo
 
 export default function ManagerDashboardScreen() {
   const { language, isRTL, t } = useI18n();
+  const screenContent = useScreenContentStyle("wide");
   const { profile } = useAuth();
   const isSuperUser = profile?.is_super_user === true;
   const [hiddenPeriodSummary, setHiddenPeriodSummary] = useState<{ count: number; totalIls: number } | null>(null);
@@ -423,7 +425,7 @@ export default function ManagerDashboardScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, screenContent]}
       keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.cta} />}
     >

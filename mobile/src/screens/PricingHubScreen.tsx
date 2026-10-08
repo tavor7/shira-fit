@@ -9,11 +9,13 @@ import { SlidingPillTabBar } from "../components/SlidingPillTabBar";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import SessionPricingScreen from "./SessionPricingScreen";
 import CoachCapacityPricingScreen from "./CoachCapacityPricingScreen";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type Tab = "session" | "coach";
 
 export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) {
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { profile } = useAuth();
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const initial = (tab === "coach" ? "coach" : "session") as Tab;
@@ -39,7 +41,7 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
   return (
     <View style={styles.screen}>
       {variant === "manager" ? <ManagerMoneyHubTabs /> : null}
-      <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={[styles.content, screenContent]} keyboardShouldPersistTaps="handled">
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.pricingHub")}</Text>
 
       <SlidingPillTabBar

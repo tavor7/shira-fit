@@ -23,6 +23,7 @@ import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { AnimatedOptionExpand } from "../../../../src/components/AnimatedOptionExpand";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
 import { rowFlipFor } from "../../../../src/lib/layoutDirection";
+import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
 type W = {
   user_id: string;
   requested_at: string;
@@ -48,6 +49,7 @@ type NoteRow = {
 export default function CoachSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showOk, showConfirm } = useAppAlert();
   const { showToast } = useToast();
   const { profile } = useAuth();
@@ -305,7 +307,7 @@ export default function CoachSessionDetail() {
         <ScrollView
           ref={scrollRef}
           style={styles.screen}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, screenContent]}
           onScroll={(e) => {
             scrollYRef.current = e.nativeEvent.contentOffset.y;
           }}

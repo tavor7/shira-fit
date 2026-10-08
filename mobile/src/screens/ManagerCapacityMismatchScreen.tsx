@@ -25,6 +25,7 @@ import { FadeSlideIn } from "../components/FadeSlideIn";
 import { PressableScale } from "../components/PressableScale";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayDateRange } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 function formatSessionTimeShort(isoTime: string): string {
   const s = String(isoTime ?? "").trim();
@@ -33,6 +34,7 @@ function formatSessionTimeShort(isoTime: string): string {
 
 export default function ManagerCapacityMismatchScreen() {
   const { language, isRTL, t } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showOk, showConfirm } = useAppAlert();
   const params = useLocalSearchParams<{ anchor?: string; periodMode?: string }>();
   const anchor = String(params.anchor ?? "").trim();
@@ -176,7 +178,7 @@ export default function ManagerCapacityMismatchScreen() {
   return (
     <>
       <Stack.Screen options={{ title: t("dashboard.capacityMismatchTitle") }} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.screen} contentContainerStyle={[styles.content, screenContent]} keyboardShouldPersistTaps="handled">
         <ManagerOverviewHubTabs />
         <Text style={[styles.h, isRTL && styles.rtl]}>{t("dashboard.capacityMismatchTitle")}</Text>
         {rangeLabel ? <Text style={[styles.sub, isRTL && styles.rtl]}>{rangeLabel}</Text> : null}

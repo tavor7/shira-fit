@@ -23,6 +23,7 @@ import {
   type ManualDuplicateIndexes,
 } from "../lib/participantIdentity";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type ProfileRow = {
   kind: "profile";
@@ -54,6 +55,7 @@ function approvalTone(status: ProfileRow["approval_status"]): PillTone {
 
 export default function StaffUsersScreen() {
   const { profile } = useAuth();
+  const screenContent = useScreenContentStyle("standard");
   const isManager = profile?.role === "manager";
   const { t, isRTL } = useI18n();
   const { showToast } = useToast();
@@ -174,7 +176,7 @@ export default function StaffUsersScreen() {
       <FlatList
         data={rows}
         keyExtractor={(i) => (i.kind === "profile" ? i.user_id : `manual:${i.id}`)}
-        contentContainerStyle={[styles.list, { paddingBottom: listBottomPad }]}
+        contentContainerStyle={[styles.list, screenContent, { paddingBottom: Math.max(listBottomPad, Number(screenContent.paddingBottom ?? 0)) }]}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View style={styles.top}>

@@ -46,6 +46,15 @@ export function screenContentFrame(viewportWidth: number, width: ContentWidth) {
   };
 }
 
+/**
+ * Horizontal padding for a full-width bar (its background spans the viewport) whose contents should
+ * line up with the content column below it.
+ */
+export function fullBleedInnerPadding(viewportWidth: number, width: ContentWidth): number {
+  const gutter = screenGutter(viewportWidth);
+  return Math.max(gutter, (viewportWidth - LAYOUT.maxContentWidth[width]) / 2);
+}
+
 export type BottomChromeState = {
   /** Height of the contact footer when it is shown, else 0. It already includes the safe-area inset. */
   footerHeight: number;

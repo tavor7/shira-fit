@@ -23,6 +23,7 @@ import {
 } from "../../lib/subscriptions";
 import { rowFlipFor } from "../../lib/layoutDirection";
 import { displayMoney } from "../../lib/displayFormat";
+import { useScreenContentStyle } from "../../hooks/useScreenLayout";
 
 /**
  * Full pushed-screen create form, matching CreateSessionForm's shell (sessionFormStyles card
@@ -31,6 +32,7 @@ import { displayMoney } from "../../lib/displayFormat";
  */
 export function CreateSubscriptionForm() {
   const { t, language, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const navigation = useNavigation();
@@ -137,7 +139,7 @@ export function CreateSubscriptionForm() {
 
   return (
     <>
-      <ScrollView contentContainerStyle={sf.content} style={sf.screen} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[sf.content, screenContent]} style={sf.screen} keyboardShouldPersistTaps="handled">
         <View style={sf.sections}>
           <View style={sf.card}>
             <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.create.payeeLabel")}</Text>

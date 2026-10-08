@@ -8,9 +8,11 @@ import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
 import { AppText } from "../../src/components/AppText";
 import { ActionButton } from "../../src/components/ActionButton";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 
 export default function DisabledAccountScreen() {
   const { profile, refreshProfile } = useAuth();
+  const screenContent = useScreenContentStyle("narrow");
   const { isRTL, t } = useI18n();
   const [checking, setChecking] = useState(false);
 
@@ -43,7 +45,7 @@ export default function DisabledAccountScreen() {
     <View style={styles.box}>
       <Stack.Screen options={{ title: t("screen.accountDisabled") }} />
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, screenContent]}
         refreshControl={<RefreshControl refreshing={checking} onRefresh={checkNow} tintColor={theme.colors.cta} />}
       >
         <FadeSlideIn>

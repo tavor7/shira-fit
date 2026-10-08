@@ -17,11 +17,13 @@ import {
   type ManualParticipantIdentity,
 } from "../lib/participantIdentity";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 export default function StaffEditManualParticipantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const manualId = String(id ?? "");
   const { t, isRTL, language } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
 
@@ -195,7 +197,7 @@ export default function StaffEditManualParticipantScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, screenContent]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >

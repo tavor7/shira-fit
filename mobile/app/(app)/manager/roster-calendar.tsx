@@ -24,6 +24,7 @@ import { PressableScale } from "../../../src/components/PressableScale";
 import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHidden";
 import { rowFlipFor } from "../../../src/lib/layoutDirection";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
+import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
@@ -34,6 +35,7 @@ type RosterEntry = { name: string; phone: string | null };
 
 export default function ManagerRosterCalendarScreen() {
   const { profile, loading: authLoading, user } = useAuth();
+  const screenContent = useScreenContentStyle("wide", { selfInset: theme.spacing.md });
   const { language, t, isRTL } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
@@ -312,7 +314,7 @@ export default function ManagerRosterCalendarScreen() {
       <Stack.Screen options={{ title: t("screen.managerRosterCalendar") }} />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, screenContent]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

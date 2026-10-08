@@ -45,6 +45,7 @@ import {
   type SeriesScopeChoice,
 } from "../../../../../src/components/SessionSeriesScopeSheet";
 import { rowFlipFor } from "../../../../../src/lib/layoutDirection";
+import { useScreenContentStyle } from "../../../../../src/hooks/useScreenLayout";
 
 type EditSnapshot = {
   date: string;
@@ -59,6 +60,7 @@ type EditSnapshot = {
 export default function CoachSessionManageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { showOk, showConfirm } = useAppAlert();
   const [session, setSession] = useState<TrainingSession | null>(null);
@@ -441,7 +443,7 @@ export default function CoachSessionManageScreen() {
   return (
     <>
       <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
-      <ScrollView style={sf.screen} contentContainerStyle={sf.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={sf.screen} contentContainerStyle={[sf.content, screenContent]} keyboardShouldPersistTaps="handled">
       <View style={sf.sections}>
       <View style={sf.card}>
         <Text style={[sf.cardTitle, isRTL && { textAlign: "right" }]}>{t("sessionDetail.when")}</Text>

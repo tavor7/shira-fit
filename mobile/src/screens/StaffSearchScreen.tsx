@@ -15,12 +15,15 @@ import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type AthleteRow = { kind: "athlete"; id: string; title: string; subtitle: string };
 type ManualRow = { kind: "manual"; id: string; title: string; subtitle: string };
 
 export default function StaffSearchScreen() {
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
+  const headerFrame = useScreenContentStyle("standard", { scrolls: false });
   const { profile } = useAuth();
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
@@ -75,24 +78,26 @@ export default function StaffSearchScreen() {
 
   return (
     <View style={styles.screen}>
-      <AppText variant="headline" isRTL={isRTL} style={styles.h}>
-        {t("staffSearch.title")}
-      </AppText>
-      <AppSearchField
-        value={q}
-        onChangeText={setQ}
-        onSearch={(term) => void runSearch(term)}
-        placeholder={t("staffSearch.placeholder")}
-        isRTL={isRTL}
-        loading={loading}
-        style={styles.searchField}
-      />
+      <View style={headerFrame}>
+        <AppText variant="headline" isRTL={isRTL} style={styles.h}>
+          {t("staffSearch.title")}
+        </AppText>
+        <AppSearchField
+          value={q}
+          onChangeText={setQ}
+          onSearch={(term) => void runSearch(term)}
+          placeholder={t("staffSearch.placeholder")}
+          isRTL={isRTL}
+          loading={loading}
+          style={styles.searchField}
+        />
+      </View>
 
       <CrossfadeSwap
         loading={loading && rows.length === 0}
         style={styles.crossfade}
         skeleton={
-          <View style={styles.list}>
+          <View style={[styles.list, headerFrame]}>
             <ListRowSkeleton />
             <ListRowSkeleton />
             <ListRowSkeleton />
@@ -103,7 +108,7 @@ export default function StaffSearchScreen() {
         data={rows}
         keyExtractor={(item) => `${item.kind}:${item.id}`}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.list, { paddingBottom: listBottomPad }]}
+        contentContainerStyle={[styles.list, screenContent, { paddingBottom: Math.max(listBottomPad, Number(screenContent.paddingBottom ?? 0)) }]}
         ListEmptyComponent={
           showEmpty ? (
             <EmptyState
@@ -167,7 +172,7 @@ export default function StaffSearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt, padding: theme.spacing.md },
+  screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt, paddingTop: theme.spacing.md },
   crossfade: { flex: 1 },
   h: { marginBottom: theme.spacing.sm },
   searchField: { marginBottom: theme.spacing.sm },

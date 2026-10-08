@@ -18,11 +18,13 @@ import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { buildAuthRedirectUrl } from "../../src/lib/authRedirect";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 
 const MAX_EMAIL_LEN = 254;
 
 export default function ForgotPasswordScreen() {
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -56,7 +58,7 @@ export default function ForgotPasswordScreen() {
     <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView
         style={styles.scrollRoot}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, screenContent]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}

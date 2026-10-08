@@ -46,6 +46,7 @@ import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
 import { rowFlipFor } from "../../../../src/lib/layoutDirection";
 import { displayTimeRange } from "../../../../src/lib/displayFormat";
+import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
 
 /** Same visual anchor for Hebrew + Latin names in the participants list. */
 function participantListLabel(name: string, uiRtl: boolean): string {
@@ -59,6 +60,7 @@ export default function AthleteSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const sessionId = String(id ?? "").trim();
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showToast } = useToast();
   const { showAlert, showOk } = useAppAlert();
   const [session, setSession] = useState<TrainingSessionWithTrainer | null>(null);
@@ -348,7 +350,7 @@ export default function AthleteSessionDetail() {
 
   if (loading)
     return (
-      <View style={styles.box}>
+      <View style={[styles.box, screenContent]}>
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
         <View style={styles.card}>
           <Skeleton width="70%" height={22} />
@@ -363,7 +365,7 @@ export default function AthleteSessionDetail() {
     );
   if (loadError)
     return (
-      <View style={styles.box}>
+      <View style={[styles.box, screenContent]}>
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
         <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
           {loadError}
@@ -375,7 +377,7 @@ export default function AthleteSessionDetail() {
     );
   if (!session)
     return (
-      <View style={styles.box}>
+      <View style={[styles.box, screenContent]}>
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
         <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
           {t("athleteSession.notFound")}
@@ -396,7 +398,7 @@ export default function AthleteSessionDetail() {
         <ScrollView
           ref={scrollRef}
           style={styles.scroll}
-          contentContainerStyle={styles.box}
+          contentContainerStyle={[styles.box, screenContent]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

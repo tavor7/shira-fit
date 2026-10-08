@@ -31,9 +31,11 @@ import { useLiveActivityBanner } from "../../../src/hooks/useLiveActivityBanner"
 import { LiveActivityBanner } from "../../../src/components/LiveActivityBanner";
 import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHidden";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
+import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
+  const screenContent = useScreenContentStyle("wide", { selfInset: theme.spacing.md });
   const { language, t, isRTL } = useI18n();
   const { showOk, showConfirm } = useAppAlert();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
@@ -210,7 +212,7 @@ export default function ManagerSessionsScreen() {
       <LiveActivityBanner item={liveActivityItem} onDismiss={dismissLiveActivity} />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, screenContent]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
         <View style={styles.activeUsersWrap}>

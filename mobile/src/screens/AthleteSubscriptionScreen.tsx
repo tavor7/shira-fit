@@ -19,9 +19,11 @@ import {
   type AthleteSubscriptionViewModel,
 } from "../lib/athleteSubscription";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 export function AthleteSubscriptionScreen() {
   const { t, language, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const [vm, setVm] = useState<AthleteSubscriptionViewModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +88,7 @@ export function AthleteSubscriptionScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, screenContent]}>
         {isFrozen && vm.currentFreeze ? (
           <View style={styles.frozenCard}>
             <AppText variant="title" isRTL={isRTL} style={styles.frozenTitle}>

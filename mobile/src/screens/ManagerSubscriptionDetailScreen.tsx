@@ -19,12 +19,14 @@ import {
 } from "../lib/subscriptions";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 const ACTIVE_STATUSES = new Set(["active", "frozen", "scheduled"]);
 
 export function ManagerSubscriptionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t, language, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
 
@@ -129,7 +131,7 @@ export function ManagerSubscriptionDetailScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, screenContent]}>
         <Text style={[styles.title, isRTL && styles.rtl]}>{payeeName || t("subscriptions.detail.title")}</Text>
 
         <Section title={t("subscriptions.detail.overview")} isRTL={isRTL}>

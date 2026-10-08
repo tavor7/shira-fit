@@ -2,6 +2,7 @@ import {
   LAYOUT,
   barBottomInset,
   fabBottomOffset,
+  fullBleedInnerPadding,
   screenContentFrame,
   screenGutter,
   scrollContentBottomPadding,
@@ -42,6 +43,17 @@ describe("screenContentFrame", () => {
 
 const base: BottomChromeState = { footerHeight: 0, barsHeight: 0, safeAreaBottom: 0, fabVisible: true };
 const fab = LAYOUT.fab.size + LAYOUT.fab.gap;
+
+describe("fullBleedInnerPadding", () => {
+  it("uses the gutter while the content column fills the viewport", () => {
+    expect(fullBleedInnerPadding(393, "standard")).toBe(16);
+    expect(fullBleedInnerPadding(800, "standard")).toBe(24);
+  });
+  it("lines bar contents up with a centred column on wide viewports", () => {
+    expect(fullBleedInnerPadding(1440, "standard")).toBe(320);
+    expect(fullBleedInnerPadding(1440, "narrow")).toBe(440);
+  });
+});
 
 describe("bottom chrome with a home indicator (34px inset)", () => {
   it("staff screen, no footer, no bars: content clears the button and the inset; button sits above the inset", () => {

@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../../src/theme";
 import { useI18n } from "../../src/context/I18nContext";
 import { AppText } from "../../src/components/AppText";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 
 type LegalLink = {
   key: string;
@@ -21,11 +22,12 @@ const LINKS: LegalLink[] = [
 
 export default function LegalHubScreen() {
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
 
   return (
     <>
       <Stack.Screen options={{ title: t("legalHub.title") }} />
-      <ScrollView style={styles.root} contentContainerStyle={styles.container}>
+      <ScrollView style={styles.root} contentContainerStyle={[styles.container, screenContent]}>
         <AppText variant="display" isRTL={isRTL} style={styles.title}>
           {t("legalHub.title")}
         </AppText>

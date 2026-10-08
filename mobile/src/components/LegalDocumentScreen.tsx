@@ -5,6 +5,7 @@ import { useI18n } from "../context/I18nContext";
 import { AppText } from "./AppText";
 import { fetchPublicBusinessInfo, fillLegalTokens, type PublicBusinessInfo } from "../lib/legalBusinessInfo";
 import type { LegalDocument } from "../lib/legalContent";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type Props = {
   document: LegalDocument;
@@ -13,6 +14,7 @@ type Props = {
 /** Shared renderer for the Terms of Use / Privacy Policy / Accessibility Statement screens. */
 export function LegalDocumentScreen({ document }: Props) {
   const { language, isRTL, t } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const [info, setInfo] = useState<PublicBusinessInfo | null>(null);
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export function LegalDocumentScreen({ document }: Props) {
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, screenContent]}
       accessibilityRole="none"
     >
       <AppText variant="display" isRTL={isRTL} style={styles.title} accessibilityRole="header">

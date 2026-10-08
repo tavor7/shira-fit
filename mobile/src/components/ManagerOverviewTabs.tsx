@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Animated, type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { theme } from "../theme";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { useI18n } from "../context/I18nContext";
 import { logRedirectToManagerSessions } from "../lib/managerSessionsRedirectLog";
 import { useAuth } from "../context/AuthContext";
@@ -290,14 +291,11 @@ export function ManagerOverviewHubTabs() {
   return <ManagerPillTabBar tabs={tabs} density="comfortable" />;
 }
 
-const moneyHubShell = {
-  paddingHorizontal: theme.spacing.md,
-  paddingTop: theme.spacing.md,
-} as const;
-
 /** Money hub: payments, receipts, pricing (shown under the Money main tab). */
 export function ManagerMoneyHubTabs() {
   const { t } = useI18n();
+  /** Always rendered above the screen's scroll content, so it frames itself like that content (all money screens are standard width). */
+  const shell = useScreenContentStyle("standard", { scrolls: false });
 
   const tabs = useMemo<ManagerPillTabItem[]>(
     () => [
@@ -330,7 +328,7 @@ export function ManagerMoneyHubTabs() {
   );
 
   return (
-    <View style={moneyHubShell}>
+    <View style={[shell, { paddingTop: theme.spacing.md }]}>
       <ManagerPillTabBar tabs={tabs} density="comfortable" />
     </View>
   );

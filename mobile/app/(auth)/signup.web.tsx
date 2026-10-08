@@ -29,6 +29,7 @@ import {
 } from "../../src/lib/consent";
 import { LEGAL_VERSIONS } from "../../src/lib/legalContent";
 import { syncSignupProfileFromMetadata } from "../../src/lib/signupOnboarding";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 
 const today = new Date();
 const minDob = new Date(1900, 0, 1);
@@ -51,6 +52,7 @@ function getSignupErrorMessage(error: { message: string }, language: string): st
 
 export default function SignupScreen() {
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -196,7 +198,7 @@ export default function SignupScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.keyboard}>
-      <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.scrollRoot} contentContainerStyle={[styles.container, screenContent]} keyboardShouldPersistTaps="handled">
         <FadeSlideIn>
         <View style={styles.logoWrap}>
           <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />

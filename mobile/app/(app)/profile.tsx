@@ -15,6 +15,7 @@ import { ManagerSendMessagePanel } from "../../src/components/ManagerSendMessage
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { LegalFooterLinks } from "../../src/components/LegalFooterLinks";
 import { rowFlipFor } from "../../src/lib/layoutDirection";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 
 function getUpdateErrorMessage(message: string, t: (key: string) => string) {
   const msg = (message || "").toLowerCase();
@@ -30,6 +31,7 @@ type Segment = "account" | "notifications" | "messages";
 export default function ProfileScreen() {
   const { tab, highlight } = useLocalSearchParams<{ tab?: string; highlight?: string }>();
   const { session, profile, refreshProfile } = useAuth();
+  const screenContent = useScreenContentStyle("narrow");
   const { t, isRTL } = useI18n();
 
   const [segment, setSegment] = useState<Segment>(() => {
@@ -164,7 +166,7 @@ export default function ProfileScreen() {
       style={{ flex: 1, backgroundColor: theme.colors.backgroundAlt }}
     >
       <Stack.Screen options={{ title: t("screen.profile") }} />
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.scrollContent, screenContent]} keyboardShouldPersistTaps="handled">
         <FadeSlideIn>
         <AppText variant="display" isRTL={rtl}>
           {t("profile.selfTitle")}

@@ -34,9 +34,11 @@ import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../src/components/PressableScale";
 import { rowFlipFor } from "../../../src/lib/layoutDirection";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
+import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 
 export default function AthleteSessionsScreen() {
   const { profile, session } = useAuth();
+  const screenContent = useScreenContentStyle("wide");
   const { language, t, isRTL } = useI18n();
   const { showToast } = useToast();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
@@ -268,7 +270,7 @@ export default function AthleteSessionsScreen() {
       <Stack.Screen options={{ title: t("screen.athleteSessions") }} />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, screenContent]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

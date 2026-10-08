@@ -22,9 +22,11 @@ import { isSessionInActiveSeries, maintainSessionSeriesHorizon } from "../../../
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
 import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySlot";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
+import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 
 export default function CoachSessionsScreen() {
   const { profile } = useAuth();
+  const screenContent = useScreenContentStyle("wide", { selfInset: theme.spacing.md });
   const { language, t, isRTL } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [loadError, setLoadError] = useState(false);
@@ -138,7 +140,7 @@ export default function CoachSessionsScreen() {
       <Stack.Screen options={{ title: t("screen.coachSessions") }} />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, screenContent]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
         {loadError ? (
