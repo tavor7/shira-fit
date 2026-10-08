@@ -670,7 +670,7 @@ const styles = StyleSheet.create({
     minWidth: 120,
     alignItems: "center",
   },
-  capBtnCtaTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 14 },
+  capBtnCtaTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 14 },
   resultsScroll: { flex: 1 },
   resultsContent: {
     flexGrow: 1,

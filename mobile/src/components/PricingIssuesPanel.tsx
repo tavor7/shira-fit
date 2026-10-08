@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 6,
   },
-  badgeTxt: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  badgeTxt: { color: "#fff", fontSize: 13, fontWeight: "800" },
   headerTextCol: { flex: 1, minWidth: 0, gap: 2 },
   headerTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
   headerSub: { fontSize: 12, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 17 },
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   rowMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
   rowMetaRtl: { flexDirection: "row-reverse" },
   sectionTag: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800",
     color: theme.colors.textMuted,
     textTransform: "uppercase",

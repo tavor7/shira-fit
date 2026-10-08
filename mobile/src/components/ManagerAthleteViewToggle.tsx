@@ -86,6 +86,6 @@ const styles = StyleSheet.create({
   },
   pillPressed: { opacity: 0.88 },
   pillTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 11, letterSpacing: 0.2 },
-  pillTxtToolbar: { fontSize: 10 },
+  pillTxtToolbar: { fontSize: 11 },
   pillTxtOn: { color: theme.colors.ctaText },
 });

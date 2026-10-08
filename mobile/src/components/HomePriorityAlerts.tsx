@@ -565,8 +565,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.success,
   },
   newBadgeTxt: {
-    fontSize: 10,
-    fontWeight: "900",
+    fontSize: 11,
+    fontWeight: "800",
     color: theme.colors.success,
     letterSpacing: 0.4,
   },
@@ -593,8 +593,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.sm,
   },
   moreText: {
-    fontWeight: "700",
-    fontSize: 12,
+    ...theme.typography.label,
   },
   moreTextLink: {
     color: theme.colors.cta,
@@ -641,9 +640,8 @@ const modalStyles = StyleSheet.create({
     marginBottom: 4,
   },
   sub: {
-    fontSize: 13,
+    ...theme.typography.caption,
     color: theme.colors.textMuted,
-    fontWeight: "600",
     paddingHorizontal: theme.spacing.lg,
     marginBottom: theme.spacing.xs,
   },
@@ -714,7 +712,7 @@ const modalStyles = StyleSheet.create({
   },
   doneBtnTxt: {
     color: theme.colors.ctaText,
-    fontWeight: "900",
+    fontWeight: "800",
     fontSize: 15,
   },
 });

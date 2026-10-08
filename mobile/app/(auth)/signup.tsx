@@ -486,8 +486,7 @@ const styles = StyleSheet.create({
   },
   field: { marginBottom: theme.spacing.sm },
   fieldLabel: {
-    fontWeight: "700",
-    fontSize: 12,
+    ...theme.typography.label,
     letterSpacing: 0.3,
     textTransform: "uppercase",
     marginBottom: theme.spacing.xs,
@@ -529,7 +528,7 @@ const styles = StyleSheet.create({
   },
   genderBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   genderBtnPressed: { opacity: 0.92 },
-  genderTxt: { fontSize: 16, color: theme.colors.text, fontWeight: "600", letterSpacing: 0.15 },
+  genderTxt: { ...theme.typography.body, color: theme.colors.text, letterSpacing: 0.15 },
   genderTxtOn: { color: theme.colors.ctaText, fontWeight: "700" },
   healthLink: {
     borderWidth: 1,
@@ -575,8 +574,7 @@ const styles = StyleSheet.create({
   },
   legalViewLink: {
     color: theme.colors.cta,
-    fontWeight: "700",
-    fontSize: 12,
+    ...theme.typography.label,
     letterSpacing: 0.2,
   },
   checkRow: {
@@ -596,7 +594,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   checkboxOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  checkboxMark: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 13 },
+  checkboxMark: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 13 },
   checkTxt: { flex: 1, color: theme.colors.text, fontWeight: "600", fontSize: 15, lineHeight: 22 },
   linkBtn: { marginTop: theme.spacing.lg, alignSelf: "center", padding: theme.spacing.sm },
   linkTxt: { color: theme.colors.cta, fontWeight: "700" },

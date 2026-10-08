@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   checkboxOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  checkboxMark: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 13 },
+  checkboxMark: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 13 },
   checkTxt: { flex: 1 },
   errorTxt: { color: theme.colors.error, marginBottom: theme.spacing.sm },
   hintTxt: { marginBottom: theme.spacing.sm },

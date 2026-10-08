@@ -225,8 +225,8 @@ const styles = StyleSheet.create({
   },
   sheetHeaderRtl: { flexDirection: "row-reverse" },
   sheetHeaderText: { flex: 1, minWidth: 0 },
-  sheetTitle: { fontSize: 17, fontWeight: "900", color: theme.colors.text },
-  sheetName: { marginTop: 4, fontSize: 14, fontWeight: "600", color: theme.colors.textMuted },
+  sheetTitle: { fontSize: 17, fontWeight: "800", color: theme.colors.text },
+  sheetName: { marginTop: 4, ...theme.typography.secondary, color: theme.colors.textMuted },
   closeBtn: { padding: 4 },
   inputRow: {
     flexDirection: "row",
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   },
   inputRtl: { textAlign: "right" },
   inputDisabled: { opacity: 0.6 },
-  currency: { fontSize: 16, fontWeight: "800", color: theme.colors.textMuted },
+  currency: { ...theme.typography.title, color: theme.colors.textMuted },
   saveBtn: {
     marginTop: 6,
   },

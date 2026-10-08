@@ -340,9 +340,9 @@ const styles = StyleSheet.create({
   },
   presetCellOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   presetCellPressed: { opacity: 0.9 },
-  presetNum: { fontSize: 17, fontWeight: "900", color: theme.colors.text, lineHeight: 20 },
+  presetNum: { fontSize: 17, fontWeight: "800", color: theme.colors.text, lineHeight: 20 },
   presetNumOn: { color: theme.colors.ctaText },
-  presetUnit: { marginTop: 2, fontSize: 10, fontWeight: "800", color: theme.colors.textSoft, textTransform: "uppercase", letterSpacing: 0.3 },
+  presetUnit: { marginTop: 2, fontSize: 11, fontWeight: "800", color: theme.colors.textSoft, textTransform: "uppercase", letterSpacing: 0.3 },
   presetUnitOn: { color: theme.colors.ctaText, opacity: 0.85 },
   monthRow: {
     flexDirection: "row",
@@ -385,12 +385,11 @@ const styles = StyleSheet.create({
   },
   monthPickPressed: { opacity: 0.9 },
   monthLabel: {
-    fontSize: 16,
-    fontWeight: "800",
+    ...theme.typography.title,
     color: theme.colors.text,
     textAlign: "center",
   },
-  monthPickChev: { fontSize: 10, color: theme.colors.textMuted, marginTop: 2 },
+  monthPickChev: { fontSize: 11, color: theme.colors.textMuted, marginTop: 2 },
   rangePanel: {
     marginBottom: 4,
     width: "100%",

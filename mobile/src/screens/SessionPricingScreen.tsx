@@ -954,7 +954,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.borderMuted,
   },
-  pickerItemName: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  pickerItemName: { ...theme.typography.title, color: theme.colors.text },
   pickerItemRole: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4 },
   pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoft, textAlign: "center" },
 });

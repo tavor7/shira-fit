@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   headerRtl: { flexDirection: "row-reverse" },
   headerText: { flex: 1, minWidth: 0 },
   title: { fontSize: 17, fontWeight: "800", color: theme.colors.text },
-  subtitle: { marginTop: 4, fontSize: 14, fontWeight: "600", color: theme.colors.textMuted },
+  subtitle: { marginTop: 4, ...theme.typography.secondary, color: theme.colors.textMuted },
   close: { fontSize: 15, fontWeight: "800", color: theme.colors.textMuted },
   rtlText: { textAlign: "right", writingDirection: "rtl" },
   bodyScroll: { flexShrink: 1 },

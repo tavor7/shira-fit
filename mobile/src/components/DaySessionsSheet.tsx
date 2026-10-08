@@ -883,8 +883,7 @@ const styles = StyleSheet.create({
   titleBlock: { flex: 1, minWidth: 0 },
   sessionCount: {
     marginTop: 4,
-    fontSize: 13,
-    fontWeight: "600",
+    ...theme.typography.caption,
     color: theme.colors.textSoft,
   },
   closeBtn: {
@@ -1062,7 +1061,7 @@ const styles = StyleSheet.create({
   studioNoteMiniBtnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.cta },
   studioNoteMiniBtnDanger: { paddingVertical: 4, paddingHorizontal: 8 },
   studioNoteMiniBtnDangerTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.error },
-  studioNoteTitle: { fontSize: 15, fontWeight: "900", color: theme.colors.text, textAlign: "center", width: "100%" },
+  studioNoteTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text, textAlign: "center", width: "100%" },
   studioNoteRange: { fontSize: 12, fontWeight: "600", color: theme.colors.textMuted },
   studioNoteDetail: { marginTop: 4, fontSize: 13, lineHeight: 18, color: theme.colors.textMuted, fontWeight: "600" },
   studioNoteManagerBar: { marginBottom: theme.spacing.sm },
@@ -1109,7 +1108,7 @@ const styles = StyleSheet.create({
   },
   chipOn: { borderColor: theme.colors.cta, backgroundColor: theme.colors.surfaceElevated },
   chipKindOn: { backgroundColor: theme.colors.surfaceElevated, borderWidth: 2 },
-  chipTxt: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
+  chipTxt: { ...theme.typography.label, color: theme.colors.textMuted },
   chipTxtOn: { color: theme.colors.text },
   studioNoteSaveBtn: {
     marginTop: 8,
@@ -1118,7 +1117,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     alignItems: "center",
   },
-  studioNoteSaveBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 14 },
+  studioNoteSaveBtnTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 14 },
 
   dupModalRoot: { flex: 1, justifyContent: "center", padding: theme.spacing.lg },
   dupBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.55)" },
@@ -1132,7 +1131,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     padding: theme.spacing.lg,
   },
-  dupTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text, textAlign: "center" },
+  dupTitle: { ...theme.typography.title, color: theme.colors.text, textAlign: "center" },
   dupSub: { marginTop: 6, fontSize: 13, color: theme.colors.textMuted, textAlign: "center" },
   dupBtns: { flexDirection: "row", gap: 10, marginTop: theme.spacing.md },
   dupGhost: {
@@ -1146,5 +1145,5 @@ const styles = StyleSheet.create({
   },
   dupGhostTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
   dupCta: { flex: 1, backgroundColor: theme.colors.cta, paddingVertical: 12, borderRadius: theme.radius.md, alignItems: "center" },
-  dupCtaTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 14, letterSpacing: 0.2 },
+  dupCtaTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 14, letterSpacing: 0.2 },
 });

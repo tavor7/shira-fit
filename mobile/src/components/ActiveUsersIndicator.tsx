@@ -72,8 +72,7 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.colors.success },
   txt: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
   sheetTitle: {
-    fontSize: 18,
-    fontWeight: "800",
+    ...theme.typography.headline,
     color: theme.colors.text,
     padding: theme.spacing.md,
     paddingBottom: theme.spacing.sm,

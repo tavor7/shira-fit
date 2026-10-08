@@ -653,11 +653,11 @@ const styles = StyleSheet.create({
   },
   undoBtnTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
   muted: { marginTop: 12, color: theme.colors.textMuted },
-  err: { color: theme.colors.error, fontSize: 16, fontWeight: "600" },
+  err: { color: theme.colors.error, ...theme.typography.body },
   cancelEdit: { marginTop: theme.spacing.sm, paddingVertical: 12, alignItems: "center" },
   cancelEditTxt: { color: theme.colors.textSoft, fontWeight: "800", fontSize: 15 },
   dupCard: { padding: theme.spacing.md },
-  dupTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text, marginBottom: 6 },
+  dupTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text, marginBottom: 6 },
   dupHint: { fontSize: 12, color: theme.colors.textSoft, lineHeight: 17, marginBottom: 10 },
   dupSectionLabel: {
     marginTop: 4,

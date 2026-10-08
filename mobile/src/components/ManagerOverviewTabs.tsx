@@ -259,8 +259,7 @@ const styles = StyleSheet.create({
   },
   tabPressed: { opacity: 0.55 },
   label: {
-    fontSize: 14,
-    fontWeight: "600",
+    ...theme.typography.secondary,
     color: theme.colors.textMuted,
     letterSpacing: 0.1,
   },

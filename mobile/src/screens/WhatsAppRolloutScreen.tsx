@@ -374,7 +374,7 @@ export default function WhatsAppRolloutScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl + theme.spacing.md },
-  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
+  title: { ...theme.typography.headline, color: theme.colors.text },
   hint: { marginTop: 8, color: theme.colors.textMuted, lineHeight: 21, fontSize: 14, fontWeight: "500" },
   rtl: { textAlign: "right", alignSelf: "stretch" },
   skeletonList: { marginTop: 24, gap: theme.spacing.md },
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   chipRemovable: { flexDirection: "row", alignItems: "center", gap: 6 },
   chipRemovableRtl: { flexDirection: "row-reverse" },
   chipRemove: { marginLeft: 2 },
-  chipRemoveTxt: { fontSize: 15, fontWeight: "900", color: theme.colors.textSoft, lineHeight: 16 },
+  chipRemoveTxt: { fontSize: 15, fontWeight: "800", color: theme.colors.textSoft, lineHeight: 16 },
   chipTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
   chipTxtActive: { color: theme.colors.text },
   search: {
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
   hitName: { fontSize: 15, fontWeight: "700", color: theme.colors.text },
   hitMeta: { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
   testHint: { fontSize: 13, color: theme.colors.textMuted, lineHeight: 19 },
-  sendTo: { fontSize: 13, fontWeight: "600", color: theme.colors.text },
+  sendTo: { ...theme.typography.caption, color: theme.colors.text },
   manageToggle: { marginTop: theme.spacing.md, paddingVertical: 8 },
   manageToggleTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.textSoft },
 });

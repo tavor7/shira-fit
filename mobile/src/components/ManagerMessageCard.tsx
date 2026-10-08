@@ -126,10 +126,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarTxt: {
+    ...theme.typography.headline,
     color: "#fff",
-    fontWeight: "900",
     letterSpacing: 0.5,
-    fontSize: 18,
   },
   kicker: {
     textTransform: "uppercase",

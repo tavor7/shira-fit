@@ -586,8 +586,7 @@ const styles = StyleSheet.create({
   dayGroup: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.md },
   dayTitle: {
     color: theme.colors.textSoft,
-    fontWeight: "700",
-    fontSize: 12,
+    ...theme.typography.label,
     letterSpacing: 0.3,
     textTransform: "uppercase",
   },
@@ -616,7 +615,7 @@ const styles = StyleSheet.create({
   count: { color: theme.colors.textMuted, fontWeight: "800", letterSpacing: 0.15 },
   trainer: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13, letterSpacing: 0.1 },
 
-  namesEmpty: { color: theme.colors.textSoft, fontWeight: "600", marginTop: theme.spacing.xs, fontSize: 14 },
+  namesEmpty: { color: theme.colors.textSoft, marginTop: theme.spacing.xs, ...theme.typography.secondary, },
   namesList: { marginTop: theme.spacing.xs, gap: theme.spacing.xs },
   name: { color: theme.colors.text, fontWeight: "700", fontSize: 14, lineHeight: 20 },
   namePhone: { color: theme.colors.cta, textDecorationLine: "underline" },

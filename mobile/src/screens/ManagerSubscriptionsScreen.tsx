@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, paddingBottom: 40 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
   headerRowRtl: { flexDirection: "row-reverse" },
-  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
+  title: { ...theme.typography.headline, color: theme.colors.text },
   createBtn: { flexShrink: 0 },
   tabBar: { marginBottom: theme.spacing.sm },
   search: { marginBottom: theme.spacing.md },

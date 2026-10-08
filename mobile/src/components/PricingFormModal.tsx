@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.borderMuted,
   },
   headerRtl: { flexDirection: "row-reverse" },
-  title: { flex: 1, fontSize: 18, fontWeight: "800", color: theme.colors.text },
+  title: { flex: 1, ...theme.typography.headline, color: theme.colors.text },
   close: {
     width: 36,
     height: 36,
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  closeTxt: { fontSize: 16, fontWeight: "700", color: theme.colors.textMuted },
+  closeTxt: { ...theme.typography.title, color: theme.colors.textMuted },
   scroll: { flexGrow: 0 },
   scrollContent: { padding: theme.spacing.md, gap: 12, paddingBottom: theme.spacing.sm },
   footer: {

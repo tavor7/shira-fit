@@ -39,10 +39,10 @@ const styles = StyleSheet.create({
   badgeRtl: { alignSelf: "flex-end" },
   txt: {
     color: KICKBOX_SESSION_ACCENT,
-    fontWeight: "900",
+    fontWeight: "800",
     fontSize: 12,
     letterSpacing: 0.35,
     textTransform: "uppercase",
   },
-  txtCompact: { fontSize: 9, letterSpacing: 0.4 },
+  txtCompact: { fontSize: 11, letterSpacing: 0.4 },
 });

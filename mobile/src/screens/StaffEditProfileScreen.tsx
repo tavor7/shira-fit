@@ -805,7 +805,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   tempPasswordTitle: { color: theme.colors.textMuted },
-  tempPasswordValue: { fontSize: 22, fontWeight: "900", letterSpacing: 0.5 },
+  tempPasswordValue: { ...theme.typography.display, letterSpacing: 0.5 },
   tempPasswordHint: { color: theme.colors.textSoft, lineHeight: 18 },
   tempPasswordBtn: {
     marginTop: theme.spacing.sm,

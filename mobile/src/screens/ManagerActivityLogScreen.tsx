@@ -944,8 +944,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: "700",
+    ...theme.typography.label,
     color: theme.colors.textSoft,
     textTransform: "uppercase",
     letterSpacing: 0.3,
@@ -979,7 +978,7 @@ const styles = StyleSheet.create({
   iconFieldActive: { borderColor: theme.colors.cta },
   typeFieldPressed: { opacity: 0.88 },
   iconFieldText: { flex: 1, fontSize: 14, fontWeight: "700", color: theme.colors.text },
-  chevron: { fontSize: 10, color: theme.colors.textMuted, marginTop: 1 },
+  chevron: { fontSize: 11, color: theme.colors.textMuted, marginTop: 1 },
   typeSheet: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg },
   typeSheetHandle: {
     alignSelf: "center",
@@ -1021,7 +1020,7 @@ const styles = StyleSheet.create({
   typeSheetOptionSelected: { backgroundColor: theme.colors.surfaceElevated },
   typeSheetOptionText: { flex: 1, fontSize: 15, fontWeight: "600", color: theme.colors.text },
   typeSheetOptionTextSelected: { fontWeight: "800", color: theme.colors.text },
-  typeSheetCheck: { fontSize: 16, fontWeight: "900", color: theme.colors.cta, width: 20, textAlign: "center" },
+  typeSheetCheck: { fontSize: 16, fontWeight: "800", color: theme.colors.cta, width: 20, textAlign: "center" },
   typeSheetCheckSpacer: { width: 20 },
   chip: {
     paddingHorizontal: theme.spacing.sm,
@@ -1068,7 +1067,7 @@ const styles = StyleSheet.create({
   retentionHeaderMainRtl: { alignItems: "flex-end" },
   retentionHeaderTitle: {
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
     color: theme.colors.textSoft,
     textTransform: "uppercase",
     letterSpacing: 0.6,
@@ -1173,8 +1172,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   revertLinkText: {
-    fontSize: 12,
-    fontWeight: "700",
+    ...theme.typography.label,
     color: theme.colors.textMuted,
     letterSpacing: 0.15,
   },
@@ -1203,7 +1201,7 @@ const styles = StyleSheet.create({
   },
   detailsTitle: {
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
     color: theme.colors.textSoft,
     marginBottom: theme.spacing.xs,
     textTransform: "uppercase",

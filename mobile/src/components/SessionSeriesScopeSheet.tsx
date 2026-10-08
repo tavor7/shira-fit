@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: theme.radius.xl,
     borderTopRightRadius: theme.radius.xl,
   },
-  title: { fontSize: 20, fontWeight: "900", color: theme.colors.text, marginBottom: 6 },
+  title: { fontSize: 20, fontWeight: "800", color: theme.colors.text, marginBottom: 6 },
   sub: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, marginBottom: theme.spacing.md, lineHeight: 18 },
   choice: {
     padding: 14,

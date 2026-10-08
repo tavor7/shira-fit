@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   arrow: {
     color: theme.colors.cta,
     fontSize: 20,
-    fontWeight: "900",
+    fontWeight: "800",
     marginTop: -1,
   },
 });

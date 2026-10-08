@@ -104,8 +104,8 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   fieldRtl: { flexDirection: "row-reverse" },
-  fieldText: { flex: 1, fontSize: 16, fontWeight: "700", color: theme.colors.text },
-  chevron: { fontSize: 10, color: theme.colors.textMuted, marginTop: 1 },
+  fieldText: { flex: 1, ...theme.typography.title, color: theme.colors.text },
+  chevron: { fontSize: 11, color: theme.colors.textMuted, marginTop: 1 },
   sheet: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg },
   handle: {
     alignSelf: "center",
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   optionSelected: { backgroundColor: theme.colors.surfaceElevated },
   optionText: { flex: 1, fontSize: 15, fontWeight: "600", color: theme.colors.text },
   optionTextSelected: { fontWeight: "800", color: theme.colors.text },
-  check: { fontSize: 16, fontWeight: "900", color: theme.colors.cta, width: 20, textAlign: "center" },
+  check: { fontSize: 16, fontWeight: "800", color: theme.colors.cta, width: 20, textAlign: "center" },
   checkSpacer: { width: 20 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
 });

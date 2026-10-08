@@ -28,5 +28,5 @@ export function AnimatedCheckMark({ visible, style }: Props) {
 }
 
 const styles = StyleSheet.create({
-  mark: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 13 },
+  mark: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 13 },
 });

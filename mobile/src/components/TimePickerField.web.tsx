@@ -169,7 +169,7 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
 
 const styles = StyleSheet.create({
   wrap: { marginTop: theme.spacing.sm, alignSelf: "stretch", minWidth: 0 },
-  label: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
+  label: { marginBottom: 6, color: theme.colors.textMuted, ...theme.typography.label, letterSpacing: 0.2 },
   rtlText: { textAlign: "right" },
   touch: {
     alignSelf: "stretch",
@@ -187,9 +187,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   touchPressed: { opacity: 0.92 },
-  touchText: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  touchText: { flex: 1, minWidth: 0, ...theme.typography.title, color: theme.colors.text },
   rtlTextLight: { textAlign: "right" },
-  chev: { fontSize: 10, color: theme.colors.textMuted },
+  chev: { fontSize: 11, color: theme.colors.textMuted },
   chevLtr: { marginLeft: 8 },
   chevRtl: { marginRight: 8 },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
@@ -215,9 +215,9 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.borderMuted,
   },
   tbBtn: { minWidth: 64 },
-  tbMuted: { fontSize: 16, fontWeight: "600", color: theme.colors.textMuted },
+  tbMuted: { ...theme.typography.body, color: theme.colors.textMuted },
   tbTitle: { flex: 1, textAlign: "center", fontSize: 15, fontWeight: "700", color: theme.colors.text },
-  tbCta: { fontSize: 16, fontWeight: "800", color: theme.colors.cta },
+  tbCta: { ...theme.typography.title, color: theme.colors.cta },
   pickersRow: {
     flexDirection: "row",
     alignItems: "flex-end",

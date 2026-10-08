@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   plusExpanded: { color: theme.colors.ctaText },
-  title: { fontWeight: "900", fontSize: 15, color: theme.colors.text, flexShrink: 1 },
+  title: { fontWeight: "800", fontSize: 15, color: theme.colors.text, flexShrink: 1 },
   titleInline: { fontWeight: "800", fontSize: 14, color: theme.colors.textMuted, flexShrink: 1 },
   headerEnd: {
     flexDirection: "row",

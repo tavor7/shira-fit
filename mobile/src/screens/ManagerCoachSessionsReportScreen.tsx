@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
     borderRadius: theme.radius.lg,
   },
-  screenTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
+  screenTitle: { ...theme.typography.headline, color: theme.colors.text, marginBottom: theme.spacing.sm },
   rtlText: { textAlign: "right" },
   ltrText: { textAlign: "left", writingDirection: "ltr" },
   loadingBanner: {
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     paddingVertical: 10,
   },
-  loadingBannerTxt: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  loadingBannerTxt: { ...theme.typography.caption, color: theme.colors.textMuted },
   coachPickCard: {
     marginHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.sm,
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: "uppercase",
   },
-  payoutBig: { fontSize: 28, fontWeight: "900", color: theme.colors.cta, marginTop: 4, letterSpacing: -0.5 },
+  payoutBig: { fontSize: 28, fontWeight: "800", color: theme.colors.cta, marginTop: 4, letterSpacing: -0.5 },
   payoutBadge: {
     paddingVertical: 6,
     paddingHorizontal: 10,
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
     borderColor: theme.colors.borderMuted,
   },
-  sessionPayoutAmt: { fontSize: 18, fontWeight: "900", color: theme.colors.success, letterSpacing: -0.3 },
+  sessionPayoutAmt: { ...theme.typography.headline, color: theme.colors.success, letterSpacing: -0.3 },
   sessionPayoutAmtZero: { color: theme.colors.textMuted },
   sessionPayoutAmtMissing: { color: theme.colors.textSoft },
   sessionPayoutMeta: {
@@ -448,11 +448,11 @@ const styles = StyleSheet.create({
   statsRowRtl: { flexDirection: "row-reverse" },
   statCell: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 12, paddingHorizontal: 6 },
   statDivider: { width: StyleSheet.hairlineWidth, backgroundColor: theme.colors.borderMuted },
-  statValue: { fontSize: 20, fontWeight: "900", color: theme.colors.text, lineHeight: 24 },
+  statValue: { fontSize: 20, fontWeight: "800", color: theme.colors.text, lineHeight: 24 },
   statValueWarn: { color: theme.colors.error },
   statLabel: {
     marginTop: 4,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800",
     color: theme.colors.textSoft,
     letterSpacing: 0.2,
@@ -474,5 +474,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.errorBorder,
   },
-  rateWarnPillTxt: { fontSize: 10, fontWeight: "800", color: theme.colors.error },
+  rateWarnPillTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.error },
 });

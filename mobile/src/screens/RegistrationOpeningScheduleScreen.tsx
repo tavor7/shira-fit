@@ -169,8 +169,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl + theme.spacing.md },
   title: {
-    fontSize: 18,
-    fontWeight: "900",
+    ...theme.typography.headline,
     color: theme.colors.text,
   },
   hint: {
@@ -248,7 +247,7 @@ const styles = StyleSheet.create({
   },
   previewValue: {
     fontSize: 17,
-    fontWeight: "900",
+    fontWeight: "800",
     color: theme.colors.text,
     letterSpacing: -0.2,
     lineHeight: 24,

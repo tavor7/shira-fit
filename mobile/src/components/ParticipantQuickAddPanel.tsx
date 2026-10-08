@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  icon: { color: theme.colors.cta, fontSize: 20, fontWeight: "900", lineHeight: 22 },
+  icon: { color: theme.colors.cta, fontSize: 20, fontWeight: "800", lineHeight: 22 },
   headText: { flex: 1, minWidth: 0 },
   title: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
   hint: { marginTop: 2, fontSize: 11, fontWeight: "600", color: theme.colors.textSoft, lineHeight: 15 },

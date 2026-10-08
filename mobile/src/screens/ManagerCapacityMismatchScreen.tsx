@@ -341,8 +341,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
   skeletonList: { gap: theme.spacing.sm, marginTop: theme.spacing.sm },
-  h: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginBottom: 4 },
-  sub: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
+  h: { ...theme.typography.display, color: theme.colors.text, marginBottom: 4 },
+  sub: { ...theme.typography.caption, color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
   hint: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, marginBottom: theme.spacing.md },
   segRow: {
     flexDirection: "row",
@@ -402,8 +402,7 @@ const styles = StyleSheet.create({
   diffUnder: { color: theme.colors.info },
   cardCounts: {
     flexShrink: 0,
-    fontSize: 12,
-    fontWeight: "700",
+    ...theme.typography.label,
     color: theme.colors.alertSubject,
     textAlign: "right",
   },
@@ -418,7 +417,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   noteLbl: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800",
     color: theme.colors.textSoft,
     textTransform: "uppercase",

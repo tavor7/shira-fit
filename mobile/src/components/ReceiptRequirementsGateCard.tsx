@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
-  title: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
+  title: { ...theme.typography.headline, color: theme.colors.text },
   body: { fontSize: 15, lineHeight: 22, color: theme.colors.textMuted },
   section: {
     marginTop: theme.spacing.sm,
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   sectionLabel: { fontSize: 13, fontWeight: "800", color: theme.colors.text, textTransform: "uppercase", letterSpacing: 0.3 },
-  consentTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  consentTitle: { ...theme.typography.title, color: theme.colors.text },
   addressBlock: { gap: theme.spacing.xs },
   fieldLabel: { fontSize: 13, fontWeight: "700", color: theme.colors.text, marginTop: theme.spacing.sm },
   input: {
@@ -295,8 +295,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
   },
   inputRtl: { textAlign: "right" },
-  fieldError: { color: theme.colors.error, fontSize: 13, fontWeight: "600" },
-  declined: { color: theme.colors.warning, fontSize: 14, fontWeight: "600" },
+  fieldError: { color: theme.colors.error, ...theme.typography.caption },
+  declined: { color: theme.colors.warning, ...theme.typography.secondary },
   actions: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
   actionsRtl: { alignItems: "stretch" },
   declineBtn: { paddingVertical: 12, alignItems: "center" },

@@ -264,8 +264,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl + theme.spacing.md },
   title: {
-    fontSize: 18,
-    fontWeight: "900",
+    ...theme.typography.headline,
     color: theme.colors.text,
   },
   updatedMeta: {
@@ -291,7 +290,7 @@ const styles = StyleSheet.create({
   },
   toggleRowRtl: { flexDirection: "row-reverse" },
   toggleCopy: { flex: 1, gap: 4 },
-  toggleLabel: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  toggleLabel: { ...theme.typography.title, color: theme.colors.text },
   toggleHint: { fontSize: 13, fontWeight: "500", color: theme.colors.textMuted, lineHeight: 18 },
   sectionEyebrow: {
     fontSize: 11,
@@ -316,7 +315,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
   },
   themeEmoji: { fontSize: 16 },
-  themeChipTxt: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  themeChipTxt: { ...theme.typography.caption, color: theme.colors.textMuted },
   field: { marginTop: 4 },
   messageInput: { minHeight: 96, textAlignVertical: "top" },
   charCount: { marginTop: 4, fontSize: 11, fontWeight: "600", color: theme.colors.textSoft, textAlign: "right" },

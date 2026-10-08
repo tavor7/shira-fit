@@ -75,8 +75,7 @@ const styles = StyleSheet.create({
   headerRtl: { flexDirection: "row-reverse" },
   title: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: "800",
+    ...theme.typography.title,
     color: theme.colors.text,
     letterSpacing: 0.15,
   },

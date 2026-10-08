@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
   dayColPressed: { opacity: 0.88 },
   dayHeaderBox: { alignItems: "center", justifyContent: "center", marginBottom: theme.spacing.sm, position: "relative" },
   dayName: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "700",
     color: theme.colors.textSoft,
     textTransform: "uppercase",
@@ -703,7 +703,7 @@ const styles = StyleSheet.create({
   dayNoteChipTxt: {
     width: "100%",
     textAlign: "center",
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800",
     color: theme.colors.text,
     lineHeight: 13,

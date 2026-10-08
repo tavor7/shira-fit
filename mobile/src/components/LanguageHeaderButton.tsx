@@ -39,6 +39,6 @@ const styles = StyleSheet.create({
   },
   pillToolbar: { height: 30, minWidth: 36, paddingHorizontal: 9 },
   pillPressed: { opacity: 0.88, backgroundColor: theme.colors.surface },
-  pillTxt: { color: theme.colors.cta, fontWeight: "900", fontSize: 13, letterSpacing: 0.5 },
+  pillTxt: { color: theme.colors.cta, fontWeight: "800", fontSize: 13, letterSpacing: 0.5 },
   pillTxtToolbar: { fontSize: 12 },
 });

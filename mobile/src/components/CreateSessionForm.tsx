@@ -1063,11 +1063,11 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.borderMuted,
   },
   modalTitle: { fontSize: 17, fontWeight: "800", letterSpacing: 0.2, color: theme.colors.text },
-  modalClose: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "800" },
+  modalClose: { ...theme.typography.title, color: theme.colors.textMuted },
   modalLoader: { paddingVertical: theme.spacing.xl },
   pickerItem: { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.borderMuted },
   pickerItemTextCol: { flex: 1 },
-  pickerItemName: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  pickerItemName: { ...theme.typography.title, color: theme.colors.text },
   pickerItemRole: {
     fontSize: 13,
     color: theme.colors.textMuted,
@@ -1101,7 +1101,7 @@ const styles = StyleSheet.create({
   },
   selectedChipTxt: { color: theme.colors.text, fontWeight: "800", flexShrink: 1 },
   chipX: { width: 26, height: 26, borderRadius: theme.radius.full, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderMuted, alignItems: "center", justifyContent: "center" },
-  chipXTxt: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 12, lineHeight: 14 },
+  chipXTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 12, lineHeight: 14 },
 
   traineeSearchRow: { flexDirection: "row", gap: theme.spacing.sm, alignItems: "center" },
   traineeSearchInput: { flex: 1 },
@@ -1134,7 +1134,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   pickerRowName: { fontWeight: "800", color: theme.colors.text },
-  pickerRowMeta: { marginTop: 2, color: theme.colors.textMuted, fontWeight: "700", fontSize: 12 },
+  pickerRowMeta: { marginTop: 2, color: theme.colors.textMuted, ...theme.typography.label, },
 
   quickAddRow: { gap: theme.spacing.sm },
   quickAddInput: {

@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   scopeChipsRowRtl: { flexDirection: "row-reverse" },
-  scopeCardTitle: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 12 },
+  scopeCardTitle: { color: theme.colors.textMuted, ...theme.typography.label, },
   scopeChipGroup: { flexDirection: "row", gap: 6 },
   scopeChipGroupRtl: { flexDirection: "row-reverse" },
   scopeToggleChip: {
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   scopeToggleChipOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  scopeToggleChipTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 12 },
+  scopeToggleChipTxt: { color: theme.colors.text, ...theme.typography.label, },
   scopeToggleChipTxtOn: { color: theme.colors.ctaText },
   totalsBar: {
     flexDirection: "row",
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
-  totalsValue: { marginTop: 3, fontSize: 18, fontWeight: "900", color: theme.colors.text },
+  totalsValue: { marginTop: 3, ...theme.typography.headline, color: theme.colors.text },
   loadingStack: { padding: theme.spacing.md, gap: theme.spacing.sm },
   listContent: { padding: theme.spacing.md, paddingTop: 0, gap: theme.spacing.sm, paddingBottom: theme.spacing.xl },
   card: {
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
   },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: theme.spacing.sm },
   cardHeadRtl: { flexDirection: "row-reverse" },
-  athleteName: { color: theme.colors.text, fontWeight: "900", fontSize: 16, flex: 1 },
+  athleteName: { color: theme.colors.text, fontWeight: "800", fontSize: 16, flex: 1 },
   badge: {
     paddingVertical: 3,
     paddingHorizontal: 8,
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   cardFooterRtl: { flexDirection: "row-reverse" },
-  expected: { color: theme.colors.text, fontSize: 15, fontWeight: "900" },
+  expected: { color: theme.colors.text, fontSize: 15, fontWeight: "800" },
   metaMuted: { color: theme.colors.textMuted, fontSize: 11, flexShrink: 1 },
   unhideBtn: {
     marginTop: 8,

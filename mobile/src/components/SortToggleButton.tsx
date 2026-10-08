@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   },
   btnRtl: { flexDirection: "row-reverse" },
   btnPressed: { opacity: 0.88 },
-  arrow: { fontSize: 13, fontWeight: "900", color: theme.colors.text },
+  arrow: { fontSize: 13, fontWeight: "800", color: theme.colors.text },
   label: { fontSize: 12, fontWeight: "800", color: theme.colors.text },
   rtl: { textAlign: "right", writingDirection: "rtl" },
 });

@@ -139,8 +139,7 @@ const styles = StyleSheet.create({
   },
   timeColPast: { opacity: 0.7 },
   time: {
-    fontSize: 16,
-    fontWeight: "800",
+    ...theme.typography.title,
     color: theme.colors.text,
     letterSpacing: -0.3,
     fontVariant: ["tabular-nums"],
@@ -154,7 +153,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.success,
   },
-  livePillTxt: { color: theme.colors.success, fontSize: 9, fontWeight: "900", letterSpacing: 0.3 },
+  livePillTxt: { color: theme.colors.success, fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
   endedPill: {
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -163,7 +162,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  endedPillTxt: { color: theme.colors.textSoft, fontSize: 9, fontWeight: "800" },
+  endedPillTxt: { color: theme.colors.textSoft, fontSize: 11, fontWeight: "800" },
   main: { flex: 1, minWidth: 0, gap: 6, justifyContent: "center" },
   trainer: {
     fontSize: 15,
@@ -181,7 +180,7 @@ const styles = StyleSheet.create({
   },
   registeredBannerSheetTxt: {
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "800",
     color: theme.colors.ctaText,
     letterSpacing: 0.2,
   },

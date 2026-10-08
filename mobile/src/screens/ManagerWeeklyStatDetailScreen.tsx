@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: 40 },
   skeletonList: { gap: theme.spacing.sm, marginTop: theme.spacing.sm },
-  h: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginBottom: 4 },
+  h: { ...theme.typography.display, color: theme.colors.text, marginBottom: 4 },
   range: {
     fontSize: 13,
     fontWeight: "700",
@@ -718,8 +718,8 @@ const styles = StyleSheet.create({
   },
   rowCardPressed: { opacity: Platform.OS === "web" ? 0.92 : 0.88 },
   noShowHead: { marginBottom: 10 },
-  rowTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
-  rowMeta: { marginTop: 6, fontSize: 14, fontWeight: "600", color: theme.colors.textMuted },
+  rowTitle: { ...theme.typography.title, color: theme.colors.text },
+  rowMeta: { marginTop: 6, ...theme.typography.secondary, color: theme.colors.textMuted },
   rowDetail: { marginTop: 8, fontSize: 14, color: theme.colors.text, lineHeight: 20 },
   rowHint: { marginTop: 6, fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
   noShowFeeRow: {

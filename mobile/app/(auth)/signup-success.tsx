@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: theme.spacing.lg,
   },
-  badgeText: { color: theme.colors.success, fontSize: 22, fontWeight: "800" },
+  badgeText: { color: theme.colors.success, ...theme.typography.display },
   title: { textAlign: "center", marginBottom: theme.spacing.sm },
   lead: { textAlign: "center", marginBottom: theme.spacing.lg },
   box: {

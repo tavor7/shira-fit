@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderMuted,
   },
-  cardHeaderTxt: { color: theme.colors.textMuted, fontWeight: "900", letterSpacing: 0.2, fontSize: 12, textTransform: "uppercase", maxWidth: "70%" },
+  cardHeaderTxt: { color: theme.colors.textMuted, fontWeight: "800", letterSpacing: 0.2, fontSize: 12, textTransform: "uppercase", maxWidth: "70%" },
   cardClose: {
     width: 34,
     height: 34,
@@ -201,5 +201,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: theme.colors.error,
   },
-  badgeTxt: { color: "#fff", fontWeight: "900", fontSize: 11, letterSpacing: 0.2 },
+  badgeTxt: { color: "#fff", fontWeight: "800", fontSize: 11, letterSpacing: 0.2 },
 });

@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   rows: { gap: 8 },
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
   rowRtl: { flexDirection: "row-reverse" },
-  tierLabel: { flex: 1, fontSize: 14, fontWeight: "600", color: theme.colors.text },
+  tierLabel: { flex: 1, ...theme.typography.secondary, color: theme.colors.text },
   stepper: { flexDirection: "row", alignItems: "center", gap: 8 },
   stepperButton: {
     width: 32,

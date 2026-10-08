@@ -190,8 +190,7 @@ const styles = StyleSheet.create({
   },
   headerEndRtl: { flexDirection: "row-reverse", justifyContent: "flex-start" },
   summary: {
-    fontSize: 13,
-    fontWeight: "600",
+    ...theme.typography.caption,
     color: theme.colors.textMuted,
     flexShrink: 1,
   },
@@ -263,8 +262,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   clearBtnTxt: {
-    fontSize: 12,
-    fontWeight: "700",
+    ...theme.typography.label,
     color: theme.colors.cta,
   },
   rtlText: { writingDirection: "rtl", textAlign: "right" },

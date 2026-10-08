@@ -64,5 +64,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignSelf: "flex-start",
   },
-  txt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.35, textTransform: "uppercase" },
+  txt: { fontSize: 11, fontWeight: "800", letterSpacing: 0.35, textTransform: "uppercase" },
 });

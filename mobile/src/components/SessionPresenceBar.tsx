@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarTxt: { fontSize: 9, fontWeight: "800", color: "#fff" },
+  avatarTxt: { fontSize: 11, fontWeight: "800", color: "#fff" },
   label: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, flexShrink: 1 },
   rtlText: { textAlign: "right" },
 });

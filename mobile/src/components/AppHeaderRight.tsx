@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   nameRtl: { textAlign: "right", writingDirection: "rtl", alignSelf: "stretch" },
   role: {
     marginTop: 1,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "700",
     color: theme.colors.textSoft,
     textTransform: "uppercase",
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     minHeight: theme.controls.minTouch,
     minWidth: theme.controls.minTouch,
   },
-  chipTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 12, letterSpacing: 0.15 },
+  chipTxt: { color: theme.colors.text, ...theme.typography.label, letterSpacing: 0.15 },
   chipMuted: {
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -169,6 +169,6 @@ const styles = StyleSheet.create({
     minHeight: theme.controls.minTouch,
     minWidth: theme.controls.minTouch,
   },
-  chipMutedTxt: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 12, letterSpacing: 0.1 },
+  chipMutedTxt: { color: theme.colors.textMuted, ...theme.typography.label, letterSpacing: 0.1 },
   pressed: { opacity: 0.88 },
 });

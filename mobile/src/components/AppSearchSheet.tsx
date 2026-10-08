@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     lineHeight: 18,
   },
-  dismiss: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "800" },
+  dismiss: { ...theme.typography.title, color: theme.colors.textMuted },
   rtlText: { textAlign: "right", writingDirection: "rtl" },
   headerExtra: {
     flexShrink: 0,

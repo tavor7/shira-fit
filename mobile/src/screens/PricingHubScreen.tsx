@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, paddingBottom: 40 },
   rtl: { textAlign: "right", alignSelf: "stretch" },
-  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: 10 },
+  title: { ...theme.typography.headline, color: theme.colors.text, marginBottom: 10 },
 
   tabBar: { marginBottom: theme.spacing.md },
 

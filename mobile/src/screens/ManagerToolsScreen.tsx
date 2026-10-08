@@ -63,7 +63,7 @@ export default function ManagerToolsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
-  title: { fontSize: 20, fontWeight: "900", color: theme.colors.text },
+  title: { fontSize: 20, fontWeight: "800", color: theme.colors.text },
   hint: { marginTop: 6, color: theme.colors.textMuted, lineHeight: 18 },
   rtlText: { textAlign: "right" },
   grid: { marginTop: theme.spacing.md, gap: theme.spacing.md },
@@ -85,6 +85,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
   },
   cardText: { flex: 1 },
-  cardTitle: { color: theme.colors.text, fontWeight: "900", fontSize: 16 },
+  cardTitle: { color: theme.colors.text, fontWeight: "800", fontSize: 16 },
   cardSub: { marginTop: 6, color: theme.colors.textMuted, lineHeight: 18 },
 });

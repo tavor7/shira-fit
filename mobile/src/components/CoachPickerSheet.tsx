@@ -151,8 +151,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.2)",
   },
   rowTextCol: { flex: 1, minWidth: 0, gap: 2 },
-  rowName: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
-  rowMeta: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  rowName: { ...theme.typography.title, color: theme.colors.text },
+  rowMeta: { ...theme.typography.caption, color: theme.colors.textMuted },
   rolePill: {
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   },
   check: {
     fontSize: 16,
-    fontWeight: "900",
+    fontWeight: "800",
     color: theme.colors.cta,
     marginStart: 2,
   },

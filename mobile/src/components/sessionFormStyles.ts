@@ -89,7 +89,7 @@ export const sessionFormStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  countBadgeTxt: { fontSize: 11, fontWeight: "900", color: theme.colors.ctaText },
+  countBadgeTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.ctaText },
   /** Softer section label (create/edit forms). */
   sectionTitle: {
     fontSize: 13,
@@ -113,7 +113,7 @@ export const sessionFormStyles = StyleSheet.create({
   // Critical: allow columns to shrink; prevents overflow/overlap.
   col: { flex: 1, flexBasis: 0, minWidth: 0 },
 
-  label: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
+  label: { marginBottom: 6, color: theme.colors.textMuted, ...theme.typography.label, letterSpacing: 0.2 },
   labelRtl: { textAlign: "right" },
 
   control: {
@@ -125,9 +125,9 @@ export const sessionFormStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  controlText: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
-  controlPlaceholder: { fontSize: 16, fontWeight: "700", color: theme.colors.textSoft },
-  controlInput: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  controlText: { ...theme.typography.title, color: theme.colors.text },
+  controlPlaceholder: { ...theme.typography.title, color: theme.colors.textSoft },
+  controlInput: { ...theme.typography.title, color: theme.colors.text },
 
   toggle: {
     minHeight: 48,

@@ -88,8 +88,8 @@ export function EditCustomerEmailModal({
 
 const styles = StyleSheet.create({
   body: { padding: theme.spacing.lg, gap: theme.spacing.sm },
-  title: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
-  sub: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted },
+  title: { ...theme.typography.headline, color: theme.colors.text },
+  sub: { ...theme.typography.secondary, color: theme.colors.textMuted },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,

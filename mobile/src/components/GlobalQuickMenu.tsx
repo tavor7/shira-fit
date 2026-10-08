@@ -314,5 +314,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   triggerPressed: { opacity: 0.9, backgroundColor: theme.colors.surface },
-  triggerIcon: { color: theme.colors.text, fontSize: 18, fontWeight: "900", letterSpacing: 0.5, marginTop: -1 },
+  triggerIcon: { color: theme.colors.text, ...theme.typography.headline, letterSpacing: 0.5, marginTop: -1 },
 });

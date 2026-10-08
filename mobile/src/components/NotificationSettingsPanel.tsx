@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
   blockEmbedded: { paddingTop: 4 },
   loaderWrap: { paddingVertical: 32, alignItems: "center", gap: 8 },
   loaderWrapEmbedded: { paddingVertical: 24 },
-  h: { fontSize: 20, fontWeight: "900", color: theme.colors.text, marginBottom: 4 },
+  h: { fontSize: 20, fontWeight: "800", color: theme.colors.text, marginBottom: 4 },
   sub: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 20, marginBottom: 4 },
   rtl: { textAlign: "right", alignSelf: "stretch" },
   muted: { color: theme.colors.textMuted },
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   rowLabel: { flex: 1, color: theme.colors.text, fontWeight: "700", fontSize: 15, paddingEnd: 14 },
   rowDisabled: { opacity: 0.6 },
   waBlock: { marginTop: 8, gap: 8 },
-  waTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  waTitle: { ...theme.typography.title, color: theme.colors.text },
   waSub: { fontSize: 13, color: theme.colors.textMuted, lineHeight: 18 },
   waPhone: { fontSize: 12, color: theme.colors.textSoft, fontWeight: "600" },
   pill: {
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   pillTxtOn: { color: theme.colors.cta },
   pillTxtOff: { color: theme.colors.textSoft },
   managerBlock: { marginTop: 16, gap: 8, borderTopWidth: 1, borderTopColor: theme.colors.borderMuted, paddingTop: 16 },
-  managerTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  managerTitle: { ...theme.typography.title, color: theme.colors.text },
   activationCard: {
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
-  activationValue: { fontSize: 22, fontWeight: "900", color: theme.colors.text },
+  activationValue: { ...theme.typography.display, color: theme.colors.text },
   activationLabel: { marginTop: 2, fontSize: 12, fontWeight: "600", color: theme.colors.textMuted },
   promptCard: {
     borderWidth: 1,

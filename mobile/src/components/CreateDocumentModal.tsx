@@ -266,7 +266,7 @@ const modalStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
-  amountInput: { fontSize: 18, fontWeight: "800" },
+  amountInput: { ...theme.typography.headline },
   textArea: { minHeight: 88, textAlignVertical: "top" },
   rtlInput: { textAlign: "right", writingDirection: "rtl" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm },

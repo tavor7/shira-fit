@@ -155,14 +155,14 @@ const styles = StyleSheet.create({
   inviteLine1Compact: {
     color: theme.colors.textMuted,
     fontWeight: "800",
-    fontSize: 9,
+    fontSize: 11,
     lineHeight: 11,
     letterSpacing: 0.4,
     textAlign: "center",
   },
   inviteLine2Compact: {
     color: theme.colors.text,
-    fontWeight: "900",
+    fontWeight: "800",
     fontSize: 11,
     lineHeight: 13,
     letterSpacing: 0.15,
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   },
   inviteTitle: {
     color: theme.colors.text,
-    fontWeight: "900",
+    fontWeight: "800",
     fontSize: 13,
     letterSpacing: 0.15,
   },
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   joinedMark: {
     color: theme.colors.success,
-    fontWeight: "900",
+    fontWeight: "800",
     fontSize: 14,
   },
   joinedTxt: {

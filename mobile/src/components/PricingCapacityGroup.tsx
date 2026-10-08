@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
   soleRange: { fontSize: 12, color: theme.colors.textSoft, fontWeight: "500" },
   soleActions: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   soleActionsRtl: { flexDirection: "row-reverse" },
-  actionEdit: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
-  actionRemove: { fontSize: 12, fontWeight: "700", color: theme.colors.error },
+  actionEdit: { ...theme.typography.label, color: theme.colors.textMuted },
+  actionRemove: { ...theme.typography.label, color: theme.colors.error },
   actionSep: { fontSize: 12, color: theme.colors.textSoft },
   pastBlock: {
     marginTop: 6,

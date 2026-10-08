@@ -71,8 +71,8 @@ const styles = StyleSheet.create({
   range: { fontSize: 12, fontWeight: "500", color: theme.colors.textSoft },
   actions: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 0 },
   actionsRtl: { flexDirection: "row-reverse" },
-  actionEdit: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
-  actionRemove: { fontSize: 12, fontWeight: "700", color: theme.colors.error },
+  actionEdit: { ...theme.typography.label, color: theme.colors.textMuted },
+  actionRemove: { ...theme.typography.label, color: theme.colors.error },
   actionSep: { fontSize: 12, color: theme.colors.textSoft },
   rtl: { textAlign: "right" },
 });

@@ -234,8 +234,7 @@ const styles = StyleSheet.create({
   },
   triggerLabel: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: "600",
+    ...theme.typography.secondary,
     color: theme.colors.textMuted,
   },
   rtlText: { textAlign: "right", writingDirection: "rtl" },
@@ -259,7 +258,7 @@ const styles = StyleSheet.create({
   },
   panelHeadRtl: { flexDirection: "row-reverse" },
   panelName: { flex: 1, fontSize: 15, fontWeight: "800", color: theme.colors.text },
-  quickAddTag: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
+  quickAddTag: { ...theme.typography.label, color: theme.colors.textMuted },
   clearBtn: {
     width: 28,
     height: 28,
@@ -293,7 +292,7 @@ const styles = StyleSheet.create({
   sessionRowPressed: { opacity: 0.88 },
   sessionWhen: { flex: 1, fontSize: 13, fontWeight: "700", color: theme.colors.text, minWidth: 0 },
   sessionDot: { fontWeight: "600", color: theme.colors.textSoft },
-  sessionCoach: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, maxWidth: "36%" },
+  sessionCoach: { ...theme.typography.label, color: theme.colors.textMuted, maxWidth: "36%" },
   changeBtn: { alignSelf: "flex-start", paddingTop: 8, paddingBottom: 2 },
   changeBtnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.cta },
   sheetEmpty: {
@@ -310,6 +309,6 @@ const styles = StyleSheet.create({
   },
   hitRowPressed: { backgroundColor: theme.colors.surfaceElevated },
   hitName: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
-  hitQuickAdd: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
+  hitQuickAdd: { ...theme.typography.label, color: theme.colors.textMuted },
   hitMeta: { marginTop: 2, fontSize: 12, fontWeight: "600", color: theme.colors.textMuted },
 });

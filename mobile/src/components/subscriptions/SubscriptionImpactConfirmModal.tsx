@@ -84,7 +84,7 @@ export function SubscriptionImpactConfirmModal({ visible, action, impact, busy, 
 
 const styles = StyleSheet.create({
   card: { padding: theme.spacing.lg },
-  title: { fontSize: 18, fontWeight: "800", color: theme.colors.text, marginBottom: theme.spacing.sm },
+  title: { ...theme.typography.headline, color: theme.colors.text, marginBottom: theme.spacing.sm },
   message: { fontSize: 15, fontWeight: "500", lineHeight: 22, color: theme.colors.textMuted, marginBottom: theme.spacing.md },
   detailBox: {
     backgroundColor: theme.colors.surface,

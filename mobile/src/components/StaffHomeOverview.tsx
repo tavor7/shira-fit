@@ -549,14 +549,14 @@ const styles = StyleSheet.create({
   nowBadgeText: {
     color: theme.colors.success,
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: 0.4,
   },
   sessionCardTimePress: {
     marginBottom: theme.spacing.sm,
   },
   sessionCardTimeText: { fontSize: 15, color: theme.colors.text, fontWeight: "600" },
-  sessionCardTimeTextCurrent: { fontSize: 16, fontWeight: "800" },
+  sessionCardTimeTextCurrent: { ...theme.typography.title },
   sessionCardParticipantHeading: {
     fontSize: 14,
     fontWeight: "700",
@@ -599,8 +599,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  countPillText: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "900" },
-  chev: { color: theme.colors.textMuted, fontSize: 11, fontWeight: "900" },
+  countPillText: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "800" },
+  chev: { color: theme.colors.textMuted, fontSize: 11, fontWeight: "800" },
   groupBody: { paddingHorizontal: 8, paddingBottom: 8 },
   sessionRow: {
     paddingVertical: 10,
@@ -639,6 +639,6 @@ const styles = StyleSheet.create({
   /** Force one edge per UI language so mixed Hebrew/Latin names don’t split to opposite sides. */
   participantNameLtrUi: { textAlign: "left", writingDirection: "ltr" },
   participantNameRtlUi: { textAlign: "right", writingDirection: "rtl" },
-  noteMeta: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700", marginBottom: 6 },
+  noteMeta: { color: theme.colors.textMuted, ...theme.typography.label, marginBottom: 6 },
   noteBody: { color: theme.colors.text, fontSize: 14, fontWeight: "700", lineHeight: 18 },
 });

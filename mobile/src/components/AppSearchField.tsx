@@ -155,8 +155,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     minWidth: 0,
-    fontSize: 16,
-    fontWeight: "600",
+    ...theme.typography.body,
     color: theme.colors.text,
     paddingVertical: Platform.OS === "ios" ? 10 : 8,
   },

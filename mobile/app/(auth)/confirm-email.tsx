@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   badgeErr: { backgroundColor: theme.colors.errorBg },
-  badgeText: { color: theme.colors.success, fontSize: 22, fontWeight: "800" },
+  badgeText: { color: theme.colors.success, ...theme.typography.display },
   badgeTextErr: { color: theme.colors.error },
   title: { textAlign: "center", marginBottom: theme.spacing.sm },
   lead: { textAlign: "center", marginBottom: theme.spacing.lg },
