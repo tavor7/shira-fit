@@ -136,7 +136,7 @@ function formatWeekLabel(start: Date, end: Date, locale: string) {
     x.toLocaleDateString(localeYear, { day: "numeric", month: "short", year: "numeric" });
   const fmtShort = (x: Date) => x.toLocaleDateString(locale, optsShort);
   const fmtA = (x: Date) => (useYear ? fmtWithYear(x) : fmtShort(x));
-  return `${fmtA(start)} - ${fmtA(end)}`;
+  return `${fmtA(start)} – ${fmtA(end)}`;
 }
 
 /** Direction-aware fade + slide-in for a day column when the visible week changes. */

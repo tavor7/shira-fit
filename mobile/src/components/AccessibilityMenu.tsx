@@ -113,7 +113,7 @@ function AccessibilityMenuInner() {
                     accessibilityRole="button"
                     accessibilityLabel={t("a11yMenu.decrease")}
                   >
-                    <AppText variant="body" style={styles.stepBtnTxt}>
+                    <AppText variant="body" style={[styles.stepBtnTxt, styles.stepBtnTxtLtr]}>
                       A-
                     </AppText>
                   </Pressable>
@@ -123,7 +123,7 @@ function AccessibilityMenuInner() {
                     accessibilityRole="button"
                     accessibilityLabel={t("a11yMenu.increase")}
                   >
-                    <AppText variant="body" style={styles.stepBtnTxt}>
+                    <AppText variant="body" style={[styles.stepBtnTxt, styles.stepBtnTxtLtr]}>
                       A+
                     </AppText>
                   </Pressable>
@@ -270,6 +270,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
   },
   stepBtnTxt: { fontWeight: "800" },
+  // "A-" / "A+" are symbols, not words: keep them LTR so a Hebrew UI does not render them as "-A" / "+A".
+  stepBtnTxtLtr: { writingDirection: "ltr" },
   switchTrack: {
     width: 44,
     height: 26,

@@ -19,6 +19,8 @@ export default function AthleteLayout() {
         tabBarStyle: { display: "none" as const, height: 0, overflow: "hidden" },
         tabBarLabelStyle: { fontWeight: "800", fontSize: 12 },
         tabBarItemStyle: { paddingVertical: 4 },
+        // Centred columns on desktop sit on the app background, not the navigator default.
+        sceneStyle: { backgroundColor: theme.colors.backgroundAlt },
       }}
     >
       <Tabs.Screen

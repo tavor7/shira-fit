@@ -384,8 +384,8 @@ export default function AthleteSessionDetail() {
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
         <EmptyState
           tone="notFound"
-          title={t("errors.notFoundTitle")}
-          body={t("athleteSession.notFound")}
+          title={t("athleteSession.notFound")}
+          body={t("errors.notFound")}
           actionLabel={t("common.back")}
           onAction={() => router.replace("/(app)/athlete/sessions")}
           isRTL={isRTL}

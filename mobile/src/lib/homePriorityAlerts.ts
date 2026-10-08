@@ -293,7 +293,7 @@ export async function fetchStaffAthleteMultipleSessionsPerDayItems(
       label: flatLabel,
       labelSegments: [
         { text: lead, dir: leadDir, role: "subject" },
-        { text: sep + detail, dir: bodyDir, role: "body" },
+        { text: detail, dir: bodyDir, role: "body" },
       ],
       href: staffSessionPath(variant, first.sessionId),
       tone: "doubleSession",
@@ -504,7 +504,7 @@ export async function fetchAthleteMultipleSessionsPerDayItems(
       label: flatLabel,
       labelSegments: [
         { text: lead, dir: leadDir, role: "subject" },
-        { text: sep + detail, dir: bodyDir, role: "body" },
+        { text: detail, dir: bodyDir, role: "body" },
       ],
       href: `/(app)/athlete/session/${first.id}` as Href,
       tone: "doubleSession",
