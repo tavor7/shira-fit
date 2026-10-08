@@ -27,6 +27,7 @@ import { useCountUp } from "../hooks/useCountUp";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { pluralKey } from "../lib/pluralKey";
 
 function formatPayout(n: number) {
   return displayMoney(n);
@@ -134,7 +135,8 @@ export default function ManagerCoachSessionsReportScreen({
   headerExtra,
 }: { hideTitle?: boolean; headerExtra?: ReactNode } = {}) {
   const { language, t, isRTL } = useI18n();
-  const screenContent = useScreenContentStyle("standard");
+  // Sections (filters, payout, picker, session cards, embedded Reports header) each carry the 16px inset themselves.
+  const screenContent = useScreenContentStyle("standard", { selfInset: theme.spacing.md });
   const { showOk } = useAppAlert();
   const defaultRange = useMemo(() => lastNDaysRangeISO(30), []);
   const [start, setStart] = useState(defaultRange.start);
@@ -260,7 +262,7 @@ export default function ManagerCoachSessionsReportScreen({
                   </View>
                   <View style={styles.payoutBadge}>
                     <Text style={styles.payoutBadgeTxt}>
-                      {t("coachReport.sessionCount").replace("{n}", String(rows.length))}
+                      {pluralKey(t, "coachReport.sessionCount", rows.length).replace("{n}", String(rows.length))}
                     </Text>
                   </View>
                 </View>
@@ -374,6 +376,7 @@ const styles = StyleSheet.create({
   payoutBadgeTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
   payoutWarn: { fontSize: 12, fontWeight: "600", color: theme.colors.error, lineHeight: 17 },
   sessionCard: {
+    marginHorizontal: theme.spacing.md,
     borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
