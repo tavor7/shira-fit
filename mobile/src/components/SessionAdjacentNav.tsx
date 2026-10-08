@@ -81,9 +81,15 @@ export function SessionAdjacentNav({ variant, sessionId }: Props) {
           accessibilityLabel={t("sessionNav.prevA11y")}
           accessibilityState={{ disabled: !adj.prevId }}
         >
-          <Text style={[styles.arrow, !adj.prevId && styles.arrowMuted]} allowFontScaling={false}>
-            {isRTL ? "→" : "←"}
-          </Text>
+          {/* Arrow on the outer edge, then the label; the row follows the reading direction. */}
+          <View style={[styles.halfContent, rowFlip && styles.splitRowFlip]}>
+            <Text style={[styles.arrow, !adj.prevId && styles.arrowMuted]} allowFontScaling={false}>
+              {isRTL ? "→" : "←"}
+            </Text>
+            <Text style={[styles.label, !adj.prevId && styles.arrowMuted]} numberOfLines={1} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
+              {t("sessionNav.prevA11y")}
+            </Text>
+          </View>
         </Pressable>
         <View style={styles.divider} pointerEvents="none" />
         <Pressable
@@ -99,9 +105,14 @@ export function SessionAdjacentNav({ variant, sessionId }: Props) {
           accessibilityLabel={t("sessionNav.nextA11y")}
           accessibilityState={{ disabled: !adj.nextId }}
         >
-          <Text style={[styles.arrow, !adj.nextId && styles.arrowMuted]} allowFontScaling={false}>
-            {isRTL ? "←" : "→"}
-          </Text>
+          <View style={[styles.halfContent, rowFlip && styles.splitRowFlip]}>
+            <Text style={[styles.label, !adj.nextId && styles.arrowMuted]} numberOfLines={1} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
+              {t("sessionNav.nextA11y")}
+            </Text>
+            <Text style={[styles.arrow, !adj.nextId && styles.arrowMuted]} allowFontScaling={false}>
+              {isRTL ? "←" : "→"}
+            </Text>
+          </View>
         </Pressable>
       </View>
     </View>
@@ -130,7 +141,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 36,
+    minHeight: theme.controls.minTouch,
+    paddingHorizontal: theme.spacing.sm,
   },
   halfPressed: {
     backgroundColor: "rgba(244, 244, 245, 0.06)",
@@ -163,6 +175,8 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
+  halfContent: { flexDirection: "row", alignItems: "center", gap: theme.spacing.xs, maxWidth: "100%" },
+  label: { ...theme.typography.caption, color: theme.colors.textMuted, flexShrink: 1 },
   arrowMuted: {
     color: theme.colors.textSoft,
   },
