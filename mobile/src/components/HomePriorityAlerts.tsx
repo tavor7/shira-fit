@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
+import { LAYOUT } from "../lib/screenLayout";
 import type { HomePriorityAlertItem, HomePriorityAlertTone, HomePriorityLabelSegment } from "../lib/homePriorityAlerts";
 import {
   dismissHomeAlert,
@@ -615,6 +616,9 @@ const modalStyles = StyleSheet.create({
     zIndex: 0,
   },
   sheet: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.sheetMaxWidth,
+    alignSelf: "center",
     zIndex: 2,
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,

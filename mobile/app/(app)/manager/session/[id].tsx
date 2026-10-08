@@ -15,6 +15,7 @@ import {
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSession } from "../../../../src/types/database";
 import { theme } from "../../../../src/theme";
+import { LAYOUT } from "../../../../src/lib/screenLayout";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import {
   ParticipantAttendanceList,
@@ -2734,6 +2735,9 @@ const styles = StyleSheet.create({
   dupBackdrop: { flex: 1, justifyContent: "center", padding: theme.spacing.lg, backgroundColor: "rgba(0,0,0,0.55)" },
   dupBackdropTouch: { ...StyleSheet.absoluteFill },
   dupCard: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.dialogMaxWidth,
+    alignSelf: "center",
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
     borderWidth: 1,

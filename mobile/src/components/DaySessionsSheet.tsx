@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
+import { LAYOUT } from "../lib/screenLayout";
 import { formatISODateLong, formatISODateDayMonth } from "../lib/dateFormat";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { supabase } from "../lib/supabase";
@@ -847,6 +848,9 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   sheet: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.sheetMaxWidth,
+    alignSelf: "center",
     zIndex: 2,
     position: "relative",
     backgroundColor: theme.colors.backgroundAlt,
@@ -1118,6 +1122,9 @@ const styles = StyleSheet.create({
   dupModalRoot: { flex: 1, justifyContent: "center", padding: theme.spacing.lg },
   dupBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.55)" },
   dupCard: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.dialogMaxWidth,
+    alignSelf: "center",
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.xl,
     borderWidth: 1,

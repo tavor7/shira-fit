@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { screenContentFrame } from "../lib/screenLayout";
+import { LAYOUT, screenContentFrame } from "../lib/screenLayout";
 import { theme } from "../theme";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   },
   cardDialog: {
     width: "100%",
-    maxWidth: 440,
+    maxWidth: LAYOUT.modal.dialogMaxWidth,
     shadowOpacity: 0.45,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 12 },

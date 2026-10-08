@@ -5,6 +5,7 @@ import type { TrainingSessionWithTrainer } from "../types/database";
 import { formatSessionTimeRange, hasSessionNotStarted } from "../lib/sessionTime";
 import { formatISODateFull } from "../lib/dateFormat";
 import { theme } from "../theme";
+import { LAYOUT } from "../lib/screenLayout";
 import { surface } from "../theme/surfaces";
 import { PrimaryButton } from "./PrimaryButton";
 import { StatusChip } from "./StatusChip";
@@ -373,7 +374,13 @@ const styles = StyleSheet.create({
   detailTap: { marginTop: 10, alignSelf: "flex-start" },
   detailTapTxt: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13 },
   modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 },
-  modalCard: { ...surface.card, backgroundColor: theme.colors.surfaceElevated },
+  modalCard: {
+    ...surface.card,
+    backgroundColor: theme.colors.surfaceElevated,
+    width: "100%",
+    maxWidth: LAYOUT.modal.dialogMaxWidth,
+    alignSelf: "center",
+  },
   modalTitle: { fontWeight: "800", fontSize: 16, marginBottom: 8, color: theme.colors.text },
   input: {
     borderWidth: 1,

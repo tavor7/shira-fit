@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { theme } from "../theme";
+import { LAYOUT } from "../lib/screenLayout";
 import { useI18n } from "../context/I18nContext";
 
 export type TimePickerFieldProps = {
@@ -158,6 +159,9 @@ const styles = StyleSheet.create({
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   backdropFlex: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
   sheet: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.sheetMaxWidth,
+    alignSelf: "center",
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,
     borderTopRightRadius: theme.radius.xl,

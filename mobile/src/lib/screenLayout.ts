@@ -28,6 +28,8 @@ export const LAYOUT = {
   contentEndSpacing: theme.spacing.lg,
   /** Floating accessibility button (web): size and its distance from the chrome below it / the side. */
   fab: { size: 46, gap: theme.spacing.md, sideInset: 20 },
+  /** Floating surfaces on wide viewports: bottom sheets match the narrow content column; dialogs stay compact. */
+  modal: { sheetMaxWidth: 560 + theme.spacing.xl * 2, dialogMaxWidth: 440 },
 } as const;
 
 export function screenGutter(viewportWidth: number): number {

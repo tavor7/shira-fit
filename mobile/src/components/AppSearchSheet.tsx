@@ -19,6 +19,7 @@ import { useKeyboardInset } from "../hooks/useKeyboardInset";
 import { useLockBodyScroll } from "../hooks/useLockBodyScroll";
 import { useVisualViewport } from "../hooks/useVisualViewport";
 import { theme } from "../theme";
+import { LAYOUT } from "../lib/screenLayout";
 import { AppSearchField } from "./AppSearchField";
 import { FadeSlideIn } from "./FadeSlideIn";
 import { rowFlipFor } from "../lib/layoutDirection";
@@ -286,6 +287,8 @@ const styles = StyleSheet.create({
   backdropTouch: { ...StyleSheet.absoluteFill },
   sheet: {
     width: "100%",
+    maxWidth: LAYOUT.modal.sheetMaxWidth,
+    alignSelf: "center",
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,
     borderTopRightRadius: theme.radius.xl,

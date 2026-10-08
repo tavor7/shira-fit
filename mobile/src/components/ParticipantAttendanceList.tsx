@@ -5,6 +5,7 @@ import * as Haptics from "expo-haptics";
 import { router, usePathname } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { LAYOUT } from "../lib/screenLayout";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
@@ -1310,6 +1311,9 @@ const styles = StyleSheet.create({
   noShowFeeBtnTxtOn: { color: theme.colors.ctaText },
   payBackdrop: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: theme.overlay.backdrop },
   payCard: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.dialogMaxWidth,
+    alignSelf: "center",
     backgroundColor: theme.colors.surfaceElevated,
     borderRadius: theme.radius.lg,
     padding: 18,

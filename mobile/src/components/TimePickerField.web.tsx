@@ -1,6 +1,7 @@
 import { createElement, type ChangeEvent, type CSSProperties, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
+import { LAYOUT } from "../lib/screenLayout";
 import { useI18n } from "../context/I18nContext";
 import type { TimePickerFieldProps } from "./TimePickerField";
 import { rowFlipFor } from "../lib/layoutDirection";
@@ -194,6 +195,9 @@ const styles = StyleSheet.create({
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   backdropFlex: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
   sheet: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.sheetMaxWidth,
+    alignSelf: "center",
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,
     borderTopRightRadius: theme.radius.xl,
