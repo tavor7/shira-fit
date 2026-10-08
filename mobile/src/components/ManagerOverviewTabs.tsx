@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Animated, type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, type LayoutChangeEvent, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { theme } from "../theme";
 import { selectionA11y } from "../lib/a11ySelection";
+import { EdgeFade, useHorizontalOverflow } from "./ScrollEdgeFade";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { useI18n } from "../context/I18nContext";
 import { logRedirectToManagerSessions } from "../lib/managerSessionsRedirectLog";
@@ -37,8 +38,12 @@ type PillTabCoreProps = {
 };
 
 function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }: PillTabCoreProps) {
-  const { language, isRTL } = useI18n();
+  const { isRTL } = useI18n();
   const compact = density === "compact";
+  const scrollRef = useRef<ScrollView>(null);
+  const tabRefs = useRef<Record<string, View | null>>({});
+  const revealedRef = useRef<string | null>(null);
+  const { edges, scrollProps } = useHorizontalOverflow(isRTL);
 
   // A thin underline slides + resizes to the measured active-tab position — the same idiom
   // as the tab bar pill, just an underline instead of a filled pill. Slides when the same
@@ -89,6 +94,18 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
     [indicatorX, indicatorW, indicatorY, indicatorOpacity, reduceMotionRef]
   );
 
+  /** Keep the active tab visible when the row scrolls (phones, long Hebrew/English labels). */
+  const reveal = useCallback((id: string) => {
+    revealedRef.current = id;
+    if (Platform.OS === "web") {
+      const node = tabRefs.current[id] as unknown as { scrollIntoView?: (o: ScrollIntoViewOptions) => void } | null;
+      node?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      return;
+    }
+    const l = layouts.current[id];
+    if (l) scrollRef.current?.scrollTo({ x: Math.max(0, l.x - theme.spacing.md), animated: false });
+  }, []);
+
   useEffect(() => {
     if (hasPositionedRef.current) moveTo(activeId, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,10 +118,19 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
     if (id === activeId && (!prev || prev.x !== x || prev.y !== y || prev.width !== width)) {
       moveTo(id, false);
     }
+    if (id === activeId && revealedRef.current !== activeId) reveal(id);
   };
 
   return (
     <View style={styles.strip}>
+      {/* One scrollable row: wrapping onto a second row made the tabs jump between screens on phones. */}
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        {...scrollProps}
+      >
       <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]} accessibilityRole="tablist">
         <Animated.View
           pointerEvents="none"
@@ -122,6 +148,9 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
           return (
             <Pressable
               key={x.id}
+              ref={(node) => {
+                tabRefs.current[x.id] = node;
+              }}
               onLayout={handleLayout(x.id)}
               onPress={() => onPressTab(x.id)}
               style={({ pressed }) => [
@@ -129,7 +158,7 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
                 pressed && !active && styles.tabPressed,
               ]}
               {...selectionA11y("tab", active)}
-              accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
+              accessibilityLabel={x.label}
             >
               <Text
                 style={[compact ? styles.labelCompact : styles.label, active && styles.labelActive]}
@@ -142,6 +171,9 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
           );
         })}
       </View>
+      </ScrollView>
+      <EdgeFade side="start" visible={edges.start} isRTL={isRTL} />
+      <EdgeFade side="end" visible={edges.end} isRTL={isRTL} />
     </View>
   );
 }
@@ -207,11 +239,11 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     alignItems: "flex-end",
     gap: 2,
-    rowGap: 0,
   },
+  scrollContent: { flexGrow: 1 },
   rowRtl: { flexDirection: "row-reverse" },
   tab: {
     paddingVertical: 10,
