@@ -17,7 +17,9 @@ import { formatSessionTimeRange } from "./sessionTime";
 const LRI = "\u2066";
 const FSI = "\u2068";
 const PDI = "\u2069";
-const ISOLATES = /[\u2066\u2067\u2068\u2069]/g;
+const WJ = "\u2060";
+/** Display-only marks: bidi isolates and word joiners. */
+const ISOLATES = /[\u2066\u2067\u2068\u2069\u2060]/g;
 
 /** Left-to-right isolate: content keeps its internal LTR order inside RTL or LTR text. */
 export function displayLtr(value: string): string {
@@ -30,9 +32,12 @@ export function displayUserText(value: string | null | undefined): string {
   return v ? `${FSI}${v}${PDI}` : v;
 }
 
-/** Session time range for display, e.g. "18:00–19:00", always drawn start-before-end. */
+/**
+ * Session time range for display, e.g. "18:00–19:00", always drawn start-before-end and kept on one
+ * line (word joiners around the dash; a narrow card otherwise broke it as "18:00–" / "19:00").
+ */
 export function displayTimeRange(startTime: string, durationMinutes: number): string {
-  return displayLtr(formatSessionTimeRange(startTime, durationMinutes));
+  return displayLtr(formatSessionTimeRange(startTime, durationMinutes).replace("–", `${WJ}–${WJ}`));
 }
 
 /**
@@ -51,7 +56,7 @@ export function displayMoney(amount: number): string {
   return displayLtr(`${amount < 0 && cents !== 0 ? "-" : ""}₪${body}`);
 }
 
-/** Removes isolates (for tests / defensive use at a data boundary). */
+/** Removes isolates and word joiners (for tests / defensive use at a data boundary). */
 export function stripDisplayIsolates(value: string): string {
   return value.replace(ISOLATES, "");
 }

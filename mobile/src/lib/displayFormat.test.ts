@@ -42,7 +42,7 @@ describe("displayMoney", () => {
 
 describe("displayTimeRange", () => {
   it("isolates the raw range without changing it", () => {
-    expect(displayTimeRange("18:00", 60)).toBe(`${LRI}18:00–19:00${PDI}`);
+    expect(displayTimeRange("18:00", 60)).toBe(`${LRI}18:00\u2060–\u206019:00${PDI}`);
     expect(stripDisplayIsolates(displayTimeRange("19:15:00", 75))).toBe(formatSessionTimeRange("19:15:00", 75));
   });
   it("keeps the midnight-crossing fallback", () => {
@@ -80,5 +80,13 @@ describe("isolateNumericRanges / displayDateRange", () => {
       }
     }
     expect(displayDateRange("2026-10-04", "2026-10-10", "en")).toContain(`${LRI}4–10${PDI}`);
+  });
+});
+
+describe("displayTimeRange line breaking", () => {
+  it("keeps the range on one line without changing the visible text", () => {
+    const shown = displayTimeRange("18:00", 60);
+    expect(shown).toContain("\u2060–\u2060");
+    expect(stripDisplayIsolates(shown)).toBe("18:00–19:00");
   });
 });
