@@ -82,7 +82,7 @@ export function ManagerSubscriptionDetailScreen() {
   if (error || !detail) {
     return (
       <View style={styles.screen}>
-        <EmptyState icon="⚠️" title={t("subscriptions.detail.loadError")} actionLabel={t("subscriptions.retry")} onAction={() => void load()} isRTL={isRTL} />
+        <EmptyState tone="error" title={t("subscriptions.detail.loadError")} actionLabel={t("subscriptions.retry")} onAction={() => void load()} isRTL={isRTL} />
       </View>
     );
   }

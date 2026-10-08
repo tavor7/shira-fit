@@ -112,7 +112,7 @@ export default function StaffSearchScreen() {
         ListEmptyComponent={
           showEmpty ? (
             <EmptyState
-              icon={trimmedQ.length < 1 ? "🔍" : "∅"}
+              icon={trimmedQ.length < 1 ? "search-outline" : "search-outline"}
               title={trimmedQ.length < 1 ? t("empty.typeAtLeastOne") : t("empty.noResults")}
               body={trimmedQ.length < 1 ? t("staffSearch.placeholder") : undefined}
               isRTL={isRTL}

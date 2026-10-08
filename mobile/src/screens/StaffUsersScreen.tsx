@@ -4,6 +4,7 @@ import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { AppIcon } from "../components/AppIcon";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
@@ -195,7 +196,7 @@ export default function StaffUsersScreen() {
         ListEmptyComponent={
           loading ? null : (
             <EmptyState
-              icon={q.trim().length > 0 ? "🔍" : "👥"}
+              icon={q.trim().length > 0 ? "search-outline" : "people-outline"}
               title={t("staffUsers.noUsers")}
               isRTL={isRTL}
             />
@@ -246,8 +247,9 @@ export default function StaffUsersScreen() {
                       const now = new Date();
                       const tmd = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
                       return md === tmd ? (
-                        <Text style={styles.bday} accessibilityLabel={t("staffUsers.birthdayToday")}>
-                          {"  "}🎂
+                        <Text style={styles.bday}>
+
+                          <AppIcon name="gift-outline" size="sm" color={theme.colors.warning} accessibilityLabel={t("staffUsers.birthdayToday")} />
                         </Text>
                       ) : null;
                     })()}

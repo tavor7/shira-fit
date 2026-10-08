@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { AppIcon } from "../components/AppIcon";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
@@ -613,7 +614,7 @@ export default function ManagerActivityLogScreen() {
                         {t(labelKey)}
                       </Text>
                       {selected ? (
-                        <Text style={styles.typeSheetCheck}>✓</Text>
+                        <AppIcon name="checkmark" size={18} color={theme.colors.cta} />
                       ) : (
                         <View style={styles.typeSheetCheckSpacer} />
                       )}
@@ -689,7 +690,7 @@ export default function ManagerActivityLogScreen() {
                         {t(labelKey)}
                       </Text>
                       {selected ? (
-                        <Text style={styles.typeSheetCheck}>✓</Text>
+                        <AppIcon name="checkmark" size={18} color={theme.colors.cta} />
                       ) : (
                         <View style={styles.typeSheetCheckSpacer} />
                       )}
@@ -840,7 +841,7 @@ export default function ManagerActivityLogScreen() {
               <ListRowSkeleton />
             </View>
           ) : (
-            <EmptyState icon="📋" title={t("activityLog.empty")} isRTL={isRTL} />
+            <EmptyState icon="list-outline" title={t("activityLog.empty")} isRTL={isRTL} />
           )
         }
         ListFooterComponent={listFooter}

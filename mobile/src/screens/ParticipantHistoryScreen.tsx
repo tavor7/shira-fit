@@ -1087,7 +1087,7 @@ export default function ParticipantHistoryScreen({
             </Text>
           </Pressable>
         )}
-        ListEmptyComponent={<EmptyState icon="🔍" title={t("participantHistory.noAthletes")} isRTL={isRTL} />}
+        ListEmptyComponent={<EmptyState icon="search-outline" title={t("participantHistory.noAthletes")} isRTL={isRTL} />}
       />
 
       <AddAccountPaymentModal
@@ -1425,9 +1425,9 @@ export default function ParticipantHistoryScreen({
         }
         ListEmptyComponent={
           !athleteId ? (
-            <EmptyState icon="🧑" title={t("participantHistory.chooseAthlete")} isRTL={isRTL} />
+            <EmptyState icon="person-outline" title={t("participantHistory.chooseAthlete")} isRTL={isRTL} />
           ) : !hasSearched || loading ? null : (
-            <EmptyState icon="📭" title={emptyHint} isRTL={isRTL} />
+            <EmptyState icon="file-tray-outline" title={emptyHint} isRTL={isRTL} />
           )
         }
         contentContainerStyle={[styles.listContent, screenContent]}

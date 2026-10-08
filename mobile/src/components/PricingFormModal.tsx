@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { AppModal } from "./AppModal";
 import { PrimaryButton } from "./PrimaryButton";
 import { rowFlipFor } from "../lib/layoutDirection";
@@ -45,10 +46,11 @@ export function PricingFormModal({
         <Pressable
           onPress={onClose}
           style={({ pressed }) => [styles.close, pressed && { opacity: 0.85 }]}
+          hitSlop={4}
           accessibilityRole="button"
           accessibilityLabel={cancelLabel}
         >
-          <Text style={styles.closeTxt}>✕</Text>
+          <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
         </Pressable>
       </View>
       <ScrollView

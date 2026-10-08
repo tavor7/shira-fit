@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { AppModal } from "./AppModal";
 import {
   ACCOUNT_PAYMENT_SERVICE_TYPE_KEYS,
@@ -74,7 +75,7 @@ export function ServiceTypePickerField({ label, value, onChange, language, isRTL
                     <Text style={[styles.optionText, selected && styles.optionTextSelected, isRTL && styles.rtl]}>
                       {documentServiceTypeLabel(k, lang)}
                     </Text>
-                    {selected ? <Text style={styles.check}>✓</Text> : <View style={styles.checkSpacer} />}
+                    {selected ? <AppIcon name="checkmark" size={18} color={theme.colors.cta} /> : <View style={styles.checkSpacer} />}
                   </Pressable>
                 </View>
               );

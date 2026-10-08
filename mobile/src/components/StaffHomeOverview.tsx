@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { router, type Href } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import type { TrainingSessionWithTrainer } from "../types/database";
 import { hasSessionNotEnded, isSessionInProgress, sessionStartsAt } from "../lib/sessionTime";
 import { useI18n } from "../context/I18nContext";
@@ -437,7 +438,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
       {staffBirthdays.length > 0 ? (
         <View style={styles.bdayCard}>
           <Text style={[styles.bdayText, isRTL && styles.rtlText]}>
-            🎂{" "}
+            <AppIcon name="gift-outline" size="sm" color={theme.colors.warning} />{" "}
             {language === "he"
               ? `לצוות יש יום הולדת היום: ${staffBirthdays.map((p) => p.name).join(" · ")}`
               : `Staff birthdays today: ${staffBirthdays.map((p) => p.name).join(" · ")}`}

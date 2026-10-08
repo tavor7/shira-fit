@@ -99,7 +99,7 @@ export function PayeePickerModal({ visible, onClose, onSelect }: Props) {
             keyExtractor={(r) => `${r.kind}:${r.id}`}
             keyboardShouldPersistTaps="handled"
             style={styles.list}
-            ListEmptyComponent={<EmptyState icon="🔍" title={t("accountPayments.noPayees")} isRTL={isRTL} />}
+            ListEmptyComponent={<EmptyState icon="search-outline" title={t("accountPayments.noPayees")} isRTL={isRTL} />}
             renderItem={({ item }) => (
               <Pressable
                 style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}

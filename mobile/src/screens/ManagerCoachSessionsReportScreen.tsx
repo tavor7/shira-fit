@@ -286,7 +286,7 @@ export default function ManagerCoachSessionsReportScreen({
         )}
         ListEmptyComponent={
           !coachId ? (
-            <EmptyState icon="🏋️" title={t("coachReport.chooseTrainer")} isRTL={isRTL} />
+            <EmptyState icon="barbell-outline" title={t("coachReport.chooseTrainer")} isRTL={isRTL} />
           ) : !hasSearched || loading ? (
             <View style={styles.skeletonList}>
               <ListRowSkeleton />
@@ -294,7 +294,7 @@ export default function ManagerCoachSessionsReportScreen({
               <ListRowSkeleton />
             </View>
           ) : (
-            <EmptyState icon="📭" title={t("coachReport.noSessionsInRange")} isRTL={isRTL} />
+            <EmptyState icon="file-tray-outline" title={t("coachReport.noSessionsInRange")} isRTL={isRTL} />
           )
         }
       />

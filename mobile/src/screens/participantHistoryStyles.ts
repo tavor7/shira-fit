@@ -244,17 +244,6 @@ export const participantHistoryStyles = StyleSheet.create({
   payPillAmt: { fontSize: 12, fontWeight: "900", color: theme.colors.success },
   hideToggleWrap: { flexDirection: "row", alignItems: "center" },
   hideToggleWrapRtl: { flexDirection: "row-reverse" },
-  hideToggleBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-  },
-  hideToggleIcon: { fontSize: 14 },
   sessionFootnoteRow: {
     marginTop: 10,
     paddingTop: 10,

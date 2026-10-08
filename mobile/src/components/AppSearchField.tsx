@@ -11,6 +11,8 @@ import {
   type ViewStyle,
 } from "react-native";
 import { theme } from "../theme";
+import { useI18n } from "../context/I18nContext";
+import { AppIcon } from "./AppIcon";
 import { rowFlipFor } from "../lib/layoutDirection";
 
 type Props = {
@@ -64,6 +66,7 @@ export function AppSearchField({
   onFocus,
   onBlur,
 }: Props) {
+  const { t } = useI18n();
   const inputRef = useRef<TextInput>(null);
   const onSearchRef = useRef(onSearch);
   onSearchRef.current = onSearch;
@@ -121,9 +124,9 @@ export function AppSearchField({
           hitSlop={10}
           style={({ pressed }) => [styles.clearBtn, pressed && { opacity: 0.75 }]}
           accessibilityRole="button"
-          accessibilityLabel="Clear search"
+          accessibilityLabel={t("common.clearSearch")}
         >
-          <Text style={styles.clearTxt}>✕</Text>
+          <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
         </Pressable>
       ) : null}
     </View>

@@ -192,7 +192,7 @@ export default function SuperUserHiddenWorkoutsScreen() {
             <Text style={styles.pickerItemSub}>{athleteSearchSubtitle(item.phone)}</Text>
           </Pressable>
         )}
-        ListEmptyComponent={<EmptyState icon="🔍" title={t("participantHistory.noAthletes")} isRTL={isRTL} />}
+        ListEmptyComponent={<EmptyState icon="search-outline" title={t("participantHistory.noAthletes")} isRTL={isRTL} />}
       />
 
       <FlatList
@@ -337,7 +337,7 @@ export default function SuperUserHiddenWorkoutsScreen() {
             );
           }
         }
-        ListEmptyComponent={loading ? null : <EmptyState icon="👁️" title={t("superUser.noRecords")} isRTL={isRTL} />}
+        ListEmptyComponent={loading ? null : <EmptyState icon="eye-outline" title={t("superUser.noRecords")} isRTL={isRTL} />}
       />
     </View>
   );

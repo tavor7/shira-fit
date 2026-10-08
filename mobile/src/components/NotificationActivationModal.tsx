@@ -4,6 +4,7 @@ import { AppModal } from "./AppModal";
 import { PrimaryButton } from "./PrimaryButton";
 import { AnimatedCheckMark } from "./AnimatedCheckMark";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -110,7 +111,7 @@ export function NotificationActivationModal() {
         <View style={styles.card}>
           <View style={styles.topRow}>
             <View style={styles.bellBadge}>
-              <Text style={styles.bellGlyph}>🔔</Text>
+              <AppIcon name="notifications-outline" size="lg" color={theme.colors.text} />
             </View>
             <Pressable
               onPress={requestClose}

@@ -160,7 +160,7 @@ export default function ManagerFinanceBreakdownScreen() {
         {error ? (
           <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
         ) : days.length === 0 ? (
-          <EmptyState icon="📊" title={t("dashboard.financeBreakdownEmpty")} isRTL={isRTL} />
+          <EmptyState icon="bar-chart-outline" title={t("dashboard.financeBreakdownEmpty")} isRTL={isRTL} />
         ) : (
           <>
             <View style={[styles.totalBanner, isRTL && styles.totalBannerRtl]}>

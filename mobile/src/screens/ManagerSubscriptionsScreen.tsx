@@ -130,7 +130,7 @@ export function ManagerSubscriptionsScreen() {
             </View>
           ) : error ? (
             <EmptyState
-              icon="⚠️"
+              tone="error"
               title={t("subscriptions.errorLoad")}
               actionLabel={t("subscriptions.retry")}
               onAction={() => void load()}
@@ -138,7 +138,7 @@ export function ManagerSubscriptionsScreen() {
             />
           ) : tab === "active" ? (
             filteredActive.length === 0 ? (
-              <EmptyState icon="📋" title={t("subscriptions.emptyActiveTitle")} body={t("subscriptions.emptyActiveBody")} isRTL={isRTL} />
+              <EmptyState icon="list-outline" title={t("subscriptions.emptyActiveTitle")} body={t("subscriptions.emptyActiveBody")} isRTL={isRTL} />
             ) : (
               filteredActive.map((row) => (
                 <ActiveSubscriptionRow
@@ -152,7 +152,7 @@ export function ManagerSubscriptionsScreen() {
               ))
             )
           ) : filteredHistory.length === 0 ? (
-            <EmptyState icon="🗂️" title={t("subscriptions.emptyHistoryTitle")} body={t("subscriptions.emptyHistoryBody")} isRTL={isRTL} />
+            <EmptyState icon="archive-outline" title={t("subscriptions.emptyHistoryTitle")} body={t("subscriptions.emptyHistoryBody")} isRTL={isRTL} />
           ) : (
             filteredHistory.map((row) => (
               <HistorySubscriptionRow

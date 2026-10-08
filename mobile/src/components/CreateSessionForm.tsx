@@ -11,6 +11,7 @@ import { useNavigation } from "expo-router/react-navigation";
 import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { PrimaryButton } from "./PrimaryButton";
 import { DEFAULT_SESSION_START_TIME, suggestNextSessionStartTime } from "../lib/sessionTime";
 import { isMissingSessionSeriesRpc, staffCreateSessionSeries } from "../lib/sessionSeries";
@@ -816,10 +817,11 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                   <Pressable
                     onPress={() => removeAthletePick(a.user_id)}
                     style={styles.chipX}
+                    hitSlop={9}
                     accessibilityRole="button"
                     accessibilityLabel={t("common.remove")}
                   >
-                    <Text style={styles.chipXTxt}>✕</Text>
+                    <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
                   </Pressable>
                 </View>
               ))}
@@ -831,10 +833,11 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                   <Pressable
                     onPress={() => removeManualPick(m.manual_participant_id)}
                     style={styles.chipX}
+                    hitSlop={9}
                     accessibilityRole="button"
                     accessibilityLabel={t("common.remove")}
                   >
-                    <Text style={styles.chipXTxt}>✕</Text>
+                    <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
                   </Pressable>
                 </View>
               ))}

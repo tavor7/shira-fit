@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { useI18n } from "../context/I18nContext";
 import { AppSearchSheet } from "./AppSearchSheet";
 import { rowFlipFor } from "../lib/layoutDirection";
@@ -109,7 +110,7 @@ export function CoachPickerSheet({ visible, onClose, onSelect, selectedCoachId }
             <View style={[styles.rolePill, item.role === "manager" && styles.rolePillManager]}>
               <Text style={styles.rolePillTxt}>{formatRoleLabel(item.role, t)}</Text>
             </View>
-            {selected ? <Text style={styles.check}>✓</Text> : null}
+            {selected ? <AppIcon name="checkmark" size={18} color={theme.colors.cta} /> : null}
           </Pressable>
         );
       }}

@@ -149,7 +149,7 @@ export default function ManagerMissingAttendanceScreen() {
           {error ? (
           <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
         ) : sessions.length === 0 ? (
-          <EmptyState icon="✅" title={t("dashboard.missingAttendanceEmpty")} isRTL={isRTL} />
+          <EmptyState icon="checkmark-circle-outline" title={t("dashboard.missingAttendanceEmpty")} isRTL={isRTL} />
         ) : (
           sessions.map((s, index) => {
             const open = expandedId === s.session_id;

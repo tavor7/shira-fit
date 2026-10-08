@@ -66,7 +66,7 @@ export function AthleteSubscriptionScreen() {
     return (
       <View style={styles.screen}>
         <EmptyState
-          icon="⚠️"
+          tone="error"
           title={t("athleteSubscription.loadError")}
           actionLabel={t("athleteSubscription.retry")}
           onAction={() => void load()}

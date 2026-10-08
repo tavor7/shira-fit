@@ -145,7 +145,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "superUser.hideConfirmTitle": "Hide athlete from this workout?",
     "superUser.hideConfirmMessage": "{name} will see no record of this workout, and it won't count toward debt, package usage, or stats. This is reversible.",
     "superUser.hidden": "Athlete hidden",
-    "superUser.dashboardBanner": "👁️ {count} hidden · {amount} owed",
+    "superUser.dashboardBanner": "{count} hidden · {amount} owed",
     "menu.participantHistory": "Athlete activity",
     "menu.createSession": "Create session",
     "menu.rosterCalendar": "Roster calendar",
@@ -868,6 +868,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "common.choose": "Choose",
     "common.search": "Search",
     "common.clearSelection": "Clear selection",
+    "common.clearSearch": "Clear search",
     "common.load": "Load",
 
     "a11y.headerBack": "Go back to previous screen",
@@ -1734,7 +1735,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "superUser.hideConfirmTitle": "להסתיר את המתאמן מאימון זה?",
     "superUser.hideConfirmMessage": "{name} לא יראה שום רישום של אימון זה, והוא לא ייספר בחוב, בשימוש במנוי או בסטטיסטיקות. ניתן לבטל פעולה זו.",
     "superUser.hidden": "המתאמן הוסתר",
-    "superUser.dashboardBanner": "👁️ {count} מוסתרים · {amount} לתשלום",
+    "superUser.dashboardBanner": "{count} מוסתרים · {amount} לתשלום",
     "menu.participantHistory": "פעילות מתאמנים",
     "menu.createSession": "יצירת אימון",
     "menu.rosterCalendar": "יומן משתתפים",
@@ -2451,6 +2452,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "common.choose": "בחירה",
     "common.search": "חיפוש",
     "common.clearSelection": "נקה בחירה",
+    "common.clearSearch": "ניקוי החיפוש",
     "common.load": "טען",
 
     "a11y.headerBack": "חזרה למסך הקודם",

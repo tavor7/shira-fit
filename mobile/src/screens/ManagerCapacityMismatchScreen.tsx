@@ -217,7 +217,7 @@ export default function ManagerCapacityMismatchScreen() {
           <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
         ) : sessions.length === 0 ? (
           <EmptyState
-            icon="✅"
+            icon="checkmark-circle-outline"
             title={
               showIgnored ? t("dashboard.capacityMismatchEmptyIgnored") : t("dashboard.capacityMismatchEmpty")
             }

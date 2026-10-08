@@ -328,7 +328,7 @@ export default function ManagerWeeklyStatDetailScreen() {
               </FadeSlideIn>
             ))}
             {ordered.length === 0 ? (
-              <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
+              <EmptyState icon="file-tray-outline" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
             ) : null}
           </View>
         );
@@ -336,7 +336,7 @@ export default function ManagerWeeklyStatDetailScreen() {
       }
 
       if (sessionIds.length === 0) {
-        setBody(<EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />);
+        setBody(<EmptyState icon="file-tray-outline" title={t("dashboard.detailEmpty")} isRTL={isRTL} />);
         return;
       }
 
@@ -405,7 +405,7 @@ export default function ManagerWeeklyStatDetailScreen() {
               );
             })}
             {list.length === 0 ? (
-              <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
+              <EmptyState icon="file-tray-outline" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
             ) : null}
           </View>
         );
@@ -496,7 +496,7 @@ export default function ManagerWeeklyStatDetailScreen() {
               </FadeSlideIn>
             ))}
             {rows.length === 0 ? (
-              <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
+              <EmptyState icon="file-tray-outline" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
             ) : null}
           </View>
         );
@@ -549,7 +549,7 @@ export default function ManagerWeeklyStatDetailScreen() {
               );
             })}
             {list.length === 0 ? (
-              <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
+              <EmptyState icon="file-tray-outline" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
             ) : null}
           </View>
         );
@@ -635,7 +635,7 @@ export default function ManagerWeeklyStatDetailScreen() {
               </FadeSlideIn>
             ))}
             {rows.length === 0 ? (
-              <EmptyState icon="📭" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
+              <EmptyState icon="file-tray-outline" title={t("dashboard.detailEmpty")} isRTL={isRTL} />
             ) : null}
           </View>
         );

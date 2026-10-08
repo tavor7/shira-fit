@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "./StatusChip";
@@ -105,7 +106,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
         >
           {compact ? (
             <>
-              <Text style={styles.registeredBannerCheck}>✓</Text>
+              <AppIcon name="checkmark" size={12} color={theme.colors.ctaText} />
               <Text style={[styles.registeredBannerTxtStacked, isRTL && styles.registeredBannerTxtRtl]}>
                 {t("athleteCalendar.registeredCompact")}
               </Text>

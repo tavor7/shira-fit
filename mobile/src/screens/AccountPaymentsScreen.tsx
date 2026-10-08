@@ -749,7 +749,7 @@ export default function AccountPaymentsScreen() {
               <ListRowSkeleton />
             </View>
           ) : (
-            <EmptyState icon="💳" title={t("accountPayments.empty")} isRTL={isRTL} />
+            <EmptyState icon="card-outline" title={t("accountPayments.empty")} isRTL={isRTL} />
           )
         }
         renderItem={({ item, index }) => {
@@ -924,7 +924,7 @@ export default function AccountPaymentsScreen() {
               keyExtractor={(r) => `${r.kind}:${r.id}`}
               keyboardShouldPersistTaps="handled"
               style={styles.pickerList}
-              ListEmptyComponent={<EmptyState icon="🔍" title={t("accountPayments.noPayees")} isRTL={isRTL} />}
+              ListEmptyComponent={<EmptyState icon="search-outline" title={t("accountPayments.noPayees")} isRTL={isRTL} />}
               renderItem={({ item }) => {
                 let subtitle = "";
                 let title = "";

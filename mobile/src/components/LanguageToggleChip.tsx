@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useI18n } from "../context/I18nContext";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 
 /**
  * Ghost outline chip to toggle language (EN <-> HE).
@@ -18,7 +19,7 @@ export function LanguageToggleChip() {
         accessibilityLabel={isHe ? "Switch to English" : "Switch to Hebrew"}
         hitSlop={6}
       >
-        <Text style={styles.icon}>{"🌐"}</Text>
+        <AppIcon name="globe-outline" size="sm" color={theme.colors.textMuted} />
         <Text style={styles.txt}>{isHe ? "עב" : "EN"}</Text>
       </Pressable>
     </View>

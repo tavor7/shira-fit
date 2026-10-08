@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { LAYOUT } from "../lib/screenLayout";
 import { formatISODateLong, formatISODateDayMonth } from "../lib/dateFormat";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
@@ -488,7 +489,7 @@ export function DaySessionsSheet({
                   accessibilityLabel={language === "he" ? "סגור" : "Close"}
                   hitSlop={12}
                 >
-                  <Text style={styles.closeBtnTxt}>✕</Text>
+                  <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
                 </Pressable>
               </View>
             </View>

@@ -130,7 +130,7 @@ export default function MySessionsScreen() {
           <EmptyState
             title={t("athleteMySessions.loadErrorTitle")}
             body={t("athleteMySessions.loadErrorBody")}
-            icon="⚠️"
+            tone="error"
             actionLabel={t("athleteMySessions.retry")}
             onAction={() => void load()}
             isRTL={isRTL}
@@ -140,7 +140,7 @@ export default function MySessionsScreen() {
           <EmptyState
             title={t("empty.noActiveRegistrations")}
             body={t("athleteMySessions.emptyBody")}
-            icon="📅"
+            icon="calendar-outline"
             actionLabel={t("athleteMySessions.browseSessions")}
             onAction={() => router.push("/(app)/athlete/sessions")}
             isRTL={isRTL}

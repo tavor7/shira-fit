@@ -14,6 +14,7 @@ import {
 import * as Linking from "expo-linking";
 import { Stack } from "expo-router";
 import { theme } from "../theme";
+import { AppIcon } from "../components/AppIcon";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { useAppAlert } from "../context/AppAlertContext";
@@ -1059,9 +1060,7 @@ export default function DocumentsInvoicesScreen() {
             accessibilityRole="button"
             accessibilityLabel={language === "he" ? "הגדרות" : "Settings"}
           >
-            <Text style={[styles.settingsGearIcon, section === "settings" && styles.settingsGearIconActive]}>
-              ⚙
-            </Text>
+            <AppIcon name="settings-outline" size="md" color={section === "settings" ? theme.colors.text : theme.colors.textMuted} />
           </Pressable>
         ) : null}
       </View>

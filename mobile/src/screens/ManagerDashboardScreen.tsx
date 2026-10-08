@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Platform, RefreshControl } from "react-native";
 import { router, type Href } from "expo-router";
 import { theme } from "../theme";
+import { AppIcon } from "../components/AppIcon";
 import { supabase } from "../lib/supabase";
 import { formatISODateFull } from "../lib/dateFormat";
 import { firstDayOfMonthISOLocal, lastDayOfMonthISOLocal, monthRangeISO, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
@@ -488,6 +489,7 @@ export default function ManagerDashboardScreen() {
           style={({ pressed }) => [styles.hiddenBanner, pressed && { opacity: 0.9 }]}
         >
           <Text style={[styles.hiddenBannerTxt, isRTL && styles.rtl]}>
+            <AppIcon name="eye-outline" size="sm" color={theme.colors.textMuted} />{" "}
             {t("superUser.dashboardBanner")
               .replace("{count}", String(hiddenPeriodSummary.count))
               .replace("{amount}", displayMoney(hiddenPeriodSummary.totalIls))}

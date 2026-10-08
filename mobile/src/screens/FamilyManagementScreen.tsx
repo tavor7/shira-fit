@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { AppIcon } from "../components/AppIcon";
 import { athleteSearchSubtitle } from "../lib/displayName";
 import { useI18n } from "../context/I18nContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
@@ -341,7 +342,7 @@ export default function FamilyManagementScreen() {
             </View>
           ) : (
             <EmptyState
-              icon={familySearchQ.trim() ? "🔍" : undefined}
+              icon={familySearchQ.trim() ? "search-outline" : undefined}
               title={familySearchQ.trim() ? t("families.noSearchResults") : t("families.empty")}
               isRTL={isRTL}
             />
@@ -423,7 +424,7 @@ export default function FamilyManagementScreen() {
                       accessibilityState={{ checked: selected }}
                     >
                       <View style={[styles.choiceCheck, selected && styles.choiceCheckOn]}>
-                        {selected ? <Text style={styles.choiceCheckMark}>✓</Text> : null}
+                        {selected ? <AppIcon name="checkmark" size={14} color={theme.colors.ctaText} /> : null}
                       </View>
                       <View style={styles.choiceText}>
                         <Text style={[styles.choiceName, isRTL && styles.rtl]} numberOfLines={1}>

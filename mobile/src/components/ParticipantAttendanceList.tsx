@@ -5,6 +5,8 @@ import * as Haptics from "expo-haptics";
 import { router, usePathname } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
+import { IconButton } from "./IconButton";
 import { LAYOUT } from "../lib/screenLayout";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
@@ -833,7 +835,12 @@ export function ParticipantAttendanceList({
               <View style={[styles.nameBlock, rowFlipFor(isRTL) && styles.nameBlockRtl]}>
                 <Text {...userContentTextProps} style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
                   {item.name}
-                  {item.birthdayToday ? <Text style={styles.bday}>{"  "}🎂</Text> : null}
+                  {item.birthdayToday ? (
+                    <Text style={styles.bday}>
+                      {"  "}
+                      <AppIcon name="gift-outline" size="sm" color={theme.colors.warning} accessibilityLabel={t("staffUsers.birthdayToday")} />
+                    </Text>
+                  ) : null}
                 </Text>
                 {item.phone ? (
                   <Text style={[styles.sub, isRTL && styles.rtlText]} numberOfLines={1}>
@@ -948,17 +955,11 @@ export function ParticipantAttendanceList({
                           toggleBusy ? (
                             <ActivityIndicator size="small" color={theme.colors.cta} />
                           ) : (
-                            <Pressable
+                            <IconButton
                               onPress={() => confirmToggleHideAthlete(item, isHidden)}
-                              hitSlop={8}
-                              accessibilityRole="button"
+                              icon={isHidden ? "eye-outline" : "eye-off-outline"}
                               accessibilityLabel={t(isHidden ? "superUser.unhideAction" : "superUser.hideAction")}
-                              style={({ pressed }) => [styles.hideToggleBtn, pressed && { opacity: 0.85 }]}
-                            >
-                              <Text style={styles.hideToggleIcon} importantForAccessibility="no">
-                                {isHidden ? "👁️" : "🙈"}
-                              </Text>
-                            </Pressable>
+                              />
                           )
                         ) : null}
                       </View>
@@ -1253,17 +1254,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.errorBg,
   },
   hiddenBadgeTxt: { color: theme.colors.error, fontWeight: "800", fontSize: 10 },
-  hideToggleBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-  },
-  hideToggleIcon: { fontSize: 14 },
   hint: { marginTop: 8, fontSize: 12, color: theme.colors.textMuted, fontWeight: "600" },
   seg: { flexDirection: "row", marginTop: 8, gap: 6, flexWrap: "wrap" },
   segRtl: { flexDirection: "row-reverse" },

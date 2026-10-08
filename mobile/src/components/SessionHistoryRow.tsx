@@ -1,5 +1,6 @@
 import { View, Text, Pressable, ActivityIndicator, Platform } from "react-native";
 import { theme } from "../theme";
+import { IconButton } from "./IconButton";
 import { PressableScale } from "./PressableScale";
 import { AttStatusDot } from "./AttStatusDot";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
@@ -195,17 +196,11 @@ export function SessionHistoryRow({
         {hideToggleBusy ? (
           <ActivityIndicator size="small" color={theme.colors.cta} />
         ) : (
-          <Pressable
+          <IconButton
             onPress={onToggleHideAthlete}
-            hitSlop={8}
-            accessibilityRole="button"
+            icon={superUserHidden ? "eye-outline" : "eye-off-outline"}
             accessibilityLabel={t(superUserHidden ? "superUser.unhideAction" : "superUser.hideAction")}
-            style={({ pressed }) => [styles.hideToggleBtn, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.hideToggleIcon} importantForAccessibility="no">
-              {superUserHidden ? "👁️" : "🙈"}
-            </Text>
-          </Pressable>
+            />
         )}
       </View>
     ) : null;

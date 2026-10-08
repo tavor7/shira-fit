@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { useBulkJobs } from "../context/BulkJobsContext";
@@ -249,7 +250,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
       >
         <View style={[styles.rowTop, rowFlipFor(isRTL) && styles.rowTopRtl]}>
           <View style={[styles.check, isSelected && styles.checkOn, disabled && styles.checkDisabled]}>
-            {isSelected ? <Text style={styles.checkMark}>✓</Text> : null}
+            {isSelected ? <AppIcon name="checkmark" size={14} color={theme.colors.ctaText} /> : null}
           </View>
           <View style={styles.rowMain}>
             <Text {...userContentTextProps} style={[styles.payeeName, isRTL && styles.userContentRtl]} numberOfLines={1}>
