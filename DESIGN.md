@@ -139,6 +139,15 @@ The palette is restrained and intentional: near-black neutrals carry most of the
 - **Body** (500, 16px, \(lh\) 1.45): default content and button text.
 - **Label** (700, 12px, \(lh\) 1.2, wider tracking): field labels and compact metadata.
 
+Supporting roles (all in `theme.typography`, used through `AppText variant`):
+- **Secondary** (500, 14px): supporting body text, empty/error state bodies.
+- **Caption** (600, 13px): metadata (dates, counts, small status lines).
+- **Helper** (500, 13px): field help and validation messages.
+- **Button** (600, 16px) / **Button compact** (600, 14px).
+- **Tab** (700, 13px): tabs, segments and chips.
+
+Screen titles use Display inside the content (the header carries identity and navigation, not titles).
+
 ### Named Rules
 **The Readable-by-Default Rule.** Text should remain readable without zooming. Favor clear contrast and minimum 16px body on mobile.
 
@@ -151,9 +160,19 @@ Depth is primarily communicated through tonal layering and borders. Shadows exis
 
 ## 5. Components
 
+### Controls and touch targets
+- Every interactive control is at least **44×44px** to touch (`theme.controls.minTouch`). Compact visuals (icon buttons, switches, row actions) reach it with an invisible padding ring offset by equal negative margins, which also works on the web (react-native-web ignores `hitSlop`).
+- Icon-only controls use `IconButton` and must have an accessible name.
+- Selection controls expose their state with `selectionA11y(kind, selected)`: `tab` (aria-selected), `radio` for single choices (aria-checked, inside a radiogroup), `checkbox` for independent or multi-select choices, `toggle` (aria-pressed). Few-option single choices use `SegmentedChoice`.
+- Long tab rows scroll horizontally on one line; an edge fade (`EdgeFade`) marks the side where more continues.
+
+### Icons
+- One family: Ionicons through `AppIcon` (outline style; sizes 16 / 20 / 24 / 40). No emoji as interface icons; emoji stay only in content people write (message themes, birthday messages).
+
 ### Buttons
 - **Primary (light filled)**: `{colors.cta}` background, `{colors.cta-text}` text, rounded `{rounded.md}` (14px), padding (15px 20px), min height (52px).
-- **Secondary (ghost filled)**: `{colors.graphite-surface-elevated}` background with `{colors.border}` stroke.
+- **Secondary (ghost filled)**: `{colors.graphite-surface-elevated}` background with `{colors.border}` stroke. The compact size (44px, `ActionButton` / `size="compact"`) is used for secondary actions in dense panels.
+- **Destructive**: `variant="danger"` (error tint). A destructive confirmation is never styled as the primary action, and its dismiss button names the safe outcome ("Keep my spot", not "Cancel").
 - **Press feedback**: slight opacity change and subtle scale-down only when it improves clarity; honor reduced motion.
 
 ### Chips
@@ -165,9 +184,14 @@ Depth is primarily communicated through tonal layering and borders. Shadows exis
 - **Card**: `{colors.graphite-surface}` with `{colors.border-muted}` border, rounded `{rounded.md}`.
 - **Sheet**: elevated surface with larger top radius (`{rounded.xl}`) and strong border separation.
 
+### States
+- **Loading** (skeletons for lists, `LoadingState` for one-off transitions), **empty** (only after a successful load), **error** (`ErrorState` with a retry) and **not found** are distinct; an empty message is never shown while loading or after a failure.
+- Users never see raw technical errors: messages go through `lib/userFacingError` (toasts and alerts apply it automatically). Business-rule messages written for people are kept.
+
 ### Inputs / Fields
 - Prefer readable “paper” fields on dark when necessary (`{colors.field-paper}`) with dark text (`{colors.text-on-light}`), rather than low-contrast dark inputs.
-- Focus state should be obvious without neon. Use border shift + subtle surface change, not glow-heavy effects.
+- Focus state should be obvious without neon: `AppTextField` shows a 2px light border on focus. Validation and help text sit under the field (`errorText` / `helperText`).
+- In Hebrew, fields are right-aligned but the text direction follows the content, so English values (emails, addresses) are not clipped at their beginning.
 
 ## 6. Do's and Don'ts
 
@@ -182,6 +206,6 @@ Depth is primarily communicated through tonal layering and borders. Shadows exis
 - **Don't** let the UI become cluttered or overly “corporate”.
 - **Don't** use childish or gaming-style UI tropes.
 - **Don't** use excessive animations or flashy colors.
-- **Don't** use colored side-stripe borders as accents (border-left/right > 1px).
+- **Don't** use colored side-stripe borders as accents (border-left/right > 1px). Exception: a stripe that encodes meaning (coach colour, alert kind, severity, paid) — always `theme.accentStripeWidth` (3px) on the logical start edge, so it mirrors in Hebrew.
 - **Don't** use gradient text or glassmorphism as a default style.
 
