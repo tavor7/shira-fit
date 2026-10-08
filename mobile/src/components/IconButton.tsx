@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { theme } from "../theme";
 import { AppIcon, type AppIconName } from "./AppIcon";
 
@@ -16,7 +16,11 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Compact icon-only control with a full-size hit area. */
+/**
+ * Compact icon-only control with a full-size hit area. The touch target is an invisible ring of padding
+ * offset by an equal negative margin, so it reaches theme.controls.minTouch without moving the layout;
+ * this works on the web too (react-native-web ignores hitSlop).
+ */
 export function IconButton({
   icon,
   accessibilityLabel,
@@ -33,21 +37,25 @@ export function IconButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      hitSlop={slop}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={disabled ? { disabled: true } : undefined}
-      style={({ pressed }) => [
-        styles.base,
-        { width: size, height: size },
-        variant === "surface" && styles.surface,
-        variant === "danger" && styles.danger,
-        pressed && !disabled && styles.pressed,
-        disabled && styles.disabled,
-        style,
-      ]}
+      style={[{ padding: slop, margin: -slop }, style]}
     >
-      <AppIcon name={icon} size={iconSize} color={color} />
+      {({ pressed }) => (
+        <View
+          style={[
+            styles.base,
+            { width: size, height: size },
+            variant === "surface" && styles.surface,
+            variant === "danger" && styles.danger,
+            pressed && !disabled && styles.pressed,
+            disabled && styles.disabled,
+          ]}
+        >
+          <AppIcon name={icon} size={iconSize} color={color} />
+        </View>
+      )}
     </Pressable>
   );
 }

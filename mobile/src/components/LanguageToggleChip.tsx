@@ -30,6 +30,7 @@ const styles = StyleSheet.create({
   wrap: { alignItems: "center", marginTop: theme.spacing.lg },
   chip: {
     flexDirection: "row",
+    minHeight: theme.controls.minTouch,
     alignItems: "center",
     gap: 6,
     paddingVertical: 8,

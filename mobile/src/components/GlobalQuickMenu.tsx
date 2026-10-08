@@ -303,7 +303,7 @@ export function GlobalQuickMenu() {
 const styles = StyleSheet.create({
   wrap: {},
   trigger: {
-    height: 38,
+    height: theme.controls.minTouch,
     minWidth: 44,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,

@@ -54,7 +54,8 @@ export function AppSwitch({
       aria-checked={value}
       accessibilityLabel={accessibilityLabel}
       hitSlop={8}
-      style={[disabled && styles.disabled, style]}
+      // A 44px touch area around the track; negative margins keep layout unchanged (the web ignores hitSlop).
+      style={[styles.touch, disabled && styles.disabled, style]}
     >
       <Animated.View style={[styles.track, { backgroundColor: trackColor }]}>
         <Animated.View style={[styles.knob, { transform: [{ translateX: knobX }] }]} />
@@ -64,6 +65,10 @@ export function AppSwitch({
 }
 
 const styles = StyleSheet.create({
+  touch: {
+    paddingVertical: Math.max(0, (theme.controls.minTouch - TRACK_H) / 2),
+    marginVertical: -Math.max(0, (theme.controls.minTouch - TRACK_H) / 2),
+  },
   disabled: { opacity: 0.5 },
   track: {
     width: TRACK_W,

@@ -307,6 +307,7 @@ const styles = StyleSheet.create({
   segmentTrackRtl: { flexDirection: "row-reverse" },
   segmentBtn: {
     flex: 1,
+    minHeight: theme.controls.minTouch,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 9,

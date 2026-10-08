@@ -28,7 +28,7 @@ type Props = {
  * pattern previously duplicated inline in ManagerReportsScreen and PricingHubScreen.
  */
 export function SlidingPillTabBar({ tabs, active, onChange, style }: Props) {
-  const { language, isRTL } = useI18n();
+  const { isRTL } = useI18n();
   const layouts = useRef<Record<string, { x: number; width: number }>>({});
   const indicatorX = useRef(new Animated.Value(0)).current;
   const indicatorW = useRef(new Animated.Value(0)).current;
@@ -104,7 +104,7 @@ export function SlidingPillTabBar({ tabs, active, onChange, style }: Props) {
             }}
             style={({ pressed }) => [styles.slot, pressed && !on && styles.slotPressed]}
             {...selectionA11y("tab", on)}
-            accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
+            accessibilityLabel={x.label}
           >
             <Text style={[styles.slotTxt, on && styles.slotTxtOn]} numberOfLines={1}>
               {x.label}
@@ -136,6 +136,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.cta,
   },
   slot: {
+    minHeight: theme.controls.minTouch,
     flexGrow: 1,
     flexBasis: 140,
     minWidth: 120,

@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   tabCompact: {
     paddingVertical: 8,
     paddingHorizontal: 10,
-    minHeight: 42,
+    minHeight: theme.controls.minTouch,
     justifyContent: "flex-end",
   },
   tabPressed: { opacity: 0.55 },

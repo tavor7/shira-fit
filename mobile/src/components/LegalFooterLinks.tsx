@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center" },
   rowRtl: { flexDirection: "row-reverse" },
   webPad: { paddingVertical: theme.spacing.sm },
-  item: { paddingVertical: 6, paddingHorizontal: 4, minHeight: 32, justifyContent: "center" },
+  item: { paddingVertical: 6, paddingHorizontal: 4, minHeight: theme.controls.minTouch, justifyContent: "center" },
   itemPressed: { opacity: 0.7 },
   link: { color: theme.colors.cta, fontWeight: "700" },
   dot: { color: theme.colors.textSoft, fontWeight: "700" },

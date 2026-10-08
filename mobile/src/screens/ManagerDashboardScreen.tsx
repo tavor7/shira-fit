@@ -1007,6 +1007,7 @@ const styles = StyleSheet.create({
   periodTrackRtl: { flexDirection: "row-reverse" },
   periodChip: {
     flex: 1,
+    minHeight: theme.controls.minTouch,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,

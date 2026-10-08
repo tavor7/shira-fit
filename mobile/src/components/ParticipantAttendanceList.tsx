@@ -967,43 +967,13 @@ export function ParticipantAttendanceList({
                   })()
                 ) : null}
                 {onMoveParticipant && sessionNotStarted && rowCanMove(item) && !busy ? (
-                  <Pressable
-                    onPress={() => openMove(item)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("a11y.moveParticipant")}
-                    style={({ pressed }) => [styles.moveBtn, pressed && styles.moveBtnPressed]}
-                  >
-                    <Text style={styles.moveIcon} importantForAccessibility="no">
-                      {"⇄"}
-                    </Text>
-                  </Pressable>
+                  <IconButton onPress={() => openMove(item)} icon="swap-horizontal" accessibilityLabel={t("a11y.moveParticipant")} />
                 ) : null}
                 {item.kind === "registered" && onRemoveAthlete && !busy ? (
-                  <Pressable
-                    onPress={() => confirmRemoveRegistered(item)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("a11y.removeParticipant")}
-                    style={({ pressed }) => [styles.removeBtn, pressed && styles.removeBtnPressed]}
-                  >
-                    <Text style={styles.removeIcon} importantForAccessibility="no">
-                      {"×"}
-                    </Text>
-                  </Pressable>
+                  <IconButton onPress={() => confirmRemoveRegistered(item)} icon="close" variant="danger" accessibilityLabel={t("a11y.removeParticipant")} />
                 ) : null}
                 {item.kind === "manual" && onRemoveManualParticipant && !busy ? (
-                  <Pressable
-                    onPress={() => confirmRemoveManual(item)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("a11y.removeParticipant")}
-                    style={({ pressed }) => [styles.removeBtn, pressed && styles.removeBtnPressed]}
-                  >
-                    <Text style={styles.removeIcon} importantForAccessibility="no">
-                      {"×"}
-                    </Text>
-                  </Pressable>
+                  <IconButton onPress={() => confirmRemoveManual(item)} icon="close" variant="danger" accessibilityLabel={t("a11y.removeParticipant")} />
                 ) : null}
               </View>
             </View>
@@ -1219,32 +1189,9 @@ const styles = StyleSheet.create({
   paymentUnpaid: { color: theme.colors.error },
   paymentCash: { color: theme.colors.success },
   paymentOther: { color: "#EAB308" },
-  nameRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+  /** 12px apart so the 44px touch areas of the row actions never overlap. */
+  nameRight: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm },
   nameRightRtl: { flexDirection: "row-reverse" },
-  moveBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.cta,
-  },
-  moveBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  moveIcon: { color: theme.colors.cta, fontWeight: "900", fontSize: 15, lineHeight: 15 },
-  removeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: (theme.colors as any).errorBorder ?? theme.colors.borderMuted,
-  },
-  removeBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  removeIcon: { color: theme.colors.error, fontWeight: "900", fontSize: 18, lineHeight: 18 },
   hideControl: { flexDirection: "row", alignItems: "center", gap: 6 },
   hideControlRtl: { flexDirection: "row-reverse" },
   hiddenBadge: {
