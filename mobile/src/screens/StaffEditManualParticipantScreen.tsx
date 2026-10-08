@@ -19,6 +19,7 @@ import {
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { SegmentedChoice } from "../components/SegmentedChoice";
+import { DatePickerField } from "../components/DatePickerField";
 
 export default function StaffEditManualParticipantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -311,14 +312,7 @@ export default function StaffEditManualParticipantScreen() {
         style={styles.field}
       />
 
-      <AppTextField
-        label={t("profile.dob")}
-        value={dob}
-        onChangeText={setDob}
-        placeholder={t("manualParticipant.dobPlaceholder")}
-        isRTL={isRTL}
-        containerStyle={styles.field}
-      />
+      <DatePickerField label={t("profile.dob")} value={dob} onChange={setDob} maximumDate={new Date()} />
 
       <AppTextField
         label={t("manualParticipant.notes")}

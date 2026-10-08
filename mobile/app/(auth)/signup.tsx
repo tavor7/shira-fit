@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -69,6 +69,14 @@ export default function SignupScreen() {
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  /** Counts submit attempts: missing fields are highlighted after the first, and each failed attempt brings the message into view. */
+  const [submitAttempts, setSubmitAttempts] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const errorBoxY = useRef(0);
+  useEffect(() => {
+    if (errorMessage && submitAttempts > 0) scrollRef.current?.scrollTo({ y: Math.max(0, errorBoxY.current - theme.spacing.md), animated: true });
+  }, [errorMessage, submitAttempts]);
+  const missing = (v: string) => submitAttempts > 0 && !v.trim();
 
   const healthUrl = "https://tpz.link/gdtw8";
 
@@ -82,6 +90,7 @@ export default function SignupScreen() {
 
   async function onSignup() {
     setErrorMessage("");
+    setSubmitAttempts((n) => n + 1);
     if (!email.trim() || password.length < 6 || !fullName.trim() || !phone.trim() || !address.trim() || !zipCode.trim()) {
       setErrorMessage(
         language === "he"
@@ -198,7 +207,7 @@ export default function SignupScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView style={styles.scrollRoot} contentContainerStyle={[styles.container, screenContent]} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} style={styles.scrollRoot} contentContainerStyle={[styles.container, screenContent]} keyboardShouldPersistTaps="handled">
         <FadeSlideIn>
         <AppText variant="display" isRTL={isRTL} style={styles.title}>
           {t("auth.register")}
@@ -207,7 +216,14 @@ export default function SignupScreen() {
           {t("auth.signupHint")}
         </AppText>
         {errorMessage ? (
-          <View style={styles.errorBox}>
+          <View
+            style={styles.errorBox}
+            accessibilityRole="alert"
+            accessibilityLiveRegion="assertive"
+            onLayout={(e) => {
+              errorBoxY.current = e.nativeEvent.layout.y;
+            }}
+          >
             <AppText variant="caption" isRTL={isRTL} style={styles.errorText}>
               {errorMessage}
             </AppText>
@@ -222,6 +238,7 @@ export default function SignupScreen() {
             placeholder={t("auth.email")}
             autoCapitalize="none"
             keyboardType="email-address"
+            error={missing(email)}
             value={email}
             onChangeText={(v) => {
               setEmail(v);
@@ -235,6 +252,7 @@ export default function SignupScreen() {
             isRTL={isRTL}
             placeholder={t("auth.passwordMin6")}
             secureTextEntry
+            error={submitAttempts > 0 && password.length < 6}
             value={password}
             onChangeText={setPassword}
             containerStyle={styles.field}
@@ -244,6 +262,7 @@ export default function SignupScreen() {
             label={t("profile.fullName")}
             isRTL={isRTL}
             placeholder={t("profile.fullName")}
+            error={missing(fullName)}
             value={fullName}
             onChangeText={setFullName}
             containerStyle={styles.field}
@@ -254,6 +273,7 @@ export default function SignupScreen() {
             isRTL={isRTL}
             placeholder={t("profile.phone")}
             keyboardType="phone-pad"
+            error={missing(phone)}
             value={phone}
             onChangeText={setPhone}
             containerStyle={styles.field}
@@ -263,6 +283,7 @@ export default function SignupScreen() {
             label={t("profile.address")}
             isRTL={isRTL}
             placeholder={t("profile.address")}
+            error={missing(address)}
             value={address}
             onChangeText={setAddress}
             containerStyle={styles.field}
@@ -273,6 +294,7 @@ export default function SignupScreen() {
             isRTL={isRTL}
             placeholder={t("profile.zipCode")}
             keyboardType="number-pad"
+            error={missing(zipCode)}
             value={zipCode}
             onChangeText={setZipCode}
             containerStyle={styles.field}
