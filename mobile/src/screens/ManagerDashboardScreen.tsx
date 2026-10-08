@@ -42,6 +42,7 @@ import { rowFlipFor } from "../lib/layoutDirection";
 import { displayDateRange, displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { selectionA11y } from "../lib/a11ySelection";
+import { pluralKey } from "../lib/pluralKey";
 
 type PeriodMode = ManagerPeriodMode;
 
@@ -910,7 +911,7 @@ export default function ManagerDashboardScreen() {
                               </Text>
                             </View>
                             <Text style={[styles.athleteSub, isRTL && styles.rtl]} numberOfLines={2}>
-                              {t("dashboard.financeFamilySummary")
+                              {pluralKey(t, "dashboard.financeFamilySummary", family.members.length)
                                 .replace("{n}", String(family.members.length))}{" "}
                               · {t("dashboard.financeExpected")}: {formatIls(family.expected_ils, language)} ·{" "}
                               {t("dashboard.financeCollectedTotal")}: {formatIls(family.collected_total_ils, language)}

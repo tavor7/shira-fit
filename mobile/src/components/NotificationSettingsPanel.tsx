@@ -31,6 +31,7 @@ import {
   rpcSetManagerOperationalNotificationPrefs,
   type ManagerOperationalNotificationPrefs,
 } from "../lib/managerOperationalNotificationPrefs";
+import { pluralKey } from "../lib/pluralKey";
 
 type Props = {
   /** Standalone screen shows main title; embedded in Profile uses tab label only. */
@@ -265,7 +266,7 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
             }
             const skipped = res.skipped_no_marketing_consent ?? 0;
             showToast({
-              message: t("notifications.customSentToast").replace("{count}", String(res.notified ?? 0)),
+              message: pluralKey(t, "notifications.customSentToast", res.notified ?? 0).replace("{count}", String(res.notified ?? 0)),
               detail: skipped > 0 ? t("managerMessage.categoryMarketingHint") : undefined,
               variant: "success",
             });
@@ -395,7 +396,7 @@ export function NotificationSettingsPanel({ variant = "screen", highlightToggle 
               </Pressable>
             ) : (
               <Text style={[styles.promptSentTxt, isRTL && styles.rtl]}>
-                {t("notifications.promptSentToast").replace("{n}", String(queuedCount))}
+                {pluralKey(t, "notifications.promptSentToast", queuedCount).replace("{n}", String(queuedCount))}
               </Text>
             )}
           </View>

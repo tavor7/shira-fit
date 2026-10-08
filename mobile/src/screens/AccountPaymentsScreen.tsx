@@ -50,6 +50,7 @@ import { useCountUp } from "../hooks/useCountUp";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 import { displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { pluralKey } from "../lib/pluralKey";
 
 type DateMode = "all" | "range";
 type PaymentMethodFilter = "all" | SessionPaymentMethodKey;
@@ -794,7 +795,7 @@ export default function AccountPaymentsScreen() {
               </View>
               {item.family_name ? (
                 <Text style={[styles.metaLine, isRTL && styles.rtl]} numberOfLines={1}>
-                  {language === "he" ? "משפחה" : "Family"}: {item.family_name}
+                  {t("ui.accountPayments.family")}: {item.family_name}
                 </Text>
               ) : null}
               {sessionMeta ? (
@@ -930,7 +931,7 @@ export default function AccountPaymentsScreen() {
                 let title = "";
                 if (item.kind === "family") {
                   title = item.name;
-                  subtitle = t("accountPayments.familyMembers").replace("{n}", String(item.member_count));
+                  subtitle = pluralKey(t, "accountPayments.familyMembers", item.member_count).replace("{n}", String(item.member_count));
                 } else if (item.kind === "manual") {
                   title = item.full_name;
                   subtitle = t("accountPayments.kindManual");
@@ -1022,7 +1023,7 @@ export default function AccountPaymentsScreen() {
         prefill={docPrefill}
         onCreated={() => {
           showToast({
-            message: language === "he" ? "מסמך נוצר" : "Document created",
+            message: t("ui.accountPayments.documentCreated"),
             variant: "success",
           });
           router.push("/(app)/manager/documents-invoices");

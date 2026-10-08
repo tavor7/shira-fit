@@ -134,13 +134,9 @@ export function SessionHistoryRow({
     raw12 === false || (raw12 == null && reg.cancellation_within_24h === false);
   const late =
     within12
-      ? language === "he"
-        ? "ביטול בתוך 12 ש׳ לפני האימון"
-        : "Cancelled within 12h of session start"
+      ? t("ui.sessionHistoryRow.cancelledWithin12hOfSessionStart")
       : within12ExplicitFalse
-        ? language === "he"
-          ? "ביטול מעל 12 ש׳ מראש"
-          : "Cancelled more than 12h before session"
+        ? t("ui.sessionHistoryRow.cancelledMoreThan12hBeforeSession")
         : null;
   const feeCharged = reg.cancellation_charged === true;
   const penaltyNum = Number(reg.cancellation_penalty_collected ?? 0);
@@ -186,7 +182,7 @@ export function SessionHistoryRow({
   const hiddenPill = superUserHidden ? (
     <View style={[styles.payPill, styles.payPillUnpaid]}>
       <Text style={[styles.payPillTxt, styles.payPillTxtUnpaid, isRTL && styles.rtlText]} numberOfLines={1}>
-        {language === "he" ? "מוסתר" : "Hidden"}
+        {t("ui.sessionHistoryRow.hidden")}
       </Text>
     </View>
   ) : null;
@@ -208,7 +204,7 @@ export function SessionHistoryRow({
     reg.reg_status === "cancelled" ? (
       <View style={[styles.payPill, styles.payPillMuted]}>
         <Text style={[styles.payPillTxt, styles.payPillTxtMuted, isRTL && styles.rtlText]}>
-          {language === "he" ? "בוטל" : "Cancelled"}
+          {t("ui.sessionHistoryRow.cancelled")}
         </Text>
       </View>
     ) : showPaidStatus || showUnpaidStatus ? (
@@ -325,7 +321,7 @@ export function SessionHistoryRow({
             onPress={onViewReceipt}
             hitSlop={6}
             accessibilityRole="button"
-            accessibilityLabel={language === "he" ? "צפייה בקבלה" : "View receipt"}
+            accessibilityLabel={t("ui.sessionHistoryRow.viewReceipt")}
             style={({ pressed }) => [styles.receiptBadge, pressed && { opacity: 0.85 }]}
           >
             <Text style={styles.receiptBadgeTxt} numberOfLines={1}>
@@ -497,7 +493,7 @@ export function SessionHistoryRow({
         <View style={styles.cardSubsection}>
           {reason.length > 0 ? (
             <Text style={[styles.cardNote, isRTL && styles.rtlText]}>
-              {language === "he" ? "סיבה: " : "Reason: "}
+              {t("ui.sessionHistoryRow.reason")}
               {reason}
             </Text>
           ) : null}

@@ -82,15 +82,15 @@ export function CreateDocumentModal({ visible, onClose, prefill, onCreated }: Pr
     setError("");
     const amt = Number.parseFloat(gross.replace(",", ".").trim());
     if (!Number.isFinite(amt) || amt <= 0) {
-      setError(language === "he" ? "הזינו סכום תקין." : "Enter a valid amount.");
+      setError(t("ui.createDocument.enterAValidAmount"));
       return;
     }
     if (!customerName.trim()) {
-      setError(language === "he" ? "שם לקוח חובה." : "Customer name is required.");
+      setError(t("ui.createDocument.customerNameIsRequired"));
       return;
     }
     if (serviceType === "other" && !serviceDescription.trim()) {
-      setError(language === "he" ? "תיאור שירות חובה כשבוחרים 'אימונים'." : "Description required for Trainings.");
+      setError(t("ui.createDocument.descriptionRequiredForTrainings"));
       return;
     }
     setBusy(true);
@@ -124,37 +124,35 @@ export function CreateDocumentModal({ visible, onClose, prefill, onCreated }: Pr
     <AppModal visible={visible} onClose={onClose} variant="sheet" backdropAccessibilityLabel={t("common.close")}>
       <ScrollView contentContainerStyle={modalStyles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={[modalStyles.title, isRTL && modalStyles.rtl]}>
-          {language === "he" ? "הפקת קבלה לתשלום" : "Issue receipt for payment"}
+          {t("ui.createDocument.issueReceiptForPayment")}
         </Text>
         <Text style={[modalStyles.subtitle, isRTL && modalStyles.rtl]}>
-          {language === "he"
-            ? "מקושר לתשלום קיים — לא יירשם תשלום נוסף."
-            : "Linked to an existing payment — no new payment will be recorded."}
+          {t("ui.createDocument.linkedToAnExistingPaymentNo")}
         </Text>
 
-        <SectionCard title={language === "he" ? "לקוח ותשלום" : "Customer & payment"}>
-          <FieldLabel isRTL={isRTL}>{language === "he" ? "שם לקוח" : "Customer name"}</FieldLabel>
+        <SectionCard title={t("ui.createDocument.customerPayment")}>
+          <FieldLabel isRTL={isRTL}>{t("ui.createDocument.customerName")}</FieldLabel>
           <TextInput value={customerName} onChangeText={setCustomerName} style={[modalStyles.input, isRTL && modalStyles.rtlInput]} />
-          <FieldLabel isRTL={isRTL}>{language === "he" ? "אימייל לקוח" : "Customer email"}</FieldLabel>
+          <FieldLabel isRTL={isRTL}>{t("ui.createDocument.customerEmail")}</FieldLabel>
           <TextInput
             value={customerEmail}
             onChangeText={setCustomerEmail}
             keyboardType="email-address"
             autoCapitalize="none"
-            placeholder={language === "he" ? "אופציונלי — יילקח מהחשבון אם ריק" : "Optional — filled from account if empty"}
+            placeholder={t("ui.createDocument.optionalFilledFromAccountIfEmpty")}
             placeholderTextColor={theme.colors.textSoft}
             style={[modalStyles.input, isRTL && modalStyles.rtlInput]}
           />
-          <FieldLabel isRTL={isRTL}>{language === "he" ? "טלפון לקוח" : "Customer phone"}</FieldLabel>
+          <FieldLabel isRTL={isRTL}>{t("ui.createDocument.customerPhone")}</FieldLabel>
           <TextInput
             value={customerPhone}
             onChangeText={setCustomerPhone}
             keyboardType="phone-pad"
-            placeholder={language === "he" ? "אופציונלי" : "Optional"}
+            placeholder={t("ui.createDocument.optional")}
             placeholderTextColor={theme.colors.textSoft}
             style={[modalStyles.input, isRTL && modalStyles.rtlInput]}
           />
-          <FieldLabel isRTL={isRTL}>{language === "he" ? "סכום כולל (₪)" : "Gross amount (₪)"}</FieldLabel>
+          <FieldLabel isRTL={isRTL}>{t("ui.createDocument.grossAmount")}</FieldLabel>
           <TextInput
             value={gross}
             onChangeText={setGross}
@@ -180,7 +178,7 @@ export function CreateDocumentModal({ visible, onClose, prefill, onCreated }: Pr
           </View>
         </SectionCard>
 
-        <SectionCard title={language === "he" ? "סוג שירות" : "Service type"}>
+        <SectionCard title={t("ui.createDocument.serviceType")}>
           <View style={[modalStyles.chipRow, rowFlipFor(isRTL) && modalStyles.chipRowRtl]}>
             {DOCUMENT_SERVICE_TYPE_KEYS.map((k) => (
               <Pressable
@@ -200,7 +198,7 @@ export function CreateDocumentModal({ visible, onClose, prefill, onCreated }: Pr
           </View>
           {serviceType === "other" ? (
             <>
-              <FieldLabel isRTL={isRTL}>{language === "he" ? "תיאור שירות" : "Service description"}</FieldLabel>
+              <FieldLabel isRTL={isRTL}>{t("ui.createDocument.serviceDescription")}</FieldLabel>
               <TextInput
                 value={serviceDescription}
                 onChangeText={setServiceDescription}
@@ -210,12 +208,12 @@ export function CreateDocumentModal({ visible, onClose, prefill, onCreated }: Pr
           ) : null}
         </SectionCard>
 
-        <SectionCard title={language === "he" ? "הערות" : "Notes"}>
+        <SectionCard title={t("ui.createDocument.notes")}>
           <TextInput
             value={notes}
             onChangeText={setNotes}
             multiline
-            placeholder={language === "he" ? "אופציונלי" : "Optional"}
+            placeholder={t("ui.createDocument.optional")}
             placeholderTextColor={theme.colors.textSoft}
             style={[modalStyles.input, modalStyles.textArea, isRTL && modalStyles.rtlInput]}
           />
@@ -223,7 +221,7 @@ export function CreateDocumentModal({ visible, onClose, prefill, onCreated }: Pr
 
         {error ? <Text style={[modalStyles.error, isRTL && modalStyles.rtl]}>{error}</Text> : null}
         <PrimaryButton
-          label={language === "he" ? "הפק קבלה" : "Issue receipt"}
+          label={t("ui.createDocument.issueReceipt")}
           onPress={() => void submit()}
           disabled={busy}
           loading={busy}

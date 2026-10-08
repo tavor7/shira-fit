@@ -56,7 +56,7 @@ function isInNext7Days(sessionDate: string, startTime: string, now: Date) {
 }
 
 export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Props) {
-  const { language, isRTL } = useI18n();
+  const { language, isRTL, t } = useI18n();
   const [now, setNow] = useState(() => new Date());
   const [participantMap, setParticipantMap] = useState<Record<string, string[]>>({});
   const [noteMap, setNoteMap] = useState<
@@ -277,7 +277,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
         {isCurrent ? (
           <View style={[styles.nowBadgeWrap, rowFlipFor(isRTL) && styles.nowBadgeWrapRtl]}>
             <View style={styles.nowBadge}>
-              <Text style={styles.nowBadgeText}>{language === "he" ? "עכשיו" : "Now"}</Text>
+              <Text style={styles.nowBadgeText}>{t("ui.staffHomeOverview.now")}</Text>
             </View>
           </View>
         ) : null}
@@ -299,7 +299,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
         </Pressable>
         <Text style={[styles.sessionCardParticipantHeading, isRTL && styles.rtlText]}>{participantTitle}</Text>
         {names.length === 0 ? (
-          <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין הרשמות פעילות." : "No active registrations."}</Text>
+          <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("ui.staffHomeOverview.noActiveRegistrations")}</Text>
         ) : (
           names.map((n, idx) => (
             <Text key={`${s.id}-${idx}`} style={[styles.participantName, nameAlign]}>
@@ -417,7 +417,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
                         </View>
                         {notePv ? (
                           <Text style={[styles.sessionNotePreview, edgeStyle]} numberOfLines={2}>
-                            {language === "he" ? "הערה: " : "Note: "}
+                            {t("ui.staffHomeOverview.note")}
                             {notePv}
                           </Text>
                         ) : null}
@@ -449,15 +449,15 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
       {(currentTeaching || nextTeaching) && (
         <>
           <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {language === "he" ? "אימון נוכחי והבא" : "Current & next training"}
+            {t("ui.staffHomeOverview.currentNextTraining")}
           </Text>
           {currentTeaching ? (
             <>
               <TeachingSessionSummaryCard
                 s={currentTeaching}
-                prefix={language === "he" ? "נוכחי" : "Current"}
-                participantTitle={language === "he" ? "משתתפים (נוכחי)" : "Participants (current)"}
-                notesTitle={language === "he" ? "הערות (נוכחי)" : "Notes (current)"}
+                prefix={t("ui.staffHomeOverview.current")}
+                participantTitle={t("ui.staffHomeOverview.participantsCurrent")}
+                notesTitle={t("ui.staffHomeOverview.notesCurrent")}
                 alignRight={isRTL}
                 emphasis="current"
               />
@@ -467,9 +467,9 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
             <>
               <TeachingSessionSummaryCard
                 s={nextTeaching}
-                prefix={language === "he" ? "הבא" : "Next"}
-                participantTitle={language === "he" ? "משתתפים (הבא)" : "Participants (next)"}
-                notesTitle={language === "he" ? "הערות (הבא)" : "Notes (next)"}
+                prefix={t("ui.staffHomeOverview.next")}
+                participantTitle={t("ui.staffHomeOverview.participantsNext")}
+                notesTitle={t("ui.staffHomeOverview.notesNext")}
                 alignRight={isRTL}
                 emphasis="next"
               />
@@ -481,11 +481,11 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
       {teachingNotEnded.length > 0 ? (
         <>
           <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
-            {language === "he" ? "אימונים שאתה מאמן" : "Sessions you’re training"}
+            {t("ui.staffHomeOverview.sessionsYouReTraining")}
           </Text>
           <GroupedSessionList
             list={teachingNotEnded}
-            emptyText={language === "he" ? "אין" : "None"}
+            emptyText={t("ui.staffHomeOverview.none")}
             alignRight={isRTL}
             signupBySession={teachingSignupCounts}
             notePreviewBySession={teachingNotePreview}

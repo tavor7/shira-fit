@@ -57,7 +57,7 @@ function addManualParticipantRpcArgs(sid: string, manualId: string, allowOverCap
 }
 
 export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAdded }: Props) {
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   const { showToast } = useToast();
   const { showAlert } = useAppAlert();
   const [maxCap, setMaxCap] = useState<number | null>(null);
@@ -229,24 +229,22 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
 
   function rpcErrorMessage(code: string): string {
     if (code === "invalid_athlete") {
-      return language === "he" ? "המתאמן חייב להיות מאושר במערכת." : "This person must be an approved athlete in the system.";
+      return t("ui.addParticipantToSession.thisPersonMustBeAnApproved");
     }
     if (code === "is_session_coach") {
-      return language === "he"
-        ? "לא ניתן לרשום את המאמן/ת של האימון הזה כמתאמן/ת."
-        : "This coach can't be added as a participant to a session they coach.";
+      return t("ui.addParticipantToSession.thisCoachCanTBeAdded");
     }
     if (code === "account_disabled") {
       return t("profile.accountDisabledStaffHint");
     }
     if (code === "forbidden") {
-      return language === "he" ? "אין הרשאה." : "Not allowed.";
+      return t("ui.addParticipantToSession.notAllowed");
     }
     if (code === "session_ended") {
-      return language === "he" ? "האימון כבר הסתיים." : "This session has already ended.";
+      return t("ui.addParticipantToSession.thisSessionHasAlreadyEnded");
     }
     if (code === "session_not_found") {
-      return language === "he" ? "האימון לא נמצא." : "Session not found.";
+      return t("ui.addParticipantToSession.sessionNotFound");
     }
     return code;
   }
@@ -267,8 +265,8 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       }
       if (already) {
         toastInfo(
-          language === "he" ? "כבר רשום" : "Already registered",
-          language === "he" ? "המשתתף כבר רשום לאימון." : "This participant is already registered for this session."
+          t("ui.addParticipantToSession.alreadyRegistered"),
+          t("ui.addParticipantToSession.thisParticipantIsAlreadyRegisteredFor")
         );
         return;
       }
@@ -282,7 +280,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         (reason) => promptAddParticipantAcceptExtraSubscriptionCharge(showAlert, t, reason)
       );
       if (result.ok) {
-        toastSuccess(language === "he" ? "נוסף" : "Added");
+        toastSuccess(t("ui.addParticipantToSession.added"));
         onClose();
         setQ("");
         setResults([]);
@@ -320,8 +318,8 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       }
       if (already) {
         toastInfo(
-          language === "he" ? "כבר רשום" : "Already registered",
-          language === "he" ? "המשתתף כבר רשום לאימון." : "This participant is already registered for this session."
+          t("ui.addParticipantToSession.alreadyRegistered"),
+          t("ui.addParticipantToSession.thisParticipantIsAlreadyRegisteredFor")
         );
         return;
       }
@@ -338,7 +336,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         (reason) => promptAddParticipantAcceptExtraSubscriptionCharge(showAlert, t, reason)
       );
       if (result.ok) {
-        toastSuccess(language === "he" ? "נוסף" : "Added");
+        toastSuccess(t("ui.addParticipantToSession.added"));
         onClose();
         await loadCounts();
         onAdded();
@@ -346,11 +344,11 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         const e = String(result.error ?? "");
         if (e === "already_in_session") {
           toastInfo(
-            language === "he" ? "כבר רשום" : "Already registered",
-            language === "he" ? "המשתתף כבר רשום לאימון." : "This participant is already registered for this session."
+            t("ui.addParticipantToSession.alreadyRegistered"),
+            t("ui.addParticipantToSession.thisParticipantIsAlreadyRegisteredFor")
           );
         } else if (e === "full") {
-          toastInfo(language === "he" ? "האימון מלא" : "Session full");
+          toastInfo(t("ui.addParticipantToSession.sessionFull"));
         } else if (isSubscriptionLimitExceeded(result)) {
           toastError(t("common.failed"), addParticipantSubscriptionLimitMessage(result.reason, t));
         } else {
@@ -399,7 +397,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       }
       const mid = up?.manual_participant_id as string | undefined;
       if (!mid) {
-        toastError(t("common.failed"), up?.error ?? (language === "he" ? "לא ניתן ליצור" : "Could not create"));
+        toastError(t("common.failed"), up?.error ?? (t("ui.addParticipantToSession.couldNotCreate")));
         return;
       }
       const result = await attemptWithSubscriptionConsent<RpcResult>(
@@ -415,7 +413,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         (reason) => promptAddParticipantAcceptExtraSubscriptionCharge(showAlert, t, reason)
       );
       if (result.ok) {
-        toastSuccess(language === "he" ? "נוסף" : "Added");
+        toastSuccess(t("ui.addParticipantToSession.added"));
         setQuickName("");
         setQuickPhone("");
         onClose();
@@ -454,7 +452,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   async function addExistingAthlete(userId: string) {
     if (adding) return;
     if (!sid) {
-      toastError(t("common.error"), language === "he" ? "חסר מזהה אימון." : "Missing session id.");
+      toastError(t("common.error"), t("ui.addParticipantToSession.missingSessionId"));
       return;
     }
     if (full) {
@@ -467,7 +465,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   async function addExistingManual(manualId: string) {
     if (adding) return;
     if (!sid) {
-      toastError(t("common.error"), language === "he" ? "חסר מזהה אימון." : "Missing session id.");
+      toastError(t("common.error"), t("ui.addParticipantToSession.missingSessionId"));
       return;
     }
     if (full) {
@@ -481,13 +479,13 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     const name = quickName.trim();
     const phone = quickPhone.trim();
     if (!sid) {
-      toastError(t("common.error"), language === "he" ? "חסר מזהה אימון." : "Missing session id.");
+      toastError(t("common.error"), t("ui.addParticipantToSession.missingSessionId"));
       return;
     }
     if (name.length < 2 || phone.length < 3) {
       toastInfo(
-        language === "he" ? "חסר מידע" : "Missing info",
-        language === "he" ? "הזינו שם וטלפון." : "Enter name and phone."
+        t("ui.addParticipantToSession.missingInfo"),
+        t("ui.addParticipantToSession.enterNameAndPhone")
       );
       return;
     }
@@ -514,10 +512,10 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     onClose();
   }
 
-  const addTitle = language === "he" ? "הוספת משתתף" : "Add participant";
-  const capacityLabel = `${language === "he" ? "קיבולת" : "Capacity"}: ${currentCount}${
+  const addTitle = t("ui.addParticipantToSession.addParticipant");
+  const capacityLabel = `${t("ui.addParticipantToSession.capacity")}: ${currentCount}${
     maxCap != null ? `/${maxCap}` : ""
-  }${full ? (language === "he" ? " · מלא" : " · Full") : ""}`;
+  }${full ? (t("ui.addParticipantToSession.full")) : ""}`;
 
   return (
     <AppSearchSheet
@@ -525,9 +523,9 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       onClose={handleClose}
       title={addTitle}
       subtitle={capacityLabel}
-      dismissLabel={language === "he" ? "סגירה" : "Close"}
+      dismissLabel={t("ui.addParticipantToSession.close")}
       isRTL={isRTL}
-      backdropAccessibilityLabel={language === "he" ? "סגירה" : "Close"}
+      backdropAccessibilityLabel={t("ui.addParticipantToSession.close")}
       sheetHeightPct={0.9}
       headerExtra={
         <>
@@ -576,7 +574,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         value: q,
         onChangeText: setQ,
         onSearch: (term) => void runSearch(term),
-        placeholder: language === "he" ? "חיפוש שם / טלפון / משתמש…" : "Search name / phone / username…",
+        placeholder: t("ui.addParticipantToSession.searchNamePhoneUsername"),
         loading: searching,
         editable: !adding,
       }}
@@ -592,12 +590,8 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
           {combinedPicks.length === 0 ? (
             <Text style={[styles.muted, isRTL && styles.rtlText]}>
               {q.trim()
-                ? language === "he"
-                  ? "אין התאמות."
-                  : "No matches."
-                : language === "he"
-                  ? "מוצגים עד 50 — חפשו לצמצום."
-                  : "Showing up to 50 — search to narrow."}
+                ? t("ui.addParticipantToSession.noMatches")
+                : t("ui.addParticipantToSession.showingUpTo50SearchTo")}
             </Text>
           ) : (
             combinedPicks.map((item) => (

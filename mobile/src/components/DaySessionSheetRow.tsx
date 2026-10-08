@@ -19,7 +19,7 @@ type Props = {
 };
 
 export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deleting, isRTL }: Props) {
-  const { language } = useI18n();
+  const { t } = useI18n();
   const phase = getSessionTemporalPhase(item.session_date, item.start_time, item.durationMinutes ?? 60);
   const accent = item.accentColor;
   const start = formatSessionStartTime(item.start_time);
@@ -41,11 +41,11 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
             <Text style={[styles.time, phase === "past" && styles.timePast]}>{start}</Text>
             {phase === "live" ? (
               <View style={styles.livePill}>
-                <Text style={styles.livePillTxt}>{language === "he" ? "עכשיו" : "Live"}</Text>
+                <Text style={styles.livePillTxt}>{t("ui.daySessionSheetRow.live")}</Text>
               </View>
             ) : phase === "past" ? (
               <View style={styles.endedPill}>
-                <Text style={styles.endedPillTxt}>{language === "he" ? "הסתיים" : "Ended"}</Text>
+                <Text style={styles.endedPillTxt}>{t("ui.daySessionSheetRow.ended")}</Text>
               </View>
             ) : null}
           </View>
@@ -59,7 +59,7 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
               {item.athleteRegistered ? (
                 <View style={styles.registeredBannerSheet}>
                   <Text style={styles.registeredBannerSheetTxt}>
-                    {language === "he" ? "✓ נרשמת" : "✓ You're in"}
+                    {t("ui.daySessionSheetRow.youReIn")}
                   </Text>
                 </View>
               ) : null}
@@ -67,13 +67,13 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
                 <StatusChip label={`${c}/${m}`} tone={m > 0 && c >= m ? "danger" : "neutral"} />
               ) : null}
               {staffLabels && item.isHidden ? (
-                <StatusChip label={language === "he" ? "מוסתר" : "Hidden"} tone="warning" />
+                <StatusChip label={t("ui.daySessionSheetRow.hidden")} tone="warning" />
               ) : null}
               {item.hasSuperUserHiddenAthlete ? (
-                <StatusChip label={language === "he" ? "מתאמן מוסתר" : "Hidden athlete"} tone="danger" />
+                <StatusChip label={t("ui.daySessionSheetRow.hiddenAthlete")} tone="danger" />
               ) : null}
               {staffLabels && item.isOpenForRegistration === false ? (
-                <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
+                <StatusChip label={t("ui.daySessionSheetRow.closed")} tone="neutral" />
               ) : null}
               {item.isKickbox ? <KickboxSessionBadge compact isRTL={isRTL} /> : null}
               {item.isRecurringSeries ? <SessionSeriesIndicator compact /> : null}
@@ -88,7 +88,7 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
           disabled={deleting}
           style={({ pressed }) => [styles.deleteHit, isRTL && styles.deleteHitRtl, pressed && { opacity: 0.65 }]}
           accessibilityRole="button"
-          accessibilityLabel={language === "he" ? "מחיקה" : "Delete"}
+          accessibilityLabel={t("ui.daySessionSheetRow.delete")}
           hitSlop={10}
         >
           {deleting ? (

@@ -68,24 +68,16 @@ export function ReceiptRequirementsGateCard({
 
   const title =
     mode === "both"
-      ? language === "he"
-        ? "השלימו את הפרטים"
-        : "Complete your details"
+      ? language === "he" ? "השלימו את הפרטים" : "Complete your details"
       : mode === "consent_only"
         ? consent?.title ?? (language === "he" ? "הסכמה לקבלות" : "Receipt consent")
-        : language === "he"
-          ? "עדכון כתובת"
-          : "Update your address";
+        : language === "he" ? "עדכון כתובת" : "Update your address";
 
   const intro =
     mode === "both"
-      ? language === "he"
-        ? "כדי להמשיך להשתמש באפליקציה, יש לאשר את הסכמת קבלת המסמכים האלקטרוניים ולמלא כתובת ומיקוד."
-        : "To continue using the app, please accept electronic receipt consent and provide your address and zip code."
+      ? language === "he" ? "כדי להמשיך להשתמש באפליקציה, יש לאשר את הסכמת קבלת המסמכים האלקטרוניים ולמלא כתובת ומיקוד." : "To continue using the app, please accept electronic receipt consent and provide your address and zip code."
       : mode === "address_only"
-        ? language === "he"
-          ? "נדרשת כתובת ומיקוד לצורך הפקת קבלות. אנא מלא/י את הפרטים להמשך."
-          : "A street address and zip code are required for receipts. Please fill them in to continue."
+        ? language === "he" ? "נדרשת כתובת ומיקוד לצורך הפקת קבלות. אנא מלא/י את הפרטים להמשך." : "A street address and zip code are required for receipts. Please fill them in to continue."
         : null;
 
   function focusAddressSection() {
@@ -133,12 +125,8 @@ export function ReceiptRequirementsGateCard({
 
   const primaryLabel =
     mode === "consent_only"
-      ? language === "he"
-        ? "אני מסכים/ה"
-        : "I agree"
-      : language === "he"
-        ? "שמירה והמשך"
-        : "Save and continue";
+      ? language === "he" ? "אני מסכים/ה" : "I agree"
+      : language === "he" ? "שמירה והמשך" : "Save and continue";
 
   function renderAddressBlock(withSectionLabel: boolean) {
     return (
@@ -222,9 +210,7 @@ export function ReceiptRequirementsGateCard({
         {!addressFirst && showAddress ? renderAddressBlock(false) : null}
         {declined ? (
           <Text style={[styles.declined, isRTL && styles.rtl]}>
-            {language === "he"
-              ? "הסכמה לקבלת מסמכים אלקטרוניים נדרשת לשימוש במערכת. אנא אשר/י את ההסכמה כדי להמשיך."
-              : "Electronic receipt consent is required to use the app. Please accept to continue."}
+            {language === "he" ? "הסכמה לקבלת מסמכים אלקטרוניים נדרשת לשימוש במערכת. אנא אשר/י את ההסכמה כדי להמשיך." : "Electronic receipt consent is required to use the app. Please accept to continue."}
           </Text>
         ) : null}
         {fieldError ? <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldError}</Text> : null}

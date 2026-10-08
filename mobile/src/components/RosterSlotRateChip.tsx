@@ -44,14 +44,14 @@ export function RosterSlotRateChip({
   disabled,
   onSaved,
 }: Props) {
-  const { t, isRTL, language } = useI18n();
+  const { t, isRTL } = useI18n();
   const { showOk } = useAppAlert();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
 
   const hasOverride = rosterPriceIls != null;
-  const chipLabel = language === "he" ? "תעריף" : "Rate";
+  const chipLabel = t("ui.rosterSlotRateChip.rate");
 
   useEffect(() => {
     if (!open) return;
@@ -163,7 +163,7 @@ export function RosterSlotRateChip({
               onChangeText={setDraft}
               keyboardType="decimal-pad"
               placeholder={
-                effectivePriceIls > 0 ? String(effectivePriceIls) : language === "he" ? "תעריף" : "Rate"
+                effectivePriceIls > 0 ? String(effectivePriceIls) : t("ui.rosterSlotRateChip.rate")
               }
               placeholderTextColor={theme.colors.placeholderOnLight}
               editable={!saving}

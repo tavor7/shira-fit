@@ -85,9 +85,7 @@ export function GoLiveReadinessSection({ isRTL, language }: Props) {
           {language === "he" ? "מוכנות לעלייה לאוויר" : "Go-live readiness"}
         </Text>
         <Text style={[styles.hint, isRTL && styles.rtl]}>
-          {language === "he"
-            ? "ספירת מתאמנים (ממתינים ומאושרים) ומנהלים שחסרים פרטים. לחצו על מספר לרשימה."
-            : "Pending and approved athletes and managers missing details. Tap a count to see the list."}
+          {language === "he" ? "ספירת מתאמנים (ממתינים ומאושרים) ומנהלים שחסרים פרטים. לחצו על מספר לרשימה." : "Pending and approved athletes and managers missing details. Tap a count to see the list."}
         </Text>
         <View style={[styles.statsRow, rowFlipFor(isRTL) && styles.statsRowRtl]}>
           {items.map((item) => (
@@ -147,16 +145,10 @@ export function GoLiveReadinessSection({ isRTL, language }: Props) {
                 {item.role ? (
                   <Text style={[styles.gapMeta, isRTL && styles.rtl]}>
                     {item.role === "manager"
-                      ? language === "he"
-                        ? "מנהל/ת"
-                        : "Manager"
+                      ? language === "he" ? "מנהל/ת" : "Manager"
                       : item.approval_status === "pending"
-                        ? language === "he"
-                          ? "מתאמן/ת · ממתין/ה לאישור"
-                          : "Athlete · pending approval"
-                        : language === "he"
-                          ? "מתאמן/ת"
-                          : "Athlete"}
+                        ? language === "he" ? "מתאמן/ת · ממתין/ה לאישור" : "Athlete · pending approval"
+                        : language === "he" ? "מתאמן/ת" : "Athlete"}
                   </Text>
                 ) : null}
                   {item.phone ? (

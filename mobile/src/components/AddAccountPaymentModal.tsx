@@ -115,7 +115,7 @@ export function AddAccountPaymentModal({
   async function save() {
     const amt = Number.parseFloat(amount.replace(",", ".").trim());
     if (!Number.isFinite(amt) || amt <= 0) {
-      showError(language === "he" ? "הזינו סכום תקין." : "Enter a valid amount.");
+      showError(t("ui.addAccountPayment.enterAValidAmount"));
       return;
     }
     if (!payeeId.trim()) {
@@ -188,7 +188,7 @@ export function AddAccountPaymentModal({
         onClose();
       }}
       variant="dialog"
-      backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+      backdropAccessibilityLabel={t("ui.addAccountPayment.dismiss")}
       cardStyle={styles.card}
     >
       <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>

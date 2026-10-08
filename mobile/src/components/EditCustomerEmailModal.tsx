@@ -23,7 +23,7 @@ export function EditCustomerEmailModal({
   onClose,
   onSaved,
 }: Props) {
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -59,7 +59,7 @@ export function EditCustomerEmailModal({
     >
       <View style={styles.body}>
         <Text style={[styles.title, isRTL && styles.rtl]}>
-          {language === "he" ? "אימייל לקוח" : "Customer email"}
+          {t("ui.editCustomerEmail.customerEmail")}
         </Text>
         <Text style={[styles.sub, isRTL && styles.rtl]} numberOfLines={2}>
           {customerName}
@@ -70,13 +70,13 @@ export function EditCustomerEmailModal({
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
-          placeholder={language === "he" ? "name@example.com" : "name@example.com"}
+          placeholder={t("ui.editCustomerEmail.nameExampleCom")}
           placeholderTextColor={theme.colors.textSoft}
           style={[styles.input, isRTL && styles.rtlInput]}
         />
         {error ? <Text style={[styles.error, isRTL && styles.rtl]}>{error}</Text> : null}
         <PrimaryButton
-          label={language === "he" ? "שמירה" : "Save"}
+          label={t("ui.editCustomerEmail.save")}
           onPress={() => void save()}
           loading={busy}
           loadingLabel={t("common.loading")}

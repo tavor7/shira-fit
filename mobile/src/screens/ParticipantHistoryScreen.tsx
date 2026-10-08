@@ -56,6 +56,7 @@ import { EditSessionAmountModal } from "../components/EditSessionAmountModal";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayTimeRange, displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { pluralKey } from "../lib/pluralKey";
 
 export default function ParticipantHistoryScreen({
   hideTitle = false,
@@ -185,7 +186,7 @@ export default function ParticipantHistoryScreen({
 
   async function openReceipt(doc: { id: string; pdf_url: string | null; signature_hash: string | null }) {
     if (!doc.pdf_url) {
-      showToast({ message: language === "he" ? "PDF לא מוכן" : "PDF not ready", variant: "error" });
+      showToast({ message: t("ui.participantHistory.pdfNotReady"), variant: "error" });
       return;
     }
     try {
@@ -200,7 +201,7 @@ export default function ParticipantHistoryScreen({
 
   function confirmDeleteAccountPayment(paymentId: string) {
     showConfirm({
-      title: language === "he" ? "אישור" : "Confirm",
+      title: t("ui.participantHistory.confirm"),
       message: t("billing.deletePaymentConfirm"),
       cancelLabel: t("common.cancel"),
       confirmLabel: t("billing.deletePayment"),
@@ -406,11 +407,11 @@ export default function ParticipantHistoryScreen({
     const amtTrim = editAmountStr.replace(",", ".").trim();
     const amt = amtTrim.length === 0 ? null : Number.parseFloat(amtTrim);
     if (amt !== null && (!Number.isFinite(amt) || amt < 0)) {
-      showError(language === "he" ? "הזינו סכום תקין (≥ 0)." : "Enter a valid amount (≥ 0).");
+      showError(t("ui.participantHistory.enterAValidAmount0"));
       return;
     }
     if (method === null && amt !== null) {
-      showError(language === "he" ? "כדי להזין סכום, בחרו אמצעי תשלום." : "Choose a payment method to set an amount.");
+      showError(t("ui.participantHistory.chooseAPaymentMethodToSet"));
       return;
     }
 
@@ -452,7 +453,7 @@ export default function ParticipantHistoryScreen({
   }
 
   function confirmRemoveRegistration(reg: ParticipantHistoryRow) {
-    const name = (reg.athlete_name || athleteLabel).trim() || (language === "he" ? "המתאמן" : "this athlete");
+    const name = (reg.athlete_name || athleteLabel).trim() || (t("ui.participantHistory.thisAthlete"));
     const when = `${formatISODateFull(reg.session_date, language)} · ${displayTimeRange(reg.start_time, reg.duration_minutes ?? 60)}`;
     showConfirm({
       title: t("participantHistory.removeRegistrationTitle"),
@@ -520,7 +521,7 @@ export default function ParticipantHistoryScreen({
 
   function confirmToggleHideAthlete(reg: ParticipantHistoryRow) {
     const currentlyHidden = hiddenKeys.has(hiddenRegistrationKey(reg.session_id, reg.athlete_user_id));
-    const name = (reg.athlete_name || athleteLabel).trim() || (language === "he" ? "המתאמן" : "this athlete");
+    const name = (reg.athlete_name || athleteLabel).trim() || (t("ui.participantHistory.thisAthlete"));
     showConfirm({
       title: t(currentlyHidden ? "superUser.unhideConfirmTitle" : "superUser.hideConfirmTitle"),
       message: interpolateName(t(currentlyHidden ? "superUser.unhideConfirmMessage" : "superUser.hideConfirmMessage"), name),
@@ -622,18 +623,14 @@ export default function ParticipantHistoryScreen({
       setAthleteLabel(
         `${data.full_name} · ${data.phone ?? ""} · ${
           linked
-            ? language === "he"
-              ? "קישור מרשימת מהיר"
-              : "Quick Add link"
-            : language === "he"
-              ? "ללא חשבון"
-              : "No account"
+            ? t("ui.participantHistory.quickAddLink")
+            : t("ui.participantHistory.noAccount")
         }`
       );
       setPhone((data.phone ?? "").trim());
       setPresetResolved(true);
     })();
-  }, [presetManual, presetUid, language]);
+  }, [presetManual, presetUid, language, t]);
 
   useEffect(() => {
     if (presetStartIso && isValidISODateString(presetStartIso.trim())) {
@@ -693,15 +690,15 @@ export default function ParticipantHistoryScreen({
     const s = start.trim();
     const e = end.trim();
     if (!isValidISODateString(s) || !isValidISODateString(e)) {
-      showError(language === "he" ? "בחרו תאריכי התחלה וסיום תקינים." : "Please choose valid start and end dates.");
+      showError(t("ui.participantHistory.pleaseChooseValidStartAndEnd"));
       return;
     }
     if (s > e) {
-      showError(language === "he" ? "תאריך ההתחלה חייב להיות לפני או שווה לתאריך הסיום." : "Start date must be on or before end date.");
+      showError(t("ui.participantHistory.startDateMustBeOnOr"));
       return;
     }
     if (!athleteId) {
-      showError(language === "he" ? "בחרו מתאמן קודם." : "Choose an athlete first.");
+      showError(t("ui.participantHistory.chooseAnAthleteFirst"));
       return;
     }
     if (!silent) {
@@ -1013,13 +1010,13 @@ export default function ParticipantHistoryScreen({
     }
 
     if (next.length === 0 && ((acctRes.data as unknown[]) ?? []).length === 0) {
-      setEmptyHint(language === "he" ? "אין רשומות לתאריכים שנבחרו." : "No records for those dates.");
+      setEmptyHint(t("ui.participantHistory.noRecordsForThoseDates"));
     }
 
     if (!silent) setLoading(false);
     setReportReady(true);
     setHasSearched(true);
-  }, [start, end, phone, athleteId, payeeIsManual, language, isSuperUser]);
+  }, [start, end, phone, athleteId, payeeIsManual, language, isSuperUser, t]);
 
   const loadRef = useRef(load);
   loadRef.current = load;
@@ -1040,15 +1037,15 @@ export default function ParticipantHistoryScreen({
           setPickerOpen(false);
           setPickerQ("");
         }}
-        title={language === "he" ? "מתאמנים" : "Athletes"}
+        title={t("ui.participantHistory.athletes")}
         dismissLabel={language === "he" ? t("common.ok") : "Done"}
         isRTL={isRTL}
-        backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+        backdropAccessibilityLabel={t("ui.participantHistory.dismiss")}
         searchConfig={{
           value: pickerQ,
           onChangeText: setPickerQ,
           onSearch: (term) => void loadAthletes(term),
-          placeholder: language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…",
+          placeholder: t("ui.participantHistory.searchNameUsernamePhone"),
           loading: athletesLoading,
         }}
         data={athletes}
@@ -1068,12 +1065,8 @@ export default function ParticipantHistoryScreen({
                 setAthleteLabel(
                   `${item.full_name} · ${item.phone} · ${
                     item.linked_user_id
-                      ? language === "he"
-                        ? "קישור מרשימת מהיר"
-                        : "Quick Add link"
-                      : language === "he"
-                        ? "ללא חשבון"
-                        : "No account"
+                      ? t("ui.participantHistory.quickAddLink")
+                      : t("ui.participantHistory.noAccount")
                   }`
                 );
                 setPhone(item.phone);
@@ -1164,7 +1157,7 @@ export default function ParticipantHistoryScreen({
               />
               <Pressable style={styles.pickerTouch} onPress={() => { setPickerQ(""); setPickerOpen(true); }}>
                 <Text style={athleteLabel ? styles.pickerText : styles.pickerPlaceholder}>
-                  {athleteLabel || (language === "he" ? "בחרו מתאמן…" : "Choose an athlete…")}
+                  {athleteLabel || (t("ui.participantHistory.chooseAnAthlete"))}
                 </Text>
               </Pressable>
               {athleteId ? (
@@ -1195,7 +1188,7 @@ export default function ParticipantHistoryScreen({
                     {familyContext.name}
                   </Text>
                   <Text style={[styles.familyBannerMeta, isRTL && styles.rtlText]}>
-                    {t("families.reportMeta").replace("{n}", String(familyContext.members.length))}
+                    {pluralKey(t, "families.reportMeta", familyContext.members.length).replace("{n}", String(familyContext.members.length))}
                   </Text>
                 </View>
                 <View style={styles.familyMembersPanel}>
@@ -1213,7 +1206,7 @@ export default function ParticipantHistoryScreen({
                           {m.kind === "manual" ? (
                             <View style={styles.familyMemberBadge}>
                               <Text style={styles.familyMemberBadgeTxt}>
-                                {language === "he" ? "מהיר" : "Quick Add"}
+                                {t("ui.participantHistory.quickAdd")}
                               </Text>
                             </View>
                           ) : null}

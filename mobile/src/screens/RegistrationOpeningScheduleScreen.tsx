@@ -89,10 +89,10 @@ export default function RegistrationOpeningScheduleScreen() {
   }
 
   const previewDay = weekdayLong[weekday] ?? "—";
-  const timeLabel = language === "he" ? "שעה (שעון ישראל)" : "Time (Israel)";
-  const dayLabel = language === "he" ? "יום" : "Day";
-  const previewEyebrow = language === "he" ? "לוח זמנים נוכחי" : "Current schedule";
-  const previewMeta = language === "he" ? "שעון ישראל (הסטודיו)" : "Israel (studio) time";
+  const timeLabel = t("ui.registrationOpeningSchedule.timeIsrael");
+  const dayLabel = t("ui.registrationOpeningSchedule.day");
+  const previewEyebrow = t("ui.registrationOpeningSchedule.currentSchedule");
+  const previewMeta = t("ui.registrationOpeningSchedule.israelStudioTime");
 
   return (
     <ScrollView
@@ -104,7 +104,7 @@ export default function RegistrationOpeningScheduleScreen() {
       <ManagerStudioSetupTabs />
 
       <Text style={[styles.title, isRTL && styles.rtlText]}>
-        {language === "he" ? "פתיחת הרשמה" : "Registration opening"}
+        {t("ui.registrationOpeningSchedule.registrationOpening")}
       </Text>
 
       <View style={styles.card}>

@@ -17,7 +17,7 @@ export function DatePickerField({
   const [androidOpen, setAndroidOpen] = useState(false);
   const [iosOpen, setIosOpen] = useState(false);
   const [iosDraft, setIosDraft] = useState<Date>(() => parseISODateLocal(value) ?? new Date());
-  const { language, isRTL } = useI18n();
+  const { language, isRTL, t } = useI18n();
   const embedded = appearance === "embedded";
   const auth = appearance === "auth";
 
@@ -28,9 +28,7 @@ export function DatePickerField({
 
   const displayText = isValidISODateString(value)
     ? formatISODateShortDisplay(value, language)
-    : language === "he"
-      ? "בחרו תאריך"
-      : "Choose date";
+    : t("ui.datePickerField.chooseDate");
   const hasValue = isValidISODateString(value);
   const pickerValue = parseISODateLocal(value) ?? new Date();
 
@@ -110,11 +108,11 @@ export function DatePickerField({
       </Pressable>
       <Modal visible={iosOpen} transparent animationType="slide" onRequestClose={() => setIosOpen(false)}>
         <View style={styles.modalRoot}>
-          <Pressable style={styles.backdropFlex} onPress={() => setIosOpen(false)} accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"} />
+          <Pressable style={styles.backdropFlex} onPress={() => setIosOpen(false)} accessibilityLabel={t("ui.datePickerField.dismiss")} />
           <View style={styles.sheet}>
             <View style={styles.toolbar}>
               <Pressable onPress={() => setIosOpen(false)} hitSlop={12} style={styles.tbBtn}>
-                <Text style={styles.tbMuted}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                <Text style={styles.tbMuted}>{t("ui.datePickerField.cancel")}</Text>
               </Pressable>
               <Text style={styles.tbTitle} numberOfLines={1}>
                 {label}
@@ -127,7 +125,7 @@ export function DatePickerField({
                 hitSlop={12}
                 style={styles.tbBtn}
               >
-                <Text style={styles.tbCta}>{language === "he" ? "אישור" : "Done"}</Text>
+                <Text style={styles.tbCta}>{t("ui.datePickerField.done")}</Text>
               </Pressable>
             </View>
             <DateTimePicker

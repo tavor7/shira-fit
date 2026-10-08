@@ -167,15 +167,15 @@ export default function SuperUserHiddenWorkoutsScreen() {
           setPickerOpen(false);
           setPickerQ("");
         }}
-        title={language === "he" ? "מתאמנים" : "Athletes"}
+        title={t("ui.superUserHiddenWorkouts.athletes")}
         dismissLabel={t("common.ok")}
         isRTL={isRTL}
-        backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+        backdropAccessibilityLabel={t("ui.superUserHiddenWorkouts.dismiss")}
         searchConfig={{
           value: pickerQ,
           onChangeText: setPickerQ,
           onSearch: (term) => void loadAthletes(term),
-          placeholder: language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…",
+          placeholder: t("ui.superUserHiddenWorkouts.searchNameUsernamePhone"),
           loading: athletesLoading,
         }}
         data={athletes}

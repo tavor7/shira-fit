@@ -160,11 +160,11 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
     setError("");
     const amt = Number.parseFloat(amount.replace(",", ".").trim());
     if (!Number.isFinite(amt) || amt <= 0) {
-      setError(language === "he" ? "הזינו סכום תקין." : "Enter a valid amount.");
+      setError(t("ui.createReceiptWithPayment.enterAValidAmount"));
       return;
     }
     if (serviceType === "other" && !serviceDescription.trim()) {
-      setError(language === "he" ? "תיאור שירות חובה כשבוחרים 'אימונים'." : "Description required for Trainings.");
+      setError(t("ui.createReceiptWithPayment.descriptionRequiredForTrainings"));
       return;
     }
     setBusy(true);
@@ -201,12 +201,10 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
     <AppModal visible={visible} onClose={onClose} variant="sheet" backdropAccessibilityLabel={t("common.close")}>
       <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, isRTL && styles.rtl]}>
-          {language === "he" ? "קבלה + תשלום חדש" : "New receipt & payment"}
+          {t("ui.createReceiptWithPayment.newReceiptPayment")}
         </Text>
         <Text style={[styles.subtitle, isRTL && styles.rtl]}>
-          {language === "he"
-            ? "ירשם תשלום בחשבון המתאמן/ת ותופק קבלה."
-            : "Records an account payment and issues a receipt."}
+          {t("ui.createReceiptWithPayment.recordsAnAccountPaymentAndIssues")}
         </Text>
 
         {step === "payee" ? (
@@ -216,7 +214,7 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
               onChangeText={setPayeeQ}
               // loadPayees already re-runs via the effect watching payeeQ above.
               onSearch={() => {}}
-              placeholder={language === "he" ? "חיפוש מתאמן/ת או quick-add…" : "Search athlete or quick-add…"}
+              placeholder={t("ui.createReceiptWithPayment.searchAthleteOrQuickAdd")}
             />
             {payeeLoading ? (
               <ActivityIndicator color={theme.colors.cta} style={{ marginVertical: 16 }} />
@@ -231,9 +229,7 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
                   <Text style={[styles.listRowSub, isRTL && styles.rtl]}>
                     {row.kind === "manual"
                       ? "Quick-add"
-                      : language === "he"
-                        ? "מתאמן/ת"
-                        : "Athlete"}
+                      : t("ui.createReceiptWithPayment.athlete")}
                     {row.phone ? ` · ${row.phone}` : ""}
                   </Text>
                 </Pressable>
@@ -244,7 +240,7 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
           <>
             <Pressable onPress={() => setStep("payee")} style={styles.backLink}>
               <Text style={styles.backLinkText}>
-                {language === "he" ? "← שינוי משלם" : "← Change payee"}
+                {t("ui.createReceiptWithPayment.changePayee")}
               </Text>
             </Pressable>
             <View style={styles.payeeBanner}>
@@ -255,7 +251,7 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
             </View>
 
             <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>
-              {language === "he" ? "סכום (₪)" : "Amount (₪)"}
+              {t("ui.createReceiptWithPayment.amount")}
             </Text>
             <TextInput
               value={amount}
@@ -265,7 +261,7 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
             />
 
             <ServiceTypePickerField
-              label={language === "he" ? "סוג שירות" : "Service type"}
+              label={t("ui.createReceiptWithPayment.serviceType")}
               value={serviceType}
               onChange={handleServiceTypeChange}
               language={language === "he" ? "he" : "en"}
@@ -274,7 +270,7 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
             {serviceType === "other" ? (
               <>
                 <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>
-                  {language === "he" ? "תיאור שירות" : "Service description"}
+                  {t("ui.createReceiptWithPayment.serviceDescription")}
                 </Text>
                 <TextInput
                   value={serviceDescription}
@@ -288,7 +284,7 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
             ) : null}
 
             <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>
-              {language === "he" ? "אמצעי תשלום" : "Payment method"}
+              {t("ui.createReceiptWithPayment.paymentMethod")}
             </Text>
             <View style={[styles.chipRow, rowFlipFor(isRTL) && styles.chipRowRtl]}>
               {SESSION_PAYMENT_METHOD_KEYS.map((k) => (
@@ -305,25 +301,25 @@ export function CreateReceiptWithPaymentModal({ visible, onClose, onCreated }: P
             </View>
 
             <DatePickerField
-              label={language === "he" ? "תאריך תשלום" : "Payment date"}
+              label={t("ui.createReceiptWithPayment.paymentDate")}
               value={paidAt}
               onChange={setPaidAt}
             />
 
             <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>
-              {language === "he" ? "הערה" : "Note"}
+              {t("ui.createReceiptWithPayment.note")}
             </Text>
             <TextInput
               value={note}
               onChangeText={setNote}
-              placeholder={language === "he" ? "אופציונלי" : "Optional"}
+              placeholder={t("ui.createReceiptWithPayment.optional")}
               placeholderTextColor={theme.colors.textSoft}
               style={[styles.input, isRTL && styles.rtlInput]}
             />
 
             {error ? <Text style={[styles.error, isRTL && styles.rtl]}>{error}</Text> : null}
             <PrimaryButton
-              label={language === "he" ? "הפק קבלה ורשום תשלום" : "Create receipt & payment"}
+              label={t("ui.createReceiptWithPayment.createReceiptPayment")}
               onPress={() => void submit()}
               disabled={busy}
               loading={busy && !success}

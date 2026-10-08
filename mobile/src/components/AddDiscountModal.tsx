@@ -27,7 +27,7 @@ type Props = {
  * discount entries are still editable through AddAccountPaymentModal's own edit path.
  */
 export function AddDiscountModal({ visible, onClose, payeeId, payeeIsManual, payeeLabel, onSaved }: Props) {
-  const { language, t, isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   const { showToast } = useToast();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -50,7 +50,7 @@ export function AddDiscountModal({ visible, onClose, payeeId, payeeIsManual, pay
   async function save() {
     const amt = Number.parseFloat(amount.replace(",", ".").trim());
     if (!Number.isFinite(amt) || amt <= 0) {
-      showError(language === "he" ? "הזינו סכום תקין." : "Enter a valid amount.");
+      showError(t("ui.addDiscount.enterAValidAmount"));
       return;
     }
     if (!payeeId.trim()) {
@@ -89,7 +89,7 @@ export function AddDiscountModal({ visible, onClose, payeeId, payeeIsManual, pay
         onClose();
       }}
       variant="dialog"
-      backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+      backdropAccessibilityLabel={t("ui.addDiscount.dismiss")}
       cardStyle={styles.card}
     >
       <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>

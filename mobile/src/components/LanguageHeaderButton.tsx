@@ -9,8 +9,8 @@ type LangProps = {
 
 /** Compact language switch for the app header (SecureStore-safe on web via I18n). */
 export function LanguageHeaderButton({ size = "default" }: LangProps) {
-  const { language, toggleLanguage, t } = useI18n();
-  const label = language === "he" ? "EN" : "עב";
+  const { toggleLanguage, t } = useI18n();
+  const label = t("ui.languageHeaderButton.text");
   const toolbar = size === "toolbar";
 
   return (

@@ -88,7 +88,7 @@ export function PaymentHistoryRow({
               onPress={onViewReceipt}
               hitSlop={6}
               accessibilityRole="button"
-              accessibilityLabel={language === "he" ? "צפייה בקבלה" : "View receipt"}
+              accessibilityLabel={t("ui.paymentHistoryRow.viewReceipt")}
               style={({ pressed }) => [styles.receiptBadge, pressed && { opacity: 0.85 }]}
             >
               <Text style={styles.receiptBadgeTxt} numberOfLines={1}>

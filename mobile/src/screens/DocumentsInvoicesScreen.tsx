@@ -165,7 +165,7 @@ export default function DocumentsInvoicesScreen() {
   const { showToast } = useToast();
   const isManager = profile?.role === "manager";
   const isCoach = profile?.role === "coach";
-  const lang = language === "he" ? "he" : "en";
+  const lang = ((language === "he" ? "he" : "en"));
 
   const [section, setSection] = useState<HubSection>("pending");
   const [settings, setSettings] = useState<ReceiptSettings | null>(null);
@@ -278,7 +278,7 @@ export default function DocumentsInvoicesScreen() {
       } catch (e) {
         setDocuments([]);
         showToast({
-          message: language === "he" ? "שגיאה בטעינת מסמכים" : "Failed to load documents",
+          message: t("ui.documentsInvoices.failedToLoadDocuments"),
           detail: e instanceof Error ? e.message : String(e),
           variant: "error",
         });
@@ -313,7 +313,7 @@ export default function DocumentsInvoicesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [dateStart, dateEnd, isManager, language, showToast, t]);
+  }, [dateStart, dateEnd, isManager, showToast, t]);
 
   useEffect(() => {
     void load();
@@ -342,7 +342,7 @@ export default function DocumentsInvoicesScreen() {
         next_document_number: settingsForm.is_operational ? undefined : settingsForm.next_document_number,
       });
       setSettings(updated);
-      showToast({ message: language === "he" ? "ההגדרות נשמרו" : "Settings saved", variant: "success" });
+      showToast({ message: t("ui.documentsInvoices.settingsSaved"), variant: "success" });
     } catch (e) {
       showToast({ message: t("common.error"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
     } finally {
@@ -352,7 +352,7 @@ export default function DocumentsInvoicesScreen() {
 
   async function openPdf(doc: DocumentRow) {
     if (!doc.pdf_url) {
-      showToast({ message: language === "he" ? "PDF לא מוכן" : "PDF not ready", variant: "error" });
+      showToast({ message: t("ui.documentsInvoices.pdfNotReady"), variant: "error" });
       return;
     }
     try {
@@ -382,17 +382,13 @@ export default function DocumentsInvoicesScreen() {
       await load();
       showToast({
         message: hadPdf
-          ? language === "he"
-            ? "PDF נוצר מחדש"
-            : "PDF regenerated"
-          : language === "he"
-            ? "PDF נוצר"
-            : "PDF generated",
+          ? t("ui.documentsInvoices.pdfRegenerated")
+          : t("ui.documentsInvoices.pdfGenerated"),
         variant: "success",
       });
     } catch (e) {
       showToast({
-        message: language === "he" ? "יצירת PDF נכשלה" : "PDF generation failed",
+        message: t("ui.documentsInvoices.pdfGenerationFailed"),
         detail: e instanceof Error ? e.message : String(e),
         variant: "error",
       });
@@ -409,20 +405,20 @@ export default function DocumentsInvoicesScreen() {
     const accountant = settings?.accountant_email?.trim();
     if (!accountant) {
       showToast({
-        message: language === "he" ? "הגדירו אימייל רו״ח בהגדרות" : "Set accountant email in Settings",
+        message: t("ui.documentsInvoices.setAccountantEmailInSettings"),
         variant: "error",
       });
       return;
     }
     if (!doc.pdf_url) {
-      showToast({ message: language === "he" ? "PDF לא מוכן" : "PDF not ready", variant: "error" });
+      showToast({ message: t("ui.documentsInvoices.pdfNotReady"), variant: "error" });
       return;
     }
     setAccountantBusyId(doc.id);
     try {
       await invokeSendDocumentEmail(doc.id, accountant);
       showToast({
-        message: language === "he" ? "נשלח לרו״ח" : "Sent to accountant",
+        message: t("ui.documentsInvoices.sentToAccountant"),
         variant: "success",
       });
       void load();
@@ -449,8 +445,8 @@ export default function DocumentsInvoicesScreen() {
       await load();
       if (pdfReissueFailed) {
         showToast({
-          message: language === "he" ? "הקבלה בוטלה, אך יצירת ה-PDF המבוטל נכשלה" : "Receipt cancelled, but reissuing the cancelled PDF failed",
-          detail: language === "he" ? "אפשר לנסות שוב מכפתור «PDF מחדש»." : "You can retry from the Regen button.",
+          message: t("ui.documentsInvoices.receiptCancelledButReissuingTheCancelled"),
+          detail: t("ui.documentsInvoices.youCanRetryFromTheRegen"),
           variant: "info",
         });
       } else {
@@ -467,7 +463,7 @@ export default function DocumentsInvoicesScreen() {
       }
     } catch (e) {
       showToast({
-        message: language === "he" ? "ביטול הקבלה נכשל" : "Failed to cancel receipt",
+        message: t("ui.documentsInvoices.failedToCancelReceipt"),
         detail: e instanceof Error ? e.message : undefined,
         variant: "error",
       });
@@ -477,23 +473,21 @@ export default function DocumentsInvoicesScreen() {
   }
 
   function confirmCancelReceipt(doc: DocumentRow) {
-    const title = language === "he" ? "לבטל קבלה?" : "Cancel receipt?";
+    const title = t("ui.documentsInvoices.cancelReceipt");
     const message =
-      language === "he"
-        ? "הקבלה תסומן כבוטלת וה-PDF יופק מחדש עם חותמת \"בוטל\". בחרו מה לעשות עם התשלום המקושר."
-        : "The receipt will be marked cancelled and its PDF reissued with a \"Cancelled\" stamp. Choose what happens to the linked payment.";
+      t("ui.documentsInvoices.theReceiptWillBeMarkedCancelled");
     showAlert({
       title,
       message,
       actions: [
         { label: t("common.cancel"), variant: "secondary", onPress: () => {} },
         {
-          label: language === "he" ? "ביטול קבלה, שמירת תשלום" : "Cancel receipt, keep payment",
+          label: t("ui.documentsInvoices.cancelReceiptKeepPayment"),
           variant: "secondary",
           onPress: () => void cancelReceipt(doc, false),
         },
         {
-          label: language === "he" ? "ביטול קבלה + שחזור תשלום" : "Cancel receipt + revert payment",
+          label: t("ui.documentsInvoices.cancelReceiptRevertPayment"),
           variant: "danger",
           onPress: () => void cancelReceipt(doc, true),
         },
@@ -519,7 +513,7 @@ export default function DocumentsInvoicesScreen() {
       });
     } catch (e) {
       showToast({
-        message: language === "he" ? "מחיקת הקבלה נכשלה" : "Failed to delete receipt",
+        message: t("ui.documentsInvoices.failedToDeleteReceipt"),
         detail: e instanceof Error ? e.message : undefined,
         variant: "error",
       });
@@ -529,23 +523,21 @@ export default function DocumentsInvoicesScreen() {
   }
 
   function confirmDeleteReceipt(doc: DocumentRow) {
-    const title = language === "he" ? "מחיקת קבלה?" : "Delete receipt?";
+    const title = t("ui.documentsInvoices.deleteReceipt");
     const message =
-      language === "he"
-        ? "הקבלה, ה-PDF וכל היסטוריית האירועים שלה יימחקו לצמיתות — לא תישמר עותק. בחרו מה לעשות עם התשלום המקושר. זמין רק במצב בדיקה."
-        : "The receipt, its PDF, and its event history will be permanently deleted — no copy is kept. Choose what happens to the linked payment. Only available in testing mode.";
+      t("ui.documentsInvoices.theReceiptItsPdfAndIts");
     showAlert({
       title,
       message,
       actions: [
         { label: t("common.cancel"), variant: "secondary", onPress: () => {} },
         {
-          label: language === "he" ? "מחיקה, שמירת תשלום" : "Delete, keep payment",
+          label: t("ui.documentsInvoices.deleteKeepPayment"),
           variant: "danger",
           onPress: () => void deleteReceipt(doc, false),
         },
         {
-          label: language === "he" ? "מחיקה + מחיקת תשלום" : "Delete + delete payment",
+          label: t("ui.documentsInvoices.deleteDeletePayment"),
           variant: "danger",
           onPress: () => void deleteReceipt(doc, true),
         },
@@ -580,7 +572,7 @@ export default function DocumentsInvoicesScreen() {
     regenFetchingRef.current = false;
     if (targets.length === 0) {
       showToast({
-        message: language === "he" ? "אין קבלות פעילות בטווח שנבחר" : "No active receipts in the selected range",
+        message: t("ui.documentsInvoices.noActiveReceiptsInTheSelected"),
         variant: "info",
       });
       return;
@@ -624,20 +616,18 @@ export default function DocumentsInvoicesScreen() {
 
   function confirmRegenerateAllPdfs() {
     const scope = regenAllDates
-      ? language === "he"
-        ? "ללא הגבלת טווח תאריכים"
-        : "across all dates"
+      ? t("ui.documentsInvoices.acrossAllDates")
       : language === "he"
         ? `בין ${formatISODateFull(regenDateStart, language)} ל-${formatISODateFull(regenDateEnd, language)}`
         : `between ${formatISODateFull(regenDateStart, language)} and ${formatISODateFull(regenDateEnd, language)}`;
     showConfirm({
-      title: language === "he" ? "יצירת PDF מחדש?" : "Regenerate PDFs?",
+      title: t("ui.documentsInvoices.regeneratePdfs"),
       message:
         language === "he"
           ? `יופקו מחדש כל קבצי ה-PDF הפעילים עם המספרים הנוכחיים שלהם, ${scope}. פעולה זו עלולה לקחת זמן.`
           : `Regenerates every active PDF file with its current number, ${scope}. This may take a while.`,
       cancelLabel: t("common.cancel"),
-      confirmLabel: language === "he" ? "יצירה מחדש" : "Regenerate",
+      confirmLabel: t("ui.documentsInvoices.regenerate"),
       onConfirm: () => void regenerateAllPdfs(),
     });
   }
@@ -646,7 +636,7 @@ export default function DocumentsInvoicesScreen() {
     const accountant = settings?.accountant_email?.trim();
     if (!accountant) {
       showToast({
-        message: language === "he" ? "הגדירו אימייל רו״ח בהגדרות" : "Set accountant email in Settings",
+        message: t("ui.documentsInvoices.setAccountantEmailInSettings"),
         variant: "error",
       });
       return;
@@ -654,7 +644,7 @@ export default function DocumentsInvoicesScreen() {
     const eligible = filteredDocuments.filter((d) => d.status === "ACTIVE" && d.pdf_url);
     if (eligible.length === 0) {
       showToast({
-        message: language === "he" ? "אין מסמכים עם PDF בטווח" : "No documents with PDF in range",
+        message: t("ui.documentsInvoices.noDocumentsWithPdfInRange"),
         variant: "info",
       });
       return;
@@ -676,7 +666,7 @@ export default function DocumentsInvoicesScreen() {
       void load();
     } catch (e) {
       showToast({
-        message: language === "he" ? "שליחה לרו״ח נכשלה" : "Failed to send to accountant",
+        message: t("ui.documentsInvoices.failedToSendToAccountant"),
         detail: e instanceof Error ? e.message : undefined,
         variant: "error",
       });
@@ -690,9 +680,7 @@ export default function DocumentsInvoicesScreen() {
     if (!isFullMonthRange) {
       showToast({
         message:
-          language === "he"
-            ? "ניתן להפיק סיכום רק לחודש קלנדרי מלא — בחרו טווח \"חודש\""
-            : "Summaries can only be generated for a full calendar month — pick the Month range mode",
+          t("ui.documentsInvoices.summariesCanOnlyBeGeneratedFor"),
         variant: "error",
       });
       return;
@@ -709,12 +697,8 @@ export default function DocumentsInvoicesScreen() {
       else await Linking.openURL(url);
       showToast({
         message: accountant
-          ? language === "he"
-            ? "הסיכום נוצר ונשלח לרו״ח"
-            : "Summary generated and emailed to accountant"
-          : language === "he"
-            ? "הסיכום נוצר"
-            : "Summary generated",
+          ? t("ui.documentsInvoices.summaryGeneratedAndEmailedToAccountant")
+          : t("ui.documentsInvoices.summaryGenerated"),
         variant: "success",
       });
       try {
@@ -724,7 +708,7 @@ export default function DocumentsInvoicesScreen() {
       }
     } catch (e) {
       showToast({
-        message: language === "he" ? "יצירת הסיכום נכשלה" : "Failed to generate summary",
+        message: t("ui.documentsInvoices.failedToGenerateSummary"),
         detail: e instanceof Error ? e.message : undefined,
         variant: "error",
       });
@@ -746,13 +730,11 @@ export default function DocumentsInvoicesScreen() {
 
   function confirmDeleteMonthlySummary(row: MonthlySummaryRow) {
     showConfirm({
-      title: language === "he" ? "מחיקת סיכום?" : "Delete summary?",
+      title: t("ui.documentsInvoices.deleteSummary"),
       message:
-        language === "he"
-          ? "הסיכום החודשי וה-PDF שלו יימחקו לצמיתות."
-          : "The monthly summary and its PDF will be permanently deleted.",
+        t("ui.documentsInvoices.theMonthlySummaryAndItsPdf"),
       cancelLabel: t("common.cancel"),
-      confirmLabel: language === "he" ? "מחיקה" : "Delete",
+      confirmLabel: t("ui.documentsInvoices.delete"),
       confirmVariant: "danger",
       onConfirm: () => void deleteMonthlySummary(row),
     });
@@ -764,10 +746,10 @@ export default function DocumentsInvoicesScreen() {
     try {
       await deleteMonthlySummaryReport(row.id, row.pdf_url);
       setMonthlySummaries((rows) => rows.filter((r) => r.id !== row.id));
-      showToast({ message: language === "he" ? "הסיכום נמחק" : "Summary deleted", variant: "success" });
+      showToast({ message: t("ui.documentsInvoices.summaryDeleted"), variant: "success" });
     } catch (e) {
       showToast({
-        message: language === "he" ? "מחיקת הסיכום נכשלה" : "Failed to delete summary",
+        message: t("ui.documentsInvoices.failedToDeleteSummary"),
         detail: e instanceof Error ? e.message : undefined,
         variant: "error",
       });
@@ -779,22 +761,20 @@ export default function DocumentsInvoicesScreen() {
   async function sendEmail(doc: DocumentRow) {
     const email = doc.customer_email?.trim();
     if (!email) {
-      showToast({ message: language === "he" ? "אין אימייל ללקוח" : "No customer email", variant: "error" });
+      showToast({ message: t("ui.documentsInvoices.noCustomerEmail"), variant: "error" });
       return;
     }
     try {
       await invokeSendDocumentEmail(doc.id, email);
-      showToast({ message: language === "he" ? "נשלח" : "Sent", variant: "success" });
+      showToast({ message: t("ui.documentsInvoices.sent"), variant: "success" });
       void load();
     } catch (e) {
       const message = e instanceof Error ? e.message : undefined;
       if (message === "email_provider_not_configured") {
         showToast({
-          message: language === "he" ? "שליחת אימייל אינה מוגדרת" : "Email sending isn't set up",
+          message: t("ui.documentsInvoices.emailSendingIsnTSetUp"),
           detail:
-            language === "he"
-              ? "יש להגדיר RESEND_API_KEY בהגדרות הפרויקט לפני שליחת קבלות באימייל."
-              : "Set RESEND_API_KEY on the project before receipts can be emailed.",
+            t("ui.documentsInvoices.setResendApiKeyOnThe"),
           variant: "error",
         });
         return;
@@ -822,13 +802,13 @@ export default function DocumentsInvoicesScreen() {
     ]);
     const csv = buildCsv(headers, rows);
     if (Platform.OS === "web") downloadCsvWeb(`documents-${dateStart}-${dateEnd}.csv`, csv);
-    else showToast({ message: language === "he" ? "ייצוא זמין בדפדפן" : "Export available on web", variant: "info" });
+    else showToast({ message: t("ui.documentsInvoices.exportAvailableOnWeb"), variant: "info" });
   }
 
   const sectionTabs: { id: HubSection; label: string; managerOnly?: boolean }[] = [
-    { id: "pending", label: language === "he" ? "ממתינים לקבלה" : "Pending receipts" },
-    { id: "documents", label: language === "he" ? "מסמכים" : "Documents" },
-    { id: "reports", label: language === "he" ? "דוחות" : "Reports", managerOnly: true },
+    { id: "pending", label: t("ui.documentsInvoices.pendingReceipts") },
+    { id: "documents", label: t("ui.documentsInvoices.documents") },
+    { id: "reports", label: t("ui.documentsInvoices.reports"), managerOnly: true },
   ];
 
   const visibleTabs = sectionTabs.filter((x) => !x.managerOnly || isManager);
@@ -877,30 +857,26 @@ export default function DocumentsInvoicesScreen() {
         {needsMethod ? (
           <View style={styles.warnBox}>
             <Text style={[styles.warnText, isRTL && styles.rtl]}>
-              {language === "he" ? "נדרש לבחור אמצעי תשלום למסמך" : "Select a payment method for this document"}
+              {t("ui.documentsInvoices.selectAPaymentMethodForThis")}
             </Text>
           </View>
         ) : missingEmail ? (
           <View style={styles.warnBox}>
             <Text style={[styles.warnText, isRTL && styles.rtl]}>
               {isManual
-                ? language === "he"
-                  ? "אין אימייל — הוסיפו ידנית או דלגו על שליחה"
-                  : "No email — add manually or skip send"
-                : language === "he"
-                  ? "אין אימייל ללקוח — עדכנו לפני שליחה"
-                  : "No customer email — update before send"}
+                ? t("ui.documentsInvoices.noEmailAddManuallyOrSkip")
+                : t("ui.documentsInvoices.noCustomerEmailUpdateBeforeSend")}
             </Text>
             {isManager ? (
               <Pressable onPress={() => setEditEmailDoc(item)} style={styles.warnAction}>
-                <Text style={styles.warnActionText}>{language === "he" ? "עריכת אימייל" : "Edit email"}</Text>
+                <Text style={styles.warnActionText}>{t("ui.documentsInvoices.editEmail")}</Text>
               </Pressable>
             ) : null}
           </View>
         ) : !item.pdf_url && (item.status === "ACTIVE" || item.status === "CANCELLED") ? (
           <View style={styles.warnBox}>
             <Text style={[styles.warnText, isRTL && styles.rtl]}>
-              {language === "he" ? "PDF לא נוצר — לחצו «צור PDF»" : "PDF missing — tap Generate PDF"}
+              {t("ui.documentsInvoices.pdfMissingTapGeneratePdf")}
             </Text>
           </View>
         ) : null}
@@ -908,7 +884,7 @@ export default function DocumentsInvoicesScreen() {
         <View style={[styles.actionBar, rowFlipFor(isRTL) && styles.actionBarRtl]}>
           {!needsMethod && item.pdf_url ? (
             <Pressable onPress={() => void openPdf(item)} style={({ pressed }) => [styles.actionItem, pressed && styles.actionItemPressed]}>
-              <Text style={[styles.actionText, isRTL && styles.rtl]}>{language === "he" ? "צפייה" : "View"}</Text>
+              <Text style={[styles.actionText, isRTL && styles.rtl]}>{t("ui.documentsInvoices.view")}</Text>
             </Pressable>
           ) : null}
           {!needsMethod && !item.pdf_url && (item.status === "ACTIVE" || item.status === "CANCELLED") ? (
@@ -924,7 +900,7 @@ export default function DocumentsInvoicesScreen() {
               {pdfBusy ? (
                 <ActivityIndicator size="small" color={theme.colors.cta} />
               ) : (
-                <Text style={[styles.actionText, isRTL && styles.rtl]}>{language === "he" ? "צור PDF" : "Generate PDF"}</Text>
+                <Text style={[styles.actionText, isRTL && styles.rtl]}>{t("ui.documentsInvoices.generatePdf")}</Text>
               )}
             </Pressable>
           ) : null}
@@ -963,7 +939,7 @@ export default function DocumentsInvoicesScreen() {
                 {pdfBusy ? (
                   <ActivityIndicator size="small" color={theme.colors.cta} />
                 ) : (
-                  <Text style={[styles.actionText, isRTL && styles.rtl]}>{language === "he" ? "PDF מחדש" : "Regen"}</Text>
+                  <Text style={[styles.actionText, isRTL && styles.rtl]}>{t("ui.documentsInvoices.regen")}</Text>
                 )}
               </Pressable>
             </>
@@ -972,7 +948,7 @@ export default function DocumentsInvoicesScreen() {
             <>
               <View style={styles.actionSep} />
               <Pressable onPress={() => void sendEmail(item)} style={({ pressed }) => [styles.actionItem, pressed && styles.actionItemPressed]}>
-                <Text style={[styles.actionText, isRTL && styles.rtl]}>{language === "he" ? "שליחה" : "Send"}</Text>
+                <Text style={[styles.actionText, isRTL && styles.rtl]}>{t("ui.documentsInvoices.send")}</Text>
               </Pressable>
             </>
           ) : null}
@@ -992,7 +968,7 @@ export default function DocumentsInvoicesScreen() {
                   <ActivityIndicator size="small" color={theme.colors.cta} />
                 ) : (
                   <Text style={[styles.actionText, isRTL && styles.rtl]}>
-                    {language === "he" ? "לרו״ח" : "Accountant"}
+                    {t("ui.documentsInvoices.accountant")}
                   </Text>
                 )}
               </Pressable>
@@ -1014,7 +990,7 @@ export default function DocumentsInvoicesScreen() {
                 {cancelBusyId === item.id ? (
                   <ActivityIndicator size="small" color={theme.colors.error} />
                 ) : (
-                  <Text style={[styles.actionTextDanger, isRTL && styles.rtl]}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                  <Text style={[styles.actionTextDanger, isRTL && styles.rtl]}>{t("ui.documentsInvoices.cancel")}</Text>
                 )}
               </Pressable>
             </>
@@ -1035,7 +1011,7 @@ export default function DocumentsInvoicesScreen() {
                 {deleteDocBusyId === item.id ? (
                   <ActivityIndicator size="small" color={theme.colors.error} />
                 ) : (
-                  <Text style={[styles.actionTextDanger, isRTL && styles.rtl]}>{language === "he" ? "מחיקה" : "Delete"}</Text>
+                  <Text style={[styles.actionTextDanger, isRTL && styles.rtl]}>{t("ui.documentsInvoices.delete")}</Text>
                 )}
               </Pressable>
             </>
@@ -1058,7 +1034,7 @@ export default function DocumentsInvoicesScreen() {
             hitSlop={10}
             style={({ pressed }) => [styles.settingsGear, pressed && { opacity: 0.6 }]}
             accessibilityRole="button"
-            accessibilityLabel={language === "he" ? "הגדרות" : "Settings"}
+            accessibilityLabel={t("ui.documentsInvoices.settings")}
           >
             <AppIcon name="settings-outline" size="md" color={section === "settings" ? theme.colors.text : theme.colors.textMuted} />
           </Pressable>
@@ -1067,9 +1043,7 @@ export default function DocumentsInvoicesScreen() {
       {!settings?.is_operational && settings?.digital_receipts_enabled ? (
         <View style={styles.testingBanner}>
           <Text style={[styles.testingText, isRTL && styles.rtl]}>
-            {language === "he"
-              ? "מצב בדיקה — ניתן לבטל קבלות וליצור PDF מחדש"
-              : "Testing mode — void receipts and regenerate PDFs"}
+            {t("ui.documentsInvoices.testingModeVoidReceiptsAndRegenerate")}
           </Text>
         </View>
       ) : null}
@@ -1090,21 +1064,17 @@ export default function DocumentsInvoicesScreen() {
       />
 
       {isManager && !settings?.is_operational ? (
-        <SectionCard label={language === "he" ? "יצירת PDF מחדש לכל הקבלות" : "Regenerate all receipt PDFs"}>
+        <SectionCard label={t("ui.documentsInvoices.regenerateAllReceiptPdfs")}>
           <Text style={[styles.filterHint, isRTL && styles.rtl]}>
-            {language === "he"
-              ? "השתמשו בזה אחרי שינוי גורף של מספרי הקבלות — מייצר מחדש כל PDF פעיל כדי שיתאים למספר הנוכחי שלו."
-              : "Use this after a bulk change to receipt numbers — regenerates every active PDF so its file matches its current number."}
+            {t("ui.documentsInvoices.useThisAfterABulkChange")}
           </Text>
           {!bulkRegenBusy ? (
             <>
               <ToggleRow
                 isRTL={isRTL}
-                title={language === "he" ? "כל התאריכים" : "All dates"}
+                title={t("ui.documentsInvoices.allDates")}
                 subtitle={
-                  language === "he"
-                    ? "כבו כדי להגביל את היצירה מחדש לטווח תאריכי תשלום מסוים"
-                    : "Turn off to limit regeneration to a specific payment date range"
+                  t("ui.documentsInvoices.turnOffToLimitRegenerationTo")
                 }
                 value={regenAllDates}
                 onChange={setRegenAllDates}
@@ -1117,7 +1087,7 @@ export default function DocumentsInvoicesScreen() {
                     setRegenDateStart(start);
                     setRegenDateEnd(end);
                   }}
-                  label={language === "he" ? "טווח תאריכי תשלום" : "Payment date range"}
+                  label={t("ui.documentsInvoices.paymentDateRange")}
                 />
               ) : null}
             </>
@@ -1128,16 +1098,14 @@ export default function DocumentsInvoicesScreen() {
                 <ActivityIndicator size="small" color={theme.colors.cta} />
                 <Text style={[styles.bulkRegenProgressText, isRTL && styles.rtl]}>
                   {bulkRegenProgress.cancelling
-                    ? language === "he"
-                      ? "מבטל…"
-                      : "Cancelling…"
+                    ? t("ui.documentsInvoices.cancelling")
                     : language === "he"
                       ? `יוצר מחדש ${bulkRegenProgress.done} מתוך ${bulkRegenProgress.total}…`
                       : `Regenerating ${bulkRegenProgress.done} of ${bulkRegenProgress.total}…`}
                 </Text>
               </View>
               <PrimaryButton
-                label={language === "he" ? "ביטול" : "Cancel"}
+                label={t("ui.documentsInvoices.cancel")}
                 onPress={cancelRegenerateAllPdfs}
                 disabled={bulkRegenProgress.cancelling}
                 variant="ghost"
@@ -1147,12 +1115,8 @@ export default function DocumentsInvoicesScreen() {
             <PrimaryButton
               label={
                 regenAllDates
-                  ? language === "he"
-                    ? "יצירת כל ה-PDF מחדש"
-                    : "Regenerate all PDFs"
-                  : language === "he"
-                    ? "יצירת PDF מחדש לטווח שנבחר"
-                    : "Regenerate PDFs in range"
+                  ? t("ui.documentsInvoices.regenerateAllPdfs")
+                  : t("ui.documentsInvoices.regeneratePdfsInRange")
               }
               onPress={confirmRegenerateAllPdfs}
               disabled={bulkRegenBusy || regenFetchingRef.current}
@@ -1161,22 +1125,20 @@ export default function DocumentsInvoicesScreen() {
         </SectionCard>
       ) : null}
 
-      <SectionCard label={language === "he" ? "מערכת" : "System"}>
+      <SectionCard label={t("ui.documentsInvoices.system")}>
         <ToggleRow
           isRTL={isRTL}
-          title={language === "he" ? "הפעלת קבלות דיגיטליות" : "Enable digital receipts"}
-          subtitle={language === "he" ? "מאפשר הפקת מסמכים חדשים" : "Allows creating new documents"}
+          title={t("ui.documentsInvoices.enableDigitalReceipts")}
+          subtitle={t("ui.documentsInvoices.allowsCreatingNewDocuments")}
           value={!!settingsForm.digital_receipts_enabled}
           onChange={(v) => setSettingsForm((s) => ({ ...s, digital_receipts_enabled: v }))}
         />
         <View style={styles.cardDivider} />
         <ToggleRow
           isRTL={isRTL}
-          title={language === "he" ? "מערכת פעילה" : "Operational mode"}
+          title={t("ui.documentsInvoices.operationalMode")}
           subtitle={
-            language === "he"
-              ? "PDFים הופכים לבלתי ניתנים לשינוי; ביטול קבלות נחסם"
-              : "Locks PDFs and blocks voiding receipts"
+            t("ui.documentsInvoices.locksPdfsAndBlocksVoidingReceipts")
           }
           value={!!settingsForm.is_operational}
           onChange={(v) => setSettingsForm((s) => ({ ...s, is_operational: v }))}
@@ -1184,11 +1146,9 @@ export default function DocumentsInvoicesScreen() {
         <View style={styles.cardDivider} />
         <ToggleRow
           isRTL={isRTL}
-          title={language === "he" ? "בקשת הסכמה לקבלות ממשתמשים קיימים" : "Request electronic receipt consent"}
+          title={t("ui.documentsInvoices.requestElectronicReceiptConsent")}
           subtitle={
-            language === "he"
-              ? "מתאמנים ומנהלים יתבקשו לאשר את הסכמת הקבלות האלקטרוניות בעת כניסה"
-              : "Existing athletes and managers are prompted to accept electronic receipt consent when they open the app"
+            t("ui.documentsInvoices.existingAthletesAndManagersArePrompted")
           }
           value={!!settingsForm.request_consent_from_existing_users}
           onChange={(v) => setSettingsForm((s) => ({ ...s, request_consent_from_existing_users: v }))}
@@ -1196,11 +1156,9 @@ export default function DocumentsInvoicesScreen() {
         <View style={styles.cardDivider} />
         <ToggleRow
           isRTL={isRTL}
-          title={language === "he" ? "בקשת כתובת ממשתמשים קיימים" : "Request address from existing users"}
+          title={t("ui.documentsInvoices.requestAddressFromExistingUsers")}
           subtitle={
-            language === "he"
-              ? "מתאמנים ומנהלים שנרשמו לפני שנדרשה כתובת יתבקשו למלא כתובת ומיקוד בעת כניסה"
-              : "Existing athletes and managers are prompted for street address and zip when they open the app"
+            t("ui.documentsInvoices.existingAthletesAndManagersArePrompted2")
           }
           value={!!settingsForm.request_address_from_existing_users}
           onChange={(v) => setSettingsForm((s) => ({ ...s, request_address_from_existing_users: v }))}
@@ -1208,26 +1166,24 @@ export default function DocumentsInvoicesScreen() {
         <View style={styles.cardDivider} />
         <ToggleRow
           isRTL={isRTL}
-          title={language === "he" ? "צוות יכול לבטל" : "Staff can cancel"}
+          title={t("ui.documentsInvoices.staffCanCancel")}
           value={!!settingsForm.staff_can_cancel_documents}
           onChange={(v) => setSettingsForm((s) => ({ ...s, staff_can_cancel_documents: v }))}
         />
       </SectionCard>
 
-      <SectionCard label={language === "he" ? "מע״מ ומספור" : "VAT & numbering"}>
+      <SectionCard label={t("ui.documentsInvoices.vatNumbering")}>
         <ToggleRow
           isRTL={isRTL}
-          title={language === "he" ? "כלול מע״מ בקבלות" : "Include VAT on receipts"}
+          title={t("ui.documentsInvoices.includeVatOnReceipts")}
           subtitle={
-            language === "he"
-              ? "כשכבוי, קבלות ודוחות לא יכללו מע״מ ויוצגו כעוסק פטור"
-              : "When off, receipts and reports show no VAT and are marked as exempt-dealer"
+            t("ui.documentsInvoices.whenOffReceiptsAndReportsShow")
           }
           value={!!settingsForm.vat_enabled}
           onChange={(v) => setSettingsForm((s) => ({ ...s, vat_enabled: v }))}
         />
         <View style={styles.cardDivider} />
-        <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{language === "he" ? "אחוז מע״מ" : "VAT %"}</Text>
+        <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("ui.documentsInvoices.vat")}</Text>
         <TextInput
           value={String(Math.round((settingsForm.vat_rate ?? 0.18) * 10000) / 100)}
           onChangeText={(v) => {
@@ -1238,7 +1194,7 @@ export default function DocumentsInvoicesScreen() {
           keyboardType="decimal-pad"
           style={[styles.input, isRTL && styles.rtlInput, !settingsForm.vat_enabled && styles.inputDisabled]}
         />
-        <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{language === "he" ? "קידומת מסמך" : "Document prefix"}</Text>
+        <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("ui.documentsInvoices.documentPrefix")}</Text>
         <TextInput
           value={String(settingsForm.document_prefix ?? "")}
           onChangeText={(v) => setSettingsForm((s) => ({ ...s, document_prefix: v }))}
@@ -1246,7 +1202,7 @@ export default function DocumentsInvoicesScreen() {
           autoCapitalize="characters"
         />
         <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>
-          {language === "he" ? "מספר המסמך הבא" : "Next document number"}
+          {t("ui.documentsInvoices.nextDocumentNumber")}
         </Text>
         {settingsForm.is_operational ? (
           <Text style={[styles.filterHint, isRTL && styles.rtl]}>
@@ -1267,15 +1223,15 @@ export default function DocumentsInvoicesScreen() {
         )}
       </SectionCard>
 
-      <SectionCard label={language === "he" ? "פרטי עסק" : "Business details"}>
+      <SectionCard label={t("ui.documentsInvoices.businessDetails")}>
         {(
           [
-            ["business_name", language === "he" ? "שם העסק" : "Business name"],
-            ["business_id", language === "he" ? "ע.פ" : "Business ID"],
-            ["address", language === "he" ? "כתובת" : "Address"],
-            ["phone", language === "he" ? "טלפון" : "Phone"],
-            ["email", language === "he" ? "אימייל" : "Email"],
-            ["accountant_email", language === "he" ? "אימייל רו״ח" : "Accountant email"],
+            ["business_name", t("ui.documentsInvoices.businessName")],
+            ["business_id", t("ui.documentsInvoices.businessId")],
+            ["address", t("ui.documentsInvoices.address")],
+            ["phone", t("ui.documentsInvoices.phone")],
+            ["email", t("ui.documentsInvoices.email")],
+            ["accountant_email", t("ui.documentsInvoices.accountantEmail")],
           ] as const
         ).map(([key, label]) => (
           <View key={key} style={styles.fieldBlock}>
@@ -1290,15 +1246,13 @@ export default function DocumentsInvoicesScreen() {
         ))}
       </SectionCard>
 
-      <SectionCard label={language === "he" ? "הסכמה לקבלות אלקטרוניות" : "Electronic receipt consent"}>
+      <SectionCard label={t("ui.documentsInvoices.electronicReceiptConsent")}>
         <Text style={[styles.fieldHint, isRTL && styles.rtl]}>
-          {language === "he"
-            ? "טקסט זה מוצג כשבקשת הסכמה ממשתמשים קיימים פעילה. פרסום גרסה חדשה תחייב הסכמה מחדש."
-            : "Shown when request consent from existing users is on. Publishing a new version requires re-consent."}
+          {t("ui.documentsInvoices.shownWhenRequestConsentFromExisting")}
         </Text>
-        <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{language === "he" ? "כותרת" : "Title"}</Text>
+        <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("ui.documentsInvoices.title")}</Text>
         <TextInput value={consentTitle} onChangeText={setConsentTitle} style={[styles.input, isRTL && styles.rtlInput]} />
-        <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{language === "he" ? "גוף ההסכמה" : "Body"}</Text>
+        <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("ui.documentsInvoices.body")}</Text>
         <TextInput
           value={consentBody}
           onChangeText={setConsentBody}
@@ -1306,7 +1260,7 @@ export default function DocumentsInvoicesScreen() {
           style={[styles.input, styles.textArea, isRTL && styles.rtlInput]}
         />
         <PrimaryButton
-          label={language === "he" ? "פרסום גרסה חדשה" : "Publish new version"}
+          label={t("ui.documentsInvoices.publishNewVersion")}
           onPress={() =>
             void publishLegalDocument("electronic_receipts", consentTitle, consentBody).then((v) =>
               showToast({
@@ -1319,7 +1273,7 @@ export default function DocumentsInvoicesScreen() {
       </SectionCard>
 
       <PrimaryButton
-        label={language === "he" ? "שמירת הגדרות" : "Save settings"}
+        label={t("ui.documentsInvoices.saveSettings")}
         onPress={() => void saveSettings()}
         loading={savingSettings}
         loadingLabel={t("common.loading")}
@@ -1368,13 +1322,13 @@ export default function DocumentsInvoicesScreen() {
             ) : null}
 
             <Text style={[styles.sectionLabel, styles.sectionSpaced, isRTL && styles.rtl]}>
-              {language === "he" ? "טווח תאריכים" : "Date range"}
+              {t("ui.documentsInvoices.dateRange")}
             </Text>
             <CollapsibleDateRangeCard
               start={dateStart}
               end={dateEnd}
               onChange={({ start, end }) => { setDateStart(start); setDateEnd(end); }}
-              label={language === "he" ? "טווח תאריכים" : "Date range"}
+              label={t("ui.documentsInvoices.dateRange")}
             />
           </View>
         ) : null}
@@ -1383,8 +1337,8 @@ export default function DocumentsInvoicesScreen() {
         <SortToggleButton
           value={docsSortOrder}
           onChange={setDocsSortOrder}
-          ascLabel={language === "he" ? "מהישן לחדש" : "Oldest first"}
-          descLabel={language === "he" ? "מהחדש לישן" : "Newest first"}
+          ascLabel={t("ui.documentsInvoices.oldestFirst")}
+          descLabel={t("ui.documentsInvoices.newestFirst")}
         />
       </View>
     </>
@@ -1397,42 +1351,42 @@ export default function DocumentsInvoicesScreen() {
         start={dateStart}
         end={dateEnd}
         onChange={({ start, end }) => { setDateStart(start); setDateEnd(end); }}
-        label={language === "he" ? "טווח תאריכים" : "Date range"}
+        label={t("ui.documentsInvoices.dateRange")}
       />
       <View style={[styles.summaryRow, rowFlipFor(isRTL) && styles.summaryRowRtl]}>
         <View style={styles.summaryStat}>
           <Text style={styles.summaryValue}>{Math.round(reportCountDisplay)}</Text>
-          <Text style={styles.summaryLabel}>{language === "he" ? "מסמכים" : "Documents"}</Text>
+          <Text style={styles.summaryLabel}>{t("ui.documentsInvoices.documents")}</Text>
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryStat}>
           <Text style={styles.summaryValue}>{formatIls(reportGrossDisplay)}</Text>
-          <Text style={styles.summaryLabel}>{language === "he" ? "סה״כ ברוטו" : "Gross total"}</Text>
+          <Text style={styles.summaryLabel}>{t("ui.documentsInvoices.grossTotal")}</Text>
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryStat}>
           {settings?.vat_enabled ? (
             <>
               <Text style={styles.summaryValue}>{formatIls(reportVatDisplay)}</Text>
-              <Text style={styles.summaryLabel}>{language === "he" ? "מע״מ" : "VAT"}</Text>
+              <Text style={styles.summaryLabel}>{t("ui.documentsInvoices.vat2")}</Text>
             </>
           ) : (
             <>
               <Text style={styles.summaryValue}>{`ע.פ. ${settings?.business_id ?? ""}`}</Text>
-              <Text style={styles.summaryLabel}>{language === "he" ? "עוסק פטור" : "Exempt dealer"}</Text>
+              <Text style={styles.summaryLabel}>{t("ui.documentsInvoices.exemptDealer")}</Text>
             </>
           )}
         </View>
       </View>
-      <PrimaryButton label={language === "he" ? "ייצוא CSV לרו״ח" : "Export CSV"} onPress={exportCsv} />
+      <PrimaryButton label={t("ui.documentsInvoices.exportCsv")} onPress={exportCsv} />
       <PrimaryButton
-        label={language === "he" ? "שלח הכל לרו״ח" : "Send all to accountant"}
+        label={t("ui.documentsInvoices.sendAllToAccountant")}
         onPress={() => void sendAllToAccountant()}
         loading={bulkAccountantBusy}
         loadingLabel={t("common.loading")}
       />
       <PrimaryButton
-        label={language === "he" ? "יצירת סיכום חודשי (PDF)" : "Generate monthly summary (PDF)"}
+        label={t("ui.documentsInvoices.generateMonthlySummaryPdf")}
         onPress={() => void generateMonthlySummary()}
         loading={monthlySummaryBusy}
         loadingLabel={t("common.loading")}
@@ -1440,15 +1394,13 @@ export default function DocumentsInvoicesScreen() {
       />
       {!isFullMonthRange ? (
         <Text style={[styles.filterHint, isRTL && styles.rtl]}>
-          {language === "he"
-            ? "בחרו טווח \"חודש\" כדי להפיק סיכום — סיכומים זמינים רק לחודשים קלנדריים מלאים."
-            : "Switch the date range to \"Month\" mode to generate a summary — summaries are only available for full calendar months."}
+          {t("ui.documentsInvoices.switchTheDateRangeToMonth")}
         </Text>
       ) : null}
       {filteredMonthlySummaries.length > 0 ? (
         <View style={styles.card}>
           <Text style={[styles.cardLabel, isRTL && styles.rtl]}>
-            {language === "he" ? "סיכומים חודשיים שנוצרו" : "Generated monthly summaries"}
+            {t("ui.documentsInvoices.generatedMonthlySummaries")}
           </Text>
           {filteredMonthlySummaries.map((row) => {
             const rowDeleting = deletingSummaryId === row.id;
@@ -1456,14 +1408,14 @@ export default function DocumentsInvoicesScreen() {
               <View key={row.id} style={[styles.summaryHistoryRow, rowFlipFor(isRTL) && styles.docHeadRtl]}>
                 <Pressable onPress={() => void viewMonthlySummary(row)} style={{ flex: 1 }}>
                   <Text style={[styles.summaryHistoryPeriod, isRTL && styles.rtl]}>
-                    {new Date(row.period_start).toLocaleDateString(language === "he" ? "he-IL" : "en-GB", {
+                    {new Date(row.period_start).toLocaleDateString(t("ui.documentsInvoices.enGb"), {
                       timeZone: "Asia/Jerusalem",
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
                     })}
                     {" – "}
-                    {new Date(row.period_end).toLocaleDateString(language === "he" ? "he-IL" : "en-GB", {
+                    {new Date(row.period_end).toLocaleDateString(t("ui.documentsInvoices.enGb"), {
                       timeZone: "Asia/Jerusalem",
                       day: "2-digit",
                       month: "short",
@@ -1477,7 +1429,7 @@ export default function DocumentsInvoicesScreen() {
                   </Text>
                 </Pressable>
                 <Pressable onPress={() => void viewMonthlySummary(row)} style={({ pressed }) => [styles.actionItem, pressed && styles.actionItemPressed]}>
-                  <Text style={styles.summaryHistoryView}>{language === "he" ? "צפייה" : "View"}</Text>
+                  <Text style={styles.summaryHistoryView}>{t("ui.documentsInvoices.view")}</Text>
                 </Pressable>
                 <Pressable
                   disabled={rowDeleting}
@@ -1493,7 +1445,7 @@ export default function DocumentsInvoicesScreen() {
                     <ActivityIndicator size="small" color={theme.colors.error} />
                   ) : (
                     <Text style={[styles.actionTextDanger, isRTL && styles.rtl]}>
-                      {language === "he" ? "מחיקה" : "Delete"}
+                      {t("ui.documentsInvoices.delete")}
                     </Text>
                   )}
                 </Pressable>
@@ -1550,21 +1502,13 @@ export default function DocumentsInvoicesScreen() {
               <View style={styles.emptyBox}>
                 <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>
                   {payeeFilter.type !== "all"
-                    ? language === "he"
-                      ? "אין מסמכים לשם זה"
-                      : "No documents for this name"
-                    : language === "he"
-                      ? "אין מסמכים בטווח"
-                      : "No documents in range"}
+                    ? t("ui.documentsInvoices.noDocumentsForThisName")
+                    : t("ui.documentsInvoices.noDocumentsInRange")}
                 </Text>
                 <Text style={[styles.emptyHint, isRTL && styles.rtl]}>
                   {payeeFilter.type !== "all"
-                    ? language === "he"
-                      ? "נסו שם אחר או נקו את הסינון."
-                      : "Try another name or clear the filter."
-                    : language === "he"
-                      ? "נסו טווח תאריכים רחב יותר או הפיקו מסמך חדש."
-                      : "Try a wider date range or create a new document."}
+                    ? t("ui.documentsInvoices.tryAnotherNameOrClearThe")
+                    : t("ui.documentsInvoices.tryAWiderDateRangeOr")}
                 </Text>
               </View>
             }
@@ -1583,7 +1527,7 @@ export default function DocumentsInvoicesScreen() {
         onClose={() => setEditEmailDoc(null)}
         onSaved={async () => {
           await load();
-          showToast({ message: language === "he" ? "אימייל עודכן" : "Email updated", variant: "success" });
+          showToast({ message: t("ui.documentsInvoices.emailUpdated"), variant: "success" });
         }}
       />
 

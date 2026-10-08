@@ -883,11 +883,9 @@ export function ParticipantAttendanceList({
                       ]}
                       numberOfLines={2}
                     >
-                      {language === "he" ? "תשלום: " : "Payment: "}
+                      {t("ui.participantAttendanceList.payment")}
                       {paymentDisplayTone(item.paymentMethod) === "unpaid"
-                        ? language === "he"
-                          ? "לא שולם"
-                          : "Unpaid"
+                        ? t("ui.participantAttendanceList.unpaid")
                         : paymentMethodAttendanceLabel(item.paymentMethod, language)}
                       {item.amountPaid != null ? ` · ${displayMoney(item.amountPaid)}` : ""}
                     </Text>
@@ -912,11 +910,9 @@ export function ParticipantAttendanceList({
                       ]}
                       numberOfLines={2}
                     >
-                      {language === "he" ? "תשלום (נעדר): " : "No-show payment: "}
+                      {t("ui.participantAttendanceList.noShowPayment")}
                       {paymentDisplayTone(item.paymentMethod) === "unpaid"
-                        ? language === "he"
-                          ? "לא שולם"
-                          : "Unpaid"
+                        ? t("ui.participantAttendanceList.unpaid")
                         : paymentMethodAttendanceLabel(item.paymentMethod, language)}
                       {item.amountPaid != null ? ` · ${displayMoney(item.amountPaid)}` : ""}
                     </Text>
@@ -977,7 +973,7 @@ export function ParticipantAttendanceList({
                 ) : null}
               </View>
             </View>
-            <Text style={[styles.hint, isRTL && styles.rtlText]}>{language === "he" ? "נוכחות" : "Attendance"}</Text>
+            <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("ui.participantAttendanceList.attendance")}</Text>
             <View style={[styles.seg, rowFlipFor(isRTL) && styles.segRtl]}>
               {(["unset", "arrived", "absent"] as const).map((st) => (
                 <Pressable
@@ -998,16 +994,10 @@ export function ParticipantAttendanceList({
                 >
                   <Text style={[styles.segTxt, current === st && styles.segTxtOn]}>
                     {st === "unset"
-                      ? language === "he"
-                        ? "לא סומן"
-                        : "Not set"
+                      ? t("ui.participantAttendanceList.notSet")
                       : st === "arrived"
-                        ? language === "he"
-                          ? "הגיע"
-                          : "Arrived"
-                        : language === "he"
-                          ? "נעדר"
-                          : "Absent"}
+                        ? t("ui.participantAttendanceList.arrived")
+                        : t("ui.participantAttendanceList.absent")}
                   </Text>
                 </Pressable>
               ))}
@@ -1015,7 +1005,7 @@ export function ParticipantAttendanceList({
             {current === "absent" ? (
               <View style={[styles.noShowFeeRow, rowFlipFor(isRTL) && styles.noShowFeeRowRtl]}>
                 <Text style={[styles.noShowFeeLabel, isRTL && styles.rtlText]}>
-                  {language === "he" ? "חיוב על נעדרות" : "Charge no-show fee"}
+                  {t("ui.participantAttendanceList.chargeNoShowFee")}
                 </Text>
                 <View style={[styles.noShowFeeSeg, rowFlipFor(isRTL) && styles.noShowFeeSegRtl]}>
                   <Pressable
@@ -1028,7 +1018,7 @@ export function ParticipantAttendanceList({
                     ]}
                   >
                     <Text style={[styles.noShowFeeBtnTxt, !item.chargeNoShow && styles.noShowFeeBtnTxtOn]}>
-                      {language === "he" ? "לא" : "No"}
+                      {t("ui.participantAttendanceList.no")}
                     </Text>
                   </Pressable>
                   <Pressable
@@ -1041,7 +1031,7 @@ export function ParticipantAttendanceList({
                     ]}
                   >
                     <Text style={[styles.noShowFeeBtnTxt, item.chargeNoShow && styles.noShowFeeBtnTxtOn]}>
-                      {language === "he" ? "כן" : "Yes"}
+                      {t("ui.participantAttendanceList.yes")}
                     </Text>
                   </Pressable>
                 </View>
@@ -1058,12 +1048,8 @@ export function ParticipantAttendanceList({
               <>
                 <Text style={[styles.payTitle, isRTL && styles.rtlText]}>
                   {payMode === "absent_penalty"
-                    ? language === "he"
-                      ? "תשלום — נעדר"
-                      : "Payment — no-show"
-                    : language === "he"
-                      ? "אופן תשלום"
-                      : "Payment method"}
+                    ? t("ui.participantAttendanceList.paymentNoShow")
+                    : t("ui.participantAttendanceList.paymentMethod")}
                 </Text>
                 {SESSION_PAYMENT_METHOD_KEYS.map((pm) => (
                   <Pressable
@@ -1087,7 +1073,7 @@ export function ParticipantAttendanceList({
                   }}
                 >
                   <Text style={[styles.payBtnTxt, styles.payBtnTxtUnpaid]}>
-                    {language === "he" ? "לא שולם" : "Unpaid"}
+                    {t("ui.participantAttendanceList.unpaid")}
                   </Text>
                 </Pressable>
                 <Pressable onPress={closePaymentModal} style={({ pressed }) => pressed && { opacity: 0.8 }}>
@@ -1098,21 +1084,17 @@ export function ParticipantAttendanceList({
               <>
                 <Text style={[styles.payTitle, isRTL && styles.rtlText]}>
                   {payMode === "absent_penalty"
-                    ? language === "he"
-                      ? "סכום ששולם (נעדר)"
-                      : "Amount paid (no-show)"
-                    : language === "he"
-                      ? "סכום ששולם"
-                      : "Amount paid"}
+                    ? t("ui.participantAttendanceList.amountPaidNoShow")
+                    : t("ui.participantAttendanceList.amountPaid")}
                 </Text>
                 <Text style={[styles.payHint, isRTL && styles.rtlText]}>
-                  {language === "he" ? "אופציונלי — השאירו ריק אם לא רלוונטי." : "Optional — leave blank if not needed."}
+                  {t("ui.participantAttendanceList.optionalLeaveBlankIfNotNeeded")}
                 </Text>
                 <TextInput
                   style={[styles.payAmountInput, isRTL && styles.payAmountInputRtl]}
                   value={payAmountDraft}
                   onChangeText={setPayAmountDraft}
-                  placeholder={language === "he" ? "למשל 120" : "e.g. 120"}
+                  placeholder={t("ui.participantAttendanceList.eG120")}
                   placeholderTextColor={theme.colors.placeholderOnLight}
                   keyboardType="decimal-pad"
                   autoFocus
@@ -1133,7 +1115,7 @@ export function ParticipantAttendanceList({
                     else void setStatus(row, "arrived", method, parsed);
                   }}
                 >
-                  <Text style={styles.payBtnTxtPrimary}>{language === "he" ? "אישור" : "Confirm"}</Text>
+                  <Text style={styles.payBtnTxtPrimary}>{t("ui.participantAttendanceList.confirm")}</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => {
@@ -1142,7 +1124,7 @@ export function ParticipantAttendanceList({
                   }}
                   style={({ pressed }) => pressed && { opacity: 0.8 }}
                 >
-                  <Text style={styles.payCancel}>{language === "he" ? "חזרה" : "Back"}</Text>
+                  <Text style={styles.payCancel}>{t("ui.participantAttendanceList.back")}</Text>
                 </Pressable>
               </>
             )}

@@ -44,12 +44,12 @@ export function EditSessionAmountModal({
       visible={visible}
       onClose={onClose}
       variant="sheet"
-      backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+      backdropAccessibilityLabel={t("ui.editSessionAmount.dismiss")}
       cardStyle={styles.modalBox}
     >
       <View style={styles.modalHeader}>
         <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-          {language === "he" ? "עדכון סכום לאימון" : "Edit session amount"}
+          {t("ui.editSessionAmount.editSessionAmount")}
         </Text>
         <Pressable onPress={onClose}>
           <Text style={styles.modalClose}>{language === "he" ? t("common.ok") : "Done"}</Text>
@@ -64,11 +64,11 @@ export function EditSessionAmountModal({
             </Text>
           </>
         ) : null}
-        <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "אמצעי תשלום" : "Payment method"}</Text>
+        <Text style={[styles.label, isRTL && styles.rtlText]}>{t("ui.editSessionAmount.paymentMethod")}</Text>
         <View style={styles.methodRow}>
           {(["", ...SESSION_PAYMENT_METHOD_KEYS] as const).map((m) => {
             const on = method === m;
-            const label = m === "" ? (language === "he" ? "ללא" : "None") : paymentMethodHistoryLabel(m, language);
+            const label = m === "" ? (t("ui.editSessionAmount.none")) : paymentMethodHistoryLabel(m, language);
             return (
               <Pressable
                 key={`editm:${m}`}
@@ -87,12 +87,12 @@ export function EditSessionAmountModal({
           })}
         </View>
 
-        <Text style={[styles.label, isRTL && styles.rtlText]}>{language === "he" ? "סכום ששולם (₪)" : "Amount paid (₪)"}</Text>
+        <Text style={[styles.label, isRTL && styles.rtlText]}>{t("ui.editSessionAmount.amountPaid")}</Text>
         <TextInput
           value={amountStr}
           onChangeText={onAmountStrChange}
           keyboardType="decimal-pad"
-          placeholder={language === "he" ? "למשל 90" : "e.g. 90"}
+          placeholder={t("ui.editSessionAmount.eG90")}
           placeholderTextColor={theme.colors.placeholderOnLight}
           style={styles.inputLight}
           editable={!busy && method !== ""}

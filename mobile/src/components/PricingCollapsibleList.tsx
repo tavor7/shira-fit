@@ -8,6 +8,7 @@ import { PricingRowMoreMenu } from "./PricingRowMoreMenu";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayMoney } from "../lib/displayFormat";
+import { pluralKey } from "../lib/pluralKey";
 
 type Props<T extends PricingRateTierRow> = {
   rows: PricingListRow<T>[];
@@ -144,7 +145,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
   const collapsibleHeader = clusterMode === "title" || multi;
   const expandLabel = expanded ? t("pricing.collapseRates") : t("pricing.expandRates");
   const presentLabel = t("pricing.effectivePresent");
-  const ratesMeta = t("pricing.ratesCount").replace(/\{n\}/g, String(cluster.items.length));
+  const ratesMeta = pluralKey(t, "pricing.ratesCount", cluster.items.length).replace(/\{n\}/g, String(cluster.items.length));
 
   const tierLineForItem = (item: PricingListRow<T>) => {
     const tier = item.subtitle ?? (clusterMode === "groupKey" ? item.title : null);

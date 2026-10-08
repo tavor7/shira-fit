@@ -109,7 +109,7 @@ export function SessionSlotRateField({
               onChangeText={onChangeValue}
               keyboardType="decimal-pad"
               placeholder={
-                tierPriceIls != null ? String(tierPriceIls) : language === "he" ? "תעריף" : "Rate"
+                tierPriceIls != null ? String(tierPriceIls) : t("ui.sessionSlotRateField.rate")
               }
               placeholderTextColor={theme.colors.placeholderOnLight}
               editable={!disabled && !applyBusy}

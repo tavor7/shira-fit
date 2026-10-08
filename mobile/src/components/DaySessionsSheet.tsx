@@ -149,7 +149,7 @@ export function DaySessionsSheet({
     }
     setBusyId(null);
     if (deleteError) {
-      showOk(language === "he" ? "לא ניתן למחוק" : "Could not delete", deleteError.message);
+      showOk(t("ui.daySessions.couldNotDelete"), deleteError.message);
       return;
     }
     if (sessionRow) setUndo({ kind: "delete_one", sessions: [sessionRow] });
@@ -163,13 +163,11 @@ export function DaySessionsSheet({
     const hasSeries = Boolean(sessionRow?.series_id);
     if (!hasSeries) {
       showConfirm({
-        title: language === "he" ? "מחיקת אימון?" : "Delete session?",
+        title: t("ui.daySessions.deleteSession"),
         message:
-          language === "he"
-            ? "למחוק את האימון? גם ההרשמות אליו יימחקו."
-            : "Delete this session? Registrations for it will be removed too.",
-        cancelLabel: language === "he" ? "ביטול" : "Cancel",
-        confirmLabel: language === "he" ? "מחק" : "Delete",
+          t("ui.daySessions.deleteThisSessionRegistrationsForIt"),
+        cancelLabel: t("ui.daySessions.cancel"),
+        confirmLabel: t("ui.daySessions.delete"),
         confirmVariant: "danger",
         onConfirm: () => void executeSessionDelete(sessionId),
       });
@@ -183,20 +181,18 @@ export function DaySessionsSheet({
     });
     if (allowFuture) {
       showAlert({
-        title: language === "he" ? "מחיקת אימון חוזר" : "Delete recurring session",
+        title: t("ui.daySessions.deleteRecurringSession"),
         message:
-          language === "he"
-            ? "בחרו פעולה. גם ההרשמות יימחקו."
-            : "Choose an action. Registrations will be removed too.",
+          t("ui.daySessions.chooseAnActionRegistrationsWillBe"),
         actions: [
-          { label: language === "he" ? "ביטול" : "Cancel", variant: "secondary", onPress: () => {} },
+          { label: t("ui.daySessions.cancel"), variant: "secondary", onPress: () => {} },
           {
-            label: language === "he" ? "מחק רק אימון זה" : "Delete only this session",
+            label: t("ui.daySessions.deleteOnlyThisSession"),
             variant: "danger",
             onPress: () => void executeSessionDelete(sessionId, "this"),
           },
           {
-            label: language === "he" ? "מחק אימון זה והבאים" : "Delete this and future",
+            label: t("ui.daySessions.deleteThisAndFuture"),
             variant: "danger",
             onPress: () => void executeSessionDelete(sessionId, "future"),
           },
@@ -204,13 +200,11 @@ export function DaySessionsSheet({
       });
     } else {
       showConfirm({
-        title: language === "he" ? "מחיקת אימון?" : "Delete session?",
+        title: t("ui.daySessions.deleteSession"),
         message:
-          language === "he"
-            ? "למחוק רק את האימון הזה? גם ההרשמות יימחקו."
-            : "Delete only this session? Registrations will be removed too.",
-        cancelLabel: language === "he" ? "ביטול" : "Cancel",
-        confirmLabel: language === "he" ? "מחק" : "Delete",
+          t("ui.daySessions.deleteOnlyThisSessionRegistrationsWill"),
+        cancelLabel: t("ui.daySessions.cancel"),
+        confirmLabel: t("ui.daySessions.delete"),
         confirmVariant: "danger",
         onConfirm: () => void executeSessionDelete(sessionId, "this"),
       });
@@ -250,11 +244,11 @@ export function DaySessionsSheet({
     const { data, error } = await supabase.rpc("manager_clear_sessions_for_day", { p_date: dateIso });
     setBulkBusy(false);
     if (error) {
-      showError(language === "he" ? "לא ניתן למחוק" : "Could not clear day", appendNetworkHint(error, offlineHint));
+      showError(t("ui.daySessions.couldNotClearDay"), appendNetworkHint(error, offlineHint));
       return;
     }
     if (!data?.ok) {
-      showError(language === "he" ? "לא ניתן למחוק" : "Could not clear day", data?.error ?? "");
+      showError(t("ui.daySessions.couldNotClearDay"), data?.error ?? "");
       return;
     }
     const sessions = (before.data as unknown as TrainingSessionRow[]) ?? [];
@@ -265,19 +259,17 @@ export function DaySessionsSheet({
 
   function confirmClearDay() {
     const msg =
-      language === "he"
-        ? "למחוק את כל האימונים ביום הזה? גם ההרשמות אליהם יימחקו."
-        : "Delete all sessions on this day? Registrations for them will be removed too.";
+      t("ui.daySessions.deleteAllSessionsOnThisDay");
 
     if (Platform.OS === "web") {
       setPendingClearDay(true);
       return;
     }
     showConfirm({
-      title: language === "he" ? "מחיקת יום?" : "Clear day?",
+      title: t("ui.daySessions.clearDay"),
       message: msg,
-      cancelLabel: language === "he" ? "ביטול" : "Cancel",
-      confirmLabel: language === "he" ? "מחיקה" : "Delete",
+      cancelLabel: t("ui.daySessions.cancel"),
+      confirmLabel: t("ui.daySessions.delete2"),
       confirmVariant: "danger",
       onConfirm: () => void executeClearDay(),
     });
@@ -286,8 +278,8 @@ export function DaySessionsSheet({
   async function runDuplicateDay() {
     if (!dupToDate || dupToDate === dateIso) {
       showError(
-        language === "he" ? "תאריך לא תקין" : "Invalid date",
-        language === "he" ? "בחרו תאריך יעד שונה." : "Please choose a different target date."
+        t("ui.daySessions.invalidDate"),
+        t("ui.daySessions.pleaseChooseADifferentTargetDate")
       );
       return;
     }
@@ -298,22 +290,18 @@ export function DaySessionsSheet({
     });
     setBulkBusy(false);
     if (error) {
-      showError(language === "he" ? "לא ניתן לשכפל" : "Could not duplicate", appendNetworkHint(error, offlineHint));
+      showError(t("ui.daySessions.couldNotDuplicate"), appendNetworkHint(error, offlineHint));
       return;
     }
     if (!data?.ok) {
       const code = String(data?.error ?? "");
       const msg =
         code === "target_not_empty"
-          ? language === "he"
-            ? "כבר קיימים אימונים בתאריך היעד. (כדי למנוע כפילויות לא שוכפל.)"
-            : "Target date already has sessions. (Not duplicated to avoid duplicates.)"
+          ? t("ui.daySessions.targetDateAlreadyHasSessionsNot")
           : code === "same_day"
-            ? language === "he"
-              ? "בחרו יום יעד אחר."
-              : "Please choose a different target date."
+            ? t("ui.daySessions.pleaseChooseADifferentTargetDate2")
             : code;
-      showError(language === "he" ? "לא ניתן לשכפל" : "Could not duplicate", msg);
+      showError(t("ui.daySessions.couldNotDuplicate"), msg);
       return;
     }
     // Capture created IDs so we can undo by deleting them.
@@ -346,7 +334,7 @@ export function DaySessionsSheet({
       onChanged?.();
     } catch (e) {
       const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : String(e);
-      showError(language === "he" ? "לא ניתן לבטל" : "Could not undo", appendNetworkHint(msg, offlineHint));
+      showError(t("ui.daySessions.couldNotUndo"), appendNetworkHint(msg, offlineHint));
     } finally {
       setBulkBusy(false);
     }
@@ -451,7 +439,7 @@ export function DaySessionsSheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalRoot}>
-        <Pressable style={styles.backdropFill} onPress={onClose} accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"} />
+        <Pressable style={styles.backdropFill} onPress={onClose} accessibilityLabel={t("ui.daySessions.dismiss")} />
         <View style={styles.sheet}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -473,12 +461,8 @@ export function DaySessionsSheet({
                   ) : (
                     <Text style={[styles.sessionCount, isRTL && styles.rtlText]}>
                       {isStaff
-                        ? language === "he"
-                          ? "אין אימונים"
-                          : "No sessions"
-                        : language === "he"
-                          ? "אין אימונים פתוחים"
-                          : "No open sessions"}
+                        ? t("ui.daySessions.noSessions")
+                        : t("ui.daySessions.noOpenSessions")}
                     </Text>
                   )}
                 </View>
@@ -486,7 +470,7 @@ export function DaySessionsSheet({
                   onPress={onClose}
                   style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.75 }]}
                   accessibilityRole="button"
-                  accessibilityLabel={language === "he" ? "סגור" : "Close"}
+                  accessibilityLabel={t("ui.daySessions.close")}
                   hitSlop={12}
                 >
                   <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
@@ -500,7 +484,7 @@ export function DaySessionsSheet({
                 onPress={onAddSession}
               >
                 <Text style={styles.addSessionCtaTxt}>
-                  {language === "he" ? "הוספת אימון" : "Add session"}
+                  {t("ui.daySessions.addSession")}
                 </Text>
               </Pressable>
             ) : null}
@@ -704,14 +688,14 @@ export function DaySessionsSheet({
             {isManager && undo ? (
               <View style={styles.undoBar}>
                 <Text style={styles.undoBarTxt} numberOfLines={1} ellipsizeMode="tail">
-                  {language === "he" ? "בוצעה פעולה." : "Action completed."}
+                  {t("ui.daySessions.actionCompleted")}
                 </Text>
                 <Pressable
                   style={({ pressed }) => [styles.undoBarBtn, pressed && { opacity: 0.9 }, bulkBusy && { opacity: 0.6 }]}
                   onPress={() => void undoLastAction()}
                   disabled={bulkBusy}
                 >
-                  <Text style={styles.undoBarBtnTxt}>{language === "he" ? "ביטול" : "Undo"}</Text>
+                  <Text style={styles.undoBarBtnTxt}>{t("ui.daySessions.undo")}</Text>
                 </Pressable>
               </View>
             ) : null}
@@ -719,9 +703,7 @@ export function DaySessionsSheet({
             {isManager && Platform.OS === "web" && pendingClearDay ? (
               <View style={styles.webConfirmBanner}>
                 <Text style={[styles.webConfirmTxt, isRTL && styles.rtlText]}>
-                  {language === "he"
-                    ? "למחוק את כל האימונים ביום? ההרשמות יימחקו."
-                    : "Delete all sessions this day? Registrations will be removed."}
+                  {t("ui.daySessions.deleteAllSessionsThisDayRegistrations")}
                 </Text>
                 <View style={styles.webConfirmBtns}>
                   <Pressable
@@ -729,7 +711,7 @@ export function DaySessionsSheet({
                     onPress={() => setPendingClearDay(false)}
                     disabled={bulkBusy}
                   >
-                    <Text style={styles.webConfirmGhostTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                    <Text style={styles.webConfirmGhostTxt}>{t("ui.daySessions.cancel")}</Text>
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [styles.webConfirmDanger, pressed && { opacity: 0.9 }]}
@@ -739,7 +721,7 @@ export function DaySessionsSheet({
                     {bulkBusy ? (
                       <ActivityIndicator color={theme.colors.white} size="small" />
                     ) : (
-                      <Text style={styles.webConfirmDangerTxt}>{language === "he" ? "מחק הכל" : "Delete all"}</Text>
+                      <Text style={styles.webConfirmDangerTxt}>{t("ui.daySessions.deleteAll")}</Text>
                     )}
                   </Pressable>
                 </View>
@@ -761,7 +743,7 @@ export function DaySessionsSheet({
                     ]}
                   >
                     <Text style={styles.dayToolChipTxt} numberOfLines={1}>
-                      {language === "he" ? "שכפול יום" : "Duplicate day"}
+                      {t("ui.daySessions.duplicateDay")}
                     </Text>
                   </Pressable>
                   {onCalendarNotesChanged ? (
@@ -786,7 +768,7 @@ export function DaySessionsSheet({
                   ]}
                 >
                   <Text style={styles.dayToolChipDangerTxt} numberOfLines={1}>
-                    {language === "he" ? "ניקוי כל האימונים ביום" : "Clear all sessions this day"}
+                    {t("ui.daySessions.clearAllSessionsThisDay")}
                   </Text>
                 </Pressable>
               </View>
@@ -798,23 +780,21 @@ export function DaySessionsSheet({
               <Pressable
                 style={styles.dupBackdrop}
                 onPress={() => setDupOpen(false)}
-                accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+                accessibilityLabel={t("ui.daySessions.dismiss")}
               />
               <View style={styles.dupCard}>
-                <Text style={styles.dupTitle}>{language === "he" ? "שכפול כל האימונים ליום אחר" : "Duplicate all sessions to another day"}</Text>
+                <Text style={styles.dupTitle}>{t("ui.daySessions.duplicateAllSessionsToAnotherDay")}</Text>
                 <Text style={styles.dupSub}>
-                  {language === "he"
-                    ? "האימונים ישוכפלו בלי נרשמים ועם הרשמה סגורה (ייפתח לפי חוק פתיחת ההרשמה השבועי)."
-                    : "Sessions will be duplicated without participants and with registration closed (opens by weekly opening rule)."}
+                  {t("ui.daySessions.sessionsWillBeDuplicatedWithoutParticipants")}
                 </Text>
                 <DatePickerField
-                  label={language === "he" ? "תאריך יעד" : "Target date"}
+                  label={t("ui.daySessions.targetDate")}
                   value={dupToDate}
                   onChange={setDupToDate}
                 />
                 <View style={styles.dupBtns}>
                   <Pressable style={({ pressed }) => [styles.dupGhost, pressed && { opacity: 0.9 }]} onPress={() => setDupOpen(false)}>
-                    <Text style={styles.dupGhostTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                    <Text style={styles.dupGhostTxt}>{t("ui.daySessions.cancel")}</Text>
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [styles.dupCta, pressed && { opacity: 0.9 }]}
@@ -824,7 +804,7 @@ export function DaySessionsSheet({
                     {bulkBusy ? (
                       <ActivityIndicator color={theme.colors.ctaText} size="small" />
                     ) : (
-                      <Text style={styles.dupCtaTxt}>{language === "he" ? "שכפול" : "Duplicate"}</Text>
+                      <Text style={styles.dupCtaTxt}>{t("ui.daySessions.duplicate")}</Text>
                     )}
                   </Pressable>
                 </View>

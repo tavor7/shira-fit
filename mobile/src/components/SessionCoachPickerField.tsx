@@ -29,10 +29,10 @@ type Props = {
 };
 
 export function SessionCoachPickerField({ coachId, coachLabel, onSelect, disabled, label }: Props) {
-  const { language, isRTL } = useI18n();
+  const { isRTL, t } = useI18n();
   const [open, setOpen] = useState(false);
 
-  const fieldLabel = label ?? (language === "he" ? "מאמן" : "Trainer");
+  const fieldLabel = label ?? (t("ui.sessionCoachPickerField.trainer"));
 
   return (
     <View style={styles.wrap}>
@@ -45,7 +45,7 @@ export function SessionCoachPickerField({ coachId, coachLabel, onSelect, disable
       >
         <Text style={coachLabel ? sf.controlText : sf.controlPlaceholder} numberOfLines={1} ellipsizeMode="tail">
           {coachLabel ||
-            (language === "he" ? "בחירת מאמן לפי שם…" : "Choose trainer by name…")}
+            (t("ui.sessionCoachPickerField.chooseTrainerByName"))}
         </Text>
       </Pressable>
 

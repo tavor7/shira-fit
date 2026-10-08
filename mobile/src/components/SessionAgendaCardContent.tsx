@@ -61,11 +61,11 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
           {showTemporalPills ? (
             temporalPhase === "live" ? (
               <View style={styles.livePill}>
-                <Text style={styles.livePillTxt}>{language === "he" ? "עכשיו" : "Live"}</Text>
+                <Text style={styles.livePillTxt}>{t("ui.sessionAgendaCardContent.live")}</Text>
               </View>
             ) : temporalPhase === "past" ? (
               <View style={styles.endedPill}>
-                <Text style={styles.endedPillTxt}>{language === "he" ? "הסתיים" : "Ended"}</Text>
+                <Text style={styles.endedPillTxt}>{t("ui.sessionAgendaCardContent.ended")}</Text>
               </View>
             ) : null
           ) : null}
@@ -126,12 +126,12 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
               tone="success"
             />
           ) : full ? (
-            <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" />
+            <StatusChip label={t("ui.sessionAgendaCardContent.full")} tone="danger" />
           ) : !regOpen ? (
-            <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
+            <StatusChip label={t("ui.sessionAgendaCardContent.closed")} tone="neutral" />
           ) : (
             <>
-              <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
+              <StatusChip label={t("ui.sessionAgendaCardContent.open")} tone="success" />
               {left !== null ? (
                 <StatusChip label={language === "he" ? `${left} מקומות` : `${left} left`} tone="neutral" />
               ) : null}

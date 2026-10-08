@@ -335,9 +335,7 @@ export default function CoachCapacityPricingScreen({
           loading={!!coachId && loading}
           emptyMessage={
             !coachId
-              ? language === "he"
-                ? "בחרו מאמן כדי לערוך תעריפים."
-                : "Pick a coach to edit rates."
+              ? t("ui.coachCapacityPricing.pickACoachToEditRates")
               : !loading && capacityGroups.length === 0
                 ? t("pricing.empty")
                 : undefined

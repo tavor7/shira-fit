@@ -46,6 +46,7 @@ import {
   type PricingIssuesDetectOpts,
 } from "../lib/pricingIssues";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { pluralKey } from "../lib/pluralKey";
 
 type Props = { hideIntro?: boolean };
 
@@ -222,7 +223,7 @@ export default function SessionPricingScreen({ hideIntro = false }: Props) {
   );
 
   const capTitle = useCallback(
-    (cap: number) => `${cap} ${t("pricing.participantsLabel")}`,
+    (cap: number) => `${cap} ${pluralKey(t, "pricing.participantsLabel", cap)}`,
     [t]
   );
 

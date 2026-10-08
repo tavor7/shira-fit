@@ -48,6 +48,7 @@ import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { selectionA11y } from "../lib/a11ySelection";
 import { roleLabel } from "../lib/displayLabels";
+import { pluralKey } from "../lib/pluralKey";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
 
@@ -386,8 +387,8 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     const phone = quickPhone.trim();
     if (name.length < 2 || phone.length < 3) {
       showToast({
-        message: language === "he" ? "חסר מידע" : "Missing info",
-        detail: language === "he" ? "הזינו שם וטלפון." : "Enter name and phone.",
+        message: t("ui.createSessionForm.missingInfo"),
+        detail: t("ui.createSessionForm.enterNameAndPhone"),
         variant: "info",
       });
       return;
@@ -454,7 +455,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     const parsedMax = parseInt(max.trim(), 10);
     const maxP = clampSessionMaxParticipants(parsedMax);
     if (!isValidSessionMaxParticipants(parsedMax)) {
-      setError(language === "he" ? "בחרו גודל קבוצה בין 1 ל-15." : "Choose a group size between 1 and 15.");
+      setError(t("ui.createSessionForm.chooseAGroupSizeBetween1"));
       return;
     }
     const customParsed = parseCustomSlotPriceDraft(customSlotPriceDraft);
@@ -549,7 +550,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
           });
           if (priceErr || !data?.ok) {
             showToast({
-              message: language === "he" ? "האימון נשמר, אבל התעריף לא נשמר." : "Saved, but the session rate could not be saved.",
+              message: t("ui.createSessionForm.savedButTheSessionRateCould"),
               variant: "info",
             });
             break;
@@ -567,7 +568,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
               p_allow_over_capacity: false,
             });
             if (error) {
-              showToast({ message: language === "he" ? "שגיאה הוספת מתאמן" : "Error adding trainee", detail: error.message, variant: "error" });
+              showToast({ message: t("ui.createSessionForm.errorAddingTrainee"), detail: error.message, variant: "error" });
               continue;
             }
             const e = String(data?.error ?? "");
@@ -582,7 +583,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
               p_allow_over_capacity: false,
             });
             if (error) {
-              showToast({ message: language === "he" ? "שגיאה הוספת משתתף ידני" : "Error adding manual participant", detail: error.message, variant: "error" });
+              showToast({ message: t("ui.createSessionForm.errorAddingManualParticipant"), detail: error.message, variant: "error" });
               continue;
             }
             const e = String(data?.error ?? "");
@@ -607,7 +608,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
           }
         } else {
           showToast({
-            message: language === "he" ? "האימון נשמר, אבל ההערה לא נשמרה." : "Saved, but the note could not be saved.",
+            message: t("ui.createSessionForm.savedButTheNoteCouldNot"),
             variant: "info",
           });
         }
@@ -616,18 +617,16 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
     if (usedLegacyInsert && hidden) {
       showToast({
-        message: language === "he" ? "נשמר (אימונים גלויים)" : "Saved (visible sessions)",
+        message: t("ui.createSessionForm.savedVisibleSessions"),
         detail:
-          language === "he"
-            ? "חסרה בעמודה `is_hidden` בפרויקט (המיגרציה לא הופעלה)."
-            : "Your project is missing the `is_hidden` column (migration not applied).",
+          t("ui.createSessionForm.yourProjectIsMissingTheIs"),
         variant: "info",
       });
     } else if (useSeriesRpc && count > 0) {
       showToast({
         message: repeatOngoing
-          ? t("session.seriesCreatedOngoing").replace("{n}", String(count))
-          : t("session.seriesCreated").replace("{n}", String(count)),
+          ? pluralKey(t, "session.seriesCreatedOngoing", count).replace("{n}", String(count))
+          : pluralKey(t, "session.seriesCreated", count).replace("{n}", String(count)),
         variant: "success",
       });
     } else if (count > 1) {

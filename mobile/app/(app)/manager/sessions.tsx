@@ -32,6 +32,7 @@ import { LiveActivityBanner } from "../../../src/components/LiveActivityBanner";
 import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHidden";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
+import { pluralKey } from "../../../src/lib/pluralKey";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
@@ -191,7 +192,7 @@ export default function ManagerSessionsScreen() {
         showOk(t("common.failed"), m);
         return;
       }
-      const doneMsg = t("managerSessions.openedCount").replace("{n}", String(data.opened ?? 0));
+      const doneMsg = pluralKey(t, "managerSessions.openedCount", data.opened ?? 0).replace("{n}", String(data.opened ?? 0));
       showOk(t("managerSessions.openedTitle"), doneMsg);
       load(true);
     };

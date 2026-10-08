@@ -853,7 +853,7 @@ export default function ManagerActivityLogScreen() {
         renderItem={({ item, index }) => {
             const details = buildActivityLogDetailLines(item, profileLabels, manualLabels, sessionSummaries, language);
             const actorLine = item.actor_user_id
-              ? `${language === "he" ? "מבצע" : "Actor"}: ${profileLabels[item.actor_user_id] ?? item.actor_user_id}`
+              ? `${t("ui.managerActivityLog.actor")}: ${profileLabels[item.actor_user_id] ?? item.actor_user_id}`
               : "—";
             const isReverted = !!item.reverted_at;
             const canRevert = activityEventLooksRevertible(item);
@@ -901,7 +901,7 @@ export default function ManagerActivityLogScreen() {
                 {details.length > 0 ? (
                   <View style={styles.detailsBox}>
                     <Text style={[styles.detailsTitle, isRTL && styles.rtl]}>
-                      {language === "he" ? "פרטים" : "Details"}
+                      {t("ui.managerActivityLog.details")}
                     </Text>
                     {details.map((line, idx) => (
                       <Text key={idx} style={[styles.detailLine, isRTL && styles.rtl]} selectable>

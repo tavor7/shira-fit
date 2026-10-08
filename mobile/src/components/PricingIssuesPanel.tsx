@@ -5,6 +5,7 @@ import { useI18n } from "../context/I18nContext";
 import type { PricingIssue, PricingIssueKind, PricingIssueParams, PricingIssueSection } from "../lib/pricingIssues";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { pluralKey } from "../lib/pluralKey";
 
 type Props = {
   issues: PricingIssue[];
@@ -75,7 +76,11 @@ function issueCopy(issue: PricingIssue, t: (key: string) => string): { title: st
   }
   return {
     title: interpolate(t(KIND_TITLE_KEYS[issue.kind]), p),
-    detail: interpolate(t(KIND_DETAIL_KEYS[issue.kind]), p),
+    // Singular wording when the count is one ("1 participant", "משתתף אחד").
+    detail: interpolate(
+      p.capacity !== undefined ? pluralKey(t, KIND_DETAIL_KEYS[issue.kind], Number(p.capacity)) : t(KIND_DETAIL_KEYS[issue.kind]),
+      p
+    ),
   };
 }
 
@@ -110,7 +115,7 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
             {errorCount > 0
               ? t("pricing.issuesBannerSubErrors").replace("{n}", String(errorCount))
               : warnCount > 0
-                ? t("pricing.issuesBannerSubWarnings").replace("{n}", String(warnCount))
+                ? pluralKey(t, "pricing.issuesBannerSubWarnings", warnCount).replace("{n}", String(warnCount))
                 : ""}
           </Text>
         </View>

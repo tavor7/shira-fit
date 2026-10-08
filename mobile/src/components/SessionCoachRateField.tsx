@@ -110,7 +110,7 @@ export function SessionCoachRateField({
               onChangeText={onChangeValue}
               keyboardType="decimal-pad"
               placeholder={
-                defaultRateIls != null ? String(defaultRateIls) : language === "he" ? "תעריף" : "Rate"
+                defaultRateIls != null ? String(defaultRateIls) : t("ui.sessionCoachRateField.rate")
               }
               placeholderTextColor={theme.colors.placeholderOnLight}
               editable={!disabled && !applyBusy}

@@ -32,6 +32,7 @@ import {
 } from "../lib/athleteFamilies";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { pluralKey } from "../lib/pluralKey";
 
 type PickerRow =
   | { kind: "app"; id: string; full_name: string; username?: string; phone?: string }
@@ -48,7 +49,7 @@ function familyRpcError(code: string, t: (k: string) => string, language: string
     case "invalid_member":
       return t("families.errorInvalidMember");
     default:
-      return code || (language === "he" ? "שגיאה" : "Error");
+      return code || (t("ui.familyManagement.error"));
   }
 }
 
@@ -308,7 +309,7 @@ export default function FamilyManagementScreen() {
             <Pressable onPress={() => openEdit(item)} style={({ pressed }) => [pressed && { opacity: 0.92 }]}>
               <Text style={[styles.cardTitle, isRTL && styles.rtl]}>{item.name}</Text>
               <Text style={[styles.cardMeta, isRTL && styles.rtl]}>
-                {t("families.memberCount").replace("{n}", String(item.members.length))}
+                {pluralKey(t, "families.memberCount", item.members.length).replace("{n}", String(item.members.length))}
               </Text>
               <View style={[styles.chipRow, rowFlipFor(isRTL) && styles.chipRowRtl]}>
                 {item.members.map((m) => (
@@ -358,7 +359,7 @@ export default function FamilyManagementScreen() {
         }}
         variant="dialog"
         maxHeightPct={0.9}
-        backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+        backdropAccessibilityLabel={t("ui.familyManagement.dismiss")}
         cardStyle={styles.editorCard}
       >
         <View style={styles.editorBody}>
@@ -433,7 +434,7 @@ export default function FamilyManagementScreen() {
                         </Text>
                         <Text style={[styles.choiceSub, isRTL && styles.rtl]} numberOfLines={1}>
                           {row.kind === "manual"
-                            ? `${row.phone ?? ""} · ${language === "he" ? "מהיר" : "Quick Add"}`
+                            ? `${row.phone ?? ""} · ${t("ui.familyManagement.quickAdd")}`
                             : athleteSearchSubtitle(row.phone)}
                         </Text>
                       </View>

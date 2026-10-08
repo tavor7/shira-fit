@@ -221,7 +221,7 @@ export function SessionsWeekCalendar({
   const { language, t, isRTL, rowFlip } = useI18n();
   /** Soft edge fades show that more days continue beyond the visible columns (phones). */
   const { edges: overflowEdges, scrollProps: overflowScrollProps } = useHorizontalOverflow(isRTL);
-  const locale = language === "he" ? "he-IL" : "en-US";
+  const locale = t("ui.sessionsWeekCalendar.enUs");
   const dayNames = language === "he" ? DAY_NAMES_HE : DAY_NAMES_EN;
 
   /** Recomputed each render so “today” stays correct if the week view stays open past midnight. */

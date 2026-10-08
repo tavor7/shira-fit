@@ -6,6 +6,7 @@ import { PrimaryButton } from "../PrimaryButton";
 import { formatISODateFull } from "../../lib/dateFormat";
 import { tierLabelKey, type SubscriptionImpact } from "../../lib/subscriptions";
 import { rowFlipFor } from "../../lib/layoutDirection";
+import { pluralKey } from "../../lib/pluralKey";
 
 export type ImpactConfirmAction = "edit" | "freeze" | "stop";
 
@@ -45,7 +46,7 @@ export function SubscriptionImpactConfirmModal({ visible, action, impact, busy, 
           {t(titleKey)}
         </Text>
         <Text style={[styles.message, isRTL && styles.rtl]}>
-          {t("subscriptions.impact.message").replace("{n}", String(count))}
+          {pluralKey(t, "subscriptions.impact.message", count).replace("{n}", String(count))}
         </Text>
 
         {shown.length > 0 ? (

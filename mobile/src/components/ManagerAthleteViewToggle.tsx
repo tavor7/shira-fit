@@ -33,12 +33,8 @@ export function ManagerAthleteViewToggle({ size = "default" }: ToggleProps) {
   const toolbar = size === "toolbar";
   const label =
     toolbar
-      ? language === "he"
-        ? "תצוגה"
-        : "Preview"
-      : language === "he"
-        ? "תצוגת מתאמן"
-        : "Athlete view";
+      ? t("ui.managerAthleteViewToggle.preview")
+      : t("ui.managerAthleteViewToggle.athleteView");
   const a11yLabel =
     language === "he"
       ? `${enabled ? "תצוגת מתאמן פעילה" : "תצוגת מתאמן כבויה"}. ${enabled ? t("common.on") : t("common.off")}`

@@ -67,7 +67,7 @@ export function MonthPickerSheet({ visible, anchor, onClose, onSelect }: Props) 
       visible={visible}
       onClose={onClose}
       variant="sheet"
-      backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+      backdropAccessibilityLabel={t("ui.monthPicker.dismiss")}
       maxHeightPct={0.72}
     >
       <View style={styles.sheet}>

@@ -147,14 +147,14 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
         sessionId: next.id,
         sessionDate: next.session_date,
         startTime: next.start_time,
-        title: language === "he" ? "תזכורת לאימון" : "Workout reminder",
+        title: t("ui.athleteNextSessionHero.workoutReminder"),
         bodyNear: when,
       });
       await clearWaitlistSpotFlag(next.id);
       await loadStatus();
       onDidChange?.();
       showToast({
-        message: language === "he" ? "נרשמת לאימון" : "You’re registered",
+        message: t("ui.athleteNextSessionHero.youReRegistered"),
         variant: "success",
       });
     } else if (result.error !== "cancelled") {
@@ -182,7 +182,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
     else if (data?.ok) {
       setWaitlist(true);
       showToast({
-        message: language === "he" ? "נרשמתם לרשימת המתנה" : "You’re on the waitlist",
+        message: t("ui.athleteNextSessionHero.youReOnTheWaitlist"),
         variant: "success",
       });
     } else
@@ -199,7 +199,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
     }
     if (!hasSessionNotStarted(next.session_date, next.start_time)) {
       showToast({
-        message: language === "he" ? "לא ניתן לבטל" : "Could not cancel",
+        message: t("ui.athleteNextSessionHero.couldNotCancel"),
         detail: t("athleteSession.sessionStartedNoCancel"),
         variant: "error",
       });
@@ -219,7 +219,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
       setRegId(null);
       onDidChange?.();
       showToast({
-        message: language === "he" ? "ההרשמה בוטלה" : "Registration cancelled",
+        message: t("ui.athleteNextSessionHero.registrationCancelled"),
         variant: "success",
       });
     } else {
@@ -235,50 +235,42 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
   if (!next) {
     return (
       <View style={[styles.hero, surface.hero]}>
-        <Text style={[styles.title, isRTL && styles.rtl]}>{language === "he" ? "האימון הקרוב" : "Next workout"}</Text>
-        <Text style={[styles.muted, isRTL && styles.rtl]}>{language === "he" ? "אין אימון קרוב." : "No upcoming session."}</Text>
+        <Text style={[styles.title, isRTL && styles.rtl]}>{t("ui.athleteNextSessionHero.nextWorkout")}</Text>
+        <Text style={[styles.muted, isRTL && styles.rtl]}>{t("ui.athleteNextSessionHero.noUpcomingSession")}</Text>
         <Pressable
           style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
           onPress={() => router.push("/(app)/athlete/sessions")}
         >
-          <Text style={styles.linkTxt}>{language === "he" ? "לוח אימונים" : "Calendar"}</Text>
+          <Text style={styles.linkTxt}>{t("ui.athleteNextSessionHero.calendar")}</Text>
         </Pressable>
       </View>
     );
   }
 
   const primaryLabel = regId
-    ? language === "he"
-      ? "ביטול הרשמה"
-      : "Cancel registration"
+    ? t("ui.athleteNextSessionHero.cancelRegistration")
     : full
       ? waitlist
-        ? language === "he"
-          ? "ברשימת המתנה"
-          : "On waitlist"
-        : language === "he"
-          ? "רשימת המתנה"
-          : "Join waitlist"
-      : language === "he"
-        ? "הרשמה"
-        : "Register";
+        ? t("ui.athleteNextSessionHero.onWaitlist")
+        : t("ui.athleteNextSessionHero.joinWaitlist")
+      : t("ui.athleteNextSessionHero.register");
 
   const chips = (
     <View style={[styles.chips, rowFlipFor(isRTL) && styles.chipsRtl]}>
       {regOpen ? (
-        <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
+        <StatusChip label={t("ui.athleteNextSessionHero.open")} tone="success" />
       ) : (
-        <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
+        <StatusChip label={t("ui.athleteNextSessionHero.closed")} tone="neutral" />
       )}
-      {full ? <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" /> : null}
-      {regId ? <StatusChip label={language === "he" ? "נרשמת" : "Registered"} tone="info" /> : null}
-      {waitlist && !regId ? <StatusChip label={language === "he" ? "המתנה" : "Waitlist"} tone="warning" /> : null}
+      {full ? <StatusChip label={t("ui.athleteNextSessionHero.full")} tone="danger" /> : null}
+      {regId ? <StatusChip label={t("ui.athleteNextSessionHero.registered")} tone="info" /> : null}
+      {waitlist && !regId ? <StatusChip label={t("ui.athleteNextSessionHero.waitlist")} tone="warning" /> : null}
     </View>
   );
 
   return (
     <View style={[styles.hero, surface.hero]}>
-      <Text style={[styles.kicker, isRTL && styles.rtl]}>{language === "he" ? "היום / הקרוב" : "Up next"}</Text>
+      <Text style={[styles.kicker, isRTL && styles.rtl]}>{t("ui.athleteNextSessionHero.upNext")}</Text>
       <Text style={[styles.title, isRTL && styles.rtl]}>{formatISODateFull(next.session_date, language)}</Text>
       <Text style={[styles.sub, isRTL && styles.rtl]}>{displayTimeRange(next.start_time, next.duration_minutes ?? 60)}</Text>
       {next.trainer?.full_name ? (
@@ -288,7 +280,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
       ) : null}
       {chips}
       <Text style={[styles.spots, isRTL && styles.rtl]}>
-        {language === "he" ? "נותרו: " : "Left: "}
+        {t("ui.athleteNextSessionHero.left")}
         {spotsLeft}
       </Text>
 
@@ -329,13 +321,13 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
         onPress={() => router.push(`/(app)/athlete/session/${next.id}`)}
         disabled={busy}
       >
-        <Text style={styles.detailTapTxt}>{language === "he" ? "פרטים" : "Details"}</Text>
+        <Text style={styles.detailTapTxt}>{t("ui.athleteNextSessionHero.details")}</Text>
       </Pressable>
 
       <Modal visible={cancelOpen} transparent animationType="fade">
         <View style={styles.modalBg}>
           <View style={styles.modalCard}>
-            <Text style={[styles.modalTitle, isRTL && styles.rtl]}>{language === "he" ? "סיבת ביטול" : "Cancellation reason"}</Text>
+            <Text style={[styles.modalTitle, isRTL && styles.rtl]}>{t("ui.athleteNextSessionHero.cancellationReason")}</Text>
             <TextInput
               style={styles.input}
               placeholder="…"
@@ -344,7 +336,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
               onChangeText={setReason}
               multiline
             />
-            <PrimaryButton label={language === "he" ? "אישור" : "Confirm"} onPress={onCancel} />
+            <PrimaryButton label={t("ui.athleteNextSessionHero.confirm")} onPress={onCancel} />
             <Pressable
               onPress={() => setCancelOpen(false)}
               style={({ pressed }) => [{ marginTop: 12 }, pressed && { opacity: 0.7 }]}

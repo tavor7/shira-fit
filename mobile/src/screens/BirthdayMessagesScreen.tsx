@@ -76,7 +76,7 @@ export default function BirthdayMessagesScreen() {
   const [updatedByName, setUpdatedByName] = useState<string | null>(null);
 
   const defaultBody = language === "he" ? DEFAULT_BIRTHDAY_MESSAGE_HE : DEFAULT_BIRTHDAY_MESSAGE_EN;
-  const sampleName = language === "he" ? "דנה" : "Dana";
+  const sampleName = t("ui.birthdayMessages.dana");
   const previewSenderName = senderName;
 
   const toggleDirty = enabled !== savedEnabled;

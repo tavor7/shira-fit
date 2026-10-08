@@ -9,6 +9,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SubscriptionTier } from "./subscriptions";
+import { pluralKey } from "./pluralKey";
 
 export type AthleteFreezeWindow = { freeze_from: string; freeze_until: string };
 
@@ -122,7 +123,7 @@ export function buildAthleteSubscriptionViewModel(
  * requirement to never present "0 left" as the primary wording. */
 export function sessionsLeftLabel(remaining: number, t: (key: string) => string): string {
   if (remaining === 1) return t("athleteSubscription.oneLeft");
-  return t("athleteSubscription.leftThisWeek").replace("{n}", String(remaining));
+  return pluralKey(t, "athleteSubscription.leftThisWeek", remaining).replace("{n}", String(remaining));
 }
 
 export function usedOfLimitLabel(used: number, limit: number, t: (key: string) => string): string {

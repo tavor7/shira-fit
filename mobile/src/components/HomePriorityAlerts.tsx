@@ -15,6 +15,7 @@ import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { supabase } from "../lib/supabase";
 import { isRtlScript } from "../lib/bidiEmbed";
+import { pluralKey } from "../lib/pluralKey";
 
 function LateCancelChargeRow({ cancellationId, charged }: { cancellationId: string; charged: boolean }) {
   const { t, rowFlip } = useI18n();
@@ -438,7 +439,7 @@ export function HomePriorityAlerts({
             <View style={modalStyles.handle} />
             <Text style={[modalStyles.title, isRTL && styles.rtl]}>{t("homeAlerts.sheetTitle")}</Text>
             <Text style={[modalStyles.sub, isRTL && styles.rtl]}>
-              {interpolate(t("homeAlerts.sheetSubtitle"), { n: activeItems.length })}
+              {interpolate(pluralKey(t, "homeAlerts.sheetSubtitle", activeItems.length), { n: activeItems.length })}
             </Text>
             {dismissEnabled && activeItems.length > 0 ? (
               <Pressable

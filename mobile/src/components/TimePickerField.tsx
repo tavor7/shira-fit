@@ -42,7 +42,7 @@ function toPickerDate(v: string): Date {
 }
 
 export function TimePickerField({ label, value, onChange }: TimePickerFieldProps) {
-  const { language, isRTL } = useI18n();
+  const { isRTL, t } = useI18n();
   const [androidOpen, setAndroidOpen] = useState(false);
   const [iosOpen, setIosOpen] = useState(false);
   const [iosDraft, setIosDraft] = useState<Date>(() => toPickerDate(value));
@@ -53,9 +53,9 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
 
   const display = useMemo(() => {
     const p = parseHHMM(value);
-    if (!p) return language === "he" ? "בחרו שעה" : "Choose time";
+    if (!p) return t("ui.timePickerField.chooseTime");
     return `${String(p.hh).padStart(2, "0")}:${String(p.mm).padStart(2, "0")}`;
-  }, [value, language]);
+  }, [value, t]);
 
   if (Platform.OS === "android") {
     return (
@@ -94,11 +94,11 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
       </Pressable>
       <Modal visible={iosOpen} transparent animationType="slide" onRequestClose={() => setIosOpen(false)}>
         <View style={styles.modalRoot}>
-          <Pressable style={styles.backdropFlex} onPress={() => setIosOpen(false)} accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"} />
+          <Pressable style={styles.backdropFlex} onPress={() => setIosOpen(false)} accessibilityLabel={t("ui.timePickerField.dismiss")} />
           <View style={styles.sheet}>
             <View style={styles.toolbar}>
               <Pressable onPress={() => setIosOpen(false)} hitSlop={12} style={styles.tbBtn}>
-                <Text style={styles.tbMuted}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                <Text style={styles.tbMuted}>{t("ui.timePickerField.cancel")}</Text>
               </Pressable>
               <Text style={styles.tbTitle} numberOfLines={1}>
                 {label}
@@ -111,7 +111,7 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
                 hitSlop={12}
                 style={styles.tbBtn}
               >
-                <Text style={styles.tbCta}>{language === "he" ? "אישור" : "Done"}</Text>
+                <Text style={styles.tbCta}>{t("ui.timePickerField.done")}</Text>
               </Pressable>
             </View>
             <DateTimePicker
