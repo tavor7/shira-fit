@@ -13,6 +13,8 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
+import { useI18n } from "../context/I18nContext";
+import { AppIcon } from "./AppIcon";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 
 function primaryTapFeedback() {
@@ -44,18 +46,23 @@ type Props = {
   style?: ViewStyle;
   /** `cta` = light filled (main). `ghost` = dark filled subtle border. `danger` = destructive action. */
   variant?: "cta" | "ghost" | "danger";
+  /** `regular` (52px) for primary actions; `compact` (44px) for secondary actions in dense rows and panels. */
+  size?: "regular" | "compact";
 };
 
 export function PrimaryButton({
   label,
-  loadingLabel = "Loading…",
+  loadingLabel,
   loading,
   success,
   onPress,
   disabled,
   style,
   variant = "cta",
+  size = "regular",
 }: Props) {
+  const { t } = useI18n();
+  const compact = size === "compact";
   const busy = loading || disabled || success;
   const isCta = variant === "cta";
   const isDanger = variant === "danger";
@@ -82,6 +89,7 @@ export function PrimaryButton({
     <Pressable
       style={({ pressed }) => [
         styles.btn,
+        compact && styles.btnCompact,
         isCta ? styles.btnCta : isDanger ? styles.btnDanger : styles.btnGhost,
         (loading || disabled) && styles.disabled,
         pressed && !busy && (isCta ? styles.pressedCta : styles.pressedGhost),
@@ -94,21 +102,24 @@ export function PrimaryButton({
         onPress();
       }}
       disabled={busy}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: busy, busy: !!loading }}
       android_ripple={{
         color: isCta ? "rgba(10,10,11,0.12)" : "rgba(244,244,245,0.08)",
       }}
     >
       {success ? (
         <Animated.View style={{ transform: [{ scale: successScale }] }}>
-          <Text style={styles.successIcon}>{"✓"}</Text>
+          <AppIcon name="checkmark-circle" size="lg" color={theme.colors.success} />
         </Animated.View>
       ) : loading ? (
         <View style={styles.row}>
-          <ActivityIndicator color={isCta ? theme.colors.ctaText : theme.colors.text} style={{ marginRight: 10 }} />
-          <Text style={[styles.text, textStyle]}>{loadingLabel}</Text>
+          <ActivityIndicator color={isCta ? theme.colors.ctaText : theme.colors.text} style={styles.spinner} />
+          <Text style={[styles.text, compact && styles.textCompact, textStyle]}>{loadingLabel ?? t("common.loading")}</Text>
         </View>
       ) : (
-        <Text style={[styles.text, textStyle]} maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}>
+        <Text style={[styles.text, compact && styles.textCompact, textStyle]} maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}>
           {label}
         </Text>
       )}
@@ -125,7 +136,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 52,
+    minHeight: theme.controls.buttonHeight,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -154,9 +165,16 @@ const styles = StyleSheet.create({
   pressedCta: { opacity: 0.92, transform: [{ scale: 0.99 }] },
   pressedGhost: { opacity: 0.88 },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  text: { fontWeight: "600", fontSize: 16, letterSpacing: 0.2 } as TextStyle,
+  btnCompact: {
+    minHeight: theme.controls.buttonCompactHeight,
+    paddingVertical: 11,
+    paddingHorizontal: theme.spacing.md,
+    marginTop: 0,
+  },
+  spinner: { marginEnd: 10 },
+  text: { ...theme.typography.button, textAlign: "center" } as TextStyle,
+  textCompact: { ...theme.typography.buttonCompact } as TextStyle,
   textCta: { color: theme.colors.ctaText },
   textGhost: { color: theme.colors.text },
   textDanger: { color: theme.colors.error },
-  successIcon: { fontSize: 22, fontWeight: "900", color: theme.colors.success },
 });

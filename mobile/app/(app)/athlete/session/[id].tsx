@@ -557,13 +557,14 @@ export default function AthleteSessionDetail() {
           accessibilityLabel={t("athleteSession.cancelReasonPlaceholder")}
         />
         <PrimaryButton
-          label={cancelling ? t("common.loading") : t("athleteSession.confirmCancel")}
+          label={t("athleteSession.confirmCancel")}
           onPress={cancel}
+          variant="danger"
           loading={cancelling}
           loadingLabel={t("common.loading")}
         />
         <ActionButton
-          label={t("common.cancel")}
+          label={t("athleteSession.keepRegistration")}
           onPress={() => setCancelOpen(false)}
           style={{ marginTop: 16, alignSelf: "center" }}
         />

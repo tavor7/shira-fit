@@ -35,37 +35,42 @@ export function ActionButton({ label, onPress, disabled, style, variant = "defau
         style,
       ]}
       accessibilityRole="button"
+      accessibilityState={disabled ? { disabled: true } : undefined}
     >
-      <Text style={[styles.txt, isDanger && styles.txtDanger]}>{label}</Text>
+      <Text style={[styles.txt, isDanger && styles.txtDanger]} maxFontSizeMultiplier={theme.a11y.bodyMaxFontMultiplier}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  /** Compact secondary button: same surface, border and radius as PrimaryButton's ghost variant. */
   btn: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
+    minHeight: theme.controls.buttonCompactHeight,
+    paddingVertical: 11,
+    paddingHorizontal: theme.spacing.md,
     borderRadius: theme.radius.md,
-    backgroundColor: "transparent",
+    backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    alignItems: "center",
+    justifyContent: "center",
   },
   btnDanger: {
     backgroundColor: theme.colors.errorBg,
     borderColor: theme.colors.errorBorder,
   },
   pressed: {
-    backgroundColor: theme.colors.surface,
+    opacity: 0.88,
     borderColor: theme.colors.borderInput,
   },
   pressedDanger: {
     opacity: 0.88,
   },
   txt: {
+    ...theme.typography.buttonCompact,
     color: theme.colors.text,
-    fontWeight: "600",
-    fontSize: 14,
-    letterSpacing: 0.15,
     textAlign: "center",
   },
   txtDanger: {
