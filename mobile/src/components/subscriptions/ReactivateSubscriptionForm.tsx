@@ -159,7 +159,7 @@ export function ReactivateSubscriptionForm({ sourceSubscriptionId }: { sourceSub
           </View>
 
           <View style={sf.card}>
-            <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.reactivate.startDateLabel")}</Text>
+            <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.datesTitle")}</Text>
             <DatePickerField appearance="embedded" label={t("subscriptions.reactivate.startDateLabel")} value={startDate} onChange={setStartDate} />
 
             <View style={[styles.toggleRow, styles.spaced, rowFlipFor(isRTL) && styles.toggleRowRtl]}>

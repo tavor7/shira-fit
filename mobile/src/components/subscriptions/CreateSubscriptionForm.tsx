@@ -165,7 +165,7 @@ export function CreateSubscriptionForm() {
           </View>
 
           <View style={sf.card}>
-            <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.create.startDateLabel")}</Text>
+            <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.datesTitle")}</Text>
             <DatePickerField appearance="embedded" label={t("subscriptions.create.startDateLabel")} value={startDate} onChange={setStartDate} />
             {errors.has("startDate") ? <Text style={[sf.error, isRTL && styles.rtlText]}>{t("subscriptions.errStartDateInvalid")}</Text> : null}
 

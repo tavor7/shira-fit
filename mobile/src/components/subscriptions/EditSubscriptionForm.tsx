@@ -270,6 +270,8 @@ const styles = StyleSheet.create({
   chip: {
     flexGrow: 1,
     paddingVertical: 10,
+    minHeight: theme.controls.minTouch,
+    justifyContent: "center",
     paddingHorizontal: 12,
     borderRadius: theme.radius.md,
     borderWidth: 1,

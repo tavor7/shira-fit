@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { AppIcon } from "../AppIcon";
 import { theme } from "../../theme";
 import { useI18n } from "../../context/I18nContext";
 import { SUBSCRIPTION_TIERS, tierLabelKey, type WeeklyLimits } from "../../lib/subscriptions";
@@ -54,15 +55,21 @@ export function AllowancesEditor({ value, onChange, label, hint }: Props) {
                 <Pressable
                   onPress={() => setTier(tier, current - 1)}
                   disabled={current <= MIN_WEEKLY_LIMIT}
-                  style={({ pressed }) => [
-                    styles.stepperButton,
-                    current <= MIN_WEEKLY_LIMIT && styles.stepperButtonDisabled,
-                    pressed && current > MIN_WEEKLY_LIMIT && styles.stepperButtonPressed,
-                  ]}
+                  style={styles.stepperHit}
                   accessibilityRole="button"
                   accessibilityLabel={`${t("subscriptions.decreaseAllowance")} ${tierLabel}`}
                 >
-                  <Text style={styles.stepperButtonTxt}>–</Text>
+                  {({ pressed }) => (
+                    <View
+                      style={[
+                        styles.stepperButton,
+                        current <= MIN_WEEKLY_LIMIT && styles.stepperButtonDisabled,
+                        pressed && current > MIN_WEEKLY_LIMIT && styles.stepperButtonPressed,
+                      ]}
+                    >
+                      <AppIcon name="remove" size="sm" color={theme.colors.text} />
+                    </View>
+                  )}
                 </Pressable>
                 <TextInput
                   value={String(current)}
@@ -76,18 +83,23 @@ export function AllowancesEditor({ value, onChange, label, hint }: Props) {
                 <Pressable
                   onPress={() => setTier(tier, current + 1)}
                   disabled={current >= MAX_WEEKLY_LIMIT}
-                  style={({ pressed }) => [
-                    styles.stepperButton,
-                    current >= MAX_WEEKLY_LIMIT && styles.stepperButtonDisabled,
-                    pressed && current < MAX_WEEKLY_LIMIT && styles.stepperButtonPressed,
-                  ]}
+                  style={styles.stepperHit}
                   accessibilityRole="button"
                   accessibilityLabel={`${t("subscriptions.increaseAllowance")} ${tierLabel}`}
                 >
-                  <Text style={styles.stepperButtonTxt}>+</Text>
+                  {({ pressed }) => (
+                    <View
+                      style={[
+                        styles.stepperButton,
+                        current >= MAX_WEEKLY_LIMIT && styles.stepperButtonDisabled,
+                        pressed && current < MAX_WEEKLY_LIMIT && styles.stepperButtonPressed,
+                      ]}
+                    >
+                      <AppIcon name="add" size="sm" color={theme.colors.text} />
+                    </View>
+                  )}
                 </Pressable>
               </View>
-              <Text style={[styles.perWeek, isRTL && styles.rtl]}>{t("subscriptions.perWeek")}</Text>
             </View>
           );
         })}
@@ -104,7 +116,10 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
   rowRtl: { flexDirection: "row-reverse" },
   tierLabel: { flex: 1, ...theme.typography.secondary, color: theme.colors.text },
-  stepper: { flexDirection: "row", alignItems: "center", gap: 8 },
+  // direction ltr: on web the browser would otherwise mirror the row in Hebrew (see the note at the stepper).
+  stepper: { flexDirection: "row", alignItems: "center", gap: 8, direction: "ltr" },
+  // 44px hit area around the 32px circle (padding cancelled by a negative margin; hitSlop is ignored on web).
+  stepperHit: { padding: 6, margin: -6 },
   stepperButton: {
     width: 32,
     height: 32,
@@ -117,11 +132,10 @@ const styles = StyleSheet.create({
   },
   stepperButtonPressed: { backgroundColor: theme.colors.accentLight, borderColor: theme.colors.borderInput },
   stepperButtonDisabled: { opacity: 0.3 },
-  stepperButtonTxt: { fontSize: 17, fontWeight: "700", color: theme.colors.text, lineHeight: 19 },
   input: {
-    width: 48,
-    height: 32,
-    borderRadius: theme.radius.full,
+    width: 52,
+    height: theme.controls.minTouch,
+    borderRadius: theme.radius.md,
     fontSize: 15,
     fontWeight: "700",
     textAlign: "center",
@@ -130,6 +144,5 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   inputRtl: { textAlign: "center" },
-  perWeek: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, minWidth: 56 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
 });
