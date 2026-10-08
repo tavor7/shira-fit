@@ -15,7 +15,8 @@ import { useAppAlert } from "../context/AppAlertContext";
 import { formatISODateFull } from "../lib/dateFormat";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
-import { EmptyState } from "../components/EmptyState";
+import { EmptyState, ErrorState } from "../components/EmptyState";
+import { userFacingErrorMessage } from "../lib/userFacingError";
 import {
   parseCapacityMismatch,
   type CapacityMismatchSession,
@@ -24,7 +25,8 @@ import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { PressableScale } from "../components/PressableScale";
 import { rowFlipFor } from "../lib/layoutDirection";
-import { displayDateRange } from "../lib/displayFormat";
+import { displayDateRange, displayUserText } from "../lib/displayFormat";
+import { selectionA11y } from "../lib/a11ySelection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 function formatSessionTimeShort(isoTime: string): string {
@@ -43,7 +45,7 @@ export default function ManagerCapacityMismatchScreen() {
   );
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [sessions, setSessions] = useState<CapacityMismatchSession[]>([]);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
@@ -54,8 +56,8 @@ export default function ManagerCapacityMismatchScreen() {
   const skipFocusReloadRef = useRef(true);
 
   const load = useCallback(async () => {
+    // Opened without a week (stale or hand-typed link): rendered as "missing link", not as a failure.
     if (!anchor) {
-      setError(t("common.error"));
       setLoading(false);
       return;
     }
@@ -68,12 +70,12 @@ export default function ManagerCapacityMismatchScreen() {
     });
     setLoading(false);
     if (err) {
-      setError(err.message);
+      setError(err);
       return;
     }
     const raw = data as Record<string, unknown> | null;
     if (!raw?.ok) {
-      setError(String(raw?.error ?? t("common.error")));
+      setError(raw?.error ?? {});
       return;
     }
     setRangeStart(String(raw.week_start ?? ""));
@@ -100,7 +102,7 @@ export default function ManagerCapacityMismatchScreen() {
         note: noteBySession[s.session_id] ?? null,
       }))
     );
-  }, [anchor, periodMode, showIgnored, t]);
+  }, [anchor, periodMode, showIgnored]);
 
   useEffect(() => {
     void load();
@@ -184,10 +186,12 @@ export default function ManagerCapacityMismatchScreen() {
         {rangeLabel ? <Text style={[styles.sub, isRTL && styles.rtl]}>{rangeLabel}</Text> : null}
         <Text style={[styles.hint, isRTL && styles.rtl]}>{t("dashboard.capacityMismatchHint")}</Text>
 
-        <View style={[styles.segRow, rowFlipFor(isRTL) && styles.segRowRtl]}>
+        {anchor ? (
+        <View style={[styles.segRow, rowFlipFor(isRTL) && styles.segRowRtl]} accessibilityRole="radiogroup">
           <Pressable
             onPress={() => setShowIgnored(false)}
             style={({ pressed }) => [styles.segBtn, !showIgnored && styles.segBtnOn, pressed && { opacity: 0.9 }]}
+            {...selectionA11y("radio", !showIgnored)}
           >
             <Text style={[styles.segBtnTxt, !showIgnored && styles.segBtnTxtOn]}>
               {t("dashboard.capacityMismatchTabActive")}
@@ -196,12 +200,14 @@ export default function ManagerCapacityMismatchScreen() {
           <Pressable
             onPress={() => setShowIgnored(true)}
             style={({ pressed }) => [styles.segBtn, showIgnored && styles.segBtnOn, pressed && { opacity: 0.9 }]}
+            {...selectionA11y("radio", showIgnored)}
           >
             <Text style={[styles.segBtnTxt, showIgnored && styles.segBtnTxtOn]}>
               {t("dashboard.capacityMismatchTabIgnored")}
             </Text>
           </Pressable>
         </View>
+        ) : null}
 
         <CrossfadeSwap
           loading={loading}
@@ -213,8 +219,23 @@ export default function ManagerCapacityMismatchScreen() {
             </View>
           }
         >
-          {error ? (
-          <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
+          {!anchor ? (
+          <EmptyState
+            tone="notFound"
+            title={t("dashboard.detailMissingTitle")}
+            body={t("dashboard.detailMissingBody")}
+            actionLabel={t("a11y.headerBackToOverview")}
+            onAction={() => router.replace("/(app)/manager/dashboard" as Href)}
+            isRTL={isRTL}
+          />
+        ) : error ? (
+          <ErrorState
+            title={t("errors.loadFailedTitle")}
+            body={userFacingErrorMessage(error, t)}
+            actionLabel={t("auth.retryConnection")}
+            onAction={() => void load()}
+            isRTL={isRTL}
+          />
         ) : sessions.length === 0 ? (
           <EmptyState
             icon="checkmark-circle-outline"
@@ -243,7 +264,7 @@ export default function ManagerCapacityMismatchScreen() {
                   <Text style={[styles.cardDate, isRTL && styles.rtl]} numberOfLines={2}>
                     {formatISODateFull(s.session_date, language)} · {formatSessionTimeShort(s.start_time)}
                     {" · "}
-                    {s.coach_name?.trim() || "—"}
+                    {s.coach_name?.trim() ? displayUserText(s.coach_name.trim()) : "—"}
                   </Text>
                   <View style={[styles.statsRow, rowFlipFor(isRTL) && styles.statsRowRtl]}>
                     <Text
@@ -362,7 +383,6 @@ const styles = StyleSheet.create({
   segBtnTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted },
   segBtnTxtOn: { color: theme.colors.ctaText },
   rtl: { textAlign: "right", writingDirection: "rtl" },
-  err: { color: theme.colors.error, fontWeight: "700", marginTop: 12 },
   muted: { color: theme.colors.textSoft, fontWeight: "600", marginTop: 12 },
   card: {
     marginBottom: 8,

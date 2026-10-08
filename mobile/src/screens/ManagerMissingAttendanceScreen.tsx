@@ -17,7 +17,8 @@ import { formatISODateFull } from "../lib/dateFormat";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ParticipantAttendanceList } from "../components/ParticipantAttendanceList";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
-import { EmptyState } from "../components/EmptyState";
+import { EmptyState, ErrorState } from "../components/EmptyState";
+import { userFacingErrorMessage } from "../lib/userFacingError";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AnimatedChevron } from "../components/AnimatedChevron";
 import {
@@ -28,7 +29,7 @@ import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { PressableScale } from "../components/PressableScale";
 import { rowFlipFor } from "../lib/layoutDirection";
-import { displayTimeRange, displayDateRange } from "../lib/displayFormat";
+import { displayTimeRange, displayDateRange, displayUserText } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 function formatSessionTimeShort(isoTime: string): string {
@@ -47,7 +48,7 @@ export default function ManagerMissingAttendanceScreen() {
   );
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [sessions, setSessions] = useState<MissingAttendanceSession[]>([]);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
@@ -56,8 +57,8 @@ export default function ManagerMissingAttendanceScreen() {
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   const load = useCallback(async () => {
+    // Opened without a week (stale or hand-typed link): rendered as "missing link", not as a failure.
     if (!anchor) {
-      setError(t("common.error"));
       setLoading(false);
       return;
     }
@@ -69,12 +70,12 @@ export default function ManagerMissingAttendanceScreen() {
     });
     setLoading(false);
     if (err) {
-      setError(err.message);
+      setError(err);
       return;
     }
     const raw = data as Record<string, unknown> | null;
     if (!raw?.ok) {
-      setError(String(raw?.error ?? t("common.error")));
+      setError(raw?.error ?? {});
       return;
     }
     setRangeStart(String(raw.week_start ?? ""));
@@ -146,8 +147,23 @@ export default function ManagerMissingAttendanceScreen() {
             </View>
           }
         >
-          {error ? (
-          <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
+          {!anchor ? (
+          <EmptyState
+            tone="notFound"
+            title={t("dashboard.detailMissingTitle")}
+            body={t("dashboard.detailMissingBody")}
+            actionLabel={t("a11y.headerBackToOverview")}
+            onAction={() => router.replace("/(app)/manager/dashboard" as Href)}
+            isRTL={isRTL}
+          />
+        ) : error ? (
+          <ErrorState
+            title={t("errors.loadFailedTitle")}
+            body={userFacingErrorMessage(error, t)}
+            actionLabel={t("auth.retryConnection")}
+            onAction={() => void load()}
+            isRTL={isRTL}
+          />
         ) : sessions.length === 0 ? (
           <EmptyState icon="checkmark-circle-outline" title={t("dashboard.missingAttendanceEmpty")} isRTL={isRTL} />
         ) : (
@@ -169,7 +185,7 @@ export default function ManagerMissingAttendanceScreen() {
                         {formatISODateFull(s.session_date, language)} · {formatSessionTimeShort(s.start_time)}
                       </Text>
                       <Text style={[styles.cardMeta, isRTL && styles.rtl]} numberOfLines={1}>
-                        {s.coach_name?.trim() || "—"} ·{" "}
+                        {s.coach_name?.trim() ? displayUserText(s.coach_name.trim()) : "—"} ·{" "}
                         {t("dashboard.missingAttendanceUnset").replace("{n}", String(s.unset_count))}
                       </Text>
                     </View>
@@ -218,7 +234,6 @@ const styles = StyleSheet.create({
   sub: { ...theme.typography.caption, color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
   hint: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, marginBottom: theme.spacing.md },
   rtl: { textAlign: "right", writingDirection: "rtl" },
-  err: { color: theme.colors.error, fontWeight: "700", marginTop: 12 },
   muted: { color: theme.colors.textSoft, fontWeight: "600", marginTop: 12 },
   card: {
     marginBottom: 10,

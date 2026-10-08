@@ -1048,7 +1048,8 @@ const styles = StyleSheet.create({
   },
   rangeRowRtl: { flexDirection: "row-reverse" },
   rangeNavHit: {
-    minWidth: 40,
+    minWidth: theme.controls.minTouch,
+    minHeight: theme.controls.minTouch,
     paddingVertical: 6,
     paddingHorizontal: 4,
     alignItems: "center",
@@ -1132,6 +1133,8 @@ const styles = StyleSheet.create({
   moneyHeroVal: { fontSize: 20, fontWeight: "800", color: theme.colors.cta, fontVariant: ["tabular-nums"] },
   ghostBtn: {
     alignSelf: "flex-start",
+    minHeight: theme.controls.buttonCompactHeight,
+    justifyContent: "center",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,
@@ -1323,6 +1326,8 @@ const styles = StyleSheet.create({
   athleteAddPayBtn: {
     marginTop: 10,
     alignSelf: "flex-start",
+    minHeight: theme.controls.buttonCompactHeight,
+    justifyContent: "center",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,

@@ -14,7 +14,8 @@ import { parseManagerPeriodMode } from "../lib/managerPeriodMode";
 import { formatISODateFull } from "../lib/dateFormat";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
-import { EmptyState } from "../components/EmptyState";
+import { EmptyState, ErrorState } from "../components/EmptyState";
+import { userFacingErrorMessage } from "../lib/userFacingError";
 import { mergeFinanceBreakdownDays, parseFinance, type FinanceBreakdownDay } from "../lib/managerWeeklyStats";
 import {
   formatFinanceIls,
@@ -27,7 +28,7 @@ import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AnimatedChevron } from "../components/AnimatedChevron";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { rowFlipFor } from "../lib/layoutDirection";
-import { displayDateRange } from "../lib/displayFormat";
+import { displayDateRange, displayUserText } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 function AmountPair({
@@ -80,15 +81,15 @@ export default function ManagerFinanceBreakdownScreen() {
   );
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [days, setDays] = useState<FinanceBreakdownDay[]>([]);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    // Opened without a week (stale or hand-typed link): rendered as "missing link", not as a failure.
     if (!anchor) {
-      setError(t("common.error"));
       setLoading(false);
       return;
     }
@@ -100,18 +101,18 @@ export default function ManagerFinanceBreakdownScreen() {
     });
     setLoading(false);
     if (err) {
-      setError(err.message);
+      setError(err);
       return;
     }
     const raw = data as Record<string, unknown> | null;
     if (!raw?.ok) {
-      setError(String(raw?.error ?? t("common.error")));
+      setError(raw?.error ?? {});
       return;
     }
     setRangeStart(String(raw.week_start ?? ""));
     setRangeEnd(String(raw.week_end ?? ""));
     setDays(mergeFinanceBreakdownDays(parseFinance(raw.finance)));
-  }, [anchor, periodMode, t]);
+  }, [anchor, periodMode]);
 
   useEffect(() => {
     void load();
@@ -157,8 +158,23 @@ export default function ManagerFinanceBreakdownScreen() {
             </View>
           }
         >
-        {error ? (
-          <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
+        {!anchor ? (
+          <EmptyState
+            tone="notFound"
+            title={t("dashboard.detailMissingTitle")}
+            body={t("dashboard.detailMissingBody")}
+            actionLabel={t("a11y.headerBackToOverview")}
+            onAction={() => router.replace("/(app)/manager/dashboard" as Href)}
+            isRTL={isRTL}
+          />
+        ) : error ? (
+          <ErrorState
+            title={t("errors.loadFailedTitle")}
+            body={userFacingErrorMessage(error, t)}
+            actionLabel={t("auth.retryConnection")}
+            onAction={() => void load()}
+            isRTL={isRTL}
+          />
         ) : days.length === 0 ? (
           <EmptyState icon="bar-chart-outline" title={t("dashboard.financeBreakdownEmpty")} isRTL={isRTL} />
         ) : (
@@ -216,7 +232,7 @@ export default function ManagerFinanceBreakdownScreen() {
                             >
                               <Text style={[styles.sessionTime, isRTL && styles.rtl]}>
                                 {formatSessionTimeShort(s.start_time)}
-                                {s.coach_name?.trim() ? ` · ${s.coach_name.trim()}` : ""}
+                                {s.coach_name?.trim() ? ` · ${displayUserText(s.coach_name.trim())}` : ""}
                               </Text>
                               <AmountPair
                                 expected={s.expected_ils}
@@ -306,7 +322,6 @@ const styles = StyleSheet.create({
   h: { ...theme.typography.display, color: theme.colors.text, marginBottom: 4 },
   sub: { ...theme.typography.caption, color: theme.colors.textMuted, marginBottom: theme.spacing.md },
   rtl: { textAlign: "right", writingDirection: "rtl" },
-  err: { color: theme.colors.error, fontWeight: "700", marginTop: 12 },
   muted: { color: theme.colors.textSoft, fontWeight: "600", marginTop: 12 },
   hint: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, marginBottom: theme.spacing.sm },
   totalBanner: {

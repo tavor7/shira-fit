@@ -24,7 +24,7 @@ import { EmptyState, ErrorState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { rowFlipFor } from "../lib/layoutDirection";
-import { displayTimeRange, displayDateRange } from "../lib/displayFormat";
+import { displayTimeRange, displayDateRange, displayUserText } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { userFacingErrorMessage } from "../lib/userFacingError";
 
@@ -306,7 +306,7 @@ export default function ManagerWeeklyStatDetailScreen() {
                   {displayTimeRange(s.start_time, s.duration_minutes ?? 60)}
                 </Text>
                 <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={1}>
-                  {s.trainer?.full_name ?? "—"}
+                  {s.trainer?.full_name ? displayUserText(s.trainer.full_name) : "—"}
                   {" · "}
                   {t("ui.managerWeeklyStatDetail.signedUp")} {n}/{s.max_participants || "—"}
                   {kind === "avg_fill" ? ` · ${pct}%` : ""}
