@@ -203,8 +203,8 @@ export default function ManagerLegalSettingsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  container: { padding: theme.spacing.lg, gap: theme.spacing.md },
-  skeleton: { margin: theme.spacing.lg, borderRadius: theme.radius.lg },
+  container: { padding: theme.spacing.md, gap: theme.spacing.md },
+  skeleton: { margin: theme.spacing.md, borderRadius: theme.radius.lg },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
