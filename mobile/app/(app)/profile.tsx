@@ -185,6 +185,7 @@ export default function ProfileScreen() {
             ]}
             accessibilityRole="tab"
             accessibilityState={{ selected: segment === "account" }}
+            aria-selected={segment === "account"}
           >
             <AppText
               variant="caption"
@@ -204,6 +205,7 @@ export default function ProfileScreen() {
             ]}
             accessibilityRole="tab"
             accessibilityState={{ selected: segment === "notifications" }}
+            aria-selected={segment === "notifications"}
           >
             <AppText
               variant="caption"
@@ -224,6 +226,7 @@ export default function ProfileScreen() {
               ]}
               accessibilityRole="tab"
               accessibilityState={{ selected: segment === "messages" }}
+              aria-selected={segment === "messages"}
             >
               <AppText
                 variant="caption"

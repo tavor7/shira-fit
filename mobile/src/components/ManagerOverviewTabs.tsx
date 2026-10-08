@@ -104,7 +104,7 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
 
   return (
     <View style={styles.strip}>
-      <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
+      <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]} accessibilityRole="tablist">
         <Animated.View
           pointerEvents="none"
           style={[
@@ -129,6 +129,7 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
               ]}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
+              aria-selected={active}
               accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
             >
               <Text

@@ -83,7 +83,7 @@ export function SlidingPillTabBar({ tabs, active, onChange, style }: Props) {
   return (
     // Keyed on direction: a language switch moves the tabs to mirrored positions without resizing them, and
     // react-native-web only reports onLayout on resize, so remount to re-measure and re-place the indicator.
-    <View key={isRTL ? "rtl" : "ltr"} style={[styles.track, rowFlipFor(isRTL) && styles.trackRtl, style]}>
+    <View key={isRTL ? "rtl" : "ltr"} style={[styles.track, rowFlipFor(isRTL) && styles.trackRtl, style]} accessibilityRole="tablist">
       <Animated.View
         pointerEvents="none"
         style={[
@@ -102,8 +102,9 @@ export function SlidingPillTabBar({ tabs, active, onChange, style }: Props) {
               moveTo(x.id, true);
             }}
             style={({ pressed }) => [styles.slot, pressed && !on && styles.slotPressed]}
-            accessibilityRole="button"
+            accessibilityRole="tab"
             accessibilityState={{ selected: on }}
+            aria-selected={on}
             accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
           >
             <Text style={[styles.slotTxt, on && styles.slotTxtOn]} numberOfLines={1}>
