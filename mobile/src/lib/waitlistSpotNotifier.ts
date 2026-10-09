@@ -41,7 +41,7 @@ export async function checkWaitlistSpotsAndNotify(language: "en" | "he"): Promis
       if (been) continue;
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: language === "he" ? "יתכן שיש מקום פנוי" : "A spot may be open",
+          title: language === "he" ? "ייתכן שיש מקום פנוי" : "A spot may be open",
           body:
             language === "he"
               ? `אימון ${formatISODateFull(s.session_date, language)} — ניתן לנסות להירשם.`

@@ -77,7 +77,7 @@ export function ReceiptRequirementsGateCard({
     mode === "both"
       ? language === "he" ? "כדי להמשיך להשתמש באפליקציה, יש לאשר את הסכמת קבלת המסמכים האלקטרוניים ולמלא כתובת ומיקוד." : "To continue using the app, please accept electronic receipt consent and provide your address and zip code."
       : mode === "address_only"
-        ? language === "he" ? "נדרשת כתובת ומיקוד לצורך הפקת קבלות. אנא מלא/י את הפרטים להמשך." : "A street address and zip code are required for receipts. Please fill them in to continue."
+        ? language === "he" ? "נדרשים כתובת ומיקוד לצורך הפקת קבלות. מלאו את הפרטים כדי להמשיך." : "A street address and zip code are required for receipts. Please fill them in to continue."
         : null;
 
   function focusAddressSection() {
@@ -210,7 +210,7 @@ export function ReceiptRequirementsGateCard({
         {!addressFirst && showAddress ? renderAddressBlock(false) : null}
         {declined ? (
           <Text style={[styles.declined, isRTL && styles.rtl]}>
-            {language === "he" ? "הסכמה לקבלת מסמכים אלקטרוניים נדרשת לשימוש במערכת. אנא אשר/י את ההסכמה כדי להמשיך." : "Electronic receipt consent is required to use the app. Please accept to continue."}
+            {language === "he" ? "הסכמה לקבלת מסמכים אלקטרוניים נדרשת לשימוש במערכת. אשרו את ההסכמה כדי להמשיך." : "Electronic receipt consent is required to use the app. Please accept to continue."}
           </Text>
         ) : null}
         {fieldError ? <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldError}</Text> : null}

@@ -1,3 +1,4 @@
+import { pluralKey } from "../lib/pluralKey";
 import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { AppIcon } from "./AppIcon";
@@ -19,7 +20,7 @@ type Props = {
 };
 
 export function SessionAgendaCardContent({ item, compact, temporalPhase: temporalPhaseProp }: Props) {
-  const { language, isRTL, t } = useI18n();
+  const { isRTL, t } = useI18n();
   const temporalPhase =
     temporalPhaseProp ?? getSessionTemporalPhase(item.session_date, item.start_time, item.durationMinutes ?? 60);
   const accent = item.accentColor;
@@ -133,7 +134,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
             <>
               <StatusChip label={t("ui.sessionAgendaCardContent.open")} tone="success" />
               {left !== null ? (
-                <StatusChip label={language === "he" ? `${left} מקומות` : `${left} left`} tone="neutral" />
+                <StatusChip label={pluralKey(t, "calendar.spotsLeft", left).replace("{n}", String(left))} tone="neutral" />
               ) : null}
             </>
           )}

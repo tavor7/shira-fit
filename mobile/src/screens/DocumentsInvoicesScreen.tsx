@@ -102,7 +102,7 @@ function statusBadgeStyle(status: DocumentRow["status"]) {
 function statusLabel(status: DocumentRow["status"], language: "he" | "en") {
   if (status === "ACTIVE") return language === "he" ? "פעיל" : "Active";
   if (status === "CANCELLED") return language === "he" ? "בוטל" : "Cancelled";
-  return language === "he" ? "דרוש תשלום" : "Needs method";
+  return language === "he" ? "חסר אמצעי תשלום" : "Needs payment method";
 }
 
 function SectionCard({ label, children }: { label: string; children: ReactNode }) {
