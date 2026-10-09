@@ -396,6 +396,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
+    minHeight: theme.controls.minTouch,
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,

@@ -573,6 +573,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.sm,
+    minHeight: theme.controls.minTouch,
     marginBottom: theme.spacing.xs,
   },
   checkbox: {
