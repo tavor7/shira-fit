@@ -29,6 +29,15 @@ type Props = {
   onSave: (input: { address: string; zipCode: string; acceptConsent: boolean; declineConsent: boolean }) => Promise<void>;
 };
 
+/** Heading of the receipt gate card (also the gate dialog's accessible name). */
+export function receiptGateTitle(mode: ReceiptRequirementsMode, consent: RequiredConsent | null, language: string): string {
+  return mode === "both"
+    ? language === "he" ? "השלימו את הפרטים" : "Complete your details"
+    : mode === "consent_only"
+      ? consent?.title ?? (language === "he" ? "הסכמה לקבלות" : "Receipt consent")
+      : language === "he" ? "עדכון כתובת" : "Update your address";
+}
+
 export function ReceiptRequirementsGateCard({
   mode,
   consent,
@@ -66,12 +75,7 @@ export function ReceiptRequirementsGateCard({
   const addressFirst = mode === "both";
   const cardMaxHeight = Math.round(windowHeight * 0.9);
 
-  const title =
-    mode === "both"
-      ? language === "he" ? "השלימו את הפרטים" : "Complete your details"
-      : mode === "consent_only"
-        ? consent?.title ?? (language === "he" ? "הסכמה לקבלות" : "Receipt consent")
-        : language === "he" ? "עדכון כתובת" : "Update your address";
+  const title = receiptGateTitle(mode, consent, language);
 
   const intro =
     mode === "both"
@@ -221,6 +225,7 @@ export function ReceiptRequirementsGateCard({
               onPress={() => void decline()}
               disabled={busy}
               style={({ pressed }) => [styles.declineBtn, pressed && { opacity: 0.7 }]}
+              accessibilityRole="button"
             >
               <Text style={styles.declineText}>{language === "he" ? "לא מסכים/ה" : "Decline"}</Text>
             </Pressable>
