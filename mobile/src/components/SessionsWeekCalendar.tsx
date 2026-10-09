@@ -720,10 +720,10 @@ const styles = StyleSheet.create({
   },
   /** Ended: de-emphasised but readable — at 0.78 muted text keeps ~4.9:1 contrast (0.52 dropped it to ~2:1). */
   // Hidden (staff-only) sessions: dimmed as a secondary cue (they also carry a Hidden chip); 0.55 left text at 3:1.
-  cardHiddenDim: { opacity: 0.8 },
-  // Dimmed, but past-session text must stay readable (≥4.5:1 with textMuted at this opacity; 0.78 measured 2.5:1).
+  cardHiddenDim: { opacity: 0.85 },
+  // Dimmed, but past-session text must stay readable (≥4.5:1 with textMuted at this opacity; 0.85 measured 4.49:1 over the page).
   cardPast: {
-    opacity: 0.85,
+    opacity: 0.9,
     backgroundColor: theme.colors.surfaceElevated,
     borderColor: theme.colors.border,
   },
