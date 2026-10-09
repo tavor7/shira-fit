@@ -1066,7 +1066,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "approve.unknownAthlete": "Unknown athlete",
     "approve.unknownManager": "Unknown manager",
 
-    "rosterCalendar.title": "Roster calendar (manager)",
+    "rosterCalendar.title": "Roster calendar",
     "rosterCalendar.hint": "Pick a week to see the participant roster for each session.",
     "rosterCalendar.filterAll": "All",
     "rosterCalendar.filterSmall": "Small (≤6)",
@@ -3071,7 +3071,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "approve.unknownAthlete": "מתאמן לא ידוע",
     "approve.unknownManager": "מנהל לא ידוע",
 
-    "rosterCalendar.title": "יומן משתתפים (מנהל)",
+    "rosterCalendar.title": "יומן משתתפים",
     "rosterCalendar.hint": "בחרו שבוע כדי לראות את רשימות המשתתפים לכל אימון.",
     "rosterCalendar.filterAll": "הכל",
     "rosterCalendar.filterSmall": "קטנים (≤6)",
