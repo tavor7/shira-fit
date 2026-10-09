@@ -1601,8 +1601,10 @@ const styles = StyleSheet.create({
   bulkRegenProgressText: { fontSize: 14, fontWeight: "700", color: theme.colors.text },
   headerBlock: { marginTop: -theme.spacing.sm, gap: theme.spacing.xs, marginBottom: theme.spacing.xs },
   tabBarRow: { flexDirection: "row", alignItems: "flex-end" },
-  tabBarFill: {},
+  // Let the (horizontally scrolling) tab strip shrink so the settings gear stays on screen at 320px.
+  tabBarFill: { flexShrink: 1, minWidth: 0 },
   settingsGear: {
+    flexShrink: 0,
     minWidth: theme.controls.minTouch,
     minHeight: theme.controls.minTouch,
     alignItems: "center",

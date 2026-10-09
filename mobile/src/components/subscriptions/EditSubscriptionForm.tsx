@@ -268,7 +268,10 @@ const styles = StyleSheet.create({
   modeRow: { flexDirection: "row", gap: 8 },
   modeRowRtl: { flexDirection: "row-reverse" },
   chip: {
+    // Equal halves that may shrink and wrap their label ("From a specific date" overflowed at 320px).
     flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
     paddingVertical: 10,
     minHeight: theme.controls.minTouch,
     justifyContent: "center",
@@ -280,7 +283,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   chipActive: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  chipText: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
+  chipText: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted, textAlign: "center" },
   chipTextActive: { color: theme.colors.ctaText },
   footer: { gap: theme.spacing.sm, paddingTop: theme.spacing.xs },
   secondaryAction: { paddingVertical: theme.spacing.sm, alignItems: "center", minHeight: 44, justifyContent: "center" },
