@@ -24,6 +24,7 @@ import { useEffect } from "react";
 import * as Updates from "expo-updates";
 import { useAuth } from "../src/context/AuthContext";
 import { OfflineNotice } from "../src/components/OfflineNotice";
+import { useSpaceActivatesControls } from "../src/hooks/useSpaceActivatesControls";
 
 initNotificationHandler();
 
@@ -39,6 +40,7 @@ function StudioContactFooterGate() {
 }
 
 export default function RootLayout() {
+  useSpaceActivatesControls();
   useEffect(() => {
     if (__DEV__) return;
     if (Platform.OS === "web") return;
