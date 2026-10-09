@@ -309,6 +309,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
+    minHeight: theme.controls.minTouch,
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,

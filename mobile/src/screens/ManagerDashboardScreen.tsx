@@ -38,7 +38,7 @@ import { AnimatedChevron } from "../components/AnimatedChevron";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useAuth } from "../context/AuthContext";
 import { parseMoney } from "../lib/participantHistoryHelpers";
-import { rowFlipFor } from "../lib/layoutDirection";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 import { displayDateRange, displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { selectionA11y } from "../lib/a11ySelection";
@@ -736,7 +736,7 @@ export default function ManagerDashboardScreen() {
                         accessibilityHint={open ? t("dashboard.a11yCoachCollapse") : t("dashboard.a11yCoachExpand")}
                       >
                         <View style={[styles.coachRowMain, rowFlipFor(isRTL) && styles.coachRowMainRtl]}>
-                          <Text style={[styles.coachName, isRTL && styles.rtl]} numberOfLines={1}>
+                          <Text style={[styles.coachName, isRTL && styles.rtl]} numberOfLines={1} {...userContentTextProps}>
                             {c.name?.trim() || "—"}
                           </Text>
                           {c.has_rate_gap ? (
