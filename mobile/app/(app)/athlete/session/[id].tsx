@@ -373,7 +373,7 @@ export default function AthleteSessionDetail() {
           title={t("errors.loadFailedTitle")}
           body={userFacingErrorMessage(loadError, t)}
           actionLabel={t("auth.retryConnection")}
-          onAction={() => router.replace(`/(app)/athlete/session/${sessionId}`)}
+          onAction={() => void load()}
           isRTL={isRTL}
         />
       </View>
