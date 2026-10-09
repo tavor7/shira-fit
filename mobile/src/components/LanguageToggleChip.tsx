@@ -8,7 +8,7 @@ import { AppIcon } from "./AppIcon";
  * Used on auth (pre-login) screens where the global menu is unavailable.
  */
 export function LanguageToggleChip() {
-  const { language, toggleLanguage } = useI18n();
+  const { language, toggleLanguage, t } = useI18n();
   const isHe = language === "he";
   return (
     <View style={styles.wrap}>
@@ -16,7 +16,7 @@ export function LanguageToggleChip() {
         onPress={() => void toggleLanguage()}
         style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
         accessibilityRole="button"
-        accessibilityLabel={isHe ? "Switch to English" : "Switch to Hebrew"}
+        accessibilityLabel={t("lang.chipA11y")}
         hitSlop={6}
       >
         <AppIcon name="globe-outline" size="sm" color={theme.colors.textMuted} />

@@ -30,10 +30,24 @@ export function DatePickerField({
           min,
           max,
           onChange: (e: { target: { value: string } }) => onChange(e.target.value),
-          onKeyDown: (e: { preventDefault: () => void }) => e.preventDefault(),
+          // Free typing stays blocked (partial years produced invalid dates), but keyboard users must be able to
+          // leave the field (Tab — previously a keyboard trap), step values with the arrows, and open the picker.
+          onKeyDown: (e: { key: string; preventDefault: () => void; currentTarget: { showPicker?: () => void } }) => {
+            if (e.key === "Tab" || e.key === "Escape" || e.key.startsWith("Arrow")) return;
+            e.preventDefault();
+            if (e.key === "Enter" || e.key === " ") {
+              try {
+                e.currentTarget.showPicker?.();
+              } catch {
+                /* showPicker needs a user gesture in some browsers; keydown counts, but ignore if refused */
+              }
+            }
+          },
           onPaste: (e: { preventDefault: () => void }) => e.preventDefault(),
           onBeforeInput: (e: { preventDefault: () => void }) => e.preventDefault(),
           autoComplete: "off",
+          // The visible label is a separate <Text>; name the input for assistive technology.
+          "aria-label": label,
           style: webFormNativeInputStyle(isRTL, appearance),
         })}
       </View>

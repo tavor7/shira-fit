@@ -294,7 +294,7 @@ export default function LoginScreen() {
               isRTL={isRTL}
               placeholder={t("auth.password")}
               secureTextEntry
-              autoComplete="password"
+              autoComplete="current-password"
               textContentType="password"
               value={password}
               maxLength={MAX_PASSWORD_LEN}

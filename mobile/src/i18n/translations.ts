@@ -4,6 +4,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
   en: {
     "lang.english": "English",
     "lang.hebrew": "עברית",
+    "lang.chipA11y": "EN, switch to Hebrew",
     "lang.switch": "Language",
 
     "menu.sessions": "Sessions",
@@ -2025,6 +2026,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "tab.athleteMySessions": "האימונים שלי",
     "lang.english": "English",
     "lang.hebrew": "עברית",
+    "lang.chipA11y": "עב, מעבר לאנגלית",
     "lang.switch": "שפה",
 
     "menu.sessions": "אימונים",

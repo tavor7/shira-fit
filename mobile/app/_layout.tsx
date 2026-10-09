@@ -121,6 +121,11 @@ export default function RootLayout() {
                 full-screen container is noise. Controls inside the dialog keep their own focus rings.
               */
               [aria-modal="true"]:focus { outline: none; }
+              /* Native date/time/select fields reset their outline inline; keyboard focus still needs a visible ring. */
+              input[type="date"]:focus-visible, input[type="time"]:focus-visible, select:focus-visible {
+                outline: 2px solid ${theme.colors.text} !important;
+                outline-offset: 2px;
+              }
               [data-search-shell]:focus-within { border-color: ${theme.colors.text}; }
               /*
                 react-native-web renders every root <Text> with dir="auto", so each paragraph took its
