@@ -24,7 +24,7 @@ import {
   normalizeParticipantName,
   type ManualDuplicateIndexes,
 } from "../lib/participantIdentity";
-import { rowFlipFor } from "../lib/layoutDirection";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { roleLabel, approvalStatusLabel } from "../lib/displayLabels";
 
@@ -240,7 +240,7 @@ export default function StaffUsersScreen() {
               <View style={[styles.cardRow, rowFlipFor(isRTL) && styles.cardRowRtl]}>
                 <UserAvatar name={item.full_name} seed={item.kind === "profile" ? item.user_id : item.id} />
                 <View style={styles.cardBody}>
-                  <Text style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
+                  <Text {...userContentTextProps} style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
                     {item.full_name}
                     {(() => {
                       const dob = (item as any).date_of_birth as string | null | undefined;
@@ -256,7 +256,7 @@ export default function StaffUsersScreen() {
                       ) : null;
                     })()}
                   </Text>
-                  <Text style={[styles.phone, isRTL && styles.rtlText]} numberOfLines={1}>
+                  <Text {...userContentTextProps} style={[styles.phone, isRTL && styles.rtlText]} numberOfLines={1}>
                     {displayLtr(item.phone)}
                   </Text>
                   <View style={[styles.pillRow, rowFlipFor(isRTL) && styles.pillRowRtl]}>

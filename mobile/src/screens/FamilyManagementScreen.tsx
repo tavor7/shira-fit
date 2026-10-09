@@ -31,7 +31,7 @@ import {
   memberPayeeKey,
   parseFamilyMembers,
 } from "../lib/athleteFamilies";
-import { rowFlipFor } from "../lib/layoutDirection";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { pluralKey } from "../lib/pluralKey";
 
@@ -430,7 +430,7 @@ export default function FamilyManagementScreen() {
                         {selected ? <AppIcon name="checkmark" size={14} color={theme.colors.ctaText} /> : null}
                       </View>
                       <View style={styles.choiceText}>
-                        <Text style={[styles.choiceName, isRTL && styles.rtl]} numberOfLines={1}>
+                        <Text {...userContentTextProps} style={[styles.choiceName, isRTL && styles.rtl]} numberOfLines={1}>
                           {row.full_name}
                         </Text>
                         <Text style={[styles.choiceSub, isRTL && styles.rtl]} numberOfLines={1}>

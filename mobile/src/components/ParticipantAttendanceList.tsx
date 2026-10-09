@@ -843,7 +843,7 @@ export function ParticipantAttendanceList({
                   ) : null}
                 </Text>
                 {item.phone ? (
-                  <Text style={[styles.sub, isRTL && styles.rtlText]} numberOfLines={1}>
+                  <Text {...userContentTextProps} style={[styles.sub, isRTL && styles.rtlText]} numberOfLines={1}>
                     {displayLtr(item.phone)}
                   </Text>
                 ) : null}
@@ -1158,9 +1158,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  nameRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  // Wraps when the name column would drop below 80px (320px phones), moving the row actions to their own line.
+  nameRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 },
   nameRowRtl: { flexDirection: "row-reverse" },
-  nameBlock: { flex: 1, alignItems: "flex-start", minWidth: 0 },
+  nameBlock: { flex: 1, alignItems: "flex-start", minWidth: 80 },
   nameBlockRtl: { alignItems: "flex-end" },
   name: { flex: 1, ...theme.typography.title, color: theme.colors.text },
   bday: { color: theme.colors.cta, fontWeight: "900" },

@@ -6,6 +6,7 @@ import { useAppAlert } from "../context/AppAlertContext";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "./AppText";
 import { displayLtr } from "../lib/displayFormat";
+import { userContentTextProps } from "../lib/layoutDirection";
 import { useReportFooterHeight } from "../context/BottomChromeContext";
 import { LAYOUT } from "../lib/screenLayout";
 
@@ -27,7 +28,7 @@ function Cell({ title, subtitle, onPress }: CellProps) {
         {title}
       </AppText>
       {/* Handles and numbers ("@shira.fit.studio") keep their leading symbol first in Hebrew too. */}
-      <AppText variant="caption" muted numberOfLines={1} style={styles.cellSub}>
+      <AppText {...userContentTextProps} variant="caption" muted numberOfLines={1} style={styles.cellSub}>
         {displayLtr(subtitle)}
       </AppText>
     </Pressable>
@@ -90,8 +91,10 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: theme.spacing.sm,
   },
+  // Equal thirds, but never narrower than the value (auto minimum) — at 320px the handle and phone lost their start.
   cell: {
     flex: 1,
+    minWidth: "auto",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 10,
