@@ -35,13 +35,18 @@ export function SubscriptionImpactConfirmModal({ visible, action, impact, busy, 
     action === "edit" ? "subscriptions.impact.titleEdit" : action === "freeze" ? "subscriptions.impact.titleFreeze" : "subscriptions.impact.titleStop";
 
   const count = impact?.count ?? 0;
-  const items = impact?.items ?? [];
+  // Chronological, so the list reads as a timeline (the RPC returns coverage order).
+  const items = [...(impact?.items ?? [])].sort((a, b) => String(a.session_date).localeCompare(String(b.session_date)));
+  // At most 8 rows plus the "+N more" line: short enough to show in full. A fixed-height scroll area hid
+  // rows 7–8 and the "+N more" line with nothing indicating more content.
   const shown = items.slice(0, 8);
   const remaining = items.length - shown.length;
 
   return (
     <AppModal visible={visible} onClose={onCancel} variant="dialog" backdropAccessibilityLabel={t("subscriptions.impact.cancel")}>
       <View style={styles.card}>
+        {/* Content scrolls when the window is short (320×568); the actions below stay visible. */}
+        <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, isRTL && styles.rtl]} accessibilityRole="header">
           {t(titleKey)}
         </Text>
@@ -52,7 +57,7 @@ export function SubscriptionImpactConfirmModal({ visible, action, impact, busy, 
         {shown.length > 0 ? (
           <View style={styles.detailBox}>
             <Text style={[styles.detailHeader, isRTL && styles.rtl]}>{t("subscriptions.impact.detailHeader")}</Text>
-            <ScrollView style={styles.detailList} keyboardShouldPersistTaps="handled">
+            <View style={styles.detailList}>
               {shown.map((item, idx) => (
                 <View key={`${item.registration_id ?? item.manual_participant_id ?? idx}`} style={[styles.detailRow, rowFlipFor(isRTL) && styles.detailRowRtl]}>
                   <Text style={[styles.detailDate, isRTL && styles.rtl]}>{formatISODateFull(item.session_date, language)}</Text>
@@ -64,9 +69,10 @@ export function SubscriptionImpactConfirmModal({ visible, action, impact, busy, 
                   {t("subscriptions.impact.moreItems").replace("{n}", String(remaining))}
                 </Text>
               ) : null}
-            </ScrollView>
+            </View>
           </View>
         ) : null}
+        </ScrollView>
 
         <View style={[styles.actions, rowFlipFor(isRTL) && styles.actionsRtl]}>
           <PrimaryButton label={t("subscriptions.impact.cancel")} onPress={onCancel} variant="ghost" style={styles.btn} />
@@ -84,7 +90,9 @@ export function SubscriptionImpactConfirmModal({ visible, action, impact, busy, 
 }
 
 const styles = StyleSheet.create({
-  card: { padding: theme.spacing.lg },
+  card: { padding: theme.spacing.lg, flexShrink: 1, minHeight: 0 },
+  body: { flexShrink: 1 },
+  bodyContent: { flexGrow: 0 },
   title: { ...theme.typography.headline, color: theme.colors.text, marginBottom: theme.spacing.sm },
   message: { fontSize: 15, fontWeight: "500", lineHeight: 22, color: theme.colors.textMuted, marginBottom: theme.spacing.md },
   detailBox: {
@@ -96,13 +104,14 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   detailHeader: { fontSize: 12, fontWeight: "800", color: theme.colors.textSoft, textTransform: "uppercase", marginBottom: 6 },
-  detailList: { maxHeight: 160 },
+  detailList: {},
   detailRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, gap: 8 },
   detailRowRtl: { flexDirection: "row-reverse" },
   detailDate: { fontSize: 13, fontWeight: "700", color: theme.colors.text },
   detailTier: { fontSize: 12, fontWeight: "600", color: theme.colors.textMuted },
   moreLine: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, marginTop: 4 },
-  actions: { flexDirection: "row", gap: theme.spacing.sm, justifyContent: "flex-end" },
+  // Wraps on very narrow windows (two 120px buttons do not fit a 320px dialog), stacking full-width instead of overflowing.
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm, justifyContent: "flex-end" },
   actionsRtl: { flexDirection: "row-reverse" },
   btn: { flexGrow: 1, flexShrink: 1, minWidth: 120 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
