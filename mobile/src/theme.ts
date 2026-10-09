@@ -35,7 +35,7 @@ export const theme = {
     /** On light-ish inputs */
     textOnLight: "#0a0a0b",
     textMutedOnLight: "#52525b",
-    textSoftOnLight: "#71717a",
+    textSoftOnLight: "#5f5f68", // ≥4.5:1 on the light input surface (#71717a was 4.25:1)
     placeholderOnLight: "#a1a1aa",
     error: "#ef4444",
     errorBg: "#2a1515",

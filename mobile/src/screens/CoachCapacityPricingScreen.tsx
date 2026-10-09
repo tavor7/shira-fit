@@ -435,5 +435,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     marginBottom: theme.spacing.sm,
   },
-  disabledWrap: { opacity: 0.55 },
+  // No blanket dimming: the Add button shows its own disabled state, and the "pick a coach" instruction must stay readable.
+  disabledWrap: {},
 });

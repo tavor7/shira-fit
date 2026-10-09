@@ -27,7 +27,7 @@ type Props = {
 };
 
 /** Dark or white initials, whichever contrasts more with the circle colour (fixed dark text was 4.2:1 on blue). */
-function readableOn(hex: string): string {
+export function readableOn(hex: string): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return theme.colors.ctaText;
   const lin = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));

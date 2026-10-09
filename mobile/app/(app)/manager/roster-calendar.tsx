@@ -294,7 +294,7 @@ export default function ManagerRosterCalendarScreen() {
   if (authLoading || (user && !profile)) {
     return (
       <View style={{ flex: 1, justifyContent: "center", backgroundColor: theme.colors.background }}>
-        <ActivityIndicator size="large" color={theme.colors.cta} />
+        <ActivityIndicator size="large" color={theme.colors.cta} accessibilityLabel={t("common.loading")} />
       </View>
     );
   }
@@ -375,7 +375,7 @@ export default function ManagerRosterCalendarScreen() {
               ? t("rosterCalendar.namesOnCalendar")
               : t("rosterCalendar.rostersForWeek")}
           </Text>
-          {groupMode && namesLoading ? <ActivityIndicator size="small" color={theme.colors.cta} /> : null}
+          {groupMode && namesLoading ? <ActivityIndicator size="small" color={theme.colors.cta} accessibilityLabel={t("common.loading")} /> : null}
         </View>
 
         {!groupMode && grouped.length === 0 ? (

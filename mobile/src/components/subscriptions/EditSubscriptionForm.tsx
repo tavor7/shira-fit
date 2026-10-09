@@ -205,7 +205,7 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
 
           <View style={sf.card}>
             <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.edit.priceLabel")}</Text>
-            <TextInput value={price} onChangeText={setPrice} keyboardType="decimal-pad" inputMode="decimal" style={[sf.control, sf.controlInput, isRTL && styles.rtlInput]} />
+            <TextInput value={price} onChangeText={setPrice} keyboardType="decimal-pad" inputMode="decimal" accessibilityLabel={t("subscriptions.edit.priceLabel")} style={[sf.control, sf.controlInput, isRTL && styles.rtlInput]} />
           </View>
 
           <View style={sf.card}>
