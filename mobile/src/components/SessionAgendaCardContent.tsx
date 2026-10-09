@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   time: { fontWeight: "800", color: theme.colors.cta, fontSize: 15, letterSpacing: 0.2, lineHeight: 18, flexShrink: 0 },
   timeCompact: { fontSize: 13, lineHeight: 16, letterSpacing: 0 },
-  timePast: { color: theme.colors.textSoft, fontWeight: "600" },
+  timePast: { color: theme.colors.textMuted, fontWeight: "600" },
   timeLive: { color: theme.colors.success, fontWeight: "900" },
   livePill: {
     paddingHorizontal: 7,

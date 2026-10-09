@@ -719,8 +719,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   /** Ended: de-emphasised but readable — at 0.78 muted text keeps ~4.9:1 contrast (0.52 dropped it to ~2:1). */
+  // Dimmed, but past-session text must stay readable (≥4.5:1 with textMuted at this opacity; 0.78 measured 2.5:1).
   cardPast: {
-    opacity: 0.78,
+    opacity: 0.85,
     backgroundColor: theme.colors.surfaceElevated,
     borderColor: theme.colors.border,
   },

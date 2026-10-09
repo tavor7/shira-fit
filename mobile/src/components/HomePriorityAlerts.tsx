@@ -419,7 +419,7 @@ export function HomePriorityAlerts({
             onPress={() => setSheetOpen(true)}
             style={({ pressed }) => [styles.moreRow, pressed && { opacity: 0.85 }]}
             accessibilityRole="button"
-            accessibilityLabel={t("homeAlerts.viewAllHint")}
+            accessibilityLabel={`${interpolate(t("homeAlerts.moreCount"), { n: rest })}, ${t("homeAlerts.viewAllHint")}`}
           >
             <Text style={[styles.moreText, styles.moreTextLink, isRTL && styles.rtl]}>
               {interpolate(t("homeAlerts.moreCount"), { n: rest })}

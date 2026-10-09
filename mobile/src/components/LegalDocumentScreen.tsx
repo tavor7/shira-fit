@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, View } from "react-native";
 import { theme } from "../theme";
 import { formatISODateLong } from "../lib/dateFormat";
 import { useI18n } from "../context/I18nContext";
@@ -36,6 +36,8 @@ export function LegalDocumentScreen({ document }: Props) {
       style={styles.root}
       contentContainerStyle={[styles.container, screenContent]}
       accessibilityRole="none"
+      // Web: the document scrolls inside this view, so keyboard users must be able to focus it to scroll with arrows.
+      {...(Platform.OS === "web" ? { focusable: true, accessibilityLabel: document.title } : {})}
     >
       <AppText variant="display" isRTL={isRTL} style={styles.title} accessibilityRole="header">
         {document.title}

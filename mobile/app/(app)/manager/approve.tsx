@@ -305,7 +305,8 @@ const styles = StyleSheet.create({
   meta: { marginTop: theme.spacing.xs },
   actions: { flexDirection: "row", gap: theme.spacing.sm, marginTop: theme.spacing.sm },
   ok: { flex: 1, backgroundColor: theme.colors.success, padding: theme.spacing.sm, borderRadius: theme.radius.md, alignItems: "center" },
-  okT: { color: theme.colors.white },
+  // Dark text on the green fill (white was 2:1).
+  okT: { color: theme.colors.ctaText },
   reject: {
     flex: 1,
     backgroundColor: theme.colors.errorBg,

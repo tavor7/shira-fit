@@ -587,7 +587,6 @@ export default function ManagerDashboardScreen() {
                     onPress={() => openWeeklyDetail("avg_fill")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={t("dashboard.a11yAvgFill")}
                   >
                     <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileAvgFill")}</AppText>
                     <AppText variant="display" style={styles.tileV}>{Math.round(avgFillDisplay)}%</AppText>
@@ -596,7 +595,6 @@ export default function ManagerDashboardScreen() {
                     onPress={() => openWeeklyDetail("cancellations")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={t("dashboard.a11yCancellations")}
                   >
                     <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileCancellations")}</AppText>
                     <AppText variant="display" style={styles.tileV}>{Math.round(cancellationsDisplay)}</AppText>
@@ -607,7 +605,6 @@ export default function ManagerDashboardScreen() {
                     onPress={() => openWeeklyDetail("no_shows")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={t("dashboard.a11yNoShows")}
                   >
                     <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileNoShows")}</AppText>
                     <AppText variant="display" style={styles.tileV}>{Math.round(noShowsDisplay)}</AppText>
@@ -616,7 +613,6 @@ export default function ManagerDashboardScreen() {
                     onPress={() => openWeeklyDetail("sessions")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={t("dashboard.a11ySessions")}
                   >
                     <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileSessions")}</AppText>
                     <AppText variant="display" style={styles.tileV}>{Math.round(sessionCountDisplay)}</AppText>
@@ -627,7 +623,6 @@ export default function ManagerDashboardScreen() {
                     onPress={() => openWeeklyDetail("waitlist")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={t("dashboard.a11yWaitlist")}
                   >
                     <AppText variant="label" soft style={styles.tileL}>{t("dashboard.waitlist")}</AppText>
                     <AppText variant="display" style={styles.tileV}>{Math.round(waitlistCountDisplay)}</AppText>
@@ -636,7 +631,6 @@ export default function ManagerDashboardScreen() {
                     onPress={() => openWeeklyDetail("checked_in")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={t("dashboard.a11yCheckedIn")}
                   >
                     <AppText variant="label" soft style={styles.tileL}>{t("dashboard.checkedIn")}</AppText>
                     <AppText variant="display" style={styles.tileV}>{Math.round(checkedInCountDisplay)}</AppText>
@@ -675,7 +669,6 @@ export default function ManagerDashboardScreen() {
                 missingAttendance.count > 0 && pressed && styles.tilePressed,
               ]}
               accessibilityRole="button"
-              accessibilityLabel={t("dashboard.a11yMissingAttendance")}
               accessibilityState={{ disabled: missingAttendance.count === 0 }}
             >
               <Text style={styles.alertTileL}>{t("dashboard.missingAttendanceTile")}</Text>
@@ -695,7 +688,6 @@ export default function ManagerDashboardScreen() {
               capacityMismatchCount > 0 && pressed && styles.tilePressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel={t("dashboard.a11yCapacityMismatch")}
             accessibilityState={{ disabled: capacityMismatchCount === 0 }}
           >
             <Text style={styles.alertTileL}>{t("dashboard.capacityMismatchTile")}</Text>

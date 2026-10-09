@@ -27,7 +27,8 @@ export const theme = {
     /** Alert strip subject / lead (readable on small screens; still distinct from `text`) */
     alertSubject: "#d0d0d8",
     textMuted: "#a1a1aa",
-    textSoft: "#71717a",
+    // ≥4.5:1 on every dark surface (#121214–#222228); was #71717a (3.3–3.9:1, below WCAG AA for small text).
+    textSoft: "#8a8a93",
     border: "#2e2e36",
     borderMuted: "#25252c",
     borderInput: "#3f3f48",

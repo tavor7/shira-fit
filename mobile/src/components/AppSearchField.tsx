@@ -118,7 +118,7 @@ export function AppSearchField({
         onSubmitEditing={() => void onSearchRef.current(value)}
       />
       {loading ? (
-        <ActivityIndicator size="small" color={theme.colors.cta} style={styles.trail} />
+        <ActivityIndicator size="small" color={theme.colors.cta} style={styles.trail} accessibilityLabel={t("common.loading")} />
       ) : value.length > 0 ? (
         <Pressable
           onPress={handleClear}
