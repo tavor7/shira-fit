@@ -121,10 +121,11 @@ export default function RootLayout() {
                 full-screen container is noise. Controls inside the dialog keep their own focus rings.
               */
               [aria-modal="true"]:focus { outline: none; }
-              /* Native date/time/select fields reset their outline inline; keyboard focus still needs a visible ring. */
+              /* Native date/time/select fields reset their outline inline; keyboard focus still needs a visible ring.
+                 Drawn inside the field: their rounded wrappers clip overflow, which left only the corners of an outer ring. */
               input[type="date"]:focus-visible, input[type="time"]:focus-visible, select:focus-visible {
                 outline: 2px solid ${theme.colors.text} !important;
-                outline-offset: 2px;
+                outline-offset: -2px;
               }
               [data-search-shell]:focus-within { border-color: ${theme.colors.text}; }
               /*
