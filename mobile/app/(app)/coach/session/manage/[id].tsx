@@ -46,6 +46,7 @@ import {
 } from "../../../../../src/components/SessionSeriesScopeSheet";
 import { rowFlipFor } from "../../../../../src/lib/layoutDirection";
 import { useScreenContentStyle } from "../../../../../src/hooks/useScreenLayout";
+import { EmptyState } from "../../../../../src/components/EmptyState";
 
 type EditSnapshot = {
   date: string;
@@ -410,8 +411,15 @@ export default function CoachSessionManageScreen() {
     return (
       <>
         <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
-      <View style={sf.screen}>
-        <Text style={[styles.err, isRTL && styles.rtlText]}>{t("sessionDetail.forbiddenEdit")}</Text>
+      <View style={[sf.screen, { justifyContent: "center" }, screenContent]}>
+        <EmptyState
+          tone="error"
+          icon="lock-closed-outline"
+          title={t("sessionDetail.forbiddenEdit")}
+          actionLabel={t("common.back")}
+          onAction={() => (router.canGoBack() ? router.back() : router.replace("/(app)/coach/sessions"))}
+          isRTL={isRTL}
+        />
       </View>
       </>
     );
@@ -433,8 +441,15 @@ export default function CoachSessionManageScreen() {
     return (
       <>
         <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
-        <View style={sf.screen}>
-          <Text style={[styles.err, isRTL && styles.rtlText]}>{t("sessionDetail.notFound")}</Text>
+        <View style={[sf.screen, { justifyContent: "center" }, screenContent]}>
+          <EmptyState
+            tone="notFound"
+            title={t("athleteSession.notFound")}
+            body={t("errors.notFound")}
+            actionLabel={t("common.back")}
+            onAction={() => router.replace("/(app)/coach/sessions")}
+            isRTL={isRTL}
+          />
         </View>
       </>
     );
@@ -653,7 +668,6 @@ const styles = StyleSheet.create({
   },
   undoBtnTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
   muted: { marginTop: 12, color: theme.colors.textMuted },
-  err: { color: theme.colors.error, ...theme.typography.body },
   cancelEdit: { marginTop: theme.spacing.sm, paddingVertical: 12, alignItems: "center" },
   cancelEditTxt: { color: theme.colors.textSoft, fontWeight: "800", fontSize: 15 },
   dupCard: { padding: theme.spacing.md },

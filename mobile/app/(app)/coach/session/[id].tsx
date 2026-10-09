@@ -24,6 +24,8 @@ import { AnimatedOptionExpand } from "../../../../src/components/AnimatedOptionE
 import { useCountUp } from "../../../../src/hooks/useCountUp";
 import { rowFlipFor } from "../../../../src/lib/layoutDirection";
 import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
+import { EmptyState } from "../../../../src/components/EmptyState";
+import { classifyUserError } from "../../../../src/lib/userFacingError";
 type W = {
   user_id: string;
   requested_at: string;
@@ -74,6 +76,8 @@ export default function CoachSessionDetail() {
   const [moveTarget, setMoveTarget] = useState<MoveParticipantTarget | null>(null);
   const [coachId, setCoachId] = useState<string | null>(null);
   const [sessionSchedule, setSessionSchedule] = useState<{ session_date: string; start_time: string } | null>(null);
+  // The session row does not exist (deleted / bad link): show "not found" instead of an empty session.
+  const [sessionMissing, setSessionMissing] = useState(false);
   const [isKickbox, setIsKickbox] = useState(false);
   const [myId, setMyId] = useState<string | null>(null);
   const [waitlistQuickUserId, setWaitlistQuickUserId] = useState<string | null>(null);
@@ -131,11 +135,12 @@ export default function CoachSessionDetail() {
     void (async () => {
       const uid = (await supabase.auth.getUser()).data.user?.id ?? null;
       setMyId(uid);
-      const { data: s } = await supabase
+      const { data: s, error: sErr } = await supabase
         .from("training_sessions")
         .select("coach_id, session_date, start_time, max_participants, is_kickbox")
         .eq("id", id)
         .single();
+      setSessionMissing(!s && !!sErr && (classifyUserError(sErr) === "notFound" || sErr.code === "22P02"));
       const row = s as {
         coach_id?: string;
         session_date?: string;
@@ -299,6 +304,21 @@ export default function CoachSessionDetail() {
 
   const maxCapCoach = Math.max(1, sessionMaxParticipants || 1);
   const displayParticipantCount = Math.round(useCountUp(participantCount));
+
+  if (sessionMissing)
+    return (
+      <View style={[styles.root, { justifyContent: "center" }, screenContent]}>
+        <Stack.Screen options={{ title: t("screen.coachSession") }} />
+        <EmptyState
+          tone="notFound"
+          title={t("athleteSession.notFound")}
+          body={t("errors.notFound")}
+          actionLabel={t("common.back")}
+          onAction={() => router.replace("/(app)/coach/sessions")}
+          isRTL={isRTL}
+        />
+      </View>
+    );
 
   return (
     <>

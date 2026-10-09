@@ -91,6 +91,8 @@ import { useCountUp } from "../../../../src/hooks/useCountUp";
 import { rowFlipFor } from "../../../../src/lib/layoutDirection";
 import { displayMoney } from "../../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
+import { EmptyState, ErrorState } from "../../../../src/components/EmptyState";
+import { classifyUserError, userFacingErrorMessage } from "../../../../src/lib/userFacingError";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
@@ -268,6 +270,8 @@ export default function ManagerSessionDetail() {
   const [customCoachRateDraft, setCustomCoachRateDraft] = useState("");
   const [customCoachRateBusy, setCustomCoachRateBusy] = useState(false);
   const [session, setSession] = useState<TrainingSession | null>(null);
+  // Why the session row is missing after a load (deleted / bad id / request failed) — without it the screen stayed on "Loading…".
+  const [loadError, setLoadError] = useState<unknown>(null);
   const [waitlist, setWaitlist] = useState<WaitlistRow[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
   const [editingSession, setEditingSession] = useState(false);
@@ -762,7 +766,8 @@ export default function ManagerSessionDetail() {
     if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
       pushDiag(`load() start id=${String(id)}`);
     }
-    const { data: s } = await supabase.from("training_sessions").select("*").eq("id", id).single();
+    const { data: s, error: sErr } = await supabase.from("training_sessions").select("*").eq("id", id).single();
+    setLoadError(s ? null : sErr ?? { code: "PGRST116" });
     if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
       pushDiag("load() setSession + form fields from DB row");
     }
@@ -1495,6 +1500,34 @@ export default function ManagerSessionDetail() {
   const expectedPaymentsDisplay = useCountUp(attendanceStats.expectedPaymentsIls);
   const withPaymentMethodDisplay = useCountUp(attendanceStats.withPaymentMethod);
   const participantCountDisplay = useCountUp(participantCount);
+
+  if (!session && loadError) {
+    // An invalid id ("22P02") is the same as a missing session for the person looking at it.
+    const missing = classifyUserError(loadError) === "notFound" || (loadError as { code?: string }).code === "22P02";
+    return (
+      <View style={[{ flex: 1, backgroundColor: theme.colors.backgroundAlt }, screenContent]}>
+        <Stack.Screen options={{ title: t("screen.managerSession") }} />
+        {missing ? (
+          <EmptyState
+            tone="notFound"
+            title={t("athleteSession.notFound")}
+            body={t("errors.notFound")}
+            actionLabel={t("common.back")}
+            onAction={() => router.replace("/(app)/manager/sessions")}
+            isRTL={isRTL}
+          />
+        ) : (
+          <ErrorState
+            title={t("errors.loadFailedTitle")}
+            body={userFacingErrorMessage(loadError, t)}
+            actionLabel={t("auth.retryConnection")}
+            onAction={() => void load()}
+            isRTL={isRTL}
+          />
+        )}
+      </View>
+    );
+  }
 
   if (!session)
     return (
