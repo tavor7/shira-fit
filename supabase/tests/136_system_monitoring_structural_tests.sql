@@ -165,6 +165,8 @@ declare
     '_system_cron_jobs', '_system_cron_max_runid', '_system_cron_recent_runs', '_system_cron_runs',
     '_system_job_key', '_system_job_observe', '_system_job_stale_after_s', '_system_jobcfg_bool',
     '_system_jobcfg_int', '_system_jobcfg_paused_until',
+    '_system_jobcfg_text', '_system_job_issue_mode', '_system_job_issue_severity', '_system_job_issue_message',
+    '_system_job_issue_key', '_system_job_issue_payload', '_system_issue_auto_recover', '_system_job_report_cycle',
     '_system_ingest_impl', '_system_limit', '_system_monitoring_maintenance', '_system_normalize_template',
     '_system_pick_rule', '_system_pick_text', '_system_rank_sev', '_system_reapply_rules', '_system_redact',
     '_system_ret', '_system_sanitize_map', '_system_sev_rank', '_system_stack_origin',
@@ -181,7 +183,7 @@ begin
   if v_found <> (select array_agg(x order by x) from unnest(v_expected) x) then
     raise exception 'T7 FAILED: monitoring functions are %, expected %', v_found, v_expected;
   end if;
-  raise notice 'T7 PASSED: the monitoring function set is exactly the approved 36 functions (26 Phase 1 + 10 observer)';
+  raise notice 'T7 PASSED: the monitoring function set is exactly the approved 44 functions (26 Phase 1 + 10 observer + 8 issue reporting)';
 
   -- T8: ownership, definer/invoker, pinned search_path, EXECUTE matrix.
   for r in
@@ -200,7 +202,9 @@ begin
       '_system_pick_rule', '_system_pick_text', '_system_stack_origin', '_system_ret',
       '_system_cron_jobs', '_system_cron_max_runid', '_system_cron_recent_runs', '_system_cron_runs',
       '_system_job_key', '_system_job_stale_after_s', '_system_jobcfg_bool', '_system_jobcfg_int',
-      '_system_jobcfg_paused_until');
+      '_system_jobcfg_paused_until',
+      '_system_jobcfg_text', '_system_job_issue_mode', '_system_job_issue_severity', '_system_job_issue_message',
+      '_system_job_issue_key', '_system_job_issue_payload');
     if r.prosecdef <> v_def then
       raise exception 'T8 FAILED: % has prosecdef=% (expected %)', r.sig, r.prosecdef, v_def;
     end if;
@@ -224,8 +228,8 @@ begin
       raise exception 'T8 FAILED: % has a PUBLIC grantee', r.sig;
     end if;
   end loop;
-  if v_n <> 36 then raise exception 'T8 FAILED: inspected % functions, expected 36', v_n; end if;
-  raise notice 'T8 PASSED: ownership, definer/invoker, search_path and the full EXECUTE matrix are exact (36 functions)';
+  if v_n <> 44 then raise exception 'T8 FAILED: inspected % functions, expected 44', v_n; end if;
+  raise notice 'T8 PASSED: ownership, definer/invoker, search_path and the full EXECUTE matrix are exact (44 functions)';
 
   -- T9: the monitoring authorization model must not depend on is_super_user or on the arbitrary-uid
   -- is_manager(uid) helper, in any function or policy.

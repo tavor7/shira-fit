@@ -190,7 +190,8 @@ begin
            where p.pronamespace = 'public'::regnamespace
              and p.proname in ('_system_job_observe', '_system_jobcfg_int', '_system_jobcfg_bool', '_system_jobcfg_paused_until',
                                '_system_job_key', '_system_job_stale_after_s', '_system_cron_jobs', '_system_cron_max_runid',
-                               '_system_cron_runs', '_system_cron_recent_runs') loop
+                               '_system_cron_runs', '_system_cron_recent_runs', '_system_jobcfg_text', '_system_job_issue_mode', '_system_job_issue_severity',
+                               '_system_job_issue_message', '_system_job_issue_key', '_system_job_issue_payload', '_system_issue_auto_recover', '_system_job_report_cycle') loop
     foreach v_role in array array['public', 'anon', 'authenticated', 'service_role'] loop
       if has_function_privilege(v_role, r.oid, 'EXECUTE') then raise exception 'S8 FAILED: % executes %', v_role, r.sig; end if;
     end loop;

@@ -87,7 +87,7 @@ begin
       last_technical_success_at = null, last_failure_at = null, last_status = null, last_technical_outcome = 'unknown', last_outcome = 'unknown',
       consecutive_failures = 0, consecutive_ok = 0, last_duration_ms = null, last_result = '{}', stale = false, stale_since = null,
       shadow = '{}', last_observed_at = null, cron_jobid = null, present = true, missing_since = null, grace_until = null,
-      schedule = null, command_hash = null;
+      schedule = null, command_hash = null, reporting = '{}';
     -- runs in time order (runid order == start order, as in pg_cron), incl. the observer's own run at every tick
     truncate fk_runs restart identity;
     insert into fk_runs (jobid, status, return_message, start_time, end_time)
@@ -139,6 +139,16 @@ begin
     raise exception 'C3 FAILED: the replay created issue rows';
   end if;
   raise notice 'C3 PASSED: zero issue rows created during the replay';
+
+  -- Phase 2.4: the reporting layer (dry_run by default) must have made ZERO decisions over the whole replay.
+  if exists (select 1 from public.system_job_state where job_key <> 'system-monitor-observe' and reporting <> '{}'::jsonb)
+     or exists (select 1 from public.system_job_state where job_key = 'system-monitor-observe'
+                and (jsonb_array_length(coalesce(reporting -> 'recent', '[]')) > 0
+                     or coalesce((reporting -> 'totals' ->> 'open')::int, 0) + coalesce((reporting -> 'totals' ->> 'update')::int, 0)
+                        + coalesce((reporting -> 'totals' ->> 'resolve')::int, 0) + coalesce((reporting -> 'totals' ->> 'fail')::int, 0) > 0)) then
+    raise exception 'C5 FAILED: the issue-reporting layer made decisions during a healthy replay: %', (select jsonb_agg(reporting) from public.system_job_state where reporting <> '{}'::jsonb);
+  end if;
+  raise notice 'C5 PASSED: Phase 2.4 reporting made zero decisions over 8064 healthy observer cycles';
 
   -- Negative control: the scheduler stops after the last real run; the detector must fire at the right time.
   perform set_config('fk.now', to_timestamp(c_last + 600)::text, true);
