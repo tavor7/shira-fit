@@ -57,6 +57,7 @@ import { rowFlipFor } from "../lib/layoutDirection";
 import { displayTimeRange, displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { pluralKey } from "../lib/pluralKey";
+import { ReportPageHeader } from "../components/ReportPageHeader";
 
 export default function ParticipantHistoryScreen({
   hideTitle = false,
@@ -1141,12 +1142,13 @@ export default function ParticipantHistoryScreen({
         ListHeaderComponent={
           <>
             {headerExtra}
+            {!hideTitle ? (
+              <ReportPageHeader
+                title={t(isCoachHistory ? "menu.coachHistory" : "menu.athleteActivity")}
+                description={isCoachHistory ? undefined : t("reports.athleteTabHint")}
+              />
+            ) : null}
             <View style={styles.filters}>
-              {!hideTitle ? (
-                <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>
-                  {t(isCoachHistory ? "menu.coachHistory" : "menu.athleteActivity")}
-                </Text>
-              ) : null}
               <ReportDateRangeControls
                 start={start}
                 end={end}

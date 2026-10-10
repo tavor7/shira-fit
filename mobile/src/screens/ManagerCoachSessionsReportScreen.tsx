@@ -28,6 +28,7 @@ import { rowFlipFor } from "../lib/layoutDirection";
 import { displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { pluralKey } from "../lib/pluralKey";
+import { ReportPageHeader } from "../components/ReportPageHeader";
 
 function formatPayout(n: number) {
   return displayMoney(n);
@@ -226,10 +227,8 @@ export default function ManagerCoachSessionsReportScreen({
         ListHeaderComponent={
           <>
             {headerExtra}
+            {!hideTitle ? <ReportPageHeader title={t("menu.coachHistory")} description={t("reports.coachTabHint")} /> : null}
             <View style={styles.filters}>
-              {!hideTitle ? (
-                <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t("menu.coachHistory")}</Text>
-              ) : null}
               <ReportDateRangeControls start={start} end={end} onChange={onDateRangeChange} />
             </View>
 
