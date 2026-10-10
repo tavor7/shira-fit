@@ -111,7 +111,7 @@ export function SessionSlotRateField({
               placeholder={
                 tierPriceIls != null ? String(tierPriceIls) : t("ui.sessionSlotRateField.rate")
               }
-              placeholderTextColor={theme.colors.placeholderOnLight}
+              placeholderTextColor={theme.colors.fieldPlaceholder}
               editable={!disabled && !applyBusy}
             />
             <Text style={styles.currency}>₪</Text>

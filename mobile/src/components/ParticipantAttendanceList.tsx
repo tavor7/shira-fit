@@ -1095,7 +1095,7 @@ export function ParticipantAttendanceList({
                   value={payAmountDraft}
                   onChangeText={setPayAmountDraft}
                   placeholder={t("ui.participantAttendanceList.eG120")}
-                  placeholderTextColor={theme.colors.placeholderOnLight}
+                  placeholderTextColor={theme.colors.fieldPlaceholder}
                   keyboardType="decimal-pad"
                   autoFocus
                 />

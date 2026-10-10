@@ -93,7 +93,7 @@ export function EditSessionAmountModal({
           onChangeText={onAmountStrChange}
           keyboardType="decimal-pad"
           placeholder={t("ui.editSessionAmount.eG90")}
-          placeholderTextColor={theme.colors.placeholderOnLight}
+          placeholderTextColor={theme.colors.fieldPlaceholder}
           style={styles.inputLight}
           editable={!busy && method !== ""}
         />

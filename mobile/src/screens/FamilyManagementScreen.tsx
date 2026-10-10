@@ -372,7 +372,7 @@ export default function FamilyManagementScreen() {
             value={familyName}
             onChangeText={setFamilyName}
             placeholder={t("families.namePlaceholder")}
-            placeholderTextColor={theme.colors.placeholderOnLight}
+            placeholderTextColor={theme.colors.fieldPlaceholder}
             style={[styles.input, isRTL && styles.inputRtl]}
             editable={!saving}
           />
@@ -587,8 +587,8 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 6,
     fontSize: 16,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+    backgroundColor: theme.colors.fieldBg,
+    color: theme.colors.fieldText,
   },
   inputRtl: { textAlign: "right" },
 });

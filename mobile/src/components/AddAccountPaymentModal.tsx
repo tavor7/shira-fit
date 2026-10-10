@@ -227,7 +227,7 @@ export function AddAccountPaymentModal({
           onChangeText={setAmount}
           keyboardType="decimal-pad"
           placeholder="0"
-          placeholderTextColor={theme.colors.placeholderOnLight}
+          placeholderTextColor={theme.colors.fieldPlaceholder}
           style={[styles.input, isRTL && styles.inputRtl]}
           editable={!busy}
         />
@@ -269,7 +269,7 @@ export function AddAccountPaymentModal({
               value={payerName}
               onChangeText={setPayerName}
               placeholder={t("families.payerNamePlaceholder")}
-              placeholderTextColor={theme.colors.placeholderOnLight}
+              placeholderTextColor={theme.colors.fieldPlaceholder}
               style={[styles.input, isRTL && styles.inputRtl]}
               editable={!busy}
             />
@@ -280,7 +280,7 @@ export function AddAccountPaymentModal({
           value={note}
           onChangeText={setNote}
           placeholder="…"
-          placeholderTextColor={theme.colors.placeholderOnLight}
+          placeholderTextColor={theme.colors.fieldPlaceholder}
           style={[styles.input, isRTL && styles.inputRtl]}
           editable={!busy}
         />
@@ -324,8 +324,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     padding: 12,
     fontSize: 16,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+    backgroundColor: theme.colors.fieldBg,
+    color: theme.colors.fieldText,
   },
   inputRtl: { textAlign: "right" },
   methodRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

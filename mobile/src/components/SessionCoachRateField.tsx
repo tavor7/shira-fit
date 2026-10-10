@@ -112,7 +112,7 @@ export function SessionCoachRateField({
               placeholder={
                 defaultRateIls != null ? String(defaultRateIls) : t("ui.sessionCoachRateField.rate")
               }
-              placeholderTextColor={theme.colors.placeholderOnLight}
+              placeholderTextColor={theme.colors.fieldPlaceholder}
               editable={!disabled && !applyBusy}
             />
             <Text style={styles.currency}>₪</Text>

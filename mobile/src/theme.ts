@@ -37,6 +37,11 @@ export const theme = {
     textMutedOnLight: "#52525b",
     textSoftOnLight: "#5f5f68", // ≥4.5:1 on the light input surface (#71717a was 4.25:1)
     placeholderOnLight: "#a1a1aa",
+    /** Phase 5 / F: one dark filled field everywhere (elevated surface, light text; focus = 2px light border). */
+    fieldBg: "#222228",
+    fieldText: "#f4f4f5",
+    /** ≥4.5:1 on fieldBg. */
+    fieldPlaceholder: "#8a8a93",
     error: "#ef4444",
     errorBg: "#2a1515",
     errorBorder: "#7f1d1d",

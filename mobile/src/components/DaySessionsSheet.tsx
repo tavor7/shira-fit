@@ -615,7 +615,7 @@ export function DaySessionsSheet({
                   value={nfTitle}
                   onChangeText={setNfTitle}
                   style={[styles.studioNoteInput, styles.studioNoteInputTitle]}
-                  placeholderTextColor={theme.colors.placeholderOnLight}
+                  placeholderTextColor={theme.colors.fieldPlaceholder}
                   editable={!noteBusy}
                 />
                 <Text style={[styles.studioNoteFormLabel, isRTL && styles.rtlText]}>{t("calendarNotes.fieldDetail")}</Text>
@@ -624,7 +624,7 @@ export function DaySessionsSheet({
                   onChangeText={setNfDetail}
                   style={[styles.studioNoteInput, styles.studioNoteInputMulti, isRTL && styles.rtlText]}
                   multiline
-                  placeholderTextColor={theme.colors.placeholderOnLight}
+                  placeholderTextColor={theme.colors.fieldPlaceholder}
                   editable={!noteBusy}
                 />
                 <DateRangeFormPanel

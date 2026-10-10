@@ -168,7 +168,7 @@ export function RosterSlotRateChip({
               placeholder={
                 effectivePriceIls > 0 ? String(effectivePriceIls) : t("ui.rosterSlotRateChip.rate")
               }
-              placeholderTextColor={theme.colors.placeholderOnLight}
+              placeholderTextColor={theme.colors.fieldPlaceholder}
               editable={!saving}
             />
             <Text style={styles.currency}>₪</Text>

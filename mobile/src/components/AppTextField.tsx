@@ -106,7 +106,7 @@ export const AppTextField = forwardRef<TextInput, Props>(function AppTextField(
             isPasswordField && (isRTL ? styles.inputPadLeft : styles.inputPadRight),
             style,
           ]}
-          placeholderTextColor={placeholderTextColor ?? (isDark ? theme.colors.textSoft : theme.colors.placeholderOnLight)}
+          placeholderTextColor={placeholderTextColor ?? theme.colors.fieldPlaceholder}
           accessibilityLabel={a11yLabel}
           secureTextEntry={isPasswordField && !revealed}
           nativeID={nativeID}
@@ -179,12 +179,12 @@ const styles = StyleSheet.create({
   },
   inputPaper: {
     borderColor: theme.colors.borderInput,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+    backgroundColor: theme.colors.fieldBg,
+    color: theme.colors.fieldText,
   },
   inputDark: {
     borderColor: theme.colors.borderInput,
-    backgroundColor: theme.colors.backgroundAlt,
+    backgroundColor: theme.colors.fieldBg,
     color: theme.colors.text,
   },
   /** Focus: a brighter, 2px border (padding absorbs the extra pixel so text does not move). */
