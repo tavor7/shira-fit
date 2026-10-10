@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 import { Stack, Redirect, usePathname, type Href } from "expo-router";
-import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
 import { syncExpoPushTokenIfNeeded } from "../../src/lib/pushTokenSync";
 import { syncWebPushSubscriptionIfNeeded } from "../../src/lib/webPushSync";
 import { AppHeaderRight } from "../../src/components/AppHeaderRight";
 import { AppHeaderTitle } from "../../src/components/AppHeaderTitle";
+import { StaffSideRail } from "../../src/components/StaffSideRail";
+import { useStaffRailVisible } from "../../src/hooks/useStaffRail";
 import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
 import { theme } from "../../src/theme";
 import { appHeaderStyle, appHeaderTitleStyle } from "../../src/theme/headerStyles";
@@ -35,6 +37,7 @@ export default function AppLayout() {
   const { t } = useI18n();
   const pathname = usePathname() ?? "";
   const { enabled: managerAthletePreview, storageReady: managerPreviewStorageReady } = useManagerAthletePreview();
+  const staffRail = useStaffRailVisible();
   useAndroidSessionsBackHandler(!!session && !loading && !authUnavailable);
 
   /**
@@ -138,6 +141,10 @@ export default function AppLayout() {
       <ReceiptRequirementsGateModal />
       <NotificationActivationModal />
       <ManagerDirectMessageModal />
+      {/* Phase 5 / D: persistent staff navigation beside the screens on wide web; mirrors in Hebrew via <html dir>. */}
+      <View style={styles.shell}>
+      {staffRail ? <StaffSideRail /> : null}
+      <View style={styles.stackArea}>
       <Stack
       screenOptions={{
         headerShown: true,
@@ -159,6 +166,13 @@ export default function AppLayout() {
         animation: Platform.OS === "web" ? "fade" : "slide_from_bottom",
       }}
     />
+      </View>
+      </View>
     </AppPresenceProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  shell: { flex: 1, flexDirection: "row" },
+  stackArea: { flex: 1, minWidth: 0 },
+});

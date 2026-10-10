@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Animated, type LayoutChangeEvent, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import type { AppIconName } from "./AppIcon";
+import { Animated, type LayoutChangeEvent, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { theme } from "../theme";
 import { selectionA11y } from "../lib/a11ySelection";
@@ -380,51 +381,73 @@ export function ManagerMoneyHubTabs() {
   );
 }
 
-/** Studio setup: edit users, colors, roles, opening (no link back to overview — use the menu). */
-export function ManagerStudioSetupTabs() {
-  const { t } = useI18n();
+/** Below this width Studio setup is an index list with drill-down instead of a tab strip (Phase 5 / H). */
+export const STUDIO_SETUP_INDEX_MAX_WIDTH = 768;
 
-  const tabs = useMemo<ManagerPillTabItem[]>(
+export type StudioSetupItem = ManagerPillTabItem & { icon: AppIconName; description: string };
+
+/** Studio setup destinations — shared by the tab strip (wider screens) and the mobile index. */
+export function useStudioSetupItems(): StudioSetupItem[] {
+  const { t } = useI18n();
+  return useMemo<StudioSetupItem[]>(
     () => [
       {
         id: "users",
         label: t("menu.editUsers"),
+        icon: "people-outline",
+        description: t("setup.desc.users"),
         href: "/(app)/staff/users",
         isActive: (p) => startsWithAny(p, ["/staff/users", "/staff/profile", "/staff/manual"]),
       },
       {
         id: "families",
         label: t("menu.families"),
+        icon: "home-outline",
+        description: t("setup.desc.families"),
         href: "/(app)/manager/families",
         isActive: (p) => startsWithAny(p, ["/manager/families"]),
       },
       {
         id: "opening",
         label: t("menu.openingSchedule"),
+        icon: "time-outline",
+        description: t("setup.desc.opening"),
         href: "/(app)/manager/opening-schedule",
         isActive: (p) => startsWithAny(p, ["/manager/opening-schedule"]),
       },
       {
         id: "birthdays",
         label: t("menu.birthdayMessages"),
+        icon: "gift-outline",
+        description: t("setup.desc.birthdays"),
         href: "/(app)/manager/birthday-messages",
         isActive: (p) => startsWithAny(p, ["/manager/birthday-messages"]),
       },
       {
         id: "whatsapp",
         label: t("menu.whatsappRollout"),
+        icon: "logo-whatsapp",
+        description: t("setup.desc.whatsapp"),
         href: "/(app)/manager/whatsapp-rollout",
         isActive: (p) => startsWithAny(p, ["/manager/whatsapp-rollout"]),
       },
       {
         id: "legal",
         label: t("menu.legalSettings"),
+        icon: "shield-checkmark-outline",
+        description: t("setup.desc.legal"),
         href: "/(app)/manager/legal-settings",
         isActive: (p) => startsWithAny(p, ["/manager/legal-settings"]),
       },
     ],
     [t]
   );
+}
 
+/** Studio setup tab strip — wider screens only; phones get the index (app/(app)/manager/setup) and Back instead. */
+export function ManagerStudioSetupTabs() {
+  const tabs = useStudioSetupItems();
+  const { width } = useWindowDimensions();
+  if (width < STUDIO_SETUP_INDEX_MAX_WIDTH) return null;
   return <ManagerPillTabBar tabs={tabs} density="compact" />;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { router, usePathname } from "expo-router";
 import { theme } from "../theme";
 import { useAuth } from "../context/AuthContext";
@@ -9,22 +9,27 @@ import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { useEffectiveNavRole } from "../context/ManagerAthletePreviewContext";
 import { rpcGetMySubscription } from "../lib/athleteSubscription";
+import type { AppIconName } from "./AppIcon";
+import { useStaffRailVisible } from "../hooks/useStaffRail";
+import { STUDIO_SETUP_INDEX_MAX_WIDTH } from "./ManagerOverviewTabs";
 
-type RouteItem = FoldableActionsMenuItem & {
-  /** Match current pathname; when true we hide the item. */
+export type RouteItem = FoldableActionsMenuItem & {
+  /** Match current pathname; when true we hide the item (menu) or mark it current (desktop rail). */
   isActive: (pathname: string) => boolean;
+  /** Icon for the desktop side rail (Phase 5 / D). */
+  icon?: AppIconName;
 };
 
 function startsWithAny(pathname: string, prefixes: string[]) {
   return prefixes.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname.startsWith(p));
 }
 
-export function GlobalQuickMenu() {
+/** Role-specific destinations — one source for the mobile menu and the desktop staff rail. */
+export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
   const { profile } = useAuth();
   const { t } = useI18n();
-  const openMenuA11y = t("a11y.openMenu");
-  const closeMenuA11y = t("a11y.closeMenu");
   const pathname = usePathname() ?? "";
+  const { width } = useWindowDimensions();
   const [pendingApproveCount, setPendingApproveCount] = useState(0);
   const [hasSubscription, setHasSubscription] = useState(false);
 
@@ -79,6 +84,7 @@ export function GlobalQuickMenu() {
 
     const legalItem: RouteItem = {
       label: t("legal.footerHeading"),
+        icon: "document-text-outline",
       onPress: () => router.push("/legal" as never),
       isActive: (p) => startsWithAny(p, ["/legal"]),
     };
@@ -92,16 +98,19 @@ export function GlobalQuickMenu() {
       const managerItems: RouteItem[] = [
         {
           label: t("menu.sessions"),
+        icon: "calendar-outline",
           onPress: () => router.push("/(app)/manager/sessions"),
           isActive: (p) => startsWithAny(p, ["/manager/sessions"]),
         },
         {
           label: t("menu.rosterCalendar"),
+        icon: "list-outline",
           onPress: () => router.push("/(app)/manager/roster-calendar"),
           isActive: (p) => startsWithAny(p, ["/manager/roster-calendar"]),
         },
         {
           label: t("menu.overview"),
+        icon: "stats-chart-outline",
           onPress: () => router.push("/(app)/manager/dashboard"),
           isActive: (p) =>
             startsWithAny(p, [
@@ -118,6 +127,7 @@ export function GlobalQuickMenu() {
         },
         {
           label: t("menu.money"),
+        icon: "wallet-outline",
           onPress: () => router.push("/(app)/manager/account-payments"),
           isActive: (p) =>
             startsWithAny(p, [
@@ -130,9 +140,12 @@ export function GlobalQuickMenu() {
         },
         {
           label: t("menu.managerSetup"),
-          onPress: () => router.push("/(app)/staff/users"),
+        icon: "settings-outline",
+          onPress: () =>
+            router.push((width < STUDIO_SETUP_INDEX_MAX_WIDTH ? "/(app)/manager/setup" : "/(app)/staff/users") as never),
           isActive: (p) =>
             startsWithAny(p, [
+              "/manager/setup",
               "/staff/users",
               "/staff/profile",
               "/staff/manual",
@@ -140,10 +153,12 @@ export function GlobalQuickMenu() {
               "/manager/opening-schedule",
               "/manager/birthday-messages",
               "/manager/whatsapp-rollout",
+              "/manager/legal-settings",
             ]),
         },
         {
           label: t("menu.approve"),
+        icon: "person-add-outline",
           onPress: () => router.push("/(app)/manager/approve"),
           isActive: (p) => startsWithAny(p, ["/manager/approve"]),
           badgeCount: pendingApproveCount > 0 ? pendingApproveCount : undefined,
@@ -153,6 +168,7 @@ export function GlobalQuickMenu() {
       if (profile?.is_super_user === true) {
         managerItems.push({
           label: t("menu.superUserHidden"),
+        icon: "eye-off-outline",
           onPress: () => router.push("/(app)/super/hidden-workouts" as never),
           isActive: (p) => startsWithAny(p, ["/super/hidden-workouts"]),
         });
@@ -165,31 +181,37 @@ export function GlobalQuickMenu() {
       return [
         {
           label: t("menu.sessions"),
+        icon: "calendar-outline",
           onPress: () => router.push("/(app)/coach/sessions"),
           isActive: (p) => startsWithAny(p, ["/coach/sessions"]),
         },
         {
           label: t("menu.editUsers"),
+        icon: "people-outline",
           onPress: () => router.push("/(app)/staff/users"),
           isActive: (p) => startsWithAny(p, ["/staff/users", "/staff/profile", "/staff/manual"]),
         },
         {
           label: t("menu.search"),
+        icon: "search-outline",
           onPress: () => router.push("/(app)/staff/search"),
           isActive: (p) => startsWithAny(p, ["/staff/search"]),
         },
         {
           label: t("menu.participantHistory"),
+        icon: "time-outline",
           onPress: () => router.push("/(app)/coach/participant-history"),
           isActive: (p) => startsWithAny(p, ["/coach/participant-history"]),
         },
         {
           label: t("menu.pricingHub"),
+        icon: "pricetags-outline",
           onPress: () => router.push("/(app)/coach/pricing" as never),
           isActive: (p) => startsWithAny(p, ["/coach/pricing"]),
         },
         {
           label: t("menu.createSession"),
+        icon: "add-circle-outline",
           onPress: () => router.push("/(app)/coach/create-session"),
           isActive: (p) => startsWithAny(p, ["/coach/create-session"]),
         },
@@ -201,11 +223,13 @@ export function GlobalQuickMenu() {
     const athleteItems: RouteItem[] = [
       {
         label: t("menu.sessions"),
+        icon: "calendar-outline",
         onPress: () => router.push("/(app)/athlete/sessions"),
         isActive: (p) => startsWithAny(p, ["/athlete/sessions"]),
       },
       {
         label: t("menu.mySessionsShort"),
+        icon: "bookmark-outline",
         onPress: () => router.push("/(app)/athlete/my-sessions"),
         isActive: (p) => startsWithAny(p, ["/athlete/my-sessions"]),
       },
@@ -213,6 +237,7 @@ export function GlobalQuickMenu() {
     if (hasSubscription) {
       athleteItems.push({
         label: t("athleteSubscription.title"),
+        icon: "card-outline",
         onPress: () => router.push("/(app)/athlete/subscription"),
         isActive: (p) => startsWithAny(p, ["/athlete/subscription"]),
       });
@@ -221,6 +246,7 @@ export function GlobalQuickMenu() {
     return athleteItems;
   }, [
     navRole,
+    width,
     profile?.role,
     profile?.approval_status,
     pendingApproveCount,
@@ -228,9 +254,19 @@ export function GlobalQuickMenu() {
     t,
   ]);
 
+  return { items, pathname };
+}
+
+export function GlobalQuickMenu() {
+  const { t } = useI18n();
+  const openMenuA11y = t("a11y.openMenu");
+  const closeMenuA11y = t("a11y.closeMenu");
+  const { items, pathname } = useAppNavItems();
+  const railVisible = useStaffRailVisible();
   const visible = useMemo(() => items.filter((i) => !i.isActive(pathname)), [items, pathname]);
-  // Pending / disabled athletes have no destinations; their account actions are in the account menu.
-  if (visible.length === 0) return null;
+  // Pending / disabled athletes have no destinations (account actions live in the account menu);
+  // on wide staff screens the persistent side rail replaces this menu.
+  if (railVisible || visible.length === 0) return null;
 
   return (
     <View style={styles.wrap}>
