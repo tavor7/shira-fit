@@ -7,11 +7,7 @@ import { isAthleteAccountDisabled } from "../lib/profileAccount";
 import { FoldableActionsMenu, type FoldableActionsMenuItem } from "./FoldableActionsMenu";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
-import {
-  useEffectiveNavRole,
-  useManagerAthletePreview,
-} from "../context/ManagerAthletePreviewContext";
-import { replaceToManagerSessions } from "../lib/managerSessionsRedirectLog";
+import { useEffectiveNavRole } from "../context/ManagerAthletePreviewContext";
 import { rpcGetMySubscription } from "../lib/athleteSubscription";
 
 type RouteItem = FoldableActionsMenuItem & {
@@ -24,8 +20,8 @@ function startsWithAny(pathname: string, prefixes: string[]) {
 }
 
 export function GlobalQuickMenu() {
-  const { profile, loading: authLoading, user } = useAuth();
-  const { t, language, toggleLanguage } = useI18n();
+  const { profile } = useAuth();
+  const { t } = useI18n();
   const openMenuA11y = t("a11y.openMenu");
   const closeMenuA11y = t("a11y.closeMenu");
   const pathname = usePathname() ?? "";
@@ -77,16 +73,9 @@ export function GlobalQuickMenu() {
   }, [profile?.role, profile?.approval_status, profile?.disabled_at, pathname]);
 
   const navRole = useEffectiveNavRole(profile);
-  const { setEnabled } = useManagerAthletePreview();
 
   const items = useMemo<RouteItem[]>(() => {
     const role = navRole;
-
-    const languageItem: RouteItem = {
-      label: language === "he" ? t("lang.english") : t("lang.hebrew"),
-      onPress: () => toggleLanguage(),
-      isActive: () => false,
-    };
 
     const legalItem: RouteItem = {
       label: t("legal.footerHeading"),
@@ -95,7 +84,7 @@ export function GlobalQuickMenu() {
     };
 
     if (profile?.role === "athlete" && (profile?.approval_status === "pending" || isAthleteAccountDisabled(profile))) {
-      return [languageItem];
+      return [];
     }
 
     // A minimal set that stays consistent across pages.
@@ -169,18 +158,6 @@ export function GlobalQuickMenu() {
         });
       }
 
-      managerItems.push(
-        {
-          label: t("menu.athleteView"),
-          onPress: async () => {
-            await setEnabled(true);
-            router.replace("/(app)/athlete/sessions");
-          },
-          isActive: () => false,
-        },
-        languageItem,
-      );
-
       return managerItems;
     }
 
@@ -217,7 +194,6 @@ export function GlobalQuickMenu() {
           isActive: (p) => startsWithAny(p, ["/coach/create-session"]),
         },
         legalItem,
-        languageItem,
       ];
     }
 
@@ -241,21 +217,7 @@ export function GlobalQuickMenu() {
         isActive: (p) => startsWithAny(p, ["/athlete/subscription"]),
       });
     }
-    if (profile?.role === "manager") {
-      athleteItems.push({
-        label: t("menu.backToStaff"),
-        onPress: async () => {
-          await setEnabled(false);
-          replaceToManagerSessions("src/components/GlobalQuickMenu.tsx", "athlete_preview_back_to_staff", {
-            authLoading,
-            authUserId: user?.id ?? null,
-            profileRole: profile?.role ?? null,
-          });
-        },
-        isActive: () => false,
-      });
-    }
-    athleteItems.push(legalItem, languageItem);
+    athleteItems.push(legalItem);
     return athleteItems;
   }, [
     navRole,
@@ -264,14 +226,11 @@ export function GlobalQuickMenu() {
     pendingApproveCount,
     hasSubscription,
     t,
-    language,
-    toggleLanguage,
-    setEnabled,
-    authLoading,
-    user?.id,
   ]);
 
   const visible = useMemo(() => items.filter((i) => !i.isActive(pathname)), [items, pathname]);
+  // Pending / disabled athletes have no destinations; their account actions are in the account menu.
+  if (visible.length === 0) return null;
 
   return (
     <View style={styles.wrap}>

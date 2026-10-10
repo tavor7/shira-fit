@@ -93,6 +93,7 @@ import { displayMoney } from "../../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
 import { EmptyState, ErrorState } from "../../../../src/components/EmptyState";
 import { classifyUserError, userFacingErrorMessage } from "../../../../src/lib/userFacingError";
+import { StatusChip } from "../../../../src/components/StatusChip";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
@@ -1719,13 +1720,18 @@ export default function ManagerSessionDetail() {
               <Text style={[styles.summaryEndedText, isRTL && styles.rtlText]}>{t("managerSession.sessionEnded")}</Text>
             </View>
           ) : null}
-          <Text style={[styles.summaryMeta, isRTL && styles.rtlText]}>
-            {t("sessionDetail.openLabel")}
-            {open ? t("common.yes") : t("common.no")}
-            {" · "}
-            {t("sessionDetail.hiddenLabel")}
-            {hidden ? t("common.yes") : t("common.no")}
-          </Text>
+          {/* Phase 5 / M: state as readable chips instead of "Open: Yes · Hidden: No". */}
+          {!sessionHasEnded || hidden ? (
+            <View style={[styles.summaryChips, rowFlipFor(isRTL) && styles.summaryChipsRtl]}>
+              {!sessionHasEnded ? (
+                <StatusChip
+                  label={open ? t("sessionStatus.openForRegistration") : t("sessionStatus.registrationClosed")}
+                  tone={open ? "success" : "warning"}
+                />
+              ) : null}
+              {hidden ? <StatusChip label={t("sessionStatus.hiddenFromAthletes")} tone="info" /> : null}
+            </View>
+          ) : null}
           {sessionHasEnded ? (
             <View style={styles.trainingSummaryBox}>
               <Text style={[styles.trainingSummaryTitle, isRTL && styles.rtlText]}>
@@ -2098,7 +2104,7 @@ export default function ManagerSessionDetail() {
               value={noteDraft}
               onChangeText={setNoteDraft}
               placeholder={t("sessionDetail.addNotePlaceholder")}
-              placeholderTextColor={theme.colors.placeholderOnLight}
+              placeholderTextColor={theme.colors.fieldPlaceholder}
               multiline
               autoFocus
             />
@@ -2155,7 +2161,7 @@ export default function ManagerSessionDetail() {
                         style={[styles.noteInput, isRTL && styles.noteInputRtl, styles.noteEditInput]}
                         value={noteEditDraft}
                         onChangeText={setNoteEditDraft}
-                        placeholderTextColor={theme.colors.placeholderOnLight}
+                        placeholderTextColor={theme.colors.fieldPlaceholder}
                         multiline
                         autoFocus
                       />
@@ -2541,6 +2547,8 @@ const styles = StyleSheet.create({
     color: theme.colors.success,
     lineHeight: 18,
   },
+  summaryChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 2 },
+  summaryChipsRtl: { flexDirection: "row-reverse" },
   summaryMeta: {
     marginTop: theme.spacing.sm,
     fontSize: 12,
@@ -2648,8 +2656,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.sm,
     padding: 12,
     minHeight: 84,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+    backgroundColor: theme.colors.fieldBg,
+    color: theme.colors.fieldText,
   },
   noteInputRtl: { textAlign: "right", writingDirection: "rtl" },
   noteBtn: {
@@ -2702,8 +2710,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 8,
     fontSize: 16,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+    backgroundColor: theme.colors.fieldBg,
+    color: theme.colors.fieldText,
   },
   pickerTouch: {
     borderWidth: 1,
@@ -2712,13 +2720,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     minHeight: 48,
-    backgroundColor: theme.colors.white,
+    backgroundColor: theme.colors.fieldBg,
     justifyContent: "center",
     marginTop: 6,
     marginBottom: 8,
   },
-  pickerText: { ...theme.typography.body, color: theme.colors.textOnLight },
-  pickerPlaceholder: { ...theme.typography.body, color: theme.colors.placeholderOnLight },
+  pickerText: { ...theme.typography.body, color: theme.colors.fieldText },
+  pickerPlaceholder: { ...theme.typography.body, color: theme.colors.fieldPlaceholder },
   modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
   modalBackdropTouch: { ...StyleSheet.absoluteFill },
   modalBox: {
@@ -2747,8 +2755,8 @@ const styles = StyleSheet.create({
   pickerItemName: { ...theme.typography.title, color: theme.colors.text },
   pickerItemRole: { ...theme.typography.caption, color: theme.colors.textMuted },
   pickerEmpty: { padding: theme.spacing.lg, textAlign: "center", color: theme.colors.textMuted },
-  toggle: { padding: 12, backgroundColor: theme.colors.white, borderRadius: theme.radius.sm, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
-  toggleText: { color: theme.colors.textOnLight, fontSize: 16 },
+  toggle: { padding: 12, backgroundColor: theme.colors.fieldBg, borderRadius: theme.radius.sm, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
+  toggleText: { color: theme.colors.fieldText, fontSize: 16 },
   toggleRtl: { alignItems: "flex-end" },
   toggleTextRtl: { textAlign: "right", writingDirection: "rtl", alignSelf: "stretch", width: "100%" },
   undoBtn: {

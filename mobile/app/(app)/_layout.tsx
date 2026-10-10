@@ -5,6 +5,7 @@ import { useAuth } from "../../src/context/AuthContext";
 import { syncExpoPushTokenIfNeeded } from "../../src/lib/pushTokenSync";
 import { syncWebPushSubscriptionIfNeeded } from "../../src/lib/webPushSync";
 import { AppHeaderRight } from "../../src/components/AppHeaderRight";
+import { AppHeaderTitle } from "../../src/components/AppHeaderTitle";
 import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
 import { theme } from "../../src/theme";
 import { appHeaderStyle, appHeaderTitleStyle } from "../../src/theme/headerStyles";
@@ -140,7 +141,9 @@ export default function AppLayout() {
       <Stack
       screenOptions={{
         headerShown: true,
-        headerTitle: "",
+        // Page title from each screen's `title` option (Phase 5 / A); route names without a title render nothing.
+        headerTitle: ({ children }) => <AppHeaderTitle>{children}</AppHeaderTitle>,
+        headerTitleAlign: "left",
         headerLeft: () => <AppHeaderLeft />,
         headerRight: () => <AppHeaderRight />,
         headerShadowVisible: false,
