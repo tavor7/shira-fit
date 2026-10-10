@@ -28,6 +28,11 @@ type Props = {
   effectivePriceIls: number;
   disabled?: boolean;
   onSaved: () => void;
+  /** Controlled open state (e.g. opened from a row's overflow menu). Uncontrolled when omitted. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Render only the dialog, no chip (the row offers "Rate" in its menu instead). */
+  hideTrigger?: boolean;
 };
 
 export function formatRosterIls(n: number, language: string): string {
@@ -43,10 +48,15 @@ export function RosterSlotRateChip({
   effectivePriceIls,
   disabled,
   onSaved,
+  open: openProp,
+  onOpenChange,
+  hideTrigger,
 }: Props) {
   const { t, isRTL } = useI18n();
   const { showOk } = useAppAlert();
-  const [open, setOpen] = useState(false);
+  const [openInner, setOpenInner] = useState(false);
+  const open = openProp ?? openInner;
+  const setOpen = (v: boolean) => (onOpenChange ? onOpenChange(v) : setOpenInner(v));
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -107,6 +117,7 @@ export function RosterSlotRateChip({
 
   return (
     <>
+      {hideTrigger ? null : (
       <Pressable
         onPress={() => setOpen(true)}
         disabled={disabled}
@@ -133,6 +144,7 @@ export function RosterSlotRateChip({
         </Text>
         </View>
       </Pressable>
+      )}
 
       <AppModal
         visible={open}
