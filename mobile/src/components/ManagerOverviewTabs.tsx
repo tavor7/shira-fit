@@ -30,6 +30,9 @@ function startsWithAny(pathname: string, prefixes: string[]) {
 
 type TabDensity = "comfortable" | "compact";
 
+/** Edge fade (28px) + a little air, so the revealed tab never sits under the fade. */
+const REVEAL_PAD = 36;
+
 type PillTabCoreProps = {
   tabs: { id: string; label: string }[];
   activeId: string;
@@ -94,20 +97,32 @@ function PillTabBarCore({ tabs, activeId, onPressTab, density = "comfortable" }:
     [indicatorX, indicatorW, indicatorY, indicatorOpacity, reduceMotionRef]
   );
 
-  /** Keep the active tab visible when the row scrolls (phones, long Hebrew/English labels). */
+  /**
+   * Keep the active tab fully visible when the row scrolls (phones, long Hebrew/English labels) — clear of the
+   * edge fade, not just "nearest" (which left WhatsApp / Legal / Subscriptions half under the fade). Web scrolls
+   * only the strip itself by the distance the tab sits outside it, so the page never jumps.
+   */
   const reveal = useCallback((id: string) => {
     revealedRef.current = id;
     if (Platform.OS === "web") {
-      const node = tabRefs.current[id] as unknown as { scrollIntoView?: (o: ScrollIntoViewOptions) => void } | null;
-      node?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      const node = tabRefs.current[id] as unknown as HTMLElement | null;
+      const strip = (scrollRef.current as unknown as { getScrollableNode?: () => HTMLElement } | null)?.getScrollableNode?.();
+      if (!node?.getBoundingClientRect || !strip?.getBoundingClientRect) return;
+      const a = node.getBoundingClientRect();
+      const b = strip.getBoundingClientRect();
+      const pad = REVEAL_PAD;
+      const dx = a.left < b.left + pad ? a.left - b.left - pad : a.right > b.right - pad ? a.right - b.right + pad : 0;
+      if (dx) strip.scrollBy({ left: dx, behavior: reduceMotionRef.current ? "auto" : "smooth" });
       return;
     }
     const l = layouts.current[id];
-    if (l) scrollRef.current?.scrollTo({ x: Math.max(0, l.x - theme.spacing.md), animated: false });
-  }, []);
+    if (l) scrollRef.current?.scrollTo({ x: Math.max(0, l.x - REVEAL_PAD), animated: false });
+  }, [reduceMotionRef]);
 
   useEffect(() => {
     if (hasPositionedRef.current) moveTo(activeId, true);
+    // Selecting a tab (state tabs) also brings it fully into view, not only the first layout.
+    if (hasPositionedRef.current) reveal(activeId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
 
