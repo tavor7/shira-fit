@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   declined: { color: theme.colors.warning, ...theme.typography.secondary },
   actions: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
   actionsRtl: { alignItems: "stretch" },
-  declineBtn: { paddingVertical: 12, alignItems: "center" },
+  declineBtn: { paddingVertical: 12, minHeight: theme.controls.minTouch, justifyContent: "center", alignItems: "center" },
   declineText: { color: theme.colors.textMuted, fontWeight: "700" },
   loader: { marginTop: theme.spacing.sm },
   rtl: { textAlign: "right", writingDirection: "rtl" },
