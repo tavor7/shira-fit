@@ -131,7 +131,8 @@ const styles = StyleSheet.create({
     borderColor: ACCENT_BORDER,
     overflow: "hidden",
   },
-  inviteOuterCompact: { marginTop: 4 },
+  /** Phase 5 / L: in calendar cells the waitlist action is its own full-width 44px button, clearly apart from the session above. */
+  inviteOuterCompact: { marginTop: 8, alignSelf: "stretch" },
   invitePressed: { opacity: 0.92 },
   inviteDisabled: { opacity: 0.65 },
   inviteRow: {
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     justifyContent: "center",
     alignItems: "center",
-    minHeight: 38,
+    minHeight: theme.controls.minTouch,
   },
   inviteRowRtl: { flexDirection: "row-reverse" },
   inviteCopy: { flex: 1, minWidth: 0, gap: 2 },
