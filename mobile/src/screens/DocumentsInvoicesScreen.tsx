@@ -71,6 +71,7 @@ import { supabase } from "../lib/supabase";
 import { formatDateTimeForDisplay, formatISODateFull } from "../lib/dateFormat";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { normalizeShortMonth } from "../lib/appLocale";
 
 type HubSection = "pending" | "documents" | "reports" | "settings";
 
@@ -1408,19 +1409,23 @@ export default function DocumentsInvoicesScreen() {
               <View key={row.id} style={[styles.summaryHistoryRow, rowFlipFor(isRTL) && styles.docHeadRtl]}>
                 <Pressable onPress={() => void viewMonthlySummary(row)} style={{ flex: 1 }}>
                   <Text style={[styles.summaryHistoryPeriod, isRTL && styles.rtl]}>
-                    {new Date(row.period_start).toLocaleDateString(t("ui.documentsInvoices.enGb"), {
-                      timeZone: "Asia/Jerusalem",
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {normalizeShortMonth(
+                      new Date(row.period_start).toLocaleDateString(t("ui.documentsInvoices.enGb"), {
+                        timeZone: "Asia/Jerusalem",
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    )}
                     {" – "}
-                    {new Date(row.period_end).toLocaleDateString(t("ui.documentsInvoices.enGb"), {
-                      timeZone: "Asia/Jerusalem",
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {normalizeShortMonth(
+                      new Date(row.period_end).toLocaleDateString(t("ui.documentsInvoices.enGb"), {
+                        timeZone: "Asia/Jerusalem",
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    )}
                   </Text>
                   <Text style={[styles.summaryHistoryMeta, isRTL && styles.rtl]}>
                     {language === "he"

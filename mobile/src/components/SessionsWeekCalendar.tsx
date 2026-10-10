@@ -24,6 +24,7 @@ import type { StudioCalendarNote } from "../lib/studioCalendarNotes";
 import { studioNoteCoversDate } from "../lib/studioCalendarNotes";
 import { studioCalendarNoteAccent } from "../lib/studioCalendarNoteAccent";
 import { EdgeFade, useHorizontalOverflow } from "./ScrollEdgeFade";
+import { normalizeShortMonth } from "../lib/appLocale";
 
 export type SessionsWeekItem = {
   key: string;
@@ -135,7 +136,7 @@ function formatWeekLabel(start: Date, end: Date, locale: string) {
   const fmtWithYear = (x: Date) =>
     x.toLocaleDateString(localeYear, { day: "numeric", month: "short", year: "numeric" });
   const fmtShort = (x: Date) => x.toLocaleDateString(locale, optsShort);
-  const fmtA = (x: Date) => (useYear ? fmtWithYear(x) : fmtShort(x));
+  const fmtA = (x: Date) => normalizeShortMonth(useYear ? fmtWithYear(x) : fmtShort(x));
   return `${fmtA(start)} – ${fmtA(end)}`;
 }
 
@@ -477,7 +478,7 @@ export function SessionsWeekCalendar({
                   <Text style={styles.dayName}>{dayNames[d.date.getDay()]}</Text>
                   <Text style={[styles.dayNum, isToday && styles.dayNumToday]}>{d.date.getDate()}</Text>
                   <Text style={[styles.dayMonth, isToday && styles.dayMonthToday]}>
-                    {d.date.toLocaleDateString(locale, { month: "short" })}
+                    {normalizeShortMonth(d.date.toLocaleDateString(locale, { month: "short" }))}
                   </Text>
                 </Pressable>
                 {dayNotes.length > 0 ? (

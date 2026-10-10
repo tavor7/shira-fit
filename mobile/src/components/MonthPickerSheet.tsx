@@ -4,7 +4,7 @@ import { theme } from "../theme";
 import { AppModal } from "./AppModal";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import { formatMonthYear } from "../lib/dateFormat";
-import { appLocale } from "../lib/appLocale";
+import { appLocale, normalizeShortMonth } from "../lib/appLocale";
 import { useI18n } from "../context/I18nContext";
 import type { LanguageCode } from "../i18n/translations";
 import { rowFlipFor } from "../lib/layoutDirection";
@@ -20,7 +20,7 @@ type Props = {
 
 function monthNames(language: LanguageCode): string[] {
   return Array.from({ length: 12 }, (_, i) =>
-    new Date(2024, i, 1).toLocaleDateString(appLocale(language), { month: "short" })
+    normalizeShortMonth(new Date(2024, i, 1).toLocaleDateString(appLocale(language), { month: "short" }))
   );
 }
 

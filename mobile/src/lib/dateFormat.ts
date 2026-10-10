@@ -1,5 +1,5 @@
 import type { LanguageCode } from "../i18n/translations";
-import { appLocale } from "./appLocale";
+import { appLocale, normalizeShortMonth } from "./appLocale";
 import { parseISODateLocal } from "./isoDate";
 
 export { appLocale } from "./appLocale";
@@ -54,7 +54,7 @@ export function formatISODateWeekdayDayMonth(iso: string, language?: LanguageCod
   if (!d) return iso;
   const lang = langOrEn(language);
   const weekday = d.toLocaleDateString(appLocale(lang), { weekday: "short" });
-  const dayMonth = d.toLocaleDateString(appLocale(lang), { day: "numeric", month: "short" });
+  const dayMonth = normalizeShortMonth(d.toLocaleDateString(appLocale(lang), { day: "numeric", month: "short" }));
   return `${weekday}, ${dayMonth}`;
 }
 
@@ -91,7 +91,7 @@ export function formatISODateWeekdayDayMonthYear(iso: string, language?: Languag
   const lang = langOrEn(language);
   const locale = appLocale(lang);
   const weekday = d.toLocaleDateString(locale, { weekday: "short" });
-  const dayMonthYear = d.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
+  const dayMonthYear = normalizeShortMonth(d.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }));
   return `${weekday}, ${dayMonthYear}`;
 }
 

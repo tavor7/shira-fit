@@ -1,5 +1,5 @@
 import type { LanguageCode } from "../i18n/translations";
-import { appLocale } from "./appLocale";
+import { appLocale, normalizeShortMonth } from "./appLocale";
 
 export function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -73,21 +73,25 @@ export function isValidISODateString(s: string): boolean {
 export function formatISODatePricing(iso: string, language: LanguageCode = "en"): string {
   const d = parseISODateLocal(iso);
   if (!d) return iso;
-  return d.toLocaleDateString(appLocale(language), {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return normalizeShortMonth(
+    d.toLocaleDateString(appLocale(language), {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
+  );
 }
 
 /** Picker / compact display: weekday + day, month, year (en-GB / he-IL order). */
 export function formatISODateShortDisplay(iso: string, language: LanguageCode = "en"): string {
   const d = parseISODateLocal(iso);
   if (!d) return language === "he" ? "בחרו תאריך" : "Choose date";
-  return d.toLocaleDateString(appLocale(language), {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return normalizeShortMonth(
+    d.toLocaleDateString(appLocale(language), {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
+  );
 }
