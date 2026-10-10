@@ -240,7 +240,7 @@ export default function StaffUsersScreen() {
               <View style={[styles.cardRow, rowFlipFor(isRTL) && styles.cardRowRtl]}>
                 <UserAvatar name={item.full_name} seed={item.kind === "profile" ? item.user_id : item.id} />
                 <View style={styles.cardBody}>
-                  <Text {...userContentTextProps} style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
+                  <Text {...userContentTextProps} style={[styles.name, isRTL ? styles.rtlText : styles.ltrText]} numberOfLines={1}>
                     {item.full_name}
                     {(() => {
                       const dob = (item as any).date_of_birth as string | null | undefined;
@@ -256,7 +256,7 @@ export default function StaffUsersScreen() {
                       ) : null;
                     })()}
                   </Text>
-                  <Text {...userContentTextProps} style={[styles.phone, isRTL && styles.rtlText]} numberOfLines={1}>
+                  <Text {...userContentTextProps} style={[styles.phone, isRTL ? styles.rtlText : styles.ltrText]} numberOfLines={1}>
                     {displayLtr(item.phone)}
                   </Text>
                   <View style={[styles.pillRow, rowFlipFor(isRTL) && styles.pillRowRtl]}>
@@ -299,6 +299,7 @@ const styles = StyleSheet.create({
   title: { ...theme.typography.headline, color: theme.colors.text, marginBottom: theme.spacing.sm },
   hint: { marginTop: 6, color: theme.colors.textMuted, lineHeight: 18, fontSize: 12 },
   rtlText: { textAlign: "right" },
+  ltrText: { textAlign: "left" },
   list: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
   card: {
     padding: theme.spacing.md,

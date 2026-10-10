@@ -430,7 +430,7 @@ export default function FamilyManagementScreen() {
                         {selected ? <AppIcon name="checkmark" size={14} color={theme.colors.ctaText} /> : null}
                       </View>
                       <View style={styles.choiceText}>
-                        <Text {...userContentTextProps} style={[styles.choiceName, isRTL && styles.rtl]} numberOfLines={1}>
+                        <Text {...userContentTextProps} style={[styles.choiceName, isRTL ? styles.rtl : styles.ltr]} numberOfLines={1}>
                           {row.full_name}
                         </Text>
                         <Text style={[styles.choiceSub, isRTL && styles.rtl]} numberOfLines={1}>
@@ -464,6 +464,7 @@ const styles = StyleSheet.create({
   listContent: { padding: theme.spacing.md, paddingBottom: 48, gap: theme.spacing.sm },
   skeletonList: { gap: theme.spacing.sm },
   rtl: { textAlign: "right", alignSelf: "stretch" },
+  ltr: { textAlign: "left", alignSelf: "stretch" },
   title: {
     ...theme.typography.headline,
     color: theme.colors.text,
