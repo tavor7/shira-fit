@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { withTransportCapture } from "./techReporting/transportCapture";
+import { installRpcOutcomeObserver } from "./rpcOutcomes/observer";
 
 /**
  * SecureStore is native-only; on web it breaks at runtime.
@@ -150,3 +151,9 @@ export const supabase = createClient(url, key, {
 });
 
 supabaseClient = supabase;
+
+// Phase 3C: RPC outcome OBSERVATION (classification only; nothing leaves the device). Development builds only: a production build
+// installs nothing and the RPC path is exactly what it was before.
+if (typeof __DEV__ !== "undefined" && __DEV__) {
+  installRpcOutcomeObserver(supabase);
+}

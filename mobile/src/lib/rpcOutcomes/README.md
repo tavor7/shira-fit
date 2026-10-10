@@ -110,3 +110,27 @@ and `_try_sync_signup_consent_for_user -> user_not_found`.
    push helpers, signup consent triggers.
 6. About 9 client direct-write calls ignore their result (pricing deletes, push-token sync, signup profile update).
 7. Silent-invariant failures need purpose-built detectors (Phase 3G).
+
+## Phase 3C: outcome OBSERVATION (observation only, development builds only)
+
+`observer.ts` connects this registry to the real Supabase RPC path. It watches **successful** RPC results whose body is
+`{ ok: false, error: "<code>" }` (HTTP 2xx) and classifies them with `classifyRpcOutcome(operation, code)`.
+
+* **Interception point:** `installRpcOutcomeObserver(supabase)` wraps the single `supabase.rpc` method (all ~191 call sites, 139 distinct RPCs, go
+  through it; there is no other RPC path and no `.schema().rpc`). Each builder it returns gets an own `then` that lets the observer look at the
+  resolved `{data,error}` object and then passes the identical value on. Verified for postgrest-js 2.112.2: `single/maybeSingle/throwOnError/
+  abortSignal/setHeader/...` return `this`, the request is sent only inside `then`, retries happen inside `then`, a rejected promise bypasses
+  the wrapper, and no response body is touched (Phase 3B still never reads bodies).
+* **Ownership:** non-2xx, network failures and any result carrying `error` are Phase 3B (and are ignored here); HTTP 2xx with `ok:false` is
+  Phase 3C. A result is never seen by both.
+* **Evidence:** a bounded in-memory aggregate (max 200 operation/code pairs, overflow counted): operation, code, class, count, first/last time,
+  `futureReportable` (class is technical) and `needsReview` (uncertain or unknown). Codes must look like codes (`[a-z0-9_:.-]{1,64}`); raw
+  database text is replaced by `<non_code>` and never stored. No ids, arguments, bodies, messages or stacks.
+* **Nothing leaves the device:** the module imports only the classifier, calls no reporter, no delivery hook and no ingestion RPC
+  (enforced by tests that scan the source). `client_ingest_enabled` stays false.
+* **Production builds:** `supabase.ts` installs the observer only when `__DEV__` is true. A production build installs nothing and the RPC path
+  is exactly what it was; there is therefore NO production observation in this phase.
+* Real-usage evidence is read in a development session with `rpcOutcomeObserver.getSnapshot()`; there is deliberately no UI.
+* `observer.mutation-checks.sh` mutates the observer 15 ways (unknown/business/uncertain treated as reportable, operation ignored, result mutated,
+  exceptions reaching the caller, retained bodies/arguments/raw text, unbounded growth, reporter/hook/ingestion wiring, duplicate observation); every
+  mutation must make `rpcOutcomeObserver.test.ts` fail.
