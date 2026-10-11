@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "../../theme";
 import { useI18n } from "../../context/I18nContext";
@@ -7,6 +8,14 @@ import { formatISODateFull } from "../../lib/dateFormat";
 import { tierLabelKey, type SubscriptionImpact } from "../../lib/subscriptions";
 import { rowFlipFor } from "../../lib/layoutDirection";
 import { pluralKey } from "../../lib/pluralKey";
+import {
+  fetchImpactSessionDetails,
+  groupImpactByDate,
+  impactItemKey,
+  type ImpactSessionDetail,
+} from "../../lib/subscriptionImpactDetails";
+
+const EMPTY_DETAILS = new Map<string, ImpactSessionDetail>();
 
 export type ImpactConfirmAction = "edit" | "freeze" | "stop";
 
@@ -35,12 +44,33 @@ export function SubscriptionImpactConfirmModal({ visible, action, impact, busy, 
     action === "edit" ? "subscriptions.impact.titleEdit" : action === "freeze" ? "subscriptions.impact.titleFreeze" : "subscriptions.impact.titleStop";
 
   const count = impact?.count ?? 0;
-  // Chronological, so the list reads as a timeline (the RPC returns coverage order).
-  const items = [...(impact?.items ?? [])].sort((a, b) => String(a.session_date).localeCompare(String(b.session_date)));
+
+  // Phase 5 / S: each affected session with its time and coach, so two sessions on one day are distinct.
+  // Read-only lookup with the manager's own access; on failure the rows keep the date grouping only.
+  const [fetched, setFetched] = useState<{ for: SubscriptionImpact; map: Map<string, ImpactSessionDetail> } | null>(null);
+  const details = fetched && fetched.for === impact ? fetched.map : EMPTY_DETAILS;
+  useEffect(() => {
+    if (!visible || !impact?.items?.length) return;
+    let cancelled = false;
+    fetchImpactSessionDetails(impact.items)
+      .then((map) => {
+        if (!cancelled) setFetched({ for: impact, map });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, impact]);
+
+  // Chronological, grouped by date (the RPC returns coverage order).
+  const timeOf = (it: { registration_id: string | null; manual_participant_id: string | null }) => details.get(impactItemKey(it))?.time ?? null;
+  const all = groupImpactByDate(impact?.items ?? [], timeOf).flatMap((g) => g.items);
   // At most 8 rows plus the "+N more" line: short enough to show in full. A fixed-height scroll area hid
   // rows 7–8 and the "+N more" line with nothing indicating more content.
-  const shown = items.slice(0, 8);
-  const remaining = items.length - shown.length;
+  const shown = all.slice(0, 8);
+  const remaining = all.length - shown.length;
+  const groups = groupImpactByDate(shown, timeOf);
+  const dayCount = (date: string) => all.filter((it) => it.session_date === date).length;
 
   return (
     <AppModal visible={visible} onClose={onCancel} variant="dialog" backdropAccessibilityLabel={t("subscriptions.impact.cancel")}>
@@ -58,10 +88,27 @@ export function SubscriptionImpactConfirmModal({ visible, action, impact, busy, 
           <View style={styles.detailBox}>
             <Text style={[styles.detailHeader, isRTL && styles.rtl]}>{t("subscriptions.impact.detailHeader")}</Text>
             <View style={styles.detailList}>
-              {shown.map((item, idx) => (
-                <View key={`${item.registration_id ?? item.manual_participant_id ?? idx}`} style={[styles.detailRow, rowFlipFor(isRTL) && styles.detailRowRtl]}>
-                  <Text style={[styles.detailDate, isRTL && styles.rtl]}>{formatISODateFull(item.session_date, language)}</Text>
-                  <Text style={[styles.detailTier, isRTL && styles.rtl]}>{t(tierLabelKey(item.tier))}</Text>
+              {groups.map((g) => (
+                <View key={g.date} style={styles.dayGroup}>
+                  <View style={[styles.dayHead, rowFlipFor(isRTL) && styles.detailRowRtl]}>
+                    <Text style={[styles.detailDate, isRTL && styles.rtl]}>{formatISODateFull(g.date, language)}</Text>
+                    {dayCount(g.date) > 1 ? <Text style={styles.dayCount}>{dayCount(g.date)}</Text> : null}
+                  </View>
+                  {g.items.map((item, idx) => {
+                    const d = details.get(impactItemKey(item));
+                    const when = [d?.time, d?.coach].filter(Boolean).join(" · ");
+                    return (
+                      <View
+                        key={`${item.registration_id ?? item.manual_participant_id ?? idx}`}
+                        style={[styles.detailRow, rowFlipFor(isRTL) && styles.detailRowRtl]}
+                      >
+                        <Text style={[styles.detailWhen, isRTL && styles.rtl]} numberOfLines={1}>
+                          {when || " "}
+                        </Text>
+                        <Text style={[styles.detailTier, isRTL && styles.rtl]}>{t(tierLabelKey(item.tier))}</Text>
+                      </View>
+                    );
+                  })}
                 </View>
               ))}
               {remaining > 0 ? (
@@ -105,7 +152,20 @@ const styles = StyleSheet.create({
   },
   detailHeader: { fontSize: 12, fontWeight: "800", color: theme.colors.textSoft, textTransform: "uppercase", marginBottom: 6 },
   detailList: {},
-  detailRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, gap: 8 },
+  dayGroup: { paddingVertical: 4 },
+  dayHead: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 4 },
+  dayCount: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: theme.colors.textMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.full,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    overflow: "hidden",
+  },
+  detailRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4, gap: 8 },
+  detailWhen: { flex: 1, minWidth: 0, fontSize: 13, fontWeight: "600", color: theme.colors.text, fontVariant: ["tabular-nums"] },
   detailRowRtl: { flexDirection: "row-reverse" },
   detailDate: { fontSize: 13, fontWeight: "700", color: theme.colors.text },
   detailTier: { fontSize: 12, fontWeight: "600", color: theme.colors.textMuted },
