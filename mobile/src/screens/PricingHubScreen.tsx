@@ -18,23 +18,26 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
   const screenContent = useScreenContentStyle("standard");
   const { profile } = useAuth();
   const { tab } = useLocalSearchParams<{ tab?: string }>();
-  const initial = (tab === "coach" ? "coach" : "session") as Tab;
+  // Coaches only see their own pay rates; studio session pricing is manager-only (prices are written by managers only).
+  const initial = (variant === "coach" || tab === "coach" ? "coach" : "session") as Tab;
   const [active, setActive] = useState<Tab>(initial);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
-    setActive((tab === "coach" ? "coach" : "session") as Tab);
-  }, [tab]);
+    setActive((variant === "coach" || tab === "coach" ? "coach" : "session") as Tab);
+  }, [tab, variant]);
 
   const tabs = useMemo(
     () =>
-      [
-        { id: "session" as const, label: t("menu.sessionPricing") },
-        {
-          id: "coach" as const,
-          label: variant === "manager" ? t("menu.coachSessionPricing") : t("menu.myCoachSessionPricing"),
-        },
-      ] satisfies { id: Tab; label: string }[],
+      (
+        [
+          { id: "session" as const, label: t("menu.sessionPricing") },
+          {
+            id: "coach" as const,
+            label: variant === "manager" ? t("menu.coachSessionPricing") : t("menu.myCoachSessionPricing"),
+          },
+        ] satisfies { id: Tab; label: string }[]
+      ).filter((x) => variant === "manager" || x.id === "coach"),
     [t, variant],
   );
 
@@ -44,12 +47,14 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
       <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={[styles.content, screenContent]} keyboardShouldPersistTaps="handled">
       <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.pricingHub")}</Text>
 
-      <SlidingPillTabBar
-        tabs={tabs}
-        active={active}
-        onChange={(id) => setActive(id as Tab)}
-        style={styles.tabBar}
-      />
+      {tabs.length > 1 ? (
+        <SlidingPillTabBar
+          tabs={tabs}
+          active={active}
+          onChange={(id) => setActive(id as Tab)}
+          style={styles.tabBar}
+        />
+      ) : null}
 
       <FadeSlideIn key={active} style={styles.body}>
         {active === "session" ? (

@@ -36,14 +36,15 @@ Deno.serve(async (req) => {
   const callerId = authData?.user?.id ?? null;
   if (authErr || !callerId) return json(401, { ok: false, error: "unauthorized" });
 
-  // Check caller is coach or manager (profile role).
+  // Manager only. Reading or changing another user's auth email is an account-level action (a changed email plus a
+  // password reset takes the account over); coaches have no such need and the app does not call this function.
   const { data: callerProfile } = await adminClient
     .from("profiles")
     .select("role")
     .eq("user_id", callerId)
     .maybeSingle();
   const role = (callerProfile as { role?: string } | null)?.role ?? "";
-  if (role !== "coach" && role !== "manager") return json(403, { ok: false, error: "forbidden" });
+  if (role !== "manager") return json(403, { ok: false, error: "forbidden" });
 
   const requestUrl = new URL(req.url);
   if (req.method === "GET") {

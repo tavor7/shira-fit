@@ -399,7 +399,8 @@ Deno.serve(async (req) => {
 
   const { data: callerProfile } = await admin.from("profiles").select("role").eq("user_id", callerId).maybeSingle();
   const role = (callerProfile as { role?: string } | null)?.role ?? "";
-  if (!["coach", "manager"].includes(role)) return json(403, { ok: false, error: "forbidden" });
+  // Receipts are manager-only (documents RLS, receipt RPCs and the PDF bucket are manager-only).
+  if (role !== "manager") return json(403, { ok: false, error: "forbidden" });
 
   let body: { document_id?: string; allow_overwrite?: boolean };
   try {

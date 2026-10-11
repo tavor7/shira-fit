@@ -101,6 +101,8 @@ export default function ParticipantHistoryScreen({
   const isManagerHistory =
     (pathname?.startsWith("/manager/participant-history") ?? false) ||
     (pathname?.startsWith("/manager/reports") ?? false);
+  /** Studio finance (account payments, balance, receipts) is manager-only (RLS + RPCs); coaches see sessions and attendance. */
+  const showFinance = !isCoachHistory;
 
   const openSession = useCallback(
     (sessionId: string) => {
@@ -729,7 +731,9 @@ export default function ParticipantHistoryScreen({
       .select("max_participants, price_ils, is_kickbox, effective_from, effective_to");
 
     let acctPromise;
-    if (familyId && familyMembers.length > 0) {
+    if (!showFinance) {
+      acctPromise = Promise.resolve({ data: [] as AthleteAccountPayment[], error: null });
+    } else if (familyId && familyMembers.length > 0) {
       const orParts = familyMembers.map(
         (m) => `and(payee_id.eq.${m.id},payee_is_manual.eq.${m.kind === "manual"})`
       );
@@ -910,7 +914,7 @@ export default function ParticipantHistoryScreen({
     const receiptSourceIds = [
       ...new Set([...next.map((r) => r.registration_id), ...payRows.map((p) => p.id)]),
     ];
-    if (receiptSourceIds.length > 0) {
+    if (showFinance && receiptSourceIds.length > 0) {
       const { data: docRows } = await supabase
         .from("documents")
         .select("id, source_id, document_number, pdf_url, signature_hash")
@@ -1017,7 +1021,7 @@ export default function ParticipantHistoryScreen({
     if (!silent) setLoading(false);
     setReportReady(true);
     setHasSearched(true);
-  }, [start, end, phone, athleteId, payeeIsManual, language, isSuperUser, t]);
+  }, [start, end, phone, athleteId, payeeIsManual, language, isSuperUser, t, showFinance]);
 
   const loadRef = useRef(load);
   loadRef.current = load;
@@ -1238,7 +1242,7 @@ export default function ParticipantHistoryScreen({
                 </View>
               }
             >
-            {billingSummary && athleteId && reportReady ? (
+            {showFinance && billingSummary && athleteId && reportReady ? (
               <View style={styles.billingCard}>
                 <Text style={[styles.billingTitle, isRTL && styles.rtlText]}>{t("billing.summaryTitle")}</Text>
                 <View style={[styles.billingStatGrid, rtlRowFlip && styles.billingStatGridRtl]}>
