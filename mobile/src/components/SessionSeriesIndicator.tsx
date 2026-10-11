@@ -38,12 +38,12 @@ const styles = StyleSheet.create({
   icon: {
     color: theme.colors.cta,
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "800",
     lineHeight: 14,
     marginTop: -1,
   },
   iconCompact: {
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 12,
   },
 });

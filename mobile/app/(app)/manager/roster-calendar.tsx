@@ -9,7 +9,7 @@ import { fetchStaffTrainingSessionsForCalendar } from "../../../src/lib/training
 import { fetchActiveSignupCountsBySession, fetchVisibleSignupCountsBySession } from "../../../src/lib/sessionSignupCounts";
 import { fetchWaitlistCountsBySession } from "../../../src/lib/waitlistCounts";
 import { resolveTrainerAccentColor } from "../../../src/lib/trainerCalendarColor";
-import { formatSessionTimeRange, sessionStartsAt } from "../../../src/lib/sessionTime";
+import { sessionStartsAt } from "../../../src/lib/sessionTime";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { fetchRegistrationAthletesBySessionIds } from "../../../src/lib/sessionRosterQueries";
@@ -22,6 +22,9 @@ import { EmptyState } from "../../../src/components/EmptyState";
 import { FadeSlideIn } from "../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../src/components/PressableScale";
 import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHidden";
+import { rowFlipFor } from "../../../src/lib/layoutDirection";
+import { displayTimeRange } from "../../../src/lib/displayFormat";
+import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
@@ -32,6 +35,7 @@ type RosterEntry = { name: string; phone: string | null };
 
 export default function ManagerRosterCalendarScreen() {
   const { profile, loading: authLoading, user } = useAuth();
+  const screenContent = useScreenContentStyle("wide", { selfInset: theme.spacing.md });
   const { language, t, isRTL } = useI18n();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
@@ -128,7 +132,7 @@ export default function ManagerRosterCalendarScreen() {
             session_date: s.session_date,
             start_time: s.start_time,
             durationMinutes: s.duration_minutes ?? 60,
-            timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
+            timeLabel: displayTimeRange(s.start_time, s.duration_minutes ?? 60),
             timeBadgeText: badge,
             timeBadgeText2: wl > 0 ? String(wl) : undefined,
             waitlistCount: wl,
@@ -149,7 +153,7 @@ export default function ManagerRosterCalendarScreen() {
           session_date: s.session_date,
           start_time: s.start_time,
           durationMinutes: s.duration_minutes ?? 60,
-          timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
+          timeLabel: displayTimeRange(s.start_time, s.duration_minutes ?? 60),
           trainerName: s.trainer?.full_name ?? undefined,
           coachId: s.coach_id,
           signedUpCount: visibleSignupBySession[s.id] ?? 0,
@@ -177,7 +181,7 @@ export default function ManagerRosterCalendarScreen() {
         session_date: s.session_date,
         start_time: s.start_time,
         durationMinutes: s.duration_minutes ?? 60,
-        timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
+        timeLabel: displayTimeRange(s.start_time, s.duration_minutes ?? 60),
         trainerName: s.trainer?.full_name ?? undefined,
         coachId: s.coach_id,
         signedUpCount: visibleSignupBySession[s.id] ?? 0,
@@ -290,7 +294,7 @@ export default function ManagerRosterCalendarScreen() {
   if (authLoading || (user && !profile)) {
     return (
       <View style={{ flex: 1, justifyContent: "center", backgroundColor: theme.colors.background }}>
-        <ActivityIndicator size="large" color={theme.colors.cta} />
+        <ActivityIndicator size="large" color={theme.colors.cta} accessibilityLabel={t("common.loading")} />
       </View>
     );
   }
@@ -310,7 +314,7 @@ export default function ManagerRosterCalendarScreen() {
       <Stack.Screen options={{ title: t("screen.managerRosterCalendar") }} />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, screenContent]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -323,7 +327,7 @@ export default function ManagerRosterCalendarScreen() {
         <View style={styles.headerRow}>
           <Text style={[styles.h1, isRTL && styles.rtlText]}>{t("rosterCalendar.title")}</Text>
           <Text style={[styles.hint, isRTL && styles.rtlText]}>{t("rosterCalendar.hint")}</Text>
-          <View style={[styles.modeWrap, isRTL && styles.modeWrapRtl]}>
+          <View style={[styles.modeWrap, rowFlipFor(isRTL) && styles.modeWrapRtl]}>
             {(
               [
                 { key: "small" as const, on: showSmall, toggle: () => setShowSmall((v) => !v), label: t("rosterCalendar.filterSmall") },
@@ -336,6 +340,7 @@ export default function ManagerRosterCalendarScreen() {
                 style={({ pressed }) => [styles.filterBtn, on && styles.filterBtnOn, pressed && !on && styles.filterBtnPressed]}
                 accessibilityRole="switch"
                 accessibilityState={{ checked: on }}
+                aria-checked={on}
                 accessibilityLabel={label}
               >
                 <Text style={[styles.filterTxt, on && styles.filterTxtOn]} numberOfLines={1}>
@@ -370,7 +375,7 @@ export default function ManagerRosterCalendarScreen() {
               ? t("rosterCalendar.namesOnCalendar")
               : t("rosterCalendar.rostersForWeek")}
           </Text>
-          {groupMode && namesLoading ? <ActivityIndicator size="small" color={theme.colors.cta} /> : null}
+          {groupMode && namesLoading ? <ActivityIndicator size="small" color={theme.colors.cta} accessibilityLabel={t("common.loading")} /> : null}
         </View>
 
         {!groupMode && grouped.length === 0 ? (
@@ -396,9 +401,9 @@ export default function ManagerRosterCalendarScreen() {
                         <View style={styles.cardRow}>
                         <View style={[styles.accent, accent ? { backgroundColor: accent } : null]} />
                         <View style={styles.cardBody}>
-                          <View style={[styles.cardTop, isRTL && styles.cardTopRtl]}>
+                          <View style={[styles.cardTop, rowFlipFor(isRTL) && styles.cardTopRtl]}>
                             <Text style={[styles.time, isRTL && styles.rtlText]}>
-                              {formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60)}
+                              {displayTimeRange(s.start_time, s.duration_minutes ?? 60)}
                             </Text>
                             <Text style={styles.count}>
                               {c} / {m}
@@ -581,8 +586,7 @@ const styles = StyleSheet.create({
   dayGroup: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.md },
   dayTitle: {
     color: theme.colors.textSoft,
-    fontWeight: "700",
-    fontSize: 12,
+    ...theme.typography.label,
     letterSpacing: 0.3,
     textTransform: "uppercase",
   },
@@ -611,7 +615,7 @@ const styles = StyleSheet.create({
   count: { color: theme.colors.textMuted, fontWeight: "800", letterSpacing: 0.15 },
   trainer: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13, letterSpacing: 0.1 },
 
-  namesEmpty: { color: theme.colors.textSoft, fontWeight: "600", marginTop: theme.spacing.xs, fontSize: 14 },
+  namesEmpty: { color: theme.colors.textSoft, marginTop: theme.spacing.xs, ...theme.typography.secondary, },
   namesList: { marginTop: theme.spacing.xs, gap: theme.spacing.xs },
   name: { color: theme.colors.text, fontWeight: "700", fontSize: 14, lineHeight: 20 },
   namePhone: { color: theme.colors.cta, textDecorationLine: "underline" },

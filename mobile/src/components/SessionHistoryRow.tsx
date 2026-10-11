@@ -1,5 +1,6 @@
 import { View, Text, Pressable, ActivityIndicator, Platform } from "react-native";
 import { theme } from "../theme";
+import { IconButton } from "./IconButton";
 import { PressableScale } from "./PressableScale";
 import { AttStatusDot } from "./AttStatusDot";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
@@ -20,6 +21,8 @@ import type { PricingRateTierRow } from "../lib/pricingRates";
 import type { ParticipantHistoryRow } from "../types/database";
 import type { LanguageCode } from "../i18n/translations";
 import { participantHistoryStyles as styles } from "../screens/participantHistoryStyles";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 type Props = {
   reg: ParticipantHistoryRow;
@@ -131,13 +134,9 @@ export function SessionHistoryRow({
     raw12 === false || (raw12 == null && reg.cancellation_within_24h === false);
   const late =
     within12
-      ? language === "he"
-        ? "ביטול בתוך 12 ש׳ לפני האימון"
-        : "Cancelled within 12h of session start"
+      ? t("ui.sessionHistoryRow.cancelledWithin12hOfSessionStart")
       : within12ExplicitFalse
-        ? language === "he"
-          ? "ביטול מעל 12 ש׳ מראש"
-          : "Cancelled more than 12h before session"
+        ? t("ui.sessionHistoryRow.cancelledMoreThan12hBeforeSession")
         : null;
   const feeCharged = reg.cancellation_charged === true;
   const penaltyNum = Number(reg.cancellation_penalty_collected ?? 0);
@@ -168,7 +167,7 @@ export function SessionHistoryRow({
   const metaLine =
     typeof reg.max_participants === "number" && reg.max_participants > 0
       ? sessionPrice != null
-        ? t("participantHistory.sessionMeta").replace("{spots}", String(reg.max_participants)).replace("{price}", String(sessionPrice))
+        ? t("participantHistory.sessionMeta").replace("{spots}", String(reg.max_participants)).replace("{price}", displayMoney(Number(sessionPrice)))
         : t("participantHistory.sessionMetaSpotsOnly").replace("{spots}", String(reg.max_participants))
       : null;
   const coachName = firstWordOfDisplayName(sessionCoachById[reg.session_id] ?? "");
@@ -183,27 +182,21 @@ export function SessionHistoryRow({
   const hiddenPill = superUserHidden ? (
     <View style={[styles.payPill, styles.payPillUnpaid]}>
       <Text style={[styles.payPillTxt, styles.payPillTxtUnpaid, isRTL && styles.rtlText]} numberOfLines={1}>
-        {language === "he" ? "מוסתר" : "Hidden"}
+        {t("ui.sessionHistoryRow.hidden")}
       </Text>
     </View>
   ) : null;
   const hideToggleButton =
     canToggleHide && onToggleHideAthlete ? (
-      <View style={[styles.hideToggleWrap, isRTL && styles.hideToggleWrapRtl]}>
+      <View style={[styles.hideToggleWrap, rowFlipFor(isRTL) && styles.hideToggleWrapRtl]}>
         {hideToggleBusy ? (
           <ActivityIndicator size="small" color={theme.colors.cta} />
         ) : (
-          <Pressable
+          <IconButton
             onPress={onToggleHideAthlete}
-            hitSlop={8}
-            accessibilityRole="button"
+            icon={superUserHidden ? "eye-outline" : "eye-off-outline"}
             accessibilityLabel={t(superUserHidden ? "superUser.unhideAction" : "superUser.hideAction")}
-            style={({ pressed }) => [styles.hideToggleBtn, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.hideToggleIcon} importantForAccessibility="no">
-              {superUserHidden ? "👁️" : "🙈"}
-            </Text>
-          </Pressable>
+            />
         )}
       </View>
     ) : null;
@@ -211,7 +204,7 @@ export function SessionHistoryRow({
     reg.reg_status === "cancelled" ? (
       <View style={[styles.payPill, styles.payPillMuted]}>
         <Text style={[styles.payPillTxt, styles.payPillTxtMuted, isRTL && styles.rtlText]}>
-          {language === "he" ? "בוטל" : "Cancelled"}
+          {t("ui.sessionHistoryRow.cancelled")}
         </Text>
       </View>
     ) : showPaidStatus || showUnpaidStatus ? (
@@ -219,7 +212,7 @@ export function SessionHistoryRow({
         style={[
           styles.payPill,
           showPaidStatus ? styles.payPillPaid : styles.payPillUnpaid,
-          isRTL && styles.payPillRtl,
+          rowFlipFor(isRTL) && styles.payPillRtl,
         ]}
       >
         <Text
@@ -234,12 +227,12 @@ export function SessionHistoryRow({
         </Text>
         {showPaidStatus && amtOk ? (
           <Text style={[styles.payPillAmt, styles.ltrText]} numberOfLines={1}>
-            {amt} ₪
+            {displayMoney(Number(amt))}
           </Text>
         ) : null}
       </View>
     ) : reg.reg_status === "active" && !staffCanEdit ? (
-      <View style={[styles.payPill, styles.payPillMuted, isRTL && styles.payPillRtl]}>
+      <View style={[styles.payPill, styles.payPillMuted, rowFlipFor(isRTL) && styles.payPillRtl]}>
         <AttStatusDot status={attCurrent} />
         <Text style={[styles.payPillTxt, styles.payPillTxtMuted, isRTL && styles.rtlText]} numberOfLines={1}>
           {attLabel}
@@ -328,7 +321,7 @@ export function SessionHistoryRow({
             onPress={onViewReceipt}
             hitSlop={6}
             accessibilityRole="button"
-            accessibilityLabel={language === "he" ? "צפייה בקבלה" : "View receipt"}
+            accessibilityLabel={t("ui.sessionHistoryRow.viewReceipt")}
             style={({ pressed }) => [styles.receiptBadge, pressed && { opacity: 0.85 }]}
           >
             <Text style={styles.receiptBadgeTxt} numberOfLines={1}>
@@ -500,7 +493,7 @@ export function SessionHistoryRow({
         <View style={styles.cardSubsection}>
           {reason.length > 0 ? (
             <Text style={[styles.cardNote, isRTL && styles.rtlText]}>
-              {language === "he" ? "סיבה: " : "Reason: "}
+              {t("ui.sessionHistoryRow.reason")}
               {reason}
             </Text>
           ) : null}
@@ -551,7 +544,7 @@ export function SessionHistoryRow({
                       : t("participantHistory.paidBadge")}
                   </Text>
                   <Text style={[styles.payPillAmt, styles.ltrText]} numberOfLines={1}>
-                    {penaltyCollected} ₪
+                    {displayMoney(Number(penaltyCollected))}
                   </Text>
                 </View>
                 <Pressable

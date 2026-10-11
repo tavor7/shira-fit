@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { AppIcon } from "../components/AppIcon";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
@@ -26,6 +27,11 @@ import {
   collectActivityLogIds,
   type ActivityLogRow,
 } from "../lib/activityLogDetails";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { selectionA11y } from "../lib/a11ySelection";
+import { formatISODateLong } from "../lib/dateFormat";
+import type { LanguageCode } from "../i18n/translations";
 
 type Row = ActivityLogRow;
 
@@ -258,13 +264,18 @@ async function fetchSessionsRaw(ids: string[]): Promise<SessionRow[]> {
   return out;
 }
 
-function sessionOneLine(s: SessionRow, _language: string): string {
+function sessionOneLine(s: SessionRow, language: LanguageCode, t: (key: string) => string): string {
   const time = String(s.start_time ?? "").slice(0, 5);
-  return `${s.session_date} · ${time} · max ${s.max_participants} · ${s.duration_minutes} min`;
+  return t("activityLog.sessionLine")
+    .replace("{date}", formatISODateLong(s.session_date, language))
+    .replace("{time}", time)
+    .replace("{max}", String(s.max_participants))
+    .replace("{duration}", String(s.duration_minutes));
 }
 
 export default function ManagerActivityLogScreen() {
   const { language, isRTL, t } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showOk, showConfirm } = useAppAlert();
   const initRange = computePresetRange("14", 14);
   const [dateFrom, setDateFrom] = useState(initRange.from);
@@ -353,7 +364,7 @@ export default function ManagerActivityLogScreen() {
         const sessions = await fetchSessionsRaw([...sessionIds]);
         const sum: Record<string, string> = {};
         for (const s of sessions) {
-          sum[s.id] = sessionOneLine(s, language);
+          sum[s.id] = sessionOneLine(s, language, t);
           profileIds.add(s.coach_id);
         }
         setSessionSummaries(sum);
@@ -368,7 +379,7 @@ export default function ManagerActivityLogScreen() {
         setLoading(false);
       }
     },
-    [activityGroup, dateFrom, dateTo, language, pageIndex]
+    [activityGroup, dateFrom, dateTo, language, pageIndex, t]
   );
 
   useEffect(() => {
@@ -524,11 +535,11 @@ export default function ManagerActivityLogScreen() {
     <View style={styles.headerBlock}>
       <View style={styles.filterCard}>
         <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("activityLog.filtersTitle")}</Text>
-        <View style={[styles.filterRow, isRTL && styles.filterRowRtl]}>
+        <View style={[styles.filterRow, rowFlipFor(isRTL) && styles.filterRowRtl]}>
           <Pressable
             style={({ pressed }) => [
               styles.iconField,
-              isRTL && styles.iconFieldRtl,
+              rowFlipFor(isRTL) && styles.iconFieldRtl,
               datePreset !== "14" && styles.iconFieldActive,
               pressed && styles.typeFieldPressed,
             ]}
@@ -550,7 +561,7 @@ export default function ManagerActivityLogScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.iconField,
-              isRTL && styles.iconFieldRtl,
+              rowFlipFor(isRTL) && styles.iconFieldRtl,
               activityGroup !== "all" && styles.iconFieldActive,
               pressed && styles.typeFieldPressed,
             ]}
@@ -589,7 +600,7 @@ export default function ManagerActivityLogScreen() {
                     <Pressable
                       style={({ pressed }) => [
                         styles.typeSheetOption,
-                        isRTL && styles.typeSheetOptionRtl,
+                        rowFlipFor(isRTL) && styles.typeSheetOptionRtl,
                         selected && styles.typeSheetOptionSelected,
                         pressed && !selected && styles.typeFieldPressed,
                       ]}
@@ -597,8 +608,7 @@ export default function ManagerActivityLogScreen() {
                         onPickDatePreset(preset);
                         setDateRangePickerOpen(false);
                       }}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
+                      {...selectionA11y("radio", selected)}
                     >
                       <Text
                         style={[
@@ -610,7 +620,7 @@ export default function ManagerActivityLogScreen() {
                         {t(labelKey)}
                       </Text>
                       {selected ? (
-                        <Text style={styles.typeSheetCheck}>✓</Text>
+                        <AppIcon name="checkmark" size={18} color={theme.colors.cta} />
                       ) : (
                         <View style={styles.typeSheetCheckSpacer} />
                       )}
@@ -664,7 +674,7 @@ export default function ManagerActivityLogScreen() {
                     <Pressable
                       style={({ pressed }) => [
                         styles.typeSheetOption,
-                        isRTL && styles.typeSheetOptionRtl,
+                        rowFlipFor(isRTL) && styles.typeSheetOptionRtl,
                         selected && styles.typeSheetOptionSelected,
                         pressed && !selected && styles.typeFieldPressed,
                       ]}
@@ -673,8 +683,7 @@ export default function ManagerActivityLogScreen() {
                         setActivityGroup(id);
                         setActivityPickerOpen(false);
                       }}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
+                      {...selectionA11y("radio", selected)}
                     >
                       <Text
                         style={[
@@ -686,7 +695,7 @@ export default function ManagerActivityLogScreen() {
                         {t(labelKey)}
                       </Text>
                       {selected ? (
-                        <Text style={styles.typeSheetCheck}>✓</Text>
+                        <AppIcon name="checkmark" size={18} color={theme.colors.cta} />
                       ) : (
                         <View style={styles.typeSheetCheckSpacer} />
                       )}
@@ -707,11 +716,11 @@ export default function ManagerActivityLogScreen() {
           accessibilityLabel={t("a11y.activityLogToggleRetention")}
           style={({ pressed }) => [
             styles.retentionHeader,
-            isRTL && styles.retentionHeaderRtl,
+            rowFlipFor(isRTL) && styles.retentionHeaderRtl,
             pressed && styles.retentionHeaderPressed,
           ]}
         >
-          <View style={[styles.retentionHeaderMain, isRTL && styles.retentionHeaderMainRtl]}>
+          <View style={[styles.retentionHeaderMain, rowFlipFor(isRTL) && styles.retentionHeaderMainRtl]}>
             <Text style={[styles.retentionHeaderTitle, isRTL && styles.rtl]}>{t("activityLog.retentionTitle")}</Text>
             <Text style={[styles.retentionHeaderSummary, isRTL && styles.rtl]}>
               {t("activityLog.currentRetention").replace(/\{d\}/g, String(retentionDays))}
@@ -769,7 +778,7 @@ export default function ManagerActivityLogScreen() {
         <ActivityIndicator style={styles.footerLoading} color={theme.colors.cta} />
       ) : null}
       {totalCount !== null && totalCount > 0 ? (
-        <View style={[styles.paginationBar, isRTL && styles.paginationBarRtl]}>
+        <View style={[styles.paginationBar, rowFlipFor(isRTL) && styles.paginationBarRtl]}>
           <Pressable
             disabled={loading || pageIndex <= 0}
             onPress={() => setPageIndex((p) => Math.max(0, p - 1))}
@@ -827,7 +836,7 @@ export default function ManagerActivityLogScreen() {
         keyExtractor={(i) => i.id}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.cta} />}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, screenContent]}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
           loading ? (
@@ -837,14 +846,14 @@ export default function ManagerActivityLogScreen() {
               <ListRowSkeleton />
             </View>
           ) : (
-            <EmptyState icon="📋" title={t("activityLog.empty")} isRTL={isRTL} />
+            <EmptyState icon="list-outline" title={t("activityLog.empty")} isRTL={isRTL} />
           )
         }
         ListFooterComponent={listFooter}
         renderItem={({ item, index }) => {
             const details = buildActivityLogDetailLines(item, profileLabels, manualLabels, sessionSummaries, language);
             const actorLine = item.actor_user_id
-              ? `${language === "he" ? "מבצע" : "Actor"}: ${profileLabels[item.actor_user_id] ?? item.actor_user_id}`
+              ? `${t("ui.managerActivityLog.actor")}: ${profileLabels[item.actor_user_id] ?? item.actor_user_id}`
               : "—";
             const isReverted = !!item.reverted_at;
             const canRevert = activityEventLooksRevertible(item);
@@ -852,9 +861,9 @@ export default function ManagerActivityLogScreen() {
             return (
               <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
               <View style={[styles.card, isReverted && styles.cardReverted]}>
-                <View style={[styles.cardHeaderRow, isRTL && styles.cardHeaderRowRtl]}>
+                <View style={[styles.cardHeaderRow, rowFlipFor(isRTL) && styles.cardHeaderRowRtl]}>
                   <Text style={[styles.when, isRTL && styles.rtl, styles.whenInHeader]}>{formatWhen(item.created_at, language)}</Text>
-                  <View style={[styles.cardHeaderActions, isRTL && styles.cardHeaderActionsRtl]}>
+                  <View style={[styles.cardHeaderActions, rowFlipFor(isRTL) && styles.cardHeaderActionsRtl]}>
                     {isReverted ? (
                       <View style={styles.revertedBadge}>
                         <Text style={styles.revertedBadgeText}>{t("activityLog.revertedBadge")}</Text>
@@ -866,7 +875,7 @@ export default function ManagerActivityLogScreen() {
                         accessibilityLabel={t("activityLog.revertAction")}
                         style={({ pressed }) => [
                           styles.revertLink,
-                          isRTL && styles.revertLinkRtl,
+                          rowFlipFor(isRTL) && styles.revertLinkRtl,
                           pressed && styles.revertLinkPressed,
                           revertBusy && styles.revertLinkDisabled,
                         ]}
@@ -892,7 +901,7 @@ export default function ManagerActivityLogScreen() {
                 {details.length > 0 ? (
                   <View style={styles.detailsBox}>
                     <Text style={[styles.detailsTitle, isRTL && styles.rtl]}>
-                      {language === "he" ? "פרטים" : "Details"}
+                      {t("ui.managerActivityLog.details")}
                     </Text>
                     {details.map((line, idx) => (
                       <Text key={idx} style={[styles.detailLine, isRTL && styles.rtl]} selectable>
@@ -935,8 +944,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: "700",
+    ...theme.typography.label,
     color: theme.colors.textSoft,
     textTransform: "uppercase",
     letterSpacing: 0.3,
@@ -970,7 +978,7 @@ const styles = StyleSheet.create({
   iconFieldActive: { borderColor: theme.colors.cta },
   typeFieldPressed: { opacity: 0.88 },
   iconFieldText: { flex: 1, fontSize: 14, fontWeight: "700", color: theme.colors.text },
-  chevron: { fontSize: 10, color: theme.colors.textMuted, marginTop: 1 },
+  chevron: { fontSize: 11, color: theme.colors.textMuted, marginTop: 1 },
   typeSheet: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg },
   typeSheetHandle: {
     alignSelf: "center",
@@ -1012,7 +1020,7 @@ const styles = StyleSheet.create({
   typeSheetOptionSelected: { backgroundColor: theme.colors.surfaceElevated },
   typeSheetOptionText: { flex: 1, fontSize: 15, fontWeight: "600", color: theme.colors.text },
   typeSheetOptionTextSelected: { fontWeight: "800", color: theme.colors.text },
-  typeSheetCheck: { fontSize: 16, fontWeight: "900", color: theme.colors.cta, width: 20, textAlign: "center" },
+  typeSheetCheck: { fontSize: 16, fontWeight: "800", color: theme.colors.cta, width: 20, textAlign: "center" },
   typeSheetCheckSpacer: { width: 20 },
   chip: {
     paddingHorizontal: theme.spacing.sm,
@@ -1059,7 +1067,7 @@ const styles = StyleSheet.create({
   retentionHeaderMainRtl: { alignItems: "flex-end" },
   retentionHeaderTitle: {
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
     color: theme.colors.textSoft,
     textTransform: "uppercase",
     letterSpacing: 0.6,
@@ -1164,8 +1172,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   revertLinkText: {
-    fontSize: 12,
-    fontWeight: "700",
+    ...theme.typography.label,
     color: theme.colors.textMuted,
     letterSpacing: 0.15,
   },
@@ -1194,7 +1201,7 @@ const styles = StyleSheet.create({
   },
   detailsTitle: {
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
     color: theme.colors.textSoft,
     marginBottom: theme.spacing.xs,
     textTransform: "uppercase",

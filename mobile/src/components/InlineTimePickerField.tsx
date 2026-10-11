@@ -38,7 +38,7 @@ export function InlineTimePickerField({
 const styles = StyleSheet.create({
   wrap: { alignSelf: "stretch", minWidth: 0 },
   wrapEmbedded: { marginTop: 0 },
-  labelForm: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
+  labelForm: { marginBottom: 6, color: theme.colors.textMuted, ...theme.typography.label, letterSpacing: 0.2 },
   labelSection: {
     marginBottom: 8,
     fontSize: 11,

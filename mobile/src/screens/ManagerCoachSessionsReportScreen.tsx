@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Platform,
   ActivityIndicator,
 } from "react-native";
 import { router, type Href } from "expo-router";
@@ -25,9 +24,14 @@ import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useCountUp } from "../hooks/useCountUp";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { pluralKey } from "../lib/pluralKey";
+import { ReportPageHeader } from "../components/ReportPageHeader";
 
 function formatPayout(n: number) {
-  return `${Math.round(n * 100) / 100} ₪`;
+  return displayMoney(n);
 }
 
 function CoachSessionReportCard({
@@ -42,7 +46,7 @@ function CoachSessionReportCard({
   onPress: () => void;
 }) {
   const { t } = useI18n();
-  const rtlRowFlip = isRTL && Platform.OS !== "web";
+  const rtlRowFlip = rowFlipFor(isRTL);
   const due = Number(item.coach_earnings_ils ?? 0);
   const lateCancels =
     typeof item.late_cancellations_within_24h === "number" ? item.late_cancellations_within_24h : 0;
@@ -132,6 +136,8 @@ export default function ManagerCoachSessionsReportScreen({
   headerExtra,
 }: { hideTitle?: boolean; headerExtra?: ReactNode } = {}) {
   const { language, t, isRTL } = useI18n();
+  // Sections (filters, payout, picker, session cards, embedded Reports header) each carry the 16px inset themselves.
+  const screenContent = useScreenContentStyle("standard", { selfInset: theme.spacing.md });
   const { showOk } = useAppAlert();
   const defaultRange = useMemo(() => lastNDaysRangeISO(30), []);
   const [start, setStart] = useState(defaultRange.start);
@@ -217,14 +223,12 @@ export default function ManagerCoachSessionsReportScreen({
         style={styles.list}
         data={rows}
         keyExtractor={(item) => item.session_id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, screenContent]}
         ListHeaderComponent={
           <>
             {headerExtra}
+            {!hideTitle ? <ReportPageHeader title={t("menu.coachHistory")} description={t("reports.coachTabHint")} /> : null}
             <View style={styles.filters}>
-              {!hideTitle ? (
-                <Text style={[styles.screenTitle, isRTL && styles.rtlText]}>{t("menu.coachHistory")}</Text>
-              ) : null}
               <ReportDateRangeControls start={start} end={end} onChange={onDateRangeChange} />
             </View>
 
@@ -250,14 +254,14 @@ export default function ManagerCoachSessionsReportScreen({
             >
             {hasSearched && coachId && !loading ? (
               <View style={styles.payoutCard}>
-                <View style={[styles.payoutTop, isRTL && Platform.OS !== "web" && styles.payoutTopRtl]}>
+                <View style={[styles.payoutTop, rowFlipFor(isRTL) && styles.payoutTopRtl]}>
                   <View style={styles.payoutTopMain}>
                     <Text style={[styles.payoutEyebrow, isRTL && styles.rtlText]}>{t("coachReport.payoutTitle")}</Text>
                     <Text style={[styles.payoutBig, isRTL && styles.rtlText]}>{formatPayout(payoutTotalDisplay)}</Text>
                   </View>
                   <View style={styles.payoutBadge}>
                     <Text style={styles.payoutBadgeTxt}>
-                      {t("coachReport.sessionCount").replace("{n}", String(rows.length))}
+                      {pluralKey(t, "coachReport.sessionCount", rows.length).replace("{n}", String(rows.length))}
                     </Text>
                   </View>
                 </View>
@@ -283,7 +287,7 @@ export default function ManagerCoachSessionsReportScreen({
         )}
         ListEmptyComponent={
           !coachId ? (
-            <EmptyState icon="🏋️" title={t("coachReport.chooseTrainer")} isRTL={isRTL} />
+            <EmptyState icon="barbell-outline" title={t("coachReport.chooseTrainer")} isRTL={isRTL} />
           ) : !hasSearched || loading ? (
             <View style={styles.skeletonList}>
               <ListRowSkeleton />
@@ -291,7 +295,7 @@ export default function ManagerCoachSessionsReportScreen({
               <ListRowSkeleton />
             </View>
           ) : (
-            <EmptyState icon="📭" title={t("coachReport.noSessionsInRange")} isRTL={isRTL} />
+            <EmptyState icon="file-tray-outline" title={t("coachReport.noSessionsInRange")} isRTL={isRTL} />
           )
         }
       />
@@ -310,7 +314,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
     borderRadius: theme.radius.lg,
   },
-  screenTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
+  screenTitle: { ...theme.typography.headline, color: theme.colors.text, marginBottom: theme.spacing.sm },
   rtlText: { textAlign: "right" },
   ltrText: { textAlign: "left", writingDirection: "ltr" },
   loadingBanner: {
@@ -322,7 +326,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     paddingVertical: 10,
   },
-  loadingBannerTxt: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  loadingBannerTxt: { ...theme.typography.caption, color: theme.colors.textMuted },
   coachPickCard: {
     marginHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.sm,
@@ -359,7 +363,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: "uppercase",
   },
-  payoutBig: { fontSize: 28, fontWeight: "900", color: theme.colors.cta, marginTop: 4, letterSpacing: -0.5 },
+  payoutBig: { fontSize: 28, fontWeight: "800", color: theme.colors.cta, marginTop: 4, letterSpacing: -0.5 },
   payoutBadge: {
     paddingVertical: 6,
     paddingHorizontal: 10,
@@ -371,6 +375,7 @@ const styles = StyleSheet.create({
   payoutBadgeTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
   payoutWarn: { fontSize: 12, fontWeight: "600", color: theme.colors.error, lineHeight: 17 },
   sessionCard: {
+    marginHorizontal: theme.spacing.md,
     borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
@@ -420,7 +425,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
     borderColor: theme.colors.borderMuted,
   },
-  sessionPayoutAmt: { fontSize: 18, fontWeight: "900", color: theme.colors.success, letterSpacing: -0.3 },
+  sessionPayoutAmt: { ...theme.typography.headline, color: theme.colors.success, letterSpacing: -0.3 },
   sessionPayoutAmtZero: { color: theme.colors.textMuted },
   sessionPayoutAmtMissing: { color: theme.colors.textSoft },
   sessionPayoutMeta: {
@@ -445,11 +450,11 @@ const styles = StyleSheet.create({
   statsRowRtl: { flexDirection: "row-reverse" },
   statCell: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 12, paddingHorizontal: 6 },
   statDivider: { width: StyleSheet.hairlineWidth, backgroundColor: theme.colors.borderMuted },
-  statValue: { fontSize: 20, fontWeight: "900", color: theme.colors.text, lineHeight: 24 },
+  statValue: { fontSize: 20, fontWeight: "800", color: theme.colors.text, lineHeight: 24 },
   statValueWarn: { color: theme.colors.error },
   statLabel: {
     marginTop: 4,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800",
     color: theme.colors.textSoft,
     letterSpacing: 0.2,
@@ -471,5 +476,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.errorBorder,
   },
-  rateWarnPillTxt: { fontSize: 10, fontWeight: "800", color: theme.colors.error },
+  rateWarnPillTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.error },
 });

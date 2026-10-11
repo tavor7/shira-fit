@@ -3,18 +3,16 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { router, type Href } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import type { TrainingSessionWithTrainer } from "../types/database";
-import {
-  formatSessionTimeRange,
-  hasSessionNotEnded,
-  isSessionInProgress,
-  sessionStartsAt,
-} from "../lib/sessionTime";
+import { hasSessionNotEnded, isSessionInProgress, sessionStartsAt } from "../lib/sessionTime";
 import { useI18n } from "../context/I18nContext";
 import { isBirthdayToday } from "../lib/birthday";
 import { formatISODateFull, formatISODateLong } from "../lib/dateFormat";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayTimeRange } from "../lib/displayFormat";
 
 function truncateNotePreview(body: string, maxLen: number): string {
   const oneLine = body.replace(/\s+/g, " ").trim();
@@ -58,7 +56,7 @@ function isInNext7Days(sessionDate: string, startTime: string, now: Date) {
 }
 
 export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Props) {
-  const { language, isRTL } = useI18n();
+  const { language, isRTL, t } = useI18n();
   const [now, setNow] = useState(() => new Date());
   const [participantMap, setParticipantMap] = useState<Record<string, string[]>>({});
   const [noteMap, setNoteMap] = useState<
@@ -266,7 +264,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
   }) {
     const names = participantMap[s.id] ?? [];
     const note = noteMap[s.id] ?? null;
-    const label = `${formatISODateLong(s.session_date, language)} · ${formatSessionTimeRange(s.start_time, durMin(s))}`;
+    const label = `${formatISODateLong(s.session_date, language)} · ${displayTimeRange(s.start_time, durMin(s))}`;
     const nameAlign = isRTL ? styles.participantNameRtlUi : styles.participantNameLtrUi;
     const isCurrent = emphasis === "current";
     return (
@@ -277,9 +275,9 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
         ]}
       >
         {isCurrent ? (
-          <View style={[styles.nowBadgeWrap, isRTL && styles.nowBadgeWrapRtl]}>
+          <View style={[styles.nowBadgeWrap, rowFlipFor(isRTL) && styles.nowBadgeWrapRtl]}>
             <View style={styles.nowBadge}>
-              <Text style={styles.nowBadgeText}>{language === "he" ? "עכשיו" : "Now"}</Text>
+              <Text style={styles.nowBadgeText}>{t("ui.staffHomeOverview.now")}</Text>
             </View>
           </View>
         ) : null}
@@ -301,7 +299,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
         </Pressable>
         <Text style={[styles.sessionCardParticipantHeading, isRTL && styles.rtlText]}>{participantTitle}</Text>
         {names.length === 0 ? (
-          <Text style={[styles.muted, isRTL && styles.rtlText]}>{language === "he" ? "אין הרשמות פעילות." : "No active registrations."}</Text>
+          <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("ui.staffHomeOverview.noActiveRegistrations")}</Text>
         ) : (
           names.map((n, idx) => (
             <Text key={`${s.id}-${idx}`} style={[styles.participantName, nameAlign]}>
@@ -398,7 +396,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
               <AnimatedOptionExpand open={expanded}>
                 <View style={styles.groupBody}>
                   {g.items.map((s) => {
-                    const time = formatSessionTimeRange(s.start_time, durMin(s));
+                    const time = displayTimeRange(s.start_time, durMin(s));
                     const signedUp = signupBySession[s.id] ?? 0;
                     const cap = s.max_participants ?? 0;
                     const notePv = notePreviewBySession[s.id];
@@ -409,7 +407,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
                         style={({ pressed }) => [styles.sessionRow, pressed && styles.sessionRowPressed]}
                         onPress={() => router.push(sessionPath(variant, s.id) as Href)}
                       >
-                        <View style={[styles.sessionRowTop, alignRight && styles.sessionRowTopRtl]}>
+                        <View style={[styles.sessionRowTop, rowFlipFor(alignRight) && styles.sessionRowTopRtl]}>
                           <Text style={[styles.sessionTime, edgeStyle, alignRight && styles.rtlText]} numberOfLines={1}>
                             {time}
                           </Text>
@@ -419,7 +417,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
                         </View>
                         {notePv ? (
                           <Text style={[styles.sessionNotePreview, edgeStyle]} numberOfLines={2}>
-                            {language === "he" ? "הערה: " : "Note: "}
+                            {t("ui.staffHomeOverview.note")}
                             {notePv}
                           </Text>
                         ) : null}
@@ -440,7 +438,7 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
       {staffBirthdays.length > 0 ? (
         <View style={styles.bdayCard}>
           <Text style={[styles.bdayText, isRTL && styles.rtlText]}>
-            🎂{" "}
+            <AppIcon name="gift-outline" size="sm" color={theme.colors.warning} />{" "}
             {language === "he"
               ? `לצוות יש יום הולדת היום: ${staffBirthdays.map((p) => p.name).join(" · ")}`
               : `Staff birthdays today: ${staffBirthdays.map((p) => p.name).join(" · ")}`}
@@ -451,15 +449,15 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
       {(currentTeaching || nextTeaching) && (
         <>
           <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {language === "he" ? "אימון נוכחי והבא" : "Current & next training"}
+            {t("ui.staffHomeOverview.currentNextTraining")}
           </Text>
           {currentTeaching ? (
             <>
               <TeachingSessionSummaryCard
                 s={currentTeaching}
-                prefix={language === "he" ? "נוכחי" : "Current"}
-                participantTitle={language === "he" ? "משתתפים (נוכחי)" : "Participants (current)"}
-                notesTitle={language === "he" ? "הערות (נוכחי)" : "Notes (current)"}
+                prefix={t("ui.staffHomeOverview.current")}
+                participantTitle={t("ui.staffHomeOverview.participantsCurrent")}
+                notesTitle={t("ui.staffHomeOverview.notesCurrent")}
                 alignRight={isRTL}
                 emphasis="current"
               />
@@ -469,9 +467,9 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
             <>
               <TeachingSessionSummaryCard
                 s={nextTeaching}
-                prefix={language === "he" ? "הבא" : "Next"}
-                participantTitle={language === "he" ? "משתתפים (הבא)" : "Participants (next)"}
-                notesTitle={language === "he" ? "הערות (הבא)" : "Notes (next)"}
+                prefix={t("ui.staffHomeOverview.next")}
+                participantTitle={t("ui.staffHomeOverview.participantsNext")}
+                notesTitle={t("ui.staffHomeOverview.notesNext")}
                 alignRight={isRTL}
                 emphasis="next"
               />
@@ -483,11 +481,11 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
       {teachingNotEnded.length > 0 ? (
         <>
           <Text style={[styles.sectionTitle, styles.sectionSpaced, isRTL && styles.rtlText]}>
-            {language === "he" ? "אימונים שאתה מאמן" : "Sessions you’re training"}
+            {t("ui.staffHomeOverview.sessionsYouReTraining")}
           </Text>
           <GroupedSessionList
             list={teachingNotEnded}
-            emptyText={language === "he" ? "אין" : "None"}
+            emptyText={t("ui.staffHomeOverview.none")}
             alignRight={isRTL}
             signupBySession={teachingSignupCounts}
             notePreviewBySession={teachingNotePreview}
@@ -551,14 +549,14 @@ const styles = StyleSheet.create({
   nowBadgeText: {
     color: theme.colors.success,
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: 0.4,
   },
   sessionCardTimePress: {
     marginBottom: theme.spacing.sm,
   },
   sessionCardTimeText: { fontSize: 15, color: theme.colors.text, fontWeight: "600" },
-  sessionCardTimeTextCurrent: { fontSize: 16, fontWeight: "800" },
+  sessionCardTimeTextCurrent: { ...theme.typography.title },
   sessionCardParticipantHeading: {
     fontSize: 14,
     fontWeight: "700",
@@ -601,8 +599,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  countPillText: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "900" },
-  chev: { color: theme.colors.textMuted, fontSize: 11, fontWeight: "900" },
+  countPillText: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "800" },
+  chev: { color: theme.colors.textMuted, fontSize: 11, fontWeight: "800" },
   groupBody: { paddingHorizontal: 8, paddingBottom: 8 },
   sessionRow: {
     paddingVertical: 10,
@@ -641,6 +639,6 @@ const styles = StyleSheet.create({
   /** Force one edge per UI language so mixed Hebrew/Latin names don’t split to opposite sides. */
   participantNameLtrUi: { textAlign: "left", writingDirection: "ltr" },
   participantNameRtlUi: { textAlign: "right", writingDirection: "rtl" },
-  noteMeta: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700", marginBottom: 6 },
+  noteMeta: { color: theme.colors.textMuted, ...theme.typography.label, marginBottom: 6 },
   noteBody: { color: theme.colors.text, fontSize: 14, fontWeight: "700", lineHeight: 18 },
 });

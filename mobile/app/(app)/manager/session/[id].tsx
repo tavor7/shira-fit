@@ -15,6 +15,7 @@ import {
 import { supabase } from "../../../../src/lib/supabase";
 import type { TrainingSession } from "../../../../src/types/database";
 import { theme } from "../../../../src/theme";
+import { LAYOUT } from "../../../../src/lib/screenLayout";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import {
   ParticipantAttendanceList,
@@ -87,6 +88,13 @@ import { CrossfadeSwap } from "../../../../src/components/CrossfadeSwap";
 import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { PressableScale } from "../../../../src/components/PressableScale";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
+import { rowFlipFor } from "../../../../src/lib/layoutDirection";
+import { displayMoney } from "../../../../src/lib/displayFormat";
+import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
+import { EmptyState, ErrorState } from "../../../../src/components/EmptyState";
+import { classifyUserError, userFacingErrorMessage } from "../../../../src/lib/userFacingError";
+import { StatusChip } from "../../../../src/components/StatusChip";
+import { useWebBackDismiss } from "../../../../src/lib/webBackDismiss";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
@@ -192,13 +200,13 @@ function coachDisplayNameFromLabel(label: string): string {
 }
 
 function formatIls(n: number, language: string): string {
-  const r = Math.round(n * 100) / 100;
-  return language === "he" ? `${r.toLocaleString("he-IL")} ₪` : `${r.toLocaleString("en-US")} ₪`;
+  return displayMoney(n);
 }
 
 export default function ManagerSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
+  const screenContent = useScreenContentStyle("standard");
   const { language, t, isRTL } = useI18n();
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showOk, showConfirm } = useAppAlert();
@@ -264,6 +272,8 @@ export default function ManagerSessionDetail() {
   const [customCoachRateDraft, setCustomCoachRateDraft] = useState("");
   const [customCoachRateBusy, setCustomCoachRateBusy] = useState(false);
   const [session, setSession] = useState<TrainingSession | null>(null);
+  // Why the session row is missing after a load (deleted / bad id / request failed) — without it the screen stayed on "Loading…".
+  const [loadError, setLoadError] = useState<unknown>(null);
   const [waitlist, setWaitlist] = useState<WaitlistRow[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
   const [editingSession, setEditingSession] = useState(false);
@@ -284,6 +294,10 @@ export default function ManagerSessionDetail() {
   const [dupDate, setDupDate] = useState("");
   const [dupTime, setDupTime] = useState("");
   const [dupBusy, setDupBusy] = useState(false);
+  // Web: browser Back closes this dialog (not while it is saving) before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(dupOpen, () => {
+    if (!dupBusy) setDupOpen(false);
+  });
   const [dupIncludeParticipants, setDupIncludeParticipants] = useState(false);
   const [dupCoachId, setDupCoachId] = useState("");
   const [dupCoachLabel, setDupCoachLabel] = useState("");
@@ -758,7 +772,8 @@ export default function ManagerSessionDetail() {
     if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
       pushDiag(`load() start id=${String(id)}`);
     }
-    const { data: s } = await supabase.from("training_sessions").select("*").eq("id", id).single();
+    const { data: s, error: sErr } = await supabase.from("training_sessions").select("*").eq("id", id).single();
+    setLoadError(s ? null : sErr ?? { code: "PGRST116" });
     if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
       pushDiag("load() setSession + form fields from DB row");
     }
@@ -934,12 +949,12 @@ export default function ManagerSessionDetail() {
         .eq("user_id", coachId)
         .single();
       if (cancelled || !data) return;
-      setCoachLabel(formatCoachOptionLabel(data as CoachOption));
+      setCoachLabel(formatCoachOptionLabel(data as CoachOption, t));
     })();
     return () => {
       cancelled = true;
     };
-  }, [coachId]);
+  }, [coachId, t]);
 
   useEffect(() => {
     load();
@@ -1183,7 +1198,7 @@ export default function ManagerSessionDetail() {
 
   function selectDupCoach(opt: SessionCoachOption) {
     setDupCoachId(opt.user_id);
-    setDupCoachLabel(formatCoachOptionLabel(opt));
+    setDupCoachLabel(formatCoachOptionLabel(opt, t));
   }
 
   async function runDeleteWithScope(scope?: SeriesScope) {
@@ -1492,9 +1507,37 @@ export default function ManagerSessionDetail() {
   const withPaymentMethodDisplay = useCountUp(attendanceStats.withPaymentMethod);
   const participantCountDisplay = useCountUp(participantCount);
 
+  if (!session && loadError) {
+    // An invalid id ("22P02") is the same as a missing session for the person looking at it.
+    const missing = classifyUserError(loadError) === "notFound" || (loadError as { code?: string }).code === "22P02";
+    return (
+      <View style={[{ flex: 1, backgroundColor: theme.colors.backgroundAlt }, screenContent]}>
+        <Stack.Screen options={{ title: t("screen.managerSession") }} />
+        {missing ? (
+          <EmptyState
+            tone="notFound"
+            title={t("athleteSession.notFound")}
+            body={t("errors.notFound")}
+            actionLabel={t("common.back")}
+            onAction={() => router.replace("/(app)/manager/sessions")}
+            isRTL={isRTL}
+          />
+        ) : (
+          <ErrorState
+            title={t("errors.loadFailedTitle")}
+            body={userFacingErrorMessage(loadError, t)}
+            actionLabel={t("auth.retryConnection")}
+            onAction={() => void load()}
+            isRTL={isRTL}
+          />
+        )}
+      </View>
+    );
+  }
+
   if (!session)
     return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.backgroundAlt }}>
+      <View style={[{ flex: 1, backgroundColor: theme.colors.backgroundAlt }, screenContent]}>
         <Stack.Screen options={{ title: t("screen.managerSession") }} />
         <Text style={[styles.loading, isRTL && styles.rtlText]}>{t("common.loading")}</Text>
       </View>
@@ -1520,7 +1563,7 @@ export default function ManagerSessionDetail() {
         <ScrollView
           ref={scrollRef}
           style={styles.screen}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, screenContent]}
           onScroll={(e) => {
             scrollYRef.current = e.nativeEvent.contentOffset.y;
           }}
@@ -1557,7 +1600,7 @@ export default function ManagerSessionDetail() {
               onSelect={(opt) => {
                 pushUndo();
                 setCoachId(opt.user_id);
-                setCoachLabel(formatCoachOptionLabel(opt));
+                setCoachLabel(formatCoachOptionLabel(opt, t));
               }}
             />
           </View>
@@ -1656,7 +1699,7 @@ export default function ManagerSessionDetail() {
         }
       >
         <View style={styles.summaryCard}>
-          <View style={[styles.summaryTitleRow, isRTL && styles.summaryTitleRowRtl]}>
+          <View style={[styles.summaryTitleRow, rowFlipFor(isRTL) && styles.summaryTitleRowRtl]}>
             <Text style={[styles.summaryTitle, isRTL && styles.rtlText]}>{t("sessionDetail.session")}</Text>
             {session.series_id && !session.series_detached ? (
               <View style={styles.seriesBadge}>
@@ -1670,8 +1713,8 @@ export default function ManagerSessionDetail() {
             </View>
           ) : null}
           <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>
-            {formatISODateFullWithWeekdayAfter(date, language)} · {formatSessionStartTime(time)} · {durationMin}{" "}
-            {t("sessionDetail.durationMinAbbr")}
+            {formatISODateFullWithWeekdayAfter(date, language)} · {formatSessionStartTime(time)} · {/* non-breaking space: "60 min" never splits across lines */}
+            {`${durationMin}\u00A0${t("sessionDetail.durationMinAbbr")}`}
           </Text>
           <Text style={[styles.summaryCoachLine, isRTL && styles.rtlText]}>
             {t("managerSession.coachHeading")}:{" "}
@@ -1682,13 +1725,18 @@ export default function ManagerSessionDetail() {
               <Text style={[styles.summaryEndedText, isRTL && styles.rtlText]}>{t("managerSession.sessionEnded")}</Text>
             </View>
           ) : null}
-          <Text style={[styles.summaryMeta, isRTL && styles.rtlText]}>
-            {t("sessionDetail.openLabel")}
-            {open ? t("common.yes") : t("common.no")}
-            {" · "}
-            {t("sessionDetail.hiddenLabel")}
-            {hidden ? t("common.yes") : t("common.no")}
-          </Text>
+          {/* Phase 5 / M: state as readable chips instead of "Open: Yes · Hidden: No". */}
+          {!sessionHasEnded || hidden ? (
+            <View style={[styles.summaryChips, rowFlipFor(isRTL) && styles.summaryChipsRtl]}>
+              {!sessionHasEnded ? (
+                <StatusChip
+                  label={open ? t("sessionStatus.openForRegistration") : t("sessionStatus.registrationClosed")}
+                  tone={open ? "success" : "warning"}
+                />
+              ) : null}
+              {hidden ? <StatusChip label={t("sessionStatus.hiddenFromAthletes")} tone="info" /> : null}
+            </View>
+          ) : null}
           {sessionHasEnded ? (
             <View style={styles.trainingSummaryBox}>
               <Text style={[styles.trainingSummaryTitle, isRTL && styles.rtlText]}>
@@ -1699,8 +1747,8 @@ export default function ManagerSessionDetail() {
                   {t("managerSession.summaryNoRegistrations")}
                 </Text>
               ) : (
-                <View style={[styles.summaryTilesRow, isRTL && styles.summaryTilesRowRtl]}>
-                  <View style={[styles.summaryTile, isRTL && styles.summaryTileRtl]}>
+                <View style={[styles.summaryTilesRow, rowFlipFor(isRTL) && styles.summaryTilesRowRtl]}>
+                  <View style={[styles.summaryTile, rowFlipFor(isRTL) && styles.summaryTileRtl]}>
                     <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
                       {t("managerSession.summaryTileAttendance")}
                     </Text>
@@ -1716,7 +1764,7 @@ export default function ManagerSessionDetail() {
                         .replace("{pct}", String(arrivalRatePct))}
                     </Text>
                   </View>
-                  <View style={[styles.summaryTile, isRTL && styles.summaryTileRtl]}>
+                  <View style={[styles.summaryTile, rowFlipFor(isRTL) && styles.summaryTileRtl]}>
                     <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
                       {t("managerSession.summaryTilePayments")}
                     </Text>
@@ -1750,7 +1798,7 @@ export default function ManagerSessionDetail() {
                 </View>
               )}
               {sessionHasEnded && extraFeeSummary.hasAny ? (
-                <View style={[styles.summaryFeesBox, isRTL && styles.summaryTileRtl]}>
+                <View style={[styles.summaryFeesBox, rowFlipFor(isRTL) && styles.summaryTileRtl]}>
                   <Text style={[styles.summaryTileLabel, isRTL && styles.rtlText]}>
                     {t("managerSession.summaryFeesTitle")}
                   </Text>
@@ -1822,7 +1870,7 @@ export default function ManagerSessionDetail() {
             <Text style={[styles.dupSectionLabel, isRTL && styles.rtlText]}>
               {t("sessionDetail.participants")}
             </Text>
-            <View style={[styles.dupChoiceRow, isRTL && styles.dupChoiceRowRtl]}>
+            <View style={[styles.dupChoiceRow, rowFlipFor(isRTL) && styles.dupChoiceRowRtl]}>
               <Pressable
                 style={({ pressed }) => [
                   styles.dupChoice,
@@ -1911,7 +1959,7 @@ export default function ManagerSessionDetail() {
           return (
             <FadeSlideIn key={item.user_id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
               <View style={styles.waitCard}>
-              <View style={[styles.waitCardRow, isRTL && styles.waitCardRowRtl]}>
+              <View style={[styles.waitCardRow, rowFlipFor(isRTL) && styles.waitCardRowRtl]}>
                 <View style={styles.waitCardMain}>
                   <Text style={[styles.waitName, isRTL && styles.rtlText]}>{name}</Text>
                   {phone ? <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>{phone}</Text> : null}
@@ -1967,7 +2015,7 @@ export default function ManagerSessionDetail() {
                   <Text style={styles.chargeWarn}>
                     {t("managerSession.lateCancelBadge")}
                   </Text>
-                  <View style={[styles.cancelChargeRow, isRTL && styles.cancelChargeRowRtl]}>
+                  <View style={[styles.cancelChargeRow, rowFlipFor(isRTL) && styles.cancelChargeRowRtl]}>
                     <Pressable
                       onPress={() => void setCancellationCharge(c.id, false)}
                       style={({ pressed }) => [
@@ -1995,7 +2043,7 @@ export default function ManagerSessionDetail() {
                   </View>
                   {feeCharged ? (
                     collected > 0 ? (
-                      <View style={[styles.penaltyPaidRow, isRTL && styles.penaltyPaidRowRtl]}>
+                      <View style={[styles.penaltyPaidRow, rowFlipFor(isRTL) && styles.penaltyPaidRowRtl]}>
                         <View style={styles.penaltyPaidBadge}>
                           <Text style={styles.penaltyPaidBadgeTxt} numberOfLines={1}>
                             {c.payment_method
@@ -2061,11 +2109,11 @@ export default function ManagerSessionDetail() {
               value={noteDraft}
               onChangeText={setNoteDraft}
               placeholder={t("sessionDetail.addNotePlaceholder")}
-              placeholderTextColor={theme.colors.placeholderOnLight}
+              placeholderTextColor={theme.colors.fieldPlaceholder}
               multiline
               autoFocus
             />
-            <View style={[styles.noteComposerActions, isRTL && styles.noteComposerActionsRtl]}>
+            <View style={[styles.noteComposerActions, rowFlipFor(isRTL) && styles.noteComposerActionsRtl]}>
               <Pressable
                 onPress={() => {
                   setNoteComposerOpen(false);
@@ -2118,11 +2166,11 @@ export default function ManagerSessionDetail() {
                         style={[styles.noteInput, isRTL && styles.noteInputRtl, styles.noteEditInput]}
                         value={noteEditDraft}
                         onChangeText={setNoteEditDraft}
-                        placeholderTextColor={theme.colors.placeholderOnLight}
+                        placeholderTextColor={theme.colors.fieldPlaceholder}
                         multiline
                         autoFocus
                       />
-                      <View style={[styles.noteEditActions, isRTL && styles.noteEditActionsRtl]}>
+                      <View style={[styles.noteEditActions, rowFlipFor(isRTL) && styles.noteEditActionsRtl]}>
                         <Pressable
                           onPress={() => {
                             setEditingNoteId(null);
@@ -2154,7 +2202,7 @@ export default function ManagerSessionDetail() {
                     <Text style={[styles.noteBody, isRTL && styles.rtlText]}>{n.body}</Text>
                   )}
                   {!isEditing && canDelete ? (
-                    <View style={[styles.noteRowActions, isRTL && styles.noteRowActionsRtl]}>
+                    <View style={[styles.noteRowActions, rowFlipFor(isRTL) && styles.noteRowActionsRtl]}>
                       <PressableScale
                         onPress={() => {
                           setNoteComposerOpen(false);
@@ -2413,8 +2461,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   summaryTileHero: {
-    fontSize: 22,
-    fontWeight: "900",
+    ...theme.typography.display,
     letterSpacing: 0.2,
     color: theme.colors.text,
     marginBottom: 4,
@@ -2476,7 +2523,7 @@ const styles = StyleSheet.create({
   cancelMethodChipTxt: { fontSize: 11, fontWeight: "700", color: theme.colors.textMuted },
   penaltyPaidRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 10 },
   penaltyPaidRowRtl: { flexDirection: "row-reverse" },
-  penaltyEditLink: { fontSize: 12, fontWeight: "700", color: theme.colors.cta },
+  penaltyEditLink: { ...theme.typography.label, color: theme.colors.cta },
   penaltyPaidBadge: {
     alignSelf: "flex-start",
     flexDirection: "row",
@@ -2490,7 +2537,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(34, 197, 94, 0.35)",
   },
   penaltyPaidBadgeTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.success },
-  penaltyPaidBadgeAmt: { fontSize: 11, fontWeight: "900", color: theme.colors.success },
+  penaltyPaidBadgeAmt: { fontSize: 11, fontWeight: "800", color: theme.colors.success },
   summaryEndedRow: {
     marginTop: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
@@ -2505,6 +2552,8 @@ const styles = StyleSheet.create({
     color: theme.colors.success,
     lineHeight: 18,
   },
+  summaryChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 2 },
+  summaryChipsRtl: { flexDirection: "row-reverse" },
   summaryMeta: {
     marginTop: theme.spacing.sm,
     fontSize: 12,
@@ -2540,7 +2589,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     letterSpacing: 0.15,
   },
-  label: { marginTop: theme.spacing.sm, fontWeight: "600", color: theme.colors.text, fontSize: 13 },
+  label: { marginTop: theme.spacing.sm, color: theme.colors.text, ...theme.typography.caption, },
   muted: { color: theme.colors.textSoft },
   waitCard: {
     marginTop: 6,
@@ -2561,10 +2610,10 @@ const styles = StyleSheet.create({
     minWidth: 72,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: theme.controls.minTouch,
   },
-  waitQuickBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 13 },
-  waitName: { color: theme.colors.text, fontWeight: "900", fontSize: 15 },
+  waitQuickBtnTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 13 },
+  waitName: { color: theme.colors.text, fontWeight: "800", fontSize: 15 },
   waitMeta: { marginTop: 4, color: theme.colors.textMuted, fontWeight: "700" },
   notesCard: {
     marginTop: 4,
@@ -2612,8 +2661,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.sm,
     padding: 12,
     minHeight: 84,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+    backgroundColor: theme.colors.fieldBg,
+    color: theme.colors.fieldText,
   },
   noteInputRtl: { textAlign: "right", writingDirection: "rtl" },
   noteBtn: {
@@ -2632,7 +2681,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
   },
-  noteMeta: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700" },
+  noteMeta: { color: theme.colors.textMuted, ...theme.typography.label },
   noteBody: { marginTop: 6, color: theme.colors.text, fontWeight: "700", lineHeight: 18 },
   noteDelete: { marginTop: 0, alignSelf: "flex-start" },
   noteDeleteWeb: { cursor: "pointer" } as const,
@@ -2666,8 +2715,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 8,
     fontSize: 16,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+    backgroundColor: theme.colors.fieldBg,
+    color: theme.colors.fieldText,
   },
   pickerTouch: {
     borderWidth: 1,
@@ -2676,13 +2725,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     minHeight: 48,
-    backgroundColor: theme.colors.white,
+    backgroundColor: theme.colors.fieldBg,
     justifyContent: "center",
     marginTop: 6,
     marginBottom: 8,
   },
-  pickerText: { fontSize: 16, fontWeight: "600", color: theme.colors.textOnLight },
-  pickerPlaceholder: { fontSize: 16, fontWeight: "600", color: theme.colors.placeholderOnLight },
+  pickerText: { ...theme.typography.body, color: theme.colors.fieldText },
+  pickerPlaceholder: { ...theme.typography.body, color: theme.colors.fieldPlaceholder },
   modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
   modalBackdropTouch: { ...StyleSheet.absoluteFill },
   modalBox: {
@@ -2703,16 +2752,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderMuted,
   },
-  modalTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
-  modalClose: { fontSize: 16, fontWeight: "900", color: theme.colors.cta },
+  modalTitle: { ...theme.typography.title, color: theme.colors.text },
+  modalClose: { fontSize: 16, fontWeight: "800", color: theme.colors.cta },
   modalLoader: { paddingVertical: theme.spacing.xl },
   pickerItem: { paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.md },
   pickerItemTextCol: { gap: 2 },
-  pickerItemName: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
-  pickerItemRole: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  pickerItemName: { ...theme.typography.title, color: theme.colors.text },
+  pickerItemRole: { ...theme.typography.caption, color: theme.colors.textMuted },
   pickerEmpty: { padding: theme.spacing.lg, textAlign: "center", color: theme.colors.textMuted },
-  toggle: { padding: 12, backgroundColor: theme.colors.white, borderRadius: theme.radius.sm, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
-  toggleText: { color: theme.colors.textOnLight, fontSize: 16 },
+  toggle: { padding: 12, backgroundColor: theme.colors.fieldBg, borderRadius: theme.radius.sm, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
+  toggleText: { color: theme.colors.fieldText, fontSize: 16 },
   toggleRtl: { alignItems: "flex-end" },
   toggleTextRtl: { textAlign: "right", writingDirection: "rtl", alignSelf: "stretch", width: "100%" },
   undoBtn: {
@@ -2731,13 +2780,16 @@ const styles = StyleSheet.create({
   dupBackdrop: { flex: 1, justifyContent: "center", padding: theme.spacing.lg, backgroundColor: "rgba(0,0,0,0.55)" },
   dupBackdropTouch: { ...StyleSheet.absoluteFill },
   dupCard: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.dialogMaxWidth,
+    alignSelf: "center",
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     padding: theme.spacing.md,
   },
-  dupTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text, marginBottom: 6 },
+  dupTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text, marginBottom: 6 },
   dupHint: { fontSize: 12, color: theme.colors.textSoft, lineHeight: 17, marginBottom: 10 },
   dupSectionLabel: {
     marginTop: 4,

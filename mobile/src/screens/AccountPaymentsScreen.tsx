@@ -47,6 +47,10 @@ import { fetchReceiptSettings } from "../lib/documents";
 import type { AthleteAccountPayment } from "../types/database";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { useCountUp } from "../hooks/useCountUp";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { pluralKey } from "../lib/pluralKey";
 
 type DateMode = "all" | "range";
 type PaymentMethodFilter = "all" | SessionPaymentMethodKey;
@@ -94,6 +98,7 @@ function payeeFilterLabel(filter: PayeeFilter, t: (k: string) => string): string
 
 export default function AccountPaymentsScreen() {
   const router = useRouter();
+  const screenContent = useScreenContentStyle("standard");
   const { language, t, isRTL } = useI18n();
   const { showConfirm } = useAppAlert();
   const { showToast } = useToast();
@@ -644,7 +649,7 @@ export default function AccountPaymentsScreen() {
             ) : null}
 
             <Text style={[styles.sectionLabel, styles.sectionSpaced, isRTL && styles.rtl]}>{t("accountPayments.dateFilter")}</Text>
-            <View style={[styles.dateModeRow, rtlRow && styles.dateModeRowRtl]}>
+            <View style={[styles.dateModeRow, rowFlipFor(rtlRow) && styles.dateModeRowRtl]}>
               {dateModeOptions.map((opt) => {
                 const on = dateMode === opt.id;
                 return (
@@ -678,7 +683,7 @@ export default function AccountPaymentsScreen() {
             ) : null}
 
             <Text style={[styles.sectionLabel, styles.sectionSpaced, isRTL && styles.rtl]}>{t("accountPayments.methodFilter")}</Text>
-            <View style={[styles.methodChipRow, rtlRow && styles.methodChipRowRtl]}>
+            <View style={[styles.methodChipRow, rowFlipFor(rtlRow) && styles.methodChipRowRtl]}>
               {paymentMethodOptions.map((opt) => {
                 const on = paymentMethodFilter === opt.id;
                 return (
@@ -702,21 +707,21 @@ export default function AccountPaymentsScreen() {
           </View>
         ) : null}
 
-        <View style={[styles.summaryRow, rtlRow && styles.summaryRowRtl]}>
+        <View style={[styles.summaryRow, rowFlipFor(rtlRow) && styles.summaryRowRtl]}>
           <View style={styles.summaryStat}>
             <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{Math.round(totalCountDisplay)}</Text>
             <Text style={[styles.summaryLabel, isRTL && styles.rtl]}>{t("accountPayments.paymentCount")}</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryStat}>
-            <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{`${Math.round(totalReceivedDisplay * 100) / 100} ₪`}</Text>
+            <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{displayMoney(totalReceivedDisplay)}</Text>
             <Text style={[styles.summaryLabel, isRTL && styles.rtl]}>{t("billing.received")}</Text>
           </View>
         </View>
 
         <PrimaryButton label={t("billing.addPayment")} onPress={onAddPayment} style={styles.addBtn} />
       </View>
-      <View style={[styles.sortRow, isRTL && styles.sortRowRtl]}>
+      <View style={[styles.sortRow, rowFlipFor(isRTL) && styles.sortRowRtl]}>
         <SortToggleButton
           value={sortOrder}
           onChange={setSortOrder}
@@ -735,7 +740,7 @@ export default function AccountPaymentsScreen() {
         data={sortedRows}
         keyExtractor={(item) => item.row_id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.cta} />}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, screenContent]}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
           loading ? (
@@ -745,12 +750,12 @@ export default function AccountPaymentsScreen() {
               <ListRowSkeleton />
             </View>
           ) : (
-            <EmptyState icon="💳" title={t("accountPayments.empty")} isRTL={isRTL} />
+            <EmptyState icon="card-outline" title={t("accountPayments.empty")} isRTL={isRTL} />
           )
         }
         renderItem={({ item, index }) => {
           const amt = parseMoney(item.amount_ils);
-          const amtTxt = amt !== null && amt > 0 ? `${amt} ₪` : "—";
+          const amtTxt = amt !== null && amt > 0 ? displayMoney(amt) : "—";
           const busy = deletingId === item.record_id;
           const isAccount = item.source === "account";
           const kindLabel =
@@ -769,14 +774,14 @@ export default function AccountPaymentsScreen() {
           return (
             <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <View style={styles.paymentCard}>
-              <View style={[styles.paymentHead, rtlRow && styles.paymentHeadRtl]}>
+              <View style={[styles.paymentHead, rowFlipFor(rtlRow) && styles.paymentHeadRtl]}>
                 <Text style={[styles.paymentDate, isRTL && styles.rtl]} numberOfLines={1}>
                   {formatISODateWeekdayDayMonthYear(item.paid_at, language)}
                 </Text>
                 <Text style={styles.paymentAmount}>{amtTxt}</Text>
               </View>
-              <View style={[styles.payeeRow, rtlRow && styles.payeeRowRtl]}>
-                <Text style={[styles.payeeName, isRTL && styles.rtl]} numberOfLines={1}>
+              <View style={[styles.payeeRow, rowFlipFor(rtlRow) && styles.payeeRowRtl]}>
+                <Text {...userContentTextProps} style={[styles.payeeName, isRTL && styles.rtl]} numberOfLines={1}>
                   {item.payee_label}
                 </Text>
                 <View style={styles.kindBadge}>
@@ -790,7 +795,7 @@ export default function AccountPaymentsScreen() {
               </View>
               {item.family_name ? (
                 <Text style={[styles.metaLine, isRTL && styles.rtl]} numberOfLines={1}>
-                  {language === "he" ? "משפחה" : "Family"}: {item.family_name}
+                  {t("ui.accountPayments.family")}: {item.family_name}
                 </Text>
               ) : null}
               {sessionMeta ? (
@@ -802,8 +807,13 @@ export default function AccountPaymentsScreen() {
                 {item.payment_method
                   ? paymentMethodHistoryLabel(item.payment_method, language)
                   : t("accountPayments.methodUnknown")}
-                {(item.note ?? "").trim() ? ` · ${item.note}` : ""}
               </Text>
+              {/* The note is user text in either language: its own line keeps it readable when truncated (as in PaymentHistoryRow). */}
+              {(item.note ?? "").trim() ? (
+                <Text {...userContentTextProps} style={[styles.metaLine, isRTL && styles.rtl]} numberOfLines={1}>
+                  {item.note}
+                </Text>
+              ) : null}
               {item.payer_name?.trim() ? (
                 <Text style={[styles.metaLine, isRTL && styles.rtl]} numberOfLines={1}>
                   {t("families.paidBy").replace("{name}", item.payer_name.trim())}
@@ -815,7 +825,7 @@ export default function AccountPaymentsScreen() {
                 </Text>
               ) : null}
               {amt !== null && amt > 0 ? (
-                <View style={[styles.manualReceiptRow, rtlRow && styles.manualReceiptRowRtl]}>
+                <View style={[styles.manualReceiptRow, rowFlipFor(rtlRow) && styles.manualReceiptRowRtl]}>
                   {manualReceiptBusyRowId === item.row_id ? (
                     <ActivityIndicator size="small" color={theme.colors.textMuted} />
                   ) : item.has_manual_receipt ? (
@@ -833,7 +843,7 @@ export default function AccountPaymentsScreen() {
                   )}
                 </View>
               ) : null}
-              <View style={[styles.actionBar, rtlRow && styles.actionBarRtl]}>
+              <View style={[styles.actionBar, rowFlipFor(rtlRow) && styles.actionBarRtl]}>
                 {documentsEnabled && amt !== null && amt > 0 && !item.has_manual_receipt ? (
                   <>
                     <Pressable
@@ -891,7 +901,7 @@ export default function AccountPaymentsScreen() {
         backdropAccessibilityLabel={t("common.cancel")}
         cardStyle={styles.pickerSheet}
       >
-        <View style={[styles.pickerHeader, rtlRow && styles.pickerHeaderRtl]}>
+        <View style={[styles.pickerHeader, rowFlipFor(rtlRow) && styles.pickerHeaderRtl]}>
           <Text style={[styles.pickerTitle, isRTL && styles.rtl]}>
             {payeePickerMode === "add" ? t("accountPayments.pickPayeeAdd") : t("accountPayments.pickPayeeFilter")}
           </Text>
@@ -915,13 +925,13 @@ export default function AccountPaymentsScreen() {
               keyExtractor={(r) => `${r.kind}:${r.id}`}
               keyboardShouldPersistTaps="handled"
               style={styles.pickerList}
-              ListEmptyComponent={<EmptyState icon="🔍" title={t("accountPayments.noPayees")} isRTL={isRTL} />}
+              ListEmptyComponent={<EmptyState icon="search-outline" title={t("accountPayments.noPayees")} isRTL={isRTL} />}
               renderItem={({ item }) => {
                 let subtitle = "";
                 let title = "";
                 if (item.kind === "family") {
                   title = item.name;
-                  subtitle = t("accountPayments.familyMembers").replace("{n}", String(item.member_count));
+                  subtitle = pluralKey(t, "accountPayments.familyMembers", item.member_count).replace("{n}", String(item.member_count));
                 } else if (item.kind === "manual") {
                   title = item.full_name;
                   subtitle = t("accountPayments.kindManual");
@@ -955,7 +965,7 @@ export default function AccountPaymentsScreen() {
         backdropAccessibilityLabel={t("common.cancel")}
         cardStyle={styles.pickerSheet}
       >
-        <View style={[styles.pickerHeader, rtlRow && styles.pickerHeaderRtl]}>
+        <View style={[styles.pickerHeader, rowFlipFor(rtlRow) && styles.pickerHeaderRtl]}>
           <Text style={[styles.pickerTitle, isRTL && styles.rtl]}>{t("accountPayments.pickMember")}</Text>
           <Pressable onPress={() => setMemberPickOpen(false)} hitSlop={12}>
             <Text style={styles.pickerClose}>{t("common.cancel")}</Text>
@@ -1013,7 +1023,7 @@ export default function AccountPaymentsScreen() {
         prefill={docPrefill}
         onCreated={() => {
           showToast({
-            message: language === "he" ? "מסמך נוצר" : "Document created",
+            message: t("ui.accountPayments.documentCreated"),
             variant: "success",
           });
           router.push("/(app)/manager/documents-invoices");
@@ -1121,7 +1131,7 @@ const styles = StyleSheet.create({
   summaryRowRtl: { flexDirection: "row-reverse" },
   summaryStat: { flex: 1, alignItems: "center" },
   summaryDivider: { width: StyleSheet.hairlineWidth, alignSelf: "stretch", backgroundColor: theme.colors.borderMuted },
-  summaryValue: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
+  summaryValue: { ...theme.typography.headline, color: theme.colors.text },
   summaryLabel: { marginTop: 2, fontSize: 11, fontWeight: "700", color: theme.colors.textSoft, textTransform: "uppercase", letterSpacing: 0.25 },
   addBtn: { marginTop: 0 },
   paymentCard: {
@@ -1135,7 +1145,7 @@ const styles = StyleSheet.create({
   paymentHead: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: theme.spacing.sm },
   paymentHeadRtl: { flexDirection: "row-reverse" },
   paymentDate: { flex: 1, fontSize: 14, fontWeight: "800", color: theme.colors.text, lineHeight: 20 },
-  paymentAmount: { fontSize: 17, fontWeight: "900", color: theme.colors.text },
+  paymentAmount: { fontSize: 17, fontWeight: "800", color: theme.colors.text },
   payeeRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, marginTop: theme.spacing.sm },
   payeeRowRtl: { flexDirection: "row-reverse" },
   payeeName: { flex: 1, fontSize: 14, fontWeight: "700", color: theme.colors.textMuted },
@@ -1147,18 +1157,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  kindBadgeText: { fontSize: 10, fontWeight: "800", color: theme.colors.textSoft, letterSpacing: 0.2 },
+  kindBadgeText: { fontSize: 11, fontWeight: "800", color: theme.colors.textSoft, letterSpacing: 0.2 },
   hiddenBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.errorBg,
   },
-  hiddenBadgeText: { fontSize: 10, fontWeight: "800", color: theme.colors.error, letterSpacing: 0.2 },
+  hiddenBadgeText: { fontSize: 11, fontWeight: "800", color: theme.colors.error, letterSpacing: 0.2 },
   metaLine: { marginTop: 4, fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 18 },
   manualReceiptRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 8 },
   manualReceiptRowRtl: { flexDirection: "row-reverse" },
-  manualReceiptLink: { fontSize: 12, fontWeight: "700", color: theme.colors.textSoft, textDecorationLine: "underline" },
+  manualReceiptLink: { ...theme.typography.label, color: theme.colors.textSoft, textDecorationLine: "underline" },
   manualReceiptBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,

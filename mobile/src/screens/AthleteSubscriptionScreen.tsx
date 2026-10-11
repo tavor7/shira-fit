@@ -18,9 +18,12 @@ import {
   usedOfLimitLabel,
   type AthleteSubscriptionViewModel,
 } from "../lib/athleteSubscription";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 export function AthleteSubscriptionScreen() {
   const { t, language, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const [vm, setVm] = useState<AthleteSubscriptionViewModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +66,7 @@ export function AthleteSubscriptionScreen() {
     return (
       <View style={styles.screen}>
         <EmptyState
-          icon="⚠️"
+          tone="error"
           title={t("athleteSubscription.loadError")}
           actionLabel={t("athleteSubscription.retry")}
           onAction={() => void load()}
@@ -85,7 +88,7 @@ export function AthleteSubscriptionScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, screenContent]}>
         {isFrozen && vm.currentFreeze ? (
           <View style={styles.frozenCard}>
             <AppText variant="title" isRTL={isRTL} style={styles.frozenTitle}>
@@ -118,7 +121,7 @@ export function AthleteSubscriptionScreen() {
               {t("athleteSubscription.priceLine").replace("{price}", formatIls(vm.monthlyPriceIls))}
             </AppText>
             {vm.nextBillingDate ? (
-              <View style={[styles.summaryRow, isRTL && styles.summaryRowRtl]}>
+              <View style={[styles.summaryRow, rowFlipFor(isRTL) && styles.summaryRowRtl]}>
                 <AppText variant="caption" muted isRTL={isRTL}>
                   {t("athleteSubscription.nextBilling")}
                 </AppText>
@@ -128,7 +131,7 @@ export function AthleteSubscriptionScreen() {
               </View>
             ) : null}
             {!vm.hasNoEndDate && vm.planEndDate ? (
-              <View style={[styles.summaryRow, isRTL && styles.summaryRowRtl]}>
+              <View style={[styles.summaryRow, rowFlipFor(isRTL) && styles.summaryRowRtl]}>
                 <AppText variant="caption" muted isRTL={isRTL}>
                   {t("athleteSubscription.validUntil")}
                 </AppText>
@@ -155,7 +158,7 @@ export function AthleteSubscriptionScreen() {
 
         {vm.tiers.length > 0 ? (
           <View style={styles.section}>
-            <View style={[styles.sectionHeaderRow, isRTL && styles.sectionHeaderRowRtl]}>
+            <View style={[styles.sectionHeaderRow, rowFlipFor(isRTL) && styles.sectionHeaderRowRtl]}>
               <AppText variant="headline" isRTL={isRTL}>
                 {t("athleteSubscription.thisWeekTitle")}
               </AppText>
@@ -200,7 +203,7 @@ export function AthleteSubscriptionScreen() {
 
 function KeyValue({ label, value, isRTL }: { label: string; value: string; isRTL: boolean }) {
   return (
-    <View style={[styles.kv, isRTL && styles.kvRtl]}>
+    <View style={[styles.kv, rowFlipFor(isRTL) && styles.kvRtl]}>
       <AppText variant="caption" muted isRTL={isRTL}>
         {label}
       </AppText>

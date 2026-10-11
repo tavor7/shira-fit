@@ -1,4 +1,5 @@
 import type { LanguageCode } from "../i18n/translations";
+import { documentPaymentMethodLabel } from "./documentPaymentMethod";
 
 /** Stored payment_method values selectable in session / account payment UI. */
 export const SESSION_PAYMENT_METHOD_KEYS = ["cash", "paybox", "mom", "other"] as const;
@@ -64,7 +65,10 @@ export function paymentMethodAttendanceLabel(key: string | null | undefined, lan
   if (k === "discount") return language === "he" ? "הנחה" : "Discount";
   if (k === "other") return language === "he" ? "אחר" : "Other";
   const raw = String(key ?? "").trim();
-  return raw || (language === "he" ? "אחר" : "Other");
+  // Account/document payment methods (bit, bank_transfer, credit_card, check) have their own labels;
+  // never show the stored key itself.
+  if (raw) return documentPaymentMethodLabel(raw, language);
+  return language === "he" ? "אחר" : "Other";
 }
 
 /** Participant history / reports: show method in current UI language */

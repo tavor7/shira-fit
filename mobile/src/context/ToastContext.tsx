@@ -2,6 +2,10 @@ import React, { createContext, useCallback, useContext, useRef, useState } from 
 import { AccessibilityInfo, Animated, Easing, Platform, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
+import { useBottomChrome } from "./BottomChromeContext";
+import { toastBottomOffset } from "../lib/screenLayout";
+import { useI18n } from "./I18nContext";
+import { toUserFacingText } from "../lib/userFacingError";
 
 type ToastPayload = {
   message: string;
@@ -21,10 +25,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progress = useRef(new Animated.Value(0)).current;
   const reduceMotionRef = useReduceMotionRef();
+  // Above the contact footer, bottom bars and the floating accessibility button (lib/screenLayout).
+  const toastBottom = toastBottomOffset(useBottomChrome());
+
+  const { t } = useI18n();
 
   const showToast = useCallback(
-    (p: ToastPayload) => {
+    (raw: ToastPayload) => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
+      // Never show raw technical error text (see lib/userFacingError).
+      const p = { ...raw, message: toUserFacingText(raw.message, t) ?? raw.message, detail: toUserFacingText(raw.detail, t) };
       setToast(p);
       if (Platform.OS === "ios" || Platform.OS === "android") {
         const a11y = p.detail ? `${p.message}. ${p.detail}` : p.message;
@@ -46,14 +56,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         }).start(() => setToast(null));
       }, TOAST_MS);
     },
-    [progress]
+    [progress, t]
   );
 
   return (
     <ToastCtx.Provider value={{ showToast }}>
       {children}
       {toast ? (
-        <View style={styles.layer} pointerEvents="none" accessibilityLiveRegion="polite">
+        <View style={[styles.layer, { paddingBottom: toastBottom }]} pointerEvents="none" accessibilityLiveRegion="polite">
           <Animated.View
             style={[
               styles.toastWrap,
@@ -97,7 +107,6 @@ const styles = StyleSheet.create({
   layer: {
     ...StyleSheet.absoluteFill,
     justifyContent: "flex-end",
-    paddingBottom: 56,
     paddingHorizontal: theme.spacing.md,
     zIndex: 999_999,
     elevation: 80,

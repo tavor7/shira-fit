@@ -1,6 +1,7 @@
+import { displayMoney } from "./displayFormat";
+
 export function formatFinanceIls(n: number, language: string): string {
-  const r = Math.round(n * 100) / 100;
-  return language === "he" ? `${r.toLocaleString("he-IL")} ₪` : `${r.toLocaleString("en-US")} ₪`;
+  return displayMoney(n);
 }
 
 export function formatSessionTimeShort(isoTime: string): string {

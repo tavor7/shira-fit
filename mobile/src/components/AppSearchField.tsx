@@ -11,6 +11,9 @@ import {
   type ViewStyle,
 } from "react-native";
 import { theme } from "../theme";
+import { useI18n } from "../context/I18nContext";
+import { AppIcon } from "./AppIcon";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 type Props = {
   value: string;
@@ -63,6 +66,7 @@ export function AppSearchField({
   onFocus,
   onBlur,
 }: Props) {
+  const { t } = useI18n();
   const inputRef = useRef<TextInput>(null);
   const onSearchRef = useRef(onSearch);
   onSearchRef.current = onSearch;
@@ -91,7 +95,7 @@ export function AppSearchField({
   }
 
   return (
-    <View style={[styles.shell, isRTL && styles.shellRtl, style]} accessibilityRole="search">
+    <View style={[styles.shell, rowFlipFor(isRTL) && styles.shellRtl, style]} accessibilityRole="search" {...searchShellWebProps}>
       <Text style={styles.glyph} accessibilityElementsHidden importantForAccessibility="no">
         ⌕
       </Text>
@@ -109,25 +113,32 @@ export function AppSearchField({
         autoFocus={autoFocus}
         returnKeyType="search"
         onFocus={handleFocus}
+        {...searchInputWebProps}
         onBlur={onBlur}
         onSubmitEditing={() => void onSearchRef.current(value)}
       />
       {loading ? (
-        <ActivityIndicator size="small" color={theme.colors.cta} style={styles.trail} />
+        <ActivityIndicator size="small" color={theme.colors.cta} style={styles.trail} accessibilityLabel={t("common.loading")} />
       ) : value.length > 0 ? (
         <Pressable
           onPress={handleClear}
           hitSlop={10}
-          style={({ pressed }) => [styles.clearBtn, pressed && { opacity: 0.75 }]}
+          style={({ pressed }) => [styles.clearHit, pressed && { opacity: 0.75 }]}
           accessibilityRole="button"
-          accessibilityLabel="Clear search"
+          accessibilityLabel={t("common.clearSearch")}
         >
-          <Text style={styles.clearTxt}>✕</Text>
+          <View style={styles.clearBtn}>
+            <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
+          </View>
         </Pressable>
       ) : null}
     </View>
   );
 }
+
+/** Web: hooks for the search focus style in app/_layout.tsx (the shell shows focus, not the inner input). */
+const searchShellWebProps: object = Platform.OS === "web" ? { dataSet: { searchShell: "" } } : {};
+const searchInputWebProps: object = Platform.OS === "web" ? { dataSet: { searchInput: "" } } : {};
 
 const styles = StyleSheet.create({
   shell: {
@@ -151,13 +162,16 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     minWidth: 0,
-    fontSize: 16,
-    fontWeight: "600",
+    ...theme.typography.body,
     color: theme.colors.text,
     paddingVertical: Platform.OS === "ios" ? 10 : 8,
+    // Fill the shell height so a tap anywhere on the field focuses it (web has no tap-through to the input).
+    alignSelf: "stretch",
   },
   inputRtl: { textAlign: "right", writingDirection: "rtl" },
   trail: { marginStart: 2 },
+  // hitSlop is ignored on web: transparent padding (cancelled by a negative margin) gives the 28px button a 44px hit area.
+  clearHit: { padding: 8, margin: -8 },
   clearBtn: {
     width: 28,
     height: 28,

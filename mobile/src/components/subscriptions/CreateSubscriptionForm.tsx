@@ -21,6 +21,9 @@ import {
   validateCreateSubscriptionInput,
   type WeeklyLimits,
 } from "../../lib/subscriptions";
+import { rowFlipFor } from "../../lib/layoutDirection";
+import { displayMoney } from "../../lib/displayFormat";
+import { useScreenContentStyle } from "../../hooks/useScreenLayout";
 
 /**
  * Full pushed-screen create form, matching CreateSessionForm's shell (sessionFormStyles card
@@ -29,6 +32,7 @@ import {
  */
 export function CreateSubscriptionForm() {
   const { t, language, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const navigation = useNavigation();
@@ -129,13 +133,13 @@ export function CreateSubscriptionForm() {
   const summaryLine = payee && Number.isFinite(priceNum) && priceNum >= 0
     ? t("subscriptions.create.summaryLine")
         .replace("{name}", payee.full_name)
-        .replace("{price}", priceNum.toFixed(2))
+        .replace("{price}", displayMoney(priceNum))
         .replace("{start}", formatISODateFull(startDate, language))
     : null;
 
   return (
     <>
-      <ScrollView contentContainerStyle={sf.content} style={sf.screen} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[sf.content, screenContent]} style={sf.screen} keyboardShouldPersistTaps="handled">
         <View style={sf.sections}>
           <View style={sf.card}>
             <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.create.payeeLabel")}</Text>
@@ -161,11 +165,11 @@ export function CreateSubscriptionForm() {
           </View>
 
           <View style={sf.card}>
-            <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.create.startDateLabel")}</Text>
+            <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.datesTitle")}</Text>
             <DatePickerField appearance="embedded" label={t("subscriptions.create.startDateLabel")} value={startDate} onChange={setStartDate} />
             {errors.has("startDate") ? <Text style={[sf.error, isRTL && styles.rtlText]}>{t("subscriptions.errStartDateInvalid")}</Text> : null}
 
-            <View style={[styles.toggleRow, styles.spaced, isRTL && styles.toggleRowRtl]}>
+            <View style={[styles.toggleRow, styles.spaced, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
               <Text style={[sf.label, isRTL && sf.labelRtl]}>{t("subscriptions.create.noEndDateToggle")}</Text>
               <AppSwitch value={noEndDate} onValueChange={setNoEndDate} accessibilityLabel={t("subscriptions.create.noEndDateToggle")} />
             </View>

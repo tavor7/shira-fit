@@ -29,6 +29,15 @@ type Props = {
   onSave: (input: { address: string; zipCode: string; acceptConsent: boolean; declineConsent: boolean }) => Promise<void>;
 };
 
+/** Heading of the receipt gate card (also the gate dialog's accessible name). */
+export function receiptGateTitle(mode: ReceiptRequirementsMode, consent: RequiredConsent | null, language: string): string {
+  return mode === "both"
+    ? language === "he" ? "השלימו את הפרטים" : "Complete your details"
+    : mode === "consent_only"
+      ? consent?.title ?? (language === "he" ? "הסכמה לקבלות" : "Receipt consent")
+      : language === "he" ? "עדכון כתובת" : "Update your address";
+}
+
 export function ReceiptRequirementsGateCard({
   mode,
   consent,
@@ -66,26 +75,13 @@ export function ReceiptRequirementsGateCard({
   const addressFirst = mode === "both";
   const cardMaxHeight = Math.round(windowHeight * 0.9);
 
-  const title =
-    mode === "both"
-      ? language === "he"
-        ? "השלימו את הפרטים"
-        : "Complete your details"
-      : mode === "consent_only"
-        ? consent?.title ?? (language === "he" ? "הסכמה לקבלות" : "Receipt consent")
-        : language === "he"
-          ? "עדכון כתובת"
-          : "Update your address";
+  const title = receiptGateTitle(mode, consent, language);
 
   const intro =
     mode === "both"
-      ? language === "he"
-        ? "כדי להמשיך להשתמש באפליקציה, יש לאשר את הסכמת קבלת המסמכים האלקטרוניים ולמלא כתובת ומיקוד."
-        : "To continue using the app, please accept electronic receipt consent and provide your address and zip code."
+      ? language === "he" ? "כדי להמשיך להשתמש באפליקציה, יש לאשר את הסכמת קבלת המסמכים האלקטרוניים ולמלא כתובת ומיקוד." : "To continue using the app, please accept electronic receipt consent and provide your address and zip code."
       : mode === "address_only"
-        ? language === "he"
-          ? "נדרשת כתובת ומיקוד לצורך הפקת קבלות. אנא מלא/י את הפרטים להמשך."
-          : "A street address and zip code are required for receipts. Please fill them in to continue."
+        ? language === "he" ? "נדרשים כתובת ומיקוד לצורך הפקת קבלות. מלאו את הפרטים כדי להמשיך." : "A street address and zip code are required for receipts. Please fill them in to continue."
         : null;
 
   function focusAddressSection() {
@@ -133,12 +129,8 @@ export function ReceiptRequirementsGateCard({
 
   const primaryLabel =
     mode === "consent_only"
-      ? language === "he"
-        ? "אני מסכים/ה"
-        : "I agree"
-      : language === "he"
-        ? "שמירה והמשך"
-        : "Save and continue";
+      ? language === "he" ? "אני מסכים/ה" : "I agree"
+      : language === "he" ? "שמירה והמשך" : "Save and continue";
 
   function renderAddressBlock(withSectionLabel: boolean) {
     return (
@@ -222,9 +214,7 @@ export function ReceiptRequirementsGateCard({
         {!addressFirst && showAddress ? renderAddressBlock(false) : null}
         {declined ? (
           <Text style={[styles.declined, isRTL && styles.rtl]}>
-            {language === "he"
-              ? "הסכמה לקבלת מסמכים אלקטרוניים נדרשת לשימוש במערכת. אנא אשר/י את ההסכמה כדי להמשיך."
-              : "Electronic receipt consent is required to use the app. Please accept to continue."}
+            {language === "he" ? "הסכמה לקבלת מסמכים אלקטרוניים נדרשת לשימוש במערכת. אשרו את ההסכמה כדי להמשיך." : "Electronic receipt consent is required to use the app. Please accept to continue."}
           </Text>
         ) : null}
         {fieldError ? <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldError}</Text> : null}
@@ -235,6 +225,7 @@ export function ReceiptRequirementsGateCard({
               onPress={() => void decline()}
               disabled={busy}
               style={({ pressed }) => [styles.declineBtn, pressed && { opacity: 0.7 }]}
+              accessibilityRole="button"
             >
               <Text style={styles.declineText}>{language === "he" ? "לא מסכים/ה" : "Decline"}</Text>
             </Pressable>
@@ -270,7 +261,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
-  title: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
+  title: { ...theme.typography.headline, color: theme.colors.text },
   body: { fontSize: 15, lineHeight: 22, color: theme.colors.textMuted },
   section: {
     marginTop: theme.spacing.sm,
@@ -280,7 +271,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   sectionLabel: { fontSize: 13, fontWeight: "800", color: theme.colors.text, textTransform: "uppercase", letterSpacing: 0.3 },
-  consentTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  consentTitle: { ...theme.typography.title, color: theme.colors.text },
   addressBlock: { gap: theme.spacing.xs },
   fieldLabel: { fontSize: 13, fontWeight: "700", color: theme.colors.text, marginTop: theme.spacing.sm },
   input: {
@@ -295,11 +286,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
   },
   inputRtl: { textAlign: "right" },
-  fieldError: { color: theme.colors.error, fontSize: 13, fontWeight: "600" },
-  declined: { color: theme.colors.warning, fontSize: 14, fontWeight: "600" },
+  fieldError: { color: theme.colors.error, ...theme.typography.caption },
+  declined: { color: theme.colors.warning, ...theme.typography.secondary },
   actions: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
   actionsRtl: { alignItems: "stretch" },
-  declineBtn: { paddingVertical: 12, alignItems: "center" },
+  declineBtn: { paddingVertical: 12, minHeight: theme.controls.minTouch, justifyContent: "center", alignItems: "center" },
   declineText: { color: theme.colors.textMuted, fontWeight: "700" },
   loader: { marginTop: theme.spacing.sm },
   rtl: { textAlign: "right", writingDirection: "rtl" },

@@ -1,8 +1,9 @@
+import { ListRowSkeleton } from "../../../src/components/ListRowSkeleton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
-import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
+
 import { fetchStaffTrainingSessionsForCalendar } from "../../../src/lib/trainingSessionQueries";
 import { fetchActiveSignupCountsBySession, fetchVisibleSignupCountsBySession } from "../../../src/lib/sessionSignupCounts";
 import { fetchWaitlistCountsBySession } from "../../../src/lib/waitlistCounts";
@@ -23,17 +24,20 @@ import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRe
 import { isSessionInActiveSeries, maintainSessionSeriesHorizon } from "../../../src/lib/sessionSeries";
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
 import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySlot";
-import { EmptyState } from "../../../src/components/EmptyState";
 import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
 import { ActiveUsersIndicator } from "../../../src/components/ActiveUsersIndicator";
 import { useRealtimeRefetch } from "../../../src/hooks/useRealtimeRefetch";
 import { useLiveActivityBanner } from "../../../src/hooks/useLiveActivityBanner";
 import { LiveActivityBanner } from "../../../src/components/LiveActivityBanner";
 import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHidden";
+import { displayTimeRange } from "../../../src/lib/displayFormat";
+import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
+import { pluralKey } from "../../../src/lib/pluralKey";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
-  const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("wide", { selfInset: theme.spacing.md });
+  const { language, t } = useI18n();
   const { showOk, showConfirm } = useAppAlert();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
@@ -134,7 +138,7 @@ export default function ManagerSessionsScreen() {
     profile?.role === "manager",
     (sessionId) => {
       const row = rowsRef.current.find((r) => r.id === sessionId);
-      return row ? formatSessionTimeRange(row.start_time, row.duration_minutes ?? 60) : null;
+      return row ? displayTimeRange(row.start_time, row.duration_minutes ?? 60) : null;
     }
   );
 
@@ -150,7 +154,7 @@ export default function ManagerSessionsScreen() {
         session_date: s.session_date,
         start_time: s.start_time,
         durationMinutes: s.duration_minutes ?? 60,
-        timeLabel: formatSessionTimeRange(s.start_time, s.duration_minutes ?? 60),
+        timeLabel: displayTimeRange(s.start_time, s.duration_minutes ?? 60),
         trainerName: s.trainer?.full_name ?? undefined,
         coachId: s.coach_id,
         signedUpCount: visibleSignupBySession[s.id] ?? 0,
@@ -188,7 +192,7 @@ export default function ManagerSessionsScreen() {
         showOk(t("common.failed"), m);
         return;
       }
-      const doneMsg = t("managerSessions.openedCount").replace("{n}", String(data.opened ?? 0));
+      const doneMsg = pluralKey(t, "managerSessions.openedCount", data.opened ?? 0).replace("{n}", String(data.opened ?? 0));
       showOk(t("managerSessions.openedTitle"), doneMsg);
       load(true);
     };
@@ -209,7 +213,7 @@ export default function ManagerSessionsScreen() {
       <LiveActivityBanner item={liveActivityItem} onDismiss={dismissLiveActivity} />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, screenContent]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
         <View style={styles.activeUsersWrap}>
@@ -228,7 +232,13 @@ export default function ManagerSessionsScreen() {
         <StaffAthleteScheduleLookup variant="manager" />
         <CrossfadeSwap
           loading={loading && rows.length === 0}
-          skeleton={<EmptyState title={t("common.loading")} isRTL={isRTL} style={styles.initialLoading} />}
+          skeleton={
+            <View style={styles.initialLoading}>
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+              <ListRowSkeleton />
+            </View>
+          }
         >
           <SessionsWeekCalendar
             items={items}
@@ -285,5 +295,5 @@ const styles = StyleSheet.create({
   activeUsersWrap: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm },
   alertsWrap: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm },
   weekActions: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md },
-  initialLoading: { paddingVertical: theme.spacing.xl },
+  initialLoading: { gap: theme.spacing.sm, paddingVertical: theme.spacing.md },
 });

@@ -7,8 +7,10 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { useBulkJobs } from "../context/BulkJobsContext";
@@ -29,6 +31,10 @@ import {
   type PendingReceiptPayment,
 } from "../lib/pendingReceipts";
 import { toISODateLocal } from "../lib/isoDate";
+import { useBottomChrome, useReportBottomBar } from "../context/BottomChromeContext";
+import { barBottomInset, fullBleedInnerPadding } from "../lib/screenLayout";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 
 /** Payments before this date are historical/testing data — never shown as pending a receipt. */
 const PENDING_RECEIPTS_FLOOR_DATE = "2026-06-14";
@@ -49,9 +55,12 @@ function slotKindLabel(kind: string | null, language: "he" | "en"): string | nul
 
 export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode = false }: Props) {
   const { language, t, isRTL } = useI18n();
+  const chrome = useBottomChrome();
+  const screenContent = useScreenContentStyle("standard");
+  const { width: viewportWidth } = useWindowDimensions();
   const { showToast } = useToast();
   const { job: bulkJob, runJob: runBulkJob, cancelJob: cancelBulkJob } = useBulkJobs();
-  const lang = language === "he" ? "he" : "en";
+  const lang = ((language === "he" ? "he" : "en"));
   // Global by default: from the floor date (server-enforced regardless of what's picked below) through today.
   const defaultRange = useMemo(() => ({ start: PENDING_RECEIPTS_FLOOR_DATE, end: toISODateLocal(new Date()) }), []);
 
@@ -92,7 +101,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       showToast({
-        message: language === "he" ? "שגיאה בטעינת תשלומים" : "Failed to load payments",
+        message: t("ui.pendingReceipts.failedToLoadPayments"),
         detail,
         variant: "error",
       });
@@ -100,7 +109,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
       setLoading(false);
       setRefreshing(false);
     }
-  }, [dateStart, dateEnd, language, showToast]);
+  }, [dateStart, dateEnd, showToast, t]);
 
   useEffect(() => {
     if (!enabled) {
@@ -129,6 +138,8 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
   const selectableRows = useMemo(() => filteredRows.filter((r) => !r.needs_payment_method), [filteredRows]);
   const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selected.has(r.row_id));
   const selectedCount = selected.size;
+  // The selection bar sits at the bottom of the screen: keep the floating button and toasts above it.
+  const onSelectionBarLayout = useReportBottomBar(selectedCount > 0 || creating);
   const selectedTotal = useMemo(
     () => rows.filter((r) => selected.has(r.row_id)).reduce((s, r) => s + r.amount_ils, 0),
     [rows, selected]
@@ -208,7 +219,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
       await onCreated();
       setSelected(new Set());
       await load();
-      const cancelledSuffix = cancelled ? (language === "he" ? " · בוטל" : " · cancelled") : "";
+      const cancelledSuffix = cancelled ? (t("ui.pendingReceipts.cancelled")) : "";
       const msg =
         language === "he"
           ? `נוצרו ${result.created_count} קבלות${result.failed_count ? ` · ${result.failed_count} נכשלו` : ""}${generatePdfs && pdfCount ? ` · ${pdfCount} PDF` : ""}${emailCustomers && emailCount ? ` · ${emailCount} אימיילים ללקוחות` : ""}${cancelledSuffix}`
@@ -237,12 +248,12 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
           pressed && !disabled && { opacity: 0.9 },
         ]}
       >
-        <View style={[styles.rowTop, isRTL && styles.rowTopRtl]}>
+        <View style={[styles.rowTop, rowFlipFor(isRTL) && styles.rowTopRtl]}>
           <View style={[styles.check, isSelected && styles.checkOn, disabled && styles.checkDisabled]}>
-            {isSelected ? <Text style={styles.checkMark}>✓</Text> : null}
+            {isSelected ? <AppIcon name="checkmark" size={14} color={theme.colors.ctaText} /> : null}
           </View>
           <View style={styles.rowMain}>
-            <Text style={[styles.payeeName, isRTL && styles.rtl]} numberOfLines={1}>
+            <Text {...userContentTextProps} style={[styles.payeeName, isRTL && styles.userContentRtl]} numberOfLines={1}>
               {item.payee_name}
             </Text>
             {item.source === "account" ? (
@@ -251,7 +262,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
                   {item.paid_at ? formatISODateLong(item.paid_at.slice(0, 10), language) : "—"}
                 </Text>
                 <Text style={[styles.rowMeta, isRTL && styles.rtl]} numberOfLines={1}>
-                  {language === "he" ? "תשלום בחשבון" : "Account payment"}
+                  {t("ui.pendingReceipts.accountPayment")}
                 </Text>
               </>
             ) : (
@@ -280,9 +291,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
         </View>
         {disabled ? (
           <Text style={[styles.warn, isRTL && styles.rtl]}>
-            {language === "he"
-              ? "אמצעי תשלום לא נתמך — עדכנו את התשלום לפני הפקת קבלה"
-              : "Unsupported payment method — update payment before issuing receipt"}
+            {t("ui.pendingReceipts.unsupportedPaymentMethodUpdatePaymentBefore")}
           </Text>
         ) : null}
       </Pressable>
@@ -335,7 +344,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
             ) : null}
 
             <Text style={[styles.sectionLabel, styles.sectionSpaced, isRTL && styles.rtl]}>
-              {language === "he" ? "טווח תאריכים" : "Date range"}
+              {t("ui.pendingReceipts.dateRange")}
             </Text>
             <CollapsibleDateRangeCard
               start={dateStart}
@@ -344,37 +353,37 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
                 setDateStart(start);
                 setDateEnd(end);
               }}
-              label={language === "he" ? "טווח תאריכים" : "Date range"}
+              label={t("ui.pendingReceipts.dateRange")}
             />
           </View>
         ) : null}
       </View>
       <PrimaryButton
-        label={language === "he" ? "קבלה + תשלום חדש" : "New receipt & payment"}
+        label={t("ui.pendingReceipts.newReceiptPayment")}
         onPress={() => setCreatePaymentOpen(true)}
       />
       {selectableRows.length > 0 ? (
         <View style={styles.bulkOpts}>
-          <View style={[styles.toggleRow, isRTL && styles.toggleRowRtl]}>
+          <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
             <Text style={[styles.toggleLabel, isRTL && styles.rtl]}>
-              {language === "he" ? "צור PDF לכל הנוצרים" : "Generate PDF for all created"}
+              {t("ui.pendingReceipts.generatePdfForAllCreated")}
             </Text>
             <AppSwitch
               value={generatePdfs}
               onValueChange={setGeneratePdfs}
               onColor={theme.colors.success}
-              accessibilityLabel={language === "he" ? "צור PDF לכל הנוצרים" : "Generate PDF for all created"}
+              accessibilityLabel={t("ui.pendingReceipts.generatePdfForAllCreated")}
             />
           </View>
-          <View style={[styles.toggleRow, isRTL && styles.toggleRowRtl]}>
+          <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
             <Text style={[styles.toggleLabel, isRTL && styles.rtl]}>
-              {language === "he" ? "שלח אימייל (כשיש כתובת)" : "Email customers (when address exists)"}
+              {t("ui.pendingReceipts.emailCustomersWhenAddressExists")}
             </Text>
             <AppSwitch
               value={emailCustomers}
               onValueChange={setEmailCustomers}
               onColor={theme.colors.success}
-              accessibilityLabel={language === "he" ? "שלח אימייל (כשיש כתובת)" : "Email customers (when address exists)"}
+              accessibilityLabel={t("ui.pendingReceipts.emailCustomersWhenAddressExists")}
             />
           </View>
         </View>
@@ -385,23 +394,19 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
             ? `${totalCount} תשלומים ללא קבלה · ${formatIls(totalAmount)}`
             : `${totalCount} payments without receipt · ${formatIls(totalAmount)}`}
         </Text>
-        <View style={[styles.summaryStripActions, isRTL && styles.summaryStripActionsRtl]}>
+        <View style={[styles.summaryStripActions, rowFlipFor(isRTL) && styles.summaryStripActionsRtl]}>
         <SortToggleButton
           value={sortOrder}
           onChange={setSortOrder}
-          ascLabel={language === "he" ? "מהישן לחדש" : "Oldest first"}
-          descLabel={language === "he" ? "מהחדש לישן" : "Newest first"}
+          ascLabel={t("ui.pendingReceipts.oldestFirst")}
+          descLabel={t("ui.pendingReceipts.newestFirst")}
         />
         {selectableRows.length > 0 ? (
           <Pressable onPress={toggleSelectAll} style={styles.selectAllBtn}>
             <Text style={styles.selectAllText}>
               {allSelected
-                ? language === "he"
-                  ? "בטל הכל"
-                  : "Clear all"
-                : language === "he"
-                  ? "בחר הכל"
-                  : "Select all"}
+                ? t("ui.pendingReceipts.clearAll")
+                : t("ui.pendingReceipts.selectAll")}
             </Text>
           </Pressable>
         ) : null}
@@ -414,7 +419,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
     return (
       <View style={styles.disabledBox}>
         <Text style={[styles.disabledText, isRTL && styles.rtl]}>
-          {language === "he" ? "הפקת מסמכים כבויה — הפעילו בהגדרות." : "Document generation is off — enable in Settings."}
+          {t("ui.pendingReceipts.documentGenerationIsOffEnableIn")}
         </Text>
       </View>
     );
@@ -435,21 +440,13 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
             <View style={styles.emptyBox}>
               <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>
                 {payeeFilter.type !== "all"
-                  ? language === "he"
-                    ? "לא נמצאו תוצאות"
-                    : "No matches"
-                  : language === "he"
-                    ? "אין תשלומים ממתינים לקבלה"
-                    : "No payments pending receipt"}
+                  ? t("ui.pendingReceipts.noMatches")
+                  : t("ui.pendingReceipts.noPaymentsPendingReceipt")}
               </Text>
               <Text style={[styles.emptyHint, isRTL && styles.rtl]}>
                 {payeeFilter.type !== "all"
-                  ? language === "he"
-                    ? "לא נמצאו תשלומים ממתינים עבור מתאמן זה בטווח שנבחר."
-                    : "No pending payments for this athlete in the selected range."
-                  : language === "he"
-                    ? "כל התשלומים בטווח כבר קיבלו קבלה."
-                    : "All payments in this range already have receipts."}
+                  ? t("ui.pendingReceipts.noPendingPaymentsForThisAthlete")
+                  : t("ui.pendingReceipts.allPaymentsInThisRangeAlready")}
               </Text>
             </View>
           )
@@ -464,18 +461,31 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
             tintColor={theme.colors.cta}
           />
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          screenContent,
+          // The selection bar overlays the list; keep the last row clear of it and of the accessibility button.
+          { paddingBottom: Number(screenContent.paddingBottom ?? 0) + chrome.barsHeight },
+        ]}
       />
 
       {selectedCount > 0 || creating ? (
-        <View style={[styles.footer, isRTL && styles.footerRtl]}>
+        <View
+          style={[
+            styles.footer,
+            rowFlipFor(isRTL) && styles.footerRtl,
+            {
+              paddingHorizontal: fullBleedInnerPadding(viewportWidth, "standard"),
+              paddingBottom: theme.spacing.lg + barBottomInset(chrome, 0),
+            },
+          ]}
+          onLayout={onSelectionBarLayout}
+        >
           <View style={styles.footerCopy}>
             <Text style={[styles.footerTitle, isRTL && styles.rtl]}>
               {creating && createProgress
                 ? createProgress.cancelling
-                  ? language === "he"
-                    ? "מבטל…"
-                    : "Cancelling…"
+                  ? t("ui.pendingReceipts.cancelling")
                   : language === "he"
                     ? `יוצר ${createProgress.done} מתוך ${createProgress.total}…`
                     : `Creating ${createProgress.done} of ${createProgress.total}…`
@@ -489,7 +499,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
           </View>
           {creating ? (
             <PrimaryButton
-              label={language === "he" ? "ביטול" : "Cancel"}
+              label={t("ui.pendingReceipts.cancel")}
               onPress={cancelCreateSelected}
               disabled={createProgress?.cancelling}
               variant="ghost"
@@ -499,12 +509,8 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
             <PrimaryButton
               label={
                 generatePdfs
-                  ? language === "he"
-                    ? "הפק + PDF"
-                    : "Create + PDF"
-                  : language === "he"
-                    ? "הפק קבלות"
-                    : "Create receipts"
+                  ? t("ui.pendingReceipts.createPdf")
+                  : t("ui.pendingReceipts.createReceipts")
               }
               onPress={() => void createSelected()}
               disabled={creating || !!bulkJob}
@@ -652,16 +658,16 @@ const styles = StyleSheet.create({
   },
   checkOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   checkDisabled: { borderColor: theme.colors.borderMuted },
-  checkMark: { color: theme.colors.ctaText, fontSize: 13, fontWeight: "900" },
+  checkMark: { color: theme.colors.ctaText, fontSize: 13, fontWeight: "800" },
   rowMain: { flex: 1, gap: 2 },
   payeeName: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
   rowMeta: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 18 },
   rowSub: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
-  amount: { fontSize: 16, fontWeight: "800", color: theme.colors.cta },
-  warn: { fontSize: 12, fontWeight: "700", color: theme.colors.error, marginTop: 4 },
+  amount: { ...theme.typography.title, color: theme.colors.cta },
+  warn: { ...theme.typography.label, color: theme.colors.error, marginTop: 4 },
   emptyBox: { paddingVertical: 40, alignItems: "center", gap: 8 },
-  emptyTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
-  emptyHint: { fontSize: 14, fontWeight: "500", color: theme.colors.textMuted, textAlign: "center" },
+  emptyTitle: { ...theme.typography.title, color: theme.colors.text },
+  emptyHint: { ...theme.typography.secondary, color: theme.colors.textMuted, textAlign: "center" },
   footer: {
     position: "absolute",
     left: 0,
@@ -690,6 +696,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  disabledText: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, textAlign: "center" },
+  disabledText: { ...theme.typography.secondary, color: theme.colors.textMuted, textAlign: "center" },
   rtl: { textAlign: "right", writingDirection: "rtl" },
+  /** User content keeps its own writing direction (so Latin names truncate at their end); only the alignment follows the UI. */
+  userContentRtl: { textAlign: "right" },
 });

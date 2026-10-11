@@ -31,6 +31,9 @@ import {
 } from "../lib/managerMessageThemes";
 import { formatISODateDayMonthWithWeekday, parseInstantIso } from "../lib/dateFormat";
 import { appLocale } from "../lib/appLocale";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { selectionA11y } from "../lib/a11ySelection";
+import { roleLabel } from "../lib/displayLabels";
 
 const STUDIO_TZ = "Asia/Jerusalem";
 
@@ -202,7 +205,7 @@ export function ManagerSendMessagePanel() {
               isRTL={isRTL}
               previewLabel={t("managerMessage.sentPreviewTitle")}
             />
-            <View style={[styles.previewModalMeta, isRTL && styles.sentMetaRtl]}>
+            <View style={[styles.previewModalMeta, rowFlipFor(isRTL) && styles.sentMetaRtl]}>
               <AppText variant="caption" soft isRTL={isRTL}>
                 {t("managerMessage.sentAt").replace("{when}", formatSentWhen(previewSent.created_at, language))}
               </AppText>
@@ -260,19 +263,19 @@ export function ManagerSendMessagePanel() {
                   <Pressable
                     key={h.user_id}
                     onPress={() => pickUser(h)}
-                    style={({ pressed }) => [styles.hitRow, isRTL && styles.hitRowRtl, pressed && styles.hitRowPressed]}
+                    style={({ pressed }) => [styles.hitRow, rowFlipFor(isRTL) && styles.hitRowRtl, pressed && styles.hitRowPressed]}
                   >
                     <View style={styles.hitAvatar}>
                       <AppText variant="caption" style={styles.hitAvatarTxt}>
                         {initialsFromName(h.full_name)}
                       </AppText>
                     </View>
-                    <View style={[styles.hitBody, isRTL && styles.hitBodyRtl]}>
+                    <View style={[styles.hitBody, rowFlipFor(isRTL) && styles.hitBodyRtl]}>
                       <AppText variant="body" isRTL={isRTL} numberOfLines={1}>
                         {h.full_name}
                       </AppText>
                       <AppText variant="caption" muted numberOfLines={1}>
-                        {h.role}
+                        {roleLabel(h.role, t)}
                       </AppText>
                     </View>
                   </Pressable>
@@ -282,18 +285,18 @@ export function ManagerSendMessagePanel() {
           </>
         ) : selected ? (
           <>
-            <View style={[styles.selectedRow, isRTL && styles.selectedRowRtl]}>
+            <View style={[styles.selectedRow, rowFlipFor(isRTL) && styles.selectedRowRtl]}>
               <View style={styles.selectedAvatar}>
                 <AppText variant="caption" style={styles.hitAvatarTxt}>
                   {initialsFromName(selected.full_name)}
                 </AppText>
               </View>
-              <View style={[styles.selectedMeta, isRTL && styles.selectedMetaRtl]}>
+              <View style={[styles.selectedMeta, rowFlipFor(isRTL) && styles.selectedMetaRtl]}>
                 <AppText variant="body" isRTL={isRTL} style={styles.selectedName}>
                   {selected.full_name}
                 </AppText>
                 <AppText variant="caption" muted isRTL={isRTL}>
-                  {selected.role}
+                  {roleLabel(selected.role, t)}
                 </AppText>
               </View>
             </View>
@@ -301,7 +304,7 @@ export function ManagerSendMessagePanel() {
             <AppText variant="label" muted isRTL={isRTL} style={styles.themeLabel}>
               {t("managerMessage.themeLabel")}
             </AppText>
-            <View style={[styles.themeRow, isRTL && styles.themeRowRtl]}>
+            <View style={[styles.themeRow, rowFlipFor(isRTL) && styles.themeRowRtl]}>
               {MANAGER_MESSAGE_THEMES.map((key) => {
                 const active = messageTheme === key;
                 const palette = getManagerMessageThemeStyle(key);
@@ -314,8 +317,7 @@ export function ManagerSendMessagePanel() {
                       active && { borderColor: palette.avatarBg, backgroundColor: palette.bubbleBg },
                       pressed && { opacity: 0.9 },
                     ]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
+                    {...selectionA11y("radio", active)}
                   >
                     <AppText variant="body" style={styles.themeEmoji}>
                       {palette.emoji}
@@ -334,7 +336,7 @@ export function ManagerSendMessagePanel() {
             <AppText variant="label" muted isRTL={isRTL} style={styles.themeLabel}>
               {t("managerMessage.categoryLabel")}
             </AppText>
-            <View style={[styles.themeRow, isRTL && styles.themeRowRtl]}>
+            <View style={[styles.themeRow, rowFlipFor(isRTL) && styles.themeRowRtl]}>
               {(["operational", "marketing"] as const).map((key) => {
                 const active = category === key;
                 return (
@@ -344,6 +346,7 @@ export function ManagerSendMessagePanel() {
                     style={({ pressed }) => [styles.themeChip, active && styles.categoryChipOn, pressed && { opacity: 0.9 }]}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: active }}
+                    aria-checked={active}
                   >
                     <AppText variant="caption" style={[styles.themeChipTxt, active && styles.categoryChipTxtOn]}>
                       {key === "operational" ? t("managerMessage.categoryOperational") : t("managerMessage.categoryMarketing")}
@@ -419,10 +422,10 @@ export function ManagerSendMessagePanel() {
               const read = !!row.read_at;
               return (
                 <FadeSlideIn key={row.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
-                <View style={[styles.sentRow, isRTL && styles.sentRowRtl]}>
+                <View style={[styles.sentRow, rowFlipFor(isRTL) && styles.sentRowRtl]}>
                   <Pressable
                     onPress={() => setPreviewSent(row)}
-                    style={({ pressed }) => [styles.sentRowMain, isRTL && styles.sentRowRtl, pressed && styles.sentRowPressed]}
+                    style={({ pressed }) => [styles.sentRowMain, rowFlipFor(isRTL) && styles.sentRowRtl, pressed && styles.sentRowPressed]}
                     accessibilityRole="button"
                     accessibilityLabel={t("managerMessage.sentPreviewTitle")}
                   >
@@ -431,8 +434,8 @@ export function ManagerSendMessagePanel() {
                         {initialsFromName(row.recipient_name)}
                       </AppText>
                     </View>
-                    <View style={[styles.sentBody, isRTL && styles.sentBodyRtl]}>
-                      <View style={[styles.sentTop, isRTL && styles.sentTopRtl]}>
+                    <View style={[styles.sentBody, rowFlipFor(isRTL) && styles.sentBodyRtl]}>
+                      <View style={[styles.sentTop, rowFlipFor(isRTL) && styles.sentTopRtl]}>
                         <AppText variant="body" isRTL={isRTL} numberOfLines={1} style={styles.sentName}>
                           {getManagerMessageThemeStyle(row.message_theme).emoji} {row.recipient_name}
                         </AppText>
@@ -445,7 +448,7 @@ export function ManagerSendMessagePanel() {
                       <AppText variant="caption" muted isRTL={isRTL} numberOfLines={2}>
                         {row.body}
                       </AppText>
-                      <View style={[styles.sentMeta, isRTL && styles.sentMetaRtl]}>
+                      <View style={[styles.sentMeta, rowFlipFor(isRTL) && styles.sentMetaRtl]}>
                         <AppText variant="caption" soft isRTL={isRTL}>
                           {t("managerMessage.sentAt").replace("{when}", formatSentWhen(row.created_at, language))}
                         </AppText>
@@ -463,7 +466,7 @@ export function ManagerSendMessagePanel() {
                       disabled={cancellingId === row.id}
                       style={({ pressed }) => [
                         styles.cancelBtn,
-                        isRTL && styles.cancelBtnRtl,
+                        rowFlipFor(isRTL) && styles.cancelBtnRtl,
                         pressed && { opacity: 0.85 },
                         cancellingId === row.id && { opacity: 0.5 },
                       ]}

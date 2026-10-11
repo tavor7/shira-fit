@@ -15,6 +15,7 @@ import {
   SESSION_PAYMENT_METHOD_KEYS,
   type SessionPaymentMethodKey,
 } from "../lib/paymentMethod";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 /**
  * "Discount" is recorded through the separate AddDiscountModal, not offered as a chip
@@ -114,7 +115,7 @@ export function AddAccountPaymentModal({
   async function save() {
     const amt = Number.parseFloat(amount.replace(",", ".").trim());
     if (!Number.isFinite(amt) || amt <= 0) {
-      showError(language === "he" ? "הזינו סכום תקין." : "Enter a valid amount.");
+      showError(t("ui.addAccountPayment.enterAValidAmount"));
       return;
     }
     if (!payeeId.trim()) {
@@ -187,10 +188,10 @@ export function AddAccountPaymentModal({
         onClose();
       }}
       variant="dialog"
-      backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+      backdropAccessibilityLabel={t("ui.addAccountPayment.dismiss")}
       cardStyle={styles.card}
     >
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
         <View style={styles.headerText}>
           <Text style={[styles.title, isRTL && styles.rtlText]}>
             {isEdit ? t("billing.editPaymentTitle") : t("billing.addPaymentTitle")}
@@ -226,12 +227,12 @@ export function AddAccountPaymentModal({
           onChangeText={setAmount}
           keyboardType="decimal-pad"
           placeholder="0"
-          placeholderTextColor={theme.colors.placeholderOnLight}
+          placeholderTextColor={theme.colors.fieldPlaceholder}
           style={[styles.input, isRTL && styles.inputRtl]}
           editable={!busy}
         />
         <Text style={[styles.label, isRTL && styles.rtlText]}>{t("billing.method")}</Text>
-        <View style={[styles.methodRow, isRTL && styles.methodRowRtl]}>
+        <View style={[styles.methodRow, rowFlipFor(isRTL) && styles.methodRowRtl]}>
           {methodChoices.map((m) => {
             const on = method === m;
             const isDiscount = m === "discount";
@@ -268,7 +269,7 @@ export function AddAccountPaymentModal({
               value={payerName}
               onChangeText={setPayerName}
               placeholder={t("families.payerNamePlaceholder")}
-              placeholderTextColor={theme.colors.placeholderOnLight}
+              placeholderTextColor={theme.colors.fieldPlaceholder}
               style={[styles.input, isRTL && styles.inputRtl]}
               editable={!busy}
             />
@@ -279,7 +280,7 @@ export function AddAccountPaymentModal({
           value={note}
           onChangeText={setNote}
           placeholder="…"
-          placeholderTextColor={theme.colors.placeholderOnLight}
+          placeholderTextColor={theme.colors.fieldPlaceholder}
           style={[styles.input, isRTL && styles.inputRtl]}
           editable={!busy}
         />
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
   headerRtl: { flexDirection: "row-reverse" },
   headerText: { flex: 1, minWidth: 0 },
   title: { fontSize: 17, fontWeight: "800", color: theme.colors.text },
-  subtitle: { marginTop: 4, fontSize: 14, fontWeight: "600", color: theme.colors.textMuted },
+  subtitle: { marginTop: 4, ...theme.typography.secondary, color: theme.colors.textMuted },
   close: { fontSize: 15, fontWeight: "800", color: theme.colors.textMuted },
   rtlText: { textAlign: "right", writingDirection: "rtl" },
   bodyScroll: { flexShrink: 1 },
@@ -323,8 +324,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     padding: 12,
     fontSize: 16,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+    backgroundColor: theme.colors.fieldBg,
+    color: theme.colors.fieldText,
   },
   inputRtl: { textAlign: "right" },
   methodRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

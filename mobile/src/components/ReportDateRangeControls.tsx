@@ -13,9 +13,12 @@ import {
   shiftMonthAnchorISOLocal,
   toISODateLocal,
 } from "../lib/isoDate";
-import { formatISODateRangeCompact, formatMonthYear } from "../lib/dateFormat";
+import { formatMonthYear } from "../lib/dateFormat";
 import { useI18n } from "../context/I18nContext";
 import { globalOverviewRangeISO, isGlobalOverviewRange } from "../lib/managerPeriodMode";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayDateRange } from "../lib/displayFormat";
+import { selectionA11y } from "../lib/a11ySelection";
 
 type QuickPreset = "7" | "30" | "45" | "60";
 type DateMode = "recent" | "month" | "global" | "range";
@@ -67,7 +70,7 @@ function detectReportRangeState(start: string, end: string): {
 
 export function ReportDateRangeControls({ start, end, onChange }: Props) {
   const { t, isRTL, language } = useI18n();
-  const rtlRowFlip = isRTL;
+  const rtlRowFlip = rowFlipFor(isRTL);
   const initial = useMemo(() => detectReportRangeState(start, end), []);
   const [mode, setMode] = useState<DateMode>(initial.mode);
   const [recentPreset, setRecentPreset] = useState<QuickPreset>(initial.recentPreset);
@@ -137,11 +140,11 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
     applyMonthAnchor(next);
   }
 
-  const summary = t("reports.periodShowing").replace("{range}", formatISODateRangeCompact(start, end, language));
+  const summary = t("reports.periodShowing").replace("{range}", displayDateRange(start, end, language));
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.segmentTrack, rtlRowFlip && styles.segmentTrackRtl]}>
+      <View style={[styles.segmentTrack, rtlRowFlip && styles.segmentTrackRtl]} accessibilityRole="radiogroup">
         {modeOptions.map((opt, idx) => {
           const on = mode === opt.id;
           const edgeStart = idx === 0;
@@ -160,8 +163,7 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
                 on && styles.segmentBtnOn,
                 pressed && !on && styles.segmentBtnPressed,
               ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
+              {...selectionA11y("radio", on)}
             >
               <SelectionPulse trigger={on && justPickedMode === opt.id}>
                 <Text style={[styles.segmentTxt, on && styles.segmentTxtOn]} numberOfLines={1}>
@@ -174,7 +176,7 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
       </View>
 
       {mode === "recent" ? (
-        <View style={[styles.presetGrid, rtlRowFlip && styles.presetGridRtl]}>
+        <View style={[styles.presetGrid, rtlRowFlip && styles.presetGridRtl]} accessibilityRole="radiogroup">
           {recentOptions.map((opt) => {
             const on = recentPreset === opt.id;
             return (
@@ -185,9 +187,8 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
                   setJustPickedPreset(opt.id);
                 }}
                 style={({ pressed }) => [styles.presetCell, on && styles.presetCellOn, pressed && !on && styles.presetCellPressed]}
-                accessibilityRole="button"
                 accessibilityLabel={opt.a11y}
-                accessibilityState={{ selected: on }}
+                {...selectionA11y("radio", on)}
               >
                 <SelectionPulse trigger={on && justPickedPreset === opt.id}>
                   <Text style={[styles.presetNum, on && styles.presetNumOn]}>{opt.id}</Text>
@@ -244,7 +245,7 @@ export function ReportDateRangeControls({ start, end, onChange }: Props) {
         <Text style={[styles.globalSummary, isRTL && styles.rtlText]} numberOfLines={2}>
           {t("dashboard.rangeAllTime")}
           {" · "}
-          {formatISODateRangeCompact(start, end, language)}
+          {displayDateRange(start, end, language)}
         </Text>
       ) : null}
 
@@ -306,6 +307,7 @@ const styles = StyleSheet.create({
   segmentTrackRtl: { flexDirection: "row-reverse" },
   segmentBtn: {
     flex: 1,
+    minHeight: theme.controls.minTouch,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 9,
@@ -338,9 +340,9 @@ const styles = StyleSheet.create({
   },
   presetCellOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   presetCellPressed: { opacity: 0.9 },
-  presetNum: { fontSize: 17, fontWeight: "900", color: theme.colors.text, lineHeight: 20 },
+  presetNum: { fontSize: 17, fontWeight: "800", color: theme.colors.text, lineHeight: 20 },
   presetNumOn: { color: theme.colors.ctaText },
-  presetUnit: { marginTop: 2, fontSize: 10, fontWeight: "800", color: theme.colors.textSoft, textTransform: "uppercase", letterSpacing: 0.3 },
+  presetUnit: { marginTop: 2, fontSize: 11, fontWeight: "800", color: theme.colors.textSoft, textTransform: "uppercase", letterSpacing: 0.3 },
   presetUnitOn: { color: theme.colors.ctaText, opacity: 0.85 },
   monthRow: {
     flexDirection: "row",
@@ -383,12 +385,11 @@ const styles = StyleSheet.create({
   },
   monthPickPressed: { opacity: 0.9 },
   monthLabel: {
-    fontSize: 16,
-    fontWeight: "800",
+    ...theme.typography.title,
     color: theme.colors.text,
     textAlign: "center",
   },
-  monthPickChev: { fontSize: 10, color: theme.colors.textMuted, marginTop: 2 },
+  monthPickChev: { fontSize: 11, color: theme.colors.textMuted, marginTop: 2 },
   rangePanel: {
     marginBottom: 4,
     width: "100%",

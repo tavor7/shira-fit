@@ -18,11 +18,14 @@ import { useI18n } from "../../src/context/I18nContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { buildAuthRedirectUrl } from "../../src/lib/authRedirect";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
+import { userFacingErrorMessage } from "../../src/lib/userFacingError";
 
 const MAX_EMAIL_LEN = 254;
 
 export default function ForgotPasswordScreen() {
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -33,6 +36,10 @@ export default function ForgotPasswordScreen() {
       setErrorMessage(t("auth.loginErrorEmailRequired"));
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setErrorMessage(t("auth.loginErrorInvalidEmail"));
+      return;
+    }
     setBusy(true);
     try {
       const redirectTo = buildAuthRedirectUrl("/(auth)/reset-password");
@@ -40,7 +47,7 @@ export default function ForgotPasswordScreen() {
         redirectTo,
       });
       if (error) {
-        setErrorMessage(error.message);
+        setErrorMessage(userFacingErrorMessage(error, t));
         return;
       }
       router.replace({
@@ -56,7 +63,7 @@ export default function ForgotPasswordScreen() {
     <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView
         style={styles.scrollRoot}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, screenContent]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
@@ -93,6 +100,8 @@ export default function ForgotPasswordScreen() {
           autoComplete="email"
           textContentType="emailAddress"
           autoCorrect={false}
+          returnKeyType="send"
+          onSubmitEditing={() => void sendReset()}
           value={email}
           maxLength={MAX_EMAIL_LEN}
           onChangeText={(v) => {

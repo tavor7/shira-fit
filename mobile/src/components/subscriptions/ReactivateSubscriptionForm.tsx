@@ -20,9 +20,13 @@ import {
   type SubscriptionTier,
   type WeeklyLimits,
 } from "../../lib/subscriptions";
+import { rowFlipFor } from "../../lib/layoutDirection";
+import { displayMoney } from "../../lib/displayFormat";
+import { useScreenContentStyle } from "../../hooks/useScreenLayout";
 
 export function ReactivateSubscriptionForm({ sourceSubscriptionId }: { sourceSubscriptionId: string }) {
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const navigation = useNavigation();
@@ -142,11 +146,11 @@ export function ReactivateSubscriptionForm({ sourceSubscriptionId }: { sourceSub
 
   return (
     <>
-      <ScrollView contentContainerStyle={sf.content} style={sf.screen} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[sf.content, screenContent]} style={sf.screen} keyboardShouldPersistTaps="handled">
         <View style={sf.sections}>
           <View style={sf.card}>
             <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl, styles.explanation]}>{t("subscriptions.reactivate.explanation")}</Text>
-            <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>₪{sourcePrice.toFixed(2)}</Text>
+            <Text style={[styles.summaryLine, isRTL && styles.rtlText]}>{displayMoney(sourcePrice)}</Text>
             {activeTiers.map((tier) => (
               <Text key={tier} style={[styles.summarySub, isRTL && styles.rtlText]}>
                 {t(tierLabelKey(tier))} — {sourceAllowances[tier]} {t("subscriptions.perWeek")}
@@ -155,10 +159,10 @@ export function ReactivateSubscriptionForm({ sourceSubscriptionId }: { sourceSub
           </View>
 
           <View style={sf.card}>
-            <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.reactivate.startDateLabel")}</Text>
+            <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.datesTitle")}</Text>
             <DatePickerField appearance="embedded" label={t("subscriptions.reactivate.startDateLabel")} value={startDate} onChange={setStartDate} />
 
-            <View style={[styles.toggleRow, styles.spaced, isRTL && styles.toggleRowRtl]}>
+            <View style={[styles.toggleRow, styles.spaced, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
               <Text style={[sf.label, isRTL && sf.labelRtl]}>{t("subscriptions.reactivate.noEndDateToggle")}</Text>
               <AppSwitch value={noEndDate} onValueChange={setNoEndDate} accessibilityLabel={t("subscriptions.reactivate.noEndDateToggle")} />
             </View>
@@ -197,8 +201,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.backgroundAlt },
   errorText: { color: theme.colors.error, fontWeight: "700", padding: theme.spacing.lg },
   explanation: { marginTop: 0, marginBottom: theme.spacing.sm },
-  summaryLine: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
-  summarySub: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, marginTop: 2 },
+  summaryLine: { ...theme.typography.title, color: theme.colors.text },
+  summarySub: { ...theme.typography.caption, color: theme.colors.textMuted, marginTop: 2 },
   spaced: { marginTop: theme.spacing.md },
   toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   toggleRowRtl: { flexDirection: "row-reverse" },

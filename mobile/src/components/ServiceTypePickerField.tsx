@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { AppModal } from "./AppModal";
 import {
   ACCOUNT_PAYMENT_SERVICE_TYPE_KEYS,
   type DocumentServiceTypeKey,
   documentServiceTypeLabel,
 } from "../lib/documentServiceTypes";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { selectionA11y } from "../lib/a11ySelection";
 
 type Props = {
   label: string;
@@ -30,7 +33,7 @@ export function ServiceTypePickerField({ label, value, onChange, language, isRTL
     <View style={styles.wrap}>
       <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{label}</Text>
       <Pressable
-        style={({ pressed }) => [styles.field, isRTL && styles.fieldRtl, pressed && { opacity: 0.92 }]}
+        style={({ pressed }) => [styles.field, rowFlipFor(isRTL) && styles.fieldRtl, pressed && { opacity: 0.92 }]}
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -62,18 +65,17 @@ export function ServiceTypePickerField({ label, value, onChange, language, isRTL
                   <Pressable
                     style={({ pressed }) => [
                       styles.option,
-                      isRTL && styles.optionRtl,
+                      rowFlipFor(isRTL) && styles.optionRtl,
                       selected && styles.optionSelected,
                       pressed && !selected && { opacity: 0.88 },
                     ]}
                     onPress={() => pick(k)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
+                    {...selectionA11y("radio", selected)}
                   >
                     <Text style={[styles.optionText, selected && styles.optionTextSelected, isRTL && styles.rtl]}>
                       {documentServiceTypeLabel(k, lang)}
                     </Text>
-                    {selected ? <Text style={styles.check}>✓</Text> : <View style={styles.checkSpacer} />}
+                    {selected ? <AppIcon name="checkmark" size={18} color={theme.colors.cta} /> : <View style={styles.checkSpacer} />}
                   </Pressable>
                 </View>
               );
@@ -102,8 +104,8 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   fieldRtl: { flexDirection: "row-reverse" },
-  fieldText: { flex: 1, fontSize: 16, fontWeight: "700", color: theme.colors.text },
-  chevron: { fontSize: 10, color: theme.colors.textMuted, marginTop: 1 },
+  fieldText: { flex: 1, ...theme.typography.title, color: theme.colors.text },
+  chevron: { fontSize: 11, color: theme.colors.textMuted, marginTop: 1 },
   sheet: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg },
   handle: {
     alignSelf: "center",
@@ -141,7 +143,7 @@ const styles = StyleSheet.create({
   optionSelected: { backgroundColor: theme.colors.surfaceElevated },
   optionText: { flex: 1, fontSize: 15, fontWeight: "600", color: theme.colors.text },
   optionTextSelected: { fontWeight: "800", color: theme.colors.text },
-  check: { fontSize: 16, fontWeight: "900", color: theme.colors.cta, width: 20, textAlign: "center" },
+  check: { fontSize: 16, fontWeight: "800", color: theme.colors.cta, width: 20, textAlign: "center" },
   checkSpacer: { width: 20 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
 });

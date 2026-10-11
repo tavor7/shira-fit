@@ -4,6 +4,7 @@ import { AppModal } from "./AppModal";
 import { PrimaryButton } from "./PrimaryButton";
 import { AnimatedCheckMark } from "./AnimatedCheckMark";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -110,7 +111,7 @@ export function NotificationActivationModal() {
         <View style={styles.card}>
           <View style={styles.topRow}>
             <View style={styles.bellBadge}>
-              <Text style={styles.bellGlyph}>🔔</Text>
+              <AppIcon name="notifications-outline" size="lg" color={theme.colors.text} />
             </View>
             <Pressable
               onPress={requestClose}
@@ -131,6 +132,7 @@ export function NotificationActivationModal() {
               onPress={() => setMarketingChecked((v) => !v)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: marketingChecked }}
+              aria-checked={marketingChecked}
             >
               <View style={[styles.checkbox, marketingChecked && styles.checkboxOn]}>
                 <AnimatedCheckMark visible={marketingChecked} style={styles.checkboxMark} />
@@ -176,7 +178,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   closeGlyph: { fontSize: 16, color: theme.colors.textMuted, lineHeight: 18 },
-  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginTop: 4 },
+  title: { ...theme.typography.headline, color: theme.colors.text, marginTop: 4 },
   body: { fontSize: 13.5, lineHeight: 20, color: theme.colors.textMuted },
   checkRow: {
     flexDirection: "row",
@@ -201,7 +203,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   checkboxOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  checkboxMark: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 12 },
+  checkboxMark: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 12 },
   checkCopyWrap: { flex: 1 },
   checkTitle: { fontSize: 13, fontWeight: "700", color: theme.colors.text },
   checkSub: { fontSize: 11.5, color: theme.colors.textSoft, marginTop: 2, lineHeight: 15 },
@@ -214,7 +216,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  warnIconTxt: { color: theme.colors.warning, fontWeight: "900", fontSize: 18 },
+  warnIconTxt: { color: theme.colors.warning, ...theme.typography.headline, },
   secondaryBtn: {
     marginTop: 6,
     backgroundColor: theme.colors.surfaceElevated,

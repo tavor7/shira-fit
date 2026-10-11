@@ -1,3 +1,4 @@
+import { pluralKey } from "../lib/pluralKey";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
@@ -7,6 +8,7 @@ import { useActiveUsers, type ActiveUser } from "../context/AppPresenceContext";
 import { AppModal } from "./AppModal";
 import { PressableScale } from "./PressableScale";
 import { FadeSlideIn } from "./FadeSlideIn";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 function roleLabel(role: ActiveUser["role"], t: (key: string) => string): string {
   if (role === "coach") return t("roles.coach");
@@ -27,13 +29,14 @@ export function ActiveUsersIndicator() {
   return (
     <>
       <PressableScale
+        style={styles.hit}
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel={t("activeUsers.now").replace("{n}", String(users.length))}
+        accessibilityLabel={pluralKey(t, "activeUsers.now", users.length).replace("{n}", String(users.length))}
       >
-        <View style={[styles.row, isRTL && styles.rowRtl]}>
+        <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
           <View style={styles.dot} />
-          <Text style={styles.txt}>{t("activeUsers.now").replace("{n}", String(users.length))}</Text>
+          <Text style={styles.txt}>{pluralKey(t, "activeUsers.now", users.length).replace("{n}", String(users.length))}</Text>
         </View>
       </PressableScale>
 
@@ -47,7 +50,7 @@ export function ActiveUsersIndicator() {
         <View style={styles.list}>
           {sorted.map((u, index) => (
             <FadeSlideIn key={u.userId} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
-              <View style={[styles.userRow, isRTL && styles.userRowRtl]}>
+              <View style={[styles.userRow, rowFlipFor(isRTL) && styles.userRowRtl]}>
                 <View style={styles.avatarDot} />
                 <View style={styles.userTextWrap}>
                   <Text style={[styles.userName, isRTL && styles.rtlText]} numberOfLines={1}>
@@ -66,13 +69,14 @@ export function ActiveUsersIndicator() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start" },
+  row: { flexDirection: "row", alignItems: "center", gap: 6 },
+  // 15px line with a 45px tap height; the negative margin keeps the header layout unchanged.
+  hit: { alignSelf: "flex-start", paddingVertical: 15, marginVertical: -15 },
   rowRtl: { flexDirection: "row-reverse" },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.colors.success },
   txt: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
   sheetTitle: {
-    fontSize: 18,
-    fontWeight: "800",
+    ...theme.typography.headline,
     color: theme.colors.text,
     padding: theme.spacing.md,
     paddingBottom: theme.spacing.sm,

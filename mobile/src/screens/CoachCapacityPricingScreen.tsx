@@ -34,6 +34,7 @@ import {
   mergePricingIssues,
   type PricingIssue,
 } from "../lib/pricingIssues";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type Props = {
   /** Manager: show coach picker. Ignored when lockedCoachId is set. */
@@ -49,6 +50,7 @@ export default function CoachCapacityPricingScreen({
   hideIntro = false,
 }: Props) {
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showConfirm, showOk } = useAppAlert();
   const [pickedCoachId, setPickedCoachId] = useState("");
   const [coachLabel, setCoachLabel] = useState("");
@@ -333,9 +335,7 @@ export default function CoachCapacityPricingScreen({
           loading={!!coachId && loading}
           emptyMessage={
             !coachId
-              ? language === "he"
-                ? "בחרו מאמן כדי לערוך תעריפים."
-                : "Pick a coach to edit rates."
+              ? t("ui.coachCapacityPricing.pickACoachToEditRates")
               : !loading && capacityGroups.length === 0
                 ? t("pricing.empty")
                 : undefined
@@ -419,7 +419,7 @@ export default function CoachCapacityPricingScreen({
   }
 
   return (
-    <ScrollView style={ps.screen} contentContainerStyle={ps.content} keyboardShouldPersistTaps="handled">
+    <ScrollView style={ps.screen} contentContainerStyle={[ps.content, screenContent]} keyboardShouldPersistTaps="handled">
       <Text style={[ps.intro, isRTL && ps.rtl]}>{t("coachPricing.titleHint")}</Text>
       {body}
     </ScrollView>
@@ -435,5 +435,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     marginBottom: theme.spacing.sm,
   },
-  disabledWrap: { opacity: 0.55 },
+  // No blanket dimming: the Add button shows its own disabled state, and the "pick a coach" instruction must stay readable.
+  disabledWrap: {},
 });

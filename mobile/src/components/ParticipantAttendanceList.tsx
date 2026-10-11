@@ -5,6 +5,12 @@ import * as Haptics from "expo-haptics";
 import { router, usePathname } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
+import { useToast } from "../context/ToastContext";
+import { selectionA11y } from "../lib/a11ySelection";
+import { IconButton } from "./IconButton";
+import { FoldableActionsMenu, type FoldableActionsMenuItem } from "./FoldableActionsMenu";
+import { LAYOUT } from "../lib/screenLayout";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
@@ -26,6 +32,9 @@ import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueri
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { hasSessionNotStarted } from "../lib/sessionTime";
 import type { MoveParticipantTarget } from "./MoveParticipantSheet";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
+import { displayLtr, displayMoney } from "../lib/displayFormat";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 type RegRow = {
   user_id: string;
@@ -161,6 +170,14 @@ function EnteringHighlight() {
   );
 }
 
+type BulkUndoItem = {
+  row: Row;
+  attended: boolean | null;
+  paymentMethod: string | null;
+  amountPaid: number | null;
+  chargeNoShow: boolean;
+};
+
 export function ParticipantAttendanceList({
   sessionId,
   onChanged,
@@ -178,6 +195,7 @@ export function ParticipantAttendanceList({
   const { language, t, isRTL } = useI18n();
   const pathname = usePathname();
   const { showConfirm, showAlert, showOk } = useAppAlert();
+  const { showToast } = useToast();
   const [rows, setRows] = useState<Row[]>([]);
   const [hideToggleBusyUserId, setHideToggleBusyUserId] = useState<string | null>(null);
   const [maxParticipants, setMaxParticipants] = useState<number | null>(null);
@@ -198,6 +216,15 @@ export function ParticipantAttendanceList({
   const [enteringIds, setEnteringIds] = useState<Set<string>>(new Set());
   const prevIdsRef = useRef<Set<string> | null>(null);
   const enteringClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [rateOpenFor, setRateOpenFor] = useState<string | null>(null);
+  const [bulkUndo, setBulkUndo] = useState<{ items: BulkUndoItem[]; at: number } | null>(null);
+  // The undo offer expires (the bar would otherwise linger after the moment has passed).
+  useEffect(() => {
+    if (!bulkUndo) return;
+    const timer = setTimeout(() => setBulkUndo(null), 15000);
+    return () => clearTimeout(timer);
+  }, [bulkUndo]);
 
   function interpolateParticipantName(template: string, name: string) {
     return template.replace(/\{name\}/g, name);
@@ -636,6 +663,9 @@ export function ParticipantAttendanceList({
     setPayOpen(true);
   }
 
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(payOpen, closePaymentModal);
+
   function closePaymentModal() {
     setPayOpen(false);
     setPayFor(null);
@@ -723,42 +753,88 @@ export function ParticipantAttendanceList({
     });
   }
 
+  /** One attendance write through the existing authorized RPCs (same calls as a single tap). */
+  async function writeAttendance(
+    row: Row,
+    status: AttendanceStatus,
+    paymentMethod: string | null,
+    amountPaid: number | null,
+    chargeNoShow: boolean
+  ): Promise<string | null> {
+    const { data, error } =
+      row.kind === "registered"
+        ? await supabase.rpc("set_registration_attendance", {
+            p_session_id: sessionId,
+            p_user_id: row.userId,
+            p_status: status,
+            p_payment_method: paymentMethod,
+            p_amount_paid: amountPaid,
+            p_charge_no_show: chargeNoShow,
+          })
+        : await supabase.rpc("set_manual_participant_attendance", {
+            p_session_id: sessionId,
+            p_manual_participant_id: row.manualId,
+            p_status: status,
+            p_payment_method: paymentMethod,
+            p_amount_paid: amountPaid,
+            p_charge_no_show: chargeNoShow,
+          });
+    if (error) return error.message || t("common.error");
+    if (!data?.ok) return data?.error || t("common.couldNotSave");
+    return null;
+  }
+
   async function runMarkAll() {
     setBusyKey("__all__");
+    setBulkUndo(null);
     const todo = rows.filter((r) => r.attended !== true);
+    // Remember each row's previous state so Undo can put it back exactly (status, payment, no-show fee).
+    const done: BulkUndoItem[] = [];
+    let failure: string | null = null;
     try {
       for (const row of todo) {
-        const { data, error } =
-          row.kind === "registered"
-            ? await supabase.rpc("set_registration_attendance", {
-                p_session_id: sessionId,
-                p_user_id: row.userId,
-                p_status: "arrived",
-                p_payment_method: null,
-                p_amount_paid: null,
-                p_charge_no_show: false,
-              })
-            : await supabase.rpc("set_manual_participant_attendance", {
-                p_session_id: sessionId,
-                p_manual_participant_id: row.manualId,
-                p_status: "arrived",
-                p_payment_method: null,
-                p_amount_paid: null,
-                p_charge_no_show: false,
-              });
-        if (error) {
-          showOk(t("common.error"), error.message);
-          return;
+        const err = await writeAttendance(row, "arrived", null, null, false);
+        if (err) {
+          failure = err;
+          break;
         }
-        if (!data?.ok) {
-          showOk(t("common.couldNotSave"), data?.error ?? "");
-          return;
-        }
+        done.push({ row, attended: row.attended, paymentMethod: row.paymentMethod, amountPaid: row.amountPaid, chargeNoShow: row.chargeNoShow });
       }
       await load({ silent: true });
       onChanged?.();
     } finally {
       setBusyKey(null);
+    }
+    if (failure) {
+      showOk(
+        t("common.couldNotSave"),
+        `${t("attendance.bulkPartial").replace("{n}", String(done.length)).replace("{total}", String(todo.length))} ${failure}`
+      );
+    }
+    if (done.length > 0) setBulkUndo({ items: done, at: Date.now() });
+  }
+
+  async function undoBulk() {
+    const undo = bulkUndo;
+    if (!undo) return;
+    setBulkUndo(null);
+    setBusyKey("__all__");
+    let failed = 0;
+    try {
+      for (const p of undo.items) {
+        const status: AttendanceStatus = p.attended === null ? "unset" : p.attended ? "arrived" : "absent";
+        const err = await writeAttendance(p.row, status, p.paymentMethod ?? null, p.amountPaid ?? null, status === "absent" ? !!p.chargeNoShow : false);
+        if (err) failed += 1;
+      }
+      await load({ silent: true });
+      onChanged?.();
+    } finally {
+      setBusyKey(null);
+    }
+    if (failed > 0) {
+      showOk(t("common.couldNotSave"), t("attendance.undoFailed").replace("{n}", String(failed)).replace("{total}", String(undo.items.length)));
+    } else {
+      showToast({ message: t("attendance.bulkUndone").replace("{n}", String(undo.items.length)), variant: "success" });
     }
   }
 
@@ -803,6 +879,21 @@ export function ParticipantAttendanceList({
     <View style={styles.list}>
       {loadError ? <Text style={[styles.loadError, isRTL && styles.rtlText]}>{loadError}</Text> : null}
       {duplicateBanner}
+      {bulkUndo ? (
+        <View style={[styles.undoBar, rowFlipFor(isRTL) && styles.undoBarRtl]} accessibilityLiveRegion="polite" accessibilityRole="alert">
+          <Text style={[styles.undoBarTxt, isRTL && styles.rtlText]}>
+            {t("attendance.bulkDone").replace("{n}", String(bulkUndo.items.length))}
+          </Text>
+          <Pressable
+            onPress={() => void undoBulk()}
+            disabled={busyKey !== null}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.undoBtn, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.undoBtnTxt}>{t("attendance.undo")}</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {showMarkAllArrived && rows.some((r) => r.attended !== true) ? (
         <PressableScale
           style={({ pressed }) => [styles.markAll, pressed && { opacity: 0.9 }]}
@@ -826,15 +917,21 @@ export function ParticipantAttendanceList({
             style={styles.card}
           >
             {entering ? <EnteringHighlight /> : null}
-            <View style={[styles.nameRow, isRTL && styles.nameRowRtl]}>
-              <View style={[styles.nameBlock, isRTL && styles.nameBlockRtl]}>
-                <Text style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
+            {/* Phase 5 / E: one dense row — name, payment state, a compact attendance control and an overflow menu. */}
+            <View style={[styles.denseRow, rowFlipFor(isRTL) && styles.denseRowRtl]}>
+              <View style={[styles.nameBlock, rowFlipFor(isRTL) && styles.nameBlockRtl]}>
+                <Text {...userContentTextProps} style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
                   {item.name}
-                  {item.birthdayToday ? <Text style={styles.bday}>{"  "}🎂</Text> : null}
+                  {item.birthdayToday ? (
+                    <Text style={styles.bday}>
+                      {"  "}
+                      <AppIcon name="gift-outline" size="sm" color={theme.colors.warning} accessibilityLabel={t("staffUsers.birthdayToday")} />
+                    </Text>
+                  ) : null}
                 </Text>
                 {item.phone ? (
-                  <Text style={[styles.sub, isRTL && styles.rtlText]} numberOfLines={1}>
-                    {item.phone}
+                  <Text {...userContentTextProps} style={[styles.sub, isRTL && styles.rtlText]} numberOfLines={1}>
+                    {displayLtr(item.phone)}
                   </Text>
                 ) : null}
                 {sessionMeta && effectivePrice > 0 ? (
@@ -860,8 +957,8 @@ export function ParticipantAttendanceList({
                       openPaymentModal(item, "arrived");
                     }}
                     disabled={busy}
-                    hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-                    style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [styles.paymentTouch, pressed && { opacity: 0.85 }]}
                   >
                     <Text
                       style={[
@@ -873,17 +970,11 @@ export function ParticipantAttendanceList({
                       ]}
                       numberOfLines={2}
                     >
-                      {language === "he" ? "תשלום: " : "Payment: "}
+                      {t("ui.participantAttendanceList.payment")}
                       {paymentDisplayTone(item.paymentMethod) === "unpaid"
-                        ? language === "he"
-                          ? "לא שולם"
-                          : "Unpaid"
+                        ? t("ui.participantAttendanceList.unpaid")
                         : paymentMethodAttendanceLabel(item.paymentMethod, language)}
-                      {item.amountPaid != null
-                        ? language === "he"
-                          ? ` · ${item.amountPaid} ₪`
-                          : ` · ${item.amountPaid}`
-                        : ""}
+                      {item.amountPaid != null ? ` · ${displayMoney(item.amountPaid)}` : ""}
                     </Text>
                   </Pressable>
                 ) : item.attended === false && item.chargeNoShow ? (
@@ -893,8 +984,8 @@ export function ParticipantAttendanceList({
                       openPaymentModal(item, "absent_penalty");
                     }}
                     disabled={busy}
-                    hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-                    style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [styles.paymentTouch, pressed && { opacity: 0.85 }]}
                   >
                     <Text
                       style={[
@@ -906,152 +997,123 @@ export function ParticipantAttendanceList({
                       ]}
                       numberOfLines={2}
                     >
-                      {language === "he" ? "תשלום (נעדר): " : "No-show payment: "}
+                      {t("ui.participantAttendanceList.noShowPayment")}
                       {paymentDisplayTone(item.paymentMethod) === "unpaid"
-                        ? language === "he"
-                          ? "לא שולם"
-                          : "Unpaid"
+                        ? t("ui.participantAttendanceList.unpaid")
                         : paymentMethodAttendanceLabel(item.paymentMethod, language)}
-                      {item.amountPaid != null
-                        ? language === "he"
-                          ? ` · ${item.amountPaid} ₪`
-                          : ` · ${item.amountPaid}`
-                        : ""}
+                      {item.amountPaid != null ? ` · ${displayMoney(item.amountPaid)}` : ""}
                     </Text>
                   </Pressable>
                 ) : null}
-              </View>
-              <View style={[styles.nameRight, isRTL && styles.nameRightRtl]}>
-                {sessionMeta ? (
-                  <RosterSlotRateChip
-                    sessionId={sessionId}
-                    userId={item.kind === "registered" ? item.userId : null}
-                    manualParticipantId={item.kind === "manual" ? item.manualId : null}
-                    participantName={item.name}
-                    rosterPriceIls={rosterPriceByRowId[item.id] ?? null}
-                    effectivePriceIls={effectivePriceByRowId[item.id] ?? 0}
-                    disabled={busy}
-                    onSaved={() => {
-                      void load({ silent: true });
-                      onChanged?.();
-                    }}
-                  />
+                {item.kind === "registered" && superUserHiddenUserIds?.has(item.userId) ? (
+                  <View style={[styles.hiddenBadge, styles.hiddenBadgeInline]}>
+                    <Text style={styles.hiddenBadgeTxt}>{t("superUser.hiddenBadge")}</Text>
+                  </View>
                 ) : null}
-                {busy ? <ActivityIndicator size="small" color={theme.colors.cta} /> : null}
-                {item.kind === "registered" && superUserHiddenUserIds ? (
-                  (() => {
+              </View>
+              <View style={[styles.denseRight, rowFlipFor(isRTL) && styles.denseRightRtl]}>
+                {busy || (item.kind === "registered" && hideToggleBusyUserId === item.userId) ? (
+                  <View style={styles.denseBusy}>
+                    <ActivityIndicator size="small" color={theme.colors.cta} />
+                  </View>
+                ) : (
+                  <View
+                    style={[styles.miniSeg, rowFlipFor(isRTL) && styles.miniSegRtl]}
+                    accessibilityRole="radiogroup"
+                    accessibilityLabel={t("ui.participantAttendanceList.attendance")}
+                  >
+                    {(["unset", "arrived", "absent"] as const).map((st) => (
+                      <Pressable
+                        key={st}
+                        disabled={busy}
+                        onPress={() => {
+                          if (st === "arrived") {
+                            openPaymentModal(item, "arrived");
+                            return;
+                          }
+                          void setStatus(item, st, null, null, st === "absent" ? false : undefined);
+                        }}
+                        {...selectionA11y("radio", current === st)}
+                        accessibilityLabel={
+                          st === "unset"
+                            ? t("ui.participantAttendanceList.notSet")
+                            : st === "arrived"
+                              ? t("ui.participantAttendanceList.arrived")
+                              : t("ui.participantAttendanceList.absent")
+                        }
+                        style={({ pressed }) => [
+                          styles.miniBtn,
+                          current === st && (st === "arrived" ? styles.miniBtnArrived : st === "absent" ? styles.miniBtnAbsent : styles.miniBtnUnset),
+                          pressed && styles.segBtnPressed,
+                        ]}
+                      >
+                        <AppIcon
+                          name={st === "unset" ? "remove-outline" : st === "arrived" ? "checkmark" : "close"}
+                          size="md"
+                          color={current === st && st !== "unset" ? theme.colors.ctaText : current === st ? theme.colors.text : theme.colors.textSoft}
+                        />
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+                {(() => {
+                  const actions: FoldableActionsMenuItem[] = [];
+                  if (sessionMeta) actions.push({ label: t("ui.rosterSlotRateChip.rate"), onPress: () => setRateOpenFor(item.id) });
+                  if (item.kind === "registered" && superUserHiddenUserIds && onToggleHideAthlete) {
                     const isHidden = superUserHiddenUserIds.has(item.userId);
-                    const toggleBusy = hideToggleBusyUserId === item.userId;
-                    return (
-                      <View style={[styles.hideControl, isRTL && styles.hideControlRtl]}>
-                        {isHidden ? (
-                          <View style={styles.hiddenBadge}>
-                            <Text style={styles.hiddenBadgeTxt}>{t("superUser.hiddenBadge")}</Text>
-                          </View>
-                        ) : null}
-                        {onToggleHideAthlete ? (
-                          toggleBusy ? (
-                            <ActivityIndicator size="small" color={theme.colors.cta} />
-                          ) : (
-                            <Pressable
-                              onPress={() => confirmToggleHideAthlete(item, isHidden)}
-                              hitSlop={8}
-                              accessibilityRole="button"
-                              accessibilityLabel={t(isHidden ? "superUser.unhideAction" : "superUser.hideAction")}
-                              style={({ pressed }) => [styles.hideToggleBtn, pressed && { opacity: 0.85 }]}
-                            >
-                              <Text style={styles.hideToggleIcon} importantForAccessibility="no">
-                                {isHidden ? "👁️" : "🙈"}
-                              </Text>
-                            </Pressable>
-                          )
-                        ) : null}
-                      </View>
-                    );
-                  })()
-                ) : null}
-                {onMoveParticipant && sessionNotStarted && rowCanMove(item) && !busy ? (
-                  <Pressable
-                    onPress={() => openMove(item)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("a11y.moveParticipant")}
-                    style={({ pressed }) => [styles.moveBtn, pressed && styles.moveBtnPressed]}
-                  >
-                    <Text style={styles.moveIcon} importantForAccessibility="no">
-                      {"⇄"}
-                    </Text>
-                  </Pressable>
-                ) : null}
-                {item.kind === "registered" && onRemoveAthlete && !busy ? (
-                  <Pressable
-                    onPress={() => confirmRemoveRegistered(item)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("a11y.removeParticipant")}
-                    style={({ pressed }) => [styles.removeBtn, pressed && styles.removeBtnPressed]}
-                  >
-                    <Text style={styles.removeIcon} importantForAccessibility="no">
-                      {"×"}
-                    </Text>
-                  </Pressable>
-                ) : null}
-                {item.kind === "manual" && onRemoveManualParticipant && !busy ? (
-                  <Pressable
-                    onPress={() => confirmRemoveManual(item)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("a11y.removeParticipant")}
-                    style={({ pressed }) => [styles.removeBtn, pressed && styles.removeBtnPressed]}
-                  >
-                    <Text style={styles.removeIcon} importantForAccessibility="no">
-                      {"×"}
-                    </Text>
-                  </Pressable>
-                ) : null}
+                    actions.push({
+                      label: t(isHidden ? "superUser.unhideAction" : "superUser.hideAction"),
+                      onPress: () => confirmToggleHideAthlete(item, isHidden),
+                    });
+                  }
+                  if (onMoveParticipant && sessionNotStarted && rowCanMove(item)) actions.push({ label: t("a11y.moveParticipant"), onPress: () => openMove(item) });
+                  if (item.kind === "registered" && onRemoveAthlete) actions.push({ label: t("a11y.removeParticipant"), onPress: () => confirmRemoveRegistered(item), danger: true });
+                  if (item.kind === "manual" && onRemoveManualParticipant) actions.push({ label: t("a11y.removeParticipant"), onPress: () => confirmRemoveManual(item), danger: true });
+                  if (actions.length === 0) return null;
+                  return (
+                    <FoldableActionsMenu
+                      menuTitle={item.name}
+                      closeAccessibilityLabel={t("a11y.closeMenu")}
+                      backdropAccessibilityLabel={t("a11y.closeMenu")}
+                      items={actions}
+                      hideCloseButton
+                      renderTrigger={(open) => (
+                        <IconButton
+                          onPress={open}
+                          disabled={busy}
+                          icon="ellipsis-vertical"
+                          accessibilityLabel={t("attendance.moreActions").replace("{name}", item.name)}
+                        />
+                      )}
+                    />
+                  );
+                })()}
               </View>
             </View>
-            <Text style={[styles.hint, isRTL && styles.rtlText]}>{language === "he" ? "נוכחות" : "Attendance"}</Text>
-            <View style={[styles.seg, isRTL && styles.segRtl]}>
-              {(["unset", "arrived", "absent"] as const).map((st) => (
-                <Pressable
-                  key={st}
-                  disabled={busy}
-                  onPress={() => {
-                    if (st === "arrived") {
-                      openPaymentModal(item, "arrived");
-                      return;
-                    }
-                    void setStatus(item, st, null, null, st === "absent" ? false : undefined);
-                  }}
-                  style={({ pressed }) => [
-                    styles.segBtn,
-                    current === st && styles.segBtnOn,
-                    pressed && styles.segBtnPressed,
-                  ]}
-                >
-                  <Text style={[styles.segTxt, current === st && styles.segTxtOn]}>
-                    {st === "unset"
-                      ? language === "he"
-                        ? "לא סומן"
-                        : "Not set"
-                      : st === "arrived"
-                        ? language === "he"
-                          ? "הגיע"
-                          : "Arrived"
-                        : language === "he"
-                          ? "נעדר"
-                          : "Absent"}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            {sessionMeta ? (
+              <RosterSlotRateChip
+                sessionId={sessionId}
+                userId={item.kind === "registered" ? item.userId : null}
+                manualParticipantId={item.kind === "manual" ? item.manualId : null}
+                participantName={item.name}
+                rosterPriceIls={rosterPriceByRowId[item.id] ?? null}
+                effectivePriceIls={effectivePriceByRowId[item.id] ?? 0}
+                disabled={busy}
+                hideTrigger
+                open={rateOpenFor === item.id}
+                onOpenChange={(v) => setRateOpenFor(v ? item.id : null)}
+                onSaved={() => {
+                  void load({ silent: true });
+                  onChanged?.();
+                }}
+              />
+            ) : null}
             {current === "absent" ? (
-              <View style={[styles.noShowFeeRow, isRTL && styles.noShowFeeRowRtl]}>
+              <View style={[styles.noShowFeeRow, rowFlipFor(isRTL) && styles.noShowFeeRowRtl]}>
                 <Text style={[styles.noShowFeeLabel, isRTL && styles.rtlText]}>
-                  {language === "he" ? "חיוב על נעדרות" : "Charge no-show fee"}
+                  {t("ui.participantAttendanceList.chargeNoShowFee")}
                 </Text>
-                <View style={[styles.noShowFeeSeg, isRTL && styles.noShowFeeSegRtl]}>
+                <View style={[styles.noShowFeeSeg, rowFlipFor(isRTL) && styles.noShowFeeSegRtl]}>
                   <Pressable
                     disabled={busy}
                     onPress={() => void setStatus(item, "absent", null, null, false)}
@@ -1062,7 +1124,7 @@ export function ParticipantAttendanceList({
                     ]}
                   >
                     <Text style={[styles.noShowFeeBtnTxt, !item.chargeNoShow && styles.noShowFeeBtnTxtOn]}>
-                      {language === "he" ? "לא" : "No"}
+                      {t("ui.participantAttendanceList.no")}
                     </Text>
                   </Pressable>
                   <Pressable
@@ -1075,7 +1137,7 @@ export function ParticipantAttendanceList({
                     ]}
                   >
                     <Text style={[styles.noShowFeeBtnTxt, item.chargeNoShow && styles.noShowFeeBtnTxtOn]}>
-                      {language === "he" ? "כן" : "Yes"}
+                      {t("ui.participantAttendanceList.yes")}
                     </Text>
                   </Pressable>
                 </View>
@@ -1092,12 +1154,8 @@ export function ParticipantAttendanceList({
               <>
                 <Text style={[styles.payTitle, isRTL && styles.rtlText]}>
                   {payMode === "absent_penalty"
-                    ? language === "he"
-                      ? "תשלום — נעדר"
-                      : "Payment — no-show"
-                    : language === "he"
-                      ? "אופן תשלום"
-                      : "Payment method"}
+                    ? t("ui.participantAttendanceList.paymentNoShow")
+                    : t("ui.participantAttendanceList.paymentMethod")}
                 </Text>
                 {SESSION_PAYMENT_METHOD_KEYS.map((pm) => (
                   <Pressable
@@ -1121,7 +1179,7 @@ export function ParticipantAttendanceList({
                   }}
                 >
                   <Text style={[styles.payBtnTxt, styles.payBtnTxtUnpaid]}>
-                    {language === "he" ? "לא שולם" : "Unpaid"}
+                    {t("ui.participantAttendanceList.unpaid")}
                   </Text>
                 </Pressable>
                 <Pressable onPress={closePaymentModal} style={({ pressed }) => pressed && { opacity: 0.8 }}>
@@ -1132,22 +1190,18 @@ export function ParticipantAttendanceList({
               <>
                 <Text style={[styles.payTitle, isRTL && styles.rtlText]}>
                   {payMode === "absent_penalty"
-                    ? language === "he"
-                      ? "סכום ששולם (נעדר)"
-                      : "Amount paid (no-show)"
-                    : language === "he"
-                      ? "סכום ששולם"
-                      : "Amount paid"}
+                    ? t("ui.participantAttendanceList.amountPaidNoShow")
+                    : t("ui.participantAttendanceList.amountPaid")}
                 </Text>
                 <Text style={[styles.payHint, isRTL && styles.rtlText]}>
-                  {language === "he" ? "אופציונלי — השאירו ריק אם לא רלוונטי." : "Optional — leave blank if not needed."}
+                  {t("ui.participantAttendanceList.optionalLeaveBlankIfNotNeeded")}
                 </Text>
                 <TextInput
                   style={[styles.payAmountInput, isRTL && styles.payAmountInputRtl]}
                   value={payAmountDraft}
                   onChangeText={setPayAmountDraft}
-                  placeholder={language === "he" ? "למשל 120" : "e.g. 120"}
-                  placeholderTextColor={theme.colors.placeholderOnLight}
+                  placeholder={t("ui.participantAttendanceList.eG120")}
+                  placeholderTextColor={theme.colors.fieldPlaceholder}
                   keyboardType="decimal-pad"
                   autoFocus
                 />
@@ -1167,7 +1221,7 @@ export function ParticipantAttendanceList({
                     else void setStatus(row, "arrived", method, parsed);
                   }}
                 >
-                  <Text style={styles.payBtnTxtPrimary}>{language === "he" ? "אישור" : "Confirm"}</Text>
+                  <Text style={styles.payBtnTxtPrimary}>{t("ui.participantAttendanceList.confirm")}</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => {
@@ -1176,7 +1230,7 @@ export function ParticipantAttendanceList({
                   }}
                   style={({ pressed }) => pressed && { opacity: 0.8 }}
                 >
-                  <Text style={styles.payCancel}>{language === "he" ? "חזרה" : "Back"}</Text>
+                  <Text style={styles.payCancel}>{t("ui.participantAttendanceList.back")}</Text>
                 </Pressable>
               </>
             )}
@@ -1202,7 +1256,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     alignSelf: "flex-start",
   },
-  markAllTxt: { color: theme.colors.cta, fontWeight: "900", fontSize: 13 },
+  markAllTxt: { color: theme.colors.cta, fontWeight: "800", fontSize: 13 },
   card: {
     padding: theme.spacing.md,
     backgroundColor: theme.colors.surface,
@@ -1210,11 +1264,50 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  nameRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  // Wraps when the name column would drop below 80px (320px phones), moving the row actions to their own line.
+  denseRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  denseRowRtl: { flexDirection: "row-reverse" },
+  denseRight: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 0 },
+  denseRightRtl: { flexDirection: "row-reverse" },
+  denseBusy: { minWidth: 140, minHeight: theme.controls.minTouch, alignItems: "center", justifyContent: "center" },
+  miniSeg: { flexDirection: "row", gap: 4 },
+  miniSegRtl: { flexDirection: "row-reverse" },
+  miniBtn: {
+    width: theme.controls.minTouch,
+    height: theme.controls.minTouch,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  miniBtnUnset: { borderColor: theme.colors.text },
+  miniBtnArrived: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
+  miniBtnAbsent: { backgroundColor: "#f87171", borderColor: "#f87171" },
+  paymentTouch: { alignSelf: "stretch", minHeight: 32, justifyContent: "center" },
+  hiddenBadgeInline: { alignSelf: "flex-start", marginTop: 4 },
+  undoBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.successBg,
+    borderWidth: 1,
+    borderColor: theme.colors.success,
+  },
+  undoBarRtl: { flexDirection: "row-reverse" },
+  undoBarTxt: { flex: 1, color: theme.colors.text, fontWeight: "700", fontSize: 14 },
+  undoBtn: { minHeight: theme.controls.minTouch, minWidth: theme.controls.minTouch, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
+  undoBtnTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14, textDecorationLine: "underline" },
+  nameRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 },
   nameRowRtl: { flexDirection: "row-reverse" },
-  nameBlock: { flex: 1, alignItems: "flex-start", minWidth: 0 },
+  nameBlock: { flex: 1, alignItems: "flex-start", minWidth: 80 },
   nameBlockRtl: { alignItems: "flex-end" },
-  name: { flex: 1, fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  name: { flex: 1, ...theme.typography.title, color: theme.colors.text },
   bday: { color: theme.colors.cta, fontWeight: "900" },
   sub: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
   dueLine: { marginTop: 6, fontSize: 14, fontWeight: "800", color: theme.colors.text },
@@ -1223,32 +1316,9 @@ const styles = StyleSheet.create({
   paymentUnpaid: { color: theme.colors.error },
   paymentCash: { color: theme.colors.success },
   paymentOther: { color: "#EAB308" },
-  nameRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+  /** 12px apart so the 44px touch areas of the row actions never overlap. */
+  nameRight: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm },
   nameRightRtl: { flexDirection: "row-reverse" },
-  moveBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.cta,
-  },
-  moveBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  moveIcon: { color: theme.colors.cta, fontWeight: "900", fontSize: 15, lineHeight: 15 },
-  removeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: (theme.colors as any).errorBorder ?? theme.colors.borderMuted,
-  },
-  removeBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  removeIcon: { color: theme.colors.error, fontWeight: "900", fontSize: 18, lineHeight: 18 },
   hideControl: { flexDirection: "row", alignItems: "center", gap: 6 },
   hideControlRtl: { flexDirection: "row-reverse" },
   hiddenBadge: {
@@ -1257,18 +1327,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.errorBg,
   },
-  hiddenBadgeTxt: { color: theme.colors.error, fontWeight: "800", fontSize: 10 },
-  hideToggleBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-  },
-  hideToggleIcon: { fontSize: 14 },
+  hiddenBadgeTxt: { color: theme.colors.error, fontWeight: "800", fontSize: 11 },
   hint: { marginTop: 8, fontSize: 12, color: theme.colors.textMuted, fontWeight: "600" },
   seg: { flexDirection: "row", marginTop: 8, gap: 6, flexWrap: "wrap" },
   segRtl: { flexDirection: "row-reverse" },
@@ -1285,7 +1344,7 @@ const styles = StyleSheet.create({
   },
   segBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   segBtnPressed: { opacity: 0.85 },
-  segTxt: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
+  segTxt: { ...theme.typography.label, color: theme.colors.textMuted },
   segTxtOn: { color: theme.colors.ctaText },
   noShowFeeRow: {
     marginTop: 10,
@@ -1298,7 +1357,7 @@ const styles = StyleSheet.create({
     borderTopColor: theme.colors.borderMuted,
   },
   noShowFeeRowRtl: { flexDirection: "row-reverse" },
-  noShowFeeLabel: { flex: 1, fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
+  noShowFeeLabel: { flex: 1, ...theme.typography.label, color: theme.colors.textMuted },
   noShowFeeSeg: { flexDirection: "row", gap: 6 },
   noShowFeeSegRtl: { flexDirection: "row-reverse" },
   noShowFeeBtn: {
@@ -1316,6 +1375,9 @@ const styles = StyleSheet.create({
   noShowFeeBtnTxtOn: { color: theme.colors.ctaText },
   payBackdrop: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: theme.overlay.backdrop },
   payCard: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.dialogMaxWidth,
+    alignSelf: "center",
     backgroundColor: theme.colors.surfaceElevated,
     borderRadius: theme.radius.lg,
     padding: 18,
@@ -1323,8 +1385,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     zIndex: 1,
   },
-  payTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text },
-  payHint: { marginTop: 6, fontSize: 13, color: theme.colors.textMuted, fontWeight: "600" },
+  payTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  payHint: { marginTop: 6, ...theme.typography.caption, color: theme.colors.textMuted },
   payAmountInput: {
     marginTop: 12,
     borderWidth: 1,
@@ -1332,8 +1394,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 16,
-    fontWeight: "700",
+    ...theme.typography.title,
     color: theme.colors.text,
     backgroundColor: theme.colors.surface,
   },
@@ -1364,5 +1425,5 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   duplicateBannerTxt: { fontSize: 13, color: theme.colors.text, lineHeight: 18, fontWeight: "600" },
-  duplicateBannerLink: { fontSize: 13, color: theme.colors.cta, fontWeight: "900" },
+  duplicateBannerLink: { fontSize: 13, color: theme.colors.cta, fontWeight: "800" },
 });

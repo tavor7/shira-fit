@@ -1,9 +1,11 @@
+import { displayLtr } from "../lib/displayFormat";
 import { useCallback, useEffect, useState } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { AppIcon } from "../components/AppIcon";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
@@ -22,6 +24,9 @@ import {
   normalizeParticipantName,
   type ManualDuplicateIndexes,
 } from "../lib/participantIdentity";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { roleLabel, approvalStatusLabel } from "../lib/displayLabels";
 
 type ProfileRow = {
   kind: "profile";
@@ -53,6 +58,7 @@ function approvalTone(status: ProfileRow["approval_status"]): PillTone {
 
 export default function StaffUsersScreen() {
   const { profile } = useAuth();
+  const screenContent = useScreenContentStyle("standard");
   const isManager = profile?.role === "manager";
   const { t, isRTL } = useI18n();
   const { showToast } = useToast();
@@ -173,7 +179,7 @@ export default function StaffUsersScreen() {
       <FlatList
         data={rows}
         keyExtractor={(i) => (i.kind === "profile" ? i.user_id : `manual:${i.id}`)}
-        contentContainerStyle={[styles.list, { paddingBottom: listBottomPad }]}
+        contentContainerStyle={[styles.list, screenContent, { paddingBottom: Math.max(listBottomPad, Number(screenContent.paddingBottom ?? 0)) }]}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View style={styles.top}>
@@ -192,7 +198,7 @@ export default function StaffUsersScreen() {
         ListEmptyComponent={
           loading ? null : (
             <EmptyState
-              icon={q.trim().length > 0 ? "🔍" : "👥"}
+              icon={q.trim().length > 0 ? "search-outline" : "people-outline"}
               title={t("staffUsers.noUsers")}
               isRTL={isRTL}
             />
@@ -231,10 +237,10 @@ export default function StaffUsersScreen() {
                 pressed && { opacity: 0.9 },
               ]}
             >
-              <View style={[styles.cardRow, isRTL && styles.cardRowRtl]}>
+              <View style={[styles.cardRow, rowFlipFor(isRTL) && styles.cardRowRtl]}>
                 <UserAvatar name={item.full_name} seed={item.kind === "profile" ? item.user_id : item.id} />
                 <View style={styles.cardBody}>
-                  <Text style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
+                  <Text {...userContentTextProps} style={[styles.name, isRTL ? styles.rtlText : styles.ltrText]} numberOfLines={1}>
                     {item.full_name}
                     {(() => {
                       const dob = (item as any).date_of_birth as string | null | undefined;
@@ -243,20 +249,21 @@ export default function StaffUsersScreen() {
                       const now = new Date();
                       const tmd = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
                       return md === tmd ? (
-                        <Text style={styles.bday} accessibilityLabel={t("staffUsers.birthdayToday")}>
-                          {"  "}🎂
+                        <Text style={styles.bday}>
+
+                          <AppIcon name="gift-outline" size="sm" color={theme.colors.warning} accessibilityLabel={t("staffUsers.birthdayToday")} />
                         </Text>
                       ) : null;
                     })()}
                   </Text>
-                  <Text style={[styles.phone, isRTL && styles.rtlText]} numberOfLines={1}>
-                    {item.phone}
+                  <Text {...userContentTextProps} style={[styles.phone, isRTL ? styles.rtlText : styles.ltrText]} numberOfLines={1}>
+                    {displayLtr(item.phone)}
                   </Text>
-                  <View style={[styles.pillRow, isRTL && styles.pillRowRtl]}>
+                  <View style={[styles.pillRow, rowFlipFor(isRTL) && styles.pillRowRtl]}>
                     {item.kind === "profile" ? (
                       <>
-                        <Pill label={item.role} />
-                        <Pill label={item.approval_status} tone={approvalTone(item.approval_status)} />
+                        <Pill label={roleLabel(item.role, t)} />
+                        <Pill label={approvalStatusLabel(item.approval_status, t)} tone={approvalTone(item.approval_status)} />
                       </>
                     ) : (
                       <Pill label={t("pricing.quickAddLabel")} />
@@ -289,9 +296,10 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.sm,
   },
-  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm },
+  title: { ...theme.typography.headline, color: theme.colors.text, marginBottom: theme.spacing.sm },
   hint: { marginTop: 6, color: theme.colors.textMuted, lineHeight: 18, fontSize: 12 },
   rtlText: { textAlign: "right" },
+  ltrText: { textAlign: "left" },
   list: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl, gap: theme.spacing.sm },
   card: {
     padding: theme.spacing.md,
@@ -310,7 +318,7 @@ const styles = StyleSheet.create({
   cardRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.md },
   cardRowRtl: { flexDirection: "row-reverse" },
   cardBody: { flex: 1, minWidth: 0 },
-  name: { color: theme.colors.text, fontWeight: "900", fontSize: 15 },
+  name: { color: theme.colors.text, fontWeight: "800", fontSize: 15 },
   bday: { color: theme.colors.cta, fontWeight: "900" },
   phone: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
   pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },

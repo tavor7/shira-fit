@@ -2,6 +2,7 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "
 import * as Haptics from "expo-haptics";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 const ACCENT = "#818cf8";
 const ACCENT_SOFT = "rgba(129, 140, 248, 0.14)";
@@ -39,7 +40,7 @@ export function AthleteWaitlistInviteStripe({ onPress, disabled, joining, compac
       accessibilityRole="button"
       accessibilityLabel={`${t("athleteCalendar.joinWaitlistCta")}. ${t("athleteCalendar.joinWaitlistSub")}`}
     >
-      <View style={[styles.inviteRow, compact && styles.inviteRowCompact, isRTL && !compact && styles.inviteRowRtl]}>
+      <View style={[styles.inviteRow, compact && styles.inviteRowCompact, rowFlipFor(isRTL) && !compact && styles.inviteRowRtl]}>
         {compact ? (
           joining ? (
             <ActivityIndicator color={ACCENT} size="small" />
@@ -95,7 +96,7 @@ export function AthleteWaitlistJoinedStripe({ compact }: JoinedProps) {
       accessibilityRole="text"
       accessibilityLabel={t("athleteCalendar.onWaitlistStatus")}
     >
-      <View style={[styles.joinedRow, compact && styles.joinedRowCompact, isRTL && !compact && styles.joinedRowRtl]}>
+      <View style={[styles.joinedRow, compact && styles.joinedRowCompact, rowFlipFor(isRTL) && !compact && styles.joinedRowRtl]}>
         {compact ? (
           <Text
             style={styles.joinedTxtCompact}
@@ -130,7 +131,8 @@ const styles = StyleSheet.create({
     borderColor: ACCENT_BORDER,
     overflow: "hidden",
   },
-  inviteOuterCompact: { marginTop: 4 },
+  /** Phase 5 / L: in calendar cells the waitlist action is its own full-width 44px button, clearly apart from the session above. */
+  inviteOuterCompact: { marginTop: 8, alignSelf: "stretch" },
   invitePressed: { opacity: 0.92 },
   inviteDisabled: { opacity: 0.65 },
   inviteRow: {
@@ -146,7 +148,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     justifyContent: "center",
     alignItems: "center",
-    minHeight: 38,
+    minHeight: theme.controls.minTouch,
   },
   inviteRowRtl: { flexDirection: "row-reverse" },
   inviteCopy: { flex: 1, minWidth: 0, gap: 2 },
@@ -154,14 +156,14 @@ const styles = StyleSheet.create({
   inviteLine1Compact: {
     color: theme.colors.textMuted,
     fontWeight: "800",
-    fontSize: 9,
+    fontSize: 11,
     lineHeight: 11,
     letterSpacing: 0.4,
     textAlign: "center",
   },
   inviteLine2Compact: {
     color: theme.colors.text,
-    fontWeight: "900",
+    fontWeight: "800",
     fontSize: 11,
     lineHeight: 13,
     letterSpacing: 0.15,
@@ -169,7 +171,7 @@ const styles = StyleSheet.create({
   },
   inviteTitle: {
     color: theme.colors.text,
-    fontWeight: "900",
+    fontWeight: "800",
     fontSize: 13,
     letterSpacing: 0.15,
   },
@@ -216,7 +218,7 @@ const styles = StyleSheet.create({
   },
   joinedMark: {
     color: theme.colors.success,
-    fontWeight: "900",
+    fontWeight: "800",
     fontSize: 14,
   },
   joinedTxt: {

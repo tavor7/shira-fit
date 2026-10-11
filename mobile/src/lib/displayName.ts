@@ -1,3 +1,4 @@
+import { displayLtr } from "./displayFormat";
 /** First token of a person's display name (e.g. for compact calendar labels). */
 export function firstWordOfDisplayName(name: string): string {
   const trimmed = name.trim();
@@ -15,5 +16,6 @@ export function athletePickerLabel(name: string, phone?: string | null): string 
 /** Subtitle line under an athlete name in search results. */
 export function athleteSearchSubtitle(phone?: string | null): string {
   const p = (phone ?? "").trim();
-  return p || "—";
+  // Display only: an international number keeps its order in Hebrew ("+972 …").
+  return p ? displayLtr(p) : "—";
 }

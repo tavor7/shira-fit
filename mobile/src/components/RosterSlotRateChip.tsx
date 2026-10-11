@@ -9,6 +9,8 @@ import { AppModal } from "./AppModal";
 import { PrimaryButton } from "./PrimaryButton";
 import { ActionButton } from "./ActionButton";
 import { parseCustomSlotPriceDraft } from "../lib/sessionSlotPrice";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 export type SessionRateMeta = {
   max_participants: number;
@@ -26,12 +28,15 @@ type Props = {
   effectivePriceIls: number;
   disabled?: boolean;
   onSaved: () => void;
+  /** Controlled open state (e.g. opened from a row's overflow menu). Uncontrolled when omitted. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Render only the dialog, no chip (the row offers "Rate" in its menu instead). */
+  hideTrigger?: boolean;
 };
 
 export function formatRosterIls(n: number, language: string): string {
-  const rounded = Math.round(n * 100) / 100;
-  const s = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
-  return language === "he" ? `${s} ₪` : `₪${s}`;
+  return displayMoney(n);
 }
 
 export function RosterSlotRateChip({
@@ -43,15 +48,20 @@ export function RosterSlotRateChip({
   effectivePriceIls,
   disabled,
   onSaved,
+  open: openProp,
+  onOpenChange,
+  hideTrigger,
 }: Props) {
-  const { t, isRTL, language } = useI18n();
+  const { t, isRTL } = useI18n();
   const { showOk } = useAppAlert();
-  const [open, setOpen] = useState(false);
+  const [openInner, setOpenInner] = useState(false);
+  const open = openProp ?? openInner;
+  const setOpen = (v: boolean) => (onOpenChange ? onOpenChange(v) : setOpenInner(v));
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
 
   const hasOverride = rosterPriceIls != null;
-  const chipLabel = language === "he" ? "תעריף" : "Rate";
+  const chipLabel = t("ui.rosterSlotRateChip.rate");
 
   useEffect(() => {
     if (!open) return;
@@ -107,19 +117,22 @@ export function RosterSlotRateChip({
 
   return (
     <>
+      {hideTrigger ? null : (
       <Pressable
         onPress={() => setOpen(true)}
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel={`${t("managerSession.rosterSlotRateTitle")}. ${chipLabel}`}
-        style={({ pressed }) => [
-          styles.chip,
-          hasOverride && styles.chipCustom,
-          isRTL && styles.chipRtl,
-          disabled && styles.chipDisabled,
-          pressed && !disabled && { opacity: 0.88 },
-        ]}
+        style={({ pressed }) => [styles.hitArea, pressed && !disabled && { opacity: 0.88 }]}
       >
+        <View
+          style={[
+            styles.chip,
+            hasOverride && styles.chipCustom,
+            rowFlipFor(isRTL) && styles.chipRtl,
+            disabled && styles.chipDisabled,
+          ]}
+        >
         <Ionicons
           name="pricetag-outline"
           size={13}
@@ -129,7 +142,9 @@ export function RosterSlotRateChip({
         <Text style={[styles.chipTxt, hasOverride && styles.chipTxtCustom]} numberOfLines={1}>
           {chipLabel}
         </Text>
+        </View>
       </Pressable>
+      )}
 
       <AppModal
         visible={open}
@@ -138,7 +153,7 @@ export function RosterSlotRateChip({
         backdropAccessibilityLabel={t("common.cancel")}
       >
         <View style={styles.dialog}>
-          <View style={[styles.sheetHeader, isRTL && styles.sheetHeaderRtl]}>
+          <View style={[styles.sheetHeader, rowFlipFor(isRTL) && styles.sheetHeaderRtl]}>
             <View style={styles.sheetHeaderText}>
               <Text style={[styles.sheetTitle, isRTL && styles.rtlText]}>{t("managerSession.rosterSlotRateTitle")}</Text>
               <Text style={[styles.sheetName, isRTL && styles.rtlText]} numberOfLines={2}>
@@ -156,16 +171,16 @@ export function RosterSlotRateChip({
             </Pressable>
           </View>
 
-          <View style={[styles.inputRow, isRTL && styles.inputRowRtl]}>
+          <View style={[styles.inputRow, rowFlipFor(isRTL) && styles.inputRowRtl]}>
             <TextInput
               style={[styles.input, isRTL && styles.inputRtl, saving && styles.inputDisabled]}
               value={draft}
               onChangeText={setDraft}
               keyboardType="decimal-pad"
               placeholder={
-                effectivePriceIls > 0 ? String(effectivePriceIls) : language === "he" ? "תעריף" : "Rate"
+                effectivePriceIls > 0 ? String(effectivePriceIls) : t("ui.rosterSlotRateChip.rate")
               }
-              placeholderTextColor={theme.colors.placeholderOnLight}
+              placeholderTextColor={theme.colors.fieldPlaceholder}
               editable={!saving}
             />
             <Text style={styles.currency}>₪</Text>
@@ -193,6 +208,8 @@ export function RosterSlotRateChip({
 }
 
 const styles = StyleSheet.create({
+  // Transparent padding (cancelled by a negative margin) takes the small chip to a 44px hit area without changing the row layout.
+  hitArea: { paddingVertical: 9, marginVertical: -9, paddingHorizontal: 4, marginHorizontal: -4 },
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -225,8 +242,8 @@ const styles = StyleSheet.create({
   },
   sheetHeaderRtl: { flexDirection: "row-reverse" },
   sheetHeaderText: { flex: 1, minWidth: 0 },
-  sheetTitle: { fontSize: 17, fontWeight: "900", color: theme.colors.text },
-  sheetName: { marginTop: 4, fontSize: 14, fontWeight: "600", color: theme.colors.textMuted },
+  sheetTitle: { fontSize: 17, fontWeight: "800", color: theme.colors.text },
+  sheetName: { marginTop: 4, ...theme.typography.secondary, color: theme.colors.textMuted },
   closeBtn: { padding: 4 },
   inputRow: {
     flexDirection: "row",
@@ -249,7 +266,7 @@ const styles = StyleSheet.create({
   },
   inputRtl: { textAlign: "right" },
   inputDisabled: { opacity: 0.6 },
-  currency: { fontSize: 16, fontWeight: "800", color: theme.colors.textMuted },
+  currency: { ...theme.typography.title, color: theme.colors.textMuted },
   saveBtn: {
     marginTop: 6,
   },

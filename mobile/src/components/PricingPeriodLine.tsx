@@ -1,5 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 type Props = {
   priceLabel: string;
@@ -23,14 +24,14 @@ export function PricingPeriodLine({
   muted,
 }: Props) {
   return (
-    <View style={[styles.row, isRTL && styles.rowRtl, muted && styles.muted]}>
+    <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl, muted && styles.muted]}>
       <View style={styles.main}>
         <Text style={[styles.price, isRTL && styles.rtl]}>{priceLabel}</Text>
         <Text style={[styles.range, isRTL && styles.rtl]} numberOfLines={1}>
           {rangeLabel}
         </Text>
       </View>
-      <View style={[styles.actions, isRTL && styles.actionsRtl]}>
+      <View style={[styles.actions, rowFlipFor(isRTL) && styles.actionsRtl]}>
         <Pressable
           onPress={onEdit}
           hitSlop={6}
@@ -70,8 +71,8 @@ const styles = StyleSheet.create({
   range: { fontSize: 12, fontWeight: "500", color: theme.colors.textSoft },
   actions: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 0 },
   actionsRtl: { flexDirection: "row-reverse" },
-  actionEdit: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
-  actionRemove: { fontSize: 12, fontWeight: "700", color: theme.colors.error },
+  actionEdit: { ...theme.typography.label, color: theme.colors.textMuted },
+  actionRemove: { ...theme.typography.label, color: theme.colors.error },
   actionSep: { fontSize: 12, color: theme.colors.textSoft },
   rtl: { textAlign: "right" },
 });

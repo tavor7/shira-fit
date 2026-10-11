@@ -21,6 +21,9 @@ import {
   type SubscriptionImpact,
   type WeeklyLimits,
 } from "../../lib/subscriptions";
+import { rowFlipFor } from "../../lib/layoutDirection";
+import { useScreenContentStyle } from "../../hooks/useScreenLayout";
+import { selectionA11y } from "../../lib/a11ySelection";
 
 type Mode = "beginning" | "date";
 
@@ -31,6 +34,7 @@ type Mode = "beginning" | "date";
  * modal layered on top of this still-mounted screen. */
 export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: string }) {
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const navigation = useNavigation();
@@ -182,11 +186,11 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
 
   return (
     <>
-      <ScrollView contentContainerStyle={sf.content} style={sf.screen} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[sf.content, screenContent]} style={sf.screen} keyboardShouldPersistTaps="handled">
         <View style={sf.sections}>
           <View style={sf.card}>
             <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.edit.modeLabel")}</Text>
-            <View style={[styles.modeRow, isRTL && styles.modeRowRtl]}>
+            <View style={[styles.modeRow, rowFlipFor(isRTL) && styles.modeRowRtl]}>
               <ModeChip label={t("subscriptions.edit.modeFromBeginning")} active={mode === "beginning"} onPress={() => setMode("beginning")} />
               <ModeChip label={t("subscriptions.edit.modeFromDate")} active={mode === "date"} onPress={() => setMode("date")} />
             </View>
@@ -201,11 +205,11 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
 
           <View style={sf.card}>
             <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.edit.priceLabel")}</Text>
-            <TextInput value={price} onChangeText={setPrice} keyboardType="decimal-pad" inputMode="decimal" style={[sf.control, sf.controlInput, isRTL && styles.rtlInput]} />
+            <TextInput value={price} onChangeText={setPrice} keyboardType="decimal-pad" inputMode="decimal" accessibilityLabel={t("subscriptions.edit.priceLabel")} style={[sf.control, sf.controlInput, isRTL && styles.rtlInput]} />
           </View>
 
           <View style={sf.card}>
-            <View style={[styles.toggleRow, isRTL && styles.toggleRowRtl]}>
+            <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
               <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.edit.clearEndDateToggle")}</Text>
               <AppSwitch value={clearEndDate} onValueChange={setClearEndDate} accessibilityLabel={t("subscriptions.edit.clearEndDateToggle")} />
             </View>
@@ -249,7 +253,7 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
 
 function ModeChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]} accessibilityRole="button" accessibilityState={{ selected: active }}>
+    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]} {...selectionA11y("radio", active)}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
     </Pressable>
   );
@@ -264,8 +268,13 @@ const styles = StyleSheet.create({
   modeRow: { flexDirection: "row", gap: 8 },
   modeRowRtl: { flexDirection: "row-reverse" },
   chip: {
+    // Equal halves that may shrink and wrap their label ("From a specific date" overflowed at 320px).
     flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
     paddingVertical: 10,
+    minHeight: theme.controls.minTouch,
+    justifyContent: "center",
     paddingHorizontal: 12,
     borderRadius: theme.radius.md,
     borderWidth: 1,
@@ -274,7 +283,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   chipActive: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  chipText: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
+  chipText: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted, textAlign: "center" },
   chipTextActive: { color: theme.colors.ctaText },
   footer: { gap: theme.spacing.sm, paddingTop: theme.spacing.xs },
   secondaryAction: { paddingVertical: theme.spacing.sm, alignItems: "center", minHeight: 44, justifyContent: "center" },

@@ -20,6 +20,8 @@ export default function LegalLayout() {
         } as object,
         headerTintColor: theme.colors.text,
         headerLeft: () => <AuthHeaderLeft />,
+        // Screens that do not fill the width (centred columns on desktop) sit on the app background, never the navigator default.
+        contentStyle: { backgroundColor: theme.colors.backgroundAlt },
       }}
     />
   );

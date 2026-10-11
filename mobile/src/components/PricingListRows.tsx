@@ -3,6 +3,7 @@ import { View, Pressable, Text, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import type { PricingListRow, PricingRateTierRow } from "../lib/pricingRates";
 import { PricingRateRow } from "./PricingRateRow";
+import { displayMoney } from "../lib/displayFormat";
 
 type Props<T extends PricingRateTierRow> = {
   rows: PricingListRow<T>[];
@@ -35,7 +36,7 @@ export function PricingListRows<T extends PricingRateTierRow>({
 
   const priceFor = (row: T) => {
     const n = Number(row.price_ils);
-    return Number.isFinite(n) ? `${n} ₪` : `${row.price_ils}`;
+    return Number.isFinite(n) ? displayMoney(n) : `${row.price_ils}`;
   };
 
   return (

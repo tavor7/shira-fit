@@ -1,3 +1,5 @@
+import { selectionA11y } from "../lib/a11ySelection";
+import { AppIcon } from "../components/AppIcon";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -27,11 +29,15 @@ import {
   type WhatsAppTestCandidate,
   type WhatsAppTestUser,
 } from "../lib/whatsappFeature";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { roleLabel } from "../lib/displayLabels";
 
 const MODES: WhatsAppRolloutMode[] = ["off", "testing", "live"];
 
 export default function WhatsAppRolloutScreen() {
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { showOk, showConfirm } = useAppAlert();
   const [loading, setLoading] = useState(true);
@@ -207,7 +213,7 @@ export default function WhatsAppRolloutScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, screenContent]}
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
     >
@@ -227,7 +233,7 @@ export default function WhatsAppRolloutScreen() {
         <>
           <View style={[styles.card, surface.card]}>
             <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>{t("whatsapp.rolloutTitle")}</Text>
-            <View style={[styles.modeRow, isRTL && styles.modeRowRtl]}>
+            <View style={[styles.modeRow, rowFlipFor(isRTL) && styles.modeRowRtl]} accessibilityRole="radiogroup">
               {MODES.map((m) => {
                 const on = mode === m;
                 return (
@@ -235,8 +241,9 @@ export default function WhatsAppRolloutScreen() {
                     key={m}
                     onPress={() => setMode(m)}
                     style={({ pressed }) => [styles.modeBtn, on && styles.modeBtnOn, pressed && !on && styles.pressed]}
+                    {...selectionA11y("radio", on)}
                   >
-                    <Text style={[styles.modeBtnTxt, on && styles.modeBtnTxtOn, isRTL && styles.rtl]} numberOfLines={1}>
+                    <Text style={[styles.modeBtnTxt, on && styles.modeBtnTxtOn]} numberOfLines={1}>
                       {modeLabel(m)}
                     </Text>
                   </Pressable>
@@ -258,13 +265,13 @@ export default function WhatsAppRolloutScreen() {
               <Text style={[styles.testHint, isRTL && styles.rtl]}>{t("whatsapp.testSendHintHello")}</Text>
 
               {selected.length > 0 ? (
-                <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+                <View style={[styles.chips, rowFlipFor(isRTL) && styles.chipsRtl]}>
                   {selected.map((u) => {
                     const active = sendTarget?.user_id === u.user_id;
                     return (
                       <View
                         key={u.user_id}
-                        style={[styles.chip, styles.chipRemovable, active && styles.chipActive, isRTL && styles.chipRemovableRtl]}
+                        style={[styles.chip, styles.chipRemovable, active && styles.chipActive, rowFlipFor(isRTL) && styles.chipRemovableRtl]}
                       >
                         <Pressable onPress={() => setSendTargetId(u.user_id)} style={({ pressed }) => [pressed && styles.pressed]}>
                           <Text style={[styles.chipTxt, active && styles.chipTxtActive, isRTL && styles.rtl]} numberOfLines={1}>
@@ -278,7 +285,7 @@ export default function WhatsAppRolloutScreen() {
                           accessibilityLabel={t("common.remove")}
                           style={({ pressed }) => [styles.chipRemove, pressed && { opacity: 0.7 }]}
                         >
-                          <Text style={styles.chipRemoveTxt}>×</Text>
+                          <AppIcon name="close" size="sm" color={theme.colors.textSoft} />
                         </Pressable>
                       </View>
                     );
@@ -310,7 +317,7 @@ export default function WhatsAppRolloutScreen() {
                       >
                         <Text style={[styles.hitName, isRTL && styles.rtl]}>{h.full_name}</Text>
                         <Text style={[styles.hitMeta, isRTL && styles.rtl]}>
-                          {h.role} · {h.phone}
+                          {roleLabel(h.role, t)} · {h.phone}
                         </Text>
                       </Pressable>
                     ))
@@ -346,7 +353,7 @@ export default function WhatsAppRolloutScreen() {
           <AnimatedOptionExpand open={mode === "testing" && manageOpen}>
             <View style={[styles.card, surface.card]}>
               <Text style={[styles.testHint, isRTL && styles.rtl]}>{t("whatsapp.testUsersHint")}</Text>
-              <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+              <View style={[styles.chips, rowFlipFor(isRTL) && styles.chipsRtl]}>
                 {selected.map((u) => (
                   <Pressable
                     key={u.user_id}
@@ -370,7 +377,7 @@ export default function WhatsAppRolloutScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl + theme.spacing.md },
-  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
+  title: { ...theme.typography.headline, color: theme.colors.text },
   hint: { marginTop: 8, color: theme.colors.textMuted, lineHeight: 21, fontSize: 14, fontWeight: "500" },
   rtl: { textAlign: "right", alignSelf: "stretch" },
   skeletonList: { marginTop: 24, gap: theme.spacing.md },
@@ -389,6 +396,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
+    minHeight: theme.controls.minTouch,
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
@@ -413,8 +421,8 @@ const styles = StyleSheet.create({
   chipActive: { borderColor: theme.colors.cta, backgroundColor: theme.colors.surface },
   chipRemovable: { flexDirection: "row", alignItems: "center", gap: 6 },
   chipRemovableRtl: { flexDirection: "row-reverse" },
-  chipRemove: { marginLeft: 2 },
-  chipRemoveTxt: { fontSize: 15, fontWeight: "900", color: theme.colors.textSoft, lineHeight: 16 },
+  // 44px hit area around a small icon inside the chip (padding cancelled by a negative margin).
+  chipRemove: { padding: 12, margin: -12, marginStart: -10 },
   chipTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
   chipTxtActive: { color: theme.colors.text },
   search: {
@@ -423,6 +431,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    minHeight: theme.controls.minTouch,
     color: theme.colors.text,
     backgroundColor: theme.colors.surfaceElevated,
   },
@@ -435,7 +444,7 @@ const styles = StyleSheet.create({
   hitName: { fontSize: 15, fontWeight: "700", color: theme.colors.text },
   hitMeta: { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
   testHint: { fontSize: 13, color: theme.colors.textMuted, lineHeight: 19 },
-  sendTo: { fontSize: 13, fontWeight: "600", color: theme.colors.text },
+  sendTo: { ...theme.typography.caption, color: theme.colors.text },
   manageToggle: { marginTop: theme.spacing.md, paddingVertical: 8 },
   manageToggleTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.textSoft },
 });

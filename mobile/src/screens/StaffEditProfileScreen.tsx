@@ -1,3 +1,4 @@
+import { selectionA11y } from "../lib/a11ySelection";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
@@ -16,6 +17,10 @@ import { useAuth } from "../context/AuthContext";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { fetchUsersLegalConsentSummary, type UserLegalConsentStatus } from "../lib/consent";
 import { TRAINER_COLOR_PRESETS, resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { roleLabel } from "../lib/displayLabels";
+import { SegmentedChoice } from "../components/SegmentedChoice";
 
 type Role = "athlete" | "coach" | "manager";
 
@@ -40,7 +45,7 @@ function RoleChip({
         pressed && !disabled && { opacity: 0.9 },
         disabled && !active && { opacity: 0.5 },
       ]}
-      accessibilityRole="button"
+      {...selectionA11y("radio", active, disabled)}
     >
       <Text style={[styles.roleChipTxt, active ? styles.roleChipTxtActive : styles.roleChipTxtInactive]}>{label}</Text>
     </Pressable>
@@ -64,6 +69,7 @@ export default function StaffEditProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = String(id ?? "");
   const { t, isRTL, language } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
   const { profile } = useAuth();
@@ -376,7 +382,7 @@ export default function StaffEditProfileScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, screenContent]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
@@ -392,18 +398,18 @@ export default function StaffEditProfileScreen() {
       {userId ? (
         <View style={styles.metaCard}>
           {isManager && legalConsent ? (
-            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+            <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
               <AppText variant="label" soft isRTL={isRTL}>
                 {t("staffUsers.legalStatus")}
               </AppText>
-              <View style={[styles.legalChips, isRTL && styles.legalChipsRtl]}>
+              <View style={[styles.legalChips, rowFlipFor(isRTL) && styles.legalChipsRtl]}>
                 <LegalChip label={t("staffUsers.legalTerms")} ok={legalConsent.terms_ok} />
                 <LegalChip label={t("staffUsers.legalPrivacy")} ok={legalConsent.privacy_ok} />
                 <LegalChip label={t("staffUsers.legalMarketing")} ok={legalConsent.marketing_ok} optional />
               </View>
             </View>
           ) : null}
-          <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+          <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
             <AppText variant="label" soft isRTL={isRTL}>
               {t("auth.email")}
             </AppText>
@@ -411,7 +417,7 @@ export default function StaffEditProfileScreen() {
               {metaLoading ? t("common.loading") : email.trim() || "—"}
             </AppText>
           </View>
-          <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+          <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
             <AppText variant="label" soft isRTL={isRTL}>
               {t("profile.lastLogin")}
             </AppText>
@@ -424,7 +430,7 @@ export default function StaffEditProfileScreen() {
             </AppText>
           </View>
           {isDisabled ? (
-            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+            <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
               <AppText variant="label" soft isRTL={isRTL}>
                 {t("profile.accountStatus")}
               </AppText>
@@ -437,7 +443,7 @@ export default function StaffEditProfileScreen() {
             </View>
           ) : null}
           {mustChangePassword ? (
-            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+            <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
               <AppText variant="label" soft isRTL={isRTL}>
                 {t("profile.accountStatus")}
               </AppText>
@@ -453,7 +459,7 @@ export default function StaffEditProfileScreen() {
         <View style={styles.roleCard}>
           <Pressable
             onPress={() => setRoleSectionOpen((v) => !v)}
-            style={({ pressed }) => [styles.roleCardHead, isRTL && styles.roleCardHeadRtl, pressed && { opacity: 0.9 }]}
+            style={({ pressed }) => [styles.roleCardHead, rowFlipFor(isRTL) && styles.roleCardHeadRtl, pressed && { opacity: 0.9 }]}
             accessibilityRole="button"
             accessibilityState={{ expanded: roleSectionOpen }}
           >
@@ -468,7 +474,7 @@ export default function StaffEditProfileScreen() {
 
           <AnimatedOptionExpand open={roleSectionOpen}>
             <View style={styles.roleCardBody}>
-              <View style={[styles.roleChipRow, isRTL && styles.roleChipRowRtl]}>
+              <View style={[styles.roleChipRow, rowFlipFor(isRTL) && styles.roleChipRowRtl]} accessibilityRole="radiogroup">
                 <RoleChip
                   label={t("roles.athlete")}
                   active={role === "athlete"}
@@ -491,7 +497,7 @@ export default function StaffEditProfileScreen() {
 
               <AnimatedOptionExpand open={role === "coach" || role === "manager"}>
                 <View style={styles.colorSection}>
-                  <View style={[styles.colorLabelRow, isRTL && styles.colorLabelRowRtl]}>
+                  <View style={[styles.colorLabelRow, rowFlipFor(isRTL) && styles.colorLabelRowRtl]}>
                     <View
                       style={[
                         styles.colorPreviewDot,
@@ -502,7 +508,7 @@ export default function StaffEditProfileScreen() {
                       {t("menu.trainerColors")}
                     </AppText>
                   </View>
-                  <View style={[styles.colorPickerRow, isRTL && styles.colorPickerRowRtl]}>
+                  <View style={[styles.colorPickerRow, rowFlipFor(isRTL) && styles.colorPickerRowRtl]}>
                     <Pressable
                       disabled={savingColor}
                       onPress={() => void saveCalendarColor(null)}
@@ -583,7 +589,7 @@ export default function StaffEditProfileScreen() {
               <AppText variant="caption" isRTL={isRTL} style={styles.duplicateRowTxt} numberOfLines={2}>
                 {t("profile.duplicateNameLine")
                   .replace("{phone}", row.phone || "—")
-                  .replace("{role}", row.role)}
+                  .replace("{role}", roleLabel(row.role, t))}
               </AppText>
             </Pressable>
           ))}
@@ -621,22 +627,17 @@ export default function StaffEditProfileScreen() {
       <AppText variant="label" muted isRTL={isRTL} style={styles.genderLabel}>
         {t("profile.gender")}
       </AppText>
-      <View style={[styles.genderRow, isRTL && styles.genderRowRtl]}>
-        <Pressable
-          onPress={() => setGender("male")}
-          style={({ pressed }) => [styles.genderBtn, gender === "male" && styles.genderBtnOn, pressed && { opacity: 0.9 }]}
-          accessibilityRole="button"
-        >
-          <AppText style={[styles.genderTxt, gender === "male" && styles.genderTxtOn]}>{t("profile.male")}</AppText>
-        </Pressable>
-        <Pressable
-          onPress={() => setGender("female")}
-          style={({ pressed }) => [styles.genderBtn, gender === "female" && styles.genderBtnOn, pressed && { opacity: 0.9 }]}
-          accessibilityRole="button"
-        >
-          <AppText style={[styles.genderTxt, gender === "female" && styles.genderTxtOn]}>{t("profile.female")}</AppText>
-        </Pressable>
-      </View>
+      <SegmentedChoice
+        options={[
+          { value: "male", label: t("profile.male") },
+          { value: "female", label: t("profile.female") },
+        ]}
+        value={gender}
+        onChange={setGender}
+        isRTL={isRTL}
+        accessibilityLabel={t("profile.gender")}
+        style={styles.genderRow}
+      />
 
       <DatePickerField label={t("profile.dob")} value={dob} onChange={setDob} />
 
@@ -762,14 +763,29 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     backgroundColor: theme.colors.surface,
   },
-  roleCardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  // 44px tap area reaching into the card padding (negative margin keeps the card height).
+  roleCardHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: theme.controls.minTouch,
+    paddingVertical: 10,
+    marginVertical: -10,
+  },
   roleCardHeadRtl: { flexDirection: "row-reverse" },
   roleCardChevron: { fontSize: 16, transform: [{ rotate: "0deg" }] },
   roleCardChevronOpen: { transform: [{ rotate: "180deg" }] },
   roleCardBody: { marginTop: theme.spacing.sm, gap: theme.spacing.sm },
   roleChipRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   roleChipRowRtl: { flexDirection: "row-reverse" },
-  roleChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: theme.radius.full, borderWidth: 1 },
+  roleChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minHeight: theme.controls.buttonCompactHeight,
+    justifyContent: "center",
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+  },
   roleChipActive: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   roleChipInactive: { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.borderMuted },
   roleChipTxt: { fontWeight: "800", fontSize: 12, letterSpacing: 0.2 },
@@ -805,7 +821,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   tempPasswordTitle: { color: theme.colors.textMuted },
-  tempPasswordValue: { fontSize: 22, fontWeight: "900", letterSpacing: 0.5 },
+  tempPasswordValue: { ...theme.typography.display, letterSpacing: 0.5 },
   tempPasswordHint: { color: theme.colors.textSoft, lineHeight: 18 },
   tempPasswordBtn: {
     marginTop: theme.spacing.sm,
@@ -842,23 +858,6 @@ const styles = StyleSheet.create({
   enableAccountTxt: { color: theme.colors.text, fontWeight: "900", letterSpacing: 0.2 },
   rtlText: { textAlign: "right" },
   genderRow: { flexDirection: "row", gap: 10, marginTop: 6 },
-  genderRowRtl: { flexDirection: "row-reverse" },
-  genderBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surfaceElevated,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  genderBtnOn: {
-    backgroundColor: theme.colors.cta,
-    borderColor: theme.colors.cta,
-  },
-  genderTxt: { fontWeight: "900", color: theme.colors.textMuted, letterSpacing: 0.2 },
-  genderTxtOn: { color: theme.colors.ctaText },
   duplicateHint: { marginTop: 6 },
   duplicateCard: {
     marginTop: 8,

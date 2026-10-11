@@ -134,9 +134,8 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, minWidth: 0 },
   label: {
     marginBottom: 8,
-    fontWeight: "700",
     color: theme.colors.textMuted,
-    fontSize: 12,
+    ...theme.typography.label,
     letterSpacing: 0.2,
   },
   rtl: { textAlign: "center" },
@@ -193,7 +192,7 @@ const styles = StyleSheet.create({
   },
   itemTxtActive: {
     fontSize: 20,
-    fontWeight: "900",
+    fontWeight: "800",
     color: theme.colors.text,
     letterSpacing: -0.3,
   },

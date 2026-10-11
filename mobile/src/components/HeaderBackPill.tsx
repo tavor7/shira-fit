@@ -129,8 +129,8 @@ export function HeaderBackPill() {
 
 const styles = StyleSheet.create({
   pill: {
-    width: 38,
-    height: 38,
+    width: theme.controls.minTouch,
+    height: theme.controls.minTouch,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   arrow: {
     color: theme.colors.cta,
     fontSize: 20,
-    fontWeight: "900",
+    fontWeight: "800",
     marginTop: -1,
   },
 });

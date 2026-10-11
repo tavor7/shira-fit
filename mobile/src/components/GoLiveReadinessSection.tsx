@@ -10,6 +10,7 @@ import {
   type GoLiveGapType,
   type GoLiveStats,
 } from "../lib/documents";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 type Props = {
   isRTL: boolean;
@@ -84,11 +85,9 @@ export function GoLiveReadinessSection({ isRTL, language }: Props) {
           {language === "he" ? "מוכנות לעלייה לאוויר" : "Go-live readiness"}
         </Text>
         <Text style={[styles.hint, isRTL && styles.rtl]}>
-          {language === "he"
-            ? "ספירת מתאמנים (ממתינים ומאושרים) ומנהלים שחסרים פרטים. לחצו על מספר לרשימה."
-            : "Pending and approved athletes and managers missing details. Tap a count to see the list."}
+          {language === "he" ? "ספירת מתאמנים (ממתינים ומאושרים) ומנהלים שחסרים פרטים. לחצו על מספר לרשימה." : "Pending and approved athletes and managers missing details. Tap a count to see the list."}
         </Text>
-        <View style={[styles.statsRow, isRTL && styles.statsRowRtl]}>
+        <View style={[styles.statsRow, rowFlipFor(isRTL) && styles.statsRowRtl]}>
           {items.map((item) => (
             <Pressable
               key={item.key}
@@ -146,16 +145,10 @@ export function GoLiveReadinessSection({ isRTL, language }: Props) {
                 {item.role ? (
                   <Text style={[styles.gapMeta, isRTL && styles.rtl]}>
                     {item.role === "manager"
-                      ? language === "he"
-                        ? "מנהל/ת"
-                        : "Manager"
+                      ? language === "he" ? "מנהל/ת" : "Manager"
                       : item.approval_status === "pending"
-                        ? language === "he"
-                          ? "מתאמן/ת · ממתין/ה לאישור"
-                          : "Athlete · pending approval"
-                        : language === "he"
-                          ? "מתאמן/ת"
-                          : "Athlete"}
+                        ? language === "he" ? "מתאמן/ת · ממתין/ה לאישור" : "Athlete · pending approval"
+                        : language === "he" ? "מתאמן/ת" : "Athlete"}
                   </Text>
                 ) : null}
                   {item.phone ? (
@@ -203,12 +196,12 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   statBoxPressed: { opacity: 0.85 },
-  statCount: { fontSize: 24, fontWeight: "900", color: theme.colors.text },
+  statCount: { fontSize: 24, fontWeight: "800", color: theme.colors.text },
   statCountWarn: { color: theme.colors.error },
-  statLabel: { marginTop: 4, fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
+  statLabel: { marginTop: 4, ...theme.typography.label, color: theme.colors.textMuted },
   modalBody: { flex: 1, minHeight: 320 },
   modalHead: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.sm, gap: 4 },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
+  modalTitle: { ...theme.typography.headline, color: theme.colors.text },
   modalCount: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
   modalLoader: { marginVertical: 32 },
   modalList: { flex: 1 },
@@ -223,7 +216,7 @@ const styles = StyleSheet.create({
   },
   gapRowPressed: { opacity: 0.9 },
   gapName: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
-  gapMeta: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  gapMeta: { ...theme.typography.caption, color: theme.colors.textMuted },
   empty: { textAlign: "center", color: theme.colors.textMuted, paddingVertical: 24, fontWeight: "600" },
   rtl: { textAlign: "right", writingDirection: "rtl" },
 });

@@ -44,6 +44,9 @@ import {
   SessionSeriesScopeSheet,
   type SeriesScopeChoice,
 } from "../../../../../src/components/SessionSeriesScopeSheet";
+import { rowFlipFor } from "../../../../../src/lib/layoutDirection";
+import { useScreenContentStyle } from "../../../../../src/hooks/useScreenLayout";
+import { EmptyState } from "../../../../../src/components/EmptyState";
 
 type EditSnapshot = {
   date: string;
@@ -58,6 +61,7 @@ type EditSnapshot = {
 export default function CoachSessionManageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { showOk, showConfirm } = useAppAlert();
   const [session, setSession] = useState<TrainingSession | null>(null);
@@ -342,14 +346,14 @@ export default function CoachSessionManageScreen() {
       .select("user_id, full_name, role, username, calendar_color")
       .eq("user_id", session.coach_id)
       .maybeSingle();
-    if (data) setDupCoachLabel(formatCoachOptionLabel(data as CoachOption));
+    if (data) setDupCoachLabel(formatCoachOptionLabel(data as CoachOption, t));
     else setDupCoachLabel("");
     setDupOpen(true);
   }
 
   function selectDupCoach(opt: CoachOption) {
     setDupCoachId(opt.user_id);
-    setDupCoachLabel(formatCoachOptionLabel(opt));
+    setDupCoachLabel(formatCoachOptionLabel(opt, t));
   }
 
   async function duplicateSession() {
@@ -407,8 +411,15 @@ export default function CoachSessionManageScreen() {
     return (
       <>
         <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
-      <View style={sf.screen}>
-        <Text style={[styles.err, isRTL && styles.rtlText]}>{t("sessionDetail.forbiddenEdit")}</Text>
+      <View style={[sf.screen, { justifyContent: "center" }, screenContent]}>
+        <EmptyState
+          tone="error"
+          icon="lock-closed-outline"
+          title={t("sessionDetail.forbiddenEdit")}
+          actionLabel={t("common.back")}
+          onAction={() => (router.canGoBack() ? router.back() : router.replace("/(app)/coach/sessions"))}
+          isRTL={isRTL}
+        />
       </View>
       </>
     );
@@ -430,8 +441,15 @@ export default function CoachSessionManageScreen() {
     return (
       <>
         <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
-        <View style={sf.screen}>
-          <Text style={[styles.err, isRTL && styles.rtlText]}>{t("sessionDetail.notFound")}</Text>
+        <View style={[sf.screen, { justifyContent: "center" }, screenContent]}>
+          <EmptyState
+            tone="notFound"
+            title={t("athleteSession.notFound")}
+            body={t("errors.notFound")}
+            actionLabel={t("common.back")}
+            onAction={() => router.replace("/(app)/coach/sessions")}
+            isRTL={isRTL}
+          />
         </View>
       </>
     );
@@ -440,7 +458,7 @@ export default function CoachSessionManageScreen() {
   return (
     <>
       <Stack.Screen options={{ title: t("screen.coachManageSession") }} />
-      <ScrollView style={sf.screen} contentContainerStyle={sf.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={sf.screen} contentContainerStyle={[sf.content, screenContent]} keyboardShouldPersistTaps="handled">
       <View style={sf.sections}>
       <View style={sf.card}>
         <Text style={[sf.cardTitle, isRTL && { textAlign: "right" }]}>{t("sessionDetail.when")}</Text>
@@ -583,7 +601,7 @@ export default function CoachSessionManageScreen() {
             <Text style={[styles.dupSectionLabel, isRTL && styles.rtlText]}>
               {t("sessionDetail.participants")}
             </Text>
-            <View style={[styles.dupChoiceRow, isRTL && styles.dupChoiceRowRtl]}>
+            <View style={[styles.dupChoiceRow, rowFlipFor(isRTL) && styles.dupChoiceRowRtl]}>
               <Pressable
                 style={({ pressed }) => [
                   styles.dupChoice,
@@ -650,11 +668,10 @@ const styles = StyleSheet.create({
   },
   undoBtnTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
   muted: { marginTop: 12, color: theme.colors.textMuted },
-  err: { color: theme.colors.error, fontSize: 16, fontWeight: "600" },
   cancelEdit: { marginTop: theme.spacing.sm, paddingVertical: 12, alignItems: "center" },
   cancelEditTxt: { color: theme.colors.textSoft, fontWeight: "800", fontSize: 15 },
   dupCard: { padding: theme.spacing.md },
-  dupTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text, marginBottom: 6 },
+  dupTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text, marginBottom: 6 },
   dupHint: { fontSize: 12, color: theme.colors.textSoft, lineHeight: 17, marginBottom: 10 },
   dupSectionLabel: {
     marginTop: 4,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -29,6 +29,8 @@ import {
 } from "../../src/lib/consent";
 import { LEGAL_VERSIONS } from "../../src/lib/legalContent";
 import { syncSignupProfileFromMetadata } from "../../src/lib/signupOnboarding";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
+import { selectionA11y } from "../../src/lib/a11ySelection";
 
 const today = new Date();
 const minDob = new Date(1900, 0, 1);
@@ -36,9 +38,7 @@ const minDob = new Date(1900, 0, 1);
 const SUCCESS_HOLD_MS = 550;
 
 function emailInUseMessage(language: string): string {
-  return language === "he"
-    ? "האימייל הזה כבר בשימוש. התחברו או השתמשו ב\"שכחתי סיסמה\"."
-    : "This email is already in use. Sign in or use Forgot password.";
+  return language === "he" ? "האימייל הזה כבר בשימוש. התחברו או השתמשו ב\"שכחתי סיסמה\"." : "This email is already in use. Sign in or use Forgot password.";
 }
 
 function getSignupErrorMessage(error: { message: string }, language: string): string {
@@ -51,13 +51,14 @@ function getSignupErrorMessage(error: { message: string }, language: string): st
 
 export default function SignupScreen() {
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [zipCode, setZipCode] = useState("");
-  const [dobText, setDobText] = useState("2000-01-15");
+  const [dobText, setDobText] = useState("");
   const [gender, setGender] = useState<"male" | "female">("male");
   const [healthConfirmed, setHealthConfirmed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -66,6 +67,14 @@ export default function SignupScreen() {
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  /** Counts submit attempts: missing fields are highlighted after the first, and each failed attempt brings the message into view. */
+  const [submitAttempts, setSubmitAttempts] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const errorBoxY = useRef(0);
+  useEffect(() => {
+    if (errorMessage && submitAttempts > 0) scrollRef.current?.scrollTo({ y: Math.max(0, errorBoxY.current - theme.spacing.md), animated: true });
+  }, [errorMessage, submitAttempts]);
+  const missing = (v: string) => submitAttempts > 0 && !v.trim();
 
   const healthUrl = "https://tpz.link/gdtw8";
 
@@ -80,37 +89,32 @@ export default function SignupScreen() {
 
   async function onSignup() {
     setErrorMessage("");
+    setSubmitAttempts((n) => n + 1);
     if (!email.trim() || password.length < 6 || !fullName.trim() || !phone.trim() || !address.trim() || !zipCode.trim()) {
       setErrorMessage(
-        language === "he"
-          ? "אנא מלאו אימייל, סיסמה (מינימום 6), שם מלא, טלפון, כתובת ומיקוד."
-          : "Please fill in email, password (min 6), full name, phone, address, and zip code."
+        t("ui.signup.pleaseFillInEmailPasswordMin2")
       );
       return;
     }
     if (!healthConfirmed) {
       setErrorMessage(
-        language === "he"
-          ? "אנא מלאו את הצהרת הבריאות ואשרו זאת לפני ההרשמה."
-          : "Please complete the health declaration and confirm it before signing up."
+        t("ui.signup.pleaseCompleteTheHealthDeclarationAnd2")
       );
       return;
     }
     if (!termsAccepted || !privacyAccepted) {
       setErrorMessage(
-        language === "he"
-          ? "יש לאשר את תקנון האתר ואת מדיניות הפרטיות כדי להירשם."
-          : "Please accept the Terms of Use and Privacy Policy to sign up."
+        t("ui.signup.pleaseAcceptTheTermsOfUse2")
       );
       return;
     }
     if (!isValidISODateString(dobText.trim())) {
-      setErrorMessage(language === "he" ? "בחרו תאריך לידה תקין." : "Please choose a valid date of birth.");
+      setErrorMessage(t("ui.signup.pleaseChooseAValidDateOf2"));
       return;
     }
     const dobFinal = parseISODateLocal(dobText.trim())!;
     if (dobFinal > today || dobFinal < minDob) {
-      setErrorMessage(language === "he" ? "תאריך הלידה חייב להיות בין 1900 להיום." : "Date of birth must be between 1900 and today.");
+      setErrorMessage(t("ui.signup.dateOfBirthMustBeBetween2"));
       return;
     }
     const dobIso = toISODateLocal(dobFinal);
@@ -196,7 +200,7 @@ export default function SignupScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.keyboard}>
-      <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} style={styles.scrollRoot} contentContainerStyle={[styles.container, screenContent]} keyboardShouldPersistTaps="handled">
         <FadeSlideIn>
         <View style={styles.logoWrap}>
           <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
@@ -208,7 +212,14 @@ export default function SignupScreen() {
           {t("auth.signupHint")}
         </AppText>
         {errorMessage ? (
-          <View style={styles.errorBox}>
+          <View
+            style={styles.errorBox}
+            accessibilityRole="alert"
+            accessibilityLiveRegion="assertive"
+            onLayout={(e) => {
+              errorBoxY.current = e.nativeEvent.layout.y;
+            }}
+          >
             <AppText variant="caption" isRTL={isRTL} style={styles.errorText}>
               {errorMessage}
             </AppText>
@@ -216,12 +227,12 @@ export default function SignupScreen() {
         ) : null}
 
         <View style={styles.formCard}>
-          <AppTextField variant="dark" label={t("auth.email")} isRTL={isRTL} placeholder={t("auth.email")} autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={(v) => { setEmail(v); setErrorMessage(""); }} containerStyle={styles.field} />
-          <AppTextField variant="dark" label={t("auth.passwordMin6")} isRTL={isRTL} placeholder={t("auth.passwordMin6")} secureTextEntry value={password} onChangeText={setPassword} containerStyle={styles.field} />
-          <AppTextField variant="dark" label={t("profile.fullName")} isRTL={isRTL} placeholder={t("profile.fullName")} value={fullName} onChangeText={setFullName} containerStyle={styles.field} />
-          <AppTextField variant="dark" label={t("profile.phone")} isRTL={isRTL} placeholder={t("profile.phone")} keyboardType="phone-pad" value={phone} onChangeText={setPhone} containerStyle={styles.field} />
-          <AppTextField variant="dark" label={t("profile.address")} isRTL={isRTL} placeholder={t("profile.address")} value={address} onChangeText={setAddress} containerStyle={styles.field} />
-          <AppTextField variant="dark" label={t("profile.zipCode")} isRTL={isRTL} placeholder={t("profile.zipCode")} keyboardType="number-pad" value={zipCode} onChangeText={setZipCode} containerStyle={styles.field} />
+          <AppTextField variant="dark" label={t("auth.email")} isRTL={isRTL} autoCapitalize="none" keyboardType="email-address" error={missing(email)} value={email} onChangeText={(v) => { setEmail(v); setErrorMessage(""); }} containerStyle={styles.field} />
+          <AppTextField variant="dark" label={t("auth.passwordMin6")} isRTL={isRTL} secureTextEntry error={submitAttempts > 0 && password.length < 6} value={password} onChangeText={setPassword} containerStyle={styles.field} />
+          <AppTextField variant="dark" label={t("profile.fullName")} isRTL={isRTL} error={missing(fullName)} value={fullName} onChangeText={setFullName} containerStyle={styles.field} />
+          <AppTextField variant="dark" label={t("profile.phone")} isRTL={isRTL} keyboardType="phone-pad" error={missing(phone)} value={phone} onChangeText={setPhone} containerStyle={styles.field} />
+          <AppTextField variant="dark" label={t("profile.address")} isRTL={isRTL} error={missing(address)} value={address} onChangeText={setAddress} containerStyle={styles.field} />
+          <AppTextField variant="dark" label={t("profile.zipCode")} isRTL={isRTL} keyboardType="number-pad" error={missing(zipCode)} value={zipCode} onChangeText={setZipCode} containerStyle={styles.field} />
           <DatePickerField
             appearance="auth"
             label={t("profile.dob")}
@@ -235,7 +246,7 @@ export default function SignupScreen() {
           />
 
           <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>{t("profile.gender")}</Text>
-          <View style={styles.genderRow}>
+          <View style={styles.genderRow} accessibilityRole="radiogroup">
             {(["male", "female"] as const).map((g) => (
               <Pressable
                 key={g}
@@ -245,8 +256,7 @@ export default function SignupScreen() {
                   pressed && styles.genderBtnPressed,
                 ]}
                 onPress={() => setGender(g)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: gender === g }}
+                {...selectionA11y("radio", gender === g)}
               >
                 <Text style={[styles.genderTxt, gender === g && styles.genderTxtOn]}>
                   {g === "male" ? t("profile.male") : t("profile.female")}
@@ -275,6 +285,7 @@ export default function SignupScreen() {
             }}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: healthConfirmed }}
+            aria-checked={healthConfirmed}
           >
             <View style={[styles.checkbox, healthConfirmed && styles.checkboxOn]}>
               <AnimatedCheckMark visible={healthConfirmed} style={styles.checkboxMark} />
@@ -293,6 +304,7 @@ export default function SignupScreen() {
                 }}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: termsAccepted }}
+                aria-checked={termsAccepted}
               >
                 <View style={[styles.checkbox, termsAccepted && styles.checkboxOn]}>
                   <AnimatedCheckMark visible={termsAccepted} style={styles.checkboxMark} />
@@ -315,6 +327,7 @@ export default function SignupScreen() {
                 }}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: privacyAccepted }}
+                aria-checked={privacyAccepted}
               >
                 <View style={[styles.checkbox, privacyAccepted && styles.checkboxOn]}>
                   <AnimatedCheckMark visible={privacyAccepted} style={styles.checkboxMark} />
@@ -336,6 +349,7 @@ export default function SignupScreen() {
             }}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: marketingOptIn }}
+            aria-checked={marketingOptIn}
           >
             <View style={[styles.checkbox, marketingOptIn && styles.checkboxOn]}>
               <AnimatedCheckMark visible={marketingOptIn} style={styles.checkboxMark} />
@@ -407,8 +421,7 @@ const styles = StyleSheet.create({
   },
   field: { marginBottom: theme.spacing.sm },
   fieldLabel: {
-    fontWeight: "700",
-    fontSize: 12,
+    ...theme.typography.label,
     letterSpacing: 0.3,
     textTransform: "uppercase",
     marginBottom: theme.spacing.xs,
@@ -450,7 +463,7 @@ const styles = StyleSheet.create({
   },
   genderBtnOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
   genderBtnPressed: { opacity: 0.92 },
-  genderTxt: { fontSize: 16, color: theme.colors.text, fontWeight: "600", letterSpacing: 0.15 },
+  genderTxt: { ...theme.typography.body, color: theme.colors.text, letterSpacing: 0.15 },
   genderTxtOn: { color: theme.colors.ctaText, fontWeight: "700" },
   healthLink: {
     borderWidth: 1,
@@ -496,14 +509,14 @@ const styles = StyleSheet.create({
   },
   legalViewLink: {
     color: theme.colors.cta,
-    fontWeight: "700",
-    fontSize: 12,
+    ...theme.typography.label,
     letterSpacing: 0.2,
   },
   checkRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.sm,
+    minHeight: theme.controls.minTouch,
     marginBottom: theme.spacing.xs,
   },
   checkbox: {
@@ -517,7 +530,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   checkboxOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  checkboxMark: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 13 },
+  checkboxMark: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 13 },
   checkTxt: { flex: 1, color: theme.colors.text, fontWeight: "600", fontSize: 15, lineHeight: 22 },
   linkBtn: { marginTop: theme.spacing.lg, alignSelf: "center", padding: theme.spacing.sm },
   linkTxt: { color: theme.colors.cta, fontWeight: "700" },

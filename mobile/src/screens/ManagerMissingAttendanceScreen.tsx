@@ -12,12 +12,13 @@ import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { parseManagerPeriodMode } from "../lib/managerPeriodMode";
 import { useAppAlert } from "../context/AppAlertContext";
-import { formatISODateFull, formatISODateRangeCompact } from "../lib/dateFormat";
-import { formatSessionTimeRange } from "../lib/sessionTime";
+import { formatISODateFull } from "../lib/dateFormat";
+
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ParticipantAttendanceList } from "../components/ParticipantAttendanceList";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
-import { EmptyState } from "../components/EmptyState";
+import { EmptyState, ErrorState } from "../components/EmptyState";
+import { userFacingErrorMessage } from "../lib/userFacingError";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AnimatedChevron } from "../components/AnimatedChevron";
 import {
@@ -27,6 +28,9 @@ import {
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { PressableScale } from "../components/PressableScale";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayTimeRange, displayDateRange, displayUserText } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 function formatSessionTimeShort(isoTime: string): string {
   const s = String(isoTime ?? "").trim();
@@ -35,6 +39,7 @@ function formatSessionTimeShort(isoTime: string): string {
 
 export default function ManagerMissingAttendanceScreen() {
   const { language, isRTL, t } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showOk } = useAppAlert();
   const params = useLocalSearchParams<{ anchor?: string; periodMode?: string }>();
   const anchor = String(params.anchor ?? "").trim();
@@ -43,7 +48,7 @@ export default function ManagerMissingAttendanceScreen() {
   );
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [sessions, setSessions] = useState<MissingAttendanceSession[]>([]);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
@@ -52,8 +57,8 @@ export default function ManagerMissingAttendanceScreen() {
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   const load = useCallback(async () => {
+    // Opened without a week (stale or hand-typed link): rendered as "missing link", not as a failure.
     if (!anchor) {
-      setError(t("common.error"));
       setLoading(false);
       return;
     }
@@ -65,12 +70,12 @@ export default function ManagerMissingAttendanceScreen() {
     });
     setLoading(false);
     if (err) {
-      setError(err.message);
+      setError(err);
       return;
     }
     const raw = data as Record<string, unknown> | null;
     if (!raw?.ok) {
-      setError(String(raw?.error ?? t("common.error")));
+      setError(raw?.error ?? {});
       return;
     }
     setRangeStart(String(raw.week_start ?? ""));
@@ -90,7 +95,7 @@ export default function ManagerMissingAttendanceScreen() {
     rangeStart && rangeEnd
       ? rangeStart === rangeEnd
         ? formatISODateFull(rangeStart, language)
-        : formatISODateRangeCompact(rangeStart, rangeEnd, language)
+        : displayDateRange(rangeStart, rangeEnd, language)
       : "";
 
   function onAttendanceChanged() {
@@ -126,7 +131,7 @@ export default function ManagerMissingAttendanceScreen() {
   return (
     <>
       <Stack.Screen options={{ title: t("dashboard.missingAttendanceTitle") }} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.screen} contentContainerStyle={[styles.content, screenContent]} keyboardShouldPersistTaps="handled">
         <ManagerOverviewHubTabs />
         <Text style={[styles.h, isRTL && styles.rtl]}>{t("dashboard.missingAttendanceTitle")}</Text>
         {rangeLabel ? <Text style={[styles.sub, isRTL && styles.rtl]}>{rangeLabel}</Text> : null}
@@ -142,10 +147,25 @@ export default function ManagerMissingAttendanceScreen() {
             </View>
           }
         >
-          {error ? (
-          <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
+          {!anchor ? (
+          <EmptyState
+            tone="notFound"
+            title={t("dashboard.detailMissingTitle")}
+            body={t("dashboard.detailMissingBody")}
+            actionLabel={t("a11y.headerBackToOverview")}
+            onAction={() => router.replace("/(app)/manager/dashboard" as Href)}
+            isRTL={isRTL}
+          />
+        ) : error ? (
+          <ErrorState
+            title={t("errors.loadFailedTitle")}
+            body={userFacingErrorMessage(error, t)}
+            actionLabel={t("auth.retryConnection")}
+            onAction={() => void load()}
+            isRTL={isRTL}
+          />
         ) : sessions.length === 0 ? (
-          <EmptyState icon="✅" title={t("dashboard.missingAttendanceEmpty")} isRTL={isRTL} />
+          <EmptyState icon="checkmark-circle-outline" title={t("dashboard.missingAttendanceEmpty")} isRTL={isRTL} />
         ) : (
           sessions.map((s, index) => {
             const open = expandedId === s.session_id;
@@ -160,12 +180,12 @@ export default function ManagerMissingAttendanceScreen() {
                   accessibilityState={{ expanded: open }}
                 >
                   <View style={styles.cardHeadRow}>
-                    <View style={[styles.cardHeadMain, isRTL && styles.cardHeadMainRtl]}>
+                    <View style={[styles.cardHeadMain, rowFlipFor(isRTL) && styles.cardHeadMainRtl]}>
                       <Text style={[styles.cardDate, isRTL && styles.rtl]}>
                         {formatISODateFull(s.session_date, language)} · {formatSessionTimeShort(s.start_time)}
                       </Text>
                       <Text style={[styles.cardMeta, isRTL && styles.rtl]} numberOfLines={1}>
-                        {s.coach_name?.trim() || "—"} ·{" "}
+                        {s.coach_name?.trim() ? displayUserText(s.coach_name.trim()) : "—"} ·{" "}
                         {t("dashboard.missingAttendanceUnset").replace("{n}", String(s.unset_count))}
                       </Text>
                     </View>
@@ -182,7 +202,7 @@ export default function ManagerMissingAttendanceScreen() {
                         <Text style={styles.openSessionBtnTxt}>{t("dashboard.missingAttendanceOpenSession")}</Text>
                       </Pressable>
                       <Text style={[styles.timeRange, isRTL && styles.rtl]}>
-                        {formatSessionTimeRange(s.start_time, s.duration_minutes)}
+                        {displayTimeRange(s.start_time, s.duration_minutes)}
                       </Text>
                       <ParticipantAttendanceList
                         sessionId={s.session_id}
@@ -210,11 +230,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
   skeletonList: { gap: theme.spacing.sm, marginTop: theme.spacing.sm },
-  h: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginBottom: 4 },
-  sub: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
+  h: { ...theme.typography.display, color: theme.colors.text, marginBottom: 4 },
+  sub: { ...theme.typography.caption, color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
   hint: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, marginBottom: theme.spacing.md },
   rtl: { textAlign: "right", writingDirection: "rtl" },
-  err: { color: theme.colors.error, fontWeight: "700", marginTop: 12 },
   muted: { color: theme.colors.textSoft, fontWeight: "600", marginTop: 12 },
   card: {
     marginBottom: 10,
@@ -238,7 +257,7 @@ const styles = StyleSheet.create({
   cardHeadMainRtl: { alignItems: "flex-end" },
   cardDate: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
   cardMeta: { fontSize: 12, fontWeight: "600", color: theme.colors.textMuted, marginTop: 2 },
-  chev: { color: theme.colors.textSoft, fontSize: 12, fontWeight: "700" },
+  chev: { color: theme.colors.textSoft, ...theme.typography.label },
   cardBody: {
     paddingHorizontal: 12,
     paddingTop: 12,

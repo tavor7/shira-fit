@@ -76,9 +76,7 @@ export function ReceiptRequirementsTestingSection({
     showConfirm({
       title: language === "he" ? "לאפס לבדיקה?" : "Reset for testing?",
       message:
-        language === "he"
-          ? "הכתובת, המיקוד וההסכמה שלכם יימחקו מהפרופיל. בכניסה הבאה תופיע חסימה אמיתית — תוכלו למלא מחדש כרגיל."
-          : "Your address, zip, and consent will be cleared. The real blocking screen will appear until you fill them in again.",
+        language === "he" ? "הכתובת, המיקוד וההסכמה שלכם יימחקו מהפרופיל. בכניסה הבאה תופיע חסימה אמיתית — תוכלו למלא מחדש כרגיל." : "Your address, zip, and consent will be cleared. The real blocking screen will appear until you fill them in again.",
       confirmLabel: language === "he" ? "איפוס" : "Reset",
       cancelLabel: language === "he" ? "ביטול" : "Cancel",
       confirmVariant: "primary",
@@ -118,15 +116,11 @@ export function ReceiptRequirementsTestingSection({
           {language === "he" ? "בדיקת חסימת כניסה" : "Requirement gate testing"}
         </Text>
         <Text style={[styles.hint, isRTL && styles.rtl]}>
-          {language === "he"
-            ? "תצוגה מקדימה מציגה את המסך כפי שמשתמשים רואים אותו. איפוס מפעיל את החסימה האמיתית בחשבון שלכם."
-            : "Preview shows the screen users see. Reset triggers the real gate on your account."}
+          {language === "he" ? "תצוגה מקדימה מציגה את המסך כפי שמשתמשים רואים אותו. איפוס מפעיל את החסימה האמיתית בחשבון שלכם." : "Preview shows the screen users see. Reset triggers the real gate on your account."}
         </Text>
         {!consentEnabled || !addressEnabled ? (
           <Text style={[styles.warn, isRTL && styles.rtl]}>
-            {language === "he"
-              ? "הפעילו גם «בקשת הסכמה» וגם «בקשת כתובת» למעלה כדי לבדוק את אותה חוויה כמו למשתמשים."
-              : "Turn on both “Request consent” and “Request address” above to match what users experience."}
+            {language === "he" ? "הפעילו גם «בקשת הסכמה» וגם «בקשת כתובת» למעלה כדי לבדוק את אותה חוויה כמו למשתמשים." : "Turn on both “Request consent” and “Request address” above to match what users experience."}
           </Text>
         ) : null}
         <View style={styles.previewRow}>
@@ -143,12 +137,8 @@ export function ReceiptRequirementsTestingSection({
         <PrimaryButton
           label={
             resetBusy
-              ? language === "he"
-                ? "מאפס..."
-                : "Resetting..."
-              : language === "he"
-                ? "איפוס הפרטים שלי ובדיקה חיה"
-                : "Reset my details & test live"
+              ? language === "he" ? "מאפס..." : "Resetting..."
+              : language === "he" ? "איפוס הפרטים שלי ובדיקה חיה" : "Reset my details & test live"
           }
           onPress={() => void resetForLiveTest()}
           disabled={resetBusy}

@@ -11,8 +11,10 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LAYOUT, screenContentFrame } from "../lib/screenLayout";
 import { theme } from "../theme";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 type Variant = "popover" | "sheet" | "dialog";
 
@@ -51,6 +53,8 @@ export function AppModal({
 }: Props) {
   const insets = useSafeAreaInsets();
   const { height, width: screenW } = useWindowDimensions();
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(visible, onClose);
   const isPopover = variant === "popover";
 
   // Popover gets its own scale+fade animation (menu "pop"); sheet/dialog keep the native
@@ -122,6 +126,8 @@ export function AppModal({
     styles.card,
     cardBase,
     variant === "sheet" ? styles.cardSheet : isDialog ? styles.cardDialog : styles.cardPopover,
+    // Sheets: as wide as a form on larger screens (lib/screenLayout) and clear of the home indicator.
+    variant === "sheet" ? { maxWidth: screenContentFrame(screenW, "narrow").maxWidth, paddingBottom: insets.bottom } : null,
     { maxHeight: maxH },
     isDialog ? { width: dialogWidth } : width && !popoverPos ? { width } : null,
     popoverPos
@@ -216,7 +222,7 @@ const styles = StyleSheet.create({
   },
   cardDialog: {
     width: "100%",
-    maxWidth: 440,
+    maxWidth: LAYOUT.modal.dialogMaxWidth,
     shadowOpacity: 0.45,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 12 },
@@ -224,6 +230,7 @@ const styles = StyleSheet.create({
   },
   cardSheet: {
     width: "100%",
+    alignSelf: "center",
     borderBottomWidth: 0,
   },
 });

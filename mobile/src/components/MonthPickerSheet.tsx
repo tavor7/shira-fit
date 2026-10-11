@@ -4,9 +4,10 @@ import { theme } from "../theme";
 import { AppModal } from "./AppModal";
 import { parseISODateLocal, toISODateLocal } from "../lib/isoDate";
 import { formatMonthYear } from "../lib/dateFormat";
-import { appLocale } from "../lib/appLocale";
+import { appLocale, normalizeShortMonth } from "../lib/appLocale";
 import { useI18n } from "../context/I18nContext";
 import type { LanguageCode } from "../i18n/translations";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 const MIN_YEAR = 2020;
 
@@ -19,7 +20,7 @@ type Props = {
 
 function monthNames(language: LanguageCode): string[] {
   return Array.from({ length: 12 }, (_, i) =>
-    new Date(2024, i, 1).toLocaleDateString(appLocale(language), { month: "short" })
+    normalizeShortMonth(new Date(2024, i, 1).toLocaleDateString(appLocale(language), { month: "short" }))
   );
 }
 
@@ -66,11 +67,11 @@ export function MonthPickerSheet({ visible, anchor, onClose, onSelect }: Props) 
       visible={visible}
       onClose={onClose}
       variant="sheet"
-      backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+      backdropAccessibilityLabel={t("ui.monthPicker.dismiss")}
       maxHeightPct={0.72}
     >
       <View style={styles.sheet}>
-        <View style={[styles.toolbar, isRTL && styles.toolbarRtl]}>
+        <View style={[styles.toolbar, rowFlipFor(isRTL) && styles.toolbarRtl]}>
           <Pressable onPress={onClose} hitSlop={12}>
             <Text style={styles.tbMuted}>{t("common.cancel")}</Text>
           </Pressable>
@@ -80,7 +81,7 @@ export function MonthPickerSheet({ visible, anchor, onClose, onSelect }: Props) 
           </Pressable>
         </View>
 
-        <View style={[styles.yearRow, isRTL && styles.yearRowRtl]}>
+        <View style={[styles.yearRow, rowFlipFor(isRTL) && styles.yearRowRtl]}>
           <Pressable
             style={({ pressed }) => [styles.yearNav, !canPrevYear && styles.yearNavDisabled, pressed && canPrevYear && styles.yearNavPressed]}
             onPress={() => canPrevYear && setDraftYear((y) => y - 1)}
@@ -101,7 +102,7 @@ export function MonthPickerSheet({ visible, anchor, onClose, onSelect }: Props) 
         </View>
 
         <ScrollView contentContainerStyle={styles.gridWrap} keyboardShouldPersistTaps="handled">
-          <View style={[styles.grid, isRTL && styles.gridRtl]}>
+          <View style={[styles.grid, rowFlipFor(isRTL) && styles.gridRtl]}>
             {months.map((label, monthIndex) => {
               const future = isFutureMonth(draftYear, monthIndex);
               const highlighted = monthIndex === draftMonth;
@@ -156,9 +157,9 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.borderMuted,
   },
   toolbarRtl: { flexDirection: "row-reverse" },
-  tbMuted: { fontSize: 16, fontWeight: "600", color: theme.colors.textMuted, minWidth: 64 },
+  tbMuted: { ...theme.typography.body, color: theme.colors.textMuted, minWidth: 64 },
   tbTitle: { flex: 1, textAlign: "center", fontSize: 15, fontWeight: "800", color: theme.colors.text },
-  tbCta: { fontSize: 16, fontWeight: "800", color: theme.colors.cta, minWidth: 64, textAlign: "right" },
+  tbCta: { ...theme.typography.title, color: theme.colors.cta, minWidth: 64, textAlign: "right" },
   yearRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
   yearNavDisabled: { opacity: 0.35 },
   yearChevron: { fontSize: 28, fontWeight: "200", color: theme.colors.text, lineHeight: 30 },
   yearChevronDisabled: { color: theme.colors.textMuted },
-  yearLabel: { fontSize: 22, fontWeight: "900", color: theme.colors.text, minWidth: 80, textAlign: "center" },
+  yearLabel: { ...theme.typography.display, color: theme.colors.text, minWidth: 80, textAlign: "center" },
   gridWrap: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.sm },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
   gridRtl: { flexDirection: "row-reverse" },
@@ -200,8 +201,7 @@ const styles = StyleSheet.create({
   monthCellTxtDisabled: { color: theme.colors.textMuted },
   preview: {
     textAlign: "center",
-    fontSize: 13,
-    fontWeight: "600",
+    ...theme.typography.caption,
     color: theme.colors.textMuted,
     paddingHorizontal: theme.spacing.md,
   },

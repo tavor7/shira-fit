@@ -3,8 +3,12 @@ import { router } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "./AppText";
+import { rowFlipFor } from "../lib/layoutDirection";
 
-/** Compact Privacy / Terms / Accessibility links row — sits inline wherever it's placed. */
+/**
+ * Compact Privacy / Terms / Accessibility links row — sits inline wherever it's placed. Links are separated by
+ * space, not "·" characters, so a wrapped row never ends with a dangling separator.
+ */
 export function LegalFooterLinks({ style }: { style?: object }) {
   const { t, isRTL } = useI18n();
 
@@ -15,8 +19,8 @@ export function LegalFooterLinks({ style }: { style?: object }) {
   ];
 
   return (
-    <View style={[styles.row, isRTL && styles.rowRtl, Platform.OS === "web" && styles.webPad, style]}>
-      {links.map((l, i) => (
+    <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl, Platform.OS === "web" && styles.webPad, style]}>
+      {links.map((l) => (
         <Pressable
           key={l.key}
           onPress={() => router.push(l.href)}
@@ -26,7 +30,6 @@ export function LegalFooterLinks({ style }: { style?: object }) {
         >
           <AppText variant="caption" style={styles.link}>
             {l.label}
-            {i < links.length - 1 ? <AppText variant="caption" style={styles.dot}> {"·"}</AppText> : null}
           </AppText>
         </Pressable>
       ))}
@@ -35,11 +38,10 @@ export function LegalFooterLinks({ style }: { style?: object }) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center" },
+  row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", columnGap: theme.spacing.md },
   rowRtl: { flexDirection: "row-reverse" },
   webPad: { paddingVertical: theme.spacing.sm },
-  item: { paddingVertical: 6, paddingHorizontal: 4, minHeight: 32, justifyContent: "center" },
+  item: { paddingVertical: 6, paddingHorizontal: 4, minHeight: theme.controls.minTouch, justifyContent: "center" },
   itemPressed: { opacity: 0.7 },
   link: { color: theme.colors.cta, fontWeight: "700" },
-  dot: { color: theme.colors.textSoft, fontWeight: "700" },
 });

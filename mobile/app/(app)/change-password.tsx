@@ -6,6 +6,7 @@ import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { AppTextField } from "../../src/components/AppTextField";
 import { AppText } from "../../src/components/AppText";
 import { theme } from "../../src/theme";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 import { useI18n } from "../../src/context/I18nContext";
 import { useAuth } from "../../src/context/AuthContext";
 import { useToast } from "../../src/context/ToastContext";
@@ -17,6 +18,7 @@ const SUCCESS_HOLD_MS = 1200;
 /** Forced gate: shown when staff issued a temporary password (profiles.must_change_password). */
 export default function ChangePasswordRequiredScreen() {
   const { t, isRTL } = useI18n();
+  const screenFrame = useScreenContentStyle("narrow", { scrolls: false });
   const { refreshProfile } = useAuth();
   const { showToast } = useToast();
   const [password, setPassword] = useState("");
@@ -57,7 +59,7 @@ export default function ChangePasswordRequiredScreen() {
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.container, screenFrame]}>
       <Stack.Screen options={{ title: t("screen.changePasswordRequired") }} />
       <FadeSlideIn>
         <View style={styles.logoWrap}>

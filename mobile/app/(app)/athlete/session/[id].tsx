@@ -9,6 +9,8 @@ import { formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateForma
 import { theme } from "../../../../src/theme";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { ActionButton } from "../../../../src/components/ActionButton";
+import { EmptyState, ErrorState } from "../../../../src/components/EmptyState";
+import { classifyUserError, userFacingErrorMessage } from "../../../../src/lib/userFacingError";
 import { ConfettiBurst } from "../../../../src/components/ConfettiBurst";
 import { DeflatingCard } from "../../../../src/components/DeflatingCard";
 import { useI18n } from "../../../../src/context/I18nContext";
@@ -44,6 +46,9 @@ import { AppTextField } from "../../../../src/components/AppTextField";
 import { Skeleton } from "../../../../src/components/Skeleton";
 import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
+import { rowFlipFor } from "../../../../src/lib/layoutDirection";
+import { displayTimeRange } from "../../../../src/lib/displayFormat";
+import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
 
 /** Same visual anchor for Hebrew + Latin names in the participants list. */
 function participantListLabel(name: string, uiRtl: boolean): string {
@@ -57,6 +62,7 @@ export default function AthleteSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const sessionId = String(id ?? "").trim();
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showToast } = useToast();
   const { showAlert, showOk } = useAppAlert();
   const [session, setSession] = useState<TrainingSessionWithTrainer | null>(null);
@@ -346,7 +352,7 @@ export default function AthleteSessionDetail() {
 
   if (loading)
     return (
-      <View style={styles.box}>
+      <View style={[styles.box, screenContent]}>
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
         <View style={styles.card}>
           <Skeleton width="70%" height={22} />
@@ -359,25 +365,31 @@ export default function AthleteSessionDetail() {
         <Skeleton height={52} radius={theme.radius.md} style={{ marginTop: theme.spacing.sm }} />
       </View>
     );
-  if (loadError)
+  if (loadError && classifyUserError(loadError) !== "notFound")
     return (
-      <View style={styles.box}>
+      <View style={[styles.box, screenContent]}>
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
-        <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
-          {loadError}
-        </AppText>
-        <View style={{ marginTop: theme.spacing.md }}>
-          <ActionButton label={t("auth.retryConnection")} onPress={() => router.replace(`/(app)/athlete/session/${sessionId}`)} />
-        </View>
+        <ErrorState
+          title={t("errors.loadFailedTitle")}
+          body={userFacingErrorMessage(loadError, t)}
+          actionLabel={t("auth.retryConnection")}
+          onAction={() => void load()}
+          isRTL={isRTL}
+        />
       </View>
     );
   if (!session)
     return (
-      <View style={styles.box}>
+      <View style={[styles.box, screenContent]}>
         <Stack.Screen options={{ title: t("screen.athleteSession") }} />
-        <AppText variant="body" muted isRTL={isRTL} style={styles.loadingText}>
-          {t("athleteSession.notFound")}
-        </AppText>
+        <EmptyState
+          tone="notFound"
+          title={t("athleteSession.notFound")}
+          body={t("errors.notFound")}
+          actionLabel={t("common.back")}
+          onAction={() => router.replace("/(app)/athlete/sessions")}
+          isRTL={isRTL}
+        />
       </View>
     );
   const full = count >= session.max_participants;
@@ -394,7 +406,7 @@ export default function AthleteSessionDetail() {
         <ScrollView
           ref={scrollRef}
           style={styles.scroll}
-          contentContainerStyle={styles.box}
+          contentContainerStyle={[styles.box, screenContent]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -408,14 +420,14 @@ export default function AthleteSessionDetail() {
           {formatISODateFullWithWeekdayAfter(session.session_date, language)}
         </AppText>
         <AppText variant="body" muted style={styles.sub}>
-          {formatSessionTimeRange(session.start_time, session.duration_minutes ?? 60)}
+          {displayTimeRange(session.start_time, session.duration_minutes ?? 60)}
         </AppText>
         {session.trainer?.full_name ? (
           <AppText variant="body" muted isRTL={isRTL} style={styles.sub}>
             {t("athleteSession.trainerLabel")} {session.trainer.full_name}
           </AppText>
         ) : null}
-        <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+        <View style={[styles.chips, rowFlipFor(isRTL) && styles.chipsRtl]}>
           {!sessionNotEnded ? (
             <StatusChip label={t("athleteSession.sessionEnded")} tone="neutral" />
           ) : (
@@ -483,7 +495,7 @@ export default function AthleteSessionDetail() {
       </View>
 
       <View style={styles.partCard}>
-        <View style={[styles.partHeader, isRTL && styles.partHeaderRtl]}>
+        <View style={[styles.partHeader, rowFlipFor(isRTL) && styles.partHeaderRtl]}>
           <AppText variant="label" isRTL={isRTL} style={styles.partTitle}>
             {t("athleteSession.participants")}
           </AppText>
@@ -553,13 +565,14 @@ export default function AthleteSessionDetail() {
           accessibilityLabel={t("athleteSession.cancelReasonPlaceholder")}
         />
         <PrimaryButton
-          label={cancelling ? t("common.loading") : t("athleteSession.confirmCancel")}
+          label={t("athleteSession.confirmCancel")}
           onPress={cancel}
+          variant="danger"
           loading={cancelling}
           loadingLabel={t("common.loading")}
         />
         <ActionButton
-          label={t("common.cancel")}
+          label={t("athleteSession.keepRegistration")}
           onPress={() => setCancelOpen(false)}
           style={{ marginTop: 16, alignSelf: "center" }}
         />

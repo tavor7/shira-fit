@@ -5,6 +5,7 @@ import { useI18n } from "../context/I18nContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 import type { PresentStaffMember } from "../hooks/useSessionPresence";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -56,8 +57,8 @@ export function SessionPresenceBar({ others }: { others: PresentStaffMember[] })
       : t("sessionPresence.manyViewing").replace("{n}", String(others.length));
 
   return (
-    <View style={[styles.row, isRTL && styles.rowRtl]}>
-      <View style={[styles.stack, isRTL && styles.stackRtl]}>
+    <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
+      <View style={[styles.stack, rowFlipFor(isRTL) && styles.stackRtl]}>
         {others.slice(0, 4).map((m, i) => (
           <PresenceAvatar key={m.userId} member={m} index={i} />
         ))}
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarTxt: { fontSize: 9, fontWeight: "800", color: "#fff" },
+  avatarTxt: { fontSize: 11, fontWeight: "800", color: "#fff" },
   label: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, flexShrink: 1 },
   rtlText: { textAlign: "right" },
 });

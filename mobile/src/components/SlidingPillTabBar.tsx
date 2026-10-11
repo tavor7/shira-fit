@@ -10,8 +10,10 @@ import {
   type ViewStyle,
 } from "react-native";
 import { theme } from "../theme";
+import { selectionA11y } from "../lib/a11ySelection";
 import { useI18n } from "../context/I18nContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 type Props = {
   tabs: { id: string; label: string }[];
@@ -26,7 +28,7 @@ type Props = {
  * pattern previously duplicated inline in ManagerReportsScreen and PricingHubScreen.
  */
 export function SlidingPillTabBar({ tabs, active, onChange, style }: Props) {
-  const { language, isRTL } = useI18n();
+  const { isRTL } = useI18n();
   const layouts = useRef<Record<string, { x: number; width: number }>>({});
   const indicatorX = useRef(new Animated.Value(0)).current;
   const indicatorW = useRef(new Animated.Value(0)).current;
@@ -80,7 +82,9 @@ export function SlidingPillTabBar({ tabs, active, onChange, style }: Props) {
   };
 
   return (
-    <View style={[styles.track, isRTL && styles.trackRtl, style]}>
+    // Keyed on direction: a language switch moves the tabs to mirrored positions without resizing them, and
+    // react-native-web only reports onLayout on resize, so remount to re-measure and re-place the indicator.
+    <View key={isRTL ? "rtl" : "ltr"} style={[styles.track, rowFlipFor(isRTL) && styles.trackRtl, style]} accessibilityRole="tablist">
       <Animated.View
         pointerEvents="none"
         style={[
@@ -99,9 +103,8 @@ export function SlidingPillTabBar({ tabs, active, onChange, style }: Props) {
               moveTo(x.id, true);
             }}
             style={({ pressed }) => [styles.slot, pressed && !on && styles.slotPressed]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={language === "he" ? `מעבר ל-${x.label}` : `Go to ${x.label}`}
+            {...selectionA11y("tab", on)}
+            accessibilityLabel={x.label}
           >
             <Text style={[styles.slotTxt, on && styles.slotTxtOn]} numberOfLines={1}>
               {x.label}
@@ -133,6 +136,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.cta,
   },
   slot: {
+    minHeight: theme.controls.minTouch,
     flexGrow: 1,
     flexBasis: 140,
     minWidth: 120,

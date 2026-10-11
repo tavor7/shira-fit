@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
+import { LAYOUT } from "../lib/screenLayout";
 import type { HomePriorityAlertItem, HomePriorityAlertTone, HomePriorityLabelSegment } from "../lib/homePriorityAlerts";
 import {
   dismissHomeAlert,
@@ -13,9 +15,11 @@ import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { supabase } from "../lib/supabase";
 import { isRtlScript } from "../lib/bidiEmbed";
+import { pluralKey } from "../lib/pluralKey";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 function LateCancelChargeRow({ cancellationId, charged }: { cancellationId: string; charged: boolean }) {
-  const { t, isRTL } = useI18n();
+  const { t, rowFlip } = useI18n();
   const [busy, setBusy] = useState(false);
   const [localCharged, setLocalCharged] = useState(charged);
   useEffect(() => {
@@ -38,7 +42,7 @@ function LateCancelChargeRow({ cancellationId, charged }: { cancellationId: stri
   }
 
   return (
-    <View style={[lateCancelStyles.row, isRTL && lateCancelStyles.rowRtl]}>
+    <View style={[lateCancelStyles.row, rowFlip && lateCancelStyles.rowRtl]}>
       <Pressable
         disabled={busy}
         onPress={() => void apply(false)}
@@ -146,7 +150,7 @@ function AlertLabel({
   variant: "strip" | "sheet";
   numberOfLines?: number;
 }) {
-  const { isRTL } = useI18n();
+  const { isRTL, rowFlip } = useI18n();
   const accent = alertAccent(item.tone);
   const textStyle = variant === "strip" ? styles.text : modalStyles.sheetRowText;
   const bodyTextStyle =
@@ -195,7 +199,7 @@ function AlertLabel({
 
     if (stacked) {
       return (
-        <View style={[styles.labelStack, isRTL && styles.labelStackRtl]}>
+        <View style={[styles.labelStack, rowFlip && styles.labelStackRtl]}>
           {segmentRun(subjectSegs, 1)}
           {segmentRun(bodySegs, numberOfLines)}
         </View>
@@ -217,9 +221,11 @@ export function HomePriorityAlerts({
   dismissStorageUserId,
   onVisibleCountChange,
 }: Props) {
-  const { isRTL, t } = useI18n();
+  const { isRTL, rowFlip, t } = useI18n();
   const { showConfirm } = useAppAlert();
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(sheetOpen, () => setSheetOpen(false));
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -300,7 +306,7 @@ export function HomePriorityAlerts({
     const rowBgStyle = accent.rowBg ? { backgroundColor: accent.rowBg } : null;
     const a11y = `${it.isNew ? `${t("homeAlerts.newBadge")}. ` : ""}${it.label}`;
     const body = (
-      <View style={[styles.rowContent, isRTL && styles.rowContentRtl]}>
+      <View style={[styles.rowContent, rowFlip && styles.rowContentRtl]}>
         {it.isNew ? (
           <View style={styles.newBadge}>
             <Text style={styles.newBadgeTxt}>{t("homeAlerts.newBadge")}</Text>
@@ -333,7 +339,7 @@ export function HomePriorityAlerts({
         accessibilityLabel={t("homeAlerts.dismissA11y")}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Text style={styles.dismissGlyph}>×</Text>
+        <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
       </Pressable>
     ) : null;
 
@@ -345,7 +351,7 @@ export function HomePriorityAlerts({
             showBottomBorder && styles.rowBorder,
             isRTL && styles.rowOuterRtl,
             rowBgStyle,
-            { borderStartWidth: 4, borderStartColor: accent.border },
+            { borderStartWidth: theme.accentStripeWidth, borderStartColor: accent.border },
           ]}
         >
           <View style={styles.rowMain}>
@@ -376,7 +382,7 @@ export function HomePriorityAlerts({
           showBottomBorder && modalStyles.sheetRowBorder,
           isRTL && modalStyles.sheetRowOuterRtl,
           rowBgStyle,
-          { borderStartWidth: 4, borderStartColor: accent.border },
+          { borderStartWidth: theme.accentStripeWidth, borderStartColor: accent.border },
         ]}
       >
         <View style={styles.rowMain}>
@@ -416,7 +422,7 @@ export function HomePriorityAlerts({
             onPress={() => setSheetOpen(true)}
             style={({ pressed }) => [styles.moreRow, pressed && { opacity: 0.85 }]}
             accessibilityRole="button"
-            accessibilityLabel={t("homeAlerts.viewAllHint")}
+            accessibilityLabel={`${interpolate(t("homeAlerts.moreCount"), { n: rest })}, ${t("homeAlerts.viewAllHint")}`}
           >
             <Text style={[styles.moreText, styles.moreTextLink, isRTL && styles.rtl]}>
               {interpolate(t("homeAlerts.moreCount"), { n: rest })}
@@ -436,7 +442,7 @@ export function HomePriorityAlerts({
             <View style={modalStyles.handle} />
             <Text style={[modalStyles.title, isRTL && styles.rtl]}>{t("homeAlerts.sheetTitle")}</Text>
             <Text style={[modalStyles.sub, isRTL && styles.rtl]}>
-              {interpolate(t("homeAlerts.sheetSubtitle"), { n: activeItems.length })}
+              {interpolate(pluralKey(t, "homeAlerts.sheetSubtitle", activeItems.length), { n: activeItems.length })}
             </Text>
             {dismissEnabled && activeItems.length > 0 ? (
               <Pressable
@@ -489,9 +495,13 @@ const styles = StyleSheet.create({
     paddingStart: theme.spacing.sm,
     paddingEnd: theme.spacing.sm + 4,
   },
+  // Tap area reaches into the row padding (negative margin) and is at least 44px tall.
   rowTap: {
     alignSelf: "stretch",
     minWidth: 0,
+    minHeight: theme.controls.minTouch,
+    paddingVertical: 7,
+    marginVertical: -7,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -541,23 +551,18 @@ const styles = StyleSheet.create({
     textAlign: "right",
     alignSelf: "stretch",
   },
+  /** 44px touch target around a small close icon; negative margins keep the row layout compact. */
   dismissHit: {
-    justifyContent: "flex-start",
     alignSelf: "flex-start",
-    paddingTop: 1,
-    paddingHorizontal: 4,
-    minWidth: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: theme.controls.minTouch,
+    minHeight: theme.controls.minTouch,
+    marginTop: -12,
+    marginBottom: -12,
+    marginHorizontal: -10,
   },
-  dismissHitRtl: {
-    paddingStart: 6,
-    paddingEnd: 4,
-  },
-  dismissGlyph: {
-    color: theme.colors.textMuted,
-    fontSize: 20,
-    fontWeight: "400",
-    lineHeight: 22,
-  },
+  dismissHitRtl: {},
   newBadge: {
     marginTop: 1,
     paddingHorizontal: 6,
@@ -568,8 +573,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.success,
   },
   newBadgeTxt: {
-    fontSize: 10,
-    fontWeight: "900",
+    fontSize: 11,
+    fontWeight: "800",
     color: theme.colors.success,
     letterSpacing: 0.4,
   },
@@ -591,13 +596,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.06,
   },
   rtl: { writingDirection: "rtl", textAlign: "right" },
+  // 44px tap height; the negative margin keeps the strip layout unchanged.
   moreRow: {
-    paddingVertical: 6,
+    paddingVertical: 14,
+    marginVertical: -8,
     paddingHorizontal: theme.spacing.sm,
   },
   moreText: {
-    fontWeight: "700",
-    fontSize: 12,
+    ...theme.typography.label,
   },
   moreTextLink: {
     color: theme.colors.cta,
@@ -615,6 +621,9 @@ const modalStyles = StyleSheet.create({
     zIndex: 0,
   },
   sheet: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.sheetMaxWidth,
+    alignSelf: "center",
     zIndex: 2,
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,
@@ -641,9 +650,8 @@ const modalStyles = StyleSheet.create({
     marginBottom: 4,
   },
   sub: {
-    fontSize: 13,
+    ...theme.typography.caption,
     color: theme.colors.textMuted,
-    fontWeight: "600",
     paddingHorizontal: theme.spacing.lg,
     marginBottom: theme.spacing.xs,
   },
@@ -714,7 +722,7 @@ const modalStyles = StyleSheet.create({
   },
   doneBtnTxt: {
     color: theme.colors.ctaText,
-    fontWeight: "900",
+    fontWeight: "800",
     fontSize: 15,
   },
 });

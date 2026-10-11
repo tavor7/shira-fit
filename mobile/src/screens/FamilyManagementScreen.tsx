@@ -1,3 +1,4 @@
+import { displayLtr } from "../lib/displayFormat";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -11,6 +12,7 @@ import {
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { AppIcon } from "../components/AppIcon";
 import { athleteSearchSubtitle } from "../lib/displayName";
 import { useI18n } from "../context/I18nContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
@@ -29,6 +31,9 @@ import {
   memberPayeeKey,
   parseFamilyMembers,
 } from "../lib/athleteFamilies";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { pluralKey } from "../lib/pluralKey";
 
 type PickerRow =
   | { kind: "app"; id: string; full_name: string; username?: string; phone?: string }
@@ -45,12 +50,13 @@ function familyRpcError(code: string, t: (k: string) => string, language: string
     case "invalid_member":
       return t("families.errorInvalidMember");
     default:
-      return code || (language === "he" ? "שגיאה" : "Error");
+      return code || (t("ui.familyManagement.error"));
   }
 }
 
 export default function FamilyManagementScreen() {
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showToast } = useToast();
   const { showOk, showConfirm } = useAppAlert();
   const [families, setFamilies] = useState<AthleteFamilyListItem[]>([]);
@@ -269,13 +275,13 @@ export default function FamilyManagementScreen() {
       <FlatList
         data={visibleFamilies}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, screenContent]}
         ListHeaderComponent={
           <>
             <ManagerStudioSetupTabs />
             <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.families")}</Text>
             {families.length > 0 ? (
-              <View style={[styles.searchRow, isRTL && styles.searchRowRtl]}>
+              <View style={[styles.searchRow, rowFlipFor(isRTL) && styles.searchRowRtl]}>
                 <AppSearchField
                   value={familySearchQ}
                   onChangeText={setFamilySearchQ}
@@ -304,9 +310,9 @@ export default function FamilyManagementScreen() {
             <Pressable onPress={() => openEdit(item)} style={({ pressed }) => [pressed && { opacity: 0.92 }]}>
               <Text style={[styles.cardTitle, isRTL && styles.rtl]}>{item.name}</Text>
               <Text style={[styles.cardMeta, isRTL && styles.rtl]}>
-                {t("families.memberCount").replace("{n}", String(item.members.length))}
+                {pluralKey(t, "families.memberCount", item.members.length).replace("{n}", String(item.members.length))}
               </Text>
-              <View style={[styles.chipRow, isRTL && styles.chipRowRtl]}>
+              <View style={[styles.chipRow, rowFlipFor(isRTL) && styles.chipRowRtl]}>
                 {item.members.map((m) => (
                   <View key={memberPayeeKey(m.kind, m.id)} style={styles.chip}>
                     <Text style={styles.chipTxt} numberOfLines={1}>
@@ -316,7 +322,7 @@ export default function FamilyManagementScreen() {
                 ))}
               </View>
             </Pressable>
-            <View style={[styles.cardActions, isRTL && styles.cardActionsRtl]}>
+            <View style={[styles.cardActions, rowFlipFor(isRTL) && styles.cardActionsRtl]}>
               <Pressable
                 onPress={() => confirmDelete(item)}
                 accessibilityRole="button"
@@ -338,7 +344,7 @@ export default function FamilyManagementScreen() {
             </View>
           ) : (
             <EmptyState
-              icon={familySearchQ.trim() ? "🔍" : undefined}
+              icon={familySearchQ.trim() ? "search-outline" : undefined}
               title={familySearchQ.trim() ? t("families.noSearchResults") : t("families.empty")}
               isRTL={isRTL}
             />
@@ -354,7 +360,7 @@ export default function FamilyManagementScreen() {
         }}
         variant="dialog"
         maxHeightPct={0.9}
-        backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+        backdropAccessibilityLabel={t("ui.familyManagement.dismiss")}
         cardStyle={styles.editorCard}
       >
         <View style={styles.editorBody}>
@@ -366,7 +372,7 @@ export default function FamilyManagementScreen() {
             value={familyName}
             onChangeText={setFamilyName}
             placeholder={t("families.namePlaceholder")}
-            placeholderTextColor={theme.colors.placeholderOnLight}
+            placeholderTextColor={theme.colors.fieldPlaceholder}
             style={[styles.input, isRTL && styles.inputRtl]}
             editable={!saving}
           />
@@ -412,23 +418,24 @@ export default function FamilyManagementScreen() {
                       disabled={saving}
                       style={({ pressed }) => [
                         styles.choiceRow,
-                        isRTL && styles.choiceRowRtl,
+                        rowFlipFor(isRTL) && styles.choiceRowRtl,
                         selected && styles.choiceRowOn,
                         pressed && !saving && styles.choiceRowPressed,
                       ]}
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: selected }}
+                      aria-checked={selected}
                     >
                       <View style={[styles.choiceCheck, selected && styles.choiceCheckOn]}>
-                        {selected ? <Text style={styles.choiceCheckMark}>✓</Text> : null}
+                        {selected ? <AppIcon name="checkmark" size={14} color={theme.colors.ctaText} /> : null}
                       </View>
                       <View style={styles.choiceText}>
-                        <Text style={[styles.choiceName, isRTL && styles.rtl]} numberOfLines={1}>
+                        <Text {...userContentTextProps} style={[styles.choiceName, isRTL ? styles.rtl : styles.ltr]} numberOfLines={1}>
                           {row.full_name}
                         </Text>
                         <Text style={[styles.choiceSub, isRTL && styles.rtl]} numberOfLines={1}>
                           {row.kind === "manual"
-                            ? `${row.phone ?? ""} · ${language === "he" ? "מהיר" : "Quick Add"}`
+                            ? [row.phone?.trim() ? displayLtr(row.phone.trim()) : "", t("accountPayments.kindManual")].filter(Boolean).join(" · ")
                             : athleteSearchSubtitle(row.phone)}
                         </Text>
                       </View>
@@ -457,9 +464,9 @@ const styles = StyleSheet.create({
   listContent: { padding: theme.spacing.md, paddingBottom: 48, gap: theme.spacing.sm },
   skeletonList: { gap: theme.spacing.sm },
   rtl: { textAlign: "right", alignSelf: "stretch" },
+  ltr: { textAlign: "left", alignSelf: "stretch" },
   title: {
-    fontSize: 18,
-    fontWeight: "900",
+    ...theme.typography.headline,
     color: theme.colors.text,
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.sm,
@@ -484,7 +491,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     gap: theme.spacing.sm,
   },
-  cardTitle: { fontSize: 15, fontWeight: "900", color: theme.colors.text },
+  cardTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
   cardMeta: { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
   chipRowRtl: { flexDirection: "row-reverse" },
@@ -497,7 +504,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     maxWidth: "100%",
   },
-  chipTxt: { fontSize: 12, fontWeight: "700", color: theme.colors.text },
+  chipTxt: { ...theme.typography.label, color: theme.colors.text },
   cardActions: {
     marginTop: theme.spacing.xs,
     paddingTop: theme.spacing.sm,
@@ -509,6 +516,8 @@ const styles = StyleSheet.create({
   cardActionsRtl: { flexDirection: "row-reverse" },
   deleteBtn: {
     paddingVertical: 8,
+    minHeight: theme.controls.buttonCompactHeight,
+    justifyContent: "center",
     paddingHorizontal: 14,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.errorBg,
@@ -518,12 +527,13 @@ const styles = StyleSheet.create({
   deleteBtnPressed: { opacity: 0.88 },
   deleteBtnTxt: { color: theme.colors.error, fontWeight: "800", fontSize: 13 },
   editorCard: { maxWidth: 480, width: "100%" },
-  editorBody: { padding: theme.spacing.md, paddingBottom: theme.spacing.lg, gap: 4 },
+  // Body and member list may shrink so Save stays inside the height-capped card on short screens (320×568 hid it).
+  editorBody: { padding: theme.spacing.md, paddingBottom: theme.spacing.lg, gap: 4, flexShrink: 1, minHeight: 0 },
   editorSave: { marginTop: theme.spacing.md },
-  editorTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.xs },
+  editorTitle: { ...theme.typography.headline, color: theme.colors.text, marginBottom: theme.spacing.xs },
   label: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted, marginTop: theme.spacing.sm },
   membersHint: { fontSize: 12, color: theme.colors.textSoft, lineHeight: 17, marginTop: 2 },
-  selectedCount: { fontSize: 12, fontWeight: "700", color: theme.colors.cta, marginTop: 4 },
+  selectedCount: { ...theme.typography.label, color: theme.colors.cta, marginTop: 4 },
   memberSearch: { marginTop: 8 },
   choicesPanel: {
     marginTop: 8,
@@ -531,7 +541,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.surface,
-    minHeight: 160,
+    flexShrink: 1,
+    minHeight: 96,
     maxHeight: 260,
     overflow: "hidden",
   },
@@ -565,7 +576,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.cta,
     backgroundColor: theme.colors.cta,
   },
-  choiceCheckMark: { color: theme.colors.ctaText, fontSize: 14, fontWeight: "900", lineHeight: 16 },
+  choiceCheckMark: { color: theme.colors.ctaText, fontSize: 14, fontWeight: "800", lineHeight: 16 },
   choiceText: { flex: 1, minWidth: 0 },
   choiceName: { fontSize: 15, fontWeight: "700", color: theme.colors.text },
   choiceSub: { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
@@ -576,8 +587,8 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 6,
     fontSize: 16,
-    backgroundColor: theme.colors.white,
-    color: theme.colors.textOnLight,
+    backgroundColor: theme.colors.fieldBg,
+    color: theme.colors.fieldText,
   },
   inputRtl: { textAlign: "right" },
 });

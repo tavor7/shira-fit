@@ -19,8 +19,11 @@ import { useKeyboardInset } from "../hooks/useKeyboardInset";
 import { useLockBodyScroll } from "../hooks/useLockBodyScroll";
 import { useVisualViewport } from "../hooks/useVisualViewport";
 import { theme } from "../theme";
+import { LAYOUT } from "../lib/screenLayout";
 import { AppSearchField } from "./AppSearchField";
 import { FadeSlideIn } from "./FadeSlideIn";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 export type AppSearchSheetSearchConfig = {
   value: string;
@@ -83,6 +86,8 @@ export function AppSearchSheet<T>({
   renderItem,
   ListEmptyComponent,
 }: Props<T>) {
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(visible, onClose);
   const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
   const visualViewport = useVisualViewport();
@@ -192,7 +197,7 @@ export function AppSearchSheet<T>({
         cardStyle,
       ]}
     >
-      <View style={[styles.header, showCompactHeader && styles.headerCompact, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, showCompactHeader && styles.headerCompact, rowFlipFor(isRTL) && styles.headerRtl]}>
         <View style={styles.headerText}>
           <Text style={[styles.title, showCompactHeader && styles.titleCompact, isRTL && styles.rtlText]} numberOfLines={2}>
             {title}
@@ -285,6 +290,8 @@ const styles = StyleSheet.create({
   backdropTouch: { ...StyleSheet.absoluteFill },
   sheet: {
     width: "100%",
+    maxWidth: LAYOUT.modal.sheetMaxWidth,
+    alignSelf: "center",
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,
     borderTopRightRadius: theme.radius.xl,
@@ -326,7 +333,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     lineHeight: 18,
   },
-  dismiss: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "800" },
+  dismiss: { ...theme.typography.title, color: theme.colors.textMuted },
   rtlText: { textAlign: "right", writingDirection: "rtl" },
   headerExtra: {
     flexShrink: 0,

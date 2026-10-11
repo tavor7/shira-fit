@@ -3,13 +3,15 @@ import { View, StyleSheet } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import { supabase } from "../../../src/lib/supabase";
 import { theme } from "../../../src/theme";
+import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 import { SessionsWeekCalendar, type SessionsWeekItem } from "../../../src/components/SessionsWeekCalendar";
 import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { EmptyState } from "../../../src/components/EmptyState";
 import { SessionCardSkeleton } from "../../../src/components/SessionCardSkeleton";
-import { formatSessionTimeRange } from "../../../src/lib/sessionTime";
+
 import { useI18n } from "../../../src/context/I18nContext";
 import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
+import { displayTimeRange } from "../../../src/lib/displayFormat";
 
 type TsNested = {
   id: string;
@@ -23,6 +25,7 @@ type Row = { session_id: string; training_sessions: TsNested };
 
 export default function MySessionsScreen() {
   const { t, isRTL } = useI18n();
+  const calendarFrame = useScreenContentStyle("wide", { selfInset: theme.spacing.md });
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -96,7 +99,7 @@ export default function MySessionsScreen() {
           session_date: ts.session_date,
           start_time: ts.start_time,
           durationMinutes: dm,
-          timeLabel: formatSessionTimeRange(ts.start_time, dm),
+          timeLabel: displayTimeRange(ts.start_time, dm),
           subtitle: t("athleteMySessions.registeredBadge"),
           athleteRegistered: true,
           isKickbox: !!ts.is_kickbox,
@@ -127,7 +130,7 @@ export default function MySessionsScreen() {
           <EmptyState
             title={t("athleteMySessions.loadErrorTitle")}
             body={t("athleteMySessions.loadErrorBody")}
-            icon="⚠️"
+            tone="error"
             actionLabel={t("athleteMySessions.retry")}
             onAction={() => void load()}
             isRTL={isRTL}
@@ -137,7 +140,7 @@ export default function MySessionsScreen() {
           <EmptyState
             title={t("empty.noActiveRegistrations")}
             body={t("athleteMySessions.emptyBody")}
-            icon="📅"
+            icon="calendar-outline"
             actionLabel={t("athleteMySessions.browseSessions")}
             onAction={() => router.push("/(app)/athlete/sessions")}
             isRTL={isRTL}
@@ -145,14 +148,16 @@ export default function MySessionsScreen() {
           />
         ) : (
           <>
-            <SessionsWeekCalendar
-              items={items}
-              isLoading={false}
-              emptyLabel={t("empty.noSessionsWeek")}
-              onDayPress={(iso) => setSheetDay(iso)}
-              weekOffset={calendarWeekOffset}
-              onWeekOffsetChange={setCalendarWeekOffset}
-            />
+            <View style={[styles.calendarWrap, calendarFrame]}>
+              <SessionsWeekCalendar
+                items={items}
+                isLoading={false}
+                emptyLabel={t("empty.noSessionsWeek")}
+                onDayPress={(iso) => setSheetDay(iso)}
+                weekOffset={calendarWeekOffset}
+                onWeekOffsetChange={setCalendarWeekOffset}
+              />
+            </View>
             <DaySessionsSheet
               visible={sheetDay !== null}
               onClose={() => setSheetDay(null)}
@@ -175,4 +180,5 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
   },
   emptyPage: { flex: 1 },
+  calendarWrap: { flex: 1 },
 });

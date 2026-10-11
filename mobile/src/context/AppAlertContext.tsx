@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { AppAlertDialog, type AppAlertAction } from "../components/AppAlertDialog";
 import { useI18n } from "./I18nContext";
+import { toUserFacingText } from "../lib/userFacingError";
 
 export type ShowAppAlertOptions = {
   title: string;
@@ -37,6 +38,8 @@ export function AppAlertProvider({ children }: { children: ReactNode }) {
     setInstanceKey((k) => k + 1);
     setOpts({
       ...o,
+      // Never show raw technical error text (see lib/userFacingError).
+      message: toUserFacingText(o.message, t) ?? o.message,
       actions: o.actions.map((a) => ({
         ...a,
         onPress: () => {
@@ -45,7 +48,7 @@ export function AppAlertProvider({ children }: { children: ReactNode }) {
         },
       })),
     });
-  }, [close]);
+  }, [close, t]);
 
   const showOk = useCallback(
     (title: string, message: string, okLabel = t("common.ok")) => {

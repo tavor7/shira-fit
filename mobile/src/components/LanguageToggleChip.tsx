@@ -1,13 +1,14 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useI18n } from "../context/I18nContext";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 
 /**
  * Ghost outline chip to toggle language (EN <-> HE).
  * Used on auth (pre-login) screens where the global menu is unavailable.
  */
 export function LanguageToggleChip() {
-  const { language, toggleLanguage } = useI18n();
+  const { language, toggleLanguage, t } = useI18n();
   const isHe = language === "he";
   return (
     <View style={styles.wrap}>
@@ -15,10 +16,10 @@ export function LanguageToggleChip() {
         onPress={() => void toggleLanguage()}
         style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
         accessibilityRole="button"
-        accessibilityLabel={isHe ? "Switch to English" : "Switch to Hebrew"}
+        accessibilityLabel={t("lang.chipA11y")}
         hitSlop={6}
       >
-        <Text style={styles.icon}>{"🌐"}</Text>
+        <AppIcon name="globe-outline" size="sm" color={theme.colors.textMuted} />
         <Text style={styles.txt}>{isHe ? "עב" : "EN"}</Text>
       </Pressable>
     </View>
@@ -29,6 +30,7 @@ const styles = StyleSheet.create({
   wrap: { alignItems: "center", marginTop: theme.spacing.lg },
   chip: {
     flexDirection: "row",
+    minHeight: theme.controls.minTouch,
     alignItems: "center",
     gap: 6,
     paddingVertical: 8,

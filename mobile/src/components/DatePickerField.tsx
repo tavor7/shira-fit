@@ -17,7 +17,7 @@ export function DatePickerField({
   const [androidOpen, setAndroidOpen] = useState(false);
   const [iosOpen, setIosOpen] = useState(false);
   const [iosDraft, setIosDraft] = useState<Date>(() => parseISODateLocal(value) ?? new Date());
-  const { language, isRTL } = useI18n();
+  const { language, isRTL, t } = useI18n();
   const embedded = appearance === "embedded";
   const auth = appearance === "auth";
 
@@ -28,9 +28,7 @@ export function DatePickerField({
 
   const displayText = isValidISODateString(value)
     ? formatISODateShortDisplay(value, language)
-    : language === "he"
-      ? "בחרו תאריך"
-      : "Choose date";
+    : t("ui.datePickerField.chooseDate");
   const hasValue = isValidISODateString(value);
   const pickerValue = parseISODateLocal(value) ?? new Date();
 
@@ -110,11 +108,11 @@ export function DatePickerField({
       </Pressable>
       <Modal visible={iosOpen} transparent animationType="slide" onRequestClose={() => setIosOpen(false)}>
         <View style={styles.modalRoot}>
-          <Pressable style={styles.backdropFlex} onPress={() => setIosOpen(false)} accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"} />
+          <Pressable style={styles.backdropFlex} onPress={() => setIosOpen(false)} accessibilityLabel={t("ui.datePickerField.dismiss")} />
           <View style={styles.sheet}>
             <View style={styles.toolbar}>
               <Pressable onPress={() => setIosOpen(false)} hitSlop={12} style={styles.tbBtn}>
-                <Text style={styles.tbMuted}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                <Text style={styles.tbMuted}>{t("ui.datePickerField.cancel")}</Text>
               </Pressable>
               <Text style={styles.tbTitle} numberOfLines={1}>
                 {label}
@@ -127,7 +125,7 @@ export function DatePickerField({
                 hitSlop={12}
                 style={styles.tbBtn}
               >
-                <Text style={styles.tbCta}>{language === "he" ? "אישור" : "Done"}</Text>
+                <Text style={styles.tbCta}>{t("ui.datePickerField.done")}</Text>
               </Pressable>
             </View>
             <DateTimePicker
@@ -152,12 +150,11 @@ const styles = StyleSheet.create({
   wrap: { marginTop: theme.spacing.sm, alignSelf: "stretch", minWidth: 0, width: "100%", maxWidth: "100%" },
   wrapEmbedded: { marginTop: 0 },
   wrapAuth: { marginTop: 0, marginBottom: theme.spacing.sm },
-  label: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
+  label: { marginBottom: 6, color: theme.colors.textMuted, ...theme.typography.label, letterSpacing: 0.2 },
   labelAuth: {
     marginBottom: theme.spacing.xs,
     marginTop: 0,
-    fontWeight: "700",
-    fontSize: 12,
+    ...theme.typography.label,
     letterSpacing: 0.3,
     textTransform: "uppercase",
     color: theme.colors.textSoft,
@@ -212,7 +209,7 @@ const styles = StyleSheet.create({
   touchTextAuth: { fontWeight: "500", lineHeight: 22 },
   touchTextPlaceholder: { color: theme.colors.textMuted, fontWeight: "800" },
   rtlTextLight: { textAlign: "right" },
-  chev: { fontSize: 10, color: theme.colors.textMuted },
+  chev: { fontSize: 11, color: theme.colors.textMuted },
   chevLtr: { marginLeft: 8 },
   chevRtl: { marginRight: 8 },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
@@ -235,7 +232,7 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.borderMuted,
   },
   tbBtn: { minWidth: 64 },
-  tbMuted: { fontSize: 16, fontWeight: "600", color: theme.colors.textMuted },
+  tbMuted: { ...theme.typography.body, color: theme.colors.textMuted },
   tbTitle: { flex: 1, textAlign: "center", fontSize: 15, fontWeight: "700", color: theme.colors.text },
-  tbCta: { fontSize: 16, fontWeight: "800", color: theme.colors.cta },
+  tbCta: { ...theme.typography.title, color: theme.colors.cta },
 });

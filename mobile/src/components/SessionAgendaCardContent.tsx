@@ -1,5 +1,7 @@
+import { pluralKey } from "../lib/pluralKey";
 import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { useI18n } from "../context/I18nContext";
 import { StatusChip } from "./StatusChip";
@@ -7,6 +9,7 @@ import { KickboxSessionBadge } from "./KickboxSessionBadge";
 import { SessionSeriesIndicator } from "./SessionSeriesIndicator";
 import { type SessionTemporalPhase, formatSessionStartTime, getSessionTemporalPhase } from "../lib/sessionTime";
 import { firstWordOfDisplayName } from "../lib/displayName";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 type Props = {
   item: SessionsWeekItem;
@@ -17,7 +20,7 @@ type Props = {
 };
 
 export function SessionAgendaCardContent({ item, compact, temporalPhase: temporalPhaseProp }: Props) {
-  const { language, isRTL, t } = useI18n();
+  const { isRTL, t } = useI18n();
   const temporalPhase =
     temporalPhaseProp ?? getSessionTemporalPhase(item.session_date, item.start_time, item.durationMinutes ?? 60);
   const accent = item.accentColor;
@@ -42,13 +45,13 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
         ? [styles.time, compact && styles.timeCompact, styles.timeLive]
         : [styles.time, compact && styles.timeCompact];
 
-  const leftAccentWidth = showRegistered ? 4 : 3;
 
   return (
     <View
       style={[
         styles.inner,
-        accent ? { borderLeftWidth: leftAccentWidth, borderLeftColor: accent, paddingLeft: 8 } : null,
+        // Coach colour on the reading-start edge (mirrors in Hebrew).
+        accent ? { borderStartWidth: theme.accentStripeWidth, borderStartColor: accent, paddingStart: 8 } : null,
       ]}
     >
       <View style={[styles.timeRow, item.isRecurringSeries && styles.timeRowWithRepeatPin]}>
@@ -59,11 +62,11 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
           {showTemporalPills ? (
             temporalPhase === "live" ? (
               <View style={styles.livePill}>
-                <Text style={styles.livePillTxt}>{language === "he" ? "עכשיו" : "Live"}</Text>
+                <Text style={styles.livePillTxt}>{t("ui.sessionAgendaCardContent.live")}</Text>
               </View>
             ) : temporalPhase === "past" ? (
               <View style={styles.endedPill}>
-                <Text style={styles.endedPillTxt}>{language === "he" ? "הסתיים" : "Ended"}</Text>
+                <Text style={styles.endedPillTxt}>{t("ui.sessionAgendaCardContent.ended")}</Text>
               </View>
             ) : null
           ) : null}
@@ -104,7 +107,7 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
         >
           {compact ? (
             <>
-              <Text style={styles.registeredBannerCheck}>✓</Text>
+              <AppIcon name="checkmark" size={12} color={theme.colors.ctaText} />
               <Text style={[styles.registeredBannerTxtStacked, isRTL && styles.registeredBannerTxtRtl]}>
                 {t("athleteCalendar.registeredCompact")}
               </Text>
@@ -117,21 +120,21 @@ export function SessionAgendaCardContent({ item, compact, temporalPhase: tempora
         </View>
       ) : null}
       {showRegState && showFill && !staffLabels && temporalPhase !== "past" && !showRegistered && !(full && waitlistInvite) ? (
-        <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+        <View style={[styles.chips, rowFlipFor(isRTL) && styles.chipsRtl]}>
           {full && onWaitlist ? (
             <StatusChip
               label={compact ? t("athleteCalendar.onWaitlistCompact") : t("athleteCalendar.onWaitlistStatus")}
               tone="success"
             />
           ) : full ? (
-            <StatusChip label={language === "he" ? "מלא" : "Full"} tone="danger" />
+            <StatusChip label={t("ui.sessionAgendaCardContent.full")} tone="danger" />
           ) : !regOpen ? (
-            <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
+            <StatusChip label={t("ui.sessionAgendaCardContent.closed")} tone="neutral" />
           ) : (
             <>
-              <StatusChip label={language === "he" ? "פתוח" : "Open"} tone="success" />
+              <StatusChip label={t("ui.sessionAgendaCardContent.open")} tone="success" />
               {left !== null ? (
-                <StatusChip label={language === "he" ? `${left} מקומות` : `${left} left`} tone="neutral" />
+                <StatusChip label={pluralKey(t, "calendar.spotsLeft", left).replace("{n}", String(left))} tone="neutral" />
               ) : null}
             </>
           )}
@@ -207,13 +210,13 @@ const styles = StyleSheet.create({
   registeredBannerCheck: {
     color: theme.colors.ctaText,
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "800",
     lineHeight: 14,
   },
   registeredBannerTxtStacked: {
     color: theme.colors.ctaText,
-    fontSize: 9,
-    fontWeight: "900",
+    fontSize: 11,
+    fontWeight: "800",
     lineHeight: 11,
     textAlign: "center",
     marginTop: 1,
@@ -221,14 +224,14 @@ const styles = StyleSheet.create({
   registeredBannerTxtRtl: { writingDirection: "rtl" },
   registeredBannerTxt: {
     color: theme.colors.ctaText,
-    fontSize: 10,
-    fontWeight: "900",
+    fontSize: 11,
+    fontWeight: "800",
     letterSpacing: 0.2,
     textAlign: "center",
   },
   time: { fontWeight: "800", color: theme.colors.cta, fontSize: 15, letterSpacing: 0.2, lineHeight: 18, flexShrink: 0 },
   timeCompact: { fontSize: 13, lineHeight: 16, letterSpacing: 0 },
-  timePast: { color: theme.colors.textSoft, fontWeight: "600" },
+  timePast: { color: theme.colors.textMuted, fontWeight: "600" },
   timeLive: { color: theme.colors.success, fontWeight: "900" },
   livePill: {
     paddingHorizontal: 7,
@@ -238,7 +241,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.success,
   },
-  livePillTxt: { color: theme.colors.success, fontSize: 9, fontWeight: "900", letterSpacing: 0.4 },
+  livePillTxt: { color: theme.colors.success, fontSize: 11, fontWeight: "800", letterSpacing: 0.4 },
   endedPill: {
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -247,7 +250,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  endedPillTxt: { color: theme.colors.textSoft, fontSize: 9, fontWeight: "800" },
+  endedPillTxt: { color: theme.colors.textMuted, fontSize: 11, fontWeight: "800" },
   hiddenPill: {
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -256,7 +259,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.error,
   },
-  hiddenPillTxt: { color: theme.colors.error, fontSize: 9, fontWeight: "900", letterSpacing: 0.2 },
+  hiddenPillTxt: { color: theme.colors.error, fontSize: 11, fontWeight: "800", letterSpacing: 0.2 },
   timeBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -266,23 +269,23 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
   },
   timeBadgeCompact: { paddingHorizontal: 7, paddingVertical: 2 },
-  timeBadgeTxt: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 11, letterSpacing: 0.2 },
-  timeBadgeTxtCompact: { fontSize: 10 },
+  timeBadgeTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 11, letterSpacing: 0.2 },
+  timeBadgeTxtCompact: { fontSize: 11 },
   trainer: { marginTop: 4, color: theme.colors.text, fontSize: 12, fontWeight: "600", lineHeight: 15 },
   trainerCompact: { fontSize: 11, marginTop: 3 },
   trainerRegistered: { color: theme.colors.cta, fontWeight: "800" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
   chipsRtl: { flexDirection: "row-reverse" },
   fillRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "nowrap" },
-  fill: { marginTop: 6, fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, letterSpacing: 0.5 },
+  fill: { marginTop: 6, ...theme.typography.label, color: theme.colors.textMuted, letterSpacing: 0.5 },
   fillInline: { marginTop: 0, flexShrink: 1 },
   fillCompact: { marginTop: 4, fontSize: 11 },
-  fillInlineText: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 12, letterSpacing: 0.2 },
+  fillInlineText: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 12, letterSpacing: 0.2 },
   fillInlineTextCompact: { fontSize: 11 },
-  waitInlineText: { color: "#A5B4FC", fontWeight: "900", fontSize: 12, letterSpacing: 0.2 },
+  waitInlineText: { color: "#A5B4FC", fontWeight: "800", fontSize: 12, letterSpacing: 0.2 },
   waitInlineTextCompact: { fontSize: 11 },
   subtitle: { marginTop: 4, color: theme.colors.textMuted, fontSize: 11, lineHeight: 14 },
-  subtitleCompact: { fontSize: 10, marginTop: 3 },
+  subtitleCompact: { fontSize: 11, marginTop: 3 },
   stateBar: {
     marginTop: 8,
     height: 3,

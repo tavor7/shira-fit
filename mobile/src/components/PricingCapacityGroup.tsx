@@ -4,6 +4,8 @@ import { theme } from "../theme";
 import type { PricingRateTierRow } from "../lib/pricingRates";
 import { splitPricingPeriods } from "../lib/pricingRates";
 import { PricingPeriodLine } from "./PricingPeriodLine";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 type PeriodRow = PricingRateTierRow & { id?: string };
 
@@ -42,7 +44,7 @@ export function PricingCapacityGroup<T extends PeriodRow>({
 
   const priceFor = (row: T) => {
     const n = Number(row.price_ils);
-    return Number.isFinite(n) ? `${n} ₪` : `${row.price_ils}`;
+    return Number.isFinite(n) ? displayMoney(n) : `${row.price_ils}`;
   };
 
   const renderLine = (row: T, muted?: boolean) => (
@@ -63,7 +65,7 @@ export function PricingCapacityGroup<T extends PeriodRow>({
 
   return (
     <View style={styles.card}>
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
         <View style={styles.headerText}>
           <Text style={[styles.title, isRTL && styles.rtl]} numberOfLines={2}>
             {title}
@@ -83,7 +85,7 @@ export function PricingCapacityGroup<T extends PeriodRow>({
             <Text style={[styles.soleRange, isRTL && styles.rtl]} numberOfLines={1}>
               {formatRange(sole.effective_from, sole.effective_to)}
             </Text>
-            <View style={[styles.soleActions, isRTL && styles.soleActionsRtl]}>
+            <View style={[styles.soleActions, rowFlipFor(isRTL) && styles.soleActionsRtl]}>
               <Pressable onPress={() => onEdit(sole)} hitSlop={8} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={styles.actionEdit}>{editLabel}</Text>
               </Pressable>
@@ -152,8 +154,8 @@ const styles = StyleSheet.create({
   soleRange: { fontSize: 12, color: theme.colors.textSoft, fontWeight: "500" },
   soleActions: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   soleActionsRtl: { flexDirection: "row-reverse" },
-  actionEdit: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
-  actionRemove: { fontSize: 12, fontWeight: "700", color: theme.colors.error },
+  actionEdit: { ...theme.typography.label, color: theme.colors.textMuted },
+  actionRemove: { ...theme.typography.label, color: theme.colors.error },
   actionSep: { fontSize: 12, color: theme.colors.textSoft },
   pastBlock: {
     marginTop: 6,

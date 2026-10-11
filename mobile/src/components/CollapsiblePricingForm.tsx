@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 type Props = {
   title: string;
@@ -31,7 +32,7 @@ export function CollapsiblePricingForm({
         onPress={onToggle}
         style={({ pressed }) => [
           styles.header,
-          isRTL && styles.headerRtl,
+          rowFlipFor(isRTL) && styles.headerRtl,
           inline && styles.headerInline,
           pressed && { opacity: 0.9 },
         ]}
@@ -39,7 +40,7 @@ export function CollapsiblePricingForm({
         accessibilityState={{ expanded }}
         accessibilityLabel={summary ? `${title}. ${summary}` : title}
       >
-        <View style={[styles.titleRow, isRTL && styles.titleRowRtl]}>
+        <View style={[styles.titleRow, rowFlipFor(isRTL) && styles.titleRowRtl]}>
           <View style={[styles.plusWrap, expanded && styles.plusWrapExpanded]}>
             <Text style={[styles.plus, expanded && styles.plusExpanded]}>{expanded ? "−" : "+"}</Text>
           </View>
@@ -47,7 +48,7 @@ export function CollapsiblePricingForm({
             {title}
           </Text>
         </View>
-        <View style={[styles.headerEnd, isRTL && styles.headerEndRtl]}>
+        <View style={[styles.headerEnd, rowFlipFor(isRTL) && styles.headerEndRtl]}>
           {!expanded && summary ? (
             <Text style={[styles.summary, isRTL && styles.rtl]} numberOfLines={1}>
               {summary}
@@ -77,7 +78,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
-    minHeight: 32,
+    minHeight: theme.controls.minTouch,
   },
   headerInline: {
     paddingVertical: 4,
@@ -106,7 +107,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   plusExpanded: { color: theme.colors.ctaText },
-  title: { fontWeight: "900", fontSize: 15, color: theme.colors.text, flexShrink: 1 },
+  title: { fontWeight: "800", fontSize: 15, color: theme.colors.text, flexShrink: 1 },
   titleInline: { fontWeight: "800", fontSize: 14, color: theme.colors.textMuted, flexShrink: 1 },
   headerEnd: {
     flexDirection: "row",

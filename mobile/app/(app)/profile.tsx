@@ -5,6 +5,7 @@ import { useLocalSearchParams, Stack } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../src/context/AuthContext";
 import { theme } from "../../src/theme";
+import { selectionA11y } from "../../src/lib/a11ySelection";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { AppTextField } from "../../src/components/AppTextField";
 import { AppText } from "../../src/components/AppText";
@@ -14,6 +15,9 @@ import { NotificationSettingsPanel } from "../../src/components/NotificationSett
 import { ManagerSendMessagePanel } from "../../src/components/ManagerSendMessagePanel";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { LegalFooterLinks } from "../../src/components/LegalFooterLinks";
+import { rowFlipFor } from "../../src/lib/layoutDirection";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
+import { roleLabel } from "../../src/lib/displayLabels";
 
 function getUpdateErrorMessage(message: string, t: (key: string) => string) {
   const msg = (message || "").toLowerCase();
@@ -29,6 +33,7 @@ type Segment = "account" | "notifications" | "messages";
 export default function ProfileScreen() {
   const { tab, highlight } = useLocalSearchParams<{ tab?: string; highlight?: string }>();
   const { session, profile, refreshProfile } = useAuth();
+  const screenContent = useScreenContentStyle("narrow");
   const { t, isRTL } = useI18n();
 
   const [segment, setSegment] = useState<Segment>(() => {
@@ -163,16 +168,16 @@ export default function ProfileScreen() {
       style={{ flex: 1, backgroundColor: theme.colors.backgroundAlt }}
     >
       <Stack.Screen options={{ title: t("screen.profile") }} />
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.scrollContent, screenContent]} keyboardShouldPersistTaps="handled">
         <FadeSlideIn>
         <AppText variant="display" isRTL={rtl}>
           {t("profile.selfTitle")}
         </AppText>
         <AppText muted isRTL={rtl} style={styles.subtitle}>
-          {t("profile.selfSubtitle").replace("{role}", profile.role)}
+          {t("profile.selfSubtitle").replace("{role}", roleLabel(profile.role, t))}
         </AppText>
 
-        <View style={[styles.segmentTrack, rtl && styles.segmentTrackRtl]} accessibilityRole="tablist">
+        <View style={[styles.segmentTrack, rowFlipFor(rtl) && styles.segmentTrackRtl]} accessibilityRole="tablist">
           <Pressable
             onPress={() => setSegment("account")}
             style={({ pressed }) => [
@@ -180,8 +185,7 @@ export default function ProfileScreen() {
               segment === "account" && styles.segmentSlotActive,
               pressed && segment !== "account" && styles.segmentSlotPressed,
             ]}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: segment === "account" }}
+            {...selectionA11y("tab", segment === "account")}
           >
             <AppText
               variant="caption"
@@ -199,8 +203,7 @@ export default function ProfileScreen() {
               segment === "notifications" && styles.segmentSlotActive,
               pressed && segment !== "notifications" && styles.segmentSlotPressed,
             ]}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: segment === "notifications" }}
+            {...selectionA11y("tab", segment === "notifications")}
           >
             <AppText
               variant="caption"
@@ -219,8 +222,7 @@ export default function ProfileScreen() {
                 segment === "messages" && styles.segmentSlotActive,
                 pressed && segment !== "messages" && styles.segmentSlotPressed,
               ]}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: segment === "messages" }}
+              {...selectionA11y("tab", segment === "messages")}
             >
               <AppText
                 variant="caption"

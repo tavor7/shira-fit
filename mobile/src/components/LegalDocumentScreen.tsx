@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, View } from "react-native";
 import { theme } from "../theme";
+import { formatISODateLong } from "../lib/dateFormat";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "./AppText";
 import { fetchPublicBusinessInfo, fillLegalTokens, type PublicBusinessInfo } from "../lib/legalBusinessInfo";
 import type { LegalDocument } from "../lib/legalContent";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type Props = {
   document: LegalDocument;
@@ -13,6 +15,7 @@ type Props = {
 /** Shared renderer for the Terms of Use / Privacy Policy / Accessibility Statement screens. */
 export function LegalDocumentScreen({ document }: Props) {
   const { language, isRTL, t } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const [info, setInfo] = useState<PublicBusinessInfo | null>(null);
 
   useEffect(() => {
@@ -31,14 +34,16 @@ export function LegalDocumentScreen({ document }: Props) {
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, screenContent]}
       accessibilityRole="none"
+      // Web: the document scrolls inside this view, so keyboard users must be able to focus it to scroll with arrows.
+      {...(Platform.OS === "web" ? { focusable: true, accessibilityLabel: document.title } : {})}
     >
       <AppText variant="display" isRTL={isRTL} style={styles.title} accessibilityRole="header">
         {document.title}
       </AppText>
       <AppText variant="caption" muted isRTL={isRTL} style={styles.updated}>
-        {t("legal.lastUpdated")}: {document.lastUpdated}
+        {t("legal.lastUpdated")}: {/^\d{4}-\d{2}-\d{2}$/.test(document.lastUpdated) ? formatISODateLong(document.lastUpdated, language) : document.lastUpdated}
       </AppText>
 
       {document.intro ? (

@@ -1,12 +1,14 @@
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { theme } from "../theme";
 import { PressableScale } from "./PressableScale";
+import { AppIcon } from "./AppIcon";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { formatSessionStartTime, getSessionTemporalPhase } from "../lib/sessionTime";
 import { KickboxSessionBadge } from "./KickboxSessionBadge";
 import { SessionSeriesIndicator } from "./SessionSeriesIndicator";
 import { StatusChip } from "./StatusChip";
 import { useI18n } from "../context/I18nContext";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 type Props = {
   item: SessionsWeekItem;
@@ -18,7 +20,7 @@ type Props = {
 };
 
 export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deleting, isRTL }: Props) {
-  const { language } = useI18n();
+  const { t } = useI18n();
   const phase = getSessionTemporalPhase(item.session_date, item.start_time, item.durationMinutes ?? 60);
   const accent = item.accentColor;
   const start = formatSessionStartTime(item.start_time);
@@ -35,16 +37,16 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
         style={({ pressed }) => [styles.bodyPressable, pressed && styles.cardPressed]}
         accessibilityRole="button"
       >
-        <View style={[styles.body, isRTL && styles.bodyRtl]}>
+        <View style={[styles.body, rowFlipFor(isRTL) && styles.bodyRtl]}>
           <View style={[styles.timeCol, phase === "past" && styles.timeColPast]}>
             <Text style={[styles.time, phase === "past" && styles.timePast]}>{start}</Text>
             {phase === "live" ? (
               <View style={styles.livePill}>
-                <Text style={styles.livePillTxt}>{language === "he" ? "עכשיו" : "Live"}</Text>
+                <Text style={styles.livePillTxt}>{t("ui.daySessionSheetRow.live")}</Text>
               </View>
             ) : phase === "past" ? (
               <View style={styles.endedPill}>
-                <Text style={styles.endedPillTxt}>{language === "he" ? "הסתיים" : "Ended"}</Text>
+                <Text style={styles.endedPillTxt}>{t("ui.daySessionSheetRow.ended")}</Text>
               </View>
             ) : null}
           </View>
@@ -54,11 +56,11 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
                 {item.trainerName}
               </Text>
             ) : null}
-            <View style={[styles.chips, isRTL && styles.chipsRtl]}>
+            <View style={[styles.chips, rowFlipFor(isRTL) && styles.chipsRtl]}>
               {item.athleteRegistered ? (
                 <View style={styles.registeredBannerSheet}>
                   <Text style={styles.registeredBannerSheetTxt}>
-                    {language === "he" ? "✓ נרשמת" : "✓ You're in"}
+                    {t("ui.daySessionSheetRow.youReIn")}
                   </Text>
                 </View>
               ) : null}
@@ -66,13 +68,13 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
                 <StatusChip label={`${c}/${m}`} tone={m > 0 && c >= m ? "danger" : "neutral"} />
               ) : null}
               {staffLabels && item.isHidden ? (
-                <StatusChip label={language === "he" ? "מוסתר" : "Hidden"} tone="warning" />
+                <StatusChip label={t("ui.daySessionSheetRow.hidden")} tone="warning" />
               ) : null}
               {item.hasSuperUserHiddenAthlete ? (
-                <StatusChip label={language === "he" ? "מתאמן מוסתר" : "Hidden athlete"} tone="danger" />
+                <StatusChip label={t("ui.daySessionSheetRow.hiddenAthlete")} tone="danger" />
               ) : null}
               {staffLabels && item.isOpenForRegistration === false ? (
-                <StatusChip label={language === "he" ? "סגור" : "Closed"} tone="neutral" />
+                <StatusChip label={t("ui.daySessionSheetRow.closed")} tone="neutral" />
               ) : null}
               {item.isKickbox ? <KickboxSessionBadge compact isRTL={isRTL} /> : null}
               {item.isRecurringSeries ? <SessionSeriesIndicator compact /> : null}
@@ -85,16 +87,18 @@ export function DaySessionSheetRow({ item, onPress, onDelete, canDelete, deletin
         <Pressable
           onPress={onDelete}
           disabled={deleting}
-          style={({ pressed }) => [styles.deleteHit, isRTL && styles.deleteHitRtl, pressed && { opacity: 0.65 }]}
+          style={({ pressed }) => [styles.deleteHit, rowFlipFor(isRTL) && styles.deleteHitRtl, pressed && { opacity: 0.65 }]}
           accessibilityRole="button"
-          accessibilityLabel={language === "he" ? "מחיקה" : "Delete"}
+          accessibilityLabel={t("ui.daySessionSheetRow.delete")}
           hitSlop={10}
         >
-          {deleting ? (
-            <ActivityIndicator size="small" color={theme.colors.textSoft} />
-          ) : (
-            <Text style={styles.deleteIcon}>×</Text>
-          )}
+          <View style={styles.deleteCircle}>
+            {deleting ? (
+              <ActivityIndicator size="small" color={theme.colors.textSoft} />
+            ) : (
+              <AppIcon name="close" size="sm" color={theme.colors.textSoft} />
+            )}
+          </View>
         </Pressable>
       ) : null}
     </View>
@@ -138,8 +142,7 @@ const styles = StyleSheet.create({
   },
   timeColPast: { opacity: 0.7 },
   time: {
-    fontSize: 16,
-    fontWeight: "800",
+    ...theme.typography.title,
     color: theme.colors.text,
     letterSpacing: -0.3,
     fontVariant: ["tabular-nums"],
@@ -153,7 +156,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.success,
   },
-  livePillTxt: { color: theme.colors.success, fontSize: 9, fontWeight: "900", letterSpacing: 0.3 },
+  livePillTxt: { color: theme.colors.success, fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
   endedPill: {
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -162,7 +165,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  endedPillTxt: { color: theme.colors.textSoft, fontSize: 9, fontWeight: "800" },
+  endedPillTxt: { color: theme.colors.textSoft, fontSize: 11, fontWeight: "800" },
   main: { flex: 1, minWidth: 0, gap: 6, justifyContent: "center" },
   trainer: {
     fontSize: 15,
@@ -180,7 +183,7 @@ const styles = StyleSheet.create({
   },
   registeredBannerSheetTxt: {
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "800",
     color: theme.colors.ctaText,
     letterSpacing: 0.2,
   },
@@ -190,10 +193,18 @@ const styles = StyleSheet.create({
     fontWeight: "300",
     color: theme.colors.textSoft,
   },
+  // `end` is already the UI end on web; only swap where the platform direction differs from the UI (rowFlipFor).
+  // 44px transparent hit area around the 28px visual circle (hitSlop is ignored on web).
   deleteHit: {
     position: "absolute",
-    top: 6,
-    end: 6,
+    top: -2,
+    end: -2,
+    width: theme.controls.minTouch,
+    height: theme.controls.minTouch,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteCircle: {
     width: 28,
     height: 28,
     borderRadius: theme.radius.full,
@@ -203,12 +214,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  deleteHitRtl: { end: undefined, start: 6 },
-  deleteIcon: {
-    fontSize: 18,
-    fontWeight: "400",
-    color: theme.colors.textSoft,
-    lineHeight: 20,
-    marginTop: -1,
-  },
+  deleteHitRtl: { end: undefined, start: -2 },
 });

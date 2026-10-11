@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAccessibilityPrefs, type AccessibilityPrefs } from "../context/AccessibilityContext";
-import { useAuth } from "../context/AuthContext";
+import { useBottomChrome } from "../context/BottomChromeContext";
+import { fabBottomOffset } from "../lib/screenLayout";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { AppText } from "./AppText";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 /**
  * Web/PWA-only floating accessibility control. Supplements — does not replace — the
@@ -23,15 +25,12 @@ function AccessibilityMenuInner() {
   const { isRTL, t } = useI18n();
   const { prefs, setPrefs, reset } = useAccessibilityPrefs();
   const [open, setOpen] = useState(false);
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(open, () => setOpen(false));
   const triggerRef = useRef<View>(null);
   const reduceMotionRef = useReduceMotionRef();
-  const insets = useSafeAreaInsets();
-  const { profile } = useAuth();
-  // StudioContactFooter (Instagram / Website / Call) is shown to everyone except staff —
-  // clear it instead of floating on top of it. It carries its own insets.bottom padding
-  // internally, so this only needs the row's own content height plus a small gap.
-  const isStaff = profile?.role === "coach" || profile?.role === "manager";
-  const fabBottom = insets.bottom + (isStaff ? 20 : 96);
+  // Stays above the contact footer, in-screen bottom bars and the safe area (lib/screenLayout).
+  const fabBottom = fabBottomOffset(useBottomChrome());
   const scale = useRef(new Animated.Value(1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
 
@@ -117,7 +116,7 @@ function AccessibilityMenuInner() {
                     accessibilityRole="button"
                     accessibilityLabel={t("a11yMenu.decrease")}
                   >
-                    <AppText variant="body" style={styles.stepBtnTxt}>
+                    <AppText variant="body" style={[styles.stepBtnTxt, styles.stepBtnTxtLtr]}>
                       A-
                     </AppText>
                   </Pressable>
@@ -127,7 +126,7 @@ function AccessibilityMenuInner() {
                     accessibilityRole="button"
                     accessibilityLabel={t("a11yMenu.increase")}
                   >
-                    <AppText variant="body" style={styles.stepBtnTxt}>
+                    <AppText variant="body" style={[styles.stepBtnTxt, styles.stepBtnTxtLtr]}>
                       A+
                     </AppText>
                   </Pressable>
@@ -198,10 +197,11 @@ function ToggleRow({
 }) {
   return (
     <Pressable
-      style={[styles.row, isRTL && styles.rowRtl]}
+      style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}
       onPress={() => onChange(!value)}
       accessibilityRole="switch"
       accessibilityState={{ checked: value }}
+      aria-checked={value}
       accessibilityLabel={label}
     >
       <AppText variant="body" isRTL={isRTL} style={styles.rowLabel}>
@@ -273,6 +273,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
   },
   stepBtnTxt: { fontWeight: "800" },
+  // "A-" / "A+" are symbols, not words: keep them LTR so a Hebrew UI does not render them as "-A" / "+A".
+  stepBtnTxtLtr: { writingDirection: "ltr" },
   switchTrack: {
     width: 44,
     height: 26,

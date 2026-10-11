@@ -2,6 +2,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { theme } from "../theme";
 import { AppText } from "./AppText";
 import { initialsFromName } from "../lib/managerDirectMessages";
+import { readableOn } from "./UserAvatar";
 import {
   getManagerMessageThemeStyle,
   type ManagerMessageTheme,
@@ -45,7 +46,7 @@ export function ManagerMessageCard({
         <View style={styles.header}>
           <View style={[styles.avatarRing, { backgroundColor: palette.avatarRing }]}>
             <View style={[styles.avatar, { backgroundColor: palette.avatarBg }]}>
-              <AppText variant="title" style={styles.avatarTxt}>
+              <AppText variant="title" style={[styles.avatarTxt, { color: readableOn(palette.avatarBg) }]}>
                 {avatarInitials}
               </AppText>
             </View>
@@ -126,10 +127,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarTxt: {
+    ...theme.typography.headline,
     color: "#fff",
-    fontWeight: "900",
     letterSpacing: 0.5,
-    fontSize: 18,
   },
   kicker: {
     textTransform: "uppercase",

@@ -1,3 +1,4 @@
+import { pluralKey } from "../lib/pluralKey";
 import { useEffect, useMemo, useState } from "react";
 import {
   Modal,
@@ -13,6 +14,8 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
+import { LAYOUT } from "../lib/screenLayout";
 import { formatISODateLong, formatISODateDayMonth } from "../lib/dateFormat";
 import type { SessionsWeekItem } from "./SessionsWeekCalendar";
 import { supabase } from "../lib/supabase";
@@ -29,6 +32,8 @@ import type { StudioCalendarNote } from "../lib/studioCalendarNotes";
 import { studioNoteCoversDate } from "../lib/studioCalendarNotes";
 import { studioCalendarNoteAccent } from "../lib/studioCalendarNoteAccent";
 import { FadeSlideIn } from "./FadeSlideIn";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 export type DaySheetVariant = "athlete" | "coach" | "manager";
 
@@ -84,6 +89,9 @@ export function DaySessionsSheet({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [dupOpen, setDupOpen] = useState(false);
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(visible, onClose);
+  useWebBackDismiss(dupOpen, () => setDupOpen(false));
   const [dupToDate, setDupToDate] = useState<string>("");
   const [undo, setUndo] = useState<UndoAction | null>(null);
   const [pendingDeleteStudioNoteId, setPendingDeleteStudioNoteId] = useState<string | null>(null);
@@ -146,7 +154,7 @@ export function DaySessionsSheet({
     }
     setBusyId(null);
     if (deleteError) {
-      showOk(language === "he" ? "לא ניתן למחוק" : "Could not delete", deleteError.message);
+      showOk(t("ui.daySessions.couldNotDelete"), deleteError.message);
       return;
     }
     if (sessionRow) setUndo({ kind: "delete_one", sessions: [sessionRow] });
@@ -160,13 +168,11 @@ export function DaySessionsSheet({
     const hasSeries = Boolean(sessionRow?.series_id);
     if (!hasSeries) {
       showConfirm({
-        title: language === "he" ? "מחיקת אימון?" : "Delete session?",
+        title: t("ui.daySessions.deleteSession"),
         message:
-          language === "he"
-            ? "למחוק את האימון? גם ההרשמות אליו יימחקו."
-            : "Delete this session? Registrations for it will be removed too.",
-        cancelLabel: language === "he" ? "ביטול" : "Cancel",
-        confirmLabel: language === "he" ? "מחק" : "Delete",
+          t("ui.daySessions.deleteThisSessionRegistrationsForIt"),
+        cancelLabel: t("ui.daySessions.cancel"),
+        confirmLabel: t("ui.daySessions.delete"),
         confirmVariant: "danger",
         onConfirm: () => void executeSessionDelete(sessionId),
       });
@@ -180,20 +186,18 @@ export function DaySessionsSheet({
     });
     if (allowFuture) {
       showAlert({
-        title: language === "he" ? "מחיקת אימון חוזר" : "Delete recurring session",
+        title: t("ui.daySessions.deleteRecurringSession"),
         message:
-          language === "he"
-            ? "בחרו פעולה. גם ההרשמות יימחקו."
-            : "Choose an action. Registrations will be removed too.",
+          t("ui.daySessions.chooseAnActionRegistrationsWillBe"),
         actions: [
-          { label: language === "he" ? "ביטול" : "Cancel", variant: "secondary", onPress: () => {} },
+          { label: t("ui.daySessions.cancel"), variant: "secondary", onPress: () => {} },
           {
-            label: language === "he" ? "מחק רק אימון זה" : "Delete only this session",
+            label: t("ui.daySessions.deleteOnlyThisSession"),
             variant: "danger",
             onPress: () => void executeSessionDelete(sessionId, "this"),
           },
           {
-            label: language === "he" ? "מחק אימון זה והבאים" : "Delete this and future",
+            label: t("ui.daySessions.deleteThisAndFuture"),
             variant: "danger",
             onPress: () => void executeSessionDelete(sessionId, "future"),
           },
@@ -201,13 +205,11 @@ export function DaySessionsSheet({
       });
     } else {
       showConfirm({
-        title: language === "he" ? "מחיקת אימון?" : "Delete session?",
+        title: t("ui.daySessions.deleteSession"),
         message:
-          language === "he"
-            ? "למחוק רק את האימון הזה? גם ההרשמות יימחקו."
-            : "Delete only this session? Registrations will be removed too.",
-        cancelLabel: language === "he" ? "ביטול" : "Cancel",
-        confirmLabel: language === "he" ? "מחק" : "Delete",
+          t("ui.daySessions.deleteOnlyThisSessionRegistrationsWill"),
+        cancelLabel: t("ui.daySessions.cancel"),
+        confirmLabel: t("ui.daySessions.delete"),
         confirmVariant: "danger",
         onConfirm: () => void executeSessionDelete(sessionId, "this"),
       });
@@ -247,11 +249,11 @@ export function DaySessionsSheet({
     const { data, error } = await supabase.rpc("manager_clear_sessions_for_day", { p_date: dateIso });
     setBulkBusy(false);
     if (error) {
-      showError(language === "he" ? "לא ניתן למחוק" : "Could not clear day", appendNetworkHint(error, offlineHint));
+      showError(t("ui.daySessions.couldNotClearDay"), appendNetworkHint(error, offlineHint));
       return;
     }
     if (!data?.ok) {
-      showError(language === "he" ? "לא ניתן למחוק" : "Could not clear day", data?.error ?? "");
+      showError(t("ui.daySessions.couldNotClearDay"), data?.error ?? "");
       return;
     }
     const sessions = (before.data as unknown as TrainingSessionRow[]) ?? [];
@@ -262,19 +264,17 @@ export function DaySessionsSheet({
 
   function confirmClearDay() {
     const msg =
-      language === "he"
-        ? "למחוק את כל האימונים ביום הזה? גם ההרשמות אליהם יימחקו."
-        : "Delete all sessions on this day? Registrations for them will be removed too.";
+      t("ui.daySessions.deleteAllSessionsOnThisDay");
 
     if (Platform.OS === "web") {
       setPendingClearDay(true);
       return;
     }
     showConfirm({
-      title: language === "he" ? "מחיקת יום?" : "Clear day?",
+      title: t("ui.daySessions.clearDay"),
       message: msg,
-      cancelLabel: language === "he" ? "ביטול" : "Cancel",
-      confirmLabel: language === "he" ? "מחיקה" : "Delete",
+      cancelLabel: t("ui.daySessions.cancel"),
+      confirmLabel: t("ui.daySessions.delete2"),
       confirmVariant: "danger",
       onConfirm: () => void executeClearDay(),
     });
@@ -283,8 +283,8 @@ export function DaySessionsSheet({
   async function runDuplicateDay() {
     if (!dupToDate || dupToDate === dateIso) {
       showError(
-        language === "he" ? "תאריך לא תקין" : "Invalid date",
-        language === "he" ? "בחרו תאריך יעד שונה." : "Please choose a different target date."
+        t("ui.daySessions.invalidDate"),
+        t("ui.daySessions.pleaseChooseADifferentTargetDate")
       );
       return;
     }
@@ -295,22 +295,18 @@ export function DaySessionsSheet({
     });
     setBulkBusy(false);
     if (error) {
-      showError(language === "he" ? "לא ניתן לשכפל" : "Could not duplicate", appendNetworkHint(error, offlineHint));
+      showError(t("ui.daySessions.couldNotDuplicate"), appendNetworkHint(error, offlineHint));
       return;
     }
     if (!data?.ok) {
       const code = String(data?.error ?? "");
       const msg =
         code === "target_not_empty"
-          ? language === "he"
-            ? "כבר קיימים אימונים בתאריך היעד. (כדי למנוע כפילויות לא שוכפל.)"
-            : "Target date already has sessions. (Not duplicated to avoid duplicates.)"
+          ? t("ui.daySessions.targetDateAlreadyHasSessionsNot")
           : code === "same_day"
-            ? language === "he"
-              ? "בחרו יום יעד אחר."
-              : "Please choose a different target date."
+            ? t("ui.daySessions.pleaseChooseADifferentTargetDate2")
             : code;
-      showError(language === "he" ? "לא ניתן לשכפל" : "Could not duplicate", msg);
+      showError(t("ui.daySessions.couldNotDuplicate"), msg);
       return;
     }
     // Capture created IDs so we can undo by deleting them.
@@ -343,7 +339,7 @@ export function DaySessionsSheet({
       onChanged?.();
     } catch (e) {
       const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : String(e);
-      showError(language === "he" ? "לא ניתן לבטל" : "Could not undo", appendNetworkHint(msg, offlineHint));
+      showError(t("ui.daySessions.couldNotUndo"), appendNetworkHint(msg, offlineHint));
     } finally {
       setBulkBusy(false);
     }
@@ -448,7 +444,7 @@ export function DaySessionsSheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalRoot}>
-        <Pressable style={styles.backdropFill} onPress={onClose} accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"} />
+        <Pressable style={styles.backdropFill} onPress={onClose} accessibilityLabel={t("ui.daySessions.dismiss")} />
         <View style={styles.sheet}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -458,24 +454,18 @@ export function DaySessionsSheet({
           >
             <View style={styles.sheetHeader}>
               <View style={styles.handle} />
-              <View style={[styles.titleRow, isRTL && styles.titleRowRtl]}>
+              <View style={[styles.titleRow, rowFlipFor(isRTL) && styles.titleRowRtl]}>
                 <View style={styles.titleBlock}>
                   <Text style={[styles.sheetTitle, isRTL && styles.rtlText]}>{title}</Text>
                   {items.length > 0 ? (
                     <Text style={[styles.sessionCount, isRTL && styles.rtlText]}>
-                      {language === "he"
-                        ? `${items.length} אימונים`
-                        : `${items.length} session${items.length === 1 ? "" : "s"}`}
+                      {pluralKey(t, "ui.daySessions.sessionCount", items.length).replace("{n}", String(items.length))}
                     </Text>
                   ) : (
                     <Text style={[styles.sessionCount, isRTL && styles.rtlText]}>
                       {isStaff
-                        ? language === "he"
-                          ? "אין אימונים"
-                          : "No sessions"
-                        : language === "he"
-                          ? "אין אימונים פתוחים"
-                          : "No open sessions"}
+                        ? t("ui.daySessions.noSessions")
+                        : t("ui.daySessions.noOpenSessions")}
                     </Text>
                   )}
                 </View>
@@ -483,10 +473,10 @@ export function DaySessionsSheet({
                   onPress={onClose}
                   style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.75 }]}
                   accessibilityRole="button"
-                  accessibilityLabel={language === "he" ? "סגור" : "Close"}
+                  accessibilityLabel={t("ui.daySessions.close")}
                   hitSlop={12}
                 >
-                  <Text style={styles.closeBtnTxt}>✕</Text>
+                  <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
                 </Pressable>
               </View>
             </View>
@@ -497,7 +487,7 @@ export function DaySessionsSheet({
                 onPress={onAddSession}
               >
                 <Text style={styles.addSessionCtaTxt}>
-                  {language === "he" ? "הוספת אימון" : "Add session"}
+                  {t("ui.daySessions.addSession")}
                 </Text>
               </Pressable>
             ) : null}
@@ -510,12 +500,12 @@ export function DaySessionsSheet({
                     key={n.id}
                     style={[styles.studioNoteCard, { borderColor: studioCalendarNoteAccent(n.kind).border }]}
                   >
-                    <View style={[styles.studioNoteTop, isRTL && styles.studioNoteTopRtl]}>
+                    <View style={[styles.studioNoteTop, rowFlipFor(isRTL) && styles.studioNoteTopRtl]}>
                       <Text style={[styles.studioNoteEyebrow, isRTL && styles.rtlText]} numberOfLines={1}>
                         {t(kindTKey(n.kind))}, {t(audienceTKey(n.audience))}
                       </Text>
                       {isManager ? (
-                        <View style={[styles.studioNoteActions, isRTL && styles.studioNoteActionsRtl]}>
+                        <View style={[styles.studioNoteActions, rowFlipFor(isRTL) && styles.studioNoteActionsRtl]}>
                           <Pressable
                             onPress={() => openEditStudioNote(n)}
                             style={({ pressed }) => [styles.studioNoteMiniBtn, pressed && { opacity: 0.85 }]}
@@ -629,7 +619,7 @@ export function DaySessionsSheet({
                   value={nfTitle}
                   onChangeText={setNfTitle}
                   style={[styles.studioNoteInput, styles.studioNoteInputTitle]}
-                  placeholderTextColor={theme.colors.placeholderOnLight}
+                  placeholderTextColor={theme.colors.fieldPlaceholder}
                   editable={!noteBusy}
                 />
                 <Text style={[styles.studioNoteFormLabel, isRTL && styles.rtlText]}>{t("calendarNotes.fieldDetail")}</Text>
@@ -638,7 +628,7 @@ export function DaySessionsSheet({
                   onChangeText={setNfDetail}
                   style={[styles.studioNoteInput, styles.studioNoteInputMulti, isRTL && styles.rtlText]}
                   multiline
-                  placeholderTextColor={theme.colors.placeholderOnLight}
+                  placeholderTextColor={theme.colors.fieldPlaceholder}
                   editable={!noteBusy}
                 />
                 <DateRangeFormPanel
@@ -650,7 +640,7 @@ export function DaySessionsSheet({
                   onEndChange={setNfEnd}
                 />
                 <Text style={[styles.studioNoteFormLabel, isRTL && styles.rtlText]}>{t("calendarNotes.fieldKind")}</Text>
-                <View style={[styles.chipRow, isRTL && styles.chipRowRtl]}>
+                <View style={[styles.chipRow, rowFlipFor(isRTL) && styles.chipRowRtl]}>
                   {(["holiday", "closure", "info"] as const).map((k) => {
                     const acc = studioCalendarNoteAccent(k);
                     return (
@@ -669,7 +659,7 @@ export function DaySessionsSheet({
                   })}
                 </View>
                 <Text style={[styles.studioNoteFormLabel, isRTL && styles.rtlText]}>{t("calendarNotes.fieldAudience")}</Text>
-                <View style={[styles.chipRow, isRTL && styles.chipRowRtl]}>
+                <View style={[styles.chipRow, rowFlipFor(isRTL) && styles.chipRowRtl]}>
                   {(["all", "athletes", "staff"] as const).map((a) => (
                     <Pressable
                       key={a}
@@ -701,14 +691,14 @@ export function DaySessionsSheet({
             {isManager && undo ? (
               <View style={styles.undoBar}>
                 <Text style={styles.undoBarTxt} numberOfLines={1} ellipsizeMode="tail">
-                  {language === "he" ? "בוצעה פעולה." : "Action completed."}
+                  {t("ui.daySessions.actionCompleted")}
                 </Text>
                 <Pressable
                   style={({ pressed }) => [styles.undoBarBtn, pressed && { opacity: 0.9 }, bulkBusy && { opacity: 0.6 }]}
                   onPress={() => void undoLastAction()}
                   disabled={bulkBusy}
                 >
-                  <Text style={styles.undoBarBtnTxt}>{language === "he" ? "ביטול" : "Undo"}</Text>
+                  <Text style={styles.undoBarBtnTxt}>{t("ui.daySessions.undo")}</Text>
                 </Pressable>
               </View>
             ) : null}
@@ -716,9 +706,7 @@ export function DaySessionsSheet({
             {isManager && Platform.OS === "web" && pendingClearDay ? (
               <View style={styles.webConfirmBanner}>
                 <Text style={[styles.webConfirmTxt, isRTL && styles.rtlText]}>
-                  {language === "he"
-                    ? "למחוק את כל האימונים ביום? ההרשמות יימחקו."
-                    : "Delete all sessions this day? Registrations will be removed."}
+                  {t("ui.daySessions.deleteAllSessionsThisDayRegistrations")}
                 </Text>
                 <View style={styles.webConfirmBtns}>
                   <Pressable
@@ -726,7 +714,7 @@ export function DaySessionsSheet({
                     onPress={() => setPendingClearDay(false)}
                     disabled={bulkBusy}
                   >
-                    <Text style={styles.webConfirmGhostTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                    <Text style={styles.webConfirmGhostTxt}>{t("ui.daySessions.cancel")}</Text>
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [styles.webConfirmDanger, pressed && { opacity: 0.9 }]}
@@ -736,7 +724,7 @@ export function DaySessionsSheet({
                     {bulkBusy ? (
                       <ActivityIndicator color={theme.colors.white} size="small" />
                     ) : (
-                      <Text style={styles.webConfirmDangerTxt}>{language === "he" ? "מחק הכל" : "Delete all"}</Text>
+                      <Text style={styles.webConfirmDangerTxt}>{t("ui.daySessions.deleteAll")}</Text>
                     )}
                   </Pressable>
                 </View>
@@ -747,7 +735,7 @@ export function DaySessionsSheet({
 
             {isManager ? (
               <View style={styles.dayToolsBlock}>
-                <View style={[styles.dayToolsRow, isRTL && styles.dayToolsRowRtl]}>
+                <View style={[styles.dayToolsRow, rowFlipFor(isRTL) && styles.dayToolsRowRtl]}>
                   <Pressable
                     onPress={() => setDupOpen(true)}
                     disabled={bulkBusy}
@@ -758,7 +746,7 @@ export function DaySessionsSheet({
                     ]}
                   >
                     <Text style={styles.dayToolChipTxt} numberOfLines={1}>
-                      {language === "he" ? "שכפול יום" : "Duplicate day"}
+                      {t("ui.daySessions.duplicateDay")}
                     </Text>
                   </Pressable>
                   {onCalendarNotesChanged ? (
@@ -783,7 +771,7 @@ export function DaySessionsSheet({
                   ]}
                 >
                   <Text style={styles.dayToolChipDangerTxt} numberOfLines={1}>
-                    {language === "he" ? "ניקוי כל האימונים ביום" : "Clear all sessions this day"}
+                    {t("ui.daySessions.clearAllSessionsThisDay")}
                   </Text>
                 </Pressable>
               </View>
@@ -795,23 +783,21 @@ export function DaySessionsSheet({
               <Pressable
                 style={styles.dupBackdrop}
                 onPress={() => setDupOpen(false)}
-                accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+                accessibilityLabel={t("ui.daySessions.dismiss")}
               />
               <View style={styles.dupCard}>
-                <Text style={styles.dupTitle}>{language === "he" ? "שכפול כל האימונים ליום אחר" : "Duplicate all sessions to another day"}</Text>
+                <Text style={styles.dupTitle}>{t("ui.daySessions.duplicateAllSessionsToAnotherDay")}</Text>
                 <Text style={styles.dupSub}>
-                  {language === "he"
-                    ? "האימונים ישוכפלו בלי נרשמים ועם הרשמה סגורה (ייפתח לפי חוק פתיחת ההרשמה השבועי)."
-                    : "Sessions will be duplicated without participants and with registration closed (opens by weekly opening rule)."}
+                  {t("ui.daySessions.sessionsWillBeDuplicatedWithoutParticipants")}
                 </Text>
                 <DatePickerField
-                  label={language === "he" ? "תאריך יעד" : "Target date"}
+                  label={t("ui.daySessions.targetDate")}
                   value={dupToDate}
                   onChange={setDupToDate}
                 />
                 <View style={styles.dupBtns}>
                   <Pressable style={({ pressed }) => [styles.dupGhost, pressed && { opacity: 0.9 }]} onPress={() => setDupOpen(false)}>
-                    <Text style={styles.dupGhostTxt}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                    <Text style={styles.dupGhostTxt}>{t("ui.daySessions.cancel")}</Text>
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [styles.dupCta, pressed && { opacity: 0.9 }]}
@@ -821,7 +807,7 @@ export function DaySessionsSheet({
                     {bulkBusy ? (
                       <ActivityIndicator color={theme.colors.ctaText} size="small" />
                     ) : (
-                      <Text style={styles.dupCtaTxt}>{language === "he" ? "שכפול" : "Duplicate"}</Text>
+                      <Text style={styles.dupCtaTxt}>{t("ui.daySessions.duplicate")}</Text>
                     )}
                   </Pressable>
                 </View>
@@ -846,6 +832,9 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   sheet: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.sheetMaxWidth,
+    alignSelf: "center",
     zIndex: 2,
     position: "relative",
     backgroundColor: theme.colors.backgroundAlt,
@@ -877,8 +866,7 @@ const styles = StyleSheet.create({
   titleBlock: { flex: 1, minWidth: 0 },
   sessionCount: {
     marginTop: 4,
-    fontSize: 13,
-    fontWeight: "600",
+    ...theme.typography.caption,
     color: theme.colors.textSoft,
   },
   closeBtn: {
@@ -1011,7 +999,6 @@ const styles = StyleSheet.create({
   },
   deleteBannerTxt: { fontSize: 13, fontWeight: "700", color: theme.colors.text, textAlign: "center" },
   deleteBannerRow: { flexDirection: "row", justifyContent: "center", gap: 20 },
-  deleteBannerRowRtl: { flexDirection: "row-reverse" },
   deleteBannerCancel: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 14 },
   deleteBannerOk: { color: theme.colors.error, fontWeight: "800", fontSize: 14 },
   undoBar: {
@@ -1057,7 +1044,7 @@ const styles = StyleSheet.create({
   studioNoteMiniBtnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.cta },
   studioNoteMiniBtnDanger: { paddingVertical: 4, paddingHorizontal: 8 },
   studioNoteMiniBtnDangerTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.error },
-  studioNoteTitle: { fontSize: 15, fontWeight: "900", color: theme.colors.text, textAlign: "center", width: "100%" },
+  studioNoteTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text, textAlign: "center", width: "100%" },
   studioNoteRange: { fontSize: 12, fontWeight: "600", color: theme.colors.textMuted },
   studioNoteDetail: { marginTop: 4, fontSize: 13, lineHeight: 18, color: theme.colors.textMuted, fontWeight: "600" },
   studioNoteManagerBar: { marginBottom: theme.spacing.sm },
@@ -1104,7 +1091,7 @@ const styles = StyleSheet.create({
   },
   chipOn: { borderColor: theme.colors.cta, backgroundColor: theme.colors.surfaceElevated },
   chipKindOn: { backgroundColor: theme.colors.surfaceElevated, borderWidth: 2 },
-  chipTxt: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted },
+  chipTxt: { ...theme.typography.label, color: theme.colors.textMuted },
   chipTxtOn: { color: theme.colors.text },
   studioNoteSaveBtn: {
     marginTop: 8,
@@ -1113,18 +1100,21 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     alignItems: "center",
   },
-  studioNoteSaveBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 14 },
+  studioNoteSaveBtnTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 14 },
 
   dupModalRoot: { flex: 1, justifyContent: "center", padding: theme.spacing.lg },
   dupBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.55)" },
   dupCard: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.dialogMaxWidth,
+    alignSelf: "center",
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.xl,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     padding: theme.spacing.lg,
   },
-  dupTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text, textAlign: "center" },
+  dupTitle: { ...theme.typography.title, color: theme.colors.text, textAlign: "center" },
   dupSub: { marginTop: 6, fontSize: 13, color: theme.colors.textMuted, textAlign: "center" },
   dupBtns: { flexDirection: "row", gap: 10, marginTop: theme.spacing.md },
   dupGhost: {
@@ -1138,5 +1128,5 @@ const styles = StyleSheet.create({
   },
   dupGhostTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
   dupCta: { flex: 1, backgroundColor: theme.colors.cta, paddingVertical: 12, borderRadius: theme.radius.md, alignItems: "center" },
-  dupCtaTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 14, letterSpacing: 0.2 },
+  dupCtaTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 14, letterSpacing: 0.2 },
 });

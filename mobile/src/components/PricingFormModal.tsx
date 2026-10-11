@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { AppModal } from "./AppModal";
 import { PrimaryButton } from "./PrimaryButton";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 type Props = {
   visible: boolean;
@@ -37,17 +39,18 @@ export function PricingFormModal({
       maxHeightPct={0.85}
       backdropAccessibilityLabel={cancelLabel}
     >
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
         <Text style={[styles.title, isRTL && styles.rtl]} numberOfLines={2}>
           {title}
         </Text>
         <Pressable
           onPress={onClose}
           style={({ pressed }) => [styles.close, pressed && { opacity: 0.85 }]}
+          hitSlop={4}
           accessibilityRole="button"
           accessibilityLabel={cancelLabel}
         >
-          <Text style={styles.closeTxt}>✕</Text>
+          <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
         </Pressable>
       </View>
       <ScrollView
@@ -86,7 +89,7 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.borderMuted,
   },
   headerRtl: { flexDirection: "row-reverse" },
-  title: { flex: 1, fontSize: 18, fontWeight: "800", color: theme.colors.text },
+  title: { flex: 1, ...theme.typography.headline, color: theme.colors.text },
   close: {
     width: 36,
     height: 36,
@@ -97,7 +100,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  closeTxt: { fontSize: 16, fontWeight: "700", color: theme.colors.textMuted },
+  closeTxt: { ...theme.typography.title, color: theme.colors.textMuted },
   scroll: { flexGrow: 0 },
   scrollContent: { padding: theme.spacing.md, gap: 12, paddingBottom: theme.spacing.sm },
   footer: {

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { theme } from "../theme";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 type Props = {
   title: string;
@@ -30,7 +31,7 @@ export function PricingSection({
 
   return (
     <View style={styles.section}>
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
         <Text style={[styles.title, isRTL && styles.rtl]}>{title}</Text>
         {count !== undefined && count > 0 ? (
           <View style={styles.countBadge}>
@@ -74,8 +75,7 @@ const styles = StyleSheet.create({
   headerRtl: { flexDirection: "row-reverse" },
   title: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: "800",
+    ...theme.typography.title,
     color: theme.colors.text,
     letterSpacing: 0.15,
   },

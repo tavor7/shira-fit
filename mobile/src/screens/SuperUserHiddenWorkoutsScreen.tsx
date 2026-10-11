@@ -12,17 +12,22 @@ import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { formatISODateFull } from "../lib/dateFormat";
-import { formatSessionTimeRange } from "../lib/sessionTime";
+
 import { athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
 import { globalOverviewRangeISO } from "../lib/managerPeriodMode";
 import { isValidISODateString } from "../lib/isoDate";
 import { parseMoney } from "../lib/participantHistoryHelpers";
 import type { SuperUserHiddenRecord } from "../types/database";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayTimeRange, displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { selectionA11y } from "../lib/a11ySelection";
 
 type AthletePickerRow = { user_id: string; full_name: string; phone: string };
 
 export default function SuperUserHiddenWorkoutsScreen() {
   const { t, isRTL, language } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
   const { start: presetStart, end: presetEnd } = useLocalSearchParams<{ start?: string; end?: string }>();
@@ -162,15 +167,15 @@ export default function SuperUserHiddenWorkoutsScreen() {
           setPickerOpen(false);
           setPickerQ("");
         }}
-        title={language === "he" ? "מתאמנים" : "Athletes"}
+        title={t("ui.superUserHiddenWorkouts.athletes")}
         dismissLabel={t("common.ok")}
         isRTL={isRTL}
-        backdropAccessibilityLabel={language === "he" ? "סגירה" : "Dismiss"}
+        backdropAccessibilityLabel={t("ui.superUserHiddenWorkouts.dismiss")}
         searchConfig={{
           value: pickerQ,
           onChangeText: setPickerQ,
           onSearch: (term) => void loadAthletes(term),
-          placeholder: language === "he" ? "חיפוש שם / משתמש / טלפון…" : "Search name / username / phone…",
+          placeholder: t("ui.superUserHiddenWorkouts.searchNameUsernamePhone"),
           loading: athletesLoading,
         }}
         data={athletes}
@@ -188,14 +193,14 @@ export default function SuperUserHiddenWorkoutsScreen() {
             <Text style={styles.pickerItemSub}>{athleteSearchSubtitle(item.phone)}</Text>
           </Pressable>
         )}
-        ListEmptyComponent={<EmptyState icon="🔍" title={t("participantHistory.noAthletes")} isRTL={isRTL} />}
+        ListEmptyComponent={<EmptyState icon="search-outline" title={t("participantHistory.noAthletes")} isRTL={isRTL} />}
       />
 
       <FlatList
         style={styles.list}
         data={loading ? [] : rows}
         keyExtractor={(row) => row.hide_id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, screenContent]}
         ListHeaderComponent={
           <>
             <View style={styles.filters}>
@@ -229,9 +234,9 @@ export default function SuperUserHiddenWorkoutsScreen() {
                 </Pressable>
               ) : null}
 
-              <View style={[styles.scopeChipsRow, isRTL && styles.scopeChipsRowRtl]}>
+              <View style={[styles.scopeChipsRow, rowFlipFor(isRTL) && styles.scopeChipsRowRtl]}>
                 <Text style={[styles.scopeCardTitle, isRTL && styles.rtlText]}>{t("superUser.scopeGlobalTitle")}</Text>
-                <View style={[styles.scopeChipGroup, isRTL && styles.scopeChipGroupRtl]}>
+                <View style={[styles.scopeChipGroup, rowFlipFor(isRTL) && styles.scopeChipGroupRtl]}>
                   {(["athlete", "coach", "manager"] as const).map((key) => {
                     const on = globalScope[key];
                     const busy = scopeBulkBusy === key;
@@ -243,8 +248,7 @@ export default function SuperUserHiddenWorkoutsScreen() {
                         key={key}
                         disabled={rows.length === 0 || scopeBulkBusy !== null}
                         onPress={() => void setGlobalScope(key, !on)}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: on }}
+                        {...selectionA11y("checkbox", on)}
                         accessibilityLabel={label}
                         style={({ pressed }) => [
                           styles.scopeToggleChip,
@@ -274,7 +278,7 @@ export default function SuperUserHiddenWorkoutsScreen() {
                 </View>
                 <View style={styles.totalsCell}>
                   <Text style={styles.totalsLabel}>{t("superUser.totalMoney")}</Text>
-                  <Text style={styles.totalsValue}>{`${totals.totalIls} ₪`}</Text>
+                  <Text style={styles.totalsValue}>{displayMoney(totals.totalIls)}</Text>
                 </View>
               </View>
             ) : null}
@@ -293,7 +297,7 @@ export default function SuperUserHiddenWorkoutsScreen() {
             return (
             <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
               <View style={styles.card}>
-                <View style={[styles.cardHead, isRTL && styles.cardHeadRtl]}>
+                <View style={[styles.cardHead, rowFlipFor(isRTL) && styles.cardHeadRtl]}>
                   <Text style={[styles.athleteName, isRTL && styles.rtlText]} numberOfLines={1}>
                     {item.athlete_name}
                   </Text>
@@ -305,12 +309,12 @@ export default function SuperUserHiddenWorkoutsScreen() {
                 </View>
                 <Text style={[styles.meta, isRTL && styles.rtlText]} numberOfLines={1}>
                   {formatISODateFull(item.session_date, language)} ·{" "}
-                  {formatSessionTimeRange(item.start_time, item.duration_minutes)}
+                  {displayTimeRange(item.start_time, item.duration_minutes)}
                   {item.coach_name ? ` · ${item.coach_name}` : ""}
                 </Text>
-                <View style={[styles.cardFooter, isRTL && styles.cardFooterRtl]}>
+                <View style={[styles.cardFooter, rowFlipFor(isRTL) && styles.cardFooterRtl]}>
                   <Text style={[styles.expected, isRTL && styles.rtlText]}>
-                    {parseMoney(item.expected_ils) ?? 0} ₪
+                    {displayMoney(parseMoney(item.expected_ils) ?? 0)}
                   </Text>
                   <Text style={[styles.metaMuted, isRTL && styles.rtlText]} numberOfLines={1}>
                     {formatISODateFull(item.hidden_at.slice(0, 10), language)}
@@ -333,7 +337,7 @@ export default function SuperUserHiddenWorkoutsScreen() {
             );
           }
         }
-        ListEmptyComponent={loading ? null : <EmptyState icon="👁️" title={t("superUser.noRecords")} isRTL={isRTL} />}
+        ListEmptyComponent={loading ? null : <EmptyState icon="eye-outline" title={t("superUser.noRecords")} isRTL={isRTL} />}
       />
     </View>
   );
@@ -368,11 +372,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   scopeChipsRowRtl: { flexDirection: "row-reverse" },
-  scopeCardTitle: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 12 },
+  scopeCardTitle: { color: theme.colors.textMuted, ...theme.typography.label, },
   scopeChipGroup: { flexDirection: "row", gap: 6 },
   scopeChipGroupRtl: { flexDirection: "row-reverse" },
   scopeToggleChip: {
     minWidth: 40,
+    minHeight: theme.controls.buttonCompactHeight,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,
@@ -383,7 +388,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   scopeToggleChipOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  scopeToggleChipTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 12 },
+  scopeToggleChipTxt: { color: theme.colors.text, ...theme.typography.label, },
   scopeToggleChipTxtOn: { color: theme.colors.ctaText },
   totalsBar: {
     flexDirection: "row",
@@ -403,7 +408,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
-  totalsValue: { marginTop: 3, fontSize: 18, fontWeight: "900", color: theme.colors.text },
+  totalsValue: { marginTop: 3, ...theme.typography.headline, color: theme.colors.text },
   loadingStack: { padding: theme.spacing.md, gap: theme.spacing.sm },
   listContent: { padding: theme.spacing.md, paddingTop: 0, gap: theme.spacing.sm, paddingBottom: theme.spacing.xl },
   card: {
@@ -416,7 +421,7 @@ const styles = StyleSheet.create({
   },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: theme.spacing.sm },
   cardHeadRtl: { flexDirection: "row-reverse" },
-  athleteName: { color: theme.colors.text, fontWeight: "900", fontSize: 16, flex: 1 },
+  athleteName: { color: theme.colors.text, fontWeight: "800", fontSize: 16, flex: 1 },
   badge: {
     paddingVertical: 3,
     paddingHorizontal: 8,
@@ -435,7 +440,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   cardFooterRtl: { flexDirection: "row-reverse" },
-  expected: { color: theme.colors.text, fontSize: 15, fontWeight: "900" },
+  expected: { color: theme.colors.text, fontSize: 15, fontWeight: "800" },
   metaMuted: { color: theme.colors.textMuted, fontSize: 11, flexShrink: 1 },
   unhideBtn: {
     marginTop: 8,

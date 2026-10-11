@@ -6,6 +6,9 @@ import type { PricingListRow, PricingListCluster, PricingRateTierRow } from "../
 import { clusterPricingListRows, formatPricingEffectiveRange } from "../lib/pricingRates";
 import { PricingRowMoreMenu } from "./PricingRowMoreMenu";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
+import { pluralKey } from "../lib/pluralKey";
 
 type Props<T extends PricingRateTierRow> = {
   rows: PricingListRow<T>[];
@@ -24,7 +27,7 @@ type Props<T extends PricingRateTierRow> = {
 
 function priceLabel(row: PricingRateTierRow) {
   const n = Number(row.price_ils);
-  return Number.isFinite(n) ? `${n} ₪` : `${row.price_ils}`;
+  return Number.isFinite(n) ? displayMoney(n) : `${row.price_ils}`;
 }
 
 function RatePeriodLines({
@@ -46,7 +49,7 @@ function RatePeriodLines({
       : null;
 
   return (
-    <View style={[styles.rateTextCol, isRTL && styles.rateTextColRtl]}>
+    <View style={[styles.rateTextCol, rowFlipFor(isRTL) && styles.rateTextColRtl]}>
       <Text style={[styles.tierLine, isRTL && styles.rtl]} numberOfLines={2}>
         {tierLine}
       </Text>
@@ -87,7 +90,7 @@ function RateRowCard<T extends PricingRateTierRow>({
   muted?: boolean;
 }) {
   return (
-    <View style={[styles.rateCard, muted && styles.rateCardMuted, isRTL && styles.rateCardRtl]}>
+    <View style={[styles.rateCard, muted && styles.rateCardMuted, rowFlipFor(isRTL) && styles.rateCardRtl]}>
       <RatePeriodLines
         period={period}
         tierLine={tierLine}
@@ -142,7 +145,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
   const collapsibleHeader = clusterMode === "title" || multi;
   const expandLabel = expanded ? t("pricing.collapseRates") : t("pricing.expandRates");
   const presentLabel = t("pricing.effectivePresent");
-  const ratesMeta = t("pricing.ratesCount").replace(/\{n\}/g, String(cluster.items.length));
+  const ratesMeta = pluralKey(t, "pricing.ratesCount", cluster.items.length).replace(/\{n\}/g, String(cluster.items.length));
 
   const tierLineForItem = (item: PricingListRow<T>) => {
     const tier = item.subtitle ?? (clusterMode === "groupKey" ? item.title : null);
@@ -153,12 +156,12 @@ function ClusterBlock<T extends PricingRateTierRow>({
   return (
     <View style={styles.cluster}>
       {collapsibleHeader ? (
-        <View style={[styles.header, isRTL && styles.headerRtl]}>
+        <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
           <Pressable
             onPress={() => setExpanded((e) => !e)}
             style={({ pressed }) => [
               styles.headerMain,
-              isRTL && styles.headerMainRtl,
+              rowFlipFor(isRTL) && styles.headerMainRtl,
               pressed && { opacity: 0.9 },
             ]}
             accessibilityRole="button"

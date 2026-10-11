@@ -24,6 +24,7 @@ import { staffMoveSessionParticipant } from "../lib/staffMoveParticipant";
 import { moveParticipantErrorDetail } from "../lib/moveParticipantErrors";
 import { attemptWithSubscriptionConsent } from "../lib/subscriptionLimitConsent";
 import { promptMoveParticipantAcceptExtraSubscriptionCharge } from "../lib/moveParticipantSubscriptionWarning";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 export type MoveParticipantTarget = {
   kind: "registered" | "manual";
@@ -292,7 +293,7 @@ export function MoveParticipantSheet({
       </Text>
       <Text style={[styles.confirmCoach, isRTL && styles.rtlText]}>{picked.coachName}</Text>
       {preview ? (
-        <View style={[styles.previewRow, isRTL && styles.previewRowRtl]}>
+        <View style={[styles.previewRow, rowFlipFor(isRTL) && styles.previewRowRtl]}>
           <View style={styles.previewCell}>
             <Text style={[styles.previewLbl, isRTL && styles.rtlText]}>{t("moveParticipant.from")}</Text>
             <Text style={styles.previewVal}>
@@ -368,7 +369,7 @@ export function MoveParticipantSheet({
       maxHeightPct={0.88}
       backdropAccessibilityLabel={t("common.cancel")}
     >
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>{t("moveParticipant.title")}</Text>
         <Pressable onPress={handleClose} hitSlop={12} disabled={moving}>
           <Text style={styles.close}>{t("common.cancel")}</Text>
@@ -399,7 +400,7 @@ export function MoveParticipantSheet({
                 style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
                 accessibilityRole="button"
               >
-                <View style={[styles.rowMain, isRTL && styles.rowMainRtl]}>
+                <View style={[styles.rowMain, rowFlipFor(isRTL) && styles.rowMainRtl]}>
                   <Text style={[styles.rowDate, isRTL && styles.rtlText]}>
                     {formatISODateWeekdayDayMonth(item.session_date, language)}
                   </Text>
@@ -436,12 +437,12 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.borderMuted,
   },
   headerRtl: { flexDirection: "row-reverse" },
-  title: { fontSize: 18, fontWeight: "800", color: theme.colors.text, flex: 1 },
+  title: { ...theme.typography.headline, color: theme.colors.text, flex: 1 },
   close: { fontSize: 15, fontWeight: "700", color: theme.colors.textMuted },
   rtlText: { textAlign: "right", writingDirection: "rtl" },
   listContent: { paddingBottom: theme.spacing.lg },
   listHeader: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.sm, gap: 4 },
-  participantName: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  participantName: { ...theme.typography.title, color: theme.colors.text },
   hint: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 18 },
   row: {
     flexDirection: "row",
@@ -460,7 +461,7 @@ const styles = StyleSheet.create({
   rowMain: { flex: 1, minWidth: 0, gap: 2 },
   rowMainRtl: { alignItems: "flex-end" },
   rowDate: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
-  rowTime: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  rowTime: { ...theme.typography.caption, color: theme.colors.textMuted },
   rowCoach: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
   countChip: {
     paddingHorizontal: 10,
@@ -476,9 +477,9 @@ const styles = StyleSheet.create({
   empty: { textAlign: "center", color: theme.colors.textMuted, fontWeight: "600", padding: theme.spacing.lg },
   center: { padding: theme.spacing.xl, alignItems: "center" },
   confirmBlock: { padding: theme.spacing.md, gap: theme.spacing.sm },
-  confirmTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  confirmTitle: { ...theme.typography.title, color: theme.colors.text },
   confirmSession: { fontSize: 15, fontWeight: "700", color: theme.colors.text },
-  confirmCoach: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  confirmCoach: { ...theme.typography.caption, color: theme.colors.textMuted },
   previewRow: { flexDirection: "row", gap: 10, marginTop: 4 },
   previewRowRtl: { flexDirection: "row-reverse" },
   previewCell: {

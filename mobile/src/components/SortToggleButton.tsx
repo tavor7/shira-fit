@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 type SortOrder = "asc" | "desc";
 
@@ -17,7 +18,7 @@ export function SortToggleButton({ value, onChange, ascLabel, descLabel }: Props
   return (
     <Pressable
       onPress={() => onChange(value === "asc" ? "desc" : "asc")}
-      style={({ pressed }) => [styles.btn, isRTL && styles.btnRtl, pressed && styles.btnPressed]}
+      style={({ pressed }) => [styles.btn, rowFlipFor(isRTL) && styles.btnRtl, pressed && styles.btnPressed]}
     >
       <Text style={styles.arrow}>{value === "asc" ? "↑" : "↓"}</Text>
       <Text style={[styles.label, isRTL && styles.rtl]} numberOfLines={1}>
@@ -42,7 +43,7 @@ const styles = StyleSheet.create({
   },
   btnRtl: { flexDirection: "row-reverse" },
   btnPressed: { opacity: 0.88 },
-  arrow: { fontSize: 13, fontWeight: "900", color: theme.colors.text },
+  arrow: { fontSize: 13, fontWeight: "800", color: theme.colors.text },
   label: { fontSize: 12, fontWeight: "800", color: theme.colors.text },
   rtl: { textAlign: "right", writingDirection: "rtl" },
 });

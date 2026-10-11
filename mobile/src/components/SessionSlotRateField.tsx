@@ -3,6 +3,8 @@ import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
 
 type Props = {
   value: string;
@@ -20,9 +22,7 @@ type Props = {
 };
 
 function formatIls(n: number, language: string): string {
-  const rounded = Math.round(n * 100) / 100;
-  const s = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
-  return language === "he" ? `${s} ₪` : `₪${s}`;
+  return displayMoney(n);
 }
 
 function resolveDisplayPrice(
@@ -78,13 +78,13 @@ export function SessionSlotRateField({
     <View style={layout === "form" ? styles.cardForm : styles.cardStandalone}>
       <Pressable
         onPress={() => setExpanded((e) => !e)}
-        style={({ pressed }) => [styles.header, isRTL && styles.headerRtl, pressed && { opacity: 0.9 }]}
+        style={({ pressed }) => [styles.header, rowFlipFor(isRTL) && styles.headerRtl, pressed && { opacity: 0.9 }]}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel={`${t("managerSession.customSlotPriceTitle")}. ${summaryText}`}
       >
         <Text style={[styles.title, isRTL && styles.rtlText]}>{t("managerSession.customSlotPriceTitle")}</Text>
-        <View style={[styles.headerEnd, isRTL && styles.headerEndRtl]}>
+        <View style={[styles.headerEnd, rowFlipFor(isRTL) && styles.headerEndRtl]}>
           <Text style={[styles.summary, isRTL && styles.rtlText]} numberOfLines={1}>
             {summaryText}
           </Text>
@@ -102,16 +102,16 @@ export function SessionSlotRateField({
               {t("managerSession.customSlotPriceTierShort").replace("{amount}", formatIls(tierPriceIls, language))}
             </Text>
           ) : null}
-          <View style={[styles.inputRow, isRTL && styles.inputRowRtl]}>
+          <View style={[styles.inputRow, rowFlipFor(isRTL) && styles.inputRowRtl]}>
             <TextInput
               style={[styles.input, isRTL && styles.inputRtl, disabled && styles.inputDisabled]}
               value={value}
               onChangeText={onChangeValue}
               keyboardType="decimal-pad"
               placeholder={
-                tierPriceIls != null ? String(tierPriceIls) : language === "he" ? "תעריף" : "Rate"
+                tierPriceIls != null ? String(tierPriceIls) : t("ui.sessionSlotRateField.rate")
               }
-              placeholderTextColor={theme.colors.placeholderOnLight}
+              placeholderTextColor={theme.colors.fieldPlaceholder}
               editable={!disabled && !applyBusy}
             />
             <Text style={styles.currency}>₪</Text>
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
-    minHeight: 36,
+    minHeight: theme.controls.minTouch,
   },
   headerRtl: { flexDirection: "row-reverse" },
   title: {
@@ -190,8 +190,7 @@ const styles = StyleSheet.create({
   },
   headerEndRtl: { flexDirection: "row-reverse", justifyContent: "flex-start" },
   summary: {
-    fontSize: 13,
-    fontWeight: "600",
+    ...theme.typography.caption,
     color: theme.colors.textMuted,
     flexShrink: 1,
   },
@@ -233,6 +232,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     paddingHorizontal: 10,
     paddingVertical: 8,
+    minHeight: theme.controls.minTouch,
     fontSize: 15,
     fontWeight: "600",
     color: theme.colors.text,
@@ -248,6 +248,8 @@ const styles = StyleSheet.create({
   applyBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
+    minHeight: theme.controls.minTouch,
+    justifyContent: "center",
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.cta,
   },
@@ -263,8 +265,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   clearBtnTxt: {
-    fontSize: 12,
-    fontWeight: "700",
+    ...theme.typography.label,
     color: theme.colors.cta,
   },
   rtlText: { writingDirection: "rtl", textAlign: "right" },

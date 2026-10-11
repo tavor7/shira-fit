@@ -1,10 +1,13 @@
 import { useEffect } from "react";
 import { Stack, Redirect, usePathname, type Href } from "expo-router";
-import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
 import { syncExpoPushTokenIfNeeded } from "../../src/lib/pushTokenSync";
 import { syncWebPushSubscriptionIfNeeded } from "../../src/lib/webPushSync";
 import { AppHeaderRight } from "../../src/components/AppHeaderRight";
+import { AppHeaderTitle } from "../../src/components/AppHeaderTitle";
+import { StaffSideRail } from "../../src/components/StaffSideRail";
+import { useStaffRailVisible } from "../../src/hooks/useStaffRail";
 import { AppHeaderLeft } from "../../src/components/AppHeaderLeft";
 import { theme } from "../../src/theme";
 import { appHeaderStyle, appHeaderTitleStyle } from "../../src/theme/headerStyles";
@@ -34,6 +37,7 @@ export default function AppLayout() {
   const { t } = useI18n();
   const pathname = usePathname() ?? "";
   const { enabled: managerAthletePreview, storageReady: managerPreviewStorageReady } = useManagerAthletePreview();
+  const staffRail = useStaffRailVisible();
   useAndroidSessionsBackHandler(!!session && !loading && !authUnavailable);
 
   /**
@@ -137,10 +141,16 @@ export default function AppLayout() {
       <ReceiptRequirementsGateModal />
       <NotificationActivationModal />
       <ManagerDirectMessageModal />
+      {/* Phase 5 / D: persistent staff navigation beside the screens on wide web; mirrors in Hebrew via <html dir>. */}
+      <View style={styles.shell}>
+      {staffRail ? <StaffSideRail /> : null}
+      <View style={styles.stackArea}>
       <Stack
       screenOptions={{
         headerShown: true,
-        headerTitle: "",
+        // Page title from each screen's `title` option (Phase 5 / A); route names without a title render nothing.
+        headerTitle: ({ children }) => <AppHeaderTitle>{children}</AppHeaderTitle>,
+        headerTitleAlign: "left",
         headerLeft: () => <AppHeaderLeft />,
         headerRight: () => <AppHeaderRight />,
         headerShadowVisible: false,
@@ -149,11 +159,20 @@ export default function AppLayout() {
         headerStyle: headerStyle as object,
         headerTintColor: theme.colors.text,
         headerTitleStyle: headerTitleStyle as object,
+        // Screens that do not fill the width (centred columns on desktop) sit on the app background, never the navigator default.
+        contentStyle: { backgroundColor: theme.colors.backgroundAlt },
         // Rising up from the bottom reads as "this detail sits on top of the list" rather
         // than a lateral drill-in — used app-wide so pushing into any screen feels consistent.
         animation: Platform.OS === "web" ? "fade" : "slide_from_bottom",
       }}
     />
+      </View>
+      </View>
     </AppPresenceProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  shell: { flex: 1, flexDirection: "row" },
+  stackArea: { flex: 1, minWidth: 0 },
+});

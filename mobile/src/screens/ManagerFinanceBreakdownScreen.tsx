@@ -11,10 +11,11 @@ import { theme } from "../theme";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { parseManagerPeriodMode } from "../lib/managerPeriodMode";
-import { formatISODateFull, formatISODateRangeCompact } from "../lib/dateFormat";
+import { formatISODateFull } from "../lib/dateFormat";
 import { ManagerOverviewHubTabs } from "../components/ManagerOverviewTabs";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
-import { EmptyState } from "../components/EmptyState";
+import { EmptyState, ErrorState } from "../components/EmptyState";
+import { userFacingErrorMessage } from "../lib/userFacingError";
 import { mergeFinanceBreakdownDays, parseFinance, type FinanceBreakdownDay } from "../lib/managerWeeklyStats";
 import {
   formatFinanceIls,
@@ -26,6 +27,9 @@ import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
 import { AnimatedChevron } from "../components/AnimatedChevron";
 import { FadeSlideIn } from "../components/FadeSlideIn";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayDateRange, displayUserText } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 function AmountPair({
   expected,
@@ -45,7 +49,7 @@ function AmountPair({
   const expectedDisplay = useCountUp(expected);
   const collectedDisplay = useCountUp(collected);
   return (
-    <View style={[styles.amountPair, isRTL && styles.amountPairRtl, compact && styles.amountPairCompact]}>
+    <View style={[styles.amountPair, rowFlipFor(isRTL) && styles.amountPairRtl, compact && styles.amountPairCompact]}>
       <View style={[styles.amountCol, compact ? styles.amountColCompact : styles.amountColBanner]}>
         <Text style={[styles.amountLbl, compact && styles.amountLblCompact, isRTL && styles.rtl]}>
           {t("dashboard.financeBreakdownExpected")}
@@ -69,6 +73,7 @@ function AmountPair({
 
 export default function ManagerFinanceBreakdownScreen() {
   const { language, isRTL, t } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const params = useLocalSearchParams<{ anchor?: string; periodMode?: string }>();
   const anchor = String(params.anchor ?? "").trim();
   const periodMode = parseManagerPeriodMode(
@@ -76,15 +81,15 @@ export default function ManagerFinanceBreakdownScreen() {
   );
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [days, setDays] = useState<FinanceBreakdownDay[]>([]);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    // Opened without a week (stale or hand-typed link): rendered as "missing link", not as a failure.
     if (!anchor) {
-      setError(t("common.error"));
       setLoading(false);
       return;
     }
@@ -96,18 +101,18 @@ export default function ManagerFinanceBreakdownScreen() {
     });
     setLoading(false);
     if (err) {
-      setError(err.message);
+      setError(err);
       return;
     }
     const raw = data as Record<string, unknown> | null;
     if (!raw?.ok) {
-      setError(String(raw?.error ?? t("common.error")));
+      setError(raw?.error ?? {});
       return;
     }
     setRangeStart(String(raw.week_start ?? ""));
     setRangeEnd(String(raw.week_end ?? ""));
     setDays(mergeFinanceBreakdownDays(parseFinance(raw.finance)));
-  }, [anchor, periodMode, t]);
+  }, [anchor, periodMode]);
 
   useEffect(() => {
     void load();
@@ -132,13 +137,13 @@ export default function ManagerFinanceBreakdownScreen() {
   const rangeLabel = useMemo(() => {
     if (!rangeStart || !rangeEnd) return "";
     if (rangeStart === rangeEnd) return formatISODateFull(rangeStart, language);
-    return formatISODateRangeCompact(rangeStart, rangeEnd, language);
+    return displayDateRange(rangeStart, rangeEnd, language);
   }, [rangeStart, rangeEnd, language]);
 
   return (
     <>
       <Stack.Screen options={{ title: t("dashboard.financeBreakdownTitle") }} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.screen} contentContainerStyle={[styles.content, screenContent]} keyboardShouldPersistTaps="handled">
         <ManagerOverviewHubTabs />
         <Text style={[styles.h, isRTL && styles.rtl]}>{t("dashboard.financeBreakdownTitle")}</Text>
         {rangeLabel ? <Text style={[styles.sub, isRTL && styles.rtl]}>{rangeLabel}</Text> : null}
@@ -153,10 +158,25 @@ export default function ManagerFinanceBreakdownScreen() {
             </View>
           }
         >
-        {error ? (
-          <Text style={[styles.err, isRTL && styles.rtl]}>{error}</Text>
+        {!anchor ? (
+          <EmptyState
+            tone="notFound"
+            title={t("dashboard.detailMissingTitle")}
+            body={t("dashboard.detailMissingBody")}
+            actionLabel={t("a11y.headerBackToOverview")}
+            onAction={() => router.replace("/(app)/manager/dashboard" as Href)}
+            isRTL={isRTL}
+          />
+        ) : error ? (
+          <ErrorState
+            title={t("errors.loadFailedTitle")}
+            body={userFacingErrorMessage(error, t)}
+            actionLabel={t("auth.retryConnection")}
+            onAction={() => void load()}
+            isRTL={isRTL}
+          />
         ) : days.length === 0 ? (
-          <EmptyState icon="📊" title={t("dashboard.financeBreakdownEmpty")} isRTL={isRTL} />
+          <EmptyState icon="bar-chart-outline" title={t("dashboard.financeBreakdownEmpty")} isRTL={isRTL} />
         ) : (
           <>
             <View style={[styles.totalBanner, isRTL && styles.totalBannerRtl]}>
@@ -187,7 +207,7 @@ export default function ManagerFinanceBreakdownScreen() {
                     accessibilityState={{ expanded: open }}
                   >
                     <Text style={[styles.dayDate, isRTL && styles.rtl]}>{formatISODateFull(d.date, language)}</Text>
-                    <View style={[styles.dayAmtPair, isRTL && styles.dayAmtPairRtl]}>
+                    <View style={[styles.dayAmtPair, rowFlipFor(isRTL) && styles.dayAmtPairRtl]}>
                       <Text style={[styles.dayAmtExpected, isRTL && styles.rtl]}>
                         {formatFinanceIls(d.expected_ils, language)}
                       </Text>
@@ -212,7 +232,7 @@ export default function ManagerFinanceBreakdownScreen() {
                             >
                               <Text style={[styles.sessionTime, isRTL && styles.rtl]}>
                                 {formatSessionTimeShort(s.start_time)}
-                                {s.coach_name?.trim() ? ` · ${s.coach_name.trim()}` : ""}
+                                {s.coach_name?.trim() ? ` · ${displayUserText(s.coach_name.trim())}` : ""}
                               </Text>
                               <AmountPair
                                 expected={s.expected_ils}
@@ -255,7 +275,7 @@ export default function ManagerFinanceBreakdownScreen() {
                           <Text style={[styles.sectionLbl, isRTL && styles.rtl]}>
                             {t("dashboard.financeDailyAccountPayments")}
                           </Text>
-                          <View style={[styles.accountRow, isRTL && styles.accountRowRtl]}>
+                          <View style={[styles.accountRow, rowFlipFor(isRTL) && styles.accountRowRtl]}>
                             <Text style={[styles.accountLbl, isRTL && styles.rtl]}>
                               {t("dashboard.financeDailyAccountPaymentsDesc")}
                             </Text>
@@ -299,10 +319,9 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
   skeletonList: { gap: theme.spacing.sm, marginTop: theme.spacing.sm },
-  h: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginBottom: 4 },
-  sub: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, marginBottom: theme.spacing.md },
+  h: { ...theme.typography.display, color: theme.colors.text, marginBottom: 4 },
+  sub: { ...theme.typography.caption, color: theme.colors.textMuted, marginBottom: theme.spacing.md },
   rtl: { textAlign: "right", writingDirection: "rtl" },
-  err: { color: theme.colors.error, fontWeight: "700", marginTop: 12 },
   muted: { color: theme.colors.textSoft, fontWeight: "600", marginTop: 12 },
   hint: { fontSize: 12, fontWeight: "600", color: theme.colors.textSoft, marginBottom: theme.spacing.sm },
   totalBanner: {
@@ -325,13 +344,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.borderMuted,
     marginVertical: 2,
   },
-  amountLbl: { fontSize: 10, fontWeight: "800", color: theme.colors.textSoft, textTransform: "uppercase", letterSpacing: 0.5 },
-  amountLblCompact: { fontSize: 9 },
-  amountExpected: { marginTop: 4, fontSize: 20, fontWeight: "900", color: theme.colors.text, fontVariant: ["tabular-nums"] },
-  amountExpectedCompact: { marginTop: 2, fontSize: 14, fontWeight: "900", color: theme.colors.cta },
-  amountCollected: { marginTop: 4, fontSize: 20, fontWeight: "900", color: theme.colors.success, fontVariant: ["tabular-nums"] },
-  amountCollectedCompact: { marginTop: 2, fontSize: 14, fontWeight: "900" },
-  accountNote: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
+  amountLbl: { fontSize: 11, fontWeight: "800", color: theme.colors.textSoft, textTransform: "uppercase", letterSpacing: 0.5 },
+  amountLblCompact: { fontSize: 11 },
+  amountExpected: { marginTop: 4, fontSize: 20, fontWeight: "800", color: theme.colors.text, fontVariant: ["tabular-nums"] },
+  amountExpectedCompact: { marginTop: 2, fontSize: 14, fontWeight: "800", color: theme.colors.cta },
+  amountCollected: { marginTop: 4, fontSize: 20, fontWeight: "800", color: theme.colors.success, fontVariant: ["tabular-nums"] },
+  amountCollectedCompact: { marginTop: 2, fontSize: 14, fontWeight: "800" },
+  accountNote: { ...theme.typography.label, color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
   dayWrap: { marginBottom: 8 },
   dayRow: {
     flexDirection: "row",
@@ -351,7 +370,7 @@ const styles = StyleSheet.create({
   dayAmtExpected: { fontSize: 13, fontWeight: "800", color: theme.colors.cta, fontVariant: ["tabular-nums"] },
   dayAmtSep: { fontSize: 11, color: theme.colors.textSoft, fontWeight: "700" },
   dayAmtCollected: { fontSize: 13, fontWeight: "800", color: theme.colors.success, fontVariant: ["tabular-nums"] },
-  chev: { color: theme.colors.textSoft, fontSize: 12, fontWeight: "700" },
+  chev: { color: theme.colors.textSoft, ...theme.typography.label },
   sessionList: {
     marginTop: 4,
     marginLeft: 8,
@@ -399,5 +418,5 @@ const styles = StyleSheet.create({
   },
   accountRowRtl: { flexDirection: "row-reverse" },
   accountLbl: { flex: 1, fontSize: 12, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 16 },
-  accountAmt: { fontSize: 14, fontWeight: "900", color: theme.colors.success, fontVariant: ["tabular-nums"] },
+  accountAmt: { fontSize: 14, fontWeight: "800", color: theme.colors.success, fontVariant: ["tabular-nums"] },
 });

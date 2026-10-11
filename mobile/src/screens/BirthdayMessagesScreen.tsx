@@ -32,6 +32,9 @@ import {
 } from "../lib/managerMessageThemes";
 import { formatISODateDayMonthWithWeekday, parseInstantIso } from "../lib/dateFormat";
 import { appLocale } from "../lib/appLocale";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { selectionA11y } from "../lib/a11ySelection";
 
 const STUDIO_TZ = "Asia/Jerusalem";
 
@@ -56,6 +59,7 @@ function formatUpdatedWhen(iso: string, language: "en" | "he"): string {
 
 export default function BirthdayMessagesScreen() {
   const { t, isRTL, language } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showOk } = useAppAlert();
   const { showToast } = useToast();
 
@@ -72,7 +76,7 @@ export default function BirthdayMessagesScreen() {
   const [updatedByName, setUpdatedByName] = useState<string | null>(null);
 
   const defaultBody = language === "he" ? DEFAULT_BIRTHDAY_MESSAGE_HE : DEFAULT_BIRTHDAY_MESSAGE_EN;
-  const sampleName = language === "he" ? "דנה" : "Dana";
+  const sampleName = t("ui.birthdayMessages.dana");
   const previewSenderName = senderName;
 
   const toggleDirty = enabled !== savedEnabled;
@@ -144,7 +148,7 @@ export default function BirthdayMessagesScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, screenContent]}
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
     >
@@ -169,7 +173,7 @@ export default function BirthdayMessagesScreen() {
       ) : (
         <>
           <View style={[styles.card, surface.card]}>
-            <View style={[styles.toggleRow, isRTL && styles.toggleRowRtl]}>
+            <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
               <View style={styles.toggleCopy}>
                 <Text style={[styles.toggleLabel, isRTL && styles.rtl]}>{t("birthdayMessages.toggleLabel")}</Text>
                 <Text style={[styles.toggleHint, isRTL && styles.rtl]}>{t("birthdayMessages.toggleHint")}</Text>
@@ -188,7 +192,7 @@ export default function BirthdayMessagesScreen() {
             <Text style={[styles.sectionHint, isRTL && styles.rtl]}>{t("birthdayMessages.namePlaceholderHint")}</Text>
 
             <Text style={[styles.themeLabel, isRTL && styles.rtl]}>{t("managerMessage.themeLabel")}</Text>
-            <View style={[styles.themeRow, isRTL && styles.themeRowRtl]}>
+            <View style={[styles.themeRow, rowFlipFor(isRTL) && styles.themeRowRtl]}>
               {MANAGER_MESSAGE_THEMES.map((key) => {
                 const active = messageTheme === key;
                 const palette = getManagerMessageThemeStyle(key);
@@ -201,8 +205,7 @@ export default function BirthdayMessagesScreen() {
                       active && { borderColor: palette.avatarBg, backgroundColor: palette.bubbleBg },
                       pressed && { opacity: 0.9 },
                     ]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
+                    {...selectionA11y("radio", active)}
                   >
                     <Text style={styles.themeEmoji}>{palette.emoji}</Text>
                     <Text
@@ -261,8 +264,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl + theme.spacing.md },
   title: {
-    fontSize: 18,
-    fontWeight: "900",
+    ...theme.typography.headline,
     color: theme.colors.text,
   },
   updatedMeta: {
@@ -288,7 +290,7 @@ const styles = StyleSheet.create({
   },
   toggleRowRtl: { flexDirection: "row-reverse" },
   toggleCopy: { flex: 1, gap: 4 },
-  toggleLabel: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  toggleLabel: { ...theme.typography.title, color: theme.colors.text },
   toggleHint: { fontSize: 13, fontWeight: "500", color: theme.colors.textMuted, lineHeight: 18 },
   sectionEyebrow: {
     fontSize: 11,
@@ -307,13 +309,14 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
+    minHeight: theme.controls.minTouch,
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     backgroundColor: theme.colors.backgroundAlt,
   },
   themeEmoji: { fontSize: 16 },
-  themeChipTxt: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  themeChipTxt: { ...theme.typography.caption, color: theme.colors.textMuted },
   field: { marginTop: 4 },
   messageInput: { minHeight: 96, textAlignVertical: "top" },
   charCount: { marginTop: 4, fontSize: 11, fontWeight: "600", color: theme.colors.textSoft, textAlign: "right" },

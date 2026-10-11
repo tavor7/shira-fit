@@ -15,9 +15,11 @@ import { formatISODateFull } from "../../lib/dateFormat";
 import { SubscriptionImpactConfirmModal } from "./SubscriptionImpactConfirmModal";
 import { rpcFreezeSubscription, type SubscriptionImpact } from "../../lib/subscriptions";
 import { resumeDateFromFreezeUntil } from "../../lib/athleteSubscription";
+import { useScreenContentStyle } from "../../hooks/useScreenLayout";
 
 export function FreezeSubscriptionForm({ subscriptionId }: { subscriptionId: string }) {
   const { t, isRTL, language } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const navigation = useNavigation();
@@ -105,7 +107,7 @@ export function FreezeSubscriptionForm({ subscriptionId }: { subscriptionId: str
 
   return (
     <>
-      <ScrollView contentContainerStyle={sf.content} style={sf.screen} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[sf.content, screenContent]} style={sf.screen} keyboardShouldPersistTaps="handled">
         <View style={sf.sections}>
           <View style={sf.card}>
             <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl, styles.explanation]}>{t("subscriptions.freeze.explanation")}</Text>

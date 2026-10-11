@@ -6,14 +6,16 @@ import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { AppText } from "../../src/components/AppText";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 
 export default function ForgotSentScreen() {
   const { email } = useLocalSearchParams<{ email?: string }>();
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const emailSuffix = email ? t("auth.forgotSentEmailSuffix").replace("{email}", String(email)) : "";
 
   return (
-    <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.scrollRoot} contentContainerStyle={[styles.container, screenContent]} keyboardShouldPersistTaps="handled">
       <FadeSlideIn>
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" accessibilityLabel={t("a11y.appLogo")} />

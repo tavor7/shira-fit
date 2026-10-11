@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import type { DocumentPaymentMethodKey } from "./documentPaymentMethod";
 import type { DocumentServiceTypeKey } from "./documentServiceTypes";
+import { displayMoney } from "./displayFormat";
 
 export type ReceiptSettings = {
   id: string;
@@ -569,8 +570,7 @@ export async function publishLegalDocument(
 
 export function formatIls(amount: number | string | null | undefined): string {
   const n = typeof amount === "number" ? amount : Number.parseFloat(String(amount ?? "0"));
-  if (!Number.isFinite(n)) return "₪0.00";
-  return `₪${n.toFixed(2)}`;
+  return displayMoney(Number.isFinite(n) ? n : 0);
 }
 
 export function vatPercentLabel(rate: number): string {

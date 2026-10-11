@@ -16,11 +16,16 @@ import {
   participantPhonesMatch,
   type ManualParticipantIdentity,
 } from "../lib/participantIdentity";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { SegmentedChoice } from "../components/SegmentedChoice";
+import { DatePickerField } from "../components/DatePickerField";
 
 export default function StaffEditManualParticipantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const manualId = String(id ?? "");
   const { t, isRTL, language } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
 
@@ -194,7 +199,7 @@ export default function StaffEditManualParticipantScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, screenContent]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
@@ -209,7 +214,7 @@ export default function StaffEditManualParticipantScreen() {
 
       {manualId ? (
         <View style={styles.metaCard}>
-          <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+          <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
             <AppText variant="label" soft isRTL={isRTL}>
               {t("manualParticipant.lastSession")}
             </AppText>
@@ -222,7 +227,7 @@ export default function StaffEditManualParticipantScreen() {
             </AppText>
           </View>
           {lastSessionAddedAt ? (
-            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+            <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
               <AppText variant="label" soft isRTL={isRTL}>
                 {t("manualParticipant.lastSessionAdded")}
               </AppText>
@@ -232,7 +237,7 @@ export default function StaffEditManualParticipantScreen() {
             </View>
           ) : null}
           {isDisabled ? (
-            <View style={[styles.metaRow, isRTL && styles.metaRowRtl]}>
+            <View style={[styles.metaRow, rowFlipFor(isRTL) && styles.metaRowRtl]}>
               <AppText variant="label" soft isRTL={isRTL}>
                 {t("profile.accountStatus")}
               </AppText>
@@ -291,23 +296,23 @@ export default function StaffEditManualParticipantScreen() {
         containerStyle={styles.field}
       />
 
-      <AppTextField
-        label={t("profile.gender")}
+      <AppText variant="label" muted isRTL={isRTL} style={styles.choiceLabel}>
+        {t("profile.gender")}
+      </AppText>
+      {/* Male/female choice; any other stored value is kept unless a choice is made. */}
+      <SegmentedChoice
+        options={[
+          { value: "male", label: t("profile.male") },
+          { value: "female", label: t("profile.female") },
+        ]}
         value={gender}
-        onChangeText={setGender}
-        placeholder={t("manualParticipant.genderPlaceholder")}
+        onChange={setGender}
         isRTL={isRTL}
-        containerStyle={styles.field}
+        accessibilityLabel={t("profile.gender")}
+        style={styles.field}
       />
 
-      <AppTextField
-        label={t("profile.dob")}
-        value={dob}
-        onChangeText={setDob}
-        placeholder={t("manualParticipant.dobPlaceholder")}
-        isRTL={isRTL}
-        containerStyle={styles.field}
-      />
+      <DatePickerField label={t("profile.dob")} value={dob} onChange={setDob} maximumDate={new Date()} />
 
       <AppTextField
         label={t("manualParticipant.notes")}
@@ -378,6 +383,7 @@ const styles = StyleSheet.create({
   metaRowRtl: { alignItems: "flex-end" },
   metaDisabled: { color: theme.colors.warning, fontWeight: "800" },
   field: { marginTop: theme.spacing.sm },
+  choiceLabel: { marginTop: theme.spacing.sm, marginBottom: theme.spacing.xs, textTransform: "uppercase" },
   duplicateHint: { marginTop: theme.spacing.xs },
   duplicateCard: {
     marginTop: theme.spacing.sm,

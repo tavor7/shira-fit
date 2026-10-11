@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { ActionButton } from "./ActionButton";
 import { AppModal } from "./AppModal";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
@@ -116,12 +117,11 @@ export function FoldableActionsMenu({
               <Pressable
                 onPress={() => setOpen(false)}
                 style={({ pressed }) => [styles.cardClose, pressed && { opacity: 0.85 }]}
+                hitSlop={5}
                 accessibilityRole="button"
                 accessibilityLabel={closeAccessibilityLabel}
               >
-                <Text style={styles.cardCloseTxt} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
-                  ✕
-                </Text>
+                <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
               </Pressable>
             ) : null}
           </View>
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderMuted,
   },
-  cardHeaderTxt: { color: theme.colors.textMuted, fontWeight: "900", letterSpacing: 0.2, fontSize: 12, textTransform: "uppercase", maxWidth: "70%" },
+  cardHeaderTxt: { color: theme.colors.textMuted, fontWeight: "800", letterSpacing: 0.2, fontSize: 12, textTransform: "uppercase", maxWidth: "70%" },
   cardClose: {
     width: 34,
     height: 34,
@@ -201,5 +201,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: theme.colors.error,
   },
-  badgeTxt: { color: "#fff", fontWeight: "900", fontSize: 11, letterSpacing: 0.2 },
+  badgeTxt: { color: "#fff", fontWeight: "800", fontSize: 11, letterSpacing: 0.2 },
 });

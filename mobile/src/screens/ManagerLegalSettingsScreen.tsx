@@ -18,9 +18,12 @@ import {
   type LegalConsentSettings,
   type LegalDocumentVersion,
 } from "../lib/consent";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 export default function ManagerLegalSettingsScreen() {
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -73,7 +76,7 @@ export default function ManagerLegalSettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.container}>
+    <ScrollView style={styles.root} contentContainerStyle={[styles.container, screenContent]}>
       <ManagerStudioSetupTabs />
       <View style={styles.card}>
         <AppText variant="title" isRTL={isRTL} style={styles.cardTitle}>
@@ -83,7 +86,7 @@ export default function ManagerLegalSettingsScreen() {
           {t("managerLegal.description")}
         </AppText>
 
-        <View style={[styles.toggleRow, isRTL && styles.toggleRowRtl]}>
+        <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
           <AppText variant="body" isRTL={isRTL} style={styles.toggleLabel}>
             {settings?.gate_enabled ? t("managerLegal.gateOn") : t("managerLegal.gateOff")}
           </AppText>
@@ -156,7 +159,7 @@ export default function ManagerLegalSettingsScreen() {
           ) : (
             history.map((v) => (
               <View key={v.version} style={styles.historyRow}>
-                <View style={[styles.historyRowHeader, isRTL && styles.toggleRowRtl]}>
+                <View style={[styles.historyRowHeader, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
                   <AppText variant="body" isRTL={isRTL} style={styles.historyRowTitle}>
                     {language === "en" && v.title_en ? v.title_en : v.title}
                   </AppText>
@@ -200,8 +203,8 @@ export default function ManagerLegalSettingsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
-  container: { padding: theme.spacing.lg, gap: theme.spacing.md },
-  skeleton: { margin: theme.spacing.lg, borderRadius: theme.radius.lg },
+  container: { padding: theme.spacing.md, gap: theme.spacing.md },
+  skeleton: { margin: theme.spacing.md, borderRadius: theme.radius.lg },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,

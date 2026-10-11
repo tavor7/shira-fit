@@ -127,10 +127,10 @@ const styles = StyleSheet.create({
     borderColor: "#6a5acd",
     zIndex: 999999,
   },
-  title: { color: "#b8a9ff", fontWeight: "900", fontSize: 11, marginBottom: 6 },
+  title: { color: "#b8a9ff", fontWeight: "800", fontSize: 11, marginBottom: 6 },
   line: {
     color: "#e6e6ea",
-    fontSize: 9,
+    fontSize: 11,
     lineHeight: 13,
     fontFamily: Platform.OS === "web" ? "monospace" : undefined,
     marginBottom: 5,

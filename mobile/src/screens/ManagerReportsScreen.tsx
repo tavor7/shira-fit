@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
@@ -8,11 +8,12 @@ import { SlidingPillTabBar } from "../components/SlidingPillTabBar";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import ParticipantHistoryScreen from "./ParticipantHistoryScreen";
 import ManagerCoachSessionsReportScreen from "./ManagerCoachSessionsReportScreen";
+import { ReportPageHeader } from "../components/ReportPageHeader";
 
 type Tab = "athlete" | "coach";
 
 export default function ManagerReportsScreen() {
-  const { t, isRTL } = useI18n();
+  const { t } = useI18n();
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const initial = (tab === "coach" ? "coach" : "athlete") as Tab;
   const [active, setActive] = useState<Tab>(initial);
@@ -29,10 +30,7 @@ export default function ManagerReportsScreen() {
   const header = (
     <View style={styles.header}>
       <ManagerOverviewHubTabs />
-      <Text style={[styles.title, isRTL && styles.rtl]}>{t("menu.reports")}</Text>
-      <Text style={[styles.subtitle, isRTL && styles.rtl]}>
-        {active === "athlete" ? t("reports.athleteTabHint") : t("reports.coachTabHint")}
-      </Text>
+      <ReportPageHeader title={t("menu.reports")} description={active === "athlete" ? t("reports.athleteTabHint") : t("reports.coachTabHint")} />
 
       <SlidingPillTabBar tabs={tabs} active={active} onChange={(id) => setActive(id as Tab)} />
     </View>
@@ -57,15 +55,6 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     paddingBottom: theme.spacing.sm,
     gap: theme.spacing.sm,
-  },
-  subtitle: { fontSize: 12, color: theme.colors.textMuted, lineHeight: 17, marginTop: -theme.spacing.xs },
-  rtl: { textAlign: "right", alignSelf: "stretch" },
-  title: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: theme.colors.text,
-    letterSpacing: 0.2,
-    lineHeight: 26,
   },
 
   body: { flex: 1 },

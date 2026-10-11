@@ -10,6 +10,9 @@ import { useAppAlert } from "../context/AppAlertContext";
 import { useToast } from "../context/ToastContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import type { LanguageCode } from "../i18n/translations";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { selectionA11y } from "../lib/a11ySelection";
 
 const WEEKDAY_IDS = [0, 1, 2, 3, 4, 5, 6] as const;
 
@@ -30,6 +33,7 @@ export default function RegistrationOpeningScheduleScreen() {
   const [weekday, setWeekday] = useState<number>(4);
   const [time, setTime] = useState<string>("08:00");
   const [loading, setLoading] = useState(false);
+  const screenContent = useScreenContentStyle("narrow");
   const [saving, setSaving] = useState(false);
   const { language, t, isRTL } = useI18n();
   const { showOk } = useAppAlert();
@@ -85,28 +89,28 @@ export default function RegistrationOpeningScheduleScreen() {
   }
 
   const previewDay = weekdayLong[weekday] ?? "—";
-  const timeLabel = language === "he" ? "שעה (שעון ישראל)" : "Time (Israel)";
-  const dayLabel = language === "he" ? "יום" : "Day";
-  const previewEyebrow = language === "he" ? "לוח זמנים נוכחי" : "Current schedule";
-  const previewMeta = language === "he" ? "שעון ישראל (הסטודיו)" : "Israel (studio) time";
+  const timeLabel = t("ui.registrationOpeningSchedule.timeIsrael");
+  const dayLabel = t("ui.registrationOpeningSchedule.day");
+  const previewEyebrow = t("ui.registrationOpeningSchedule.currentSchedule");
+  const previewMeta = t("ui.registrationOpeningSchedule.israelStudioTime");
 
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, screenContent]}
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
     >
       <ManagerStudioSetupTabs />
 
       <Text style={[styles.title, isRTL && styles.rtlText]}>
-        {language === "he" ? "פתיחת הרשמה" : "Registration opening"}
+        {t("ui.registrationOpeningSchedule.registrationOpening")}
       </Text>
 
       <View style={styles.card}>
         <View style={styles.section}>
           <Text style={[styles.sectionEyebrow, isRTL && styles.rtlText]}>{dayLabel}</Text>
-          <View style={[styles.dayTrack, isRTL && styles.dayTrackRtl]}>
+          <View style={[styles.dayTrack, rowFlipFor(isRTL) && styles.dayTrackRtl]}>
             {WEEKDAY_IDS.map((id) => {
               const on = id === weekday;
               return (
@@ -118,8 +122,7 @@ export default function RegistrationOpeningScheduleScreen() {
                     on && styles.dayBtnOn,
                     pressed && !on && styles.dayBtnPressed,
                   ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
+                  {...selectionA11y("radio", on)}
                   accessibilityLabel={weekdayLong[id]}
                 >
                   <Text style={[styles.dayBtnTxt, on && styles.dayBtnTxtOn, isRTL && styles.rtlText]} numberOfLines={1}>
@@ -166,8 +169,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl + theme.spacing.md },
   title: {
-    fontSize: 18,
-    fontWeight: "900",
+    ...theme.typography.headline,
     color: theme.colors.text,
   },
   hint: {
@@ -201,8 +203,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
-    padding: 3,
-    gap: 3,
+    // Tight enough that seven days are each ≥44px wide on a 375px phone.
+    padding: 2,
+    gap: 2,
   },
   dayTrackRtl: { flexDirection: "row-reverse" },
   dayBtn: {
@@ -245,7 +248,7 @@ const styles = StyleSheet.create({
   },
   previewValue: {
     fontSize: 17,
-    fontWeight: "900",
+    fontWeight: "800",
     color: theme.colors.text,
     letterSpacing: -0.2,
     lineHeight: 24,

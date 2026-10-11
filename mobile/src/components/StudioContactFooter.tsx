@@ -5,6 +5,10 @@ import { STUDIO_CONTACT } from "../constants/studioContact";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "./AppText";
+import { displayLtr } from "../lib/displayFormat";
+import { userContentTextProps } from "../lib/layoutDirection";
+import { useReportFooterHeight } from "../context/BottomChromeContext";
+import { LAYOUT } from "../lib/screenLayout";
 
 type CellProps = {
   title: string;
@@ -23,8 +27,9 @@ function Cell({ title, subtitle, onPress }: CellProps) {
       <AppText variant="label" style={styles.cellTitle}>
         {title}
       </AppText>
-      <AppText variant="caption" muted numberOfLines={1} style={styles.cellSub}>
-        {subtitle}
+      {/* Handles and numbers ("@shira.fit.studio") keep their leading symbol first in Hebrew too. */}
+      <AppText {...userContentTextProps} variant="caption" muted numberOfLines={1} style={styles.cellSub}>
+        {displayLtr(subtitle)}
       </AppText>
     </Pressable>
   );
@@ -35,6 +40,7 @@ export function StudioContactFooter() {
   const bottom = Math.max(insets.bottom, 10);
   const { showOk } = useAppAlert();
   const { t } = useI18n();
+  const onLayout = useReportFooterHeight();
 
   async function openUrl(url: string) {
     try {
@@ -54,7 +60,7 @@ export function StudioContactFooter() {
   }
 
   return (
-    <View style={[styles.wrap, { paddingBottom: bottom }]}>
+    <View style={[styles.wrap, { paddingBottom: bottom }]} onLayout={onLayout}>
       <View style={styles.row}>
         <Cell
           title={t("footer.instagram")}
@@ -77,13 +83,18 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundAlt,
   },
   row: {
+    width: "100%",
+    maxWidth: LAYOUT.maxContentWidth.standard,
+    alignSelf: "center",
     flexDirection: "row",
     alignItems: "stretch",
     paddingTop: 12,
     paddingHorizontal: theme.spacing.sm,
   },
+  // Equal thirds, but never narrower than the value (auto minimum) — at 320px the handle and phone lost their start.
   cell: {
     flex: 1,
+    minWidth: "auto",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 10,

@@ -23,7 +23,8 @@ const toneTxt: Record<ChipTone, string> = {
   neutral: theme.colors.textMuted,
   success: theme.colors.success,
   warning: theme.colors.warning,
-  danger: theme.colors.error,
+  // Lighter than the error red so small chip text stays ≥4.5:1 on its tinted background (#ef4444 was 4.1:1).
+  danger: "#f87171",
   info: theme.colors.info,
 };
 
@@ -64,5 +65,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignSelf: "flex-start",
   },
-  txt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.35, textTransform: "uppercase" },
+  txt: { fontSize: 11, fontWeight: "800", letterSpacing: 0.35, textTransform: "uppercase" },
 });

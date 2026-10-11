@@ -4,6 +4,8 @@ import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import type { PricingIssue, PricingIssueKind, PricingIssueParams, PricingIssueSection } from "../lib/pricingIssues";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { pluralKey } from "../lib/pluralKey";
 
 type Props = {
   issues: PricingIssue[];
@@ -74,7 +76,11 @@ function issueCopy(issue: PricingIssue, t: (key: string) => string): { title: st
   }
   return {
     title: interpolate(t(KIND_TITLE_KEYS[issue.kind]), p),
-    detail: interpolate(t(KIND_DETAIL_KEYS[issue.kind]), p),
+    // Singular wording when the count is one ("1 participant", "משתתף אחד").
+    detail: interpolate(
+      p.capacity !== undefined ? pluralKey(t, KIND_DETAIL_KEYS[issue.kind], Number(p.capacity)) : t(KIND_DETAIL_KEYS[issue.kind]),
+      p
+    ),
   };
 }
 
@@ -90,10 +96,10 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
   const accent = errorCount > 0 ? theme.colors.error : "#f59e0b";
 
   return (
-    <View style={[styles.wrap, { borderLeftColor: accent }]}>
+    <View style={[styles.wrap, { borderStartColor: accent }]}>
       <Pressable
         onPress={() => setExpanded((v) => !v)}
-        style={({ pressed }) => [styles.header, isRTL && styles.headerRtl, pressed && { opacity: 0.92 }]}
+        style={({ pressed }) => [styles.header, rowFlipFor(isRTL) && styles.headerRtl, pressed && { opacity: 0.92 }]}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel={t("pricing.issuesBannerA11y").replace("{n}", String(issues.length))}
@@ -109,7 +115,7 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
             {errorCount > 0
               ? t("pricing.issuesBannerSubErrors").replace("{n}", String(errorCount))
               : warnCount > 0
-                ? t("pricing.issuesBannerSubWarnings").replace("{n}", String(warnCount))
+                ? pluralKey(t, "pricing.issuesBannerSubWarnings", warnCount).replace("{n}", String(warnCount))
                 : ""}
           </Text>
         </View>
@@ -123,10 +129,10 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
             return (
               <View
                 key={issue.id}
-                style={[styles.row, idx < issues.length - 1 && styles.rowBorder, isRTL && styles.rowRtl]}
+                style={[styles.row, idx < issues.length - 1 && styles.rowBorder, rowFlipFor(isRTL) && styles.rowRtl]}
               >
                 <View style={styles.rowBody}>
-                  <View style={[styles.rowMeta, isRTL && styles.rowMetaRtl]}>
+                  <View style={[styles.rowMeta, rowFlipFor(isRTL) && styles.rowMetaRtl]}>
                     <Text style={[styles.sectionTag, isRTL && styles.rtl]}>{t(SECTION_KEYS[issue.section])}</Text>
                     <View
                       style={[
@@ -141,11 +147,13 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
                 {issue.fix ? (
                   <Pressable
                     onPress={() => onFix(issue)}
-                    style={({ pressed }) => [styles.fixBtn, pressed && { opacity: 0.88 }]}
+                    style={({ pressed }) => [styles.fixHit, pressed && { opacity: 0.88 }]}
                     accessibilityRole="button"
                     accessibilityLabel={t("pricing.issuesFix")}
                   >
-                    <Text style={styles.fixBtnTxt}>{t("pricing.issuesFix")}</Text>
+                    <View style={styles.fixBtn}>
+                      <Text style={styles.fixBtnTxt}>{t("pricing.issuesFix")}</Text>
+                    </View>
                   </Pressable>
                 ) : null}
               </View>
@@ -160,7 +168,7 @@ export function PricingIssuesPanel({ issues, onFix, isRTL }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     marginBottom: theme.spacing.md,
-    borderLeftWidth: 4,
+    borderStartWidth: theme.accentStripeWidth,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.md,
     borderWidth: 1,
@@ -183,7 +191,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 6,
   },
-  badgeTxt: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  badgeTxt: { color: "#fff", fontSize: 13, fontWeight: "800" },
   headerTextCol: { flex: 1, minWidth: 0, gap: 2 },
   headerTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
   headerSub: { fontSize: 12, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 17 },
@@ -202,7 +210,7 @@ const styles = StyleSheet.create({
   rowMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
   rowMetaRtl: { flexDirection: "row-reverse" },
   sectionTag: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800",
     color: theme.colors.textMuted,
     textTransform: "uppercase",
@@ -213,13 +221,13 @@ const styles = StyleSheet.create({
   severityWarn: { backgroundColor: "#f59e0b" },
   rowTitle: { fontSize: 14, fontWeight: "800", color: theme.colors.text, lineHeight: 19 },
   rowDetail: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 18 },
+  // The pill stays compact; transparent padding (cancelled by a negative margin) makes the hit area 44px.
+  fixHit: { alignSelf: "flex-start", padding: 7, margin: -7, marginTop: -5 },
   fixBtn: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.cta,
-    alignSelf: "flex-start",
-    marginTop: 2,
   },
   fixBtnTxt: { fontSize: 12, fontWeight: "800", color: theme.colors.ctaText },
   rtl: { textAlign: "right" },

@@ -33,12 +33,8 @@ export function ManagerAthleteViewToggle({ size = "default" }: ToggleProps) {
   const toolbar = size === "toolbar";
   const label =
     toolbar
-      ? language === "he"
-        ? "תצוגה"
-        : "Preview"
-      : language === "he"
-        ? "תצוגת מתאמן"
-        : "Athlete view";
+      ? t("ui.managerAthleteViewToggle.preview")
+      : t("ui.managerAthleteViewToggle.athleteView");
   const a11yLabel =
     language === "he"
       ? `${enabled ? "תצוגת מתאמן פעילה" : "תצוגת מתאמן כבויה"}. ${enabled ? t("common.on") : t("common.off")}`
@@ -55,6 +51,7 @@ export function ManagerAthleteViewToggle({ size = "default" }: ToggleProps) {
       ]}
       accessibilityRole="switch"
       accessibilityState={{ checked: enabled }}
+      aria-checked={enabled}
       accessibilityLabel={a11yLabel}
     >
       <Text style={[styles.pillTxt, toolbar && styles.pillTxtToolbar, enabled && styles.pillTxtOn]} numberOfLines={1}>
@@ -85,6 +82,6 @@ const styles = StyleSheet.create({
   },
   pillPressed: { opacity: 0.88 },
   pillTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 11, letterSpacing: 0.2 },
-  pillTxtToolbar: { fontSize: 10 },
+  pillTxtToolbar: { fontSize: 11 },
   pillTxtOn: { color: theme.colors.ctaText },
 });

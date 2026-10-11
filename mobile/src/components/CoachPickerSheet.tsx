@@ -3,8 +3,11 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { resolveTrainerAccentColor } from "../lib/trainerCalendarColor";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { useI18n } from "../context/I18nContext";
 import { AppSearchSheet } from "./AppSearchSheet";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { selectionA11y } from "../lib/a11ySelection";
 
 export type CoachPickOption = {
   user_id: string;
@@ -88,16 +91,15 @@ export function CoachPickerSheet({ visible, onClose, onSelect, selectedCoachId }
           <Pressable
             style={({ pressed }) => [
               styles.row,
-              isRTL && styles.rowRtl,
+              rowFlipFor(isRTL) && styles.rowRtl,
               selected && styles.rowSelected,
               pressed && { opacity: 0.88 },
             ]}
             onPress={() => pick(item)}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
+            {...selectionA11y("radio", selected)}
             accessibilityLabel={item.full_name}
           >
-            <View style={[styles.rowLeading, isRTL && styles.rowLeadingRtl]}>
+            <View style={[styles.rowLeading, rowFlipFor(isRTL) && styles.rowLeadingRtl]}>
               <View style={[styles.colorDot, { backgroundColor: accent }]} />
               <View style={styles.rowTextCol}>
                 <Text style={[styles.rowName, isRTL && styles.rtlText]} numberOfLines={1}>
@@ -108,7 +110,7 @@ export function CoachPickerSheet({ visible, onClose, onSelect, selectedCoachId }
             <View style={[styles.rolePill, item.role === "manager" && styles.rolePillManager]}>
               <Text style={styles.rolePillTxt}>{formatRoleLabel(item.role, t)}</Text>
             </View>
-            {selected ? <Text style={styles.check}>✓</Text> : null}
+            {selected ? <AppIcon name="checkmark" size={18} color={theme.colors.cta} /> : null}
           </Pressable>
         );
       }}
@@ -149,8 +151,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.2)",
   },
   rowTextCol: { flex: 1, minWidth: 0, gap: 2 },
-  rowName: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
-  rowMeta: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  rowName: { ...theme.typography.title, color: theme.colors.text },
+  rowMeta: { ...theme.typography.caption, color: theme.colors.textMuted },
   rolePill: {
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -172,7 +174,7 @@ const styles = StyleSheet.create({
   },
   check: {
     fontSize: 16,
-    fontWeight: "900",
+    fontWeight: "800",
     color: theme.colors.cta,
     marginStart: 2,
   },

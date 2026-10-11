@@ -24,6 +24,8 @@ import { FadeSlideIn } from "../../src/components/FadeSlideIn";
 import { useReduceMotionRef } from "../../src/hooks/useReduceMotion";
 import { logUserActivity } from "../../src/lib/logUserActivity";
 import { canRoleAccessWebPath, normalizeWebRedirectTarget, webPublicPathToExpoHref } from "../../src/lib/webLastRoute";
+import { rowFlipFor } from "../../src/lib/layoutDirection";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 
 /** Loose client-side check; server remains authoritative. */
 const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -72,6 +74,7 @@ function classifyLoginError(error: { message: string }): ClassifiedLoginError {
 export default function LoginScreen() {
   const params = useLocalSearchParams<{ redirect?: string | string[] }>();
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -208,7 +211,7 @@ export default function LoginScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         style={styles.scrollRoot}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, screenContent]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
@@ -239,7 +242,7 @@ export default function LoginScreen() {
           </View>
         </FadeSlideIn>
         <FadeSlideIn delay={160}>
-          <AppText variant="title" isRTL={isRTL} style={styles.title}>
+          <AppText variant="headline" isRTL={isRTL} style={styles.title} accessibilityRole="header">
             {t("auth.loginTitle")}
           </AppText>
         </FadeSlideIn>
@@ -291,7 +294,7 @@ export default function LoginScreen() {
               isRTL={isRTL}
               placeholder={t("auth.password")}
               secureTextEntry
-              autoComplete="password"
+              autoComplete="current-password"
               textContentType="password"
               value={password}
               maxLength={MAX_PASSWORD_LEN}
@@ -312,7 +315,7 @@ export default function LoginScreen() {
             success={success}
             onPress={onLogin}
           />
-          <View style={[styles.linksRow, isRTL && styles.linksRowRtl]}>
+          <View style={[styles.linksRow, rowFlipFor(isRTL) && styles.linksRowRtl]}>
             <Pressable
               onPress={() => router.push("/(auth)/forgot-password")}
               style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
@@ -375,11 +378,10 @@ const styles = StyleSheet.create({
     width: 200,
     height: 41,
   },
+  /** The screen's heading (it is the only title on the login screen). */
   title: {
     textAlign: "center",
     marginBottom: theme.spacing.lg,
-    color: theme.colors.alertSubject,
-    fontWeight: "600",
   },
   errorBox: {
     backgroundColor: theme.colors.errorBg,

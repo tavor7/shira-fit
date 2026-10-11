@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
-import { KICKBOX_SESSION_ACCENT, KICKBOX_SESSION_BG, KICKBOX_SESSION_BORDER } from "../lib/kickboxSessionStyle";
+import { KICKBOX_SESSION_TEXT, KICKBOX_SESSION_BG, KICKBOX_SESSION_BORDER } from "../lib/kickboxSessionStyle";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 type Props = {
   compact?: boolean;
@@ -12,7 +13,7 @@ export function KickboxSessionBadge({ compact, isRTL }: Props) {
   const { t } = useI18n();
   return (
     <View
-      style={[styles.badge, compact && styles.badgeCompact, isRTL && styles.badgeRtl]}
+      style={[styles.badge, compact && styles.badgeCompact, rowFlipFor(isRTL) && styles.badgeRtl]}
       accessibilityRole="text"
       accessibilityLabel={t("session.kickboxSession")}
     >
@@ -37,11 +38,11 @@ const styles = StyleSheet.create({
   },
   badgeRtl: { alignSelf: "flex-end" },
   txt: {
-    color: KICKBOX_SESSION_ACCENT,
-    fontWeight: "900",
+    color: KICKBOX_SESSION_TEXT,
+    fontWeight: "800",
     fontSize: 12,
     letterSpacing: 0.35,
     textTransform: "uppercase",
   },
-  txtCompact: { fontSize: 9, letterSpacing: 0.4 },
+  txtCompact: { fontSize: 11, letterSpacing: 0.4 },
 });

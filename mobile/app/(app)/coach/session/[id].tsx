@@ -22,6 +22,10 @@ import { SessionPresenceBar } from "../../../../src/components/SessionPresenceBa
 import { FadeSlideIn } from "../../../../src/components/FadeSlideIn";
 import { AnimatedOptionExpand } from "../../../../src/components/AnimatedOptionExpand";
 import { useCountUp } from "../../../../src/hooks/useCountUp";
+import { rowFlipFor } from "../../../../src/lib/layoutDirection";
+import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
+import { EmptyState } from "../../../../src/components/EmptyState";
+import { classifyUserError } from "../../../../src/lib/userFacingError";
 type W = {
   user_id: string;
   requested_at: string;
@@ -47,6 +51,7 @@ type NoteRow = {
 export default function CoachSessionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showOk, showConfirm } = useAppAlert();
   const { showToast } = useToast();
   const { profile } = useAuth();
@@ -71,6 +76,8 @@ export default function CoachSessionDetail() {
   const [moveTarget, setMoveTarget] = useState<MoveParticipantTarget | null>(null);
   const [coachId, setCoachId] = useState<string | null>(null);
   const [sessionSchedule, setSessionSchedule] = useState<{ session_date: string; start_time: string } | null>(null);
+  // The session row does not exist (deleted / bad link): show "not found" instead of an empty session.
+  const [sessionMissing, setSessionMissing] = useState(false);
   const [isKickbox, setIsKickbox] = useState(false);
   const [myId, setMyId] = useState<string | null>(null);
   const [waitlistQuickUserId, setWaitlistQuickUserId] = useState<string | null>(null);
@@ -128,11 +135,12 @@ export default function CoachSessionDetail() {
     void (async () => {
       const uid = (await supabase.auth.getUser()).data.user?.id ?? null;
       setMyId(uid);
-      const { data: s } = await supabase
+      const { data: s, error: sErr } = await supabase
         .from("training_sessions")
         .select("coach_id, session_date, start_time, max_participants, is_kickbox")
         .eq("id", id)
         .single();
+      setSessionMissing(!s && !!sErr && (classifyUserError(sErr) === "notFound" || sErr.code === "22P02"));
       const row = s as {
         coach_id?: string;
         session_date?: string;
@@ -297,6 +305,21 @@ export default function CoachSessionDetail() {
   const maxCapCoach = Math.max(1, sessionMaxParticipants || 1);
   const displayParticipantCount = Math.round(useCountUp(participantCount));
 
+  if (sessionMissing)
+    return (
+      <View style={[styles.root, { justifyContent: "center" }, screenContent]}>
+        <Stack.Screen options={{ title: t("screen.coachSession") }} />
+        <EmptyState
+          tone="notFound"
+          title={t("athleteSession.notFound")}
+          body={t("errors.notFound")}
+          actionLabel={t("common.back")}
+          onAction={() => router.replace("/(app)/coach/sessions")}
+          isRTL={isRTL}
+        />
+      </View>
+    );
+
   return (
     <>
       <Stack.Screen options={{ title: t("screen.coachSession") }} />
@@ -304,7 +327,7 @@ export default function CoachSessionDetail() {
         <ScrollView
           ref={scrollRef}
           style={styles.screen}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, screenContent]}
           onScroll={(e) => {
             scrollYRef.current = e.nativeEvent.contentOffset.y;
           }}
@@ -357,7 +380,7 @@ export default function CoachSessionDetail() {
           return (
             <FadeSlideIn key={item.user_id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
               <View style={styles.waitCard}>
-                <View style={[styles.waitCardRow, isRTL && styles.waitCardRowRtl]}>
+                <View style={[styles.waitCardRow, rowFlipFor(isRTL) && styles.waitCardRowRtl]}>
                   <View style={styles.waitCardMain}>
                     <Text style={[styles.waitName, isRTL && styles.rtlText]}>{name}</Text>
                     {phone ? <Text style={[styles.waitMeta, isRTL && styles.rtlText]}>{phone}</Text> : null}
@@ -465,7 +488,7 @@ export default function CoachSessionDetail() {
               isRTL={isRTL}
               style={styles.noteInputMultiline}
             />
-            <View style={[styles.noteComposerActions, isRTL && styles.noteComposerActionsRtl]}>
+            <View style={[styles.noteComposerActions, rowFlipFor(isRTL) && styles.noteComposerActionsRtl]}>
               <Pressable
                 onPress={() => {
                   setNoteComposerOpen(false);
@@ -526,7 +549,7 @@ export default function CoachSessionDetail() {
                         containerStyle={styles.noteEditField}
                         style={styles.noteInputMultiline}
                       />
-                      <View style={[styles.noteEditActions, isRTL && styles.noteEditActionsRtl]}>
+                      <View style={[styles.noteEditActions, rowFlipFor(isRTL) && styles.noteEditActionsRtl]}>
                         <Pressable
                           onPress={() => {
                             setEditingNoteId(null);
@@ -556,7 +579,7 @@ export default function CoachSessionDetail() {
                     </View>
                   </AnimatedOptionExpand>
                   {!isEditing && canDelete ? (
-                    <View style={[styles.noteRowActions, isRTL && styles.noteRowActionsRtl]}>
+                    <View style={[styles.noteRowActions, rowFlipFor(isRTL) && styles.noteRowActionsRtl]}>
                       <TouchableOpacity
                         activeOpacity={0.75}
                         delayPressIn={0}
@@ -681,10 +704,10 @@ const styles = StyleSheet.create({
     minWidth: 72,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: theme.controls.minTouch,
   },
-  waitQuickBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 13 },
-  waitName: { color: theme.colors.text, fontWeight: "900", fontSize: 15 },
+  waitQuickBtnTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 13 },
+  waitName: { color: theme.colors.text, fontWeight: "800", fontSize: 15 },
   waitMeta: { marginTop: 4, color: theme.colors.textMuted, fontWeight: "700" },
   notesCard: {
     marginTop: 4,
@@ -743,7 +766,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
   },
-  noteMeta: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700" },
+  noteMeta: { color: theme.colors.textMuted, ...theme.typography.label },
   noteBody: { marginTop: 6, color: theme.colors.text, fontWeight: "700", lineHeight: 18 },
   noteDelete: { marginTop: 0, alignSelf: "flex-start" },
   noteDeleteWeb: { cursor: "pointer" } as const,

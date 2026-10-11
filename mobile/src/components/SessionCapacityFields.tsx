@@ -3,6 +3,8 @@ import { theme } from "../theme";
 import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { useI18n } from "../context/I18nContext";
 import { SESSION_MAX_PRESETS } from "../lib/sessionCapacityOptions";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { selectionA11y } from "../lib/a11ySelection";
 
 type Props = {
   duration: string;
@@ -31,7 +33,7 @@ export function SessionCapacityFields({
 
   return (
     <View style={sf.formPanel}>
-      <View style={[styles.row, isRTL && styles.rowRtl]}>
+      <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
         <View style={styles.col}>
           <Text style={[sf.label, isRTL && sf.labelRtl]}>{durationLabel}</Text>
           <TextInput
@@ -58,7 +60,7 @@ export function SessionCapacityFields({
             placeholderTextColor={theme.colors.textSoft}
             accessibilityLabel={maxLabel}
           />
-          <View style={[styles.presetRow, isRTL && styles.presetRowRtl]}>
+          <View style={[styles.presetRow, rowFlipFor(isRTL) && styles.presetRowRtl]}>
             {SESSION_MAX_PRESETS.map((n) => {
               const on = maxNum === n;
               return (
@@ -70,8 +72,7 @@ export function SessionCapacityFields({
                     on && styles.presetChipOn,
                     pressed && !on && styles.presetChipPressed,
                   ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
+                  {...selectionA11y("radio", on)}
                   accessibilityLabel={String(n)}
                 >
                   <Text style={[styles.presetChipTxt, on && styles.presetChipTxtOn]}>{n}</Text>
@@ -114,10 +115,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   presetRowRtl: { flexDirection: "row-reverse" },
+  // Even 2×2 grid: four chips never fit one row in the half-width column, and a wrapped row left "12" alone.
   presetChip: {
-    flex: 1,
-    minWidth: 36,
-    height: 34,
+    flexGrow: 1,
+    flexBasis: "40%",
+    minHeight: theme.controls.minTouch,
     paddingHorizontal: 8,
     borderRadius: theme.radius.md,
     borderWidth: 1,

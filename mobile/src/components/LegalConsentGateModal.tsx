@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { useLegalConsentGate } from "../hooks/useLegalConsentGate";
+import { useInertSiblings } from "../hooks/useInertSiblings";
 import { recordUserConsent } from "../lib/consent";
 import { AppText } from "./AppText";
 import { AnimatedCheckMark } from "./AnimatedCheckMark";
@@ -34,8 +35,11 @@ export function LegalConsentGateModal() {
   // separately when Terms and Privacy are both pending. The documents themselves (title,
   // text, "View" link) are still each shown in full for transparency.
   const allChecked = required.length > 0 && checked;
+  const overlayRef = useRef<View>(null);
+  const shown = !!session && !loading && blocksApp;
+  useInertSiblings(overlayRef, shown);
 
-  if (!session || loading || !blocksApp) return null;
+  if (!shown) return null;
 
   async function onAcceptAll() {
     if (!allChecked || submitting) return;
@@ -58,7 +62,12 @@ export function LegalConsentGateModal() {
   }
 
   return (
-    <View style={styles.overlay} accessibilityViewIsModal>
+    <View
+      ref={overlayRef}
+      style={styles.overlay}
+      accessibilityViewIsModal
+      {...(Platform.OS === "web" ? { role: "dialog", "aria-modal": true, "aria-label": t("legalGate.title") } : null)}
+    >
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboard}>
         <View style={styles.cardWrap}>
           <ScrollView style={styles.card} contentContainerStyle={styles.cardContent}>
@@ -82,6 +91,8 @@ export function LegalConsentGateModal() {
                     <Pressable
                       onPress={() => router.push((DOC_ROUTE[c.consent_type] ?? "/legal/terms") as never)}
                       hitSlop={8}
+                      accessibilityRole="link"
+                      accessibilityLabel={`${t("legalGate.viewDocument")}: ${title}`}
                     >
                       <AppText variant="caption" style={styles.viewLink}>
                         {t("legalGate.viewDocument")}
@@ -100,6 +111,7 @@ export function LegalConsentGateModal() {
               onPress={() => setChecked((v) => !v)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked }}
+              aria-checked={checked}
             >
               <View style={[styles.checkbox, checked && styles.checkboxOn]}>
                 <AnimatedCheckMark visible={checked} style={styles.checkboxMark} />
@@ -174,7 +186,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   checkboxOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
-  checkboxMark: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 13 },
+  checkboxMark: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 13 },
   checkTxt: { flex: 1 },
   errorTxt: { color: theme.colors.error, marginBottom: theme.spacing.sm },
   hintTxt: { marginBottom: theme.spacing.sm },

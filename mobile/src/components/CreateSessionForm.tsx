@@ -11,11 +11,12 @@ import { useNavigation } from "expo-router/react-navigation";
 import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
+import { AppIcon } from "./AppIcon";
 import { PrimaryButton } from "./PrimaryButton";
 import { DEFAULT_SESSION_START_TIME, suggestNextSessionStartTime } from "../lib/sessionTime";
 import { isMissingSessionSeriesRpc, staffCreateSessionSeries } from "../lib/sessionSeries";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
-import { appendNetworkHint } from "../lib/networkErrors";
+import { userFacingErrorMessage } from "../lib/userFacingError";
 import { toISODateLocal, isValidISODateString } from "../lib/isoDate";
 import { SessionWhenFields } from "./SessionWhenFields";
 import { SessionCapacityFields } from "./SessionCapacityFields";
@@ -43,6 +44,11 @@ import { fetchActiveGlobalTierPrice, parseCustomSlotPriceDraft } from "../lib/se
 import { AppSearchSheet } from "./AppSearchSheet";
 import { CoachPickerSheet } from "./CoachPickerSheet";
 import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { selectionA11y } from "../lib/a11ySelection";
+import { roleLabel } from "../lib/displayLabels";
+import { pluralKey } from "../lib/pluralKey";
 
 type CoachOption = { user_id: string; full_name: string; role: string; username: string; calendar_color?: string | null };
 
@@ -63,6 +69,7 @@ function escapeIlike(term: string) {
 
 export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }: Props) {
   const { language, t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
   const { showToast } = useToast();
   const { showAlert } = useAppAlert();
@@ -295,7 +302,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
   function selectCoach(opt: CoachOption) {
     setCoachId(opt.user_id);
-    setCoachLabel(`${opt.full_name} — ${opt.role}`);
+    setCoachLabel(`${opt.full_name} — ${roleLabel(opt.role, t)}`);
     setCoachColor(opt.calendar_color ?? null);
     setShowCoachPicker(false);
   }
@@ -380,8 +387,8 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     const phone = quickPhone.trim();
     if (name.length < 2 || phone.length < 3) {
       showToast({
-        message: language === "he" ? "חסר מידע" : "Missing info",
-        detail: language === "he" ? "הזינו שם וטלפון." : "Enter name and phone.",
+        message: t("ui.createSessionForm.missingInfo"),
+        detail: t("ui.createSessionForm.enterNameAndPhone"),
         variant: "info",
       });
       return;
@@ -448,7 +455,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     const parsedMax = parseInt(max.trim(), 10);
     const maxP = clampSessionMaxParticipants(parsedMax);
     if (!isValidSessionMaxParticipants(parsedMax)) {
-      setError(language === "he" ? "בחרו גודל קבוצה בין 1 ל-15." : "Choose a group size between 1 and 15.");
+      setError(t("ui.createSessionForm.chooseAGroupSizeBetween1"));
       return;
     }
     const customParsed = parseCustomSlotPriceDraft(customSlotPriceDraft);
@@ -543,7 +550,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
           });
           if (priceErr || !data?.ok) {
             showToast({
-              message: language === "he" ? "האימון נשמר, אבל התעריף לא נשמר." : "Saved, but the session rate could not be saved.",
+              message: t("ui.createSessionForm.savedButTheSessionRateCould"),
               variant: "info",
             });
             break;
@@ -561,7 +568,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
               p_allow_over_capacity: false,
             });
             if (error) {
-              showToast({ message: language === "he" ? "שגיאה הוספת מתאמן" : "Error adding trainee", detail: error.message, variant: "error" });
+              showToast({ message: t("ui.createSessionForm.errorAddingTrainee"), detail: error.message, variant: "error" });
               continue;
             }
             const e = String(data?.error ?? "");
@@ -576,7 +583,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
               p_allow_over_capacity: false,
             });
             if (error) {
-              showToast({ message: language === "he" ? "שגיאה הוספת משתתף ידני" : "Error adding manual participant", detail: error.message, variant: "error" });
+              showToast({ message: t("ui.createSessionForm.errorAddingManualParticipant"), detail: error.message, variant: "error" });
               continue;
             }
             const e = String(data?.error ?? "");
@@ -601,7 +608,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
           }
         } else {
           showToast({
-            message: language === "he" ? "האימון נשמר, אבל ההערה לא נשמרה." : "Saved, but the note could not be saved.",
+            message: t("ui.createSessionForm.savedButTheNoteCouldNot"),
             variant: "info",
           });
         }
@@ -610,18 +617,16 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
     if (usedLegacyInsert && hidden) {
       showToast({
-        message: language === "he" ? "נשמר (אימונים גלויים)" : "Saved (visible sessions)",
+        message: t("ui.createSessionForm.savedVisibleSessions"),
         detail:
-          language === "he"
-            ? "חסרה בעמודה `is_hidden` בפרויקט (המיגרציה לא הופעלה)."
-            : "Your project is missing the `is_hidden` column (migration not applied).",
+          t("ui.createSessionForm.yourProjectIsMissingTheIs"),
         variant: "info",
       });
     } else if (useSeriesRpc && count > 0) {
       showToast({
         message: repeatOngoing
-          ? t("session.seriesCreatedOngoing").replace("{n}", String(count))
-          : t("session.seriesCreated").replace("{n}", String(count)),
+          ? pluralKey(t, "session.seriesCreatedOngoing", count).replace("{n}", String(count))
+          : pluralKey(t, "session.seriesCreated", count).replace("{n}", String(count)),
         variant: "success",
       });
     } else if (count > 1) {
@@ -684,7 +689,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
   return (
     <>
-    <ScrollView contentContainerStyle={sf.content} style={sf.screen} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={[sf.content, screenContent]} style={sf.screen} keyboardShouldPersistTaps="handled">
       <View style={sf.sections}>
         <View style={sf.card}>
           <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("sessionForm.when")}</Text>
@@ -783,7 +788,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         />
 
         <View style={sf.card}>
-          <View style={[sf.sectionHeaderRow, isRTL && sf.sectionHeaderRowRtl]}>
+          <View style={[sf.sectionHeaderRow, rowFlipFor(isRTL) && sf.sectionHeaderRowRtl]}>
             <Text style={[sf.cardTitle, styles.sectionTitleInline, isRTL && styles.rtlText]}>{t("sessionForm.trainees")}</Text>
             {traineeCount > 0 ? (
               <View style={sf.countBadge}>
@@ -813,10 +818,11 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                   <Pressable
                     onPress={() => removeAthletePick(a.user_id)}
                     style={styles.chipX}
+                    hitSlop={9}
                     accessibilityRole="button"
                     accessibilityLabel={t("common.remove")}
                   >
-                    <Text style={styles.chipXTxt}>✕</Text>
+                    <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
                   </Pressable>
                 </View>
               ))}
@@ -828,10 +834,11 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                   <Pressable
                     onPress={() => removeManualPick(m.manual_participant_id)}
                     style={styles.chipX}
+                    hitSlop={9}
                     accessibilityRole="button"
                     accessibilityLabel={t("common.remove")}
                   >
-                    <Text style={styles.chipXTxt}>✕</Text>
+                    <AppIcon name="close" size="sm" color={theme.colors.textMuted} />
                   </Pressable>
                 </View>
               ))}
@@ -865,7 +872,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         <View style={styles.footer}>
           {error ? (
             <Text style={[sf.error, isRTL && styles.rtlText]} accessibilityLiveRegion="polite">
-              {appendNetworkHint(error, t("network.offlineHint"))}
+              {userFacingErrorMessage(error, t)}
             </Text>
           ) : null}
           <PrimaryButton
@@ -948,8 +955,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
                         else addManualPick(row.manual);
                       }
                     }}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: already }}
+                    {...selectionA11y("checkbox", already)}
                   >
                     <Text style={styles.pickerRowName} numberOfLines={1} ellipsizeMode="tail">
                       {row.full_name}
@@ -1055,13 +1061,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderMuted,
   },
-  modalHeaderRtl: { flexDirection: "row-reverse" },
   modalTitle: { fontSize: 17, fontWeight: "800", letterSpacing: 0.2, color: theme.colors.text },
-  modalClose: { fontSize: 16, color: theme.colors.textMuted, fontWeight: "800" },
+  modalClose: { ...theme.typography.title, color: theme.colors.textMuted },
   modalLoader: { paddingVertical: theme.spacing.xl },
   pickerItem: { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: theme.spacing.md, borderBottomWidth: 1, borderColor: theme.colors.borderMuted },
   pickerItemTextCol: { flex: 1 },
-  pickerItemName: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  pickerItemName: { ...theme.typography.title, color: theme.colors.text },
   pickerItemRole: {
     fontSize: 13,
     color: theme.colors.textMuted,
@@ -1095,10 +1100,9 @@ const styles = StyleSheet.create({
   },
   selectedChipTxt: { color: theme.colors.text, fontWeight: "800", flexShrink: 1 },
   chipX: { width: 26, height: 26, borderRadius: theme.radius.full, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderMuted, alignItems: "center", justifyContent: "center" },
-  chipXTxt: { color: theme.colors.textMuted, fontWeight: "900", fontSize: 12, lineHeight: 14 },
+  chipXTxt: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 12, lineHeight: 14 },
 
   traineeSearchRow: { flexDirection: "row", gap: theme.spacing.sm, alignItems: "center" },
-  traineeSearchRowRtl: { flexDirection: "row-reverse" },
   traineeSearchInput: { flex: 1 },
   traineeSearchBtn: {
     paddingVertical: theme.spacing.sm,
@@ -1129,7 +1133,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   pickerRowName: { fontWeight: "800", color: theme.colors.text },
-  pickerRowMeta: { marginTop: 2, color: theme.colors.textMuted, fontWeight: "700", fontSize: 12 },
+  pickerRowMeta: { marginTop: 2, color: theme.colors.textMuted, ...theme.typography.label, },
 
   quickAddRow: { gap: theme.spacing.sm },
   quickAddInput: {

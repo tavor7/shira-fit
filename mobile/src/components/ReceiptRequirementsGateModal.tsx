@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
@@ -5,17 +6,27 @@ import { useAuth } from "../context/AuthContext";
 import { useReceiptRequirements } from "../hooks/useReceiptRequirements";
 import { recordUserConsent } from "../lib/consent";
 import { supabase } from "../lib/supabase";
-import { ReceiptRequirementsGateCard } from "./ReceiptRequirementsGateCard";
+import { ReceiptRequirementsGateCard, receiptGateTitle } from "./ReceiptRequirementsGateCard";
+import { useInertSiblings } from "../hooks/useInertSiblings";
 
 export function ReceiptRequirementsGateModal() {
   const { session, profile, refreshProfile } = useAuth();
   const { language, t, isRTL } = useI18n();
   const { loading, mode, consent, blocksApp, reload } = useReceiptRequirements();
 
-  if (!session || loading || !blocksApp || mode === "none") return null;
+  const overlayRef = useRef<View>(null);
+  const shown = !!session && !loading && blocksApp && mode !== "none";
+  useInertSiblings(overlayRef, shown);
+
+  if (!shown) return null;
 
   return (
-    <View style={styles.overlay} accessibilityViewIsModal>
+    <View
+      ref={overlayRef}
+      style={styles.overlay}
+      accessibilityViewIsModal
+      {...(Platform.OS === "web" ? { role: "dialog", "aria-modal": true, "aria-label": receiptGateTitle(mode, consent, language) } : null)}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.keyboard}

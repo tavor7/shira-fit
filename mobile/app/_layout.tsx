@@ -4,6 +4,7 @@ import { AuthProvider } from "../src/context/AuthContext";
 import { Platform, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { BottomChromeProvider } from "../src/context/BottomChromeContext";
 import { theme } from "../src/theme";
 import { appHeaderStyle, appHeaderTitleStyle } from "../src/theme/headerStyles";
 import { StudioContactFooter } from "../src/components/StudioContactFooter";
@@ -22,6 +23,8 @@ import { initNotificationHandler } from "../src/lib/notificationsInit";
 import { useEffect } from "react";
 import * as Updates from "expo-updates";
 import { useAuth } from "../src/context/AuthContext";
+import { ConnectionBarLayout } from "../src/components/OfflineNotice";
+import { useSpaceActivatesControls } from "../src/hooks/useSpaceActivatesControls";
 
 initNotificationHandler();
 
@@ -37,6 +40,7 @@ function StudioContactFooterGate() {
 }
 
 export default function RootLayout() {
+  useSpaceActivatesControls();
   useEffect(() => {
     if (__DEV__) return;
     if (Platform.OS === "web") return;
@@ -54,6 +58,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      <BottomChromeProvider>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         {Platform.OS === "web" ? (
           <Head>
@@ -108,6 +113,35 @@ export default function RootLayout() {
               [role="button"]:focus:not(:focus-visible) {
                 outline: none;
               }
+              /*
+                Search fields: the field shell shows focus (the whole 48px control), not a second ring
+                around the inner input. The enhanced-focus accessibility mode (!important) still applies.
+              */
+              [data-search-input]:focus { outline: none; }
+              /*
+                A modal root takes focus when it opens (so screen readers land inside it); a ring around the whole
+                full-screen container is noise. Controls inside the dialog keep their own focus rings.
+              */
+              [aria-modal="true"]:focus { outline: none; }
+              /* Native date/time/select fields reset their outline inline; keyboard focus still needs a visible ring.
+                 Drawn inside the field: their rounded wrappers clip overflow, which left only the corners of an outer ring. */
+              input[type="date"]:focus-visible, input[type="time"]:focus-visible, select:focus-visible {
+                outline: 2px solid ${theme.colors.text} !important;
+                outline-offset: -2px;
+              }
+              [data-search-shell]:focus-within { border-color: ${theme.colors.text}; }
+              /*
+                react-native-web renders every root <Text> with dir="auto", so each paragraph took its
+                direction from its first letter: a Hebrew name turned an English row right-to-left (and
+                reversed its times), and number-only text sat left-aligned inside Hebrew cards. Paragraphs
+                follow the UI language (<html dir>) instead; embedded values keep their own order through
+                the display helpers in src/lib/displayFormat.ts. :where() keeps this at zero specificity, so
+                explicit writingDirection styles still win, and inputs keep dir="auto" for typed text. Text that shows
+                user content on its own (userContentTextProps) also keeps dir="auto".
+              */
+              :where([dir="auto"]:not(input):not(textarea):not([data-bidi="content"])) {
+                direction: inherit;
+              }
             `}</style>
           </Head>
         ) : null}
@@ -124,6 +158,7 @@ export default function RootLayout() {
                     {Platform.OS === "web" ? <AccessibilityStyleInjector /> : null}
                     {Platform.OS === "web" ? <AccessibilityMenu /> : null}
                     <StatusBar style="light" />
+                    <ConnectionBarLayout>
                     <View style={{ flex: 1 }}>
                       <Stack
                         screenOptions={{
@@ -135,11 +170,13 @@ export default function RootLayout() {
                           headerStyle: rootHeaderStyle as object,
                           headerTintColor: theme.colors.text,
                           headerTitleStyle: rootHeaderTitleStyle as object,
+                          contentStyle: { backgroundColor: theme.colors.backgroundAlt },
                           // Auth<->app group swap isn't a drill-in — a fade reads better than a lateral slide.
                           animation: "fade",
                         }}
                       />
                     </View>
+                    </ConnectionBarLayout>
                     <StudioContactFooterGate />
                   </BulkJobsProvider>
                 </ToastProvider>
@@ -150,6 +187,7 @@ export default function RootLayout() {
           </I18nProvider>
         </AuthProvider>
       </View>
+      </BottomChromeProvider>
     </SafeAreaProvider>
   );
 }

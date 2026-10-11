@@ -8,11 +8,12 @@ import { isAthleteAccountDisabled } from "../../src/lib/profileAccount";
 import { logRedirectToManagerSessions } from "../../src/lib/managerSessionsRedirectLog";
 import { AppText } from "../../src/components/AppText";
 import { ActionButton } from "../../src/components/ActionButton";
-import { StudioContactFooter } from "../../src/components/StudioContactFooter";
 import { FadeSlideIn } from "../../src/components/FadeSlideIn";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 
 export default function PendingScreen() {
   const { profile, refreshProfile, loading: authLoading, user } = useAuth();
+  const screenContent = useScreenContentStyle("narrow");
   const { isRTL, t } = useI18n();
   const [checking, setChecking] = useState(false);
 
@@ -55,7 +56,7 @@ export default function PendingScreen() {
     <View style={styles.box}>
       <Stack.Screen options={{ title: t("screen.pending") }} />
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, screenContent]}
         refreshControl={<RefreshControl refreshing={checking} onRefresh={checkNow} tintColor={theme.colors.cta} />}
       >
         <FadeSlideIn>
@@ -86,7 +87,6 @@ export default function PendingScreen() {
         </View>
         </FadeSlideIn>
       </ScrollView>
-      <StudioContactFooter />
     </View>
   );
 }

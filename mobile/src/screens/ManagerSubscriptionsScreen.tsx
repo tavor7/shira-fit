@@ -19,6 +19,9 @@ import {
   type SubscriptionHistoryRow,
   type SubscriptionListRow,
 } from "../lib/subscriptions";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 type Tab = "active" | "history";
 
@@ -43,6 +46,7 @@ function statusLabelKey(status: string): string {
 
 export function ManagerSubscriptionsScreen() {
   const { t, language, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
 
   const [tab, setTab] = useState<Tab>("active");
   const [query, setQuery] = useState("");
@@ -96,8 +100,8 @@ export function ManagerSubscriptionsScreen() {
   return (
     <View style={styles.screen}>
       <ManagerMoneyHubTabs />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={[styles.headerRow, isRTL && styles.headerRowRtl]}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, screenContent]} keyboardShouldPersistTaps="handled">
+        <View style={[styles.headerRow, rowFlipFor(isRTL) && styles.headerRowRtl]}>
           <Text style={[styles.title, isRTL && styles.rtl]}>{t("subscriptions.title")}</Text>
           <PrimaryButton
             label={t("subscriptions.create")}
@@ -126,7 +130,7 @@ export function ManagerSubscriptionsScreen() {
             </View>
           ) : error ? (
             <EmptyState
-              icon="⚠️"
+              tone="error"
               title={t("subscriptions.errorLoad")}
               actionLabel={t("subscriptions.retry")}
               onAction={() => void load()}
@@ -134,7 +138,7 @@ export function ManagerSubscriptionsScreen() {
             />
           ) : tab === "active" ? (
             filteredActive.length === 0 ? (
-              <EmptyState icon="📋" title={t("subscriptions.emptyActiveTitle")} body={t("subscriptions.emptyActiveBody")} isRTL={isRTL} />
+              <EmptyState icon="list-outline" title={t("subscriptions.emptyActiveTitle")} body={t("subscriptions.emptyActiveBody")} isRTL={isRTL} />
             ) : (
               filteredActive.map((row) => (
                 <ActiveSubscriptionRow
@@ -148,7 +152,7 @@ export function ManagerSubscriptionsScreen() {
               ))
             )
           ) : filteredHistory.length === 0 ? (
-            <EmptyState icon="🗂️" title={t("subscriptions.emptyHistoryTitle")} body={t("subscriptions.emptyHistoryBody")} isRTL={isRTL} />
+            <EmptyState icon="archive-outline" title={t("subscriptions.emptyHistoryTitle")} body={t("subscriptions.emptyHistoryBody")} isRTL={isRTL} />
           ) : (
             filteredHistory.map((row) => (
               <HistorySubscriptionRow
@@ -181,11 +185,11 @@ function ActiveSubscriptionRow({
 }) {
   return (
     <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={onPress} accessibilityRole="button">
-      <View style={[styles.rowTop, isRTL && styles.rowTopRtl]}>
+      <View style={[styles.rowTop, rowFlipFor(isRTL) && styles.rowTopRtl]}>
         <Text style={[styles.rowName, isRTL && styles.rtl]} numberOfLines={1}>
           {row.payee_display_name}
         </Text>
-        <View style={[styles.badges, isRTL && styles.badgesRtl]}>
+        <View style={[styles.badges, rowFlipFor(isRTL) && styles.badgesRtl]}>
           {row.is_frozen ? (
             <View style={[styles.badge, styles.badgeFrozen]}>
               <Text style={styles.badgeText}>{t("subscriptions.frozenBadge")}</Text>
@@ -196,8 +200,8 @@ function ActiveSubscriptionRow({
           </View>
         </View>
       </View>
-      <Text style={[styles.rowSub, isRTL && styles.rtl]}>₪{row.monthly_price_ils.toFixed(2)} / mo</Text>
-      <View style={[styles.rowMeta, isRTL && styles.rowMetaRtl]}>
+      <Text style={[styles.rowSub, isRTL && styles.rtl]}>{t("athleteSubscription.priceLine").replace("{price}", displayMoney(row.monthly_price_ils))}</Text>
+      <View style={[styles.rowMeta, rowFlipFor(isRTL) && styles.rowMetaRtl]}>
         <Text style={[styles.rowMetaText, isRTL && styles.rtl]}>
           {t("subscriptions.rowStart")}: {formatISODateFull(row.plan_start_date, language)}
         </Text>
@@ -229,11 +233,11 @@ function HistorySubscriptionRow({
 }) {
   return (
     <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={onPress} accessibilityRole="button">
-      <View style={[styles.rowTop, isRTL && styles.rowTopRtl]}>
+      <View style={[styles.rowTop, rowFlipFor(isRTL) && styles.rowTopRtl]}>
         <Text style={[styles.rowName, isRTL && styles.rtl]} numberOfLines={1}>
           {row.payee_display_name}
         </Text>
-        <View style={[styles.badges, isRTL && styles.badgesRtl]}>
+        <View style={[styles.badges, rowFlipFor(isRTL) && styles.badgesRtl]}>
           {row.is_tombstoned ? (
             <View style={[styles.badge, styles.badgeMuted]}>
               <Text style={styles.badgeText}>{t("subscriptions.tombstonedBadge")}</Text>
@@ -245,7 +249,7 @@ function HistorySubscriptionRow({
           )}
         </View>
       </View>
-      <Text style={[styles.rowSub, isRTL && styles.rtl]}>₪{row.monthly_price_ils.toFixed(2)} / mo</Text>
+      <Text style={[styles.rowSub, isRTL && styles.rtl]}>{t("athleteSubscription.priceLine").replace("{price}", displayMoney(row.monthly_price_ils))}</Text>
     </Pressable>
   );
 }
@@ -254,9 +258,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   scroll: { flex: 1 },
   content: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, paddingBottom: 40 },
-  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
+  // Wraps so "New subscription" drops below the title instead of running off narrow screens.
+  headerRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
   headerRowRtl: { flexDirection: "row-reverse" },
-  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
+  title: { ...theme.typography.headline, color: theme.colors.text },
   createBtn: { flexShrink: 0 },
   tabBar: { marginBottom: theme.spacing.sm },
   search: { marginBottom: theme.spacing.md },

@@ -11,10 +11,12 @@ import { AppText } from "../../src/components/AppText";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { AnimatedCheckMark } from "../../src/components/AnimatedCheckMark";
 import { surface } from "../../src/theme/surfaces";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 
 export default function SignupSuccessScreen() {
   const { email } = useLocalSearchParams<{ email?: string }>();
   const { t, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("narrow");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export default function SignupSuccessScreen() {
   }
 
   return (
-    <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.scrollRoot} contentContainerStyle={[styles.scroll, screenContent]} keyboardShouldPersistTaps="handled">
       <FadeSlideIn>
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" accessibilityLabel={t("a11y.appLogo")} />
@@ -100,7 +102,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: theme.spacing.lg,
   },
-  badgeText: { color: theme.colors.success, fontSize: 22, fontWeight: "800" },
+  badgeText: { color: theme.colors.success, ...theme.typography.display },
   title: { textAlign: "center", marginBottom: theme.spacing.sm },
   lead: { textAlign: "center", marginBottom: theme.spacing.lg },
   box: {

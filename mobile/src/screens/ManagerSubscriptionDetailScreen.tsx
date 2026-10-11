@@ -17,12 +17,16 @@ import {
   type SubscriptionDetail,
   type SubscriptionVersionRow,
 } from "../lib/subscriptions";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
 const ACTIVE_STATUSES = new Set(["active", "frozen", "scheduled"]);
 
 export function ManagerSubscriptionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t, language, isRTL } = useI18n();
+  const screenContent = useScreenContentStyle("standard");
   const { showToast } = useToast();
   const { showConfirm } = useAppAlert();
 
@@ -78,7 +82,7 @@ export function ManagerSubscriptionDetailScreen() {
   if (error || !detail) {
     return (
       <View style={styles.screen}>
-        <EmptyState icon="⚠️" title={t("subscriptions.detail.loadError")} actionLabel={t("subscriptions.retry")} onAction={() => void load()} isRTL={isRTL} />
+        <EmptyState tone="error" title={t("subscriptions.detail.loadError")} actionLabel={t("subscriptions.retry")} onAction={() => void load()} isRTL={isRTL} />
       </View>
     );
   }
@@ -127,11 +131,11 @@ export function ManagerSubscriptionDetailScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, screenContent]}>
         <Text style={[styles.title, isRTL && styles.rtl]}>{payeeName || t("subscriptions.detail.title")}</Text>
 
         <Section title={t("subscriptions.detail.overview")} isRTL={isRTL}>
-          <KeyValue label={t("subscriptions.detail.price")} value={`₪${(current?.monthly_price_ils ?? 0).toFixed(2)}`} isRTL={isRTL} />
+          <KeyValue label={t("subscriptions.detail.price")} value={displayMoney(current?.monthly_price_ils ?? 0)} isRTL={isRTL} />
           <KeyValue label={t("subscriptions.rowStart")} value={formatISODateFull(current?.plan_start_date ?? "", language)} isRTL={isRTL} />
           <KeyValue
             label={t("subscriptions.rowEnd")}
@@ -176,7 +180,7 @@ export function ManagerSubscriptionDetailScreen() {
               {t("subscriptions.detail.versionLine")
                 .replace("{start}", formatISODateFull(v.effective_from, language))
                 .replace("{end}", v.effective_to ? formatISODateFull(v.effective_to, language) : t("subscriptions.detail.versionOngoing"))
-                .replace("{price}", v.monthly_price_ils.toFixed(2))}
+                .replace("{price}", displayMoney(v.monthly_price_ils))}
             </Text>
           ))}
         </Section>
@@ -203,7 +207,7 @@ export function ManagerSubscriptionDetailScreen() {
               return (
                 <Text key={p.period_id} style={[styles.historyLine, isRTL && styles.rtl]}>
                   {t("subscriptions.detail.periodLabel").replace("{start}", formatISODateFull(p.period_start, language)).replace("{end}", formatISODateFull(p.period_end, language))}
-                  {amount != null ? `: ₪${amount.toFixed(2)}` : ""}
+                  {amount != null ? `: ${displayMoney(amount)}` : ""}
                 </Text>
               );
             })
@@ -263,7 +267,7 @@ function Section({ title, isRTL, children }: { title: string; isRTL: boolean; ch
 
 function KeyValue({ label, value, isRTL }: { label: string; value: string; isRTL: boolean }) {
   return (
-    <View style={[styles.kv, isRTL && styles.kvRtl]}>
+    <View style={[styles.kv, rowFlipFor(isRTL) && styles.kvRtl]}>
       <Text style={[styles.kvLabel, isRTL && styles.rtl]}>{label}</Text>
       <Text style={[styles.kvValue, isRTL && styles.rtl]}>{value}</Text>
     </View>
@@ -275,7 +279,7 @@ const styles = StyleSheet.create({
   centerScreen: { flex: 1, backgroundColor: theme.colors.backgroundAlt, alignItems: "center", justifyContent: "center" },
   scroll: { flex: 1 },
   content: { padding: theme.spacing.md, paddingBottom: 60 },
-  title: { fontSize: 20, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.md },
+  title: { fontSize: 20, fontWeight: "800", color: theme.colors.text, marginBottom: theme.spacing.md },
   section: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
@@ -288,10 +292,10 @@ const styles = StyleSheet.create({
   sectionBody: { gap: 6 },
   kv: { flexDirection: "row", justifyContent: "space-between", gap: theme.spacing.sm },
   kvRtl: { flexDirection: "row-reverse" },
-  kvLabel: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  kvLabel: { ...theme.typography.caption, color: theme.colors.textMuted },
   kvValue: { fontSize: 13, fontWeight: "800", color: theme.colors.text },
   allowanceLine: { fontSize: 14, fontWeight: "700", color: theme.colors.text },
-  historyLine: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  historyLine: { ...theme.typography.caption, color: theme.colors.textMuted },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm },
   actionBtn: { flexGrow: 1, minWidth: 120 },
   rtl: { textAlign: "right", writingDirection: "rtl" },

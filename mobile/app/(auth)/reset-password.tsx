@@ -13,6 +13,7 @@ import { AppTextField } from "../../src/components/AppTextField";
 import { AppText } from "../../src/components/AppText";
 import { LoadingState } from "../../src/components/LoadingState";
 import { theme } from "../../src/theme";
+import { useScreenContentStyle } from "../../src/hooks/useScreenLayout";
 import { useI18n } from "../../src/context/I18nContext";
 import { useAppAlert } from "../../src/context/AppAlertContext";
 import { LanguageToggleChip } from "../../src/components/LanguageToggleChip";
@@ -24,6 +25,7 @@ import { FadeSlideIn } from "../../src/components/FadeSlideIn";
  */
 export default function ResetPasswordScreen() {
   const { t, isRTL } = useI18n();
+  const screenFrame = useScreenContentStyle("narrow", { scrolls: false });
   const { showOk } = useAppAlert();
   const [ready, setReady] = useState(false);
   const [hasSession, setHasSession] = useState(true);
@@ -91,7 +93,7 @@ export default function ResetPasswordScreen() {
   if (!ready) return <LoadingState label={t("common.loading")} isRTL={isRTL} style={[styles.container, styles.centered]} />;
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.container, screenFrame]}>
       <FadeSlideIn>
       <View style={styles.logoWrap}>
         <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" accessibilityLabel={t("a11y.appLogo")} />

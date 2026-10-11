@@ -7,6 +7,7 @@ import { athleteSearchSubtitle } from "../lib/displayName";
 import { AppModal } from "./AppModal";
 import { AppSearchField } from "./AppSearchField";
 import { EmptyState } from "./EmptyState";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 export type PayeePickerRow =
   | { kind: "app"; id: string; full_name: string; username?: string; phone?: string }
@@ -76,7 +77,7 @@ export function PayeePickerModal({ visible, onClose, onSelect }: Props) {
       backdropAccessibilityLabel={t("common.cancel")}
       cardStyle={styles.sheet}
     >
-      <View style={[styles.header, isRTL && styles.headerRtl]}>
+      <View style={[styles.header, rowFlipFor(isRTL) && styles.headerRtl]}>
         <Text style={[styles.title, isRTL && styles.rtl]}>{t("accountPayments.pickPayeeFilter")}</Text>
         <Pressable onPress={onClose} hitSlop={12}>
           <Text style={styles.close}>{t("common.cancel")}</Text>
@@ -98,7 +99,7 @@ export function PayeePickerModal({ visible, onClose, onSelect }: Props) {
             keyExtractor={(r) => `${r.kind}:${r.id}`}
             keyboardShouldPersistTaps="handled"
             style={styles.list}
-            ListEmptyComponent={<EmptyState icon="🔍" title={t("accountPayments.noPayees")} isRTL={isRTL} />}
+            ListEmptyComponent={<EmptyState icon="search-outline" title={t("accountPayments.noPayees")} isRTL={isRTL} />}
             renderItem={({ item }) => (
               <Pressable
                 style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}

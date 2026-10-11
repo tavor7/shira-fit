@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { router, usePathname } from "expo-router";
 import { theme } from "../theme";
 import { useAuth } from "../context/AuthContext";
@@ -7,28 +7,29 @@ import { isAthleteAccountDisabled } from "../lib/profileAccount";
 import { FoldableActionsMenu, type FoldableActionsMenuItem } from "./FoldableActionsMenu";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
-import {
-  useEffectiveNavRole,
-  useManagerAthletePreview,
-} from "../context/ManagerAthletePreviewContext";
-import { replaceToManagerSessions } from "../lib/managerSessionsRedirectLog";
+import { useEffectiveNavRole } from "../context/ManagerAthletePreviewContext";
 import { rpcGetMySubscription } from "../lib/athleteSubscription";
+import type { AppIconName } from "./AppIcon";
+import { useStaffRailVisible } from "../hooks/useStaffRail";
+import { STUDIO_SETUP_INDEX_MAX_WIDTH } from "./ManagerOverviewTabs";
 
-type RouteItem = FoldableActionsMenuItem & {
-  /** Match current pathname; when true we hide the item. */
+export type RouteItem = FoldableActionsMenuItem & {
+  /** Match current pathname; when true we hide the item (menu) or mark it current (desktop rail). */
   isActive: (pathname: string) => boolean;
+  /** Icon for the desktop side rail (Phase 5 / D). */
+  icon?: AppIconName;
 };
 
 function startsWithAny(pathname: string, prefixes: string[]) {
   return prefixes.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname.startsWith(p));
 }
 
-export function GlobalQuickMenu() {
-  const { profile, loading: authLoading, user } = useAuth();
-  const { t, language, toggleLanguage } = useI18n();
-  const openMenuA11y = t("a11y.openMenu");
-  const closeMenuA11y = t("a11y.closeMenu");
+/** Role-specific destinations — one source for the mobile menu and the desktop staff rail. */
+export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
+  const { profile } = useAuth();
+  const { t } = useI18n();
   const pathname = usePathname() ?? "";
+  const { width } = useWindowDimensions();
   const [pendingApproveCount, setPendingApproveCount] = useState(0);
   const [hasSubscription, setHasSubscription] = useState(false);
 
@@ -77,25 +78,19 @@ export function GlobalQuickMenu() {
   }, [profile?.role, profile?.approval_status, profile?.disabled_at, pathname]);
 
   const navRole = useEffectiveNavRole(profile);
-  const { setEnabled } = useManagerAthletePreview();
 
   const items = useMemo<RouteItem[]>(() => {
     const role = navRole;
 
-    const languageItem: RouteItem = {
-      label: language === "he" ? t("lang.english") : t("lang.hebrew"),
-      onPress: () => toggleLanguage(),
-      isActive: () => false,
-    };
-
     const legalItem: RouteItem = {
       label: t("legal.footerHeading"),
+        icon: "document-text-outline",
       onPress: () => router.push("/legal" as never),
       isActive: (p) => startsWithAny(p, ["/legal"]),
     };
 
     if (profile?.role === "athlete" && (profile?.approval_status === "pending" || isAthleteAccountDisabled(profile))) {
-      return [languageItem];
+      return [];
     }
 
     // A minimal set that stays consistent across pages.
@@ -103,16 +98,19 @@ export function GlobalQuickMenu() {
       const managerItems: RouteItem[] = [
         {
           label: t("menu.sessions"),
+        icon: "calendar-outline",
           onPress: () => router.push("/(app)/manager/sessions"),
           isActive: (p) => startsWithAny(p, ["/manager/sessions"]),
         },
         {
           label: t("menu.rosterCalendar"),
+        icon: "list-outline",
           onPress: () => router.push("/(app)/manager/roster-calendar"),
           isActive: (p) => startsWithAny(p, ["/manager/roster-calendar"]),
         },
         {
           label: t("menu.overview"),
+        icon: "stats-chart-outline",
           onPress: () => router.push("/(app)/manager/dashboard"),
           isActive: (p) =>
             startsWithAny(p, [
@@ -129,6 +127,7 @@ export function GlobalQuickMenu() {
         },
         {
           label: t("menu.money"),
+        icon: "wallet-outline",
           onPress: () => router.push("/(app)/manager/account-payments"),
           isActive: (p) =>
             startsWithAny(p, [
@@ -141,9 +140,12 @@ export function GlobalQuickMenu() {
         },
         {
           label: t("menu.managerSetup"),
-          onPress: () => router.push("/(app)/staff/users"),
+        icon: "settings-outline",
+          onPress: () =>
+            router.push((width < STUDIO_SETUP_INDEX_MAX_WIDTH ? "/(app)/manager/setup" : "/(app)/staff/users") as never),
           isActive: (p) =>
             startsWithAny(p, [
+              "/manager/setup",
               "/staff/users",
               "/staff/profile",
               "/staff/manual",
@@ -151,10 +153,12 @@ export function GlobalQuickMenu() {
               "/manager/opening-schedule",
               "/manager/birthday-messages",
               "/manager/whatsapp-rollout",
+              "/manager/legal-settings",
             ]),
         },
         {
           label: t("menu.approve"),
+        icon: "person-add-outline",
           onPress: () => router.push("/(app)/manager/approve"),
           isActive: (p) => startsWithAny(p, ["/manager/approve"]),
           badgeCount: pendingApproveCount > 0 ? pendingApproveCount : undefined,
@@ -164,22 +168,11 @@ export function GlobalQuickMenu() {
       if (profile?.is_super_user === true) {
         managerItems.push({
           label: t("menu.superUserHidden"),
+        icon: "eye-off-outline",
           onPress: () => router.push("/(app)/super/hidden-workouts" as never),
           isActive: (p) => startsWithAny(p, ["/super/hidden-workouts"]),
         });
       }
-
-      managerItems.push(
-        {
-          label: t("menu.athleteView"),
-          onPress: async () => {
-            await setEnabled(true);
-            router.replace("/(app)/athlete/sessions");
-          },
-          isActive: () => false,
-        },
-        languageItem,
-      );
 
       return managerItems;
     }
@@ -188,36 +181,41 @@ export function GlobalQuickMenu() {
       return [
         {
           label: t("menu.sessions"),
+        icon: "calendar-outline",
           onPress: () => router.push("/(app)/coach/sessions"),
           isActive: (p) => startsWithAny(p, ["/coach/sessions"]),
         },
         {
           label: t("menu.editUsers"),
+        icon: "people-outline",
           onPress: () => router.push("/(app)/staff/users"),
           isActive: (p) => startsWithAny(p, ["/staff/users", "/staff/profile", "/staff/manual"]),
         },
         {
           label: t("menu.search"),
+        icon: "search-outline",
           onPress: () => router.push("/(app)/staff/search"),
           isActive: (p) => startsWithAny(p, ["/staff/search"]),
         },
         {
           label: t("menu.participantHistory"),
+        icon: "time-outline",
           onPress: () => router.push("/(app)/coach/participant-history"),
           isActive: (p) => startsWithAny(p, ["/coach/participant-history"]),
         },
         {
           label: t("menu.pricingHub"),
+        icon: "pricetags-outline",
           onPress: () => router.push("/(app)/coach/pricing" as never),
           isActive: (p) => startsWithAny(p, ["/coach/pricing"]),
         },
         {
           label: t("menu.createSession"),
+        icon: "add-circle-outline",
           onPress: () => router.push("/(app)/coach/create-session"),
           isActive: (p) => startsWithAny(p, ["/coach/create-session"]),
         },
         legalItem,
-        languageItem,
       ];
     }
 
@@ -225,11 +223,13 @@ export function GlobalQuickMenu() {
     const athleteItems: RouteItem[] = [
       {
         label: t("menu.sessions"),
+        icon: "calendar-outline",
         onPress: () => router.push("/(app)/athlete/sessions"),
         isActive: (p) => startsWithAny(p, ["/athlete/sessions"]),
       },
       {
         label: t("menu.mySessionsShort"),
+        icon: "bookmark-outline",
         onPress: () => router.push("/(app)/athlete/my-sessions"),
         isActive: (p) => startsWithAny(p, ["/athlete/my-sessions"]),
       },
@@ -237,41 +237,36 @@ export function GlobalQuickMenu() {
     if (hasSubscription) {
       athleteItems.push({
         label: t("athleteSubscription.title"),
+        icon: "card-outline",
         onPress: () => router.push("/(app)/athlete/subscription"),
         isActive: (p) => startsWithAny(p, ["/athlete/subscription"]),
       });
     }
-    if (profile?.role === "manager") {
-      athleteItems.push({
-        label: t("menu.backToStaff"),
-        onPress: async () => {
-          await setEnabled(false);
-          replaceToManagerSessions("src/components/GlobalQuickMenu.tsx", "athlete_preview_back_to_staff", {
-            authLoading,
-            authUserId: user?.id ?? null,
-            profileRole: profile?.role ?? null,
-          });
-        },
-        isActive: () => false,
-      });
-    }
-    athleteItems.push(legalItem, languageItem);
+    athleteItems.push(legalItem);
     return athleteItems;
   }, [
     navRole,
+    width,
     profile?.role,
     profile?.approval_status,
     pendingApproveCount,
     hasSubscription,
     t,
-    language,
-    toggleLanguage,
-    setEnabled,
-    authLoading,
-    user?.id,
   ]);
 
+  return { items, pathname };
+}
+
+export function GlobalQuickMenu() {
+  const { t } = useI18n();
+  const openMenuA11y = t("a11y.openMenu");
+  const closeMenuA11y = t("a11y.closeMenu");
+  const { items, pathname } = useAppNavItems();
+  const railVisible = useStaffRailVisible();
   const visible = useMemo(() => items.filter((i) => !i.isActive(pathname)), [items, pathname]);
+  // Pending / disabled athletes have no destinations (account actions live in the account menu);
+  // on wide staff screens the persistent side rail replaces this menu.
+  if (railVisible || visible.length === 0) return null;
 
   return (
     <View style={styles.wrap}>
@@ -303,7 +298,7 @@ export function GlobalQuickMenu() {
 const styles = StyleSheet.create({
   wrap: {},
   trigger: {
-    height: 38,
+    height: theme.controls.minTouch,
     minWidth: 44,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,
@@ -314,5 +309,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   triggerPressed: { opacity: 0.9, backgroundColor: theme.colors.surface },
-  triggerIcon: { color: theme.colors.text, fontSize: 18, fontWeight: "900", letterSpacing: 0.5, marginTop: -1 },
+  triggerIcon: { color: theme.colors.text, ...theme.typography.headline, letterSpacing: 0.5, marginTop: -1 },
 });

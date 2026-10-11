@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Platform, RefreshControl } from "react-native";
 import { router, type Href } from "expo-router";
 import { theme } from "../theme";
+import { AppIcon } from "../components/AppIcon";
 import { supabase } from "../lib/supabase";
-import { formatISODateFull, formatISODateRangeCompact } from "../lib/dateFormat";
+import { formatISODateFull } from "../lib/dateFormat";
 import { firstDayOfMonthISOLocal, lastDayOfMonthISOLocal, monthRangeISO, parseISODateLocal, shiftMonthAnchorISOLocal, toISODateLocal } from "../lib/isoDate";
 import { useI18n } from "../context/I18nContext";
 import { AppText } from "../components/AppText";
-import { ActionButton } from "../components/ActionButton";
+import { ErrorState } from "../components/EmptyState";
+import { userFacingErrorMessage } from "../lib/userFacingError";
 import { Skeleton } from "../components/Skeleton";
 import { StatusChip } from "../components/StatusChip";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
@@ -36,6 +38,11 @@ import { AnimatedChevron } from "../components/AnimatedChevron";
 import { CrossfadeSwap } from "../components/CrossfadeSwap";
 import { useAuth } from "../context/AuthContext";
 import { parseMoney } from "../lib/participantHistoryHelpers";
+import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
+import { displayDateRange, displayMoney } from "../lib/displayFormat";
+import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { selectionA11y } from "../lib/a11ySelection";
+import { pluralKey } from "../lib/pluralKey";
 
 type PeriodMode = ManagerPeriodMode;
 
@@ -81,8 +88,7 @@ type StatsPayload = {
 };
 
 function formatIls(n: number, language: string): string {
-  const r = Math.round(n * 100) / 100;
-  return language === "he" ? `${r.toLocaleString("he-IL")} ₪` : `${r.toLocaleString("en-US")} ₪`;
+  return displayMoney(n);
 }
 
 function formatSessionTimeShort(isoTime: string): string {
@@ -103,6 +109,7 @@ function isMissingRpcSignature(err: { message?: string } | null | undefined): bo
 
 export default function ManagerDashboardScreen() {
   const { language, isRTL, t } = useI18n();
+  const screenContent = useScreenContentStyle("wide");
   const { profile } = useAuth();
   const isSuperUser = profile?.is_super_user === true;
   const [hiddenPeriodSummary, setHiddenPeriodSummary] = useState<{ count: number; totalIls: number } | null>(null);
@@ -361,7 +368,7 @@ export default function ManagerDashboardScreen() {
           onPress={() => openAthleteHistory(a)}
           style={({ pressed }) => [pressed && styles.athleteRowPressed]}
         >
-          <View style={[styles.athleteRowTop, isRTL && styles.athleteRowTopRtl]}>
+          <View style={[styles.athleteRowTop, rowFlipFor(isRTL) && styles.athleteRowTopRtl]}>
             <Text style={[styles.athleteName, isRTL && styles.rtl]} numberOfLines={1}>
               {a.name?.trim() || "—"}
               {a.kind === "manual" ? ` · ${t("dashboard.financeQuickAdd")}` : ""}
@@ -422,14 +429,14 @@ export default function ManagerDashboardScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, screenContent]}
       keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.cta} />}
     >
       <ManagerOverviewHubTabs />
-      <View style={[styles.titleBlock, isRTL && styles.titleBlockRtl]}>
+      <View style={[styles.titleBlock, rowFlipFor(isRTL) && styles.titleBlockRtl]}>
         <Text style={[styles.h, isRTL && styles.rtl]}>{t(overviewTitleKey(periodMode))}</Text>
-        <View style={[styles.periodTrack, isRTL && styles.periodTrackRtl]}>
+        <View style={[styles.periodTrack, rowFlipFor(isRTL) && styles.periodTrackRtl]} accessibilityRole="radiogroup">
           <Pressable
             onPress={setWeekMode}
             style={({ pressed }) => [
@@ -437,8 +444,7 @@ export default function ManagerDashboardScreen() {
               periodMode === "week" && styles.periodChipOn,
               pressed && periodMode !== "week" && styles.periodChipPressed,
             ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: periodMode === "week" }}
+            {...selectionA11y("radio", periodMode === "week")}
           >
             <Text style={[styles.periodChipTxt, periodMode === "week" && styles.periodChipTxtOn]} numberOfLines={1}>
               {t("dashboard.periodWeek")}
@@ -451,8 +457,7 @@ export default function ManagerDashboardScreen() {
               periodMode === "month" && styles.periodChipOn,
               pressed && periodMode !== "month" && styles.periodChipPressed,
             ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: periodMode === "month" }}
+            {...selectionA11y("radio", periodMode === "month")}
           >
             <Text style={[styles.periodChipTxt, periodMode === "month" && styles.periodChipTxtOn]} numberOfLines={1}>
               {t("dashboard.periodMonth")}
@@ -465,8 +470,7 @@ export default function ManagerDashboardScreen() {
               periodMode === "global" && styles.periodChipOn,
               pressed && periodMode !== "global" && styles.periodChipPressed,
             ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: periodMode === "global" }}
+            {...selectionA11y("radio", periodMode === "global")}
           >
             <Text style={[styles.periodChipTxt, periodMode === "global" && styles.periodChipTxtOn]} numberOfLines={1}>
               {t("dashboard.periodGlobal")}
@@ -485,9 +489,10 @@ export default function ManagerDashboardScreen() {
           style={({ pressed }) => [styles.hiddenBanner, pressed && { opacity: 0.9 }]}
         >
           <Text style={[styles.hiddenBannerTxt, isRTL && styles.rtl]}>
+            <AppIcon name="eye-outline" size="sm" color={theme.colors.textMuted} />{" "}
             {t("superUser.dashboardBanner")
               .replace("{count}", String(hiddenPeriodSummary.count))
-              .replace("{amount}", String(hiddenPeriodSummary.totalIls))}
+              .replace("{amount}", displayMoney(hiddenPeriodSummary.totalIls))}
           </Text>
         </Pressable>
       ) : null}
@@ -499,14 +504,14 @@ export default function ManagerDashboardScreen() {
               {rangeLabelEnd ? (
                 <>
                   {" · "}
-                  {formatISODateRangeCompact(rangeLabelStart, rangeLabelEnd, language)}
+                  {displayDateRange(rangeLabelStart, rangeLabelEnd, language)}
                 </>
               ) : null}
             </Text>
           </View>
         </View>
       ) : (
-      <View style={[styles.rangeRow, isRTL && styles.rangeRowRtl]}>
+      <View style={[styles.rangeRow, rowFlipFor(isRTL) && styles.rangeRowRtl]}>
         <Pressable
           style={({ pressed }) => [styles.rangeNavHit, pressed && styles.rangeNavPressed]}
           onPress={() =>
@@ -524,7 +529,7 @@ export default function ManagerDashboardScreen() {
         </Pressable>
         <View style={styles.rangeCenter}>
           <Text style={[styles.rangeDates, isRTL && styles.rtl]} numberOfLines={1}>
-            {formatISODateRangeCompact(rangeLabelStart, rangeLabelEnd, language)}
+            {displayDateRange(rangeLabelStart, rangeLabelEnd, language)}
           </Text>
         </View>
         <Pressable
@@ -577,12 +582,11 @@ export default function ManagerDashboardScreen() {
             <Text style={[styles.sectionEyebrow, isRTL && styles.rtl]}>{t(sectionEyebrowKey(periodMode))}</Text>
             <View style={styles.statsCard}>
               <View style={styles.statsGrid}>
-                <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
+                <View style={[styles.statsPair, rowFlipFor(isRTL) && styles.statsPairRtl]}>
                   <Pressable
                     onPress={() => openWeeklyDetail("avg_fill")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={t("dashboard.a11yAvgFill")}
                   >
                     <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileAvgFill")}</AppText>
                     <AppText variant="display" style={styles.tileV}>{Math.round(avgFillDisplay)}%</AppText>
@@ -591,18 +595,16 @@ export default function ManagerDashboardScreen() {
                     onPress={() => openWeeklyDetail("cancellations")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={t("dashboard.a11yCancellations")}
                   >
                     <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileCancellations")}</AppText>
                     <AppText variant="display" style={styles.tileV}>{Math.round(cancellationsDisplay)}</AppText>
                   </Pressable>
                 </View>
-                <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
+                <View style={[styles.statsPair, rowFlipFor(isRTL) && styles.statsPairRtl]}>
                   <Pressable
                     onPress={() => openWeeklyDetail("no_shows")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={t("dashboard.a11yNoShows")}
                   >
                     <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileNoShows")}</AppText>
                     <AppText variant="display" style={styles.tileV}>{Math.round(noShowsDisplay)}</AppText>
@@ -611,18 +613,16 @@ export default function ManagerDashboardScreen() {
                     onPress={() => openWeeklyDetail("sessions")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={t("dashboard.a11ySessions")}
                   >
                     <AppText variant="label" soft style={styles.tileL}>{t("dashboard.tileSessions")}</AppText>
                     <AppText variant="display" style={styles.tileV}>{Math.round(sessionCountDisplay)}</AppText>
                   </Pressable>
                 </View>
-                <View style={[styles.statsPair, isRTL && styles.statsPairRtl]}>
+                <View style={[styles.statsPair, rowFlipFor(isRTL) && styles.statsPairRtl]}>
                   <Pressable
                     onPress={() => openWeeklyDetail("waitlist")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={t("dashboard.a11yWaitlist")}
                   >
                     <AppText variant="label" soft style={styles.tileL}>{t("dashboard.waitlist")}</AppText>
                     <AppText variant="display" style={styles.tileV}>{Math.round(waitlistCountDisplay)}</AppText>
@@ -631,7 +631,6 @@ export default function ManagerDashboardScreen() {
                     onPress={() => openWeeklyDetail("checked_in")}
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={t("dashboard.a11yCheckedIn")}
                   >
                     <AppText variant="label" soft style={styles.tileL}>{t("dashboard.checkedIn")}</AppText>
                     <AppText variant="display" style={styles.tileV}>{Math.round(checkedInCountDisplay)}</AppText>
@@ -644,10 +643,13 @@ export default function ManagerDashboardScreen() {
       </CrossfadeSwap>
 
       {!loading && data && !data.ok ? (
-        <View style={styles.errBlock}>
-          <Text style={styles.err}>{data.error ?? t("common.error")}</Text>
-          <ActionButton label={t("auth.retryConnection")} onPress={() => void load()} style={styles.errRetryBtn} />
-        </View>
+        <ErrorState
+          title={t("errors.loadFailedTitle")}
+          body={userFacingErrorMessage(data.error, t)}
+          actionLabel={t("auth.retryConnection")}
+          onAction={() => void load()}
+          isRTL={isRTL}
+        />
       ) : null}
 
       {showStats && (data.session_count ?? 0) === 0 ? (
@@ -655,7 +657,7 @@ export default function ManagerDashboardScreen() {
       ) : null}
 
       {showStats && showAlertRow ? (
-        <View style={[styles.alertRow, isRTL && styles.alertRowRtl]}>
+        <View style={[styles.alertRow, rowFlipFor(isRTL) && styles.alertRowRtl]}>
           {showMissingAttendanceTile ? (
             <Pressable
               onPress={missingAttendance.count > 0 ? openMissingAttendance : undefined}
@@ -667,7 +669,6 @@ export default function ManagerDashboardScreen() {
                 missingAttendance.count > 0 && pressed && styles.tilePressed,
               ]}
               accessibilityRole="button"
-              accessibilityLabel={t("dashboard.a11yMissingAttendance")}
               accessibilityState={{ disabled: missingAttendance.count === 0 }}
             >
               <Text style={styles.alertTileL}>{t("dashboard.missingAttendanceTile")}</Text>
@@ -687,7 +688,6 @@ export default function ManagerDashboardScreen() {
               capacityMismatchCount > 0 && pressed && styles.tilePressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel={t("dashboard.a11yCapacityMismatch")}
             accessibilityState={{ disabled: capacityMismatchCount === 0 }}
           >
             <Text style={styles.alertTileL}>{t("dashboard.capacityMismatchTile")}</Text>
@@ -706,7 +706,7 @@ export default function ManagerDashboardScreen() {
           <View style={styles.financeCard}>
             <Text style={[styles.financeCardTitle, isRTL && styles.rtl]}>{t("dashboard.financeCoachPayouts")}</Text>
             <Text style={[styles.financeHint, isRTL && styles.rtl]}>{t("dashboard.financeHintCoach")}</Text>
-            <View style={[styles.moneyHero, isRTL && styles.moneyHeroRtl]}>
+            <View style={[styles.moneyHero, rowFlipFor(isRTL) && styles.moneyHeroRtl]}>
               <Text style={[styles.moneyHeroLbl, isRTL && styles.rtl]}>{t("dashboard.financeTotalToCoaches")}</Text>
               <Text style={[styles.moneyHeroVal, isRTL && styles.rtl]}>{formatIls(coachPayoutTotalDisplay, language)}</Text>
             </View>
@@ -727,8 +727,8 @@ export default function ManagerDashboardScreen() {
                         accessibilityLabel={`${c.name?.trim() || "—"} · ${formatIls(c.payout_ils, language)}`}
                         accessibilityHint={open ? t("dashboard.a11yCoachCollapse") : t("dashboard.a11yCoachExpand")}
                       >
-                        <View style={[styles.coachRowMain, isRTL && styles.coachRowMainRtl]}>
-                          <Text style={[styles.coachName, isRTL && styles.rtl]} numberOfLines={1}>
+                        <View style={[styles.coachRowMain, rowFlipFor(isRTL) && styles.coachRowMainRtl]}>
+                          <Text style={[styles.coachName, isRTL && styles.rtl]} numberOfLines={1} {...userContentTextProps}>
                             {c.name?.trim() || "—"}
                           </Text>
                           {c.has_rate_gap ? (
@@ -750,7 +750,7 @@ export default function ManagerDashboardScreen() {
                               accessibilityRole="button"
                               accessibilityLabel={`${formatISODateFull(s.session_date, language)} ${formatSessionTimeShort(s.start_time)}`}
                             >
-                              <View style={[styles.sessionLineTop, isRTL && styles.sessionLineTopRtl]}>
+                              <View style={[styles.sessionLineTop, rowFlipFor(isRTL) && styles.sessionLineTopRtl]}>
                                 <Text style={[styles.sessionDate, isRTL && styles.rtl]} numberOfLines={1}>
                                   {formatISODateFull(s.session_date, language)} · {formatSessionTimeShort(s.start_time)}
                                 </Text>
@@ -849,7 +849,7 @@ export default function ManagerDashboardScreen() {
                 <Text style={[styles.subhSm, styles.amountsHeading, isRTL && styles.rtl]}>{t("dashboard.financeAmountsByMethod")}</Text>
                 <View style={[styles.payList, isRTL && styles.payListRtl]}>
                   {amountRows.map(([method, n]) => (
-                    <View key={method} style={[styles.payRow, isRTL && styles.payRowRtl]}>
+                    <View key={method} style={[styles.payRow, rowFlipFor(isRTL) && styles.payRowRtl]}>
                       <StatusChip label={paymentMethodDashboardLabel(method, language)} tone="neutral" />
                       <Text style={styles.payAmt}>{formatIls(n, language)}</Text>
                     </View>
@@ -888,7 +888,7 @@ export default function ManagerDashboardScreen() {
                               canTapFamily && pressed && styles.athleteRowPressed,
                             ]}
                           >
-                            <View style={[styles.athleteRowTop, isRTL && styles.athleteRowTopRtl]}>
+                            <View style={[styles.athleteRowTop, rowFlipFor(isRTL) && styles.athleteRowTopRtl]}>
                               <Text style={[styles.familyName, isRTL && styles.rtl]} numberOfLines={1}>
                                 {family.name}
                               </Text>
@@ -903,7 +903,7 @@ export default function ManagerDashboardScreen() {
                               </Text>
                             </View>
                             <Text style={[styles.athleteSub, isRTL && styles.rtl]} numberOfLines={2}>
-                              {t("dashboard.financeFamilySummary")
+                              {pluralKey(t, "dashboard.financeFamilySummary", family.members.length)
                                 .replace("{n}", String(family.members.length))}{" "}
                               · {t("dashboard.financeExpected")}: {formatIls(family.expected_ils, language)} ·{" "}
                               {t("dashboard.financeCollectedTotal")}: {formatIls(family.collected_total_ils, language)}
@@ -986,7 +986,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.error,
   },
   hiddenBannerTxt: { color: theme.colors.error, fontWeight: "800", fontSize: 13 },
-  h: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginBottom: theme.spacing.sm, letterSpacing: -0.35 },
+  h: { ...theme.typography.display, color: theme.colors.text, marginBottom: theme.spacing.sm, letterSpacing: -0.35 },
   periodTrack: {
     flexDirection: "row",
     gap: 8,
@@ -1000,6 +1000,7 @@ const styles = StyleSheet.create({
   periodTrackRtl: { flexDirection: "row-reverse" },
   periodChip: {
     flex: 1,
+    minHeight: theme.controls.minTouch,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,
@@ -1039,7 +1040,8 @@ const styles = StyleSheet.create({
   },
   rangeRowRtl: { flexDirection: "row-reverse" },
   rangeNavHit: {
-    minWidth: 40,
+    minWidth: theme.controls.minTouch,
+    minHeight: theme.controls.minTouch,
     paddingVertical: 6,
     paddingHorizontal: 4,
     alignItems: "center",
@@ -1062,9 +1064,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.15,
     lineHeight: 20,
   },
-  err: { color: theme.colors.error, fontWeight: "700", marginTop: 8 },
-  errBlock: { alignItems: "flex-start" },
-  errRetryBtn: { marginTop: theme.spacing.sm },
   statsCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.xl,
@@ -1107,7 +1106,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     padding: theme.spacing.md,
   },
-  financeCardTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text, marginBottom: 6, letterSpacing: -0.2 },
+  financeCardTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text, marginBottom: 6, letterSpacing: -0.2 },
   financeHint: { fontSize: 12, color: theme.colors.textMuted, lineHeight: 18, marginBottom: theme.spacing.sm },
   moneyHero: {
     flexDirection: "row",
@@ -1123,9 +1122,11 @@ const styles = StyleSheet.create({
   },
   moneyHeroRtl: { flexDirection: "row-reverse" },
   moneyHeroLbl: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
-  moneyHeroVal: { fontSize: 20, fontWeight: "900", color: theme.colors.cta, fontVariant: ["tabular-nums"] },
+  moneyHeroVal: { fontSize: 20, fontWeight: "800", color: theme.colors.cta, fontVariant: ["tabular-nums"] },
   ghostBtn: {
     alignSelf: "flex-start",
+    minHeight: theme.controls.buttonCompactHeight,
+    justifyContent: "center",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,
@@ -1163,8 +1164,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.errorBorder,
   },
-  warnPillTxt: { fontSize: 10, fontWeight: "800", color: theme.colors.error },
-  coachPayout: { fontSize: 15, fontWeight: "900", color: theme.colors.cta, fontVariant: ["tabular-nums"] },
+  warnPillTxt: { fontSize: 11, fontWeight: "800", color: theme.colors.error },
+  coachPayout: { fontSize: 15, fontWeight: "800", color: theme.colors.cta, fontVariant: ["tabular-nums"] },
   chev: { fontSize: 12, color: theme.colors.textSoft, width: 16, textAlign: "center" },
   sessionList: {
     marginTop: 8,
@@ -1181,9 +1182,9 @@ const styles = StyleSheet.create({
   sessionLineTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   sessionLineTopRtl: { flexDirection: "row-reverse" },
   sessionDate: { flex: 1, fontSize: 12, fontWeight: "800", color: theme.colors.text },
-  sessionWarn: { fontSize: 10, fontWeight: "800", color: theme.colors.error },
+  sessionWarn: { fontSize: 11, fontWeight: "800", color: theme.colors.error },
   sessionMeta: { marginTop: 4, fontSize: 11, color: theme.colors.textMuted, lineHeight: 16 },
-  sessionTapHint: { marginTop: 6, fontSize: 10, fontWeight: "700", color: theme.colors.textSoft },
+  sessionTapHint: { marginTop: 6, fontSize: 11, fontWeight: "700", color: theme.colors.textSoft },
   moneyGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   moneyCell: {
     width: "48%",
@@ -1196,12 +1197,12 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   moneyCellLbl: { fontSize: 11, fontWeight: "700", color: theme.colors.textSoft, marginBottom: 6 },
-  moneyCellVal: { fontSize: 16, fontWeight: "900", color: theme.colors.text, fontVariant: ["tabular-nums"] },
+  moneyCellVal: { fontSize: 16, fontWeight: "800", color: theme.colors.text, fontVariant: ["tabular-nums"] },
   moneyCellAccent: { color: theme.colors.success },
   moneyCellTappable: { borderColor: theme.colors.borderInput },
   moneyCellAccentWrap: { borderColor: theme.colors.success },
   moneyCellPressed: { opacity: 0.9 },
-  moneyCellTap: { marginTop: 6, fontSize: 10, fontWeight: "700", color: theme.colors.textSoft },
+  moneyCellTap: { marginTop: 6, fontSize: 11, fontWeight: "700", color: theme.colors.textSoft },
   balanceBanner: {
     marginTop: 12,
     padding: 14,
@@ -1212,7 +1213,7 @@ const styles = StyleSheet.create({
   balanceBannerAhead: { backgroundColor: theme.colors.successBg, borderColor: theme.colors.success },
   balanceBannerOk: { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border },
   balanceBannerLbl: { fontSize: 12, fontWeight: "800", color: theme.colors.alertSubject },
-  balanceBannerVal: { marginTop: 4, fontSize: 22, fontWeight: "900", color: theme.colors.text, fontVariant: ["tabular-nums"] },
+  balanceBannerVal: { marginTop: 4, ...theme.typography.display, color: theme.colors.text, fontVariant: ["tabular-nums"] },
   subh: { fontWeight: "800", color: theme.colors.text, marginBottom: 6, fontSize: 15 },
   subhSm: { fontWeight: "800", color: theme.colors.text, fontSize: 13 },
   hintLine: { fontSize: 12, color: theme.colors.textMuted, marginBottom: 10, lineHeight: 17 },
@@ -1250,7 +1251,7 @@ const styles = StyleSheet.create({
   alertTileV: {
     marginTop: 6,
     fontSize: 28,
-    fontWeight: "900",
+    fontWeight: "800",
     color: theme.colors.text,
     fontVariant: ["tabular-nums"],
     textAlign: "center",
@@ -1285,8 +1286,8 @@ const styles = StyleSheet.create({
   payListRtl: { alignItems: "stretch" },
   payRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   payRowRtl: { flexDirection: "row-reverse" },
-  payN: { fontSize: 16, fontWeight: "900", color: theme.colors.cta },
-  payAmt: { fontSize: 14, fontWeight: "900", color: theme.colors.success, fontVariant: ["tabular-nums"] },
+  payN: { fontSize: 16, fontWeight: "800", color: theme.colors.cta },
+  payAmt: { fontSize: 14, fontWeight: "800", color: theme.colors.success, fontVariant: ["tabular-nums"] },
   athleteList: { marginTop: 10, gap: 8 },
   familyGroup: { gap: 6 },
   familyRow: {
@@ -1296,7 +1297,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  familyName: { flex: 1, fontSize: 15, fontWeight: "900", color: theme.colors.text },
+  familyName: { flex: 1, fontSize: 15, fontWeight: "800", color: theme.colors.text },
   athleteRowMember: { marginStart: theme.spacing.md },
   athleteRow: {
     padding: 12,
@@ -1309,7 +1310,7 @@ const styles = StyleSheet.create({
   athleteRowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   athleteRowTopRtl: { flexDirection: "row-reverse" },
   athleteName: { flex: 1, fontSize: 14, fontWeight: "800", color: theme.colors.text },
-  athleteBal: { fontSize: 14, fontWeight: "900", fontVariant: ["tabular-nums"] },
+  athleteBal: { fontSize: 14, fontWeight: "800", fontVariant: ["tabular-nums"] },
   athleteBalOwe: { color: theme.colors.error },
   athleteBalAhead: { color: theme.colors.success },
   athleteBalOk: { color: theme.colors.textMuted },
@@ -1317,12 +1318,14 @@ const styles = StyleSheet.create({
   athleteAddPayBtn: {
     marginTop: 10,
     alignSelf: "flex-start",
+    minHeight: theme.controls.buttonCompactHeight,
+    justifyContent: "center",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.cta,
   },
-  athleteAddPayBtnTxt: { color: theme.colors.ctaText, fontWeight: "900", fontSize: 12 },
+  athleteAddPayBtnTxt: { color: theme.colors.ctaText, fontWeight: "800", fontSize: 12 },
   accountsSummary: {
     marginTop: theme.spacing.lg,
     paddingTop: theme.spacing.md,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View, Platform, type ViewStyle } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBottomChrome, useReportBottomBar } from "../context/BottomChromeContext";
+import { LAYOUT, barBottomInset } from "../lib/screenLayout";
 import * as Haptics from "expo-haptics";
 import { router, type Href } from "expo-router";
 import { theme } from "../theme";
@@ -25,8 +26,8 @@ const PATH: Record<SessionAdjacentNavVariant, string> = {
 };
 
 export function SessionAdjacentNav({ variant, sessionId }: Props) {
-  const { t } = useI18n();
-  const insets = useSafeAreaInsets();
+  const { t, isRTL, rowFlip } = useI18n();
+  const chrome = useBottomChrome();
   const [adj, setAdj] = useState<AdjacentSessionIds | null>(null);
 
   useEffect(() => {
@@ -44,6 +45,9 @@ export function SessionAdjacentNav({ variant, sessionId }: Props) {
     };
   }, [variant, sessionId]);
 
+  const hasBar = adj !== null && !!(adj.prevId || adj.nextId);
+  const onBarLayout = useReportBottomBar(hasBar);
+
   if (adj === null || (!adj.prevId && !adj.nextId)) return null;
 
   function go(targetId: string) {
@@ -53,14 +57,17 @@ export function SessionAdjacentNav({ variant, sessionId }: Props) {
     router.replace(`${PATH[variant]}${targetId}` as Href);
   }
 
-  const bottomPad = Math.max(insets.bottom, theme.spacing.xs);
+  // The contact footer (athletes) already sits below this bar and owns the safe-area inset.
+  const bottomPad = barBottomInset(chrome, theme.spacing.xs);
 
   return (
     <View
       style={[styles.wrap, { paddingBottom: bottomPad }]}
+      onLayout={onBarLayout}
       accessibilityRole="toolbar"
     >
-      <View style={styles.splitRow}>
+      {/* Follows the UI direction (like the week calendar): in Hebrew "previous" is on the right pointing right. */}
+      <View style={[styles.splitRow, rowFlip && styles.splitRowFlip]}>
         <Pressable
           onPress={() => adj.prevId && go(adj.prevId)}
           disabled={!adj.prevId}
@@ -74,9 +81,15 @@ export function SessionAdjacentNav({ variant, sessionId }: Props) {
           accessibilityLabel={t("sessionNav.prevA11y")}
           accessibilityState={{ disabled: !adj.prevId }}
         >
-          <Text style={[styles.arrow, !adj.prevId && styles.arrowMuted]} allowFontScaling={false}>
-            ←
-          </Text>
+          {/* Arrow on the outer edge, then the label; the row follows the reading direction. */}
+          <View style={[styles.halfContent, rowFlip && styles.splitRowFlip]}>
+            <Text style={[styles.arrow, !adj.prevId && styles.arrowMuted]} allowFontScaling={false}>
+              {isRTL ? "→" : "←"}
+            </Text>
+            <Text style={[styles.label, !adj.prevId && styles.arrowMuted]} numberOfLines={1} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
+              {t("sessionNav.prevA11y")}
+            </Text>
+          </View>
         </Pressable>
         <View style={styles.divider} pointerEvents="none" />
         <Pressable
@@ -92,9 +105,14 @@ export function SessionAdjacentNav({ variant, sessionId }: Props) {
           accessibilityLabel={t("sessionNav.nextA11y")}
           accessibilityState={{ disabled: !adj.nextId }}
         >
-          <Text style={[styles.arrow, !adj.nextId && styles.arrowMuted]} allowFontScaling={false}>
-            →
-          </Text>
+          <View style={[styles.halfContent, rowFlip && styles.splitRowFlip]}>
+            <Text style={[styles.label, !adj.nextId && styles.arrowMuted]} numberOfLines={1} maxFontSizeMultiplier={theme.a11y.chromeMaxFontMultiplier}>
+              {t("sessionNav.nextA11y")}
+            </Text>
+            <Text style={[styles.arrow, !adj.nextId && styles.arrowMuted]} allowFontScaling={false}>
+              {isRTL ? "←" : "→"}
+            </Text>
+          </View>
         </Pressable>
       </View>
     </View>
@@ -110,17 +128,21 @@ const styles = StyleSheet.create({
     borderTopColor: theme.colors.borderMuted,
   },
   splitRow: {
+    width: "100%",
+    maxWidth: LAYOUT.maxContentWidth.standard,
+    alignSelf: "center",
     flexDirection: "row",
     alignItems: "stretch",
     minHeight: 36,
-    writingDirection: "ltr",
   },
+  splitRowFlip: { flexDirection: "row-reverse" },
   /** Full-width halves — large horizontal tap targets; arrows only (no circle). */
   half: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 36,
+    minHeight: theme.controls.minTouch,
+    paddingHorizontal: theme.spacing.sm,
   },
   halfPressed: {
     backgroundColor: "rgba(244, 244, 245, 0.06)",
@@ -153,6 +175,8 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
+  halfContent: { flexDirection: "row", alignItems: "center", gap: theme.spacing.xs, maxWidth: "100%" },
+  label: { ...theme.typography.caption, color: theme.colors.textMuted, flexShrink: 1 },
   arrowMuted: {
     color: theme.colors.textSoft,
   },

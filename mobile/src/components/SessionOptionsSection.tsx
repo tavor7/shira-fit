@@ -5,6 +5,7 @@ import { sessionFormStyles as sf } from "./sessionFormStyles";
 import { KICKBOX_SESSION_ACCENT, KICKBOX_SESSION_BG } from "../lib/kickboxSessionStyle";
 import { AnimatedOptionExpand } from "./AnimatedOptionExpand";
 import { AppSwitch } from "./AppSwitch";
+import { rowFlipFor } from "../lib/layoutDirection";
 
 /** Visual cue when the toggle is on (off rows share the same neutral look). */
 export type SessionOptionTone = "open" | "hidden" | "kickbox" | "repeat";
@@ -56,12 +57,13 @@ function OptionList({ options, isRTL }: Pick<Props, "options" | "isRTL">) {
           <View key={opt.key}>
             {index > 0 ? <View style={styles.divider} /> : null}
             <View style={[styles.rowShell, toneStyle]}>
-            <View style={[styles.row, isRTL && styles.rowRtl]}>
+            <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
               <Pressable
                 style={({ pressed }) => [styles.labelBlock, pressed && { opacity: 0.7 }]}
                 onPress={() => opt.onValueChange(!opt.value)}
                 accessibilityRole="switch"
                 accessibilityState={{ checked: opt.value }}
+                aria-checked={opt.value}
                 accessibilityLabel={opt.label}
               >
                 <Text style={[styles.label, isRTL && styles.rtl, toneStyle && styles.labelEmphasis]}>{opt.label}</Text>
@@ -97,10 +99,9 @@ export function SessionOptionsSection({ options, isRTL, embedded = false }: Prop
   return <View style={sf.card}>{list}</View>;
 }
 
+/** An enabled option is shown by its tinted row and its switch; no extra stripe (DESIGN.md: stripes only carry meaning). */
 const rowAccent = {
-  borderStartWidth: 3,
   paddingStart: 10,
-  marginStart: -2,
   borderRadius: theme.radius.sm,
 } as const;
 
@@ -113,24 +114,18 @@ const styles = StyleSheet.create({
   rowOpenOn: {
     ...rowAccent,
     backgroundColor: theme.colors.successBg,
-    borderStartColor: theme.colors.success,
   },
   rowHiddenOn: {
     ...rowAccent,
     backgroundColor: theme.colors.errorBg,
-    borderStartColor: theme.colors.error,
   },
   rowKickboxOn: {
     ...rowAccent,
     backgroundColor: KICKBOX_SESSION_BG,
-    borderStartColor: KICKBOX_SESSION_ACCENT,
   },
   rowRepeatOn: {
     ...rowAccent,
     backgroundColor: theme.colors.surfaceElevated,
-    borderStartColor: theme.colors.cta,
-    borderWidth: 0,
-    borderStartWidth: 3,
   },
   expandWrap: {
     marginBottom: 4,
@@ -146,9 +141,12 @@ const styles = StyleSheet.create({
   rowRtl: {
     flexDirection: "row-reverse",
   },
+  // The label toggles too, so its tap area spans the row height, not just the text line.
   labelBlock: {
     flex: 1,
     minWidth: 0,
+    alignSelf: "stretch",
+    minHeight: theme.controls.minTouch,
     justifyContent: "center",
   },
   label: {

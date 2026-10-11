@@ -1,8 +1,11 @@
 import { createElement, type ChangeEvent, type CSSProperties, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
+import { LAYOUT } from "../lib/screenLayout";
 import { useI18n } from "../context/I18nContext";
 import type { TimePickerFieldProps } from "./TimePickerField";
+import { rowFlipFor } from "../lib/layoutDirection";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = Array.from({ length: 60 }, (_, i) => i);
@@ -76,14 +79,16 @@ function DomTimeSelect({
 }
 
 export function TimePickerField({ label, value, onChange }: TimePickerFieldProps) {
-  const { language, isRTL } = useI18n();
+  const { isRTL, t } = useI18n();
   const [open, setOpen] = useState(false);
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(open, () => setOpen(false));
   const [draftH, setDraftH] = useState(18);
   const [draftM, setDraftM] = useState(0);
 
   const display = (() => {
     const p = parseHHMM(value);
-    if (!p) return language === "he" ? "בחרו שעה" : "Choose time";
+    if (!p) return t("ui.timePickerField.chooseTime2");
     return toHHMM(p.hh, p.mm);
   })();
 
@@ -100,8 +105,8 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
   };
 
   const colW = 88;
-  const hourLabel = language === "he" ? "שעה" : "Hour";
-  const minLabel = language === "he" ? "דקות" : "Min";
+  const hourLabel = t("ui.timePickerField.hour");
+  const minLabel = t("ui.timePickerField.min");
 
   return (
     <View style={styles.wrap}>
@@ -115,21 +120,21 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <View style={styles.modalRoot}>
-          <Pressable style={styles.backdropFlex} onPress={() => setOpen(false)} accessibilityLabel={language === "he" ? "סגירה" : "Dismiss"} />
+          <Pressable style={styles.backdropFlex} onPress={() => setOpen(false)} accessibilityLabel={t("ui.timePickerField.dismiss2")} />
           <View style={styles.sheet}>
             <View style={styles.toolbar}>
               <Pressable onPress={() => setOpen(false)} hitSlop={12} style={styles.tbBtn}>
-                <Text style={styles.tbMuted}>{language === "he" ? "ביטול" : "Cancel"}</Text>
+                <Text style={styles.tbMuted}>{t("ui.timePickerField.cancel2")}</Text>
               </Pressable>
               <Text style={styles.tbTitle} numberOfLines={1}>
                 {label}
               </Text>
               <Pressable onPress={applyAndClose} hitSlop={12} style={styles.tbBtn}>
-                <Text style={styles.tbCta}>{language === "he" ? "אישור" : "Done"}</Text>
+                <Text style={styles.tbCta}>{t("ui.timePickerField.done2")}</Text>
               </Pressable>
             </View>
 
-            <View style={[styles.pickersRow, isRTL && styles.pickersRowRtl]}>
+            <View style={[styles.pickersRow, rowFlipFor(isRTL) && styles.pickersRowRtl]}>
               <View style={styles.pickerCol}>
                 <Text style={styles.wheelColLabel}>{hourLabel}</Text>
                 <View style={styles.selectFrame}>
@@ -167,7 +172,7 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
 
 const styles = StyleSheet.create({
   wrap: { marginTop: theme.spacing.sm, alignSelf: "stretch", minWidth: 0 },
-  label: { marginBottom: 6, fontWeight: "700", color: theme.colors.textMuted, fontSize: 12, letterSpacing: 0.2 },
+  label: { marginBottom: 6, color: theme.colors.textMuted, ...theme.typography.label, letterSpacing: 0.2 },
   rtlText: { textAlign: "right" },
   touch: {
     alignSelf: "stretch",
@@ -185,14 +190,17 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   touchPressed: { opacity: 0.92 },
-  touchText: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: "700", color: theme.colors.text },
+  touchText: { flex: 1, minWidth: 0, ...theme.typography.title, color: theme.colors.text },
   rtlTextLight: { textAlign: "right" },
-  chev: { fontSize: 10, color: theme.colors.textMuted },
+  chev: { fontSize: 11, color: theme.colors.textMuted },
   chevLtr: { marginLeft: 8 },
   chevRtl: { marginRight: 8 },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   backdropFlex: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
   sheet: {
+    width: "100%",
+    maxWidth: LAYOUT.modal.sheetMaxWidth,
+    alignSelf: "center",
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,
     borderTopRightRadius: theme.radius.xl,
@@ -210,9 +218,9 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.borderMuted,
   },
   tbBtn: { minWidth: 64 },
-  tbMuted: { fontSize: 16, fontWeight: "600", color: theme.colors.textMuted },
+  tbMuted: { ...theme.typography.body, color: theme.colors.textMuted },
   tbTitle: { flex: 1, textAlign: "center", fontSize: 15, fontWeight: "700", color: theme.colors.text },
-  tbCta: { fontSize: 16, fontWeight: "800", color: theme.colors.cta },
+  tbCta: { ...theme.typography.title, color: theme.colors.cta },
   pickersRow: {
     flexDirection: "row",
     alignItems: "flex-end",
