@@ -16,6 +16,7 @@ import { useAppAlert } from "../context/AppAlertContext";
 import { supabase } from "../lib/supabase";
 import { isRtlScript } from "../lib/bidiEmbed";
 import { pluralKey } from "../lib/pluralKey";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 function LateCancelChargeRow({ cancellationId, charged }: { cancellationId: string; charged: boolean }) {
   const { t, rowFlip } = useI18n();
@@ -223,6 +224,8 @@ export function HomePriorityAlerts({
   const { isRTL, rowFlip, t } = useI18n();
   const { showConfirm } = useAppAlert();
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(sheetOpen, () => setSheetOpen(false));
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   useEffect(() => {

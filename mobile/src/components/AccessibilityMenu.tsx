@@ -9,6 +9,7 @@ import { fabBottomOffset } from "../lib/screenLayout";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { AppText } from "./AppText";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 /**
  * Web/PWA-only floating accessibility control. Supplements — does not replace — the
@@ -24,6 +25,8 @@ function AccessibilityMenuInner() {
   const { isRTL, t } = useI18n();
   const { prefs, setPrefs, reset } = useAccessibilityPrefs();
   const [open, setOpen] = useState(false);
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(open, () => setOpen(false));
   const triggerRef = useRef<View>(null);
   const reduceMotionRef = useReduceMotionRef();
   // Stays above the contact footer, in-screen bottom bars and the safe area (lib/screenLayout).

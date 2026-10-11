@@ -94,6 +94,7 @@ import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
 import { EmptyState, ErrorState } from "../../../../src/components/EmptyState";
 import { classifyUserError, userFacingErrorMessage } from "../../../../src/lib/userFacingError";
 import { StatusChip } from "../../../../src/components/StatusChip";
+import { useWebBackDismiss } from "../../../../src/lib/webBackDismiss";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
@@ -293,6 +294,10 @@ export default function ManagerSessionDetail() {
   const [dupDate, setDupDate] = useState("");
   const [dupTime, setDupTime] = useState("");
   const [dupBusy, setDupBusy] = useState(false);
+  // Web: browser Back closes this dialog (not while it is saving) before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(dupOpen, () => {
+    if (!dupBusy) setDupOpen(false);
+  });
   const [dupIncludeParticipants, setDupIncludeParticipants] = useState(false);
   const [dupCoachId, setDupCoachId] = useState("");
   const [dupCoachLabel, setDupCoachLabel] = useState("");

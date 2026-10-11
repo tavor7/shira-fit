@@ -33,6 +33,7 @@ import { studioNoteCoversDate } from "../lib/studioCalendarNotes";
 import { studioCalendarNoteAccent } from "../lib/studioCalendarNoteAccent";
 import { FadeSlideIn } from "./FadeSlideIn";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 export type DaySheetVariant = "athlete" | "coach" | "manager";
 
@@ -88,6 +89,9 @@ export function DaySessionsSheet({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [dupOpen, setDupOpen] = useState(false);
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(visible, onClose);
+  useWebBackDismiss(dupOpen, () => setDupOpen(false));
   const [dupToDate, setDupToDate] = useState<string>("");
   const [undo, setUndo] = useState<UndoAction | null>(null);
   const [pendingDeleteStudioNoteId, setPendingDeleteStudioNoteId] = useState<string | null>(null);

@@ -5,6 +5,7 @@ import { LAYOUT } from "../lib/screenLayout";
 import { useI18n } from "../context/I18nContext";
 import type { TimePickerFieldProps } from "./TimePickerField";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = Array.from({ length: 60 }, (_, i) => i);
@@ -80,6 +81,8 @@ function DomTimeSelect({
 export function TimePickerField({ label, value, onChange }: TimePickerFieldProps) {
   const { isRTL, t } = useI18n();
   const [open, setOpen] = useState(false);
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(open, () => setOpen(false));
   const [draftH, setDraftH] = useState(18);
   const [draftM, setDraftM] = useState(0);
 

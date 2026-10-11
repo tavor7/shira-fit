@@ -23,6 +23,7 @@ import { LAYOUT } from "../lib/screenLayout";
 import { AppSearchField } from "./AppSearchField";
 import { FadeSlideIn } from "./FadeSlideIn";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 export type AppSearchSheetSearchConfig = {
   value: string;
@@ -85,6 +86,8 @@ export function AppSearchSheet<T>({
   renderItem,
   ListEmptyComponent,
 }: Props<T>) {
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(visible, onClose);
   const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
   const visualViewport = useVisualViewport();

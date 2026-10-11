@@ -34,6 +34,7 @@ import { hasSessionNotStarted } from "../lib/sessionTime";
 import type { MoveParticipantTarget } from "./MoveParticipantSheet";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 import { displayLtr, displayMoney } from "../lib/displayFormat";
+import { useWebBackDismiss } from "../lib/webBackDismiss";
 
 type RegRow = {
   user_id: string;
@@ -661,6 +662,9 @@ export function ParticipantAttendanceList({
     setPayAmountDraft(existing != null ? formatBillingAmountDraft(existing) : "");
     setPayOpen(true);
   }
+
+  // Web: browser Back closes this dialog before it leaves the page (Phase 5 / Q).
+  useWebBackDismiss(payOpen, closePaymentModal);
 
   function closePaymentModal() {
     setPayOpen(false);
