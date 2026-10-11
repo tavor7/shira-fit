@@ -7,7 +7,7 @@ import { useManagerAthletePreview } from "../context/ManagerAthletePreviewContex
 import { isAthleteAccountDisabled } from "../lib/profileAccount";
 import { replaceToManagerSessions } from "../lib/managerSessionsRedirectLog";
 import { FoldableActionsMenu, type FoldableActionsMenuItem } from "./FoldableActionsMenu";
-import { UserAvatar } from "./UserAvatar";
+import { UserAvatar, initials } from "./UserAvatar";
 
 /**
  * Right side of the app header: one initials avatar that opens the account menu
@@ -68,7 +68,8 @@ export function AppHeaderRight() {
             onPress={open}
             disabled={loading}
             accessibilityRole="button"
-            accessibilityLabel={`${t("header.accountMenu")}: ${name}`}
+            // Starts with the visible initials so the accessible name contains the visible label (WCAG 2.5.3, voice control).
+            accessibilityLabel={`${initials(name)} · ${t("header.accountMenu")}: ${name}`}
             accessibilityHint={roleLine || undefined}
             style={({ pressed }) => [styles.trigger, pressed && styles.pressed]}
           >
