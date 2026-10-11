@@ -42,12 +42,15 @@ type Props = {
   /** Coach (or manager editing self): fixed coach user id. */
   lockedCoachId?: string | null;
   hideIntro?: boolean;
+  /** Coach viewing their own pay: list only, no add / edit / delete (compensation writes are manager-only server-side). */
+  readOnly?: boolean;
 };
 
 export default function CoachCapacityPricingScreen({
   allowCoachPicker = false,
   lockedCoachId = null,
   hideIntro = false,
+  readOnly = false,
 }: Props) {
   const { language, t, isRTL } = useI18n();
   const screenContent = useScreenContentStyle("standard");
@@ -313,7 +316,10 @@ export default function CoachCapacityPricingScreen({
 
   const body = (
     <>
-      {coachId ? <PricingIssuesPanel issues={pricingIssues} onFix={applyPricingFix} isRTL={isRTL} /> : null}
+      {readOnly ? (
+        <Text style={[styles.readOnlyNote, isRTL && ps.rtl]}>{t("coachPricing.readOnlyNote")}</Text>
+      ) : null}
+      {coachId && !readOnly ? <PricingIssuesPanel issues={pricingIssues} onFix={applyPricingFix} isRTL={isRTL} /> : null}
 
       {allowCoachPicker && !lockedCoachId ? (
         <View style={styles.coachPickCard}>
@@ -342,12 +348,14 @@ export default function CoachCapacityPricingScreen({
           }
           count={coachId ? capacityGroups.length : undefined}
           headerAction={
-            <PricingSectionAddButton
-              label={t("pricing.addRule")}
-              onPress={openAdd}
-              isRTL={isRTL}
-              disabled={!coachId}
-            />
+            readOnly ? undefined : (
+              <PricingSectionAddButton
+                label={t("pricing.addRule")}
+                onPress={openAdd}
+                isRTL={isRTL}
+                disabled={!coachId}
+              />
+            )
           }
         >
           <PricingCollapsibleList
@@ -359,15 +367,15 @@ export default function CoachCapacityPricingScreen({
             removeLabel={t("pricing.delete")}
             moreMenuLabel={t("pricing.moreMenu")}
             closeLabel={t("common.cancel")}
-            onEdit={(r) => startEdit(r)}
-            onRemove={(r) => confirmRemove(r)}
+            onEdit={readOnly ? undefined : (r) => startEdit(r)}
+            onRemove={readOnly ? undefined : (r) => confirmRemove(r)}
             isRTL={isRTL}
           />
         </PricingSection>
       </View>
 
       <PricingFormModal
-        visible={formModalOpen}
+        visible={formModalOpen && !readOnly}
         title={formTitle}
         onClose={cancelEdit}
         saveLabel={t("common.save")}
@@ -437,4 +445,5 @@ const styles = StyleSheet.create({
   },
   // No blanket dimming: the Add button shows its own disabled state, and the "pick a coach" instruction must stay readable.
   disabledWrap: {},
+  readOnlyNote: { ...theme.typography.helper, color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
 });

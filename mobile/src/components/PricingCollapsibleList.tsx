@@ -20,8 +20,9 @@ type Props<T extends PricingRateTierRow> = {
   removeLabel: string;
   moreMenuLabel: string;
   closeLabel: string;
-  onEdit: (row: T) => void;
-  onRemove: (row: T) => void;
+  /** Omit both for a read-only list (no per-row actions menu). */
+  onEdit?: (row: T) => void;
+  onRemove?: (row: T) => void;
   isRTL?: boolean;
 };
 
@@ -85,8 +86,8 @@ function RateRowCard<T extends PricingRateTierRow>({
   removeLabel: string;
   moreMenuLabel: string;
   closeLabel: string;
-  onEdit: () => void;
-  onRemove: () => void;
+  onEdit?: () => void;
+  onRemove?: () => void;
   muted?: boolean;
 }) {
   return (
@@ -98,15 +99,17 @@ function RateRowCard<T extends PricingRateTierRow>({
         presentLabel={presentLabel}
         language={language}
       />
-      <PricingRowMoreMenu
-        editLabel={editLabel}
-        removeLabel={removeLabel}
-        onEdit={onEdit}
-        onRemove={onRemove}
-        menuAccessibilityLabel={moreMenuLabel}
-        closeAccessibilityLabel={closeLabel}
-        isRTL={isRTL}
-      />
+      {onEdit && onRemove ? (
+        <PricingRowMoreMenu
+          editLabel={editLabel}
+          removeLabel={removeLabel}
+          onEdit={onEdit}
+          onRemove={onRemove}
+          menuAccessibilityLabel={moreMenuLabel}
+          closeAccessibilityLabel={closeLabel}
+          isRTL={isRTL}
+        />
+      ) : null}
     </View>
   );
 }
@@ -132,11 +135,13 @@ function ClusterBlock<T extends PricingRateTierRow>({
   removeLabel: string;
   moreMenuLabel: string;
   closeLabel: string;
-  onEdit: (row: T) => void;
-  onRemove: (row: T) => void;
+  onEdit?: (row: T) => void;
+  onRemove?: (row: T) => void;
   isRTL?: boolean;
 }) {
   const { t, language } = useI18n();
+  const rowActions = (row: T) =>
+    onEdit && onRemove ? { onEdit: () => onEdit(row), onRemove: () => onRemove(row) } : {};
   const [expanded, setExpanded] = useState(false);
   const [showPast, setShowPast] = useState(false);
   const primary = cluster.items[0]?.period;
@@ -195,8 +200,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
             removeLabel={removeLabel}
             moreMenuLabel={moreMenuLabel}
             closeLabel={closeLabel}
-            onEdit={() => onEdit(primary)}
-            onRemove={() => onRemove(primary)}
+            {...rowActions(primary)}
           />
         </View>
       ) : null}
@@ -216,8 +220,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
               removeLabel={removeLabel}
               moreMenuLabel={moreMenuLabel}
               closeLabel={closeLabel}
-              onEdit={() => onEdit(item.period)}
-              onRemove={() => onRemove(item.period)}
+              {...rowActions(item.period)}
             />
           ))}
           {cluster.pastCount > 0 ? (
@@ -235,8 +238,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
                     removeLabel={removeLabel}
                     moreMenuLabel={moreMenuLabel}
                     closeLabel={closeLabel}
-                    onEdit={() => onEdit(p)}
-                    onRemove={() => onRemove(p)}
+                    {...rowActions(p)}
                     muted
                   />
                 ))}
@@ -270,8 +272,7 @@ function ClusterBlock<T extends PricingRateTierRow>({
                   removeLabel={removeLabel}
                   moreMenuLabel={moreMenuLabel}
                   closeLabel={closeLabel}
-                  onEdit={() => onEdit(p)}
-                  onRemove={() => onRemove(p)}
+                  {...rowActions(p)}
                   muted
                 />
               ))}
