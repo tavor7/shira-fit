@@ -946,6 +946,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
 
     "network.offlineHint": "Check your connection and try again.",
     "network.offlineNotice": "You're offline. Content will load when you're back online.",
+    "network.offlineLoading": "You're offline, so this page can't load until the connection is back.",
+    "network.reconnecting": "Reconnecting…",
+    "network.backOnline": "Back online",
 
     "screen.profile": "Profile",
     "screen.notifications": "Notifications",
@@ -1077,6 +1080,12 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "approve.approvedByName": "Approved by {name}",
     "approve.unknownAthlete": "Unknown athlete",
     "approve.unknownManager": "Unknown manager",
+    "approve.signedUp": "Signed up {date}",
+    "approve.healthSigned": "Health declaration signed",
+    "approve.healthMissing": "No health declaration",
+    "approve.approvedToast": "{name} approved",
+    "approve.rejectedToast": "{name} rejected",
+    "approve.undone": "{name} is back in the pending list",
 
     "rosterCalendar.title": "Roster calendar",
     "rosterCalendar.hint": "Pick a week to see the participant roster for each session.",
@@ -2970,6 +2979,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
 
     "network.offlineHint": "בדקו את החיבור לאינטרנט ונסו שוב.",
     "network.offlineNotice": "אין חיבור לאינטרנט — התוכן ייטען כשהחיבור יחזור.",
+    "network.offlineLoading": "אין חיבור לאינטרנט, ולכן העמוד לא ייטען עד שהחיבור יחזור.",
+    "network.reconnecting": "מתחברים מחדש…",
+    "network.backOnline": "החיבור חזר",
 
     "screen.profile": "פרופיל",
     "screen.notifications": "התראות",
@@ -3100,6 +3112,12 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "approve.approvedByName": "אושר על ידי {name}",
     "approve.unknownAthlete": "מתאמן לא ידוע",
     "approve.unknownManager": "מנהל לא ידוע",
+    "approve.signedUp": "נרשמו ב־{date}",
+    "approve.healthSigned": "הצהרת בריאות נחתמה",
+    "approve.healthMissing": "אין הצהרת בריאות",
+    "approve.approvedToast": "{name} אושרו",
+    "approve.rejectedToast": "{name} נדחו",
+    "approve.undone": "{name} חזרו לרשימת הממתינים",
 
     "rosterCalendar.title": "יומן משתתפים",
     "rosterCalendar.hint": "בחרו שבוע כדי לראות את רשימות המשתתפים לכל אימון.",
