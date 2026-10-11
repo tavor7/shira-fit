@@ -132,6 +132,9 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     session_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
     subscription_limit_exceeded: B,
   },
+  _guard_receipted_session_payment: {
+    payment_locked_receipt_issued: [V, "Raised by the row trigger when a coach tries to change or remove a session payment that already has a receipt; an expected authorization refusal (owner rule 2026-10-11), shown to the coach with an explanation."],
+  },
   _create_document_from_payment_row: {
     business_id_required: V,
     digital_receipts_disabled: B,

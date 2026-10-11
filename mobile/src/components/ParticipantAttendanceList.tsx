@@ -12,6 +12,7 @@ import { IconButton } from "./IconButton";
 import { FoldableActionsMenu, type FoldableActionsMenuItem } from "./FoldableActionsMenu";
 import { LAYOUT } from "../lib/screenLayout";
 import { useI18n } from "../context/I18nContext";
+import { useAuth } from "../context/AuthContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { isBirthdayToday } from "../lib/birthday";
@@ -207,6 +208,13 @@ export function ParticipantAttendanceList({
   const [duplicateRosterSessionId, setDuplicateRosterSessionId] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
+  const { profile } = useAuth();
+  /** Coach view: a payment with an issued receipt is read-only (enforced by the database; mirrored here). */
+  const viewerIsManager = profile?.role === "manager";
+  const [lockedKeys, setLockedKeys] = useState<Set<string>>(() => new Set());
+  const isPaymentLocked = (item: Row) => !viewerIsManager && lockedKeys.has(item.id);
+  const writeErrorText = (msg: string) =>
+    msg.includes("payment_locked_receipt_issued") ? t("attendance.paymentLockedReceipt") : msg;
   const [payFor, setPayFor] = useState<Row | null>(null);
   const [payPhase, setPayPhase] = useState<"method" | "amount">("method");
   const [payChosenMethod, setPayChosenMethod] = useState<string | null>(null);
@@ -534,6 +542,15 @@ export function ParticipantAttendanceList({
     }
     setRosterPriceByRowId(rosterMap);
     setEffectivePriceByRowId(effectiveMap);
+    if (!viewerIsManager) {
+      const { data: lockData } = await supabase.rpc("session_payment_receipt_locks", { p_session_id: sessionId });
+      const locked = new Set<string>();
+      if (lockData?.ok) {
+        for (const u of (lockData.locked_user_ids ?? []) as string[]) locked.add(`u:${u}`);
+        for (const m of (lockData.locked_manual_ids ?? []) as string[]) locked.add(`m:${m}`);
+      }
+      setLockedKeys(locked);
+    }
     setRows(all);
 
     // Mark rows that weren't in the previous roster as "entering" so they animate in —
@@ -589,7 +606,7 @@ export function ParticipantAttendanceList({
     }
 
     setLoading(false);
-  }, [sessionId, onParticipantCountChange, onAttendanceStatsChange, onDuplicateRosterSession]);
+  }, [sessionId, onParticipantCountChange, onAttendanceStatsChange, onDuplicateRosterSession, viewerIsManager]);
 
   useFocusEffect(
     useCallback(() => {
@@ -715,7 +732,7 @@ export function ParticipantAttendanceList({
           });
     setBusyKey(null);
     if (error) {
-      showOk(t("common.error"), error.message);
+      showOk(t("common.error"), writeErrorText(error.message));
       return;
     }
     if (!data?.ok) {
@@ -742,7 +759,7 @@ export function ParticipantAttendanceList({
 
   async function markAllArrived() {
     if (rows.length === 0) return;
-    const todo = rows.filter((r) => r.attended !== true);
+    const todo = rows.filter((r) => r.attended !== true && !isPaymentLocked(r));
     if (todo.length === 0) return;
     showConfirm({
       title: t("attendance.markAllTitle"),
@@ -779,7 +796,7 @@ export function ParticipantAttendanceList({
             p_amount_paid: amountPaid,
             p_charge_no_show: chargeNoShow,
           });
-    if (error) return error.message || t("common.error");
+    if (error) return writeErrorText(error.message || t("common.error"));
     if (!data?.ok) return data?.error || t("common.couldNotSave");
     return null;
   }
@@ -787,7 +804,7 @@ export function ParticipantAttendanceList({
   async function runMarkAll() {
     setBusyKey("__all__");
     setBulkUndo(null);
-    const todo = rows.filter((r) => r.attended !== true);
+    const todo = rows.filter((r) => r.attended !== true && !isPaymentLocked(r));
     // Remember each row's previous state so Undo can put it back exactly (status, payment, no-show fee).
     const done: BulkUndoItem[] = [];
     let failure: string | null = null;
@@ -953,10 +970,10 @@ export function ParticipantAttendanceList({
                 {item.attended === true ? (
                   <Pressable
                     onPress={() => {
-                      if (busy) return;
+                      if (busy || isPaymentLocked(item)) return;
                       openPaymentModal(item, "arrived");
                     }}
-                    disabled={busy}
+                    disabled={busy || isPaymentLocked(item)}
                     accessibilityRole="button"
                     style={({ pressed }) => [styles.paymentTouch, pressed && { opacity: 0.85 }]}
                   >
@@ -980,10 +997,10 @@ export function ParticipantAttendanceList({
                 ) : item.attended === false && item.chargeNoShow ? (
                   <Pressable
                     onPress={() => {
-                      if (busy) return;
+                      if (busy || isPaymentLocked(item)) return;
                       openPaymentModal(item, "absent_penalty");
                     }}
-                    disabled={busy}
+                    disabled={busy || isPaymentLocked(item)}
                     accessibilityRole="button"
                     style={({ pressed }) => [styles.paymentTouch, pressed && { opacity: 0.85 }]}
                   >
@@ -1005,6 +1022,12 @@ export function ParticipantAttendanceList({
                     </Text>
                   </Pressable>
                 ) : null}
+                {isPaymentLocked(item) ? (
+                  <View style={[styles.lockRow, rowFlipFor(isRTL) && styles.lockRowRtl]} accessible accessibilityRole="text">
+                    <AppIcon name="lock-closed-outline" size="sm" color={theme.colors.textMuted} />
+                    <Text style={[styles.lockTxt, isRTL && styles.rtlText]}>{t("attendance.paymentLockedReceipt")}</Text>
+                  </View>
+                ) : null}
                 {item.kind === "registered" && superUserHiddenUserIds?.has(item.userId) ? (
                   <View style={[styles.hiddenBadge, styles.hiddenBadgeInline]}>
                     <Text style={styles.hiddenBadgeTxt}>{t("superUser.hiddenBadge")}</Text>
@@ -1025,7 +1048,7 @@ export function ParticipantAttendanceList({
                     {(["unset", "arrived", "absent"] as const).map((st) => (
                       <Pressable
                         key={st}
-                        disabled={busy}
+                        disabled={busy || isPaymentLocked(item)}
                         onPress={() => {
                           if (st === "arrived") {
                             openPaymentModal(item, "arrived");
@@ -1044,6 +1067,7 @@ export function ParticipantAttendanceList({
                         style={({ pressed }) => [
                           styles.miniBtn,
                           current === st && (st === "arrived" ? styles.miniBtnArrived : st === "absent" ? styles.miniBtnAbsent : styles.miniBtnUnset),
+                          isPaymentLocked(item) && styles.miniBtnLocked,
                           pressed && styles.segBtnPressed,
                         ]}
                       >
@@ -1068,7 +1092,7 @@ export function ParticipantAttendanceList({
                   }
                   if (onMoveParticipant && sessionNotStarted && rowCanMove(item)) actions.push({ label: t("a11y.moveParticipant"), onPress: () => openMove(item) });
                   if (item.kind === "registered" && onRemoveAthlete) actions.push({ label: t("a11y.removeParticipant"), onPress: () => confirmRemoveRegistered(item), danger: true });
-                  if (item.kind === "manual" && onRemoveManualParticipant) actions.push({ label: t("a11y.removeParticipant"), onPress: () => confirmRemoveManual(item), danger: true });
+                  if (item.kind === "manual" && onRemoveManualParticipant && !isPaymentLocked(item)) actions.push({ label: t("a11y.removeParticipant"), onPress: () => confirmRemoveManual(item), danger: true });
                   if (actions.length === 0) return null;
                   return (
                     <FoldableActionsMenu
@@ -1272,6 +1296,10 @@ const styles = StyleSheet.create({
   denseBusy: { minWidth: 140, minHeight: theme.controls.minTouch, alignItems: "center", justifyContent: "center" },
   miniSeg: { flexDirection: "row", gap: 4 },
   miniSegRtl: { flexDirection: "row-reverse" },
+  lockRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
+  lockRowRtl: { flexDirection: "row-reverse" },
+  lockTxt: { flexShrink: 1, fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  miniBtnLocked: { opacity: 0.45 },
   miniBtn: {
     width: theme.controls.minTouch,
     height: theme.controls.minTouch,
