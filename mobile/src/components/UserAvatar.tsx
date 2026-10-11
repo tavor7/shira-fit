@@ -10,7 +10,8 @@ function hashSeed(seed: string): number {
   return h;
 }
 
-function initials(name: string): string {
+/** The letters shown in the circle (exported so labels can include the visible text — WCAG 2.5.3). */
+export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
   const first = parts[0]?.[0] ?? "";
