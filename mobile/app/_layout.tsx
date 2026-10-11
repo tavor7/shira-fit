@@ -23,7 +23,7 @@ import { initNotificationHandler } from "../src/lib/notificationsInit";
 import { useEffect } from "react";
 import * as Updates from "expo-updates";
 import { useAuth } from "../src/context/AuthContext";
-import { OfflineNotice } from "../src/components/OfflineNotice";
+import { ConnectionBarLayout } from "../src/components/OfflineNotice";
 import { useSpaceActivatesControls } from "../src/hooks/useSpaceActivatesControls";
 
 initNotificationHandler();
@@ -157,8 +157,8 @@ export default function RootLayout() {
                     {Platform.OS === "web" && __DEV__ ? <RouteRestoreDebugPanel /> : null}
                     {Platform.OS === "web" ? <AccessibilityStyleInjector /> : null}
                     {Platform.OS === "web" ? <AccessibilityMenu /> : null}
-                    <OfflineNotice />
                     <StatusBar style="light" />
+                    <ConnectionBarLayout>
                     <View style={{ flex: 1 }}>
                       <Stack
                         screenOptions={{
@@ -176,6 +176,7 @@ export default function RootLayout() {
                         }}
                       />
                     </View>
+                    </ConnectionBarLayout>
                     <StudioContactFooterGate />
                   </BulkJobsProvider>
                 </ToastProvider>

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, type ViewStyle } from "react-native";
 import { theme } from "../theme";
 import { useReduceMotion } from "../hooks/useReduceMotion";
+import { useIsOffline, useRegisterLoadingPlaceholder } from "../lib/networkStatus";
 
 type Props = {
   width?: number | `${number}%`;
@@ -10,14 +11,19 @@ type Props = {
   style?: ViewStyle;
 };
 
-/** Pulsing placeholder block for content that's still loading. */
+/**
+ * Pulsing placeholder block for content that's still loading. While the device is offline it stops
+ * pulsing and dims (no fake progress); the connection bar explains why (Phase 5 / O).
+ */
 export function Skeleton({ width = "100%", height = 14, radius = theme.radius.sm, style }: Props) {
-  const reduceMotion = useReduceMotion();
+  useRegisterLoadingPlaceholder();
+  const offline = useIsOffline();
+  const reduceMotion = useReduceMotion() || offline;
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (reduceMotion) {
-      pulse.setValue(0.5);
+      pulse.setValue(offline ? 0 : 0.5);
       return;
     }
     const loop = Animated.loop(
@@ -38,9 +44,9 @@ export function Skeleton({ width = "100%", height = 14, radius = theme.radius.sm
     );
     loop.start();
     return () => loop.stop();
-  }, [pulse, reduceMotion]);
+  }, [pulse, reduceMotion, offline]);
 
-  const opacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.85] });
+  const opacity = offline ? 0.25 : pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.85] });
 
   return (
     <Animated.View
