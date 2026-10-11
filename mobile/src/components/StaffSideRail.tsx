@@ -25,7 +25,8 @@ export function StaffSideRail() {
               onPress={it.onPress}
               accessibilityRole="link"
               aria-current={current ? "page" : undefined}
-              accessibilityLabel={it.badgeCount ? `${it.label}, ${it.badgeCount}` : it.label}
+              // Same text as what is shown (label + badge) so the accessible name contains the visible label (WCAG 2.5.3).
+              accessibilityLabel={it.badgeCount ? `${it.label} ${it.badgeCount > 99 ? "99+" : it.badgeCount}` : it.label}
               style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
                 styles.item,
                 current && styles.itemOn,
