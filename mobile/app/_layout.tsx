@@ -20,6 +20,7 @@ import { AccessibilityMenu } from "../src/components/AccessibilityMenu";
 import { RouteRestoreDebugPanel } from "../src/components/RouteRestoreDebugPanel";
 import { WebLastRouteTracker } from "../src/components/WebLastRouteTracker";
 import { initNotificationHandler } from "../src/lib/notificationsInit";
+import { installWebBackDismiss } from "../src/lib/webBackDismiss";
 import { useEffect } from "react";
 import * as Updates from "expo-updates";
 import { useAuth } from "../src/context/AuthContext";
@@ -27,6 +28,8 @@ import { ConnectionBarLayout } from "../src/components/OfflineNotice";
 import { useSpaceActivatesControls } from "../src/hooks/useSpaceActivatesControls";
 
 initNotificationHandler();
+// Before the router mounts: the dialog Back-handler's popstate listener must run before expo-router's (see webBackDismiss).
+installWebBackDismiss();
 
 const rootHeaderStyle = appHeaderStyle;
 const rootHeaderTitleStyle = appHeaderTitleStyle;

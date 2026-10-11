@@ -1,27 +1,30 @@
 import { useEffect } from "react";
-import { BackHandler, Platform } from "react-native";
+import { BackHandler, Platform, useWindowDimensions } from "react-native";
 import { router, usePathname } from "expo-router";
 import { useNavigation } from "expo-router/react-navigation";
 import { useAuth } from "../context/AuthContext";
 import { useManagerAthletePreview } from "../context/ManagerAthletePreviewContext";
 import {
+  getManagerParentHref,
   getSessionsHomeHref,
   isPendingPathname,
-  isManagerOverviewFlatTool,
   isManagerOverviewHub,
   isManagerOverviewStaffDrilldown,
   isSessionFlowDrilldown,
   isSessionsCalendarHome,
-  MANAGER_OVERVIEW_HREF,
+  navigateToParent,
 } from "../lib/sessionsHomeNavigation";
+import { STUDIO_SETUP_INDEX_MAX_WIDTH } from "../components/ManagerOverviewTabs";
 import { logRedirectToManagerSessions } from "../lib/managerSessionsRedirectLog";
 
-/** Android hardware back: same rules as the header back pill (overview hub, manager tools, session drill-down). */
+/** Android hardware back: same rules as the header back pill (overview hub, setup, manager tools, session drill-down). */
 export function useAndroidSessionsBackHandler(active: boolean) {
   const pathname = usePathname() ?? "";
   const navigation = useNavigation();
   const { profile, loading: authLoading, user } = useAuth();
   const { enabled: athletePreview } = useManagerAthletePreview();
+  const { width } = useWindowDimensions();
+  const setupIndexAvailable = width < STUDIO_SETUP_INDEX_MAX_WIDTH;
 
   useEffect(() => {
     if (!active || Platform.OS !== "android") return;
@@ -45,16 +48,17 @@ export function useAndroidSessionsBackHandler(active: boolean) {
         navigation.goBack();
         return true;
       }
-      if (isManager && isManagerOverviewFlatTool(pathname)) {
-        router.replace(MANAGER_OVERVIEW_HREF);
-        return true;
-      }
+      const managerParent = isManager ? getManagerParentHref(pathname, { setupIndexAvailable }) : null;
       if (isManager && isManagerOverviewStaffDrilldown(pathname)) {
         if (navigation.canGoBack()) {
           navigation.goBack();
           return true;
         }
-        router.replace(MANAGER_OVERVIEW_HREF);
+        if (managerParent) router.replace(managerParent);
+        return true;
+      }
+      if (managerParent) {
+        navigateToParent(managerParent, navigation, (href) => router.replace(href));
         return true;
       }
       if (isManager && isManagerOverviewHub(pathname)) {
@@ -94,5 +98,5 @@ export function useAndroidSessionsBackHandler(active: boolean) {
     });
 
     return () => sub.remove();
-  }, [active, pathname, navigation, profile?.role, athletePreview, authLoading, user?.id]);
+  }, [active, pathname, navigation, profile?.role, athletePreview, authLoading, user?.id, setupIndexAvailable]);
 }

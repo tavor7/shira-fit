@@ -10,6 +10,13 @@ import { Platform } from "react-native";
  * again (history.back(), likewise hidden from the router). When the app navigates while a dialog entry is
  * on top (an action inside the dialog), the dialog entry is popped first and the router's push/replace
  * is applied after it — so history ends up exactly as it would without the dialog: no stray entries.
+ *
+ * The popstate listener MUST be registered before expo-router's own popstate listener. At the window target, Chromium
+ * (Chrome, Edge, Android) runs listeners in registration order whatever their capture flag (WebKit runs capture ones
+ * first). Registered lazily on the first dialog, it ran after the router's: the router saw the "silent" dialog pop,
+ * reset itself to the previous screen, and the deferred push then moved only the URL — e.g. ≡ menu → Setup changed the
+ * address to /manager/setup but kept showing the previous screen (then Back/refresh behaved erratically). The root
+ * layout therefore calls installWebBackDismiss() at module load, before the router mounts.
  */
 
 type Open = { token: string; close: () => void };
@@ -96,6 +103,11 @@ function install() {
     },
     { capture: true }
   );
+}
+
+/** Register the history patch and popstate listener now (web only; idempotent). Call at app start - see header. */
+export function installWebBackDismiss() {
+  install();
 }
 
 /** While `visible`, browser Back calls `onClose` instead of leaving the page. No-op on native. */

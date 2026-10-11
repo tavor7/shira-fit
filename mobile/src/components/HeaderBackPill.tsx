@@ -1,20 +1,23 @@
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions } from "react-native";
 import { useNavigation } from "expo-router/react-navigation";
 import { router, usePathname, type Href } from "expo-router";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { useManagerAthletePreview } from "../context/ManagerAthletePreviewContext";
 import {
+  getManagerParentHref,
   getSessionsHomeHref,
   isPendingPathname,
-  isManagerOverviewFlatTool,
   isManagerOverviewHub,
   isManagerOverviewStaffDrilldown,
   isSessionFlowDrilldown,
   isSessionsCalendarHome,
   MANAGER_OVERVIEW_HREF,
+  MANAGER_SETUP_HREF,
+  navigateToParent,
 } from "../lib/sessionsHomeNavigation";
+import { STUDIO_SETUP_INDEX_MAX_WIDTH } from "./ManagerOverviewTabs";
 import { logRedirectToManagerSessions } from "../lib/managerSessionsRedirectLog";
 import { theme } from "../theme";
 
@@ -22,7 +25,8 @@ const MANAGER_SESSIONS_HREF = "/(app)/manager/sessions" satisfies Href;
 
 /**
  * No control on the sessions calendar. Session detail/manage: pop stack.
- * Manager overview: tool screens → overview hub → sessions calendar.
+ * Manager hub screens follow getManagerParentHref: Setup item → Setup (phones) / Overview (wide), Setup → Overview,
+ * staff detail → previous screen (Users list when there is none), tool screens → Overview → sessions calendar.
  * Otherwise: replace to the role’s sessions calendar.
  */
 export function HeaderBackPill() {
@@ -32,6 +36,10 @@ export function HeaderBackPill() {
   const { enabled: athletePreview } = useManagerAthletePreview();
   const { isRTL, t } = useI18n();
   const isManager = profile?.role === "manager";
+  const { width } = useWindowDimensions();
+  const managerParent = isManager
+    ? getManagerParentHref(pathname, { setupIndexAvailable: width < STUDIO_SETUP_INDEX_MAX_WIDTH })
+    : null;
 
   const sessionsHomeHref = useMemo((): Href | null => {
     return getSessionsHomeHref(profile?.role, athletePreview);
@@ -58,11 +66,12 @@ export function HeaderBackPill() {
     const a11yToOverview = t("a11y.headerBackToOverview");
     const a11yToSessions = t("a11y.headerBackToSessions");
     if ((onPendingGate && canPop) || (inSessionDrilldown && canPop)) return a11yBack;
-    if (isManager && isManagerOverviewStaffDrilldown(pathname) && canPop) return a11yBack;
-    if (isManager && isManagerOverviewFlatTool(pathname)) return a11yToOverview;
+    if (isManager && isManagerOverviewStaffDrilldown(pathname)) return a11yBack;
+    if (managerParent === MANAGER_SETUP_HREF) return t("a11y.headerBackToSetup");
+    if (managerParent === MANAGER_OVERVIEW_HREF) return a11yToOverview;
     if (isManager && isManagerOverviewHub(pathname)) return a11yToSessions;
     return a11yToSessions;
-  }, [t, onPendingGate, canPop, inSessionDrilldown, isManager, pathname]);
+  }, [t, onPendingGate, canPop, inSessionDrilldown, isManager, pathname, managerParent]);
 
   if (!visible) return null;
 
@@ -86,16 +95,17 @@ export function HeaderBackPill() {
       navigation.goBack();
       return;
     }
-    if (isManager && isManagerOverviewFlatTool(pathname)) {
-      replaceHref(MANAGER_OVERVIEW_HREF, "manager_flat_tool_to_overview");
-      return;
-    }
     if (isManager && isManagerOverviewStaffDrilldown(pathname)) {
+      // Opened from many places (users list, search, rosters): behave like a normal back; Users list when no history.
       if (navigation.canGoBack()) {
         navigation.goBack();
         return;
       }
-      replaceHref(MANAGER_OVERVIEW_HREF, "manager_staff_drilldown_fallback_overview");
+      replaceHref(managerParent ?? MANAGER_OVERVIEW_HREF, "manager_staff_drilldown_fallback_parent");
+      return;
+    }
+    if (managerParent) {
+      navigateToParent(managerParent, navigation, (href) => replaceHref(href, "manager_hub_to_parent"));
       return;
     }
     if (isManager && isManagerOverviewHub(pathname)) {
