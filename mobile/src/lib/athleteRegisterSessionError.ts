@@ -18,9 +18,16 @@ export function athleteRegisterSessionErrorDetail(code: string, t: (key: string)
       return t("athleteSession.accountDisabled");
     case "not_approved_athlete":
       return t("athleteSession.notApproved");
+    case "subscription_terms_required":
+      return t("athleteSession.subscriptionTermsRequired");
     default:
       return code;
   }
+}
+
+/** The athlete's subscription is on hold until they accept its terms (server: subscription_reserve_or_reject). */
+export function isSubscriptionTermsRequired(code: string | undefined): boolean {
+  return code === "subscription_terms_required";
 }
 
 /** Athlete-facing message for the subscription_limit_exceeded warning, phrased about the

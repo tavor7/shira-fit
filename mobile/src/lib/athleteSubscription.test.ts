@@ -1,4 +1,5 @@
 import {
+  buildNextWeekViewModel,
   buildAthleteSubscriptionViewModel,
   resumeDateFromFreezeUntil,
   sessionsLeftLabel,
@@ -12,7 +13,7 @@ const t = (key: string) => key;
 describe("tierUsageFromRow", () => {
   it("uses effective_weekly_limit (not configured_weekly_limit) as the denominator", () => {
     const row = tierUsageFromRow({ tier: "group", configured_weekly_limit: 3, effective_weekly_limit: 1, used: 0 });
-    expect(row).toEqual({ tier: "group", weeklyLimit: 1, used: 0, remaining: 1, exhausted: false });
+    expect(row).toEqual({ tier: "group", weeklyLimit: 1, used: 0, remaining: 1, exhausted: false, extra: 0 });
   });
 
   it("marks a tier exhausted exactly when used reaches the effective limit", () => {
@@ -59,8 +60,8 @@ describe("buildAthleteSubscriptionViewModel", () => {
     expect(vm.hasNoEndDate).toBe(true);
     expect(vm.planEndDate).toBeNull();
     expect(vm.tiers).toEqual([
-      { tier: "group", weeklyLimit: 3, used: 2, remaining: 1, exhausted: false },
-      { tier: "personal", weeklyLimit: 1, used: 0, remaining: 1, exhausted: false },
+      { tier: "group", weeklyLimit: 3, used: 2, remaining: 1, exhausted: false, extra: 0 },
+      { tier: "personal", weeklyLimit: 1, used: 0, remaining: 1, exhausted: false, extra: 0 },
     ]);
   });
 
@@ -106,7 +107,7 @@ describe("buildAthleteSubscriptionViewModel", () => {
     };
     const vm = buildAthleteSubscriptionViewModel(summary);
     if (vm.kind === "none") throw new Error("unreachable");
-    expect(vm.tiers[0]).toEqual({ tier: "group", weeklyLimit: 1, used: 1, remaining: 0, exhausted: true });
+    expect(vm.tiers[0]).toEqual({ tier: "group", weeklyLimit: 1, used: 1, remaining: 0, exhausted: true, extra: 0 });
   });
 
   it("surfaces kind 'frozen' and the current freeze window when is_frozen is true", () => {
@@ -192,5 +193,57 @@ describe("resumeDateFromFreezeUntil", () => {
 
   it("rolls over February correctly in a leap year", () => {
     expect(resumeDateFromFreezeUntil("2028-02-29")).toBe("2028-03-01");
+  });
+});
+
+describe("buildNextWeekViewModel (next week's utilization)", () => {
+  const row = (o: Partial<{ effective_weekly_limit: number; used: number; extra: number }>) => ({
+    tier: "group" as const,
+    configured_weekly_limit: 2,
+    effective_weekly_limit: 2,
+    used: 0,
+    extra: 0,
+    ...o,
+  });
+  const nw = (o: Partial<{ window_days: number; active_days: number; frozen_days: number }>, usage = [row({})]) => ({
+    week_start: "2026-10-18",
+    week_end: "2026-10-24",
+    window_days: 6,
+    active_days: 6,
+    frozen_days: 0,
+    usage,
+    ...o,
+  });
+
+  it("is absent for servers that don't send next_week", () => {
+    expect(buildNextWeekViewModel(undefined)).toBeNull();
+  });
+  it("full week: quota, booked, remaining and extra sessions", () => {
+    const vm = buildNextWeekViewModel(nw({}, [row({ used: 2, extra: 1 })]))!;
+    expect(vm.state).toBe("active");
+    expect(vm.tiers).toEqual([{ tier: "group", weeklyLimit: 2, used: 2, remaining: 0, exhausted: true, extra: 1 }]);
+  });
+  it("partial week (starts or ends mid-week): prorated limit is shown as is", () => {
+    const vm = buildNextWeekViewModel(nw({ window_days: 3, active_days: 3 }, [row({ effective_weekly_limit: 1 })]))!;
+    expect(vm.state).toBe("partial");
+    expect(vm.activeDays).toBe(3);
+    expect(vm.tiers[0].weeklyLimit).toBe(1);
+  });
+  it("not active next week: no misleading quota", () => {
+    const vm = buildNextWeekViewModel(nw({ window_days: 0, active_days: 0 }, []))!;
+    expect(vm.state).toBe("inactive");
+    expect(vm.tiers).toEqual([]);
+  });
+  it("frozen next week: no quota, but already-booked extra sessions are still listed", () => {
+    const vm = buildNextWeekViewModel(
+      nw({ window_days: 6, active_days: 0, frozen_days: 6 }, [row({ effective_weekly_limit: 0 }), row({ effective_weekly_limit: 0, extra: 1 })])
+    )!;
+    expect(vm.state).toBe("frozen");
+    expect(vm.tiers).toHaveLength(1);
+    expect(vm.tiers[0].extra).toBe(1);
+  });
+  it("never shows negative remaining", () => {
+    const vm = buildNextWeekViewModel(nw({}, [row({ effective_weekly_limit: 1, used: 2 })]))!;
+    expect(vm.tiers[0].remaining).toBe(0);
   });
 });

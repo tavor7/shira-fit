@@ -7,12 +7,23 @@ import { supabase } from "../lib/supabase";
 import { AppText } from "../components/AppText";
 import { EmptyState } from "../components/EmptyState";
 import { WeeklyAllowanceMeter } from "../components/WeeklyAllowanceMeter";
-import { formatISODateFull } from "../lib/dateFormat";
+import { PrimaryButton } from "../components/PrimaryButton";
+import { SubscriptionTermsModal } from "../components/subscriptions/SubscriptionTermsModal";
+import { useToast } from "../context/ToastContext";
+import {
+  athleteShouldReviewTerms,
+  rpcGetMySubscriptionTerms,
+  type MySubscriptionTerms,
+} from "../lib/subscriptionTerms";
+import { pluralKey } from "../lib/pluralKey";
+import { formatISODateDayMonth, formatISODateFull } from "../lib/dateFormat";
 import { formatIls } from "../lib/documents";
 import { tierLabelKey } from "../lib/subscriptions";
 import {
   buildAthleteSubscriptionViewModel,
+  extraSessionsLabel,
   resumeDateFromFreezeUntil,
+  sessionsLeftNextWeekLabel,
   rpcGetMySubscription,
   sessionsLeftLabel,
   usedOfLimitLabel,
@@ -27,12 +38,20 @@ export function AthleteSubscriptionScreen() {
   const [vm, setVm] = useState<AthleteSubscriptionViewModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [terms, setTerms] = useState<MySubscriptionTerms | null>(null);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const { showToast } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await rpcGetMySubscription(supabase);
+      // Terms status is loaded alongside; if it fails the subscription still shows (the server enforces the hold anyway).
+      const [res, termsRes] = await Promise.all([
+        rpcGetMySubscription(supabase),
+        rpcGetMySubscriptionTerms(supabase).catch(() => null),
+      ]);
+      setTerms(termsRes && termsRes.ok ? termsRes : null);
       if (!res.ok) {
         setError(res.error);
         setVm(null);
@@ -85,10 +104,33 @@ export function AthleteSubscriptionScreen() {
   }
 
   const isFrozen = vm.kind === "frozen";
+  const termsInfo = terms && terms.has_subscription ? terms : null;
+  const showTerms = !!termsInfo && athleteShouldReviewTerms(termsInfo.status) && !!termsInfo.document;
+  // While the athlete hasn't accepted (blocking), the subscription can't be used: show no quota at all.
+  const termsHold = !!termsInfo?.blocking;
+  const termsCopy =
+    termsInfo?.status === "pending"
+      ? { title: "subscriptionTerms.pendingTitle", body: "subscriptionTerms.pendingBody" }
+      : termsInfo?.status === "update_available"
+        ? { title: "subscriptionTerms.updateTitle", body: "subscriptionTerms.updateBody" }
+        : { title: "subscriptionTerms.legacyTitle", body: "subscriptionTerms.legacyBody" };
+  const nextWeek = vm.nextWeek;
 
   return (
     <View style={styles.screen}>
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, screenContent]}>
+        {showTerms ? (
+          <View style={[styles.termsCard, termsHold && styles.termsCardHold]} accessibilityRole="summary">
+            <AppText variant="title" isRTL={isRTL} style={styles.termsTitle}>
+              {t(termsCopy.title)}
+            </AppText>
+            <AppText variant="body" isRTL={isRTL} style={styles.termsBody}>
+              {t(termsCopy.body)}
+            </AppText>
+            <PrimaryButton label={t("subscriptionTerms.review")} onPress={() => setTermsOpen(true)} />
+          </View>
+        ) : null}
+
         {isFrozen && vm.currentFreeze ? (
           <View style={styles.frozenCard}>
             <AppText variant="title" isRTL={isRTL} style={styles.frozenTitle}>
@@ -156,7 +198,7 @@ export function AthleteSubscriptionScreen() {
           </View>
         ) : null}
 
-        {vm.tiers.length > 0 ? (
+        {!termsHold && vm.tiers.length > 0 ? (
           <View style={styles.section}>
             <View style={[styles.sectionHeaderRow, rowFlipFor(isRTL) && styles.sectionHeaderRowRtl]}>
               <AppText variant="headline" isRTL={isRTL}>
@@ -174,12 +216,67 @@ export function AthleteSubscriptionScreen() {
                   limit={tier.weeklyLimit}
                   usedLabel={usedOfLimitLabel(tier.used, tier.weeklyLimit, t)}
                   statusLabel={tier.exhausted ? t("athleteSubscription.allowanceUsedUp") : sessionsLeftLabel(tier.remaining, t)}
-                  noteLabel={tier.exhausted ? t("athleteSubscription.extraAtRegularPrice") : undefined}
+                  noteLabel={
+                    tier.extra > 0
+                      ? extraSessionsLabel(tier.extra, t)
+                      : tier.exhausted
+                        ? t("athleteSubscription.extraAtRegularPrice")
+                        : undefined
+                  }
                   exhausted={tier.exhausted}
                   isRTL={isRTL}
                 />
               </View>
             ))}
+          </View>
+        ) : null}
+
+        {!termsHold && nextWeek ? (
+          <View style={styles.section}>
+            <View style={[styles.sectionHeaderRow, rowFlipFor(isRTL) && styles.sectionHeaderRowRtl]}>
+              <AppText variant="headline" isRTL={isRTL}>
+                {t("athleteSubscription.nextWeekTitle")}
+              </AppText>
+              <AppText variant="caption" muted isRTL={isRTL}>
+                {t("athleteSubscription.weekRange")
+                  .replace("{from}", formatISODateDayMonth(nextWeek.weekStart, language))
+                  .replace("{to}", formatISODateDayMonth(nextWeek.weekEnd, language))}
+              </AppText>
+            </View>
+            {nextWeek.state === "inactive" || nextWeek.state === "frozen" ? (
+              <AppText variant="body" muted isRTL={isRTL} style={styles.nextWeekNote}>
+                {t(nextWeek.state === "frozen" ? "athleteSubscription.nextWeekFrozen" : "athleteSubscription.nextWeekInactive")}
+              </AppText>
+            ) : null}
+            {nextWeek.state === "partial" ? (
+              <AppText variant="caption" muted isRTL={isRTL} style={styles.nextWeekNote}>
+                {pluralKey(t, "athleteSubscription.nextWeekPartial", nextWeek.activeDays).replace("{n}", String(nextWeek.activeDays))}
+              </AppText>
+            ) : null}
+            {nextWeek.tiers.map((tier, idx) =>
+              nextWeek.state === "inactive" || nextWeek.state === "frozen" ? (
+                <AppText key={tier.tier} variant="caption" isRTL={isRTL} style={styles.nextWeekNote}>
+                  {`${t(tierLabelKey(tier.tier))}: ${extraSessionsLabel(tier.extra, t)}`}
+                </AppText>
+              ) : (
+                <View key={tier.tier} style={[styles.meterRow, idx > 0 && styles.meterRowDivider]}>
+                  <WeeklyAllowanceMeter
+                    title={t(tierLabelKey(tier.tier))}
+                    used={tier.used}
+                    limit={tier.weeklyLimit}
+                    usedLabel={t("athleteSubscription.bookedOfLimit")
+                      .replace("{used}", String(tier.used))
+                      .replace("{limit}", String(tier.weeklyLimit))}
+                    statusLabel={
+                      tier.exhausted ? t("athleteSubscription.nextWeekAllBooked") : sessionsLeftNextWeekLabel(tier.remaining, t)
+                    }
+                    noteLabel={tier.extra > 0 ? extraSessionsLabel(tier.extra, t) : undefined}
+                    exhausted={tier.exhausted}
+                    isRTL={isRTL}
+                  />
+                </View>
+              )
+            )}
           </View>
         ) : null}
 
@@ -197,6 +294,20 @@ export function AthleteSubscriptionScreen() {
           ) : null}
         </View>
       </ScrollView>
+      {showTerms && termsInfo?.document ? (
+        <SubscriptionTermsModal
+          visible={termsOpen}
+          document={termsInfo.document}
+          onClose={() => setTermsOpen(false)}
+          onDone={(result) => {
+            if (result === "accepted") {
+              setTermsOpen(false);
+              showToast({ message: t("subscriptionTerms.acceptedToast"), variant: "success" });
+            }
+            void load();
+          }}
+        />
+      ) : null}
     </View>
   );
 }
@@ -265,6 +376,19 @@ const styles = StyleSheet.create({
   sectionHeaderRowRtl: { flexDirection: "row-reverse" },
   meterRow: {},
   meterRowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.borderMuted },
+  termsCard: {
+    backgroundColor: theme.colors.infoBg,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.infoBorder,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  termsCardHold: { borderColor: theme.colors.cta, borderWidth: 2 },
+  termsTitle: { color: theme.colors.text },
+  termsBody: { color: theme.colors.text, lineHeight: 22 },
+  nextWeekNote: { marginTop: theme.spacing.xs },
   kv: { flexDirection: "row", justifyContent: "space-between", gap: theme.spacing.sm, paddingVertical: 4 },
   kvRtl: { flexDirection: "row-reverse" },
   kvValue: { fontWeight: "800", color: theme.colors.text },

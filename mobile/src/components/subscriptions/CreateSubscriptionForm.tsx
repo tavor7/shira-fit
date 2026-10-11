@@ -13,8 +13,27 @@ import { DatePickerField } from "../DatePickerField";
 import { PrimaryButton } from "../PrimaryButton";
 import { PayeePickerModal, type PayeePickerRow } from "../PayeePickerModal";
 import { formatISODateFull } from "../../lib/dateFormat";
-import { toISODateLocal } from "../../lib/isoDate";
+import { studioTodayIso } from "../../lib/studioWeek";
 import { AllowancesEditor } from "./AllowancesEditor";
+import { SegmentedChoice } from "../SegmentedChoice";
+import {
+  durationMatchingEndDate,
+  endDateForDuration,
+  SUBSCRIPTION_DURATION_MONTHS,
+  type SubscriptionDurationMonths,
+} from "../../lib/subscriptionDuration";
+import {
+  applySuggestion,
+  editPrice,
+  fetchGroupPriceDefaults,
+  formatPriceInput,
+  groupOnlyQuota,
+  suggestedMonthlyPrice,
+  type GroupPriceDefaults,
+  type PriceFieldState,
+} from "../../lib/subscriptionPriceDefaults";
+import { rpcGetSubscriptionTermsStatus } from "../../lib/subscriptionTerms";
+import { pluralKey } from "../../lib/pluralKey";
 import {
   emptyWeeklyLimits,
   rpcCreateSubscription,
@@ -25,7 +44,20 @@ import { rowFlipFor } from "../../lib/layoutDirection";
 import { displayMoney } from "../../lib/displayFormat";
 import { useScreenContentStyle } from "../../hooks/useScreenLayout";
 
+type DurationChoice = SubscriptionDurationMonths | "custom";
+
+const DURATION_LABEL_KEYS: Record<SubscriptionDurationMonths, string> = {
+  1: "subscriptions.create.duration1m",
+  3: "subscriptions.create.duration3m",
+  6: "subscriptions.create.duration6m",
+  12: "subscriptions.create.duration12m",
+};
+
 /**
+ * Field order (athlete → weekly quotas → dates/duration → monthly price → summary → create) lets the price come last,
+ * after the settings it depends on: a group-only quota of 1-4 pre-fills the configured default price
+ * (subscriptionPriceDefaults.ts rules), which the manager can override.
+ *
  * Full pushed-screen create form, matching CreateSessionForm's shell (sessionFormStyles card
  * sections, footer save + secondary cancel link, discard-changes guard on back navigation) rather
  * than a modal popup — this app presents every creation flow as a screen, not a sheet.
@@ -39,11 +71,15 @@ export function CreateSubscriptionForm() {
 
   const [payeePickerOpen, setPayeePickerOpen] = useState(false);
   const [payee, setPayee] = useState<PayeePickerRow | null>(null);
-  const [price, setPrice] = useState("");
-  const [startDate, setStartDate] = useState(toISODateLocal(new Date()));
+  const [priceField, setPriceField] = useState<PriceFieldState>({ text: "", source: "empty" });
+  const price = priceField.text;
+  // Studio calendar date (Asia/Jerusalem), not the device's.
+  const [startDate, setStartDate] = useState(() => studioTodayIso());
   const [noEndDate, setNoEndDate] = useState(true);
   const [endDate, setEndDate] = useState("");
+  const [duration, setDuration] = useState<DurationChoice | null>(null);
   const [allowances, setAllowances] = useState<WeeklyLimits>(emptyWeeklyLimits());
+  const [priceDefaults, setPriceDefaults] = useState<GroupPriceDefaults>({});
   const [errors, setErrors] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
@@ -55,6 +91,43 @@ export function CreateSubscriptionForm() {
   const baselineRef = useRef(formSerialized);
   const formSerializedRef = useRef(formSerialized);
   formSerializedRef.current = formSerialized;
+
+  useEffect(() => {
+    let cancelled = false;
+    // Suggestions only; if the defaults can't be loaded the manager simply enters the price.
+    fetchGroupPriceDefaults(supabase)
+      .then((d) => {
+        if (!cancelled) setPriceDefaults(d);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const suggestion = useMemo(() => suggestedMonthlyPrice(allowances, priceDefaults), [allowances, priceDefaults]);
+  const groupQuota = groupOnlyQuota(allowances);
+
+  // A suggested price follows the quota; a price the manager typed is never overwritten.
+  useEffect(() => {
+    setPriceField((cur) => applySuggestion(cur, suggestion));
+  }, [suggestion]);
+
+  function onStartDateChange(next: string) {
+    setStartDate(next);
+    if (typeof duration === "number") setEndDate(endDateForDuration(next, duration) ?? "");
+  }
+
+  function onDurationChange(next: DurationChoice) {
+    setDuration(next);
+    if (typeof next === "number") setEndDate(endDateForDuration(startDate, next) ?? "");
+  }
+
+  function onEndDateChange(next: string) {
+    setEndDate(next);
+    // A manual end date keeps a preset highlighted only if it is exactly that preset's date; otherwise it is Custom.
+    setDuration(durationMatchingEndDate(startDate, next) ?? "custom");
+  }
 
   useEffect(() => {
     return navigation.addListener("beforeRemove", (e) => {
@@ -120,7 +193,17 @@ export function CreateSubscriptionForm() {
         showToast({ message: msg, variant: "error" });
         return;
       }
-      showToast({ message: t("subscriptions.create.success"), variant: "success" });
+      let awaitingTerms = false;
+      try {
+        const statuses = await rpcGetSubscriptionTermsStatus(supabase, [res.subscription_id]);
+        awaitingTerms = statuses[res.subscription_id]?.status === "pending";
+      } catch {
+        // informational only; the detail screen shows the status too
+      }
+      showToast({
+        message: t(awaitingTerms ? "subscriptions.create.successAwaitingTerms" : "subscriptions.create.success"),
+        variant: "success",
+      });
       allowLeaveRef.current = true;
       router.replace(`/(app)/manager/subscriptions/${res.subscription_id}`);
     } catch (e) {
@@ -152,21 +235,14 @@ export function CreateSubscriptionForm() {
           </View>
 
           <View style={sf.card}>
-            <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.create.priceLabel")}</Text>
-            <TextInput
-              value={price}
-              onChangeText={setPrice}
-              keyboardType="decimal-pad"
-              inputMode="decimal"
-              placeholder="0"
-              style={[sf.control, sf.controlInput, isRTL && styles.rtlInput]}
-            />
-            {errors.has("price") ? <Text style={[sf.error, isRTL && styles.rtlText]}>{t("subscriptions.errPriceInvalid")}</Text> : null}
+            <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.create.allowancesLabel")}</Text>
+            <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl]}>{t("subscriptions.create.allowancesHint")}</Text>
+            <AllowancesEditor value={allowances} onChange={setAllowances} label="" />
           </View>
 
           <View style={sf.card}>
             <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.datesTitle")}</Text>
-            <DatePickerField appearance="embedded" label={t("subscriptions.create.startDateLabel")} value={startDate} onChange={setStartDate} />
+            <DatePickerField appearance="embedded" label={t("subscriptions.create.startDateLabel")} value={startDate} onChange={onStartDateChange} />
             {errors.has("startDate") ? <Text style={[sf.error, isRTL && styles.rtlText]}>{t("subscriptions.errStartDateInvalid")}</Text> : null}
 
             <View style={[styles.toggleRow, styles.spaced, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
@@ -175,11 +251,25 @@ export function CreateSubscriptionForm() {
             </View>
             {!noEndDate ? (
               <View style={styles.spaced}>
+                <Text style={[sf.label, isRTL && sf.labelRtl, styles.durationLabel]}>{t("subscriptions.create.durationLabel")}</Text>
+                <SegmentedChoice<string>
+                  options={SUBSCRIPTION_DURATION_MONTHS.map((m) => ({ value: String(m), label: t(DURATION_LABEL_KEYS[m]) }))}
+                  value={typeof duration === "number" ? String(duration) : null}
+                  onChange={(v) => onDurationChange(Number(v) as SubscriptionDurationMonths)}
+                  isRTL={isRTL}
+                  accessibilityLabel={t("subscriptions.create.durationLabel")}
+                />
+                {duration === "custom" && endDate ? (
+                  <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl, styles.durationCustom]}>
+                    {t("subscriptions.create.durationCustom")}
+                  </Text>
+                ) : null}
+                <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl, styles.durationHint]}>{t("subscriptions.create.durationHint")}</Text>
                 <DatePickerField
                   appearance="embedded"
                   label={t("subscriptions.create.endDateLabel")}
                   value={endDate}
-                  onChange={setEndDate}
+                  onChange={onEndDateChange}
                   minimumDate={startDate ? new Date(startDate) : undefined}
                 />
                 {errors.has("endDate") ? <Text style={[sf.error, isRTL && styles.rtlText]}>{t("subscriptions.errEndDateInvalid")}</Text> : null}
@@ -188,9 +278,48 @@ export function CreateSubscriptionForm() {
           </View>
 
           <View style={sf.card}>
-            <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.create.allowancesLabel")}</Text>
-            <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl]}>{t("subscriptions.create.allowancesHint")}</Text>
-            <AllowancesEditor value={allowances} onChange={setAllowances} label="" />
+            <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.create.priceLabel")}</Text>
+            <TextInput
+              value={price}
+              onChangeText={(txt) => setPriceField(editPrice(txt))}
+              keyboardType="decimal-pad"
+              inputMode="decimal"
+              placeholder="0"
+              accessibilityLabel={t("subscriptions.create.priceLabel")}
+              style={[sf.control, sf.controlInput, isRTL && styles.rtlInput]}
+            />
+            {errors.has("price") ? <Text style={[sf.error, isRTL && styles.rtlText]}>{t("subscriptions.errPriceInvalid")}</Text> : null}
+            {suggestion && priceField.source === "suggested" ? (
+              <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl, styles.priceHint]}>
+                {pluralKey(t, "subscriptions.create.priceDefaultApplied", suggestion.quota).replace("{n}", String(suggestion.quota))}
+              </Text>
+            ) : null}
+            {suggestion && priceField.source === "manual" && price.trim() !== formatPriceInput(suggestion.price) ? (
+              <View style={[styles.defaultRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
+                <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl, styles.defaultRowText]}>
+                  {pluralKey(t, "subscriptions.create.priceDefaultAvailable", suggestion.quota)
+                    .replace("{n}", String(suggestion.quota))
+                    .replace("{price}", displayMoney(suggestion.price))}
+                </Text>
+                <Pressable
+                  onPress={() => setPriceField({ text: formatPriceInput(suggestion.price), source: "suggested" })}
+                  style={({ pressed }) => [styles.useDefault, pressed && { opacity: 0.85 }]}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.useDefaultTxt}>{t("subscriptions.create.priceUseDefault")}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {!suggestion && groupQuota != null ? (
+              <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl, styles.priceHint]}>
+                {pluralKey(t, "subscriptions.create.priceNoDefault", groupQuota).replace("{n}", String(groupQuota))}
+              </Text>
+            ) : null}
+            {/^\d{4}-\d{2}-\d{2}$/.test(startDate) ? (
+              <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl, styles.priceHint]}>
+                {t("subscriptions.create.priceMonthlyHint").replace("{d}", String(Number(startDate.slice(8, 10))))}
+              </Text>
+            ) : null}
           </View>
 
           {summaryLine ? (
@@ -236,6 +365,14 @@ const styles = StyleSheet.create({
   toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   toggleRowRtl: { flexDirection: "row-reverse" },
   summaryLine: { fontSize: 14, fontWeight: "600", color: theme.colors.text, lineHeight: 20 },
+  durationLabel: { marginBottom: theme.spacing.xs },
+  durationCustom: { marginTop: theme.spacing.xs, marginBottom: 0, fontWeight: "700" },
+  durationHint: { marginTop: theme.spacing.xs, marginBottom: theme.spacing.sm },
+  priceHint: { marginTop: theme.spacing.xs, marginBottom: 0 },
+  defaultRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: theme.spacing.sm, marginTop: theme.spacing.xs },
+  defaultRowText: { flex: 1, marginBottom: 0 },
+  useDefault: { minHeight: 44, justifyContent: "center", paddingHorizontal: theme.spacing.sm },
+  useDefaultTxt: { color: theme.colors.cta, fontWeight: "800" },
   footer: { gap: theme.spacing.sm, paddingTop: theme.spacing.xs },
   secondaryAction: { paddingVertical: theme.spacing.sm, alignItems: "center", minHeight: 44, justifyContent: "center" },
   secondaryActionTxt: { color: theme.colors.textMuted, fontWeight: "800" },

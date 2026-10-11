@@ -21,6 +21,21 @@ export type AthleteWeeklyUsageRow = {
    * the one the athlete UI must display. */
   effective_weekly_limit: number;
   used: number;
+  /** Sessions in that week NOT covered by the subscription (charged as regular sessions after the athlete confirmed).
+   * Absent from servers older than 20261014150000. */
+  extra?: number;
+};
+
+/** The immediately following Sunday-Saturday studio week (get_my_subscription.next_week). */
+export type AthleteNextWeekSummary = {
+  week_start: string;
+  week_end: string;
+  /** Sun-Fri training days on which the subscription is in its window (0 = not active next week). */
+  window_days: number;
+  /** Of those, the days that are not frozen. */
+  active_days: number;
+  frozen_days: number;
+  usage: AthleteWeeklyUsageRow[];
 };
 
 export type AthleteSubscriptionSummary =
@@ -43,6 +58,7 @@ export type AthleteSubscriptionSummary =
       week_start: string;
       allowances: Partial<Record<SubscriptionTier, number>>;
       weekly_usage: AthleteWeeklyUsageRow[];
+      next_week?: AthleteNextWeekSummary;
     };
 
 export type AthleteSubscriptionError = { ok: false; error: string };
@@ -68,6 +84,17 @@ export type AthleteTierUsage = {
    * manager lowers an allowance mid-week) -- the athlete should never see "-1 left". */
   remaining: number;
   exhausted: boolean;
+  /** Extra (charged) sessions that week, beyond / outside the subscription. */
+  extra: number;
+};
+
+/** How next week should be presented. Never shows quota when the subscription won't be usable that week. */
+export type AthleteNextWeekViewModel = {
+  weekStart: string;
+  weekEnd: string;
+  state: "active" | "partial" | "frozen" | "inactive";
+  activeDays: number;
+  tiers: AthleteTierUsage[];
 };
 
 export type AthleteSubscriptionViewModel =
@@ -84,7 +111,29 @@ export type AthleteSubscriptionViewModel =
       currentFreeze: AthleteFreezeWindow | null;
       upcomingFreeze: AthleteFreezeWindow | null;
       tiers: AthleteTierUsage[];
+      nextWeek: AthleteNextWeekViewModel | null;
     };
+
+/** Training days per studio week counted by the allowance engine (Sun-Fri, subscription_effective_weekly_limit). */
+export const TRAINING_DAYS_PER_WEEK = 6;
+
+export function buildNextWeekViewModel(next: AthleteNextWeekSummary | undefined): AthleteNextWeekViewModel | null {
+  if (!next) return null;
+  const tiers = next.usage.map(tierUsageFromRow);
+  let state: AthleteNextWeekViewModel["state"];
+  if (next.window_days <= 0) state = "inactive";
+  else if (next.active_days <= 0) state = "frozen";
+  else if (next.active_days < TRAINING_DAYS_PER_WEEK) state = "partial";
+  else state = "active";
+  return {
+    weekStart: next.week_start,
+    weekEnd: next.week_end,
+    state,
+    activeDays: next.active_days,
+    // No quota is shown for a week the subscription can't be used in; extra (charged) bookings are still listed.
+    tiers: state === "inactive" || state === "frozen" ? tiers.filter((x) => x.extra > 0 || x.used > 0) : tiers,
+  };
+}
 
 export function tierUsageFromRow(row: AthleteWeeklyUsageRow): AthleteTierUsage {
   const remaining = Math.max(0, row.effective_weekly_limit - row.used);
@@ -94,6 +143,7 @@ export function tierUsageFromRow(row: AthleteWeeklyUsageRow): AthleteTierUsage {
     used: row.used,
     remaining,
     exhausted: row.used >= row.effective_weekly_limit,
+    extra: Math.max(0, row.extra ?? 0),
   };
 }
 
@@ -115,6 +165,7 @@ export function buildAthleteSubscriptionViewModel(
     currentFreeze: summary.current_freeze,
     upcomingFreeze: summary.upcoming_freeze,
     tiers: summary.weekly_usage.map(tierUsageFromRow),
+    nextWeek: buildNextWeekViewModel(summary.next_week),
   };
 }
 
@@ -138,4 +189,12 @@ export function resumeDateFromFreezeUntil(freezeUntilIso: string): string {
   const [y, m, d] = freezeUntilIso.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + 1));
   return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+}
+
+export function extraSessionsLabel(extra: number, t: (key: string) => string): string {
+  return pluralKey(t, "athleteSubscription.extraSessions", extra).replace("{n}", String(extra));
+}
+
+export function sessionsLeftNextWeekLabel(remaining: number, t: (key: string) => string): string {
+  return pluralKey(t, "athleteSubscription.leftNextWeek", remaining).replace("{n}", String(remaining));
 }

@@ -240,6 +240,9 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     if (code === "forbidden") {
       return t("ui.addParticipantToSession.notAllowed");
     }
+    if (code === "subscription_terms_required") {
+      return t("addParticipant.subscriptionTermsRequired");
+    }
     if (code === "session_ended") {
       return t("ui.addParticipantToSession.thisSessionHasAlreadyEnded");
     }

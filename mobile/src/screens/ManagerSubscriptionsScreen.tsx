@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { rpcGetSubscriptionTermsStatus } from "../lib/subscriptionTerms";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { theme } from "../theme";
@@ -54,6 +55,7 @@ export function ManagerSubscriptionsScreen() {
   const [history, setHistory] = useState<SubscriptionHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [awaitingTerms, setAwaitingTerms] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,6 +64,10 @@ export function ManagerSubscriptionsScreen() {
       const [a, h] = await Promise.all([rpcListActiveSubscriptions(supabase), rpcListSubscriptionHistory(supabase)]);
       setActive(a);
       setHistory(h);
+      // Terms status is informational here (the server enforces the hold); a failure just hides the chip.
+      rpcGetSubscriptionTermsStatus(supabase, a.map((r) => r.subscription_id))
+        .then((m) => setAwaitingTerms(new Set(Object.values(m).filter((x) => x.status === "pending").map((x) => x.subscription_id))))
+        .catch(() => setAwaitingTerms(new Set()));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("subscriptions.errorLoad"));
     } finally {
@@ -147,6 +153,7 @@ export function ManagerSubscriptionsScreen() {
                   language={language}
                   isRTL={isRTL}
                   t={t}
+                  awaitingTerms={awaitingTerms.has(row.subscription_id)}
                   onPress={() => router.push(`/(app)/manager/subscriptions/${row.subscription_id}`)}
                 />
               ))
@@ -175,12 +182,14 @@ function ActiveSubscriptionRow({
   language,
   isRTL,
   t,
+  awaitingTerms,
   onPress,
 }: {
   row: SubscriptionListRow;
   language: LanguageCode;
   isRTL: boolean;
   t: (k: string) => string;
+  awaitingTerms?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -190,6 +199,11 @@ function ActiveSubscriptionRow({
           {row.payee_display_name}
         </Text>
         <View style={[styles.badges, rowFlipFor(isRTL) && styles.badgesRtl]}>
+          {awaitingTerms ? (
+            <View style={[styles.badge, styles.badgeTerms]}>
+              <Text style={styles.badgeText}>{t("subscriptions.terms.pendingChip")}</Text>
+            </View>
+          ) : null}
           {row.is_frozen ? (
             <View style={[styles.badge, styles.badgeFrozen]}>
               <Text style={styles.badgeText}>{t("subscriptions.frozenBadge")}</Text>
@@ -284,6 +298,7 @@ const styles = StyleSheet.create({
   badgesRtl: { flexDirection: "row-reverse" },
   badge: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: theme.radius.full, backgroundColor: theme.colors.surfaceElevated },
   badgeFrozen: { backgroundColor: "#2a2a3f" },
+  badgeTerms: { backgroundColor: theme.colors.warningBg },
   badgeMuted: { backgroundColor: theme.colors.borderMuted },
   badgeText: { fontSize: 11, fontWeight: "800", color: theme.colors.textMuted },
   rowSub: { fontSize: 14, fontWeight: "700", color: theme.colors.text },

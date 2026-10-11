@@ -9,6 +9,7 @@ import { AppSwitch } from "../components/AppSwitch";
 import { AppModal } from "../components/AppModal";
 import { Skeleton } from "../components/Skeleton";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
+import { SubscriptionTermsSettingsCard } from "../components/subscriptions/SubscriptionTermsSettingsCard";
 import { formatDateTimeForDisplay } from "../lib/dateFormat";
 import {
   fetchLegalConsentSettings,
@@ -124,6 +125,8 @@ export default function ManagerLegalSettingsScreen() {
           );
         })}
       </View>
+
+      <SubscriptionTermsSettingsCard />
 
       <AppModal
         visible={!!historyFor}

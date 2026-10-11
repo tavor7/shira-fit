@@ -30,6 +30,7 @@ import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBa
 import { embedLtrInMixed, embedRtlInLtr, isRtlScript } from "../../../../src/lib/bidiEmbed";
 import {
   athleteRegisterSessionErrorDetail,
+  isSubscriptionTermsRequired,
   athleteSubscriptionLimitMessage,
   promptAcceptExtraSubscriptionCharge,
 } from "../../../../src/lib/athleteRegisterSessionError";
@@ -242,6 +243,21 @@ export default function AthleteSessionDetail() {
       } else {
         const err = String(result.error ?? "");
         if (err === "already_registered") await load(true);
+        if (isSubscriptionTermsRequired(err)) {
+          showAlert({
+            title: t("athleteSession.couldNotRegister"),
+            message: t("athleteSession.subscriptionTermsRequired"),
+            actions: [
+              { label: t("common.cancel"), variant: "secondary", onPress: () => {} },
+              {
+                label: t("athleteSession.reviewSubscriptionTerms"),
+                variant: "primary",
+                onPress: () => router.push("/(app)/athlete/subscription"),
+              },
+            ],
+          });
+          return;
+        }
         showToast({
           message: t("athleteSession.couldNotRegister"),
           detail: athleteRegisterSessionErrorDetail(err, t),

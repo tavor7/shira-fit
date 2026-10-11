@@ -30,6 +30,10 @@ const U: RegisteredOutcomeClass = "uncertain";
 export const GLOBAL_RULES: Readonly<Record<string, RuleEntry>> = {
   forbidden: [V, "The authenticated caller lacks the role/ownership required for the operation. Same meaning in every operation."],
   not_authenticated: [V, "The call carried no authenticated user (auth.uid() is null). Same meaning in every operation."],
+  subscription_terms_required: [
+    B,
+    "RAISEd by subscription_reserve_or_reject and escapes every registration path that reserves (register_for_session, coach_add_athlete, staff_move_session_participant, manager_revert_activity_event): the athlete's subscription is on hold until the athlete accepts the subscription terms. Same meaning everywhere.",
+  ],
 };
 
 /** Operations whose result carries codes under keys other than `error`. Used by the extractor. */
@@ -67,24 +71,24 @@ export const DELEGATES: Readonly<Record<string, readonly string[]>> = {
  * emitters must be reviewed as relay vs consumed. Several of these are known follow-ups (see README "Open follow-ups").
  */
 export const CONSUMED_CALLS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-  _coach_add_athlete_core: { subscription_reserve_or_reject: "decision record; only a defensive RAISE can escape" },
+  _coach_add_athlete_core: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
   _copy_session_roster: {
     _coach_add_athlete_core: "result discarded (PERFORM) inside an exception-swallowing block",
     coach_add_athlete: "result discarded (PERFORM) inside an exception-swallowing block",
   },
-  _series_add_manual_participant_checked: { subscription_reserve_or_reject: "decision record; only a defensive RAISE can escape" },
-  add_manual_participant_to_session: { subscription_reserve_or_reject: "decision record; only a defensive RAISE can escape" },
+  _series_add_manual_participant_checked: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
+  add_manual_participant_to_session: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
   create_documents_from_payments: { _create_document_from_payment_row: "per-row result aggregated into a list, never returned as the top-level error" },
   create_subscription: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
   cron_maintain_session_series_horizon: { _maintain_session_series_horizon_core: "cron entry point; result discarded (PERFORM)" },
   edit_subscription_version: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
   freeze_subscription: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
   generate_due_subscription_charges: { subscription_generate_or_correct_billing_period: "per-subscription outcome recorded in the job result" },
-  manager_revert_activity_event: { subscription_reserve_or_reject: "decision record; only a defensive RAISE can escape" },
+  manager_revert_activity_event: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
   reactivate_subscription: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
-  register_for_session: { subscription_reserve_or_reject: "decision record; only a defensive RAISE can escape" },
+  register_for_session: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
   staff_create_session_series: { coach_add_athlete: "result discarded (PERFORM) inside an exception-swallowing block" },
-  staff_move_session_participant: { subscription_reserve_or_reject: "decision record; only a defensive RAISE can escape" },
+  staff_move_session_participant: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
   stop_subscription: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
   subscription_compute_impact: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
   tg_auth_user_signup_consent: {
@@ -156,6 +160,12 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   _validate_subscription_payee: {
     invalid_athlete_payee: V,
     invalid_manual_payee: V,
+  },
+  accept_subscription_terms: {
+    no_subscription: [V, "The caller has no subscription of their own to accept terms for (e.g. a manager or coach: consent is never given on someone else's behalf)."],
+    not_enabled: [B, "Subscription-terms enforcement is switched off by the studio, so there is nothing to accept yet; expected while the terms await approval."],
+    not_found: [B, "No current subscription-terms document is published; a configuration state, not a fault."],
+    version_mismatch: [B, "The terms were updated between display and acceptance; the client reloads and shows the new version (stale view, expected)."],
   },
   add_manual_participant_to_session: {
     account_disabled: [B, "The TARGET participant is disabled on the session date; a business restriction on staff-added participants, not an authorization failure of the caller."],
@@ -444,6 +454,10 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   },
   set_whatsapp_rollout_mode: {
     invalid_mode: V,
+  },
+  set_subscription_terms_enforced: {
+    invalid_value: V,
+    no_document: [B, "Enforcement can't be turned on before a subscription-terms document is published; a configuration state, not a fault."],
   },
   staff_create_session_series: {
     invalid_capacity: V,

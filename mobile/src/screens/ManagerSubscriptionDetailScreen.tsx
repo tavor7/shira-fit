@@ -18,6 +18,7 @@ import {
   type SubscriptionVersionRow,
 } from "../lib/subscriptions";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { managerTermsStatusText, rpcGetSubscriptionTermsStatus, type ManagerTermsStatusItem } from "../lib/subscriptionTerms";
 import { displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
@@ -35,6 +36,7 @@ export function ManagerSubscriptionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [terms, setTerms] = useState<ManagerTermsStatusItem | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -49,6 +51,9 @@ export function ManagerSubscriptionDetailScreen() {
       }
       setDetail(res);
       const sub = res.subscription;
+      rpcGetSubscriptionTermsStatus(supabase, [sub.id])
+        .then((m) => setTerms(m[sub.id] ?? null))
+        .catch(() => setTerms(null));
       if (sub.payee_is_manual) {
         const { data } = await supabase.from("manual_participants").select("full_name").eq("id", sub.payee_id).maybeSingle();
         setPayeeName(data?.full_name ?? "");
@@ -134,6 +139,13 @@ export function ManagerSubscriptionDetailScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, screenContent]}>
         <Text style={[styles.title, isRTL && styles.rtl]}>{payeeName || t("subscriptions.detail.title")}</Text>
 
+        {terms?.status === "pending" && !isTombstoned ? (
+          <View style={styles.termsHold} accessibilityRole="alert">
+            <Text style={[styles.termsHoldTitle, isRTL && styles.rtl]}>{t("subscriptions.terms.pendingChip")}</Text>
+            <Text style={[styles.termsHoldBody, isRTL && styles.rtl]}>{t("subscriptions.terms.pending")}</Text>
+          </View>
+        ) : null}
+
         <Section title={t("subscriptions.detail.overview")} isRTL={isRTL}>
           <KeyValue label={t("subscriptions.detail.price")} value={displayMoney(current?.monthly_price_ils ?? 0)} isRTL={isRTL} />
           <KeyValue label={t("subscriptions.rowStart")} value={formatISODateFull(current?.plan_start_date ?? "", language)} isRTL={isRTL} />
@@ -150,6 +162,17 @@ export function ManagerSubscriptionDetailScreen() {
             <KeyValue label={t("subscriptions.rowNextBilling")} value={formatISODateFull(detail.next_billing_date, language)} isRTL={isRTL} />
           ) : null}
           <KeyValue label={t("subscriptions.detail.anchorDay")} value={t("subscriptions.detail.anchorDayValue").replace("{day}", String(current?.anchor_day ?? ""))} isRTL={isRTL} />
+          {terms ? (
+            <KeyValue
+              label={t("subscriptions.terms.label")}
+              value={
+                terms.status === "pending"
+                  ? t("subscriptions.terms.pendingChip")
+                  : managerTermsStatusText(terms, detail.subscription.payee_is_manual, t, (iso) => formatISODateFull(iso, language))
+              }
+              isRTL={isRTL}
+            />
+          ) : null}
           {activeFreeze ? (
             <KeyValue
               label={t("subscriptions.frozenBadge")}
@@ -275,6 +298,17 @@ function KeyValue({ label, value, isRTL }: { label: string; value: string; isRTL
 }
 
 const styles = StyleSheet.create({
+  termsHold: {
+    backgroundColor: theme.colors.infoBg,
+    borderColor: theme.colors.cta,
+    borderWidth: 2,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    gap: 4,
+  },
+  termsHoldTitle: { ...theme.typography.title, color: theme.colors.text },
+  termsHoldBody: { ...theme.typography.secondary, color: theme.colors.text },
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   centerScreen: { flex: 1, backgroundColor: theme.colors.backgroundAlt, alignItems: "center", justifyContent: "center" },
   scroll: { flex: 1 },
@@ -293,7 +327,7 @@ const styles = StyleSheet.create({
   kv: { flexDirection: "row", justifyContent: "space-between", gap: theme.spacing.sm },
   kvRtl: { flexDirection: "row-reverse" },
   kvLabel: { ...theme.typography.caption, color: theme.colors.textMuted },
-  kvValue: { fontSize: 13, fontWeight: "800", color: theme.colors.text },
+  kvValue: { fontSize: 13, fontWeight: "800", color: theme.colors.text, flexShrink: 1 },
   allowanceLine: { fontSize: 14, fontWeight: "700", color: theme.colors.text },
   historyLine: { ...theme.typography.caption, color: theme.colors.textMuted },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm },

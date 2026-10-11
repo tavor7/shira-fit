@@ -22,6 +22,7 @@ import { scheduleSessionReminders, cancelSessionReminders } from "../lib/session
 import { clearWaitlistSpotFlag } from "../lib/waitlistSpotNotifier";
 import {
   athleteRegisterSessionErrorDetail,
+  isSubscriptionTermsRequired,
   athleteSubscriptionLimitMessage,
   promptAcceptExtraSubscriptionCharge,
 } from "../lib/athleteRegisterSessionError";
@@ -168,6 +169,21 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
       } else {
         const err = String(result.error ?? "");
         if (err === "already_registered") await loadStatus();
+        if (isSubscriptionTermsRequired(err)) {
+          showAlert({
+            title: t("athleteSession.couldNotRegister"),
+            message: t("athleteSession.subscriptionTermsRequired"),
+            actions: [
+              { label: t("common.cancel"), variant: "secondary", onPress: () => {} },
+              {
+                label: t("athleteSession.reviewSubscriptionTerms"),
+                variant: "primary",
+                onPress: () => router.push("/(app)/athlete/subscription"),
+              },
+            ],
+          });
+          return;
+        }
         showOk(t("athleteSession.couldNotRegister"), appendNetworkHint(athleteRegisterSessionErrorDetail(err, t), t("network.offlineHint")));
       }
     }
