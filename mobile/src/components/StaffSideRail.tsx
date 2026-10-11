@@ -25,8 +25,8 @@ export function StaffSideRail() {
               onPress={it.onPress}
               accessibilityRole="link"
               aria-current={current ? "page" : undefined}
-              // Same text as what is shown (label + badge) so the accessible name contains the visible label (WCAG 2.5.3).
-              accessibilityLabel={it.badgeCount ? `${it.label} ${it.badgeCount > 99 ? "99+" : it.badgeCount}` : it.label}
+              // No accessibilityLabel: the name comes from the visible label + badge text, so it always contains the
+              // visible label (WCAG 2.5.3; axe reads the badge as part of the visible text).
               style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
                 styles.item,
                 current && styles.itemOn,
