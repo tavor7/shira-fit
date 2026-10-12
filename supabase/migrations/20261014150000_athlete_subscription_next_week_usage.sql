@@ -8,8 +8,7 @@
 --       frozen), frozen_days, and usage[] with the same per-tier fields as weekly_usage.
 -- Every number reuses the existing engine, so next week is counted exactly like this week and like registration itself:
 --   * effective_weekly_limit = subscription_effective_weekly_limit (prorates partial weeks: a subscription that starts,
---     ends, is stopped or frozen during the week, and version changes; 0 when the subscription is not active that week,
---     including while awaiting the athlete's terms consent);
+--     ends, is stopped or frozen during the week, and version changes; 0 when the subscription is not active that week);
 --   * used  = the existing covered-registration count (active registrations + full-price late cancellations; cancelled
 --     without charge and waitlist entries do not count; one coverage row per registration, so nothing is double counted);
 --   * extra = the same population with covered = false and a subscription reason.

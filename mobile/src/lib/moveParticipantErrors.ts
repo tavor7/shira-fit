@@ -19,8 +19,6 @@ export function moveParticipantErrorDetail(code: string, t: (key: string) => str
       return t("moveParticipant.errorAccountDisabled");
     case "forbidden":
       return t("moveParticipant.errorForbidden");
-    case "subscription_terms_required":
-      return t("moveParticipant.errorSubscriptionTermsRequired");
     case "subscription_limit_exceeded":
       switch (reason) {
         case "frozen":

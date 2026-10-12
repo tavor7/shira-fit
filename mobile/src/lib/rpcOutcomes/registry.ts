@@ -32,7 +32,7 @@ export const GLOBAL_RULES: Readonly<Record<string, RuleEntry>> = {
   not_authenticated: [V, "The call carried no authenticated user (auth.uid() is null). Same meaning in every operation."],
   subscription_terms_required: [
     B,
-    "RAISEd by subscription_reserve_or_reject and escapes every registration path that reserves (register_for_session, coach_add_athlete, staff_move_session_participant, manager_revert_activity_event): the athlete's subscription is on hold until the athlete accepts the subscription terms. Same meaning everywhere.",
+    "RAISEd by subscription_reserve_or_reject only when the caller registers THEMSELF (register_for_session) while their subscription-terms acceptance is pending - the server side of the mandatory terms screen. Staff paths never raise it. Same meaning everywhere.",
   ],
 };
 

@@ -5,7 +5,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type SubscriptionTermsStatus = "not_required" | "pending" | "legacy_pending" | "update_available" | "accepted";
+/** Athlete-level status (consent belongs to the athlete + terms version, not to a subscription). */
+export type SubscriptionTermsStatus = "not_required" | "pending" | "accepted";
 
 export type SubscriptionTermsDocument = {
   version: number;
@@ -16,26 +17,21 @@ export type SubscriptionTermsDocument = {
   effective_at: string | null;
 };
 
-export type MySubscriptionTerms =
-  | { ok: true; has_subscription: false }
-  | {
-      ok: true;
-      has_subscription: true;
-      status: SubscriptionTermsStatus;
-      /** true only for "pending": the subscription can't be used and isn't billed until accepted. */
-      blocking: boolean;
-      accepted_version: number | null;
-      accepted_at: string | null;
-      /** Present only when the athlete is asked to accept (pending / legacy_pending / update_available). */
-      document: SubscriptionTermsDocument | null;
-    };
+export type MySubscriptionTerms = {
+  ok: true;
+  status: SubscriptionTermsStatus;
+  /** true only for "pending": the mandatory terms screen is shown until the athlete accepts. */
+  blocking: boolean;
+  accepted_version: number | null;
+  accepted_at: string | null;
+  /** Present only while "pending". */
+  document: SubscriptionTermsDocument | null;
+};
 
 export type ManagerTermsStatusItem = {
   subscription_id: string;
+  payee_is_manual: boolean;
   status: SubscriptionTermsStatus;
-  blocking: boolean;
-  enforced: boolean;
-  current_version: number | null;
   accepted_version: number | null;
   accepted_at: string | null;
 };
@@ -46,11 +42,6 @@ export type SubscriptionTermsSettings = {
   document: SubscriptionTermsDocument | null;
   counts: Partial<Record<SubscriptionTermsStatus, number>>;
 };
-
-/** Statuses for which the athlete is shown the terms and asked to accept them. */
-export function athleteShouldReviewTerms(status: SubscriptionTermsStatus | undefined): boolean {
-  return status === "pending" || status === "legacy_pending" || status === "update_available";
-}
 
 /** Document text in the UI language; English falls back to Hebrew (the canonical text) when no translation exists. */
 export function termsTextFor(doc: SubscriptionTermsDocument, language: "en" | "he"): { title: string; body: string } {
@@ -103,25 +94,20 @@ export async function rpcSetSubscriptionTermsEnforced(
   return data as { ok: true; enforced: boolean } | { ok: false; error: string };
 }
 
-/** Manager-facing one-line description of a subscription's terms status. */
+/** Manager-facing description of the payee's terms status, from persisted consent records only. */
 export function managerTermsStatusText(
   item: ManagerTermsStatusItem,
-  payeeIsManual: boolean,
   t: (key: string) => string,
   formatDate: (iso: string) => string
 ): string {
   switch (item.status) {
     case "pending":
       return t("subscriptions.terms.pending");
-    case "legacy_pending":
-      return t("subscriptions.terms.legacyPending");
-    case "update_available":
-      return t("subscriptions.terms.updateAvailable").replace("{v}", String(item.accepted_version ?? ""));
     case "accepted":
       return t("subscriptions.terms.accepted")
         .replace("{v}", String(item.accepted_version ?? ""))
         .replace("{date}", item.accepted_at ? formatDate(item.accepted_at.slice(0, 10)) : "");
     default:
-      return payeeIsManual ? t("subscriptions.terms.manualNotRequired") : t("subscriptions.terms.notRequired");
+      return item.payee_is_manual ? t("subscriptions.terms.manualNotRequired") : t("subscriptions.terms.notRequired");
   }
 }

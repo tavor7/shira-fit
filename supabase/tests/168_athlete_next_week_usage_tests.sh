@@ -10,7 +10,7 @@
 #   E3 subscription ends this week              -> next week inactive (0 days, no usage rows)
 #   E4 whole next week frozen                   -> 6 frozen days, limit 0
 #   E5 subscription starts Wednesday next week  -> 3 window days, prorated limit 1
-#   E6 awaiting terms consent (enforcement on)  -> 0 active days (no misleading quota)
+#   E6 terms acceptance pending (enforcement on) -> quota shown as usual (consent never affects the subscription)
 #   E7 week boundaries are Sunday-Saturday in the studio timezone; anon refused
 # Usage: PSQL=... PSQL_AUTH=... supabase/tests/168_athlete_next_week_usage_tests.sh   (SCRATCH/LOCAL DATABASES ONLY)
 set -u
@@ -105,14 +105,12 @@ create_sub "$E5" "$(d "$N" 3)" null >/dev/null
 G=$(gms "$E5")
 expect "3 window days (Wed-Fri), prorated limit 1" "3|3|1" "$(nw "$G" window_days)|$(nw "$G" active_days)|$(grpn "$G" effective_weekly_limit)"
 
-echo "== E6: awaiting the athlete's terms consent"
+echo "== E6: terms acceptance pending"
 su -c "update public.app_settings set subscription_terms_enforced = true where id = 1" >/dev/null
 create_sub "$E6" "$TODAY" null >/dev/null
 G=$(gms "$E6")
-expect "no active days and no quota row while consent is pending" "0|none" "$(nw "$G" active_days)|$(grpn "$G" effective_weekly_limit)"
+expect "pending acceptance does not change the quota" "6|2" "$(nw "$G" active_days)|$(grpn "$G" effective_weekly_limit)"
 su -c "update public.app_settings set subscription_terms_enforced = false where id = 1" >/dev/null
-G=$(gms "$E6")
-expect "quota shown once the hold no longer applies" "6|2" "$(nw "$G" active_days)|$(grpn "$G" effective_weekly_limit)"
 
 echo
 echo "168 athlete next-week usage: $PASSED passed, $FAILED failed"

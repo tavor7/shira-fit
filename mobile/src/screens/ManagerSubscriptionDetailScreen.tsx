@@ -139,13 +139,6 @@ export function ManagerSubscriptionDetailScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, screenContent]}>
         <Text style={[styles.title, isRTL && styles.rtl]}>{payeeName || t("subscriptions.detail.title")}</Text>
 
-        {terms?.status === "pending" && !isTombstoned ? (
-          <View style={styles.termsHold} accessibilityRole="alert">
-            <Text style={[styles.termsHoldTitle, isRTL && styles.rtl]}>{t("subscriptions.terms.pendingChip")}</Text>
-            <Text style={[styles.termsHoldBody, isRTL && styles.rtl]}>{t("subscriptions.terms.pending")}</Text>
-          </View>
-        ) : null}
-
         <Section title={t("subscriptions.detail.overview")} isRTL={isRTL}>
           <KeyValue label={t("subscriptions.detail.price")} value={displayMoney(current?.monthly_price_ils ?? 0)} isRTL={isRTL} />
           <KeyValue label={t("subscriptions.rowStart")} value={formatISODateFull(current?.plan_start_date ?? "", language)} isRTL={isRTL} />
@@ -165,11 +158,7 @@ export function ManagerSubscriptionDetailScreen() {
           {terms ? (
             <KeyValue
               label={t("subscriptions.terms.label")}
-              value={
-                terms.status === "pending"
-                  ? t("subscriptions.terms.pendingChip")
-                  : managerTermsStatusText(terms, detail.subscription.payee_is_manual, t, (iso) => formatISODateFull(iso, language))
-              }
+              value={managerTermsStatusText(terms, t, (iso) => formatISODateFull(iso, language))}
               isRTL={isRTL}
             />
           ) : null}
@@ -298,17 +287,6 @@ function KeyValue({ label, value, isRTL }: { label: string; value: string; isRTL
 }
 
 const styles = StyleSheet.create({
-  termsHold: {
-    backgroundColor: theme.colors.infoBg,
-    borderColor: theme.colors.cta,
-    borderWidth: 2,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    gap: 4,
-  },
-  termsHoldTitle: { ...theme.typography.title, color: theme.colors.text },
-  termsHoldBody: { ...theme.typography.secondary, color: theme.colors.text },
   screen: { flex: 1, backgroundColor: theme.colors.backgroundAlt },
   centerScreen: { flex: 1, backgroundColor: theme.colors.backgroundAlt, alignItems: "center", justifyContent: "center" },
   scroll: { flex: 1 },

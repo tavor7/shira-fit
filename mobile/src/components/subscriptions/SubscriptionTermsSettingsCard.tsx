@@ -117,9 +117,9 @@ export function SubscriptionTermsSettingsCard() {
           </AppText>
           <AppText variant="caption" muted isRTL={isRTL} style={styles.meta}>
             {t("managerSubscriptionTerms.counts")
-              .replace("{accepted}", String((c.accepted ?? 0) + (c.update_available ?? 0)))
+              .replace("{accepted}", String(c.accepted ?? 0))
               .replace("{pending}", String(c.pending ?? 0))
-              .replace("{legacy}", String(c.legacy_pending ?? 0))}
+              .replace("{notRequired}", String(c.not_required ?? 0))}
           </AppText>
           <Pressable
             onPress={() => setShowText((v) => !v)}
