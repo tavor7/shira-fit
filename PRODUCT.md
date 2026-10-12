@@ -1,5 +1,11 @@
 # Product
 
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+adaptive
+
 ## Register
 
 product
@@ -17,6 +23,10 @@ Shira Fit is used by three roles in a fitness studio context:
 Provide a clear, fast system to run studio training sessions end-to-end: discovery, registration, waitlist, attendance, cancellations, billing, Israeli digital receipts, and operational management across mobile (primary) and web PWA (secondary, same Expo codebase).
 
 Success looks like fewer missed sessions, fewer admin mistakes, and a calmer “day-of” workflow for staff.
+
+## Positioning
+
+Custom-built for a single studio (Shira Fit), not a multi-studio product. There are no plans to sell or white-label it, so the product does not need tenant switching, studio branding options, or marketing for other studios.
 
 ## Brand Personality
 

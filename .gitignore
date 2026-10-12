@@ -8,3 +8,8 @@ supabase/.secrets/
 # Supabase CLI local cache
 supabase/.temp/
 
+
+# Claude Code worktrees and per-machine agent tooling
+.claude/worktrees/
+# Impeccable's downloaded native engine (re-created by `npx impeccable install`)
+**/skills/impeccable/scripts/bin/
