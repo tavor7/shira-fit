@@ -14,10 +14,14 @@
 --   * the athlete is registered or waitlisted (unchanged), or
 --   * the athlete is approved and not disabled, the session is not hidden, and it is inside the athlete browse window
 --     (session_date <= athlete_browse_week_end()).
--- Unchanged: what is returned (full_name + source only), per-audience hide filtering (a hidden athlete's name is never
--- shown to non-staff callers), staff behaviour, manual participants staff-only, hidden sessions staff-only, the
--- approved-athlete-or-staff requirement, anon gets nothing. The body is changed by exactly this one replacement; the
--- migration aborts unless the deployed source is byte-identical to the reviewed one (md5 precondition).
+-- Manual (walk-in) participants added by coaches/managers are listed for athletes too (20260629188000 showed them;
+-- the same 2026-08-29 regression dropped them), deduplicated exactly like the headcount athletes see
+-- (active_registration_counts / visible_registration_counts): a manual participant linked to an app user who is actively
+-- registered is listed once, as the registration. So the names match the "n / capacity" chip.
+-- Unchanged: what is returned (full_name + source only - no ids, phone, notes or payment data), per-audience hide
+-- filtering (a hidden athlete's name is never shown to non-staff callers), staff behaviour, hidden sessions staff-only,
+-- the approved-athlete-or-staff requirement, anon gets nothing. The body is changed by exactly these two replacements;
+-- the migration aborts unless the deployed source is byte-identical to the reviewed one (md5 precondition).
 
 do $$
 declare
@@ -32,6 +36,29 @@ declare
     || E'  ) then\n'
     || E'    return;\n'
     || E'  end if;\n';
+  v_old_manual text := E'  if v_is_staff then\n    return query\n    select mp.full_name, ''manual''::text\n'
+    || E'    from public.session_manual_participants smp\n'
+    || E'    join public.manual_participants mp on mp.id = smp.manual_participant_id\n'
+    || E'    where smp.session_id = p_session_id\n'
+    || E'    order by mp.full_name;\n  end if;\n';
+  v_new_manual text := v_old_manual
+    || E'\n  -- Athletes: manual participants too, deduplicated like the headcount (a walk-in linked to an app user who is\n'
+    || E'  -- actively registered is already listed as that registration).\n'
+    || E'  if not v_is_staff then\n'
+    || E'    return query\n'
+    || E'    select mp.full_name, ''manual''::text\n'
+    || E'    from public.session_manual_participants smp\n'
+    || E'    join public.manual_participants mp on mp.id = smp.manual_participant_id\n'
+    || E'    where smp.session_id = p_session_id\n'
+    || E'      and (\n'
+    || E'        mp.linked_user_id is null\n'
+    || E'        or not exists (\n'
+    || E'          select 1 from public.session_registrations r2\n'
+    || E'          where r2.session_id = p_session_id and r2.user_id = mp.linked_user_id and r2.status = ''active''\n'
+    || E'        )\n'
+    || E'      )\n'
+    || E'    order by mp.full_name;\n'
+    || E'  end if;\n';
   v_src text;
 begin
   select prosrc into v_src from pg_proc where oid = v_fn;
@@ -41,8 +68,11 @@ begin
   if (length(v_src) - length(replace(v_src, v_old, ''))) / length(v_old) <> 1 then
     raise exception 'precondition: participant-only gate must occur exactly once';
   end if;
+  if (length(v_src) - length(replace(v_src, v_old_manual, ''))) / length(v_old_manual) <> 1 then
+    raise exception 'precondition: staff-only manual participant branch must occur exactly once';
+  end if;
   -- create or replace keeps owner, ACL, SECURITY DEFINER and search_path.
-  execute replace(pg_get_functiondef(v_fn), v_old, v_new);
+  execute replace(replace(pg_get_functiondef(v_fn), v_old, v_new), v_old_manual, v_new_manual);
 end $$;
 
 do $$
@@ -54,6 +84,7 @@ begin
       and prosrc like '%athlete_browse_week_end()%'
       and prosrc like '%not public.is_registration_hidden(r.session_id, r.user_id)%'
       and prosrc like '%if coalesce(v_sess.is_hidden, false) and not v_is_staff then%'
+      and prosrc like '%if not v_is_staff then%mp.linked_user_id is null%'
   ) then
     raise exception 'self-check: list_session_participants not patched as reviewed';
   end if;

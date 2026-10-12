@@ -4,11 +4,12 @@
 # Calls list_session_participants over a real `authenticator` connection (JWT claims, one transaction per call).
 # Fixture: manager M, coach C (coaches every session), approved athletes A1 (registered), A2 (waitlisted), A3
 # (unregistered), A4 (registered but hidden from athletes by the Super User), disabled athlete AD, pending athlete AP,
-# manual participant MP (staff-only). Sessions: S_FULL (cap 2, A1 + A4 registered = full), S_SOME (cap 6, A1 + MP),
+# manual participants MP (walk-in) and MPL (walk-in record linked to A1, who is also registered). Sessions: S_FULL (cap 2, A1 + A4 registered = full), S_SOME (cap 6, A1 + MP),
 # S_EMPTY (cap 6, nobody), S_HIDDEN (is_hidden), S_FAR (beyond the athlete browse window).
-#   P  registered / waitlisted / unregistered athletes all see the same names on a visible session; full / empty /
-#      some-participants sessions; coach and manager see everything incl. manual participants and hidden athletes
-#   N  athletes never see: hidden athletes' names, manual participants, hidden sessions, sessions beyond the browse
+#   P  registered / waitlisted / unregistered athletes all see the same names on a visible session - app registrations,
+#      manager-added registrations and walk-ins (manual participants) - with a linked walk-in listed once, and the list
+#      matches the headcount athletes see; full / empty / some-participants sessions; coach and manager unchanged
+#   N  athletes never see: hidden athletes' names, hidden sessions, sessions beyond the browse
 #      window (unless registered); disabled / pending athletes and anon see nothing; athletes cannot manage participants
 # Usage: PSQL=... PSQL_AUTH=... supabase/tests/166_session_participants_visibility_tests.sh   (SCRATCH/LOCAL DATABASES ONLY)
 set -u
@@ -45,26 +46,34 @@ sess() { su -c "insert into public.training_sessions (session_date, start_time, 
 S_FULL=$(sess "current_date + 1" "06:05" 2 false); S_SOME=$(sess "current_date + 1" "06:35" 6 false); S_EMPTY=$(sess "current_date + 1" "07:05" 6 false)
 S_HIDDEN=$(sess "current_date + 1" "07:35" 6 true); S_FAR=$(sess "public.athlete_browse_week_end() + 3" "08:05" 6 false)
 MP=$(su -c "insert into public.manual_participants (full_name, phone, created_by) values ('MP166 Walkin', '059$n', '$M') returning id" | head -1)
+MPL=$(su -c "insert into public.manual_participants (full_name, phone, created_by, linked_user_id) values ('A1 Linked Walkin', '050$n', '$M', '$A1') returning id" | head -1)
+AM=$(su -c "select gen_random_uuid()")
+su -c "insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at) values ('$AM', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f166-$n-am@t.local', jsonb_build_object('full_name', 'AM ManagerAdded', 'phone', '049$n', 'gender', 'female', 'address', 'A', 'zip_code', '1'), now(), now());
+       update public.profiles set approval_status='approved' where user_id='$AM'" >/dev/null
 su -c "insert into public.session_registrations (session_id, user_id, status) values
          ('$S_FULL', '$A1', 'active'), ('$S_FULL', '$A4', 'active'), ('$S_SOME', '$A1', 'active'),
          ('$S_HIDDEN', '$A1', 'active'), ('$S_FAR', '$A1', 'active');
        insert into public.waitlist_requests (session_id, user_id) values ('$S_FULL', '$A2'), ('$S_SOME', '$A2');
-       insert into public.session_manual_participants (session_id, manual_participant_id) values ('$S_SOME', '$MP');
+       insert into public.session_manual_participants (session_id, manual_participant_id) values ('$S_SOME', '$MP'), ('$S_SOME', '$MPL');
        insert into public.super_user_hidden_registrations (session_id, user_id, hidden_by, hide_from_athlete) values ('$S_FULL', '$A4', '$M', true)" >/dev/null
 
+R=$(api "$M" "select public.coach_add_athlete('$S_SOME', '$AM', false, true)::text;")
+case "$R" in *'"ok" : true'*|*'"ok":true'*) ok "fixture: manager adds AM to S_SOME";; *) fail "fixture manager add: $R";; esac
+SOME="A1 Registered:registered,AM ManagerAdded:registered,MP166 Walkin:manual"
 echo "== P: athletes see the list regardless of their own registration status"
 for who in "registered:$A1" "waitlisted:$A2" "unregistered:$A3"; do l=${who%%:*}; u=${who#*:}
   expect "$l athlete, full session (hidden athlete filtered)" "A1 Registered:registered" "$(names "$u" "$S_FULL")"
-  expect "$l athlete, session with participants (no manual participants)" "A1 Registered:registered" "$(names "$u" "$S_SOME")"
+  expect "$l athlete, session with app + manager-added + walk-in participants (linked walk-in listed once)" "$SOME" "$(names "$u" "$S_SOME")"
+  expect "$l athlete: list length matches the headcount athletes see" "3" "$(api "$u" "select n from public.visible_registration_counts(array['$S_SOME']::uuid[]);" | tail -1)"
   expect "$l athlete, empty session" "" "$(names "$u" "$S_EMPTY")"
 done
 expect "registered athlete still sees a session beyond the browse window they are registered for" "A1 Registered:registered" "$(names "$A1" "$S_FAR")"
 
 echo "== P: staff see the full roster"
 expect "coach sees full session incl. hidden athlete" "A1 Registered:registered,A4 Hidden:registered" "$(names "$C" "$S_FULL")"
-expect "coach sees manual participants" "A1 Registered:registered,MP166 Walkin:manual" "$(names "$C" "$S_SOME")"
+expect "coach list unchanged (staff view keeps every manual record)" "A1 Linked Walkin:manual,A1 Registered:registered,AM ManagerAdded:registered,MP166 Walkin:manual" "$(names "$C" "$S_SOME")"
 expect "manager sees full session incl. hidden athlete" "A1 Registered:registered,A4 Hidden:registered" "$(names "$M" "$S_FULL")"
-expect "manager sees manual participants" "A1 Registered:registered,MP166 Walkin:manual" "$(names "$M" "$S_SOME")"
+expect "manager list unchanged" "A1 Linked Walkin:manual,A1 Registered:registered,AM ManagerAdded:registered,MP166 Walkin:manual" "$(names "$M" "$S_SOME")"
 expect "manager sees hidden session roster" "A1 Registered:registered" "$(names "$M" "$S_HIDDEN")"
 expect "coach sees beyond-window roster" "A1 Registered:registered" "$(names "$C" "$S_FAR")"
 
@@ -82,7 +91,7 @@ R=$(api "$A3" "with d as (delete from public.session_registrations where session
 case "$R" in 0|*"permission denied"*) ok "N athlete cannot remove another athlete's registration";; *) fail "N athlete delete registration: $R";; esac
 R=$(api "$A3" "with d as (delete from public.session_manual_participants where session_id = '$S_SOME' returning 1) select count(*) from d;")
 case "$R" in 0|*"permission denied"*) ok "N athlete cannot remove manual participants";; *) fail "N athlete delete manual: $R";; esac
-expect "roster untouched" "1|1" "$(su -c "select (select count(*) from public.session_registrations where session_id = '$S_SOME' and status = 'active') || '|' || (select count(*) from public.session_manual_participants where session_id = '$S_SOME')")"
+expect "roster untouched" "2|2" "$(su -c "select (select count(*) from public.session_registrations where session_id = '$S_SOME' and status = 'active') || '|' || (select count(*) from public.session_manual_participants where session_id = '$S_SOME')")"
 
 echo
 echo "166 session participants visibility: $PASSED passed, $FAILED failed"
