@@ -52,6 +52,12 @@ export function isManagerOverviewStaffDrilldown(pathname: string): boolean {
 /** Studio setup index (phones; wider screens show the same destinations as a tab strip on each page). */
 export const MANAGER_SETUP_HREF = "/(app)/manager/setup" satisfies Href;
 export const STAFF_USERS_HREF = "/(app)/staff/users" satisfies Href;
+export const LEGAL_SETTINGS_HREF = "/(app)/manager/legal-settings" satisfies Href;
+
+/** Pages opened from a Setup item (one level below it): pathname -> that Setup item. */
+const SETUP_ITEM_SUBPAGES: Readonly<Record<string, Href>> = {
+  "/manager/subscription-terms": LEGAL_SETTINGS_HREF,
+};
 
 /** Pathnames of the Studio setup destinations — the same set as useStudioSetupItems (kept in sync by a unit test). */
 export const STUDIO_SETUP_ITEM_PATHS = [
@@ -74,6 +80,7 @@ export function isStudioSetupItem(pathname: string): boolean {
 /**
  * The manager hierarchy's parent screen — the one place Back (header pill and Android hardware back) is decided for
  * manager hub screens: Overview → Setup → Setup item → staff detail, and Overview → flat tools.
+ *  - Setup item sub-page (e.g. Legal → Subscription terms) → that Setup item.
  *  - Setup index → Overview.
  *  - Setup item → Setup on phones (where Setup is an index list); Overview on wider screens, where Setup has no page
  *    of its own and is the tab strip shown on every setup item.
@@ -82,6 +89,7 @@ export function isStudioSetupItem(pathname: string): boolean {
  * Returns null for screens outside this hierarchy (callers keep their existing behaviour).
  */
 export function getManagerParentHref(pathname: string, opts: { setupIndexAvailable: boolean }): Href | null {
+  if (SETUP_ITEM_SUBPAGES[pathname]) return SETUP_ITEM_SUBPAGES[pathname];
   if (isStudioSetupIndex(pathname)) return MANAGER_OVERVIEW_HREF;
   if (isStudioSetupItem(pathname)) return opts.setupIndexAvailable ? MANAGER_SETUP_HREF : MANAGER_OVERVIEW_HREF;
   if (isManagerOverviewStaffDrilldown(pathname)) return STAFF_USERS_HREF;

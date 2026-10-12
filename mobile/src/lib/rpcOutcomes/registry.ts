@@ -48,6 +48,7 @@ export const CODE_BEARING_KEYS: Readonly<Record<string, readonly string[]>> = {
  */
 export const DELEGATES: Readonly<Record<string, readonly string[]>> = {
   coach_add_athlete: ["_coach_add_athlete_core"],
+  copy_subscription_terms_version_to_draft: ["save_subscription_terms_draft"],
   create_document_with_payment: ["set_registration_attendance", "set_manual_participant_attendance"],
   edit_subscription_version: ["subscription_compute_impact"],
   freeze_subscription: ["subscription_compute_impact"],
@@ -197,6 +198,9 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   coach_remove_athlete: {
     not_active: B,
     session_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
+  },
+  copy_subscription_terms_version_to_draft: {
+    version_not_found: [B, "Looks a terms version up by the number the manager picked from the history list; absence means the list was stale, an expected state."],
   },
   create_document: {
     business_id_required: V,
@@ -358,6 +362,12 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   publish_legal_document: {
     unsupported_consent_type: V,
   },
+  publish_subscription_terms_draft: {
+    draft_changed: [B, "The draft was saved again after the manager reviewed it; the screen reloads and asks for another review (optimistic concurrency, expected)."],
+    incomplete: V,
+    invalid_value: V,
+    no_draft: [B, "Nothing to publish (the draft was already published or never saved), e.g. a double tap or a second manager; expected."],
+  },
   reactivate_subscription: {
     conflicting_active_subscription: B,
     invalid_date_range: V,
@@ -411,6 +421,9 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     invalid_template: V,
     missing_user: V,
     rollout_off: B,
+  },
+  save_subscription_terms_draft: {
+    too_long: V,
   },
   set_athlete_approval: {
     not_athlete: V,

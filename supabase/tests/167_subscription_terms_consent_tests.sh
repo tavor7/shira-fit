@@ -150,24 +150,25 @@ expect "manual participant never required" "not_required" "$(status "$SM")"
 contains "manual participant can be added" '"ok" : true' "$(api "$M" "select public.add_manual_participant_to_session('$S4', '$MP', false, false)::text;")"
 expect "manual participant billed normally" "1|300.00" "$(charges "$SM")"
 
-echo "== 9: new terms versions"
-su -c "update public.legal_documents set is_current = false where consent_type = 'subscription_terms' and is_current;
-       insert into public.legal_documents (consent_type, version, title, title_en, body_text, body_text_en, is_current, requires_reconsent)
-       values ('subscription_terms', $VER + 1, 't', 't', 'גרסה 2', 'version 2', true, false)" >/dev/null
-expect "v2 without requires_reconsent: A stays accepted" "accepted" "$(status "$SA2")"
-su -c "update public.legal_documents set requires_reconsent = true where consent_type = 'subscription_terms' and version = $VER + 1" >/dev/null
-expect "v2 requiring re-consent: A pending" "pending" "$(status "$SA2")"
+echo "== 9: new terms versions (published through the management RPCs; versions are immutable)"
+publish() { local at; at=$(su -c "select updated_at from public.legal_document_drafts where consent_type = 'subscription_terms'");
+  api "$M" "select public.publish_subscription_terms_draft($1, '$at'::timestamptz)::text;"; }
+contains "copy the current text into a draft" '"ok" : true' "$(api "$M" "select public.copy_subscription_terms_version_to_draft($VER)::text;")"
+R=$(publish false); contains "publish a new version WITHOUT renewed acceptance" '"ok" : true' "$R"; V2=$(jf "$(echo "$R" | grep '^{')" version)
+expect "A stays accepted (no renewed acceptance required)" "accepted" "$(status "$SA2")"
+api "$M" "select public.copy_subscription_terms_version_to_draft($VER)::text;" >/dev/null
+R=$(publish true); contains "publish a new version WITH renewed acceptance" '"ok" : true' "$R"; V3=$(jf "$(echo "$R" | grep '^{')" version)
+expect "A pending again" "pending" "$(status "$SA2")"
 contains "old version refused" "version_mismatch" "$(api "$A" "select public.accept_subscription_terms($VER)::text;")"
-contains "v2 accepted" '"ok" : true' "$(api "$A" "select public.accept_subscription_terms($((VER + 1)))::text;")"
-expect "A accepted on v2, one row per version" "accepted|2" "$(status "$SA2")|$(consents "$A")"
-su -c "delete from public.user_consents where consent_type = 'subscription_terms' and consent_version = $VER + 1;
-       delete from public.legal_documents where consent_type = 'subscription_terms' and version = $VER + 1;
-       update public.legal_documents set is_current = true where consent_type = 'subscription_terms' and version = $VER" >/dev/null
+contains "new version accepted" '"ok" : true' "$(api "$A" "select public.accept_subscription_terms($V3)::text;")"
+expect "A accepted on the new version, one row per version" "accepted|2" "$(status "$SA2")|$(consents "$A")"
+expect "earlier acceptance kept" "1" "$(su -c "select count(*) from public.user_consents where user_id = '$A' and consent_type = 'subscription_terms' and consent_version = $VER")"
+VER=$V3
 
 echo "== 10: manager visibility"
 R=$(api "$M" "select public.get_subscription_terms_status(array['$SA2']::uuid[])::text;")
 contains "manager sees accepted version" "\"accepted_version\": $VER" "$R"
-contains "manager sees acceptance date" "\"accepted_at\": \"$(su -c "select to_char(accepted_at at time zone 'UTC', 'YYYY-MM-DD') from public.user_consents where user_id = '$A' and consent_version = $VER")" "$R"
+contains "manager sees acceptance date" "\"accepted_at\": \"$(su -c "select to_char(accepted_at at time zone 'UTC', 'YYYY-MM-DD') from public.user_consents where user_id = '$A' and consent_type = 'subscription_terms' and consent_version = $VER")" "$R"
 contains "manager settings counts athletes" '"pending"' "$(api "$M" "select public.get_subscription_terms_settings()::text;")"
 for who in "coach:$C" "athlete:$A"; do
   contains "${who%%:*} cannot read terms status" "forbidden" "$(api "${who#*:}" "select public.get_subscription_terms_status(array['$SB']::uuid[])::text;")"
