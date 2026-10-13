@@ -264,9 +264,14 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
   }) {
     const names = participantMap[s.id] ?? [];
     const note = noteMap[s.id] ?? null;
-    const label = `${formatISODateLong(s.session_date, language)} · ${displayTimeRange(s.start_time, durMin(s))}`;
+    const dateLabel = formatISODateLong(s.session_date, language);
+    const timeLabel = displayTimeRange(s.start_time, durMin(s));
     const nameAlign = isRTL ? styles.participantNameRtlUi : styles.participantNameLtrUi;
     const isCurrent = emphasis === "current";
+    const participantsLine =
+      names.length > 0
+        ? `${participantTitle}: ${names.join(", ")}`
+        : `${participantTitle}: ${t("ui.staffHomeOverview.noActiveRegistrations")}`;
     return (
       <View
         style={[
@@ -274,39 +279,35 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
           isCurrent ? styles.teachingSessionCardCurrent : styles.teachingSessionCardNext,
         ]}
       >
-        {isCurrent ? (
-          <View style={[styles.nowBadgeWrap, rowFlipFor(isRTL) && styles.nowBadgeWrapRtl]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.sessionCardTimeRow,
+            rowFlipFor(isRTL) && styles.sessionCardTimeRowRtl,
+            pressed && styles.linePressed,
+          ]}
+          onPress={() => router.push(sessionPath(variant, s.id) as Href)}
+        >
+          {isCurrent ? (
             <View style={styles.nowBadge}>
               <Text style={styles.nowBadgeText}>{t("ui.staffHomeOverview.now")}</Text>
             </View>
-          </View>
-        ) : null}
-        <Pressable
-          style={({ pressed }) => [styles.sessionCardTimePress, pressed && styles.linePressed]}
-          onPress={() => router.push(sessionPath(variant, s.id) as Href)}
-        >
+          ) : (
+            <View style={styles.nextBadge}>
+              <Text style={styles.nextBadgeText}>{prefix}</Text>
+            </View>
+          )}
           <Text
             style={[
               styles.sessionCardTimeText,
               isCurrent && styles.sessionCardTimeTextCurrent,
-              nameAlign,
               alignRight && styles.rtlText,
             ]}
           >
-            {prefix ? `${prefix}: ` : ""}
-            {label}
+            {timeLabel}
           </Text>
         </Pressable>
-        <Text style={[styles.sessionCardParticipantHeading, isRTL && styles.rtlText]}>{participantTitle}</Text>
-        {names.length === 0 ? (
-          <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("ui.staffHomeOverview.noActiveRegistrations")}</Text>
-        ) : (
-          names.map((n, idx) => (
-            <Text key={`${s.id}-${idx}`} style={[styles.participantName, nameAlign]}>
-              {n}
-            </Text>
-          ))
-        )}
+        <Text style={[styles.sessionCardDateText, nameAlign, alignRight && styles.rtlText]}>{dateLabel}</Text>
+        <Text style={[styles.participantsLine, nameAlign, alignRight && styles.rtlText]}>{participantsLine}</Text>
         {notesTitle && note?.body ? (
           <View style={styles.teachingCardNotesSection}>
             <Text style={[styles.sessionCardParticipantHeading, isRTL && styles.rtlText]}>{notesTitle}</Text>
@@ -367,68 +368,74 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
 
     return (
       <View style={styles.groupList}>
-        {groups.map((g) => {
-          const expanded = expandedDates[g.date] ?? false;
-          return (
-            <View key={g.date} style={styles.groupCard}>
-              <Pressable
-                onPress={() =>
-                  setExpandedDates((m) => {
-                    const next: Record<string, boolean> = {};
-                    for (const key of Object.keys(m)) next[key] = false;
-                    next[g.date] = !expanded;
-                    return next;
-                  })
-                }
-                style={({ pressed }) => [styles.groupHeader, pressed && styles.groupHeaderPressed]}
-              >
-                <Text style={[styles.groupTitle, alignRight && styles.rtlText]} numberOfLines={1}>
-                  {g.title}
-                </Text>
-                <View style={styles.groupMeta}>
-                  <View style={styles.countPill}>
-                    <Text style={styles.countPillText}>{g.items.length}</Text>
+        <View style={styles.groupContainer}>
+          {groups.map((g, idx) => {
+            const expanded = expandedDates[g.date] ?? false;
+            return (
+              <View key={g.date}>
+                <Pressable
+                  onPress={() =>
+                    setExpandedDates((m) => {
+                      const next: Record<string, boolean> = {};
+                      for (const key of Object.keys(m)) next[key] = false;
+                      next[g.date] = !expanded;
+                      return next;
+                    })
+                  }
+                  style={({ pressed }) => [
+                    styles.groupRow,
+                    idx > 0 && styles.groupRowDivider,
+                    pressed && styles.groupHeaderPressed,
+                  ]}
+                >
+                  <Text style={[styles.groupTitle, alignRight && styles.rtlText]} numberOfLines={1}>
+                    {g.title}
+                  </Text>
+                  <View style={styles.groupMeta}>
+                    <View style={styles.countPill}>
+                      <Text style={styles.countPillText}>{g.items.length}</Text>
+                    </View>
+                    <Text style={styles.chev}>{expanded ? "▲" : "▼"}</Text>
                   </View>
-                  <Text style={styles.chev}>{expanded ? "▲" : "▼"}</Text>
-                </View>
-              </Pressable>
+                </Pressable>
 
-              <AnimatedOptionExpand open={expanded}>
-                <View style={styles.groupBody}>
-                  {g.items.map((s) => {
-                    const time = displayTimeRange(s.start_time, durMin(s));
-                    const signedUp = signupBySession[s.id] ?? 0;
-                    const cap = s.max_participants ?? 0;
-                    const notePv = notePreviewBySession[s.id];
-                    const edgeStyle = alignRight ? styles.participantNameRtlUi : styles.participantNameLtrUi;
-                    return (
-                      <Pressable
-                        key={s.id}
-                        style={({ pressed }) => [styles.sessionRow, pressed && styles.sessionRowPressed]}
-                        onPress={() => router.push(sessionPath(variant, s.id) as Href)}
-                      >
-                        <View style={[styles.sessionRowTop, rowFlipFor(alignRight) && styles.sessionRowTopRtl]}>
-                          <Text style={[styles.sessionTime, edgeStyle, alignRight && styles.rtlText]} numberOfLines={1}>
-                            {time}
-                          </Text>
-                          <Text style={[styles.sessionCapacity, edgeStyle, alignRight && styles.rtlText]} numberOfLines={1}>
-                            {signedUp}/{cap > 0 ? cap : "—"}
-                          </Text>
-                        </View>
-                        {notePv ? (
-                          <Text style={[styles.sessionNotePreview, edgeStyle]} numberOfLines={2}>
-                            {t("ui.staffHomeOverview.note")}
-                            {notePv}
-                          </Text>
-                        ) : null}
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </AnimatedOptionExpand>
-            </View>
-          );
-        })}
+                <AnimatedOptionExpand open={expanded}>
+                  <View style={styles.groupBody}>
+                    {g.items.map((s) => {
+                      const time = displayTimeRange(s.start_time, durMin(s));
+                      const signedUp = signupBySession[s.id] ?? 0;
+                      const cap = s.max_participants ?? 0;
+                      const notePv = notePreviewBySession[s.id];
+                      const edgeStyle = alignRight ? styles.participantNameRtlUi : styles.participantNameLtrUi;
+                      return (
+                        <Pressable
+                          key={s.id}
+                          style={({ pressed }) => [styles.sessionRow, pressed && styles.sessionRowPressed]}
+                          onPress={() => router.push(sessionPath(variant, s.id) as Href)}
+                        >
+                          <View style={[styles.sessionRowTop, rowFlipFor(alignRight) && styles.sessionRowTopRtl]}>
+                            <Text style={[styles.sessionTime, edgeStyle, alignRight && styles.rtlText]} numberOfLines={1}>
+                              {time}
+                            </Text>
+                            <Text style={[styles.sessionCapacity, edgeStyle, alignRight && styles.rtlText]} numberOfLines={1}>
+                              {signedUp}/{cap > 0 ? cap : "—"}
+                            </Text>
+                          </View>
+                          {notePv ? (
+                            <Text style={[styles.sessionNotePreview, edgeStyle]} numberOfLines={2}>
+                              {t("ui.staffHomeOverview.note")}
+                              {notePv}
+                            </Text>
+                          ) : null}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </AnimatedOptionExpand>
+              </View>
+            );
+          })}
+        </View>
       </View>
     );
   }
@@ -519,9 +526,9 @@ const styles = StyleSheet.create({
   rtlText: { textAlign: "right" },
   linePressed: { opacity: 0.85 },
   teachingSessionCardBase: {
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-    padding: theme.spacing.md,
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+    padding: theme.spacing.sm,
     borderRadius: theme.radius.md,
   },
   /** Happening now — high visibility */
@@ -536,8 +543,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  nowBadgeWrap: { marginBottom: theme.spacing.sm, alignItems: "flex-start" },
-  nowBadgeWrapRtl: { alignItems: "flex-end" },
+  sessionCardTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.xs,
+    marginBottom: 4,
+  },
+  sessionCardTimeRowRtl: { flexDirection: "row-reverse" },
   nowBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -552,38 +564,64 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.4,
   },
-  sessionCardTimePress: {
-    marginBottom: theme.spacing.sm,
+  nextBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.backgroundAlt,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+  },
+  nextBadgeText: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.4,
   },
   sessionCardTimeText: { fontSize: 15, color: theme.colors.text, fontWeight: "600" },
   sessionCardTimeTextCurrent: { ...theme.typography.title },
+  sessionCardDateText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: theme.colors.textMuted,
+    marginBottom: 4,
+  },
+  participantsLine: {
+    fontSize: 14,
+    color: theme.colors.text,
+    lineHeight: 19,
+  },
   sessionCardParticipantHeading: {
     fontSize: 14,
     fontWeight: "700",
     color: theme.colors.textMuted,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
   },
   teachingCardNotesSection: {
-    marginTop: theme.spacing.md,
-    paddingTop: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.colors.borderMuted,
   },
-  groupList: { marginTop: theme.spacing.sm, gap: theme.spacing.sm },
-  groupCard: {
+  groupList: { marginTop: theme.spacing.sm },
+  groupContainer: {
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     borderRadius: theme.radius.lg,
     overflow: "hidden",
   },
-  groupHeader: {
+  groupRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 12,
-    backgroundColor: theme.colors.surface,
+    minHeight: theme.controls.minTouch,
+  },
+  groupRowDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderMuted,
   },
   groupHeaderPressed: { opacity: 0.92 },
   groupTitle: { flex: 1, minWidth: 0, fontSize: 14, fontWeight: "800", color: theme.colors.text },
@@ -627,13 +665,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     color: theme.colors.textSoft,
-    width: "100%",
-  },
-  participantName: {
-    fontSize: 15,
-    color: theme.colors.text,
-    marginBottom: 4,
-    alignSelf: "stretch",
     width: "100%",
   },
   /** Force one edge per UI language so mixed Hebrew/Latin names don’t split to opposite sides. */
