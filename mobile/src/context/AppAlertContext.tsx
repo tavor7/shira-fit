@@ -7,6 +7,8 @@ export type ShowAppAlertOptions = {
   title: string;
   message: string;
   actions: AppAlertAction[];
+  /** Escape / Android back / backdrop only close the dialog; they never run one of the actions. Use when no action is a safe default (state-changing choices). */
+  dismissOnly?: boolean;
 };
 
 type Ctx = {
@@ -91,6 +93,10 @@ export function AppAlertProvider({ children }: { children: ReactNode }) {
 
   const onRequestClose = useCallback(() => {
     if (!opts) return;
+    if (opts.dismissOnly) {
+      close();
+      return;
+    }
     if (opts.actions.length === 1) {
       opts.actions[0].onPress();
       return;

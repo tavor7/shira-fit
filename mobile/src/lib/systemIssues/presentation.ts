@@ -4,7 +4,8 @@
  * code stays available separately (advanced details). Nothing here reads a user id, token, stack or raw payload.
  */
 import { displayLtr } from "../displayFormat";
-import { sanitizeMessage } from "../techReporting/sanitize";
+import { appLocale } from "../appLocale";
+import type { LanguageCode } from "../../i18n/translations";
 import type { IssueBucketRow, IssueSeverity, IssueStatus, SystemIssueRow } from "./types";
 
 export type IssueCategory = "job" | "subscription" | "database" | "temporaryServer" | "serverError" | "appRequest" | "unknown";
@@ -23,10 +24,35 @@ export interface IssueDescription {
 const JOB_CONDITIONS = new Set(["stale", "failed", "missing", "disabled", "stuck"]);
 const NAME_RE = /^[a-z0-9_-]{1,64}$/;
 
-/** Safe single-line text from server-provided text (titles, messages): secrets/ids/emails scrubbed, bounded. */
+const SCRUBS: readonly (readonly [RegExp, string])[] = [
+  [/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <token>"],
+  [/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}(?:\.[A-Za-z0-9_-]*)?/g, "<token>"],
+  [/\b(password|passwd|pwd|token|access_token|refresh_token|secret|api_?key|apikey|authorization|cookie)\s*[=:]\s*[^\s,;&"']+/gi, "$1=<redacted>"],
+  [/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "<email>"],
+  [/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "<uuid>"],
+  [/\+?\d[\d\s().-]{8,}\d/g, "<n>"],
+];
+
+/**
+ * Safe single-line text from SERVER-provided text (titles, sampled messages). The server already redacted it; this is a second,
+ * lighter pass (secrets, emails, ids, long numbers). Unlike the client reporter's sanitizer it does NOT mask long identifiers, so a
+ * legitimate title such as "cron/whatsapp-dispatch-notifications" stays readable. Bounded in length.
+ */
 export function safeText(raw: unknown, max = 160): string {
-  const s = sanitizeMessage(raw);
+  if (typeof raw !== "string") return "";
+  let s = raw.length > 2000 ? raw.slice(0, 2000) : raw;
+  for (const [re, to] of SCRUBS) s = s.replace(re, to);
+  s = s.replace(/\s+/g, " ").trim();
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
+/** Thousands-separated count in the UI language (1,234,567). */
+export function formatCount(n: number, language: LanguageCode): string {
+  try {
+    return new Intl.NumberFormat(appLocale(language)).format(n);
+  } catch {
+    return String(n);
+  }
 }
 
 export function describeIssue(issue: Pick<SystemIssueRow, "source" | "operation" | "error_class" | "error_code" | "title" | "subsystem">): IssueDescription {
@@ -41,8 +67,8 @@ export function describeIssue(issue: Pick<SystemIssueRow, "source" | "operation"
     }
     if (safeJob) return { category: /subscription/.test(safeJob) ? "subscription" : "job", titleKey: "sysIssues.desc.job.generic", descKey: "sysIssues.desc.job.body", vars: { job: safeJob }, usesServerTitle: false };
   }
-  if (op === "transport/infra") return { category: "temporaryServer", titleKey: "sysIssues.desc.temporaryServer", descKey: "sysIssues.desc.temporaryServer.body", vars: { status: code.replace(/^http_/, "") }, usesServerTitle: false };
-  if (op === "transport/server") return { category: "serverError", titleKey: "sysIssues.desc.serverError", descKey: "sysIssues.desc.serverError.body", vars: { status: code.replace(/^http_/, "") }, usesServerTitle: false };
+  if (op === "transport/infra") return { category: "temporaryServer", titleKey: "sysIssues.desc.temporaryServer", descKey: "sysIssues.desc.temporaryServer.body", vars: { status: `HTTP ${code.replace(/^http_/, "")}` }, usesServerTitle: false };
+  if (op === "transport/server") return { category: "serverError", titleKey: "sysIssues.desc.serverError", descKey: "sysIssues.desc.serverError.body", vars: { status: `HTTP ${code.replace(/^http_/, "")}` }, usesServerTitle: false };
   if (op === "rpc/postgrest") return { category: "database", titleKey: "sysIssues.desc.database", descKey: "sysIssues.desc.database.body", vars: {}, usesServerTitle: false };
   if (op.startsWith("rpc/")) {
     const rpc = op.slice(4);

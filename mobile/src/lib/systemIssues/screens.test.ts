@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- jest.mock factories and late requires of the mocked modules */
 import React from "react";
-import { FlatList } from "react-native";
+import { AppState, FlatList } from "react-native";
 import TestRenderer, { act, type ReactTestInstance } from "react-test-renderer";
 import { stripDisplayIsolates } from "../displayFormat";
 import { translations } from "../../i18n/translations";
@@ -147,6 +147,7 @@ describe("System issues list screen", () => {
     await press(r, t("sysIssues.sort.severe"));
     const last2 = mockDbRef.current.log.filter((l) => l.calls.some((c) => c[0] === "range")).pop()!;
     expect(last2.calls).toContainEqual(["order", ["severity_rank", { ascending: false }]]);
+    expect(last2.calls).toContainEqual(["order", ["id", { ascending: false }]]);
     await press(r, t("sysIssues.filters.reset"), 0);
     const last3 = mockDbRef.current.log.filter((l) => l.calls.some((c) => c[0] === "range")).pop()!;
     expect(last3.calls).toContainEqual(["in", ["status", ["open", "acknowledged"]]]);
@@ -191,6 +192,67 @@ describe("System issues list screen", () => {
   });
 });
 
+describe("Phase 4B: grouping, partial failures, invalid ids, resume", () => {
+  it("large counts are grouped (list and detail)", async () => {
+    mockDbRef.current = listDb([issue({ id: "big", occurrence_count: 1234567 })], { open: 1234 });
+    const r = await mount(ListScreen);
+    expect(textOf(r)).toContain("1,234,567");
+    expect(textOf(r)).toContain("1,234");
+  });
+
+  it("a failing events section shows an inline error with a retry while the rest of the issue is shown", async () => {
+    let fail = true;
+    mockDbRef.current = fakeDb((table) => (table === "system_issue_events" && fail ? { error: { message: "x" } } : { data: table === "system_issues" ? [warn] : [] }));
+    const r = await mount(DetailScreen);
+    expect(textOf(r)).toContain("פעולה במסד הנתונים נכשלה");
+    expect(textOf(r)).toContain(t("sysIssues.detail.sectionError"));
+    expect(textOf(r)).toContain(t("sysIssues.detail.historyEmpty"));
+    fail = false;
+    await press(r, t("sysIssues.list.retry"));
+    expect(textOf(r)).not.toContain(t("sysIssues.detail.sectionError"));
+    expect(textOf(r)).toContain(t("sysIssues.detail.eventsEmpty"));
+  });
+
+  it("a route parameter that is not an issue id shows the not-found state and sends no request", async () => {
+    mockId.v = "not-a-uuid";
+    mockDbRef.current = fakeDb(() => ({ data: [] }));
+    const r = await mount(DetailScreen);
+    expect(textOf(r)).toContain(t("sysIssues.detail.notFound.title"));
+    expect(mockDbRef.current.log).toHaveLength(0);
+    mockId.v = "11111111-1111-4111-8111-111111111111";
+  });
+
+  it("returning to the foreground refreshes a stale screen once, and a quick app switch does not", async () => {
+    const handlers: ((s: string) => void)[] = [];
+    const spy = jest.spyOn(AppState, "addEventListener").mockImplementation(((_t: string, h: (s: string) => void) => { handlers.push(h); return { remove: () => undefined }; }) as never);
+    mockDbRef.current = listDb([warn]);
+    const r = await mount(ListScreen);
+    const loads = () => mockDbRef.current!.log.filter((l) => l.calls.some((c) => c[0] === "range")).length;
+    const before = loads();
+    await act(async () => { handlers.forEach((h) => h("active")); await flush(); });
+    expect(loads()).toBe(before);                                           // fresh: no refetch
+    const realNow = Date.now;
+    Date.now = () => realNow() + 60_000;
+    await act(async () => { handlers.forEach((h) => h("background")); handlers.forEach((h) => h("active")); await flush(); });
+    Date.now = realNow;
+    expect(loads()).toBe(before + 1);                                       // stale: exactly one refetch
+    r.unmount();
+    spy.mockRestore();
+  });
+});
+
+describe("Phase 4B: dialogs never act on dismiss, chips ignore a re-selection", () => {
+  it("re-selecting the sort or filter that is already active sends no request", async () => {
+    mockDbRef.current = listDb([]);
+    const r = await mount(ListScreen);
+    await press(r, t("sysIssues.filters"));
+    const n = mockDbRef.current.log.length;
+    await press(r, t("sysIssues.sort.recent"));
+    await press(r, t("sysIssues.filterStatus.active"));
+    expect(mockDbRef.current.log.length).toBe(n);
+  });
+});
+
 describe("System issue detail screen", () => {
   function detailDb(i: SystemIssueRow | null, extra: { events?: unknown[]; transitions?: unknown[]; buckets?: unknown[] } = {}) {
     return fakeDb((table) => {
@@ -206,6 +268,20 @@ describe("System issue detail screen", () => {
     { id: 2, at: "2026-10-12T09:00:00Z", from_status: "open", to_status: "resolved", kind: "resolve", reason: "manual_fixed" },
     { id: 1, at: "2026-10-11T09:00:00Z", from_status: null, to_status: "open", kind: "create", reason: null },
   ];
+
+  it("every state-changing confirmation is dismiss-only (Escape / back / backdrop must not pick a secondary action)", async () => {
+    for (const [row, labels] of [[warn, [t("sysIssues.action.acknowledge"), t("sysIssues.action.resolve"), t("sysIssues.action.mute")]], [muted, [t("sysIssues.action.unmute")]], [resolved, [t("sysIssues.action.reopen")]]] as const) {
+      for (const label of labels) {
+        mockAlert.showAlert.mockClear();
+        mockDbRef.current = detailDb(row);
+        const r = await mount(DetailScreen);
+        await press(r, label);
+        expect(mockAlert.showAlert).toHaveBeenCalledTimes(1);
+        expect(mockAlert.showAlert.mock.calls[0][0].dismissOnly).toBe(true);
+        expect(mockDbRef.current.rpcs).toEqual([]);
+      }
+    }
+  });
 
   it("renders the readable summary, facts, activity, sampled occurrences and history; technical details stay collapsed and contain no personal data", async () => {
     mockDbRef.current = detailDb(reopened, { events: [event], transitions, buckets: [{ bucket_start: new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000).toISOString(), count: 3 }] });

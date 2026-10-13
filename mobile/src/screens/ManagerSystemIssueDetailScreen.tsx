@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -16,9 +16,11 @@ import { rowFlipFor } from "../lib/layoutDirection";
 import { formatDateTimeForDisplay } from "../lib/dateFormat";
 import { displayLtr } from "../lib/displayFormat";
 import { pluralKey } from "../lib/pluralKey";
+import { useRefetchOnResume } from "../hooks/useRefetchOnResume";
 import {
   acknowledgeIssue,
   fetchIssueDetail,
+  isIssueId,
   muteIssue,
   reopenIssue,
   resolveIssue,
@@ -30,6 +32,7 @@ import {
   activityBars,
   allowedActions,
   fill,
+  formatCount,
   isRepeated,
   issueExplanation,
   issueHeadline,
@@ -65,11 +68,15 @@ export default function ManagerSystemIssueDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const busyRef = useRef(false);
+  const focused = useRef(false);
+  const markFresh = useRef<() => void>(() => undefined);
   const req = useRef(0);
 
   const load = useCallback(async () => {
-    if (!id) {
-      setState("error");
+    if (!isIssueId(id)) {
+      // not an issue id at all: no request, same screen as a missing issue
+      setDetail({ issue: null, events: [], transitions: [], buckets: [], failed: [] });
+      setState("ready");
       return;
     }
     const mine = ++req.current;
@@ -78,6 +85,7 @@ export default function ManagerSystemIssueDetailScreen() {
       if (mine !== req.current) return;
       setDetail(d);
       setNow(Date.now());
+      markFresh.current();
       setState("ready");
     } catch {
       if (mine !== req.current) return;
@@ -87,9 +95,17 @@ export default function ManagerSystemIssueDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      focused.current = true;
       void load();
+      return () => {
+        focused.current = false;
+      };
     }, [load])
   );
+  const markFreshFn = useRefetchOnResume(() => void load(), () => focused.current && !busyRef.current);
+  useEffect(() => {
+    markFresh.current = markFreshFn;
+  }, [markFreshFn]);
 
   async function run(fn: () => Promise<ActionResult>) {
     if (busyRef.current) return; // never submit twice
@@ -113,9 +129,10 @@ export default function ManagerSystemIssueDetailScreen() {
     if (!issue) return;
     const cancel = { label: t("common.cancel"), variant: "secondary" as const, onPress: () => {} };
     if (action === "acknowledge") {
-      showAlert({ title: t("sysIssues.confirm.ack.title"), message: t("sysIssues.confirm.ack.body"), actions: [cancel, { label: t("sysIssues.action.acknowledge"), variant: "primary", onPress: () => void run(() => acknowledgeIssue(supabase, issue.id)) }] });
+      showAlert({ dismissOnly: true, title: t("sysIssues.confirm.ack.title"), message: t("sysIssues.confirm.ack.body"), actions: [cancel, { label: t("sysIssues.action.acknowledge"), variant: "primary", onPress: () => void run(() => acknowledgeIssue(supabase, issue.id)) }] });
     } else if (action === "resolve") {
       showAlert({
+        dismissOnly: true,
         title: t("sysIssues.confirm.resolve.title"),
         message: t("sysIssues.confirm.resolve.body"),
         actions: [
@@ -127,6 +144,7 @@ export default function ManagerSystemIssueDetailScreen() {
     } else if (action === "mute") {
       const mute = (days: number | null) => () => void run(() => muteIssue(supabase, issue.id, days === null ? null : new Date(Date.now() + days * 86_400_000)));
       showAlert({
+        dismissOnly: true,
         title: t("sysIssues.confirm.mute.title"),
         message: t("sysIssues.confirm.mute.body"),
         actions: [
@@ -138,9 +156,9 @@ export default function ManagerSystemIssueDetailScreen() {
         ],
       });
     } else if (action === "unmute") {
-      showAlert({ title: t("sysIssues.confirm.unmute.title"), message: t("sysIssues.confirm.unmute.body"), actions: [cancel, { label: t("sysIssues.action.unmute"), variant: "primary", onPress: () => void run(() => unmuteIssue(supabase, issue.id)) }] });
+      showAlert({ dismissOnly: true, title: t("sysIssues.confirm.unmute.title"), message: t("sysIssues.confirm.unmute.body"), actions: [cancel, { label: t("sysIssues.action.unmute"), variant: "primary", onPress: () => void run(() => unmuteIssue(supabase, issue.id)) }] });
     } else {
-      showAlert({ title: t("sysIssues.confirm.reopen.title"), message: t("sysIssues.confirm.reopen.body"), actions: [cancel, { label: t("sysIssues.action.reopen"), variant: "primary", onPress: () => void run(() => reopenIssue(supabase, issue.id)) }] });
+      showAlert({ dismissOnly: true, title: t("sysIssues.confirm.reopen.title"), message: t("sysIssues.confirm.reopen.body"), actions: [cancel, { label: t("sysIssues.action.reopen"), variant: "primary", onPress: () => void run(() => reopenIssue(supabase, issue.id)) }] });
     }
   }
 
@@ -177,7 +195,8 @@ export default function ManagerSystemIssueDetailScreen() {
   const flip = rowFlipFor(isRTL);
   // The 24-hour activity strip keeps time running left to right (oldest hour first) in both languages, like any chart axis.
   const mutedLine = issue.status === "muted" ? (issue.muted_until ? fill(t("sysIssues.detail.mutedUntil"), { date: formatDateTimeForDisplay(issue.muted_until, language) }) : t("sysIssues.detail.mutedForever")) : null;
-  const occ = fill(pluralKey(t, "sysIssues.row.occurrences", issue.occurrence_count), { n: issue.occurrence_count });
+  const occ = fill(pluralKey(t, "sysIssues.row.occurrences", issue.occurrence_count), { n: formatCount(issue.occurrence_count, language) });
+  const failed = detail?.failed ?? [];
 
   return (
     <ScrollView
@@ -193,7 +212,7 @@ export default function ManagerSystemIssueDetailScreen() {
           <StatusChip label={t(severityKey(issue.severity))} tone={severityTone(issue.severity)} />
           <StatusChip label={t(statusKey(issue.status))} tone={statusTone(issue.status)} />
           {isRepeated(issue) ? <Pill label={t("sysIssues.row.repeated")} tone="warning" /> : null}
-          {issue.reopen_count > 0 ? <Pill label={fill(t("sysIssues.row.reopened"), { n: issue.reopen_count })} tone="neutral" /> : null}
+          {issue.reopen_count > 0 ? <Pill label={fill(t("sysIssues.row.reopened"), { n: formatCount(issue.reopen_count, language) })} tone="neutral" /> : null}
         </View>
         {mutedLine ? (
           <AppText variant="caption" muted isRTL={isRTL}>
@@ -232,13 +251,15 @@ export default function ManagerSystemIssueDetailScreen() {
       <Section title={t("sysIssues.detail.facts")} isRTL={isRTL}>
         <Fact label={t("sysIssues.detail.firstSeen")} value={formatDateTimeForDisplay(issue.first_seen, language)} sub={relativeTime(issue.first_seen, now, t)} isRTL={isRTL} />
         <Fact label={t("sysIssues.detail.lastSeen")} value={formatDateTimeForDisplay(issue.last_seen, language)} sub={relativeTime(issue.last_seen, now, t)} isRTL={isRTL} />
-        <Fact label={t("sysIssues.detail.occurrences")} value={String(issue.occurrence_count)} isRTL={isRTL} />
-        <Fact label={t("sysIssues.detail.reopens")} value={String(issue.reopen_count)} sub={issue.reopened_at ? relativeTime(issue.reopened_at, now, t) : undefined} isRTL={isRTL} />
+        <Fact label={t("sysIssues.detail.occurrences")} value={formatCount(issue.occurrence_count, language)} isRTL={isRTL} />
+        <Fact label={t("sysIssues.detail.reopens")} value={formatCount(issue.reopen_count, language)} sub={issue.reopened_at ? relativeTime(issue.reopened_at, now, t) : undefined} isRTL={isRTL} />
         <Fact label={t("sysIssues.detail.source")} value={t(sourceKey(issue.source))} isRTL={isRTL} />
       </Section>
 
       <Section title={t("sysIssues.detail.activity")} isRTL={isRTL}>
-        {hasActivity ? (
+        {failed.includes("buckets") ? (
+          <SectionError t={t} isRTL={isRTL} onRetry={() => void load()} />
+        ) : hasActivity ? (
           <View style={styles.bars} accessible accessibilityLabel={`${t("sysIssues.detail.activity")}: ${bars.reduce((a, b) => a + b, 0)}`}>
             {bars.map((b, i) => (
               <View key={i} style={styles.barSlot}>
@@ -254,7 +275,9 @@ export default function ManagerSystemIssueDetailScreen() {
       </Section>
 
       <Section title={t("sysIssues.detail.events")} isRTL={isRTL}>
-        {detail && detail.events.length > 0 ? (
+        {failed.includes("events") ? (
+          <SectionError t={t} isRTL={isRTL} onRetry={() => void load()} />
+        ) : detail && detail.events.length > 0 ? (
           <>
             {detail.events.slice(0, 8).map((e) => (
               <View key={e.id} style={styles.item}>
@@ -283,7 +306,9 @@ export default function ManagerSystemIssueDetailScreen() {
       </Section>
 
       <Section title={t("sysIssues.detail.history")} isRTL={isRTL}>
-        {detail && detail.transitions.length > 0 ? (
+        {failed.includes("transitions") ? (
+          <SectionError t={t} isRTL={isRTL} onRetry={() => void load()} />
+        ) : detail && detail.transitions.length > 0 ? (
           detail.transitions.map((tr) => (
             <View key={String(tr.id)} style={styles.item}>
               <AppText variant="title" isRTL={isRTL}>
@@ -354,6 +379,17 @@ export default function ManagerSystemIssueDetailScreen() {
   );
 }
 
+function SectionError({ t, isRTL, onRetry }: { t: (k: string) => string; isRTL: boolean; onRetry: () => void }) {
+  return (
+    <View style={styles.sectionError} accessibilityRole="alert">
+      <AppText variant="secondary" color={theme.colors.error} isRTL={isRTL}>
+        {t("sysIssues.detail.sectionError")}
+      </AppText>
+      <PrimaryButton label={t("sysIssues.list.retry")} onPress={onRetry} variant="ghost" size="compact" />
+    </View>
+  );
+}
+
 function Section({ title, isRTL, children }: { title: string; isRTL: boolean; children: React.ReactNode }) {
   return (
     <View style={styles.card}>
@@ -416,13 +452,14 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.xs },
   actionBtn: { flexGrow: 1, minWidth: 140 },
   item: { paddingVertical: theme.spacing.xs, gap: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.borderMuted },
-  fact: { flexDirection: "row", gap: theme.spacing.sm, paddingVertical: 4 },
+  fact: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm, paddingVertical: 4 }, // wraps the value under its label on very narrow / zoomed screens
   factLabel: { width: 112 },
-  factValue: { flex: 1, minWidth: 0, gap: 2 },
+  factValue: { flexGrow: 1, flexShrink: 1, flexBasis: 120, minWidth: 0, gap: 2 },
   bars: { flexDirection: "row", direction: "ltr", alignItems: "flex-end", height: 48, gap: 3 },
   barSlot: { flex: 1, height: 48, justifyContent: "flex-end" },
   bar: { width: "100%", borderRadius: 3, backgroundColor: theme.colors.warning },
   advToggle: { minHeight: theme.controls.minTouch, justifyContent: "center", paddingHorizontal: theme.spacing.md, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.borderMuted, backgroundColor: theme.colors.surface },
+  sectionError: { gap: theme.spacing.xs },
   advHead: { marginTop: theme.spacing.xs },
   tech: { gap: 2, paddingVertical: 2 },
   techValue: { textAlign: "left", writingDirection: "ltr" },

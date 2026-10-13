@@ -3,10 +3,11 @@ import { theme } from "../../theme";
 import { AppText } from "../AppText";
 import { Skeleton } from "../Skeleton";
 import { rowFlipFor } from "../../lib/layoutDirection";
-import { fill } from "../../lib/systemIssues/presentation";
+import { fill, formatCount } from "../../lib/systemIssues/presentation";
+import type { LanguageCode } from "../../i18n/translations";
 import type { IssueSummary, StatusFilter } from "../../lib/systemIssues/types";
 
-type Props = { summary: IssueSummary | null; loading: boolean; t: (k: string) => string; isRTL: boolean; onPickStatus: (s: StatusFilter) => void };
+type Props = { summary: IssueSummary | null; loading: boolean; t: (k: string) => string; isRTL: boolean; lang: LanguageCode; onPickStatus: (s: StatusFilter) => void };
 
 const CARDS: { key: keyof IssueSummary; labelKey: string; tone: string; filter?: StatusFilter }[] = [
   { key: "open", labelKey: "sysIssues.summary.open", tone: "#f87171", filter: "open" },
@@ -17,7 +18,7 @@ const CARDS: { key: keyof IssueSummary; labelKey: string; tone: string; filter?:
 ];
 
 /** Dashboard counters (real values only; a card shows a skeleton while loading and an em dash if the count failed). */
-export function SummaryCards({ summary, loading, t, isRTL, onPickStatus }: Props) {
+export function SummaryCards({ summary, loading, t, isRTL, lang, onPickStatus }: Props) {
   return (
     <View style={[styles.grid, rowFlipFor(isRTL) && styles.rowRtl]}>
       {CARDS.map((c) => {
@@ -25,13 +26,13 @@ export function SummaryCards({ summary, loading, t, isRTL, onPickStatus }: Props
         const label = t(c.labelKey);
         const body = (
           <>
-            <AppText variant="label" muted isRTL={isRTL} numberOfLines={1}>
+            <AppText variant="label" muted isRTL={isRTL} numberOfLines={2}>
               {label}
             </AppText>
-            {loading && n === null ? <Skeleton width={36} height={26} /> : <AppText variant="display" color={n ? c.tone : theme.colors.text}>{n === null ? "—" : String(n)}</AppText>}
+            {loading && n === null ? <Skeleton width={36} height={26} /> : <AppText variant="display" color={n ? c.tone : theme.colors.text}>{n === null ? "—" : formatCount(n, lang)}</AppText>}
           </>
         );
-        const a11y = fill(t("sysIssues.summary.a11y"), { label, n: n === null ? "—" : n });
+        const a11y = fill(t("sysIssues.summary.a11y"), { label, n: n === null ? "—" : formatCount(n, lang) });
         return c.filter ? (
           <Pressable key={c.key} onPress={() => onPickStatus(c.filter as StatusFilter)} style={({ pressed }) => [styles.card, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={a11y}>
             {body}
@@ -52,7 +53,7 @@ const styles = StyleSheet.create({
   card: {
     flexGrow: 1,
     flexBasis: 96,
-    minHeight: 72,
+    minHeight: 76,
     padding: theme.spacing.sm,
     borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.surface,

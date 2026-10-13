@@ -37,9 +37,12 @@ export function applyFilters(q: any, f: IssueFilters, now: number): any {
 }
 
 export function applySort(q: any, sort: SortKey): any {
-  if (sort === "severe") return q.order("severity_rank", { ascending: false }).order("last_seen", { ascending: false });
-  if (sort === "frequent") return q.order("occurrence_count", { ascending: false }).order("last_seen", { ascending: false });
-  return q.order("last_seen", { ascending: false });
+  // The final `id` key makes the order total: with offset paging, rows that tie on every other key could otherwise be skipped or
+  // repeated between pages.
+  const byId = (b: any) => b.order("id", { ascending: false });
+  if (sort === "severe") return byId(q.order("severity_rank", { ascending: false }).order("last_seen", { ascending: false }));
+  if (sort === "frequent") return byId(q.order("occurrence_count", { ascending: false }).order("last_seen", { ascending: false }));
+  return byId(q.order("last_seen", { ascending: false }));
 }
 
 export async function fetchIssuePage(db: DbClient, f: IssueFilters, sort: SortKey, page: number, now: number = Date.now()): Promise<{ rows: SystemIssueRow[]; hasMore: boolean }> {
@@ -69,30 +72,44 @@ export async function fetchSummary(db: DbClient, now: number = Date.now()): Prom
   return { open, acknowledged, muted, reopened, recent };
 }
 
+export type DetailSection = "events" | "transitions" | "buckets";
 export interface IssueDetail {
   issue: SystemIssueRow | null;
   events: IssueEventRow[];
   transitions: IssueTransitionRow[];
   buckets: IssueBucketRow[];
+  /** Sections whose request failed while the issue itself loaded (the screen shows them with a retry, not a blank page). */
+  failed: DetailSection[];
 }
 
-/** One round of four parallel, bounded requests (no waterfall). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** A route parameter that cannot be an issue id is "not found" without a request. */
+export const isIssueId = (id: unknown): id is string => typeof id === "string" && UUID_RE.test(id);
+
+/**
+ * One round of four parallel, bounded requests (no waterfall). A failure of the issue itself throws (the screen shows its error
+ * state); a failure of only the events / history / activity section is reported in `failed` and the rest is still shown.
+ */
 export async function fetchIssueDetail(db: DbClient, id: string): Promise<IssueDetail> {
-  const [issue, events, transitions, buckets] = await Promise.all([
+  const settled = await Promise.allSettled([
     db.from("system_issues").select(ISSUE_COLUMNS).eq("id", id).maybeSingle(),
     db.from("system_issue_events").select(EVENT_COLUMNS).eq("issue_id", id).order("occurred_at", { ascending: false }).limit(20),
     db.from("system_issue_transitions").select(TRANSITION_COLUMNS).eq("issue_id", id).order("at", { ascending: false }).limit(100),
     db.from("system_issue_buckets").select("bucket_start,count").eq("issue_id", id).order("bucket_start", { ascending: false }).limit(24),
   ]);
+  if (settled[0].status === "rejected") throw settled[0].reason;
+  const [issue, events, transitions, buckets] = settled.map((r) => (r.status === "fulfilled" ? (r.value as { data: unknown; error: unknown }) : { data: null, error: r.reason ?? true }));
   throwIfError(issue.error);
-  throwIfError(events.error);
-  throwIfError(transitions.error);
-  throwIfError(buckets.error);
+  const failed: DetailSection[] = [];
+  if (events.error) failed.push("events");
+  if (transitions.error) failed.push("transitions");
+  if (buckets.error) failed.push("buckets");
   return {
     issue: (issue.data as SystemIssueRow | null) ?? null,
-    events: (events.data ?? []) as IssueEventRow[],
-    transitions: (transitions.data ?? []) as IssueTransitionRow[],
-    buckets: (buckets.data ?? []) as IssueBucketRow[],
+    events: events.error ? [] : ((events.data ?? []) as IssueEventRow[]),
+    transitions: transitions.error ? [] : ((transitions.data ?? []) as IssueTransitionRow[]),
+    buckets: buckets.error ? [] : ((buckets.data ?? []) as IssueBucketRow[]),
+    failed,
   };
 }
 

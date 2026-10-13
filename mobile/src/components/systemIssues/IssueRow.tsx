@@ -5,19 +5,21 @@ import { StatusChip } from "../StatusChip";
 import { Pill } from "../Pill";
 import { rowFlipFor } from "../../lib/layoutDirection";
 import { pluralKey } from "../../lib/pluralKey";
-import { fill, isRepeated, issueHeadline, relativeTime, severityKey, severityTone, sourceKey, statusKey, statusTone } from "../../lib/systemIssues/presentation";
+import { fill, formatCount, isRepeated, issueHeadline, relativeTime, severityKey, severityTone, sourceKey, statusKey, statusTone } from "../../lib/systemIssues/presentation";
 import type { SystemIssueRow } from "../../lib/systemIssues/types";
+import type { LanguageCode } from "../../i18n/translations";
 
-type Props = { issue: SystemIssueRow; now: number; t: (k: string) => string; isRTL: boolean; onPress: () => void };
+type Props = { issue: SystemIssueRow; now: number; t: (k: string) => string; isRTL: boolean; lang: LanguageCode; onPress: () => void };
 
 /** One issue in the list: readable headline first, chips for severity/status, compact meta line. */
-export function IssueRow({ issue, now, t, isRTL, onPress }: Props) {
+export function IssueRow({ issue, now, t, isRTL, lang, onPress }: Props) {
   const headline = issueHeadline(issue, t);
   const when = relativeTime(issue.last_seen, now, t);
-  const occ = fill(pluralKey(t, "sysIssues.row.occurrences", issue.occurrence_count), { n: issue.occurrence_count });
+  const occ = fill(pluralKey(t, "sysIssues.row.occurrences", issue.occurrence_count), { n: formatCount(issue.occurrence_count, lang) });
   return (
     <Pressable
       onPress={onPress}
+      testID={`issue-row-${issue.id}`}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       accessibilityRole="button"
       accessibilityLabel={fill(t("sysIssues.row.a11y"), { title: headline, severity: t(severityKey(issue.severity)), status: t(statusKey(issue.status)), when: fill(t("sysIssues.row.lastSeen"), { when }) })}
@@ -29,7 +31,7 @@ export function IssueRow({ issue, now, t, isRTL, onPress }: Props) {
         <StatusChip label={t(severityKey(issue.severity))} tone={severityTone(issue.severity)} />
         <StatusChip label={t(statusKey(issue.status))} tone={statusTone(issue.status)} />
         {isRepeated(issue) ? <Pill label={t("sysIssues.row.repeated")} tone="warning" /> : null}
-        {issue.reopen_count > 0 ? <Pill label={fill(t("sysIssues.row.reopened"), { n: issue.reopen_count })} tone="neutral" /> : null}
+        {issue.reopen_count > 0 ? <Pill label={fill(t("sysIssues.row.reopened"), { n: formatCount(issue.reopen_count, lang) })} tone="neutral" /> : null}
       </View>
       <AppText variant="caption" muted isRTL={isRTL} numberOfLines={2}>
         {t(sourceKey(issue.source))} · {fill(t("sysIssues.row.lastSeen"), { when })} · {occ}

@@ -15,6 +15,7 @@ import { IssueRow } from "../components/systemIssues/IssueRow";
 import { SummaryCards } from "../components/systemIssues/SummaryCards";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { fetchIssuePage, fetchSummary } from "../lib/systemIssues/queries";
+import { useRefetchOnResume } from "../hooks/useRefetchOnResume";
 import { DEFAULT_FILTERS, type IssueFilters, type IssueSummary, type SortKey, type StatusFilter, type SystemIssueRow } from "../lib/systemIssues/types";
 
 const STATUS_OPTS: StatusFilter[] = ["active", "open", "acknowledged", "muted", "resolved", "all"];
@@ -34,7 +35,7 @@ function activeFilterCount(f: IssueFilters): number {
  * Refresh strategy: when the screen gains focus, on pull-to-refresh and after a filter change. No polling and no realtime subscription.
  */
 export default function ManagerSystemIssuesScreen() {
-  const { t, isRTL } = useI18n();
+  const { t, isRTL, language } = useI18n();
   const content = useScreenContentStyle("standard");
   const [filters, setFilters] = useState<IssueFilters>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortKey>("recent");
@@ -50,11 +51,13 @@ export default function ManagerSystemIssuesScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const reqId = useRef(0);
+  const focused = useRef(false);
   const current = useRef({ filters, sort });
   useEffect(() => {
     current.current = { filters, sort };
   }, [filters, sort]);
 
+  const markFresh = useRef<() => void>(() => undefined);
   const loadList = useCallback(async (f: IssueFilters, s: SortKey) => {
     const id = ++reqId.current;
     setState((prev) => (prev === "ready" ? prev : "loading"));
@@ -66,6 +69,7 @@ export default function ManagerSystemIssuesScreen() {
       setPage(0);
       setMoreError(false);
       setNow(Date.now());
+      markFresh.current();
       setState("ready");
     } catch {
       if (id !== reqId.current) return;
@@ -84,20 +88,36 @@ export default function ManagerSystemIssuesScreen() {
     }
   }, []);
 
-  // One parallel round on focus: list and counters.
+  // One parallel round on focus: list and counters. Also when the installed app / tab returns to the foreground (see useRefetchOnResume).
   useFocusEffect(
     useCallback(() => {
+      focused.current = true;
       void loadList(current.current.filters, current.current.sort);
       void loadSummary();
+      return () => {
+        focused.current = false;
+      };
     }, [loadList, loadSummary])
   );
+  const markFreshFn = useRefetchOnResume(
+    () => {
+      void loadList(current.current.filters, current.current.sort);
+      void loadSummary();
+    },
+    () => focused.current
+  );
+  useEffect(() => {
+    markFresh.current = markFreshFn;
+  }, [markFreshFn]);
 
   function changeFilters(next: IssueFilters) {
+    if (next.status === filters.status && next.severity === filters.severity && next.source === filters.source && next.recency === filters.recency) return; // re-selecting the current option is not a change
     setFilters(next);
     setState("loading");
     void loadList(next, sort);
   }
   function changeSort(next: SortKey) {
+    if (next === sort) return;
     setSort(next);
     setState("loading");
     void loadList(filters, next);
@@ -145,7 +165,7 @@ export default function ManagerSystemIssuesScreen() {
       <AppText variant="secondary" muted isRTL={isRTL}>
         {t("sysIssues.hint")}
       </AppText>
-      <SummaryCards summary={summary} loading={summaryLoading} t={t} isRTL={isRTL} onPickStatus={(s) => changeFilters({ ...filters, status: s })} />
+      <SummaryCards summary={summary} loading={summaryLoading} t={t} isRTL={isRTL} lang={language} onPickStatus={(s) => changeFilters({ ...filters, status: s })} />
       <Pressable
         onPress={() => setFiltersOpen((o) => !o)}
         style={({ pressed }) => [styles.filterToggle, rowFlipFor(isRTL) && styles.rowRtl, pressed && { opacity: 0.9 }]}
@@ -202,7 +222,7 @@ export default function ManagerSystemIssuesScreen() {
       ListHeaderComponent={header}
       ListEmptyComponent={body}
       ItemSeparatorComponent={Separator}
-      renderItem={({ item }) => <IssueRow issue={item} now={now} t={t} isRTL={isRTL} onPress={() => router.push(`/(app)/manager/system-issues/${item.id}` as never)} />}
+      renderItem={({ item }) => <IssueRow issue={item} now={now} t={t} isRTL={isRTL} lang={language} onPress={() => router.push(`/(app)/manager/system-issues/${item.id}` as never)} />}
       ListFooterComponent={
         hasMore ? (
           <View style={styles.footer}>

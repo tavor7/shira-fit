@@ -5,9 +5,9 @@ import { stripDisplayIsolates } from "../displayFormat";
 import { translations } from "../../i18n/translations";
 import { canRoleAccessAppPath } from "../roleRouteAccess";
 import { getManagerParentHref, isManagerOverviewFlatTool } from "../sessionsHomeNavigation";
-import { acknowledgeIssue, applyFilters, applySort, EVENT_COLUMNS, fetchIssueDetail, fetchIssuePage, fetchSummary, ISSUE_COLUMNS, muteIssue, reopenIssue, resolveIssue, unmuteIssue } from "./queries";
+import { isIssueId, acknowledgeIssue, applyFilters, applySort, EVENT_COLUMNS, fetchIssueDetail, fetchIssuePage, fetchSummary, ISSUE_COLUMNS, muteIssue, reopenIssue, resolveIssue, unmuteIssue } from "./queries";
 import {
-  actionErrorKey, activityBars, allowedActions, describeIssue, fill, isRepeated, issueExplanation, issueHeadline, relativeTime, safeContext, safeText,
+  actionErrorKey, activityBars, allowedActions, describeIssue, fill, formatCount, isRepeated, issueExplanation, issueHeadline, relativeTime, safeContext, safeText,
   severityTone, sourceKey, statusTone,
 } from "./presentation";
 import { DEFAULT_FILTERS, PAGE_SIZE, type SystemIssueRow } from "./types";
@@ -97,6 +97,38 @@ describe("presentation: readable categories, never the raw code as the headline"
   });
 });
 
+describe("Phase 4B regressions", () => {
+  it("server titles are scrubbed but long identifiers stay readable (the client reporter's token mask must not eat job names)", () => {
+    expect(safeText("notifications: cron/whatsapp-dispatch-notifications-and-more-extra-long-name (job_stale)")).toContain("cron/whatsapp-dispatch-notifications-and-more-extra-long-name");
+    expect(safeText("x@y.com 8a7c2f10-1111-2222-3333-444455556666 Bearer abc.def password=hunter2")).not.toMatch(/y\.com|8a7c2f10|abc\.def|hunter2/);
+    expect(safeText({ a: 1 })).toBe("");
+    expect(safeText("a".repeat(500), 50)).toHaveLength(50);
+  });
+  it("counts are grouped in the UI language", () => {
+    expect(formatCount(1234567, "en")).toBe("1,234,567");
+    expect(formatCount(1234567, "he")).toBe("1,234,567");
+    expect(formatCount(0, "en")).toBe("0");
+  });
+  it("the HTTP status is one left-to-right unit so Hebrew shows (HTTP 503), not (503 HTTP)", () => {
+    const h = issueHeadline(issue({ operation: "transport/infra", error_class: "HttpError", error_code: "http_503" }), tFor("he"));
+    expect(h).toContain("\u2066HTTP 503\u2069");
+    expect(stripDisplayIsolates(h)).toBe("תקלת שרת זמנית (HTTP 503)");
+  });
+  it("only a UUID is an issue id", () => {
+    expect(isIssueId("11111111-1111-4111-8111-111111111111")).toBe(true);
+    for (const bad of ["", "abc", "1", "11111111-1111-4111-8111-11111111111", "../x", undefined, null, 5, ["a"]]) expect(isIssueId(bad as never)).toBe(false);
+  });
+  it("detail: a failing section is reported and the rest still loads; a failing issue request throws", async () => {
+    const part = await fetchIssueDetail(fakeDb((table) => (table === "system_issue_events" ? { error: { message: "x" } } : { data: table === "system_issues" ? [issue()] : [] })).db, "x");
+    expect(part.issue).not.toBeNull();
+    expect(part.failed).toEqual(["events"]);
+    expect(part.events).toEqual([]);
+    const all = await fetchIssueDetail(fakeDb((table) => (table === "system_issues" ? { data: [issue()] } : { error: { message: "x" } })).db, "x");
+    expect(all.failed.sort()).toEqual(["buckets", "events", "transitions"]);
+    await expect(fetchIssueDetail(fakeDb((table) => (table === "system_issues" ? { error: { message: "x" } } : { data: [] })).db, "x")).rejects.toBeTruthy();
+  });
+});
+
 describe("queries: bounded, server-side, only the granted columns", () => {
   it("the issue list is a server-paged request of PAGE_SIZE+1 rows with the exact filters and sort", async () => {
     const { db, log } = fakeDb(() => ({ data: Array.from({ length: PAGE_SIZE + 1 }, (_, i) => issue({ id: `${i}` })) }));
@@ -111,6 +143,7 @@ describe("queries: bounded, server-side, only the granted columns", () => {
     expect(c).toContainEqual(["gte", ["last_seen", "2026-10-06T00:00:00.000Z"]]);
     expect(c).toContainEqual(["order", ["severity_rank", { ascending: false }]]);
     expect(c).toContainEqual(["order", ["last_seen", { ascending: false }]]);
+    expect(c[c.length - 2]).toEqual(["order", ["id", { ascending: false }]]); // total order: last key is the id
     expect(c).toContainEqual(["range", [PAGE_SIZE * 2, PAGE_SIZE * 2 + PAGE_SIZE]]);
     expect(names(c)).not.toContain("limit");
     const short = await fetchIssuePage(fakeDb(() => ({ data: [issue()] })).db, DEFAULT_FILTERS, "recent", 0);
@@ -137,9 +170,9 @@ describe("queries: bounded, server-side, only the granted columns", () => {
 
   it("the three sort orders", () => {
     const sorted = (s: "recent" | "severe" | "frequent") => { const c: unknown[] = []; const r: Record<string, unknown> = {}; r.order = (...a: unknown[]) => { c.push(a); return r; }; applySort(r, s); return c; };
-    expect(sorted("recent")).toEqual([["last_seen", { ascending: false }]]);
-    expect(sorted("severe")).toEqual([["severity_rank", { ascending: false }], ["last_seen", { ascending: false }]]);
-    expect(sorted("frequent")).toEqual([["occurrence_count", { ascending: false }], ["last_seen", { ascending: false }]]);
+    expect(sorted("recent")).toEqual([["last_seen", { ascending: false }], ["id", { ascending: false }]]);
+    expect(sorted("severe")).toEqual([["severity_rank", { ascending: false }], ["last_seen", { ascending: false }], ["id", { ascending: false }]]);
+    expect(sorted("frequent")).toEqual([["occurrence_count", { ascending: false }], ["last_seen", { ascending: false }], ["id", { ascending: false }]]);
   });
 
   it("the dashboard uses five head-only counts and transfers no rows", async () => {

@@ -35,6 +35,7 @@ const styles = StyleSheet.create({
   rowRtl: { flexDirection: "row-reverse" },
   chip: {
     minHeight: theme.controls.minTouch,
+    minWidth: theme.controls.minTouch,
     paddingHorizontal: theme.spacing.sm,
     borderRadius: theme.radius.full,
     alignItems: "center",

@@ -125,7 +125,7 @@ su -c "insert into public.system_issues (fingerprint, source, reported_subsystem
   from generate_series(1, 3000) g" >/dev/null
 su -c "analyze public.system_issues" >/dev/null
 plan() { su -c "$1" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s)[0];const txt=JSON.stringify(p.Plan);console.log((txt.includes("\"Node Type\":\"Sort\"")?"SORT":"nosort")+" "+(/Index/.test(txt)?"index":"noindex")+" "+Math.round(p["Execution Time"])+" "+(/external/.test(txt)?"disk":"memory"))})'; }
-for spec in "last_seen desc|recent" "severity_rank desc, last_seen desc|severe" "occurrence_count desc, last_seen desc|frequent"; do
+for spec in "last_seen desc, id desc|recent" "severity_rank desc, last_seen desc, id desc|severe" "occurrence_count desc, last_seen desc, id desc|frequent"; do
   ord=${spec%%|*}; nm=${spec##*|}
   P1=$(plan "explain (analyze, format json) select id from public.system_issues order by $ord limit 21 offset 0")
   [ "$(echo "$P1" | cut -d' ' -f3)" -le 50 ] && [ "$(echo "$P1" | cut -d' ' -f4)" = memory ] && ok "$nm ordering executes in <= 50 ms in memory ($P1)" || fail "$nm ordering too slow: $P1"
