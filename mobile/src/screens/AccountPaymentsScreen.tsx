@@ -27,7 +27,7 @@ import { SelectionPulse } from "../components/SelectionPulse";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { EmptyState } from "../components/EmptyState";
-import { formatISODateFullWithWeekdayAfter, formatISODateWeekdayDayMonthYear } from "../lib/dateFormat";
+import { formatISODateWeekdayDayMonthYear } from "../lib/dateFormat";
 import { formatSessionTimeShort } from "../lib/financeBreakdownFormat";
 import { lastNDaysRangeISO } from "../lib/isoDate";
 import {
@@ -95,6 +95,11 @@ function payeeFilterLabel(filter: PayeeFilter, t: (k: string) => string): string
   if (filter.type === "all") return t("accountPayments.allPayees");
   return filter.label;
 }
+
+// Manual-receipt marking is still fully functional (handleMarkManualReceipt,
+// confirmUnmarkManualReceipt, has_manual_receipt) — this only hides the UI entry
+// point on the payment card. Flip to true to restore the visible action/badge.
+const SHOW_MANUAL_RECEIPT_ACTION = false;
 
 export default function AccountPaymentsScreen() {
   const router = useRouter();
@@ -762,7 +767,7 @@ export default function AccountPaymentsScreen() {
             item.payee_kind === "manual" ? t("accountPayments.kindManual") : t("accountPayments.kindAthlete");
           const sessionMeta =
             item.source === "session" && item.session_date
-              ? `${sessionSlotLabel(item.session_slot_kind)} · ${formatISODateFullWithWeekdayAfter(item.session_date, language)}${
+              ? `${sessionSlotLabel(item.session_slot_kind)}${
                   item.session_start_time ? ` · ${formatSessionTimeShort(item.session_start_time)}` : ""
                 }`
               : null;
@@ -799,7 +804,7 @@ export default function AccountPaymentsScreen() {
                 </Text>
               ) : null}
               {sessionMeta ? (
-                <Text style={[styles.metaLine, isRTL && styles.rtl]} numberOfLines={2}>
+                <Text style={[styles.metaLine, isRTL && styles.rtl]} numberOfLines={1}>
                   {sessionMeta}
                 </Text>
               ) : null}
@@ -824,7 +829,7 @@ export default function AccountPaymentsScreen() {
                   {t("participantHistory.reportedBy").replace("{name}", item.created_by_name.split(/\s+/)[0] ?? item.created_by_name)}
                 </Text>
               ) : null}
-              {amt !== null && amt > 0 ? (
+              {SHOW_MANUAL_RECEIPT_ACTION && amt !== null && amt > 0 ? (
                 <View style={[styles.manualReceiptRow, rowFlipFor(rtlRow) && styles.manualReceiptRowRtl]}>
                   {manualReceiptBusyRowId === item.row_id ? (
                     <ActivityIndicator size="small" color={theme.colors.textMuted} />
@@ -848,6 +853,7 @@ export default function AccountPaymentsScreen() {
                   <>
                     <Pressable
                       onPress={() => openGenerateDocument(item)}
+                      hitSlop={10}
                       style={({ pressed }) => [styles.actionItem, styles.actionItemWide, pressed && styles.actionItemPressed]}
                     >
                       <Text style={[styles.actionText, isRTL && styles.rtl]}>
@@ -862,6 +868,7 @@ export default function AccountPaymentsScreen() {
                     <Pressable
                       onPress={() => openAccountPaymentEdit(item)}
                       disabled={busy}
+                      hitSlop={10}
                       style={({ pressed }) => [styles.actionItem, pressed && !busy && styles.actionItemPressed]}
                     >
                       <Text style={[styles.actionText, isRTL && styles.rtl]}>{t("participantHistory.editShort")}</Text>
@@ -870,6 +877,7 @@ export default function AccountPaymentsScreen() {
                     <Pressable
                       onPress={() => confirmDelete(item.record_id)}
                       disabled={busy}
+                      hitSlop={10}
                       style={({ pressed }) => [styles.actionItem, styles.actionItemDanger, pressed && !busy && styles.actionItemPressed]}
                     >
                       {busy ? (
@@ -882,6 +890,7 @@ export default function AccountPaymentsScreen() {
                 ) : (
                   <Pressable
                     onPress={() => openSessionPayment(item)}
+                    hitSlop={10}
                     style={({ pressed }) => [styles.actionItem, styles.actionItemWide, pressed && styles.actionItemPressed]}
                   >
                     <Text style={[styles.actionText, isRTL && styles.rtl]}>{t("accountPayments.openSession")}</Text>
@@ -1135,8 +1144,9 @@ const styles = StyleSheet.create({
   summaryLabel: { marginTop: 2, fontSize: 11, fontWeight: "700", color: theme.colors.textSoft, textTransform: "uppercase", letterSpacing: 0.25 },
   addBtn: { marginTop: 0 },
   paymentCard: {
-    marginBottom: theme.spacing.sm,
-    padding: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
@@ -1146,7 +1156,7 @@ const styles = StyleSheet.create({
   paymentHeadRtl: { flexDirection: "row-reverse" },
   paymentDate: { flex: 1, fontSize: 14, fontWeight: "800", color: theme.colors.text, lineHeight: 20 },
   paymentAmount: { fontSize: 17, fontWeight: "800", color: theme.colors.text },
-  payeeRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, marginTop: theme.spacing.sm },
+  payeeRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, marginTop: theme.spacing.xs },
   payeeRowRtl: { flexDirection: "row-reverse" },
   payeeName: { flex: 1, fontSize: 14, fontWeight: "700", color: theme.colors.textMuted },
   kindBadge: {
@@ -1165,8 +1175,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.errorBg,
   },
   hiddenBadgeText: { fontSize: 11, fontWeight: "800", color: theme.colors.error, letterSpacing: 0.2 },
-  metaLine: { marginTop: 4, fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 18 },
-  manualReceiptRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 8 },
+  metaLine: { marginTop: 3, fontSize: 13, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 18 },
+  manualReceiptRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 6 },
   manualReceiptRowRtl: { flexDirection: "row-reverse" },
   manualReceiptLink: { ...theme.typography.label, color: theme.colors.textSoft, textDecorationLine: "underline" },
   manualReceiptBadge: {
@@ -1178,16 +1188,16 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.success,
   },
   manualReceiptBadgeText: { fontSize: 11, fontWeight: "800", color: theme.colors.success },
-  footnote: { marginTop: 6, fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
+  footnote: { marginTop: 4, fontSize: 12, fontWeight: "600", color: theme.colors.textSoft },
   actionBar: {
     flexDirection: "row",
-    marginTop: theme.spacing.md,
+    marginTop: theme.spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.colors.borderMuted,
-    paddingTop: theme.spacing.sm,
+    paddingTop: theme.spacing.xs,
   },
   actionBarRtl: { flexDirection: "row-reverse" },
-  actionItem: { flex: 1, alignItems: "center", paddingVertical: 8 },
+  actionItem: { flex: 1, alignItems: "center", paddingVertical: 6 },
   actionItemWide: { flex: 1 },
   actionItemDanger: {},
   actionItemPressed: { opacity: 0.75 },
