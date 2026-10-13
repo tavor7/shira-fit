@@ -3,6 +3,8 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { withTransportCapture } from "./techReporting/transportCapture";
 import { installRpcOutcomeObserver } from "./rpcOutcomes/observer";
+import { reportTechnicalError } from "./techReporting/reporter";
+import { remoteReporting, startRemoteReporting } from "./remoteReporting";
 
 /**
  * SecureStore is native-only; on web it breaks at runtime.
@@ -146,7 +148,14 @@ export const supabase = createClient(url, key, {
   global: {
     // Phase 3B: observe transport failures only (rejections, 5xx/408/429); the response and errors pass through unchanged.
     // Outermost on purpose, so a 401 recovered by authAwareFetch's refresh-and-retry is judged on its final outcome.
-    fetch: withTransportCapture(authAwareFetch, { supabaseUrl: url }),
+    // Phase 3E.3: the same 3B report also feeds the remote pipeline, which is inert while REMOTE_TECHNICAL_REPORTING_ENABLED is false.
+    fetch: withTransportCapture(authAwareFetch, {
+      supabaseUrl: url,
+      report: (r) => {
+        reportTechnicalError(r);
+        remoteReporting.submitTransport(r);
+      },
+    }),
   },
 });
 
@@ -157,3 +166,7 @@ supabaseClient = supabase;
 if (typeof __DEV__ !== "undefined" && __DEV__) {
   installRpcOutcomeObserver(supabase);
 }
+
+// Phase 3E.3: remote technical reporting (RPC outcomes, approved transport failures). Inert unless the build-time gate
+// REMOTE_TECHNICAL_REPORTING_ENABLED is true, which it is not: a production build installs nothing and sends nothing.
+startRemoteReporting(supabase);

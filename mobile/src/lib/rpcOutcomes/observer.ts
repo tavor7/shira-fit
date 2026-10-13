@@ -59,11 +59,25 @@ export interface RpcOutcomeSnapshot {
   transportOwned: number;
 }
 
+/** What the observer tells an optional listener about one failure outcome (codes and the classification only; never data). */
+export interface OutcomeEvent {
+  channel: OutcomeChannel;
+  operation: string;
+  code: string;
+  class: OutcomeClass;
+  /** postgrest channel only: true when the code is the application's own RAISE token (SQLSTATE P0001). */
+  raised: boolean;
+}
+
 export interface RpcOutcomeObserverOptions {
   now?: () => number;
   /** Observation is active only when this returns true (development/test). */
   isEnabled?: () => boolean;
   maxKeys?: number;
+  /** Keep the bounded in-memory aggregate (default true). A production listener-only observer sets this to false: nothing is retained. */
+  aggregate?: () => boolean;
+  /** Optional listener, called for every classified failure outcome inside the observer's own try/catch. */
+  onOutcome?: (e: OutcomeEvent) => void;
 }
 
 const OP_RE = /^[a-z0-9_]{1,64}$/;
@@ -76,8 +90,10 @@ function emptyTotals(): RpcOutcomeSnapshot["totals"] {
 
 export class RpcOutcomeObserver {
   private readonly now: () => number;
-  private readonly isEnabled: () => boolean;
+  private isEnabled: () => boolean;
   private readonly maxKeys: number;
+  private aggregate: () => boolean;
+  private onOutcome: ((e: OutcomeEvent) => void) | undefined;
   private map = new Map<string, RpcOutcomeObservation>();
   private totals = emptyTotals();
   private overflow = 0;
@@ -88,6 +104,15 @@ export class RpcOutcomeObserver {
     this.now = opts.now ?? (() => Date.now());
     this.isEnabled = opts.isEnabled ?? (() => typeof __DEV__ !== "undefined" && __DEV__ === true);
     this.maxKeys = opts.maxKeys ?? 200;
+    this.aggregate = opts.aggregate ?? (() => true);
+    this.onOutcome = opts.onOutcome;
+  }
+
+  /** Re-configure the app-wide observer (used once at startup by the reporting wiring). */
+  configure(opts: { isEnabled?: () => boolean; aggregate?: () => boolean; onOutcome?: ((e: OutcomeEvent) => void) | undefined }): void {
+    if (opts.isEnabled) this.isEnabled = opts.isEnabled;
+    if (opts.aggregate) this.aggregate = opts.aggregate;
+    if ("onOutcome" in opts) this.onOutcome = opts.onOutcome;
   }
 
   /**
@@ -109,7 +134,7 @@ export class RpcOutcomeObserver {
           return;
         }
         const pc = classifyPostgrestError(op, r.error);
-        this.record("postgrest", op, pc.code, pc, pc.code === NO_CODE);
+        this.record("postgrest", op, pc.code, pc, pc.code === NO_CODE, pc.raised);
         return;
       }
       const data = r.data;
@@ -145,7 +170,16 @@ export class RpcOutcomeObserver {
     }
   }
 
-  private record(channel: OutcomeChannel, op: string, code: string, c: Classification, malformed: boolean): void {
+  private record(channel: OutcomeChannel, op: string, code: string, c: Classification, malformed: boolean, raised = false): void {
+    const listener = this.onOutcome;
+    if (listener) {
+      try {
+        listener({ channel, operation: op, code, class: c.class, raised });
+      } catch {
+        /* a listener fault must never reach the observer's caller */
+      }
+    }
+    if (!this.aggregate()) return;
     const key = `${channel}|${op}|${code}`;
     const t = this.now();
     const existing = this.map.get(key);

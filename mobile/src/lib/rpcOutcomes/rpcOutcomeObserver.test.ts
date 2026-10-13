@@ -307,8 +307,10 @@ describe("P. Phase 3C can never report remotely or create monitoring rows", () =
     for (const f of [...walk(path.join(ROOT, "src")), ...walk(path.join(ROOT, "app"))]) {
       const t = fs.readFileSync(f, "utf8");
       if (/\.rpc\(\s*["'](report_client_error|system_report_trusted)["']/.test(t)) offenders.push(`${f}: ingestion rpc`);
-      if (/\.setDeliverer\(/.test(t) && !/techReporting\/reporter\.ts$/.test(f)) offenders.push(`${f}: setDeliverer`);
-      if (/client_ingest_enabled/.test(t) && !/rpcOutcomes|techReporting/.test(f)) offenders.push(`${f}: client_ingest_enabled`);
+      // Phase 3E.3: the remote reporting pipeline (src/lib/remoteReporting) is the one place that may hold a deliverer; it is inert
+      // while REMOTE_TECHNICAL_REPORTING_ENABLED is false (asserted in remoteReporting.test.ts).
+      if (/\.setDeliverer\(/.test(t) && !/techReporting\/reporter\.ts$|remoteReporting\//.test(f)) offenders.push(`${f}: setDeliverer`);
+      if (/client_ingest_enabled/.test(t) && !/rpcOutcomes|techReporting|remoteReporting/.test(f)) offenders.push(`${f}: client_ingest_enabled`);
     }
     expect(offenders).toEqual([]);
   });
