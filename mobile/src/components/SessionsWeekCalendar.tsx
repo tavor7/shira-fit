@@ -23,7 +23,7 @@ import { getSessionTemporalPhase } from "../lib/sessionTime";
 import type { StudioCalendarNote } from "../lib/studioCalendarNotes";
 import { studioNoteCoversDate } from "../lib/studioCalendarNotes";
 import { studioCalendarNoteAccent } from "../lib/studioCalendarNoteAccent";
-import { EdgeFade, useHorizontalOverflow } from "./ScrollEdgeFade";
+import { useHorizontalOverflow } from "./ScrollEdgeFade";
 import { normalizeShortMonth } from "../lib/appLocale";
 
 export type SessionsWeekItem = {
@@ -220,8 +220,7 @@ export function SessionsWeekCalendar({
   /** Periodic refresh so “live” / “ended” styling updates without navigating away. */
   const [, setTemporalTick] = useState(0);
   const { language, t, isRTL, rowFlip } = useI18n();
-  /** Soft edge fades show that more days continue beyond the visible columns (phones). */
-  const { edges: overflowEdges, scrollProps: overflowScrollProps } = useHorizontalOverflow(isRTL);
+  const { scrollProps: overflowScrollProps } = useHorizontalOverflow(isRTL);
   const locale = t("ui.sessionsWeekCalendar.enUs");
   const dayNames = language === "he" ? DAY_NAMES_HE : DAY_NAMES_EN;
 
@@ -568,8 +567,6 @@ export function SessionsWeekCalendar({
             );
           })}
         </ScrollView>
-        <EdgeFade side="start" visible={overflowEdges.start} isRTL={isRTL} />
-        <EdgeFade side="end" visible={overflowEdges.end} isRTL={isRTL} />
 
         {weekItemsCount === 0 ? (
           <View style={styles.empty}>
