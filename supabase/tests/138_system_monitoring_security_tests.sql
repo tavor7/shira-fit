@@ -9,6 +9,10 @@
 -- Self-contained: own auth.users fixtures; everything is rolled back at the end.
 set client_min_messages to notice;
 begin;
+-- Phase 3E.2: these Phase 1 tests exercise the generic ingestion MECHANICS (quotas, redaction, flood, forged fields) with arbitrary client
+-- payloads. Default-deny is therefore switched off inside this rolled-back transaction (the explicit legacy switch); the default-deny
+-- behaviour itself is covered by 173_client_ingest_allowlist_tests.sh.
+update public.system_monitoring_config set value = 'false'::jsonb where key = 'client_require_rule';
 
 create temp table t138_fx (k text primary key, v uuid);
 grant all on t138_fx to public;
@@ -390,7 +394,8 @@ begin
   raise notice 'C6 PASSED: the global client new-issue ceiling bounds distributed fingerprint flooding';
 
   -- C7: a client can never change a rule/config through ingestion; rules table untouched.
-  if exists (select 1 from public.system_issue_rules) then raise exception 'C7 FAILED: rules changed'; end if;
+  -- Phase 3E.2: the rules table now holds the seeded client allowlist; ingestion must not add or change any other rule, nor the seed.
+  if exists (select 1 from public.system_issue_rules where not authorizes_client) or (select count(*) from public.system_issue_rules where authorizes_client) <> 58 then raise exception 'C7 FAILED: rules changed'; end if;
   if (select value from public.system_monitoring_config where key = 'ingest_enabled') <> 'true'::jsonb then raise exception 'C7 FAILED: config changed'; end if;
   raise notice 'C7 PASSED: ingestion leaves rules and configuration untouched';
 

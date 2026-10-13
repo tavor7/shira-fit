@@ -4,6 +4,10 @@
 -- Self-contained: own fixtures, everything is rolled back. Requires the 3 monitoring migrations.
 set client_min_messages to notice;
 begin;
+-- Phase 3E.2: these Phase 1 tests exercise the generic ingestion MECHANICS (quotas, redaction, flood, forged fields) with arbitrary client
+-- payloads. Default-deny is therefore switched off inside this rolled-back transaction (the explicit legacy switch); the default-deny
+-- behaviour itself is covered by 173_client_ingest_allowlist_tests.sh.
+update public.system_monitoring_config set value = 'false'::jsonb where key = 'client_require_rule';
 
 create temp table t137_fx (k text primary key, v uuid);
 

@@ -190,14 +190,15 @@ echo "    interleavings seen: deleted-then-recreated=$DELETED, reopened-before-d
 echo "== C7: per-user quota race (6 sessions x 10 reports, quota 20/hour)"
 q "update public.system_monitoring_config set value = 'true'::jsonb where key = 'client_ingest_enabled'; delete from public.system_report_quota;" >/dev/null
 q "select public._system_ingest('trusted', '{\"source\":\"edge\",\"operation\":\"rpc/c7\",\"message\":\"quota race\"}'::jsonb, null);" >/dev/null
-# the same fingerprint the client will produce: source=client => build the issue through the client path once as another identity
+# Phase 3E.2: the client path is default-deny, so the race uses an allowlisted tuple (the seeded rpc/register_for_session RpcOutcome no_profile)
 SQLC="select set_config('request.jwt.claims','$CLAIMS_USR',false);
-select public.report_client_error('{\"operation\":\"rpc/c7\",\"message\":\"quota race\"}'::jsonb) from generate_series(1,10);"
+select public.report_client_error('{\"operation\":\"rpc/register_for_session\",\"error_class\":\"RpcOutcome\",\"error_code\":\"no_profile\",\"message\":\"quota race\"}'::jsonb) from generate_series(1,10);"
 race c7 6 "$SQLC"
 ACC=$(cat "$TMP"/w_c7_*.out | grep -c '"accepted" *: *true')
 expect "C7 accepted reports == quota" 20 "$ACC"
 expect "C7 quota row" 20 "$(q "select reports from public.system_report_quota where user_id='$USR'")"
 expect "C7 no errors surfaced" 0 "$(errs c7)"
+q "delete from public.system_issues where source = 'client'" >/dev/null
 q "update public.system_monitoring_config set value = 'false'::jsonb where key = 'client_ingest_enabled';" >/dev/null
 
 echo "== C8: bucket / event sampling race (20 sessions x 10 reports)"

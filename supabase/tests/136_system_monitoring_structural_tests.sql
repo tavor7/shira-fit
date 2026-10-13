@@ -161,7 +161,7 @@ declare
   v_svc boolean;
   v_def boolean;
   v_expected constant text[] := array[
-    '_report_system_error', '_system_cfg', '_system_fingerprint', '_system_flag', '_system_ingest',
+    '_report_system_error', '_system_cfg', '_system_client_payload_valid', '_system_fingerprint', '_system_flag', '_system_ingest',
     '_system_cron_jobs', '_system_cron_max_runid', '_system_cron_recent_runs', '_system_cron_runs',
     '_system_job_key', '_system_job_observe', '_system_job_stale_after_s', '_system_jobcfg_bool',
     '_system_jobcfg_int', '_system_jobcfg_paused_until',
@@ -198,7 +198,7 @@ begin
     end if;
     -- SECURITY INVOKER helpers vs SECURITY DEFINER entry points / workers
     v_def := r.proname not in ('_system_sev_rank', '_system_rank_sev', '_system_cfg', '_system_limit', '_system_flag',
-      '_system_redact', '_system_normalize_template', '_system_sanitize_map', '_system_fingerprint',
+      '_system_redact', '_system_normalize_template', '_system_sanitize_map', '_system_fingerprint', '_system_client_payload_valid',
       '_system_pick_rule', '_system_pick_text', '_system_stack_origin', '_system_ret',
       '_system_cron_jobs', '_system_cron_max_runid', '_system_cron_recent_runs', '_system_cron_runs',
       '_system_job_key', '_system_job_stale_after_s', '_system_jobcfg_bool', '_system_jobcfg_int',
@@ -228,7 +228,7 @@ begin
       raise exception 'T8 FAILED: % has a PUBLIC grantee', r.sig;
     end if;
   end loop;
-  if v_n <> 44 then raise exception 'T8 FAILED: inspected % functions, expected 44', v_n; end if;
+  if v_n <> 45 then raise exception 'T8 FAILED: inspected % functions, expected 45', v_n; end if;
   raise notice 'T8 PASSED: ownership, definer/invoker, search_path and the full EXECUTE matrix are exact (44 functions)';
 
   -- T9: the monitoring authorization model must not depend on is_super_user or on the arbitrary-uid
@@ -282,7 +282,7 @@ declare
   v_cron boolean;
 begin
   select coalesce(array_agg(c.key order by c.key), '{}') into v_keys from public.system_monitoring_config c;
-  if v_keys <> array['client_ingest_enabled', 'context_allowed_keys', 'ingest_enabled', 'job_monitoring', 'limits', 'retention'] then
+  if v_keys <> array['client_ingest_enabled', 'client_require_rule', 'context_allowed_keys', 'ingest_enabled', 'job_monitoring', 'limits', 'retention'] then
     raise exception 'T11 FAILED: config keys are %', v_keys;
   end if;
   if (select value from public.system_monitoring_config where key = 'client_ingest_enabled') <> 'false'::jsonb then
