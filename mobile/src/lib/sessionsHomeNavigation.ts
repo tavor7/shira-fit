@@ -37,6 +37,7 @@ export function isManagerOverviewFlatTool(pathname: string): boolean {
     pathname === "/manager/trainer-colors" ||
     pathname === "/manager/roles" ||
     pathname === "/manager/activity-log" ||
+    pathname === "/manager/system-issues" ||
     pathname === "/manager/account-payments" ||
     pathname === "/manager/documents-invoices" ||
     pathname === "/manager/pricing" ||
@@ -53,6 +54,7 @@ export function isManagerOverviewStaffDrilldown(pathname: string): boolean {
 export const MANAGER_SETUP_HREF = "/(app)/manager/setup" satisfies Href;
 export const STAFF_USERS_HREF = "/(app)/staff/users" satisfies Href;
 export const LEGAL_SETTINGS_HREF = "/(app)/manager/legal-settings" satisfies Href;
+export const SYSTEM_ISSUES_HREF = "/(app)/manager/system-issues" satisfies Href;
 export const SUBSCRIPTION_SETTINGS_HREF = "/(app)/manager/subscription-settings" satisfies Href;
 
 /** Pages opened from a Setup item (one level below it): pathname -> that Setup item. */
@@ -95,6 +97,7 @@ export function getManagerParentHref(pathname: string, opts: { setupIndexAvailab
   if (isStudioSetupIndex(pathname)) return MANAGER_OVERVIEW_HREF;
   if (isStudioSetupItem(pathname)) return opts.setupIndexAvailable ? MANAGER_SETUP_HREF : MANAGER_OVERVIEW_HREF;
   if (isManagerOverviewStaffDrilldown(pathname)) return STAFF_USERS_HREF;
+  if (pathname.startsWith("/manager/system-issues/")) return SYSTEM_ISSUES_HREF;
   if (isManagerOverviewFlatTool(pathname)) return MANAGER_OVERVIEW_HREF;
   return null;
 }

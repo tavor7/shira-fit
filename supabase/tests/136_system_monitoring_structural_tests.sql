@@ -96,7 +96,7 @@ begin
   -- a column added later is not readable until this list is deliberately extended).
   for v_t, v_allowed_cols in
     select * from (values
-      ('system_issues', array['acknowledged_at','acknowledged_by','base_severity','created_at','error_class','error_code','fingerprint','first_seen','first_seen_version','id','impact','last_seen','last_seen_version','latest_summary','muted_until','occurrence_count','operation','regressed_in_version','reopen_count','reopened_at','reported_subsystem','resolution','resolved_at','resolved_by','resolved_version','rule_id','severity','source','status','subsystem','title']),
+      ('system_issues', array['acknowledged_at','acknowledged_by','base_severity','created_at','error_class','error_code','fingerprint','first_seen','first_seen_version','id','impact','last_seen','last_seen_version','latest_summary','muted_until','occurrence_count','operation','regressed_in_version','reopen_count','reopened_at','reported_subsystem','resolution','resolved_at','resolved_by','resolved_version','rule_id','severity','severity_rank','source','status','subsystem','title']),
       ('system_issue_events', array['app_version','build','coalesced_count','context','entities','env','id','issue_id','message','occurred_at','platform','route','sample_reason','severity','stack','user_id','user_role']),
       ('system_issue_buckets', array['breaker_tripped_at','bucket_start','count','issue_id','sampled']),
       ('system_issue_transitions', array['actor_user_id','at','from_status','id','issue_id','kind','reason','to_status'])
@@ -142,7 +142,7 @@ begin
   -- T6: indexes on system_issues (no index on last_seen / occurrence_count: keeps updates HOT).
   select coalesce(array_agg(i.indexname::text order by i.indexname), '{}') into v_found
   from pg_indexes i where i.schemaname = 'public' and i.tablename = 'system_issues';
-  if v_found <> array['system_issues_active_idx', 'system_issues_fingerprint_key', 'system_issues_pkey', 'system_issues_resolved_at_idx'] then
+  if v_found <> array['system_issues_active_idx', 'system_issues_fingerprint_key', 'system_issues_last_seen_idx', 'system_issues_occurrence_idx', 'system_issues_pkey', 'system_issues_resolved_at_idx', 'system_issues_severity_rank_idx'] then
     raise exception 'T6 FAILED: indexes on system_issues are %', v_found;
   end if;
   if not exists (select 1 from pg_indexes i where i.schemaname = 'public' and i.tablename = 'system_issues'
