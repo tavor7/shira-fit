@@ -189,6 +189,13 @@ export async function rpcCopySubscriptionTermsVersionToDraft(supabase: SupabaseC
   return data as Outcome | Failure;
 }
 
+/** Deletes the unpublished draft; refused (draft_changed) when it was saved again after `expectedUpdatedAt`. */
+export async function rpcDiscardSubscriptionTermsDraft(supabase: SupabaseClient, expectedUpdatedAt: string): Promise<Outcome | Failure> {
+  const { data, error } = await supabase.rpc("discard_subscription_terms_draft", { p_expected_updated_at: expectedUpdatedAt });
+  if (error) return { ok: false, error: error.message };
+  return data as Outcome | Failure;
+}
+
 export async function rpcPublishSubscriptionTermsDraft(
   supabase: SupabaseClient,
   requiresReconsent: boolean,

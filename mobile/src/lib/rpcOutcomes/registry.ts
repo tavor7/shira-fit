@@ -248,6 +248,9 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   delete_subscription: {
     subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
   },
+  discard_subscription_terms_draft: {
+    draft_changed: [B, "The draft was saved again after the manager loaded it; the screen reloads instead of deleting newer text (optimistic concurrency, expected)."],
+  },
   edit_subscription_version: {
     concurrent_modification: [U, "edit_subscription_version holds the subscription admin advisory lock, so a 0-row guarded UPDATE means either a writer that bypasses the lock or a purely defensive branch. Needs implementation review."],
     effective_from_before_current_version: B,

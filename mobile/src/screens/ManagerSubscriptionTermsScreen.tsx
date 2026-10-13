@@ -12,6 +12,7 @@ import { supabase } from "../lib/supabase";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { formatDateTimeForDisplay } from "../lib/dateFormat";
 import {
+  rpcDiscardSubscriptionTermsDraft,
   rpcGetSubscriptionTermsAdmin,
   rpcPublishSubscriptionTermsDraft,
   rpcSaveSubscriptionTermsDraft,
@@ -49,7 +50,7 @@ const fieldsOf = (d: { title: string; title_en: string | null; body_text: string
  *
  * Editing: "Edit" / "Restore" load a version's text into the editor locally - nothing is stored until "Save draft".
  * Cancel returns the editor to the last saved state (no draft, or the saved draft), asking first only when the manager
- * actually typed something since the edit started.
+ * actually typed something since the edit started. With no unsaved changes, "Discard draft" deletes a saved draft.
  */
 export default function ManagerSubscriptionTermsScreen() {
   const { t, language, isRTL } = useI18n();
@@ -70,7 +71,7 @@ export default function ManagerSubscriptionTermsScreen() {
   /** Contents when the current edit started (saved draft, or the version loaded by Edit / Restore). */
   const [baseline, setBaseline] = useState<DraftFields>(EMPTY);
   const [basedOn, setBasedOn] = useState<number | null>(null);
-  const [busy, setBusy] = useState<"" | "toggle" | "save" | "publish">("");
+  const [busy, setBusy] = useState<"" | "toggle" | "save" | "publish" | "discard">("");
   const [preview, setPreview] = useState<PreviewDoc | null>(null);
   const [previewLang, setPreviewLang] = useState<Lang>(language);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -188,6 +189,30 @@ export default function ManagerSubscriptionTermsScreen() {
       { cancel: t("common.cancel"), discard: t("sessionForm.discard") },
       revert
     );
+  }
+
+  /** Delete the saved draft (no unsaved changes): the editor closes and only the published version remains. */
+  function discardDraft() {
+    if (!draft || busy) return;
+    showConfirm({
+      title: t("subscriptionTermsAdmin.discardDraftTitle"),
+      message: t("subscriptionTermsAdmin.discardDraftBody"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("subscriptionTermsAdmin.discardDraft"),
+      confirmVariant: "danger",
+      onConfirm: () =>
+        void (async () => {
+          setBusy("discard");
+          const res = await rpcDiscardSubscriptionTermsDraft(supabase, draft.updated_at);
+          setBusy("");
+          showToast(
+            res.ok
+              ? { message: t("subscriptionTermsAdmin.draftDiscarded"), variant: "success" }
+              : { message: t(res.error === "draft_changed" ? "subscriptionTermsAdmin.draftChangedReloaded" : "common.failed"), variant: "error" }
+          );
+          await load();
+        })(),
+    });
   }
 
   async function saveDraft() {
@@ -415,15 +440,16 @@ export default function ManagerSubscriptionTermsScreen() {
                 {t("subscriptionTermsAdmin.saveBeforePublish")}
               </AppText>
             ) : null}
-            {dirty ? (
+            {/* Leave the editor: unsaved changes -> back to the last saved state; a saved draft -> delete it. */}
+            {dirty || draft ? (
               <Pressable
-                onPress={cancelEdit}
+                onPress={dirty ? cancelEdit : discardDraft}
                 disabled={!!busy}
                 style={({ pressed }) => [styles.close, pressed && { opacity: 0.85 }]}
                 accessibilityRole="button"
               >
-                <AppText variant="label" style={styles.closeTxt}>
-                  {t("common.cancel")}
+                <AppText variant="label" style={dirty ? styles.closeTxt : styles.discardTxt}>
+                  {dirty ? t("common.cancel") : t("subscriptionTermsAdmin.discardDraft")}
                 </AppText>
               </Pressable>
             ) : null}
@@ -625,6 +651,7 @@ const styles = StyleSheet.create({
   },
   close: { minHeight: 44, alignItems: "center", justifyContent: "center", marginTop: theme.spacing.xs },
   closeTxt: { color: theme.colors.textMuted, fontWeight: "800" },
+  discardTxt: { color: theme.colors.error, fontWeight: "800" },
   publishCard: { padding: theme.spacing.lg, maxWidth: 520 },
   publishBody: { marginBottom: theme.spacing.sm, lineHeight: 21 },
   publishActions: { marginTop: theme.spacing.md, gap: theme.spacing.xs },
