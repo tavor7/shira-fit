@@ -500,6 +500,7 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     invalid_participant: V,
     invalid_session: V,
     not_on_source: B,
+    payment_recorded: B,
     roster_locked: B,
     same_session: B,
     same_week: B,

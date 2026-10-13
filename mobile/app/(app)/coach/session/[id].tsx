@@ -11,7 +11,7 @@ import { AddParticipantToSessionModal } from "../../../../src/components/AddPart
 import { MoveParticipantSheet, type MoveParticipantTarget } from "../../../../src/components/MoveParticipantSheet";
 import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay } from "../../../../src/lib/dateFormat";
-import { isCancellationWithinHoursBeforeSession, hasSessionNotStarted } from "../../../../src/lib/sessionTime";
+import { isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
 import { useToast } from "../../../../src/context/ToastContext";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
@@ -244,9 +244,10 @@ export default function CoachSessionDetail() {
   }
 
   const canEditSession = !!(myId && coachId && myId === coachId);
-  const sessionCanMoveParticipants =
-    canEditSession &&
-    !!(sessionSchedule && hasSessionNotStarted(sessionSchedule.session_date, sessionSchedule.start_time));
+  // Past (already-started) sessions are also eligible to move FROM, as long as the participant has
+  // no recorded payment yet — ParticipantAttendanceList's per-row rowCanMove() enforces that, and the
+  // destination picker (MoveParticipantSheet) already restricts choices to not-yet-started sessions.
+  const sessionCanMoveParticipants = canEditSession;
 
   async function quickAddWaitlistedAthlete(userId: string) {
     if (!id || waitlistQuickUserId || !canEditSession) return;

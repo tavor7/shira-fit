@@ -15,6 +15,8 @@ export function moveParticipantErrorDetail(code: string, t: (key: string) => str
       return t("moveParticipant.errorNotOnSource");
     case "roster_locked":
       return t("moveParticipant.errorRosterLocked");
+    case "payment_recorded":
+      return t("moveParticipant.errorPaymentRecorded");
     case "account_disabled":
       return t("moveParticipant.errorAccountDisabled");
     case "forbidden":

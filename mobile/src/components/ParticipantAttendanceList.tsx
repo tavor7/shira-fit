@@ -241,11 +241,19 @@ export function ParticipantAttendanceList({
   const canOfferDecreaseGroupSize = maxParticipants != null && maxParticipants < 12 && maxParticipants > 1 && rows.length >= maxParticipants;
 
   function rowCanMove(item: Row): boolean {
-    if (item.attended !== null) return false;
-    if (item.chargeNoShow) return false;
-    if (item.amountPaid != null) return false;
-    if (normalizePaymentMethodKey(item.paymentMethod) !== "(none)") return false;
-    return true;
+    if (sessionNotStarted) {
+      if (item.attended !== null) return false;
+      if (item.chargeNoShow) return false;
+      if (item.amountPaid != null) return false;
+      if (normalizePaymentMethodKey(item.paymentMethod) !== "(none)") return false;
+      return true;
+    }
+    // Session already occurred: moving is allowed as long as no payment has actually been
+    // recorded for this participation. An outstanding balance — $0 paid, even with attendance
+    // marked or a no-show charge flagged — does NOT block the move; only a recorded amount does.
+    // The RPC (staff_move_session_participant) enforces this authoritatively, including receipts
+    // issued after the fact; this mirrors it for the menu so the action isn't offered needlessly.
+    return (item.amountPaid ?? 0) <= 0;
   }
 
   function openMove(item: Row) {
@@ -1090,7 +1098,7 @@ export function ParticipantAttendanceList({
                       onPress: () => confirmToggleHideAthlete(item, isHidden),
                     });
                   }
-                  if (onMoveParticipant && sessionNotStarted && rowCanMove(item)) actions.push({ label: t("a11y.moveParticipant"), onPress: () => openMove(item) });
+                  if (onMoveParticipant && rowCanMove(item)) actions.push({ label: t("a11y.moveParticipant"), onPress: () => openMove(item) });
                   if (item.kind === "registered" && onRemoveAthlete) actions.push({ label: t("a11y.removeParticipant"), onPress: () => confirmRemoveRegistered(item), danger: true });
                   if (item.kind === "manual" && onRemoveManualParticipant && !isPaymentLocked(item)) actions.push({ label: t("a11y.removeParticipant"), onPress: () => confirmRemoveManual(item), danger: true });
                   if (actions.length === 0) return null;

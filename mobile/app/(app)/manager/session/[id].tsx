@@ -37,7 +37,7 @@ import { isMissingColumnError } from "../../../../src/lib/dbColumnErrors";
 import { isValidISODateString, toISODateLocal } from "../../../../src/lib/isoDate";
 import { useI18n } from "../../../../src/context/I18nContext";
 import { formatDateTimeForDisplay, formatISODateFullWithWeekdayAfter } from "../../../../src/lib/dateFormat";
-import { formatSessionStartTime, hasSessionNotEnded, hasSessionNotStarted, isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
+import { formatSessionStartTime, hasSessionNotEnded, isCancellationWithinHoursBeforeSession } from "../../../../src/lib/sessionTime";
 import { useAuth } from "../../../../src/context/AuthContext";
 import { sessionFormStyles as sf } from "../../../../src/components/sessionFormStyles";
 import { useToast } from "../../../../src/context/ToastContext";
@@ -1545,7 +1545,10 @@ export default function ManagerSessionDetail() {
 
   const durationMinutesForEnded = clampSessionDuration(parseInt(durationMin.trim(), 10));
   const sessionHasEnded = !hasSessionNotEnded(date, time, durationMinutesForEnded);
-  const sessionCanMoveParticipants = hasSessionNotStarted(date, time);
+  // Past (already-started) sessions are also eligible to move FROM, as long as the participant has
+  // no recorded payment yet — ParticipantAttendanceList's per-row rowCanMove() enforces that, and the
+  // destination picker (MoveParticipantSheet) already restricts choices to not-yet-started sessions.
+  const sessionCanMoveParticipants = true;
   const parsedMaxCap = parseInt(maxP.trim(), 10);
   const maxCap = Number.isFinite(parsedMaxCap)
     ? clampSessionMaxParticipants(parsedMaxCap)
