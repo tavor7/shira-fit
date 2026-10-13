@@ -24,9 +24,9 @@ describe("getManagerParentHref (Overview → Setup → Setup item)", () => {
     expect(getManagerParentHref(p, WIDE)).toBe(MANAGER_OVERVIEW_HREF);
   });
 
-  it("a Setup item's sub-page goes back to that item (Legal → Subscription terms)", () => {
-    expect(getManagerParentHref("/manager/subscription-terms", PHONE)).toBe("/(app)/manager/legal-settings");
-    expect(getManagerParentHref("/manager/subscription-terms", WIDE)).toBe("/(app)/manager/legal-settings");
+  it("a Setup item's sub-page goes back to that item (Subscriptions → Subscription terms)", () => {
+    expect(getManagerParentHref("/manager/subscription-terms", PHONE)).toBe("/(app)/manager/subscription-settings");
+    expect(getManagerParentHref("/manager/subscription-terms", WIDE)).toBe("/(app)/manager/subscription-settings");
   });
 
   it("Setup itself goes back to Overview", () => {

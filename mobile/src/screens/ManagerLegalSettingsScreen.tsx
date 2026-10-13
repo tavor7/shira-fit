@@ -9,7 +9,6 @@ import { AppSwitch } from "../components/AppSwitch";
 import { AppModal } from "../components/AppModal";
 import { Skeleton } from "../components/Skeleton";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
-import { SubscriptionTermsSettingsCard } from "../components/subscriptions/SubscriptionTermsSettingsCard";
 import { formatDateTimeForDisplay } from "../lib/dateFormat";
 import {
   fetchLegalConsentSettings,
@@ -113,20 +112,18 @@ export default function ManagerLegalSettingsScreen() {
               style={({ pressed }) => [styles.docRow, pressed && styles.docRowPressed]}
               onPress={() => void openHistory(d.consent_type, title)}
               accessibilityRole="button"
-              accessibilityLabel={`${title}, v${d.version}, ${t("managerLegal.viewHistory")}`}
+              accessibilityLabel={`${title}, ${t("subscriptionTerms.version").replace("{v}", String(d.version))}, ${t("managerLegal.viewHistory")}`}
             >
               <AppText variant="body" isRTL={isRTL} style={styles.docRowTitle}>
                 {title}
               </AppText>
               <AppText variant="caption" muted>
-                v{d.version}
+                {t("subscriptionTerms.version").replace("{v}", String(d.version))}
               </AppText>
             </Pressable>
           );
         })}
       </View>
-
-      <SubscriptionTermsSettingsCard />
 
       <AppModal
         visible={!!historyFor}
@@ -168,7 +165,7 @@ export default function ManagerLegalSettingsScreen() {
                   </AppText>
                   <View style={styles.historyBadges}>
                     <AppText variant="caption" muted>
-                      v{v.version}
+                      {t("subscriptionTerms.version").replace("{v}", String(v.version))}
                     </AppText>
                     {v.is_current ? (
                       <View style={styles.currentBadge}>

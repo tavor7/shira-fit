@@ -29,6 +29,12 @@ type I18nCtx = {
 
 const Ctx = createContext<I18nCtx | null>(null);
 
+/** `t` for a specific language, independent of the UI language (e.g. a preview of what Hebrew-speaking users see). */
+export function translatorFor(lang: LanguageCode): (key: string) => string {
+  const dict = translations[lang] ?? translations.en;
+  return (key: string) => dict[key] ?? translations.en[key] ?? key;
+}
+
 function isRtlLanguage(lang: LanguageCode) {
   return lang === "he";
 }
@@ -99,10 +105,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     }
   }, [language, isRTL]);
 
-  const t = useMemo(() => {
-    const dict = translations[language] ?? translations.en;
-    return (key: string) => dict[key] ?? translations.en[key] ?? key;
-  }, [language]);
+  const t = useMemo(() => translatorFor(language), [language]);
 
   async function setLanguage(lang: LanguageCode) {
     setLanguageState(lang);

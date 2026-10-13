@@ -4,13 +4,14 @@ import { router, useFocusEffect } from "expo-router";
 import { theme } from "../../theme";
 import { useI18n } from "../../context/I18nContext";
 import { supabase } from "../../lib/supabase";
+import { rowFlipFor } from "../../lib/layoutDirection";
 import { AppText } from "../AppText";
 import { PrimaryButton } from "../PrimaryButton";
 import { Skeleton } from "../Skeleton";
 import { rpcGetSubscriptionTermsAdmin, type SubscriptionTermsAdmin } from "../../lib/subscriptionTerms";
 
 /**
- * Setup -> Legal: subscription-terms summary (on/off, published version, athlete counts) with the way into the
+ * Setup -> Subscriptions: subscription-terms summary (on/off, published version, athlete counts) with the way into the
  * management screen (switch, draft, preview, publish, history). Manager-only on the server.
  */
 export function SubscriptionTermsSettingsCard() {
@@ -44,12 +45,16 @@ export function SubscriptionTermsSettingsCard() {
 
   return (
     <View style={styles.card}>
-      <AppText variant="title" isRTL={isRTL} style={styles.title}>
-        {t("managerSubscriptionTerms.title")}
-      </AppText>
-      <AppText variant="body" isRTL={isRTL} style={styles.status}>
-        {t(admin.enforced ? "managerSubscriptionTerms.statusOn" : "managerSubscriptionTerms.statusOff")}
-      </AppText>
+      <View style={[styles.head, rowFlipFor(isRTL) && styles.headRtl]}>
+        <AppText variant="title" isRTL={isRTL} style={styles.title}>
+          {t("managerSubscriptionTerms.title")}
+        </AppText>
+        <View style={[styles.badge, admin.enforced ? styles.badgeOn : styles.badgeOff]}>
+          <AppText variant="caption" style={[styles.badgeTxt, admin.enforced ? styles.badgeTxtOn : null]}>
+            {t(admin.enforced ? "managerSubscriptionTerms.badgeOn" : "managerSubscriptionTerms.badgeOff")}
+          </AppText>
+        </View>
+      </View>
       {current ? (
         <AppText variant="caption" muted isRTL={isRTL} style={styles.meta}>
           {t("managerSubscriptionTerms.version").replace("{v}", String(current.version))}
@@ -73,17 +78,22 @@ export function SubscriptionTermsSettingsCard() {
 }
 
 const styles = StyleSheet.create({
-  skeleton: { margin: theme.spacing.md, borderRadius: theme.radius.lg },
+  skeleton: { borderRadius: theme.radius.lg },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.borderMuted,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
   },
-  title: { marginBottom: theme.spacing.xs },
-  status: { marginBottom: theme.spacing.xs, lineHeight: 21 },
+  head: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, marginBottom: theme.spacing.xs },
+  headRtl: { flexDirection: "row-reverse" },
+  title: { flex: 1 },
+  badge: { borderRadius: theme.radius.full, paddingHorizontal: 10, paddingVertical: 3 },
+  badgeOn: { backgroundColor: theme.colors.successBg },
+  badgeOff: { backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.borderMuted },
+  badgeTxt: { fontWeight: "800", color: theme.colors.textMuted },
+  badgeTxtOn: { color: theme.colors.success },
   meta: { marginTop: 2, lineHeight: 18 },
   button: { marginTop: theme.spacing.md },
 });

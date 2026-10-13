@@ -83,6 +83,7 @@ export function SubscriptionTermsGateModal() {
             onAccept={() => void accept()}
             accepting={submitting}
             error={error}
+            fill
             header={
               <View style={[styles.topRow, rowFlipFor(isRTL) && styles.topRowRtl]}>
                 <LanguageToggleChip />
@@ -116,7 +117,9 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
     maxWidth: 560,
-    maxHeight: "100%",
+    // Full available height (capped on large screens) so the terms text gets as much room as possible.
+    height: "100%",
+    maxHeight: 860,
     alignSelf: "center",
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,

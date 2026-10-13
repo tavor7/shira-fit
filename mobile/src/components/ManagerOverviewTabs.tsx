@@ -408,6 +408,14 @@ export function useStudioSetupItems(): StudioSetupItem[] {
         isActive: (p) => startsWithAny(p, ["/manager/families"]),
       },
       {
+        id: "subscriptions",
+        label: t("menu.subscriptionSettings"),
+        icon: "card-outline",
+        description: t("setup.desc.subscriptions"),
+        href: "/(app)/manager/subscription-settings",
+        isActive: (p) => startsWithAny(p, ["/manager/subscription-settings", "/manager/subscription-terms"]),
+      },
+      {
         id: "opening",
         label: t("menu.openingSchedule"),
         icon: "time-outline",

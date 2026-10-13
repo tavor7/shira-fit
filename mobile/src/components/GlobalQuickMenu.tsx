@@ -150,6 +150,8 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
               "/staff/profile",
               "/staff/manual",
               "/manager/families",
+              "/manager/subscription-settings",
+              "/manager/subscription-terms",
               "/manager/opening-schedule",
               "/manager/birthday-messages",
               "/manager/whatsapp-rollout",

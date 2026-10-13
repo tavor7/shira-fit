@@ -9,10 +9,9 @@ import { SlidingPillTabBar } from "../components/SlidingPillTabBar";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import SessionPricingScreen from "./SessionPricingScreen";
 import CoachCapacityPricingScreen from "./CoachCapacityPricingScreen";
-import { SubscriptionPriceDefaultsSection } from "../components/subscriptions/SubscriptionPriceDefaultsSection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
-type Tab = "session" | "coach" | "subscriptions";
+type Tab = "session" | "coach";
 
 export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) {
   const { t, isRTL } = useI18n();
@@ -21,7 +20,7 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   // Coaches only see their own pay rates, read-only (compensation is written by managers only); studio session pricing is manager-only.
   const tabFromParam = (): Tab =>
-    variant === "coach" || tab === "coach" ? "coach" : tab === "subscriptions" ? "subscriptions" : "session";
+    variant === "coach" || tab === "coach" ? "coach" : "session";
   const initial = tabFromParam();
   const [active, setActive] = useState<Tab>(initial);
   const scrollRef = useRef<ScrollView>(null);
@@ -40,8 +39,6 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
             id: "coach" as const,
             label: variant === "manager" ? t("menu.coachSessionPricing") : t("menu.myCoachSessionPricing"),
           },
-          // Manager-only: default subscription prices (server-side manager-only RLS as well).
-          { id: "subscriptions" as const, label: t("menu.subscriptionPricing") },
         ] satisfies { id: Tab; label: string }[]
       ).filter((x) => (variant === "manager" ? true : x.id === "coach")),
     [t, variant],
@@ -65,8 +62,6 @@ export function PricingHubScreen({ variant }: { variant: "manager" | "coach" }) 
       <FadeSlideIn key={active} style={styles.body}>
         {active === "session" ? (
           <SessionPricingScreen hideIntro />
-        ) : active === "subscriptions" && variant === "manager" ? (
-          <SubscriptionPriceDefaultsSection />
         ) : variant === "manager" ? (
           <CoachCapacityPricingScreen allowCoachPicker hideIntro />
         ) : (

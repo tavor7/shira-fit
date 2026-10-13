@@ -10,6 +10,8 @@ type Props = {
   title: string;
   body: string;
   version: number | string;
+  /** Replaces the "Version N" line (e.g. an unpublished draft in the manager preview). */
+  versionLabel?: string;
   isRTL: boolean;
   t: (key: string) => string;
   checked: boolean;
@@ -21,6 +23,8 @@ type Props = {
   header?: ReactNode;
   /** Manager preview: the same layout, but nothing can be accepted. */
   previewOnly?: boolean;
+  /** The parent has a fixed height: the text area takes all the space the rest of the screen leaves. */
+  fill?: boolean;
 };
 
 /**
@@ -32,6 +36,7 @@ export function SubscriptionTermsDocumentView({
   title,
   body,
   version,
+  versionLabel,
   isRTL,
   t,
   checked,
@@ -41,6 +46,7 @@ export function SubscriptionTermsDocumentView({
   error,
   header,
   previewOnly,
+  fill,
 }: Props) {
   return (
     <>
@@ -52,10 +58,10 @@ export function SubscriptionTermsDocumentView({
         {t("subscriptionTerms.gateIntro")}
       </AppText>
       <AppText variant="caption" muted isRTL={isRTL} style={styles.version}>
-        {t("subscriptionTerms.version").replace("{v}", String(version))}
+        {versionLabel ?? t("subscriptionTerms.version").replace("{v}", String(version))}
       </AppText>
 
-      <ScrollView style={styles.bodyScroll} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator>
+      <ScrollView style={[styles.bodyScroll, fill && styles.bodyScrollFill]} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator>
         <AppText variant="body" isRTL={isRTL} style={styles.body}>
           {body}
         </AppText>
@@ -107,8 +113,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
     marginBottom: theme.spacing.md,
   },
+  // Fills the space between the header and the consent controls; minHeight keeps it readable on short windows.
+  bodyScrollFill: { flex: 1, flexShrink: 1, minHeight: 160 },
   bodyContent: { padding: theme.spacing.md },
-  body: { lineHeight: 22 },
+  body: { lineHeight: 24 },
   checkRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, minHeight: 44, marginBottom: theme.spacing.sm },
   checkRowRtl: { flexDirection: "row-reverse" },
   checkbox: {
