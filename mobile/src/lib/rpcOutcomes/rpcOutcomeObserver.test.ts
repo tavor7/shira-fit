@@ -222,11 +222,11 @@ describe("the real supabase-js client: identical results, correct ownership", ()
     expect(net.o.getSnapshot().observations).toEqual([]);
   });
 
-  it("HTTP 400 (RAISE token) is a PostgREST error result: not observed here, not reported by transport", async () => {
+  it("HTTP 400 (RAISE token) is a PostgREST error result: observed here (Phase 3D, structured), never reported by transport", async () => {
     const c = makeClients({ "/rpc/h": { status: 400, body: { code: "P0001", message: "account_disabled_payee" } } });
     const b = await c.wrapped.rpc("h");
     expect(b.error?.message).toBe("account_disabled_payee");
-    expect(c.o.getSnapshot().observations).toEqual([]);
+    expect(c.o.getSnapshot().observations).toMatchObject([{ operation: "h", channel: "postgrest", code: "account_disabled_payee", class: "unknown", needsReview: true, futureReportable: false }]);
     expect(c.transport.getObserved()).toEqual([]);
   });
 
@@ -296,7 +296,10 @@ describe("P. Phase 3C can never report remotely or create monitoring rows", () =
     const src = read("src/lib/rpcOutcomes/observer.ts");
     expect(src).not.toMatch(/techReporting|reportTechnicalError|setDeliverer|report_client_error|system_report_trusted|fetch\(|\.rpc\(["']/);
     const imports = [...src.matchAll(/^import .* from "(.*)";$/gm)].map((m) => m[1]);
-    expect(imports).toEqual(["./classify", "./types"]);
+    expect(imports).toEqual(["./classify", "./postgrestErrors", "./types"]);
+    const pg = read("src/lib/rpcOutcomes/postgrestErrors.ts");
+    expect(pg).not.toMatch(/techReporting|reportTechnicalError|setDeliverer|report_client_error|system_report_trusted|fetch\(|\.rpc\(["']/);
+    expect([...pg.matchAll(/^import .* from "(.*)";$/gm)].map((m) => m[1])).toEqual(["./classify", "./types"]);
   });
 
   it("no application code calls the ingestion RPC or installs a delivery hook; ingestion stays configured off in the repo", () => {

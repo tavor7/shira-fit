@@ -131,6 +131,30 @@ and `_try_sync_signup_consent_for_user -> user_not_found`.
 * **Production builds:** `supabase.ts` installs the observer only when `__DEV__` is true. A production build installs nothing and the RPC path
   is exactly what it was; there is therefore NO production observation in this phase.
 * Real-usage evidence is read in a development session with `rpcOutcomeObserver.getSnapshot()`; there is deliberately no UI.
-* `observer.mutation-checks.sh` mutates the observer 15 ways (unknown/business/uncertain treated as reportable, operation ignored, result mutated,
+* `observer.mutation-checks.sh` mutates the observer (Phase 3C + 3D) 26 ways (unknown/business/uncertain treated as reportable, operation ignored, result mutated,
   exceptions reaching the caller, retained bodies/arguments/raw text, unbounded growth, reporter/hook/ingestion wiring, duplicate observation); every
   mutation must make `rpcOutcomeObserver.test.ts` fail.
+
+## Phase 3D: PostgREST error results and reviewed alternative shapes (still observation only, development builds only)
+
+Phase 3C only saw HTTP 2xx `{ ok:false, error }`. A failure raised inside the database arrives as an HTTP **4xx** with
+`error = { code, message, details, hint }`, which the transport layer deliberately defers (it never reads bodies). 3D closes that gap with
+**structured** classification (`postgrestErrors.ts`), still without remote telemetry.
+
+| Failure shape | Seen by | Classified by |
+|---|---|---|
+| fetch rejection (status 0), any 5xx, 408, 429 | Phase 3B transport (one report) | observer only counts it (`transportOwned`) |
+| HTTP 4xx other than 408/429, `P0001` (`RAISE EXCEPTION 'token'`) | this observer, channel `postgrest` | the **token** (message, only if it is a lower-snake-case code) through the Phase 3A registry: operation, relay, global, else unknown. A 400 `forbidden` is `authorization_validation`. |
+| HTTP 4xx, any other SQLSTATE / `PGRSTnnn` | this observer, channel `postgrest` | exact code table, then SQLSTATE class table (`EXACT_CODE_RULES`, `CLASS_RULES`), else unknown. `21000` (safeupdate, the 2026-10 subscription incident), `42xxx` (schema/app mismatch), `40001/40P01`, `PGRST200-204` are technical; `PGRST301-303` expected auth states; `42501`, `PGRST116`, `22xxx`, `23xxx` uncertain |
+| HTTP 2xx `{ ok:false, error }` | this observer, channel `result` | registry (Phase 3C, unchanged) |
+| HTTP 2xx `{ ok:true, can_revert:false, reason }` of `manager_activity_revert_info` | this observer, channel `reason` | registry (the reasons are registered under the operation) |
+| partial failures (`ok:true` + `failed_count`/`failed[]`/`failed`, `notified` counts) | nobody | **not classified**: they need dedicated business-outcome monitoring (J9/J11) |
+
+Rules: ownership is decided only by the HTTP status (`ownsHttpStatus`: 400-499 except 408/429), so the two layers are disjoint and cover every
+status; no message wording, field name (`reason`, `status`, `success`, `failed`) or HTTP class alone ever makes something technical; the alternative
+shape table (`REVIEWED_REASON_SHAPES`) is an explicit allowlist of reviewed (operation, shape) pairs; unknown stays unknown (visible, `needsReview`,
+never `futureReportable`); nothing but the allowlisted operation name and a code-shaped string is retained (a raw database message becomes
+`<non_code>`); retention is the same bounded 200-key map (keys now include the channel).
+
+The five uncertain pairs were re-checked against current main (migrations through `20261014170000`): their implementations and registry entries are
+unchanged and they stay `uncertain` (a classification change is a product decision, not part of 3D).

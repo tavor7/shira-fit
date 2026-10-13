@@ -4,3 +4,5 @@ export { CODE_BEARING_KEYS, CONSUMED_CALLS, DELEGATES, DYNAMIC_ERROR_SITES, GLOB
 export type { Classification, OutcomeClass, RegisteredOutcomeClass, RuleEntry, RuleSource } from "./types";
 export { installRpcOutcomeObserver, rpcOutcomeObserver, RpcOutcomeObserver } from "./observer";
 export type { RpcOutcomeObservation, RpcOutcomeObserverOptions, RpcOutcomeSnapshot } from "./observer";
+export { classifyPostgrestError, ownsHttpStatus, REVIEWED_REASON_SHAPES } from "./postgrestErrors";
+export type { OutcomeChannel } from "./observer";

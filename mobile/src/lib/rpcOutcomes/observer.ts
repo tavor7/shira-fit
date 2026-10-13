@@ -12,16 +12,28 @@
  *     bodies, messages or stacks are retained: only an allowlisted operation name and a code-shaped string.
  *   - It is installed (and active) only in development builds (`__DEV__`); a production build installs nothing and does no work.
  *
- * Ownership boundary with Phase 3B (prevents double observation):
- *   transport failure / non-2xx / PostgREST `error` result  -> Phase 3B (fetch layer). This observer ignores any result whose
- *                                                              `error` is set, and never sees a rejected promise.
- *   HTTP 2xx with `data.ok === false`                       -> this observer (the transport layer never reads bodies).
+ * Phase 3D widens WHAT is observed, never what is done with it (still observation only, still dev builds only):
+ *   channel "result"    HTTP 2xx, `{ ok:false, error:"<code>" }`                      (Phase 3C)
+ *   channel "postgrest" HTTP 4xx PostgREST error result: SQLSTATE / PGRST code, or the RAISE token of P0001  (structured, see
+ *                       postgrestErrors.ts: a 400 `forbidden` is an expected refusal, a 400 21000 is a technical failure)
+ *   channel "reason"    HTTP 2xx, reviewed alternative shape `{ ok:true, can_revert:false, reason }` of one operation
+ * Partial failures (`ok:true` + failed counts) are NOT outcomes here; they need dedicated business-outcome monitoring.
+ *
+ * Ownership boundary with Phase 3B (prevents double observation; decided by the HTTP status of the result):
+ *   fetch rejection (status 0), every 5xx, 408, 429, or no usable status  -> Phase 3B (fetch layer). Ignored here (counted).
+ *   HTTP 4xx other than 408/429 (the statuses the transport layer defers)  -> this observer, from the result's `error`.
+ *   HTTP 2xx with `data.ok === false` or a reviewed reason shape          -> this observer (the transport layer never reads bodies).
  */
 import { classifyRpcOutcome } from "./classify";
+import { classifyPostgrestError, NO_CODE, NON_CODE, ownsHttpStatus, REVIEWED_REASON_SHAPES } from "./postgrestErrors";
 import type { Classification, OutcomeClass } from "./types";
+
+export type OutcomeChannel = "result" | "postgrest" | "reason";
 
 export interface RpcOutcomeObservation {
   operation: string;
+  /** Which kind of failure shape produced the observation. */
+  channel: OutcomeChannel;
   code: string;
   class: OutcomeClass;
   source: Classification["source"];
@@ -43,6 +55,8 @@ export interface RpcOutcomeSnapshot {
   overflow: number;
   /** Results inspected (any shape) while the observer was active. */
   inspected: number;
+  /** Error results left to the Phase 3B transport layer (network failure, 5xx, 408/429, unusable status). Counted only. */
+  transportOwned: number;
 }
 
 export interface RpcOutcomeObserverOptions {
@@ -54,9 +68,7 @@ export interface RpcOutcomeObserverOptions {
 
 const OP_RE = /^[a-z0-9_]{1,64}$/;
 const CODE_RE = /^[a-z0-9_:.-]{1,64}$/;
-const NON_CODE = "<non_code>";
 const OTHER_OP = "<other_operation>";
-const NO_CODE = "<no_code>";
 
 function emptyTotals(): RpcOutcomeSnapshot["totals"] {
   return { business: 0, authorization_validation: 0, technical: 0, uncertain: 0, unknown: 0, malformed: 0 };
@@ -70,6 +82,7 @@ export class RpcOutcomeObserver {
   private totals = emptyTotals();
   private overflow = 0;
   private inspected = 0;
+  private transportOwned = 0;
 
   constructor(opts: RpcOutcomeObserverOptions = {}) {
     this.now = opts.now ?? (() => Date.now());
@@ -86,15 +99,36 @@ export class RpcOutcomeObserver {
       if (!this.isEnabled()) return;
       if (typeof result !== "object" || result === null) return;
       this.inspected++;
-      const r = result as { data?: unknown; error?: unknown };
-      if (r.error) return; // a PostgREST/transport error result belongs to Phase 3B
+      const r = result as { data?: unknown; error?: unknown; status?: unknown };
+      const op = typeof operation === "string" && OP_RE.test(operation) ? operation : OTHER_OP;
+
+      if (r.error) {
+        // A PostgREST error result. Only HTTP statuses the transport layer defers are ours (see ownsHttpStatus); the rest is Phase 3B's.
+        if (!ownsHttpStatus(r.status)) {
+          this.transportOwned++;
+          return;
+        }
+        const pc = classifyPostgrestError(op, r.error);
+        this.record("postgrest", op, pc.code, pc, pc.code === NO_CODE);
+        return;
+      }
       const data = r.data;
       if (typeof data !== "object" || data === null || Array.isArray(data)) return;
       const d = data as { ok?: unknown; error?: unknown };
-      if (d.ok !== false) return; // successful results and shapes without the negative flag are not outcomes
+      let rawCode: unknown;
+      let channel: OutcomeChannel;
+      if (d.ok === false) {
+        channel = "result";
+        rawCode = d.error;
+      } else {
+        // Only a reviewed (operation, shape) pair is an outcome; a `reason` field on any other result means nothing.
+        const shape = Object.prototype.hasOwnProperty.call(REVIEWED_REASON_SHAPES, op) ? REVIEWED_REASON_SHAPES[op] : undefined;
+        const dd = data as Record<string, unknown>;
+        if (!shape || d.ok !== true || dd[shape.flagKey] !== shape.flagValue) return;
+        channel = "reason";
+        rawCode = dd[shape.codeKey];
+      }
 
-      const op = typeof operation === "string" && OP_RE.test(operation) ? operation : OTHER_OP;
-      const rawCode = d.error;
       let code: string;
       let malformed = false;
       if (typeof rawCode === "string") {
@@ -105,33 +139,37 @@ export class RpcOutcomeObserver {
       }
 
       // Classification is registry-driven (operation + code). Placeholders are never registered, so they stay UNKNOWN.
-      const c = classifyRpcOutcome(op, code);
-      const key = `${op}|${code}`;
-      const t = this.now();
-      const existing = this.map.get(key);
-      if (existing) {
-        existing.count++;
-        existing.lastAt = t;
-      } else if (this.map.size < this.maxKeys) {
-        this.map.set(key, {
-          operation: op,
-          code,
-          class: c.class,
-          source: c.source,
-          futureReportable: c.class === "technical",
-          needsReview: c.class === "uncertain" || c.class === "unknown",
-          dynamicErrorPossible: c.dynamicErrorPossible === true,
-          count: 1,
-          firstAt: t,
-          lastAt: t,
-        });
-      } else {
-        this.overflow++;
-      }
-      this.totals[malformed ? "malformed" : c.class]++;
+      this.record(channel, op, code, classifyRpcOutcome(op, code), malformed);
     } catch {
       /* observation must never affect the caller */
     }
+  }
+
+  private record(channel: OutcomeChannel, op: string, code: string, c: Classification, malformed: boolean): void {
+    const key = `${channel}|${op}|${code}`;
+    const t = this.now();
+    const existing = this.map.get(key);
+    if (existing) {
+      existing.count++;
+      existing.lastAt = t;
+    } else if (this.map.size < this.maxKeys) {
+      this.map.set(key, {
+        operation: op,
+        channel,
+        code,
+        class: c.class,
+        source: c.source,
+        futureReportable: c.class === "technical",
+        needsReview: c.class === "uncertain" || c.class === "unknown",
+        dynamicErrorPossible: c.dynamicErrorPossible === true,
+        count: 1,
+        firstAt: t,
+        lastAt: t,
+      });
+    } else {
+      this.overflow++;
+    }
+    this.totals[malformed ? "malformed" : c.class]++;
   }
 
   getSnapshot(): RpcOutcomeSnapshot {
@@ -140,6 +178,7 @@ export class RpcOutcomeObserver {
       totals: { ...this.totals },
       overflow: this.overflow,
       inspected: this.inspected,
+      transportOwned: this.transportOwned,
     };
   }
 
@@ -148,6 +187,7 @@ export class RpcOutcomeObserver {
     this.totals = emptyTotals();
     this.overflow = 0;
     this.inspected = 0;
+    this.transportOwned = 0;
   }
 }
 

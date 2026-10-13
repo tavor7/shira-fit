@@ -26,6 +26,8 @@ export type RuleSource =
   | "delegate"
   /** A global rule (only codes whose meaning is identical in every operation). */
   | "global"
+  /** Phase 3D: a PostgREST/SQLSTATE error code matched the structured-code tables (postgrestErrors.ts). */
+  | "structured_code"
   /** Nothing matched. */
   | "none";
 
