@@ -36,6 +36,8 @@ export function PricingFormModal({
       visible={visible}
       onClose={onClose}
       variant="dialog"
+      // Header + fixed footer leave the field area ~15px on a 256px window and 0px on 200px: below 380px of height the whole card scrolls.
+      scrollContent="short"
       maxHeightPct={0.85}
       backdropAccessibilityLabel={cancelLabel}
     >

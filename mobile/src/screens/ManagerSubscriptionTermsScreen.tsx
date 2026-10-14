@@ -507,6 +507,8 @@ export default function ManagerSubscriptionTermsScreen() {
         visible={!!preview}
         onClose={() => setPreview(null)}
         variant="dialog"
+        // Fixed-height preview: on a short window the intro + checkbox + accept button used up the card and the terms text and accept controls became unreachable.
+        scrollContent="short"
         backdropAccessibilityLabel={tp("common.close")}
         maxHeightPct={1}
         width={previewWidth}
