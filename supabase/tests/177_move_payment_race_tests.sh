@@ -35,6 +35,12 @@
 # Expected: the move blocks until the payment transaction commits, then correctly refuses with
 # payment_recorded, and the row is left exactly as the payment left it.
 #
+# R3 (the reverse order -- the move wins the row lock first) additionally exercises the companion
+# fix in 20261019100000_set_registration_attendance_require_active_row.sql: a payment write that
+# loses that race must now be refused (not_active_registration), not silently succeed onto the
+# row the move just cancelled. See that migration's header and
+# supabase/tests/178_set_registration_attendance_race_tests.sh for the full story.
+#
 # Usage (against the scratch Postgres this repo's stub-schema tests are run on -- see
 # 10_phase1_2_scoped_tests.sql's header for the exact migration load order):
 #   PSQL="docker exec -u postgres <container> psql -qAt -v ON_ERROR_STOP=1" \
@@ -123,11 +129,16 @@ R=$(api "$COACH" "select public.set_registration_attendance('$SRC3'::uuid, '$ATH
 wait $APID
 MOVED=$(cat /tmp/177_r3_a.log)
 case "$MOVED" in *'"ok" : true'*) ok "R3 unpaid move completed (it held the lock first): $MOVED" ;; *) fail "R3 move unexpectedly failed: $MOVED" ;; esac
-# The payment write targets the row by id regardless of its current status (a separate, older,
-# out-of-scope behavior of set_registration_attendance itself -- see this test's header / the
-# final report), so it still succeeds, landing on the now-cancelled source row rather than being
-# silently lost or corrupting the destination. The destination itself must remain untouched by it.
-case "$R" in *'"ok" : true'*) ok "R3 payment write did not error after losing the race: $R" ;; *) fail "R3 payment write unexpectedly failed: $R" ;; esac
+# As of 20261019100000_set_registration_attendance_require_active_row.sql, the payment write's
+# final UPDATE now requires `and status = 'active'`, so losing the race (the row was cancelled by
+# the move while this call's own initial SELECT had already read it as active) makes the UPDATE
+# match zero rows instead of silently succeeding onto the now-cancelled row. Before that fix this
+# assertion expected ok:true (the payment landing, undetected, on the cancelled row) -- see that
+# migration's header and supabase/tests/178_set_registration_attendance_race_tests.sh for the bug
+# this closes. The destination itself must remain untouched regardless.
+case "$R" in *not_active_registration*) ok "R3 payment write correctly refused after losing the race: $R" ;; *) fail "R3 expected not_active_registration after losing the race, got: $R" ;; esac
+UNTOUCHED=$($PSQL -t -A -c "select count(*) from session_registrations where session_id='$SRC3' and user_id='$ATH3' and status='cancelled' and amount_paid is null and attended is null")
+if [ "$UNTOUCHED" = "1" ]; then ok "R3 cancelled source row left untouched by the refused payment write"; else fail "R3 cancelled source row was modified by the refused payment write"; fi
 LEAKED=$($PSQL -t -A -c "select count(*) from session_registrations where session_id='$DST3' and user_id='$ATH3' and amount_paid is not null")
 if [ "$LEAKED" = "0" ]; then ok "R3 destination registration unaffected by the late payment write"; else fail "R3 the late payment leaked onto the destination registration"; fi
 
