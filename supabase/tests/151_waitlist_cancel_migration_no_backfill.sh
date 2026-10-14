@@ -7,7 +7,7 @@
 # fingerprints. The migration is executed from the file itself, so this tests the real deployable SQL.
 #
 # Usage: PSQL="docker exec -i <db-container> psql -U postgres" supabase/tests/151_waitlist_cancel_migration_no_backfill.sh
-set -eu
+set -eu -o pipefail
 PSQL=${PSQL:?set PSQL, e.g. "docker exec -i supabase_db_x psql -U postgres"}
 HERE="$(cd "$(dirname "$0")" && pwd)"
 MIG="$HERE/../migrations/20261010100000_reconcile_waitlist_and_cancel_registration.sql"
@@ -20,6 +20,8 @@ if echo "$STRIPPED" | grep -qiE '(^|;)\s*(insert|update|delete|truncate|alter|dr
 fi
 echo "  PASSED: the migration contains only CREATE OR REPLACE FUNCTION statements and a self-check (no DML / DDL / grant)"
 
+# The SQL is generated into a file first (not inside a command substitution): bash 3.2 mis-parses apostrophes in heredocs inside $( ).
+TMP=$(mktemp); trap 'rm -f "$TMP"' EXIT
 {
 cat <<'SQL'
 \set ON_ERROR_STOP on
@@ -83,6 +85,24 @@ begin
   if bad > 0 then raise exception 'NO-BACKFILL FAILED: % table(s) changed', bad; end if;
   raise notice 'NO-BACKFILL PASSED: cancellations / registration_history / waitlist_requests / session_registrations / training_sessions are byte-identical after the migration (incl. charged and penalty-collected rows)';
 end $$;
+SQL
+# Harness self-test hook (see 151b_waitlist_cancel_harness_selftest.sh): a deliberately failing assertion INSIDE the same rolled-back
+# transaction, so the harness can prove that a failed assertion surfaces as a non-zero exit status. Nothing is modified either way.
+if [ "${T151_FORCE_FAIL:-}" = "1" ]; then
+  cat <<'SQL'
+do $$ begin raise exception 'NO-BACKFILL FAILED: forced failure (harness self-test)'; end $$;
+SQL
+fi
+cat <<'SQL'
 rollback;
 SQL
-} | $PSQL -v ON_ERROR_STOP=1 -f - 2>&1 | grep -E "NO-BACKFILL|fixture charged|ERROR|WARNING|FAILED" || { echo "FAILED: no result line"; exit 1; }
+} > "$TMP"
+RC=0
+RESULT=$($PSQL -v ON_ERROR_STOP=1 -f - < "$TMP" 2>&1) || RC=$?
+
+# The exit status of THIS script is decided here, never by a grep over the output (a match on a FAILED/ERROR line used to count as success).
+printf '%s\n' "$RESULT" | grep -E "NO-BACKFILL|fixture charged|ERROR|WARNING|FAILED" || true
+if [ "$RC" -ne 0 ]; then echo "FAILED: psql exited with status $RC (an assertion failed or the database call failed)"; exit 1; fi
+if printf '%s\n' "$RESULT" | grep -qE "NO-BACKFILL FAILED|ERROR:"; then echo "FAILED: failure lines in the output"; exit 1; fi
+if ! printf '%s\n' "$RESULT" | grep -q "NO-BACKFILL PASSED"; then echo "FAILED: no PASSED result line"; exit 1; fi
+exit 0
