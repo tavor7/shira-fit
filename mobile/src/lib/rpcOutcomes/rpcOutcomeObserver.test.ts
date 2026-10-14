@@ -46,11 +46,15 @@ describe("observation: classification of application-level outcomes (HTTP succes
 
   it("E. UNCERTAIN stays uncertain, needs review, is not future-reportable", () => {
     const { o } = obs();
-    for (const [op, code] of [["cancel_registration", "update_failed"], ["set_registration_attendance", "update_failed"], ["set_manual_participant_attendance", "update_failed"], ["edit_subscription_version", "concurrent_modification"], ["_try_sync_signup_consent_for_user", "user_not_found"]]) {
+    // set_registration_attendance's final UPDATE now requires status='active' (20261019100000), so its
+    // own 0-row-update case returns the more accurate not_active_registration (a `business` code) instead
+    // of update_failed -- that pair is no longer reachable and was dropped from the registry. The other
+    // four pairs below are every remaining "uncertain"-classified operation/code pair in the registry.
+    for (const [op, code] of [["cancel_registration", "update_failed"], ["set_manual_participant_attendance", "update_failed"], ["edit_subscription_version", "concurrent_modification"], ["_try_sync_signup_consent_for_user", "user_not_found"]]) {
       o.observe(op, ok({ ok: false, error: code }));
     }
     const s = o.getSnapshot();
-    expect(s.observations).toHaveLength(5);
+    expect(s.observations).toHaveLength(4);
     expect(s.observations.every((x) => x.class === "uncertain" && x.needsReview && !x.futureReportable)).toBe(true);
   });
 

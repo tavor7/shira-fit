@@ -90,11 +90,13 @@ Evidence = the function text, the callers, FK/trigger structure and production d
 | `staff_update_profile_text -> user_not_found` | authorization_validation | raised for an empty id text: input validation |
 | `account_disabled` | operation-specific | caller disabled (`register_for_session`, `request_waitlist`) = authorization_validation; target participant disabled (staff add/move) = business |
 | **`edit_subscription_version -> concurrent_modification`** | **uncertain** | update guarded by the admin advisory lock found 0 rows: a writer bypasses the lock, or the branch is purely defensive |
-| **`cancel_registration`, `set_registration_attendance`, `set_manual_participant_attendance -> update_failed`** | **uncertain** | row existed at the previous check, then the UPDATE touched 0 rows: benign race (double tap) or invariant; the code cannot tell which |
+| **`cancel_registration`, `set_manual_participant_attendance -> update_failed`** | **uncertain** | row existed at the previous check, then the UPDATE touched 0 rows: benign race (double tap) or invariant; the code cannot tell which |
 | **`_try_sync_signup_consent_for_user -> user_not_found`** | **uncertain** | auth.users lookup; impossible inside the trigger, reachable from the client sync RPC only with a live token of a deleted account |
 
-Unresolved (5 pairs) need a product/implementation decision: the three `update_failed` pairs, `concurrent_modification`,
-and `_try_sync_signup_consent_for_user -> user_not_found`.
+Unresolved (4 pairs) need a product/implementation decision: the two remaining `update_failed` pairs, `concurrent_modification`,
+and `_try_sync_signup_consent_for_user -> user_not_found`. (`set_registration_attendance`'s final UPDATE now requires
+`status = 'active'` -- 20261019100000 -- so its 0-row-update case returns the more accurate, already-resolved
+`not_active_registration` instead, and was dropped from this uncertain list.)
 
 ## Open follow-ups discovered, deliberately NOT fixed in Phase 3A
 

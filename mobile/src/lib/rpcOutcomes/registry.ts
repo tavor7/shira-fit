@@ -455,7 +455,6 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     invalid_status: V,
     not_active_registration: B,
     session_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
-    update_failed: [U, "A prior check found the row, then the UPDATE touched 0 rows: either a benign concurrent change (double tap) or an invariant problem. The code does not distinguish the two."],
   },
   set_registration_opening_schedule: {
     invalid_time: V,
