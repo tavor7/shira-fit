@@ -37,7 +37,6 @@ export function isManagerOverviewFlatTool(pathname: string): boolean {
     pathname === "/manager/trainer-colors" ||
     pathname === "/manager/roles" ||
     pathname === "/manager/activity-log" ||
-    pathname === "/manager/system-issues" ||
     pathname === "/manager/account-payments" ||
     pathname === "/manager/documents-invoices" ||
     pathname === "/manager/pricing" ||
@@ -71,6 +70,7 @@ export const STUDIO_SETUP_ITEM_PATHS = [
   "/manager/birthday-messages",
   "/manager/whatsapp-rollout",
   "/manager/legal-settings",
+  "/manager/system-issues",
 ] as const;
 
 export function isStudioSetupIndex(pathname: string): boolean {

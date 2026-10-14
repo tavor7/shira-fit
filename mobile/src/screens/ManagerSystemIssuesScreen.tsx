@@ -13,6 +13,7 @@ import { ListRowSkeleton } from "../components/ListRowSkeleton";
 import { ChipRow } from "../components/systemIssues/ChipRow";
 import { IssueRow } from "../components/systemIssues/IssueRow";
 import { SummaryCards } from "../components/systemIssues/SummaryCards";
+import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { fetchIssuePage, fetchSummary } from "../lib/systemIssues/queries";
 import { useRefetchOnResume } from "../hooks/useRefetchOnResume";
@@ -159,6 +160,7 @@ export default function ManagerSystemIssuesScreen() {
 
   const header = (
     <View style={styles.header}>
+      <ManagerStudioSetupTabs />
       <AppText variant="display" isRTL={isRTL}>
         {t("sysIssues.title")}
       </AppText>

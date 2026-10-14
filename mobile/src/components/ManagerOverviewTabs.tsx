@@ -447,6 +447,14 @@ export function useStudioSetupItems(): StudioSetupItem[] {
         href: "/(app)/manager/legal-settings",
         isActive: (p) => startsWithAny(p, ["/manager/legal-settings"]),
       },
+      {
+        id: "systemIssues",
+        label: t("menu.systemIssues"),
+        icon: "alert-circle-outline",
+        description: t("setup.desc.systemIssues"),
+        href: "/(app)/manager/system-issues",
+        isActive: (p) => startsWithAny(p, ["/manager/system-issues"]),
+      },
     ],
     [t]
   );

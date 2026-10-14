@@ -120,7 +120,6 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
               "/manager/finance-expected",
               "/manager/missing-attendance",
               "/manager/activity-log",
-              "/manager/system-issues",
               "/manager/reports",
               "/manager/participant-history",
               "/manager/coach-sessions-report",
@@ -157,6 +156,7 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
               "/manager/birthday-messages",
               "/manager/whatsapp-rollout",
               "/manager/legal-settings",
+              "/manager/system-issues",
             ]),
         },
         {

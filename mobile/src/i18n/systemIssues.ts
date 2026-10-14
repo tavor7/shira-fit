@@ -2,6 +2,7 @@
 export const systemIssuesEn: Record<string, string> = {
   "menu.systemIssues": "System issues",
   "managerTools.systemIssuesSub": "Technical problems the system detected on its own",
+  "setup.desc.systemIssues": "Technical problems the system detected on its own",
   "screen.systemIssues": "System issues",
   "screen.systemIssueDetail": "Issue details",
 
@@ -180,6 +181,7 @@ export const systemIssuesEn: Record<string, string> = {
 export const systemIssuesHe: Record<string, string> = {
   "menu.systemIssues": "תקלות מערכת",
   "managerTools.systemIssuesSub": "בעיות טכניות שהמערכת זיהתה בעצמה",
+  "setup.desc.systemIssues": "בעיות טכניות שהמערכת זיהתה בעצמה",
   "screen.systemIssues": "תקלות מערכת",
   "screen.systemIssueDetail": "פרטי תקלה",
 

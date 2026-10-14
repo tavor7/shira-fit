@@ -244,17 +244,18 @@ describe("navigation and access", () => {
     }
   });
 
-  it("back navigation: the list returns to Overview, the detail returns to the list", () => {
-    expect(isManagerOverviewFlatTool(P)).toBe(true);
+  it("back navigation: the list is a Setup item (Setup on phones, Overview on wide screens), the detail returns to the list", () => {
+    expect(isManagerOverviewFlatTool(P)).toBe(false);
+    expect(String(getManagerParentHref(P, { setupIndexAvailable: true }))).toBe("/(app)/manager/setup");
     expect(String(getManagerParentHref(P, { setupIndexAvailable: false }))).toBe("/(app)/manager/dashboard");
     expect(String(getManagerParentHref(`${P}/abc`, { setupIndexAvailable: false }))).toBe("/(app)/manager/system-issues");
   });
 
-  it("the entry exists only in the manager Tools list; no athlete, coach or shared screen links to it", () => {
+  it("the entry exists only in manager-only places (Tools list, Setup menu); no athlete, coach or shared screen links to it", () => {
     const read = (f: string) => fs.readFileSync(path.join(SRC, f), "utf8");
     expect(read("screens/ManagerToolsScreen.tsx")).toMatch(/menu\.systemIssues[\s\S]*?\/\(app\)\/manager\/system-issues/);
     const walk = (dir: string, out: string[] = []): string[] => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); if (e.isDirectory()) walk(p, out); else if (/\.(ts|tsx)$/.test(e.name) && !/\.test\./.test(e.name)) out.push(p); } return out; };
-    const offenders = walk(SRC).filter((f) => /system-issues/.test(fs.readFileSync(f, "utf8"))).map((f) => path.relative(SRC, f)).filter((f) => !/^(screens\/Manager|lib\/sessionsHomeNavigation|lib\/systemIssues|components\/GlobalQuickMenu|components\/systemIssues)/.test(f));
+    const offenders = walk(SRC).filter((f) => /system-issues/.test(fs.readFileSync(f, "utf8"))).map((f) => path.relative(SRC, f)).filter((f) => !/^(screens\/Manager|lib\/sessionsHomeNavigation|lib\/systemIssues|components\/GlobalQuickMenu|components\/ManagerOverviewTabs|components\/systemIssues)/.test(f));
     expect(offenders).toEqual([]);
     for (const f of walk(path.join(SRC, "..", "app")).filter((x) => /\/(athlete|coach)\//.test(x))) expect(fs.readFileSync(f, "utf8")).not.toMatch(/system-issues|systemIssues/);
   });
@@ -268,7 +269,7 @@ describe("navigation and access", () => {
 });
 
 describe("internationalization", () => {
-  const keys = (lang: "en" | "he") => Object.keys(translations[lang]).filter((k) => k.startsWith("sysIssues.") || ["menu.systemIssues", "managerTools.systemIssuesSub", "screen.systemIssues", "screen.systemIssueDetail"].includes(k));
+  const keys = (lang: "en" | "he") => Object.keys(translations[lang]).filter((k) => k.startsWith("sysIssues.") || ["menu.systemIssues", "managerTools.systemIssuesSub", "setup.desc.systemIssues", "screen.systemIssues", "screen.systemIssueDetail"].includes(k));
   it("English and Hebrew define exactly the same keys, all non-empty, with the same placeholders", () => {
     expect(keys("he").sort()).toEqual(keys("en").sort());
     expect(keys("en").length).toBeGreaterThan(150);

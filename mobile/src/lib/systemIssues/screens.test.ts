@@ -34,6 +34,7 @@ jest.mock("../../context/I18nContext", () => ({
 }));
 jest.mock("../../context/AppAlertContext", () => ({ useAppAlert: () => mockAlert }));
 jest.mock("../../hooks/useScreenLayout", () => ({ useScreenContentStyle: () => ({}) }));
+jest.mock("../../components/ManagerOverviewTabs", () => ({ ManagerStudioSetupTabs: () => null }));
 
 const ListScreen = require("../../screens/ManagerSystemIssuesScreen").default as React.ComponentType;
 const DetailScreen = require("../../screens/ManagerSystemIssueDetailScreen").default as React.ComponentType;
