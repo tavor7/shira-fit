@@ -2,6 +2,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { AppModal } from "./AppModal";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { useI18n } from "../context/I18nContext";
 
 export type AppAlertActionVariant = "primary" | "secondary" | "danger";
 
@@ -28,13 +29,17 @@ type Props = {
  * so backdrop/shadow/sizing stay in sync with every other sheet/popover in the app.
  */
 export function AppAlertDialog({ visible, title, message, actions, onRequestClose, isRTL, instanceKey }: Props) {
+  const { t } = useI18n();
   return (
     <AppModal
       key={instanceKey}
       visible={visible}
       onClose={onRequestClose}
       variant="dialog"
-      backdropAccessibilityLabel={actions[0]?.label ?? ""}
+      // A neutral dismissal label: the backdrop never runs one of the actions (see AppAlertContext.dismissOnly), so it must not be announced as one.
+      backdropAccessibilityLabel={t("common.close")}
+      // Five mute durations, long Hebrew copy, short windows and large text must never push an action out of reach.
+      scrollContent
     >
       <View style={styles.card}>
         {title ? (

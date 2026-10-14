@@ -9,6 +9,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { theme } from "../theme";
@@ -18,6 +19,7 @@ import { useI18n } from "../context/I18nContext";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { AppSearchField } from "../components/AppSearchField";
 import { AppModal } from "../components/AppModal";
+import { SHORT_WINDOW_HEIGHT } from "../lib/modalLayout";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { EmptyState } from "../components/EmptyState";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
@@ -55,6 +57,9 @@ function familyRpcError(code: string, t: (k: string) => string, language: string
 }
 
 export default function FamilyManagementScreen() {
+  const { height: winH } = useWindowDimensions();
+  // Very short window (400% zoom, landscape phone): the editor card scrolls as a whole and the member list is capped, so the name field, search and Save stay reachable.
+  const shortWindow = winH < SHORT_WINDOW_HEIGHT;
   const { language, t, isRTL } = useI18n();
   const screenContent = useScreenContentStyle("standard");
   const { showToast } = useToast();
@@ -359,6 +364,7 @@ export default function FamilyManagementScreen() {
           setEditorOpen(false);
         }}
         variant="dialog"
+        scrollContent="short"
         maxHeightPct={0.9}
         backdropAccessibilityLabel={t("ui.familyManagement.dismiss")}
         cardStyle={styles.editorCard}
@@ -395,7 +401,7 @@ export default function FamilyManagementScreen() {
             style={styles.memberSearch}
           />
 
-          <View style={styles.choicesPanel}>
+          <View style={[styles.choicesPanel, shortWindow && styles.choicesPanelShort]}>
             {candidatesLoading && candidateRows.length === 0 ? (
               <ActivityIndicator color={theme.colors.cta} style={styles.choicesLoader} />
             ) : candidateRows.length === 0 ? (
@@ -546,6 +552,8 @@ const styles = StyleSheet.create({
     maxHeight: 260,
     overflow: "hidden",
   },
+  // Short window: the card scrolls as a whole, so the member list must not fill the whole visible area (it would trap the scroll).
+  choicesPanelShort: { maxHeight: 110, minHeight: 96 },
   choicesScroll: { flexGrow: 0 },
   choicesScrollContent: { paddingVertical: 4 },
   choicesLoader: { marginVertical: theme.spacing.lg },

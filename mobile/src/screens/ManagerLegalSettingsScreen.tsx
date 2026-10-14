@@ -129,6 +129,7 @@ export default function ManagerLegalSettingsScreen() {
         visible={!!historyFor}
         onClose={() => setHistoryFor(null)}
         variant="sheet"
+        scrollContent
         backdropAccessibilityLabel={t("common.close")}
       >
         <View style={styles.historySheet}>

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { theme } from "../theme";
 import { AppModal } from "./AppModal";
+import { pickerBodyMinHeight } from "../lib/modalLayout";
 import {
   fetchGoLiveStats,
   listGoLiveGaps,
@@ -24,6 +25,7 @@ function gapTitle(gap: GoLiveGapType, language: "he" | "en"): string {
 }
 
 export function GoLiveReadinessSection({ isRTL, language }: Props) {
+  const { height: winHeight } = useWindowDimensions();
   const router = useRouter();
   const [stats, setStats] = useState<GoLiveStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,10 +107,11 @@ export function GoLiveReadinessSection({ isRTL, language }: Props) {
         visible={activeGap != null}
         onClose={closeGap}
         variant="sheet"
+        scrollContent="short"
         maxHeightPct={0.92}
         backdropAccessibilityLabel={language === "he" ? "סגור" : "Close"}
       >
-        <View style={styles.modalBody}>
+        <View style={[styles.modalBody, { minHeight: pickerBodyMinHeight(winHeight, 320, 0.92) }]}>
           <View style={styles.modalHead}>
             <Text style={[styles.modalTitle, isRTL && styles.rtl]}>
               {activeGap ? gapTitle(activeGap, language) : ""}
@@ -199,7 +202,7 @@ const styles = StyleSheet.create({
   statCount: { fontSize: 24, fontWeight: "800", color: theme.colors.text },
   statCountWarn: { color: theme.colors.error },
   statLabel: { marginTop: 4, ...theme.typography.label, color: theme.colors.textMuted },
-  modalBody: { flex: 1, minHeight: 320 },
+  modalBody: { flex: 1 },
   modalHead: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.sm, gap: 4 },
   modalTitle: { ...theme.typography.headline, color: theme.colors.text },
   modalCount: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },

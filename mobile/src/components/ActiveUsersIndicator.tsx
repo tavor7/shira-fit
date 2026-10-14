@@ -44,6 +44,7 @@ export function ActiveUsersIndicator() {
         visible={open}
         onClose={() => setOpen(false)}
         variant="sheet"
+        scrollContent
         backdropAccessibilityLabel={t("common.close")}
       >
         <Text style={[styles.sheetTitle, isRTL && styles.rtlText]}>{t("activeUsers.title")}</Text>

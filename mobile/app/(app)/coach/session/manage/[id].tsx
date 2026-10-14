@@ -580,6 +580,7 @@ export default function CoachSessionManageScreen() {
         visible={dupOpen}
         onClose={() => (dupBusy ? null : setDupOpen(false))}
         variant="dialog"
+        scrollContent
         backdropAccessibilityLabel={t("common.cancel")}
         cardStyle={styles.dupCard}
       >

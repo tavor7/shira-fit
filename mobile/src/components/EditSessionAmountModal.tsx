@@ -44,6 +44,7 @@ export function EditSessionAmountModal({
       visible={visible}
       onClose={onClose}
       variant="sheet"
+      scrollContent
       backdropAccessibilityLabel={t("ui.editSessionAmount.dismiss")}
       cardStyle={styles.modalBox}
     >

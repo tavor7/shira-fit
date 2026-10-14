@@ -104,6 +104,7 @@ export function FoldableActionsMenu({
         visible={open}
         onClose={() => setOpen(false)}
         variant="popover"
+        scrollContent
         width={cardWidth}
         anchorRect={anchor ?? undefined}
         backdropAccessibilityLabel={backdropAccessibilityLabel}

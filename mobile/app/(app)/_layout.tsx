@@ -32,6 +32,12 @@ import { AppPresenceProvider } from "../../src/context/AppPresenceContext";
 
 const headerStyle = appHeaderStyle;
 const headerTitleStyle = appHeaderTitleStyle;
+/** Header container styles (web / JS header). Typed loosely: the native-stack option types do not list them. */
+const headerLayoutOptions = {
+  headerLeftContainerStyle: { flexShrink: 0 },
+  headerRightContainerStyle: { flexShrink: 0, flexBasis: "auto" },
+  headerTitleContainerStyle: { flexShrink: 1, minWidth: 0, maxWidth: "100%" },
+};
 
 export default function AppLayout() {
   const { session, loading, profile, authUnavailable, retryAuthBootstrap } = useAuth();
@@ -155,6 +161,10 @@ export default function AppLayout() {
         headerTitleAlign: "left",
         headerLeft: () => <AppHeaderLeft />,
         headerRight: () => <AppHeaderRight />,
+        // The header assumes ~52px of buttons per side; here the left holds back + menu and the right the avatar, so on narrow
+        // phones a long title ran under the avatar (and the avatar container could shrink to nothing). Controls never shrink; the
+        // title takes what is left and ends in an ellipsis.
+        ...(headerLayoutOptions as object),
         headerShadowVisible: false,
         headerBackTitle: t("common.back"),
         // expo-router typed routes narrow header styles; runtime accepts full RN styles.

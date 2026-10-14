@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -48,6 +49,7 @@ import type { AthleteAccountPayment } from "../types/database";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { useCountUp } from "../hooks/useCountUp";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
+import { pickerBodyMinHeight } from "../lib/modalLayout";
 import { displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { pluralKey } from "../lib/pluralKey";
@@ -103,6 +105,7 @@ const SHOW_MANUAL_RECEIPT_ACTION = false;
 
 export default function AccountPaymentsScreen() {
   const router = useRouter();
+  const { height: winHeight } = useWindowDimensions();
   const screenContent = useScreenContentStyle("standard");
   const { language, t, isRTL } = useI18n();
   const { showConfirm } = useAppAlert();
@@ -907,6 +910,7 @@ export default function AccountPaymentsScreen() {
         visible={payeePickerOpen}
         onClose={() => setPayeePickerOpen(false)}
         variant="sheet"
+        scrollContent="short"
         backdropAccessibilityLabel={t("common.cancel")}
         cardStyle={styles.pickerSheet}
       >
@@ -918,7 +922,7 @@ export default function AccountPaymentsScreen() {
             <Text style={styles.pickerClose}>{t("common.cancel")}</Text>
           </Pressable>
         </View>
-        <View style={styles.pickerBody}>
+        <View style={[styles.pickerBody, { minHeight: pickerBodyMinHeight(winHeight, 280) }]}>
           <AppSearchField
             value={pickerQ}
             onChangeText={setPickerQ}
@@ -971,6 +975,7 @@ export default function AccountPaymentsScreen() {
         visible={memberPickOpen}
         onClose={() => setMemberPickOpen(false)}
         variant="sheet"
+        scrollContent
         backdropAccessibilityLabel={t("common.cancel")}
         cardStyle={styles.pickerSheet}
       >
@@ -980,7 +985,7 @@ export default function AccountPaymentsScreen() {
             <Text style={styles.pickerClose}>{t("common.cancel")}</Text>
           </Pressable>
         </View>
-        <View style={styles.pickerBody}>
+        <View style={[styles.pickerBody, { minHeight: pickerBodyMinHeight(winHeight, 280) }]}>
           {payeeFilter.type === "family"
             ? payeeFilter.members.map((m) => (
                 <Pressable
@@ -1218,7 +1223,7 @@ const styles = StyleSheet.create({
   pickerHeaderRtl: { flexDirection: "row-reverse" },
   pickerTitle: { fontSize: 17, fontWeight: "800", color: theme.colors.text, flex: 1 },
   pickerClose: { fontSize: 15, fontWeight: "800", color: theme.colors.textMuted },
-  pickerBody: { padding: theme.spacing.md, flex: 1, minHeight: 280 },
+  pickerBody: { padding: theme.spacing.md, flex: 1 },
   pickerList: { marginTop: theme.spacing.sm, maxHeight: 360 },
   pickerLoading: { marginTop: theme.spacing.lg },
   pickerRow: {

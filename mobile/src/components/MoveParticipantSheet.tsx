@@ -366,6 +366,8 @@ export function MoveParticipantSheet({
       visible={visible}
       onClose={handleClose}
       variant="sheet"
+      // The session list (FlatList) scrolls itself; only the confirm step is plain content that needs the card to scroll.
+      scrollContent={picked ? true : "short"}
       maxHeightPct={0.88}
       backdropAccessibilityLabel={t("common.cancel")}
     >

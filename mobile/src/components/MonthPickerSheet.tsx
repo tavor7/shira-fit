@@ -67,6 +67,7 @@ export function MonthPickerSheet({ visible, anchor, onClose, onSelect }: Props) 
       visible={visible}
       onClose={onClose}
       variant="sheet"
+      scrollContent="short"
       backdropAccessibilityLabel={t("ui.monthPicker.dismiss")}
       maxHeightPct={0.72}
     >
@@ -146,7 +147,8 @@ export function MonthPickerSheet({ visible, anchor, onClose, onSelect }: Props) 
 }
 
 const styles = StyleSheet.create({
-  sheet: { paddingBottom: theme.spacing.lg },
+  // Shrinkable, so the month grid scrolls inside the card on short windows instead of being clipped.
+  sheet: { paddingBottom: theme.spacing.lg, flexShrink: 1, minHeight: 0 },
   toolbar: {
     flexDirection: "row",
     alignItems: "center",

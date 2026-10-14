@@ -585,6 +585,7 @@ export default function ManagerActivityLogScreen() {
           visible={dateRangePickerOpen}
           onClose={() => setDateRangePickerOpen(false)}
           variant="sheet"
+          scrollContent="short"
           maxHeightPct={0.62}
           backdropAccessibilityLabel={t("common.close")}
         >
@@ -659,6 +660,7 @@ export default function ManagerActivityLogScreen() {
           visible={activityPickerOpen}
           onClose={() => setActivityPickerOpen(false)}
           variant="sheet"
+          scrollContent="short"
           maxHeightPct={0.72}
           backdropAccessibilityLabel={t("common.close")}
         >
@@ -979,7 +981,8 @@ const styles = StyleSheet.create({
   typeFieldPressed: { opacity: 0.88 },
   iconFieldText: { flex: 1, fontSize: 14, fontWeight: "700", color: theme.colors.text },
   chevron: { fontSize: 11, color: theme.colors.textMuted, marginTop: 1 },
-  typeSheet: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg },
+  // Shrinkable, so the option list scrolls inside the sheet on short windows instead of being clipped.
+  typeSheet: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, flexShrink: 1, minHeight: 0 },
   typeSheetHandle: {
     alignSelf: "center",
     width: 36,

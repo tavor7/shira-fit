@@ -190,6 +190,7 @@ export function ManagerSendMessagePanel() {
         visible={previewSent !== null}
         onClose={() => setPreviewSent(null)}
         variant="dialog"
+        scrollContent
         animationType="fade"
         backdropAccessibilityLabel={t("common.close")}
         backdropStyle={styles.previewModalBackdrop}

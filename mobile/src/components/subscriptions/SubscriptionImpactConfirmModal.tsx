@@ -73,7 +73,8 @@ export function SubscriptionImpactConfirmModal({ visible, action, impact, busy, 
   const dayCount = (date: string) => all.filter((it) => it.session_date === date).length;
 
   return (
-    <AppModal visible={visible} onClose={onCancel} variant="dialog" backdropAccessibilityLabel={t("subscriptions.impact.cancel")}>
+    // scrollContent="short": on a very short window (400% zoom, landscape phone) the explanation body shrank to 0px above the pinned actions; the whole card scrolls instead, so the full billing impact can be read before confirming.
+    <AppModal visible={visible} onClose={onCancel} variant="dialog" scrollContent="short" backdropAccessibilityLabel={t("subscriptions.impact.cancel")}>
       <View style={styles.card}>
         {/* Content scrolls when the window is short (320×568); the actions below stay visible. */}
         <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} keyboardShouldPersistTaps="handled">
