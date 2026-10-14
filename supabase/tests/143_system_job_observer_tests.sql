@@ -6,8 +6,37 @@
 -- monitored=false, job-id churn, changed schedule (grace), changed command, new unregistered job + learning,
 -- in-flight revisit (counted once), unknown business outcome, observer step failure isolation, the paused
 -- switch, shadow-only behaviour (no issue/event/bucket/transition rows ever), and the redaction of messages.
+\set ON_ERROR_STOP on
 set client_min_messages to notice;
 begin;
+
+-- ISOLATION FROM THE LIVE OBSERVER (Phase 4B.3). This suite drives the observer with synthetic scheduler data and assumes it is the FIRST cycle after the
+-- migration: the eight seeded job rows exist (registered, configured intervals) but nothing has been observed yet, so every job bootstraps from history.
+-- On a database where the real pg_cron observer has already run, public.system_job_state holds real runtime state (observed runs, cursors, learned
+-- jobs), the first cycle bootstrapped nothing and O1 failed. Everything below happens inside this transaction, so it is rolled back and the real
+-- observer state is left untouched. Production observer code and the assertions below are unchanged.
+--   1. take the observer's own advisory lock (blocking): waits for a real cycle that is running right now and keeps the cron observer out for the
+--      whole transaction (a real cycle that starts meanwhile returns immediately as an overlapping run); the observer's try-lock then succeeds
+--      because this session already holds it;
+--   2. restore the post-migration state: drop auto-discovered rows (registered = false) and reset every RUNTIME column of the seeded rows to its
+--      default, keeping the configuration columns the seed insert in 20261007100000_system_job_state_foundation.sql sets.
+do $$
+declare
+  v_cols text;
+begin
+  perform pg_advisory_xact_lock(hashtext('shira.system_job_observe'));
+  delete from public.system_job_state where not registered;
+  select string_agg(format('%I = default', c.column_name), ', ' order by c.ordinal_position) into v_cols
+    from information_schema.columns c
+   where c.table_schema = 'public' and c.table_name = 'system_job_state'
+     and c.column_name not in ('job_key', 'kind', 'subsystem', 'criticality', 'registered', 'monitored', 'expected_interval_s',
+                               'interval_source', 'stale_after_s', 'severity_stale', 'severity_failure', 'severity_soft', 'escalation',
+                               'recovery_runs');
+  execute 'update public.system_job_state set ' || v_cols;
+  if (select count(*) from public.system_job_state) <> 8 then
+    raise exception 'ISOLATION FAILED: expected the 8 seeded job rows after the reset, found %', (select count(*) from public.system_job_state);
+  end if;
+end $$;
 
 create temp table fk_jobs (jobid bigint primary key, jobname text, schedule text, command text, active boolean default true);
 create temp table fk_runs (runid bigint generated always as identity primary key, jobid bigint, status text, return_message text,
