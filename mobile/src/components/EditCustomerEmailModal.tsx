@@ -55,6 +55,7 @@ export function EditCustomerEmailModal({
       visible={visible}
       onClose={onClose}
       variant="dialog"
+      scrollContent
       backdropAccessibilityLabel={t("common.close")}
     >
       <View style={styles.body}>

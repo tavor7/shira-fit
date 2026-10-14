@@ -83,6 +83,7 @@ export function NotificationActivationModal() {
       visible={visible}
       onClose={requestClose}
       variant="sheet"
+      scrollContent
       backdropAccessibilityLabel={t("common.cancel")}
     >
       {confirmSkip ? (

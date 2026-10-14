@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { supabase } from "../lib/supabase";
@@ -8,6 +8,7 @@ import { AppModal } from "./AppModal";
 import { AppSearchField } from "./AppSearchField";
 import { EmptyState } from "./EmptyState";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { pickerBodyMinHeight } from "../lib/modalLayout";
 
 export type PayeePickerRow =
   | { kind: "app"; id: string; full_name: string; username?: string; phone?: string }
@@ -22,6 +23,7 @@ type Props = {
 /** Searchable athlete + quick-add picker, reused wherever a payment/receipt list needs a
  * "filter by payee" control (Payments received, Pending receipts, Documents). */
 export function PayeePickerModal({ visible, onClose, onSelect }: Props) {
+  const { height } = useWindowDimensions();
   const { t, isRTL } = useI18n();
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<PayeePickerRow[]>([]);
@@ -74,6 +76,7 @@ export function PayeePickerModal({ visible, onClose, onSelect }: Props) {
       visible={visible}
       onClose={onClose}
       variant="sheet"
+      scrollContent="short"
       backdropAccessibilityLabel={t("common.cancel")}
       cardStyle={styles.sheet}
     >
@@ -83,7 +86,7 @@ export function PayeePickerModal({ visible, onClose, onSelect }: Props) {
           <Text style={styles.close}>{t("common.cancel")}</Text>
         </Pressable>
       </View>
-      <View style={styles.body}>
+      <View style={[styles.body, { minHeight: pickerBodyMinHeight(height, 280) }]}>
         <AppSearchField
           value={query}
           onChangeText={setQuery}
@@ -137,7 +140,7 @@ const styles = StyleSheet.create({
   headerRtl: { flexDirection: "row-reverse" },
   title: { fontSize: 17, fontWeight: "800", color: theme.colors.text, flex: 1 },
   close: { fontSize: 15, fontWeight: "800", color: theme.colors.textMuted },
-  body: { padding: theme.spacing.md, flex: 1, minHeight: 280 },
+  body: { padding: theme.spacing.md, flex: 1 },
   loading: { marginTop: theme.spacing.lg },
   list: { marginTop: theme.spacing.sm, maxHeight: 400 },
   row: {

@@ -4,6 +4,7 @@ import {
   Easing,
   Modal,
   Pressable,
+  ScrollView,
   StyleProp,
   StyleSheet,
   View,
@@ -12,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LAYOUT, screenContentFrame } from "../lib/screenLayout";
+import { modalMaxHeight, SHORT_WINDOW_HEIGHT } from "../lib/modalLayout";
 import { theme } from "../theme";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { useWebBackDismiss } from "../lib/webBackDismiss";
@@ -36,6 +38,14 @@ type Props = {
   /** Additional backdrop style overrides. */
   backdropStyle?: StyleProp<ViewStyle>;
   animationType?: "fade" | "slide";
+  /**
+   * Opt-in: render the children in an internal ScrollView so content taller than the card (short windows, landscape
+   * phones, 400% zoom, large text) scrolls instead of being clipped. Leave off for children that manage their own
+   * scrolling or fill the card (flex / FlatList): nesting a second scroll area would break those layouts.
+   * `"short"`: for those self-scrolling bodies (pinned header + list), scroll the whole card only when the window is very short
+   * (< SHORT_WINDOW_HEIGHT), so normal sizes keep their layout and a 320×200 window still reaches every control.
+   */
+  scrollContent?: boolean | "short";
 };
 
 export function AppModal({
@@ -50,6 +60,7 @@ export function AppModal({
   anchorRect,
   backdropStyle,
   animationType,
+  scrollContent,
 }: Props) {
   const insets = useSafeAreaInsets();
   const { height, width: screenW } = useWindowDimensions();
@@ -85,18 +96,12 @@ export function AppModal({
 
   const isDialog = variant === "dialog";
   const effectiveMaxHeightPct = maxHeightPct ?? (variant === "sheet" ? 0.8 : isDialog ? 0.85 : 0.88);
-  const maxH = Math.max(
-    220,
-    Math.round(height * effectiveMaxHeightPct) -
-      (variant === "sheet" ? insets.bottom : isDialog ? theme.spacing.lg * 2 : 0) -
-      theme.spacing.md
-  );
 
   const dialogWidth = useMemo(() => {
     if (!isDialog) return width;
-    const maxW = Math.min(screenW - theme.spacing.lg * 2, 440);
+    const maxW = Math.min(screenW - theme.spacing.lg * 2 - insets.left - insets.right, 440);
     return width ?? maxW;
-  }, [isDialog, screenW, width]);
+  }, [isDialog, screenW, width, insets.left, insets.right]);
 
   const cardBase = useMemo(() => {
     if (variant === "sheet") {
@@ -122,6 +127,17 @@ export function AppModal({
     return { top, left, width: cardW };
   }, [anchorRect, variant, width, height, screenW]);
 
+  const maxH = modalMaxHeight({
+    variant,
+    windowHeight: height,
+    pct: effectiveMaxHeightPct,
+    insetTop: insets.top,
+    insetBottom: insets.bottom,
+    dialogPadding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    popoverTop: popoverPos?.top,
+  });
+
   const cardContentStyle = [
     styles.card,
     cardBase,
@@ -142,6 +158,30 @@ export function AppModal({
     cardStyle,
   ];
 
+  // Opt-in internal scrolling (see `scrollContent`). `overscrollBehavior: contain` stops the wheel / touch scroll from chaining to the page behind on web.
+  const scrolls = scrollContent === true || (scrollContent === "short" && height < SHORT_WINDOW_HEIGHT);
+  const body = scrolls ? (
+    <ScrollView
+      style={styles.scroll}
+      bounces={false}
+      showsVerticalScrollIndicator
+      keyboardShouldPersistTaps="handled"
+      nestedScrollEnabled
+    >
+      {children}
+    </ScrollView>
+  ) : (
+    children
+  );
+
+  // Landscape notches / cutouts: keep dialogs and sheets clear of the side and bottom safe areas (all zero in a desktop browser).
+  const backdropInsets =
+    isDialog
+      ? { paddingTop: theme.spacing.lg + insets.top, paddingBottom: theme.spacing.lg + insets.bottom, paddingLeft: theme.spacing.lg + insets.left, paddingRight: theme.spacing.lg + insets.right }
+      : variant === "sheet"
+        ? { paddingLeft: insets.left, paddingRight: insets.right }
+        : null;
+
   return (
     <Modal
       visible={isPopover ? popoverMounted : visible}
@@ -153,6 +193,7 @@ export function AppModal({
         style={[
           styles.backdrop,
           variant === "sheet" ? styles.backdropSheet : isDialog ? styles.backdropDialog : styles.backdropPopover,
+          backdropInsets,
           isPopover ? { opacity: popoverProgress } : null,
           backdropStyle,
         ]}
@@ -177,10 +218,10 @@ export function AppModal({
               },
             ]}
           >
-            {children}
+            {body}
           </Animated.View>
         ) : (
-          <View style={cardContentStyle}>{children}</View>
+          <View style={cardContentStyle}>{body}</View>
         )}
       </Animated.View>
     </Modal>
@@ -217,6 +258,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 12,
   },
+  scroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+    minHeight: 0,
+    // react-native-web accepts this style; it keeps the scroll inside the card.
+    overscrollBehavior: "contain",
+  } as ViewStyle,
   cardPopover: {
     marginTop: theme.spacing.sm,
   },

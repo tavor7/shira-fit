@@ -564,6 +564,7 @@ export default function AthleteSessionDetail() {
         visible={cancelOpen}
         onClose={() => setCancelOpen(false)}
         variant="dialog"
+        scrollContent
         backdropAccessibilityLabel={t("common.cancel")}
         cardStyle={styles.modalCard}
       >

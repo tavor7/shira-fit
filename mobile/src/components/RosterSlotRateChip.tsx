@@ -150,6 +150,7 @@ export function RosterSlotRateChip({
         visible={open}
         onClose={() => !saving && setOpen(false)}
         variant="dialog"
+        scrollContent
         backdropAccessibilityLabel={t("common.cancel")}
       >
         <View style={styles.dialog}>

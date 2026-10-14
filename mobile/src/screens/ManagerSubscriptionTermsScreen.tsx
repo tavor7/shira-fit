@@ -567,6 +567,7 @@ export default function ManagerSubscriptionTermsScreen() {
         visible={publishOpen}
         onClose={() => (busy ? null : setPublishOpen(false))}
         variant="dialog"
+        scrollContent
         backdropAccessibilityLabel={t("common.cancel")}
         cardStyle={styles.publishCard}
       >

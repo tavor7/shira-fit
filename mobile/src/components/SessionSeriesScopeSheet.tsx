@@ -24,6 +24,7 @@ export function SessionSeriesScopeSheet({ visible, mode, onClose, onChoose, allo
       visible={visible}
       onClose={onClose}
       variant="sheet"
+      scrollContent
       animationType="slide"
       backdropAccessibilityLabel={t("common.cancel")}
       cardStyle={styles.card}
