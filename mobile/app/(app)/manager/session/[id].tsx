@@ -774,6 +774,11 @@ export default function ManagerSessionDetail() {
     if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
       pushDiag(`load() start id=${String(id)}`);
     }
+    // Performance Phase 1 / step 4: these three don't depend on the session row, so they start with it instead of
+    // after it (and after the tier price lookup). Same requests, same fire-and-forget handling as before.
+    loadWaitlist();
+    loadCancellations();
+    loadNotes();
     const { data: s, error: sErr } = await supabase.from("training_sessions").select("*").eq("id", id).single();
     setLoadError(s ? null : sErr ?? { code: "PGRST116" });
     if (MANAGER_SESSION_DRAFT_DIAGNOSTICS) {
@@ -815,9 +820,6 @@ export default function ManagerSessionDetail() {
       setDefaultCoachRateIls(null);
       setCustomCoachRateDraft("");
     }
-    loadWaitlist();
-    loadCancellations();
-    loadNotes();
     setServerFormReady(true);
     loadCountRef.current += 1;
     loadFinishedAtRef.current = new Date().toISOString();

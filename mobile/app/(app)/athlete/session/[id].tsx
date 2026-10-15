@@ -106,6 +106,7 @@ export default function AthleteSessionDetail() {
     setNames(list);
   }
 
+  const loadSeqRef = useRef(0);
   const load = useCallback(async (silent = false) => {
     if (!sessionId) {
       setLoadError(t("athleteSession.missingId"));
@@ -115,12 +116,25 @@ export default function AthleteSessionDetail() {
 
     if (!silent) setLoading(true);
     setLoadError("");
+    const seq = ++loadSeqRef.current;
 
-    const { data: s, error: sErr } = await supabase
-      .from("training_sessions")
-      .select("*, trainer:profiles!coach_id(full_name)")
-      .eq("id", sessionId)
-      .single();
+    // Performance Phase 1 / step 4: everything this screen needs is independent once the session id is known, so it
+    // loads in one wave (it used to be up to seven sequential round trips). The registration-open state is only
+    // needed when the session is not open yet, so it stays a follow-up request in that case only. The screen still
+    // renders once all of it is here, so the action buttons never show before the athlete's own status is known.
+    const u = await getCurrentUserId();
+    const [sessionRes, counts, regRes, waitRes, pplRes] = await Promise.all([
+      supabase.from("training_sessions").select("*, trainer:profiles!coach_id(full_name)").eq("id", sessionId).single(),
+      fetchActiveSignupCountsBySession([sessionId]),
+      u
+        ? supabase.from("session_registrations").select("id").eq("session_id", sessionId).eq("user_id", u).eq("status", "active").maybeSingle()
+        : null,
+      u ? supabase.from("waitlist_requests").select("id").eq("session_id", sessionId).eq("user_id", u).maybeSingle() : null,
+      supabase.rpc("list_session_participants", { p_session_id: sessionId }),
+    ]);
+    if (seq !== loadSeqRef.current) return;
+
+    const { data: s, error: sErr } = sessionRes;
     if (sErr || !s) {
       setSession(null);
       setLoadError(sErr?.message ?? t("athleteSession.notFound"));
@@ -128,41 +142,18 @@ export default function AthleteSessionDetail() {
       return;
     }
 
+    const openState: SessionRegistrationOpenState | null = (s as TrainingSessionWithTrainer).is_open_for_registration
+      ? { ok: true, status: "open" }
+      : await fetchSessionRegistrationOpenState(sessionId);
+    if (seq !== loadSeqRef.current) return;
+
     setSession(s as TrainingSessionWithTrainer);
-
-    if ((s as TrainingSessionWithTrainer).is_open_for_registration) {
-      setRegOpenState({ ok: true, status: "open" });
-    } else {
-      setRegOpenState(await fetchSessionRegistrationOpenState(sessionId));
-    }
-
-    const m = await fetchActiveSignupCountsBySession([sessionId]);
-    setCount(m[sessionId] ?? 0);
-
-    const u = await getCurrentUserId();
-    if (u) {
-      const { data: r } = await supabase
-        .from("session_registrations")
-        .select("id")
-        .eq("session_id", sessionId)
-        .eq("user_id", u)
-        .eq("status", "active")
-        .maybeSingle();
-      setRegistered(!!r);
-      const { data: w } = await supabase
-        .from("waitlist_requests")
-        .select("id")
-        .eq("session_id", sessionId)
-        .eq("user_id", u)
-        .maybeSingle();
-      setOnWaitlist(!!w);
-    } else {
-      setRegistered(false);
-      setOnWaitlist(false);
-    }
-
-    const { data: ppl, error: pplErr } = await supabase.rpc("list_session_participants", { p_session_id: sessionId });
-    if (!pplErr) {
+    setRegOpenState(openState);
+    setCount(counts[sessionId] ?? 0);
+    setRegistered(!!regRes?.data);
+    setOnWaitlist(!!waitRes?.data);
+    if (!pplRes.error) {
+      const ppl = pplRes.data;
       const list = Array.isArray(ppl) ? (ppl as { full_name: string }[]).map((x) => x.full_name).filter(Boolean) : [];
       setNames(list);
     }

@@ -364,11 +364,32 @@ export function ParticipantAttendanceList({
     setDuplicateRosterSessionId(null);
     onDuplicateRosterSession?.(null);
 
-    const { data: s } = await supabase
-      .from("training_sessions")
-      .select("max_participants, session_date, start_time, coach_id, is_kickbox, custom_slot_price_ils")
-      .eq("id", sessionId)
-      .single();
+    // Performance Phase 1 / step 4: the session row, roster price overrides, registrations, manual participants and
+    // (for coaches) receipt locks are independent, so they load in one wave instead of five sequential round trips.
+    const fetchManual = async () => {
+      let res = await supabase
+        .from("session_manual_participants")
+        .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone, date_of_birth)")
+        .eq("session_id", sessionId);
+      if (res.error && isMissingColumnError(res.error.message, "date_of_birth")) {
+        res = (await supabase
+          .from("session_manual_participants")
+          .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone)")
+          .eq("session_id", sessionId)) as typeof res;
+      }
+      return res;
+    };
+    const [{ data: s }, { data: rosterPriceRows }, regRes, manRes, lockRes] = await Promise.all([
+      supabase
+        .from("training_sessions")
+        .select("max_participants, session_date, start_time, coach_id, is_kickbox, custom_slot_price_ils")
+        .eq("id", sessionId)
+        .single(),
+      supabase.from("session_roster_slot_prices").select("user_id, manual_participant_id, price_ils").eq("session_id", sessionId),
+      fetchSessionRegistrationsWithProfiles(sessionId),
+      fetchManual(),
+      viewerIsManager ? null : supabase.rpc("session_payment_receipt_locks", { p_session_id: sessionId }),
+    ]);
     const sess = s as {
       max_participants?: number;
       session_date?: string;
@@ -393,28 +414,11 @@ export function ParticipantAttendanceList({
       setSessionMeta(null);
     }
 
-    const { data: rosterPriceRows } = await supabase
-      .from("session_roster_slot_prices")
-      .select("user_id, manual_participant_id, price_ils")
-      .eq("session_id", sessionId);
     const rosterMap: Record<string, number> = {};
     for (const rp of (rosterPriceRows as { user_id?: string; manual_participant_id?: string; price_ils: number | string }[] | null) ?? []) {
       const key = rp.user_id ? `u:${rp.user_id}` : `m:${rp.manual_participant_id}`;
       const n = Number(rp.price_ils);
       if (key && Number.isFinite(n)) rosterMap[key] = n;
-    }
-
-    let regRes = await fetchSessionRegistrationsWithProfiles(sessionId);
-
-    let manRes = await supabase
-      .from("session_manual_participants")
-      .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone, date_of_birth)")
-      .eq("session_id", sessionId);
-    if (manRes.error && isMissingColumnError(manRes.error.message, "date_of_birth")) {
-      manRes = (await supabase
-        .from("session_manual_participants")
-        .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone)")
-        .eq("session_id", sessionId)) as typeof manRes;
     }
 
     const { data, error } = { data: regRes.rows, error: regRes.error ? { message: regRes.error } : null };
@@ -552,8 +556,8 @@ export function ParticipantAttendanceList({
     }
     setRosterPriceByRowId(rosterMap);
     setEffectivePriceByRowId(effectiveMap);
-    if (!viewerIsManager) {
-      const { data: lockData } = await supabase.rpc("session_payment_receipt_locks", { p_session_id: sessionId });
+    if (lockRes) {
+      const lockData = lockRes.data;
       const locked = new Set<string>();
       if (lockData?.ok) {
         for (const u of (lockData.locked_user_ids ?? []) as string[]) locked.add(`u:${u}`);
