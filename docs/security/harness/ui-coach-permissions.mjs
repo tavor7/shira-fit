@@ -84,11 +84,16 @@ async function signIn(email) {
 const visible = (page, text, exact = true) => page.getByText(text, { exact }).locator("visible=true");
 const has = async (page, text, exact = true) => (await visible(page, text, exact).count()) > 0;
 // A client-side redirect can interrupt the load itself (net::ERR_ABORTED); that's the behaviour under test, not a failure.
-const go = async (page, p) => {
-  // The web app restores the last visited route on load (src/lib/webLastRoute.ts); forget it so a direct URL is honoured.
-  await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.startsWith("shirafit:lastWebAppRoute:")) localStorage.removeItem(k); });
-  await page.goto(`${BASE}${p}`).catch((e) => { if (!String(e).includes("ERR_ABORTED")) throw e; });
-  await page.waitForTimeout(3000);
+const go = async (page, p, { expectRedirect = false } = {}) => {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.startsWith("shirafit:lastWebAppRoute:")) localStorage.removeItem(k); });
+    // A client-side redirect can interrupt the load itself (net::ERR_ABORTED). That's expected only for the redirect
+    // checks; anywhere else an interrupted load means the previous page navigated, so load again.
+    await page.goto(`${BASE}${p}`).catch((e) => { if (!String(e).includes("ERR_ABORTED")) throw e; });
+    await page.waitForTimeout(3000);
+    if (expectRedirect || new URL(page.url()).pathname === p) return;
+  }
+  throw new Error(`could not open ${p} (still on ${new URL(page.url()).pathname})`);
 };
 
 console.log(`== ${ENGINE}: coach`);
@@ -100,9 +105,9 @@ console.log(`== ${ENGINE}: coach`);
   check("menu has no Create session", !(await has(page, "Create session")));
   await page.keyboard.press("Escape");
 
-  await go(page, "/coach/create-session");
+  await go(page, "/coach/create-session", { expectRedirect: true });
   check("/coach/create-session redirects away", !new URL(page.url()).pathname.includes("create-session"), page.url());
-  await go(page, `/coach/session/manage/${S_OPEN}`);
+  await go(page, `/coach/session/manage/${S_OPEN}`, { expectRedirect: true });
   check("/coach/session/manage/:id redirects away", !new URL(page.url()).pathname.includes("/manage/"), page.url());
 
   await go(page, `/coach/session/${S_OPEN}`);
@@ -132,7 +137,10 @@ console.log(`== ${ENGINE}: coach`);
   await visible(page, "Add participant").first().click();
   await page.waitForTimeout(1500);
   // The modal decides "full" from counts it loads on open; pick only once they're shown, as a person would.
-  await page.getByText(/Capacity: 1\/1/).locator("visible=true").first().waitFor({ timeout: 15_000 });
+  await page.getByText(/Capacity: 1\/1/).locator("visible=true").first().waitFor({ timeout: 15_000 }).catch(async (e) => {
+    if (process.env.UI_SHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SHOT_DIR, `capacity-wait-${ENGINE}.png`) });
+    throw e;
+  });
   const search = page.getByPlaceholder(/search/i).locator("visible=true").first();
   if (await search.count()) await search.fill(`Athlete One ${n}`);
   await page.waitForTimeout(2000);
@@ -176,10 +184,15 @@ console.log(`== ${ENGINE}: manager`);
   check("manager row menu keeps Rate", await has(page, "Rate"));
   await page.keyboard.press("Escape");
   await go(page, `/manager/session/${S_FULL}`);
-  await visible(page, "Add participant").first().click().catch(() => {});
+  // Wait for the page to render the button (a swallowed early click left the modal closed in 1 of ~10 runs).
+  await visible(page, "Add participant").first().waitFor({ timeout: 15_000 });
+  await visible(page, "Add participant").first().click();
   await page.waitForTimeout(1500);
   // The modal decides "full" from counts it loads on open; pick only once they're shown, as a person would.
-  await page.getByText(/Capacity: 1\/1/).locator("visible=true").first().waitFor({ timeout: 15_000 });
+  await page.getByText(/Capacity: 1\/1/).locator("visible=true").first().waitFor({ timeout: 15_000 }).catch(async (e) => {
+    if (process.env.UI_SHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SHOT_DIR, `capacity-wait-${ENGINE}.png`) });
+    throw e;
+  });
   const search = page.getByPlaceholder(/search/i).locator("visible=true").first();
   if (await search.count()) await search.fill(`Athlete One ${n}`);
   await page.waitForTimeout(2000);
