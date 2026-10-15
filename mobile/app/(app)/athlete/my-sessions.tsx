@@ -44,9 +44,13 @@ export default function MySessionsScreen() {
       setLoading(false);
       return;
     }
+    // One request: the athlete's active registrations joined to their sessions (Performance Phase 1 / step 3). It used to
+    // put every registered session id into the URL, a list that grows with the athlete's history. RLS lets an athlete
+    // read every session they are actively registered in, hidden ones included (verified: same rows as the old two-step
+    // query for 40 synthetic athletes, 440 hidden registered sessions; docs/performance/harness/verify-athlete-queries.mjs).
     const { data, error } = await supabase
       .from("session_registrations")
-      .select("session_id")
+      .select("session_id, training_sessions!inner(id, session_date, start_time, duration_minutes, is_kickbox)")
       .eq("user_id", u)
       .eq("status", "active");
 
@@ -57,31 +61,11 @@ export default function MySessionsScreen() {
       return;
     }
 
-    const sessionIds = (data ?? []).map((r) => String((r as any).session_id)).filter(Boolean);
-    if (sessionIds.length === 0) {
-      setRows([]);
-      setLoading(false);
-      return;
+    const list: Row[] = [];
+    for (const r of (data ?? []) as unknown as { session_id: string; training_sessions: TsNested | TsNested[] | null }[]) {
+      const ts = Array.isArray(r.training_sessions) ? r.training_sessions[0] : r.training_sessions;
+      if (ts?.id) list.push({ session_id: String(r.session_id), training_sessions: ts });
     }
-
-    // Fetch sessions separately so hidden sessions still appear for already-registered athletes,
-    // even if the foreign-table join is affected by RLS filtering.
-    const { data: sessData, error: sessError } = await supabase
-      .from("training_sessions")
-      .select("id, session_date, start_time, duration_minutes, is_kickbox")
-      .in("id", sessionIds);
-    if (sessError) {
-      setRows([]);
-      setLoadError(true);
-      setLoading(false);
-      return;
-    }
-    const sessions = ((sessData as TsNested[]) ?? []).filter((x) => !!x?.id);
-    const byId = new Map(sessions.map((s) => [s.id, s]));
-    const list: Row[] = sessionIds.map((id) => {
-      const ts = byId.get(id);
-      return ts ? { session_id: id, training_sessions: ts } : null;
-    }).filter((x): x is Row => x !== null);
     setRows(list);
     setLoading(false);
   }, []);

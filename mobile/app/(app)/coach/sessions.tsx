@@ -57,6 +57,7 @@ export default function CoachSessionsScreen() {
   const showPriorityAlerts =
     homeAlerts.length > 0 && (priorityAlertsVisibleCount === null || priorityAlertsVisibleCount > 0);
 
+  const alertsSeqRef = useRef(0);
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
@@ -64,7 +65,14 @@ export default function CoachSessionsScreen() {
     // Idempotent server-side backup for a late cron; doesn't need to block the fetch below.
     void touchWeeklyRegistrationOpenIfDue();
     void maintainSessionSeriesHorizon();
-    const { data, error } = await fetchStaffTrainingSessionsForCalendar();
+    // Performance Phase 1 / step 3: two request waves before the calendar shows (sessions + week notes, then the counts),
+    // instead of five sequential steps. Alerts are computed afterwards: they use the same data but must not hold the
+    // calendar back. The sequence guard keeps a slower, older alerts result from overwriting a newer one.
+    const w = weekRangeRef.current;
+    const [{ data, error }, notes] = await Promise.all([
+      fetchStaffTrainingSessionsForCalendar(),
+      w.start && w.end ? fetchStudioCalendarNotesForRange(w.start, w.end) : Promise.resolve(null),
+    ]);
     setLoadError(!!error);
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
     setRows(list);
@@ -77,16 +85,15 @@ export default function CoachSessionsScreen() {
     setSignupBySession(signup);
     setWaitlistBySession(waitlist);
     setVisibleSignupBySession(visibleSignup);
-    setHomeAlerts(await mergeStaffHomeAlerts("coach", list, signup, waitlist, language));
+    if (notes) setStudioNotes(notes);
     setRefreshSeq((n) => n + 1);
-
-    const w = weekRangeRef.current;
-    if (w.start && w.end) {
-      setStudioNotes(await fetchStudioCalendarNotesForRange(w.start, w.end));
-    }
 
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
+
+    const seq = ++alertsSeqRef.current;
+    const alerts = await mergeStaffHomeAlerts("coach", list, signup, waitlist, language);
+    if (seq === alertsSeqRef.current) setHomeAlerts(alerts);
   }, [language]);
 
   useEffect(() => {

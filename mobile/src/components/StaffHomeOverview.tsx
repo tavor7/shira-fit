@@ -138,12 +138,15 @@ export function StaffHomeOverview({ userId, sessions, variant, refreshSeq }: Pro
     }
     let cancelled = false;
     (async () => {
-      const counts = await fetchActiveSignupCountsBySession(ids);
-      const { data } = await supabase
-        .from("session_notes")
-        .select("session_id, body, created_at")
-        .in("session_id", ids)
-        .order("created_at", { ascending: false });
+      // Independent requests: run together (Performance Phase 1 / step 3).
+      const [counts, { data }] = await Promise.all([
+        fetchActiveSignupCountsBySession(ids),
+        supabase
+          .from("session_notes")
+          .select("session_id, body, created_at")
+          .in("session_id", ids)
+          .order("created_at", { ascending: false }),
+      ]);
       const previews: Record<string, string> = {};
       for (const row of data ?? []) {
         const r = row as { session_id: string; body: string };

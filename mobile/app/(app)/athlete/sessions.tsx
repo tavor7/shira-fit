@@ -38,6 +38,7 @@ import { displayTimeRange } from "../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
 import { getCurrentUserId } from "../../../src/lib/currentUser";
+import { sessionIdsOnCalendar } from "../../../src/lib/athleteCalendarMerge";
 
 export default function AthleteSessionsScreen() {
   const { profile, session } = useAuth();
@@ -83,9 +84,19 @@ export default function AthleteSessionsScreen() {
     // Idempotent server-side backup for a late cron; doesn't need to block the fetch below.
     void touchWeeklyRegistrationOpenIfDue();
     try {
-      const [calendarRes, alertItems] = await Promise.all([
-        fetchAthleteOpenSessionsForCalendar(),
+      // Performance Phase 1 / step 3: everything that depends only on the user runs in one wave (it used to be ~7
+      // sequential round trips); only the capacity counts need the session list. The athlete's own registrations and
+      // waitlist rows are fetched by user id and matched to the calendar here, instead of sending every calendar
+      // session id in the URL (a list that grew every week).
+      const uid = await getCurrentUserId();
+      const w = weekRangeRef.current;
+      const notesRange = w.start && w.end ? w : { start: defaultWeek.start, end: defaultWeek.end };
+      const [calendarRes, alertItems, myRegsRes, myWaitRes, notes] = await Promise.all([
+        fetchAthleteOpenSessionsForCalendar(uid),
         fetchAthleteHomeAlertItems(language),
+        uid ? supabase.from("session_registrations").select("session_id").eq("user_id", uid).eq("status", "active") : null,
+        uid ? supabase.from("waitlist_requests").select("session_id").eq("user_id", uid) : null,
+        fetchStudioCalendarNotesForRange(notesRange.start, notesRange.end),
       ]);
       setHomeAlerts(alertItems);
       const { data, error } = calendarRes;
@@ -96,27 +107,15 @@ export default function AthleteSessionsScreen() {
       setRows(list);
       setSignupBySession(await fetchActiveSignupCountsBySession(list.map((s) => s.id)));
 
-      const uid = await getCurrentUserId();
       if (uid && list.length > 0) {
-        const ids = list.map((s) => s.id);
-        const [regRes, wlRes] = await Promise.all([
-          supabase.from("session_registrations").select("session_id").eq("user_id", uid).eq("status", "active").in("session_id", ids),
-          supabase.from("waitlist_requests").select("session_id").eq("user_id", uid).in("session_id", ids),
-        ]);
-        setMyRegSessionIds((regRes.data ?? []).map((r) => String((r as { session_id: string }).session_id)));
-        setMyWaitlistSessionIds((wlRes.data ?? []).map((r) => String((r as { session_id: string }).session_id)));
+        setMyRegSessionIds(sessionIdsOnCalendar(myRegsRes?.data as { session_id: string }[] | null, list));
+        setMyWaitlistSessionIds(sessionIdsOnCalendar(myWaitRes?.data as { session_id: string }[] | null, list));
       } else {
         setMyRegSessionIds([]);
         setMyWaitlistSessionIds([]);
       }
 
-      const w = weekRangeRef.current;
-      if (w.start && w.end) {
-        setStudioNotes(await fetchStudioCalendarNotesForRange(w.start, w.end));
-      } else {
-        setStudioNotes(await fetchStudioCalendarNotesForRange(defaultWeek.start, defaultWeek.end));
-      }
-
+      setStudioNotes(notes);
     } catch {
       setCalendarError(true);
     } finally {
