@@ -37,6 +37,7 @@ import { rowFlipFor } from "../../../src/lib/layoutDirection";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
+import { getCurrentUserId } from "../../../src/lib/currentUser";
 
 export default function AthleteSessionsScreen() {
   const { profile, session } = useAuth();
@@ -95,7 +96,7 @@ export default function AthleteSessionsScreen() {
       setRows(list);
       setSignupBySession(await fetchActiveSignupCountsBySession(list.map((s) => s.id)));
 
-      const uid = (await supabase.auth.getUser()).data.user?.id;
+      const uid = await getCurrentUserId();
       if (uid && list.length > 0) {
         const ids = list.map((s) => s.id);
         const [regRes, wlRes] = await Promise.all([
@@ -184,8 +185,7 @@ export default function AthleteSessionsScreen() {
   );
 
   const loadMyUpcoming = useCallback(async () => {
-    const { data: authUser } = await supabase.auth.getUser();
-    const uid = authUser?.user?.id;
+    const uid = await getCurrentUserId();
     if (!uid) {
       setMyUpcoming([]);
       setUpcomingStatus("ready");

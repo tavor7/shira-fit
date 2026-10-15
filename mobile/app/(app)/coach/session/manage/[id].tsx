@@ -47,6 +47,7 @@ import {
 import { rowFlipFor } from "../../../../../src/lib/layoutDirection";
 import { useScreenContentStyle } from "../../../../../src/hooks/useScreenLayout";
 import { EmptyState } from "../../../../../src/components/EmptyState";
+import { getCurrentUserId } from "../../../../../src/lib/currentUser";
 
 type EditSnapshot = {
   date: string;
@@ -139,7 +140,7 @@ export default function CoachSessionManageScreen() {
 
   useEffect(() => {
     (async () => {
-      const uid = (await supabase.auth.getUser()).data.user?.id;
+      const uid = await getCurrentUserId();
       const { data: s } = await supabase.from("training_sessions").select("*").eq("id", id).single();
       if (!s) {
         setSession(null);

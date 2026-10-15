@@ -51,6 +51,7 @@ import { rowFlipFor } from "../../../../src/lib/layoutDirection";
 import { displayTimeRange } from "../../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
 import { usePerfScreen } from "../../../../src/hooks/usePerfScreen";
+import { getCurrentUserId } from "../../../../src/lib/currentUser";
 
 /** Same visual anchor for Hebrew + Latin names in the participants list. */
 function participantListLabel(name: string, uiRtl: boolean): string {
@@ -138,7 +139,7 @@ export default function AthleteSessionDetail() {
     const m = await fetchActiveSignupCountsBySession([sessionId]);
     setCount(m[sessionId] ?? 0);
 
-    const u = (await supabase.auth.getUser()).data.user?.id;
+    const u = await getCurrentUserId();
     if (u) {
       const { data: r } = await supabase
         .from("session_registrations")
@@ -190,7 +191,7 @@ export default function AthleteSessionDetail() {
       });
       return;
     }
-    const u = (await supabase.auth.getUser()).data.user?.id;
+    const u = await getCurrentUserId();
     if (u) {
       const others = await fetchSameDayActiveRegistrations(u, session.session_date, sessionId);
       if (others.length > 0) {
@@ -301,7 +302,7 @@ export default function AthleteSessionDetail() {
   async function leaveWaitlist() {
     if (registering || waitlisting || cancelling) return;
     setWaitlisting(true);
-    const u = (await supabase.auth.getUser()).data.user?.id;
+    const u = await getCurrentUserId();
     if (!u) {
       setWaitlisting(false);
       return;

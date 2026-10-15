@@ -9,6 +9,7 @@ import { ActionButton } from "../../../src/components/ActionButton";
 import { Skeleton } from "../../../src/components/Skeleton";
 import { useI18n } from "../../../src/context/I18nContext";
 import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
+import { getCurrentUserId } from "../../../src/lib/currentUser";
 
 export default function CoachCreateSessionScreen() {
   const { t, isRTL } = useI18n();
@@ -23,7 +24,7 @@ export default function CoachCreateSessionScreen() {
     setLoading(true);
     setLoadError(false);
     try {
-      const u = (await supabase.auth.getUser()).data.user?.id ?? null;
+      const u = await getCurrentUserId();
       if (!u) {
         setLoadError(true);
         return;

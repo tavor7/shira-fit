@@ -13,6 +13,7 @@ import { useI18n } from "../../../src/context/I18nContext";
 import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
 import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
+import { getCurrentUserId } from "../../../src/lib/currentUser";
 
 type TsNested = {
   id: string;
@@ -37,7 +38,7 @@ export default function MySessionsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
-    const u = (await supabase.auth.getUser()).data.user?.id;
+    const u = await getCurrentUserId();
     if (!u) {
       setRows([]);
       setLoading(false);

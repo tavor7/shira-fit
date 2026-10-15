@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { isMissingColumnError } from "./dbColumnErrors";
 import { athleteBrowseWeekEnd } from "./studioWeek";
+import { getCurrentUserId } from "./currentUser";
 
 const ATHLETE_SESSION_SELECT = "*, trainer:profiles!coach_id(full_name, calendar_color)";
 const ATHLETE_SESSION_SELECT_NO_COLOR = "*, trainer:profiles!coach_id(full_name)";
@@ -30,7 +31,7 @@ export async function fetchStaffTrainingSessionsForCalendar() {
 export async function fetchAthleteOpenSessionsForCalendar() {
   const end = athleteBrowseWeekEnd();
 
-  const me = (await supabase.auth.getUser()).data.user?.id ?? null;
+  const me = await getCurrentUserId();
   let visibleSessionIds: string[] = [];
   if (me) {
     const regs = await supabase

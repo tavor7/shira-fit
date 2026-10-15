@@ -5,6 +5,7 @@ import { formatISODateFull } from "./dateFormat";
 import { loadNotificationPrefs } from "./notificationPrefs";
 import { ensureNotificationPermission } from "./sessionReminders";
 import { fetchActiveSignupCountsBySession } from "./sessionSignupCounts";
+import { getCurrentUserId } from "./currentUser";
 
 function key(sessionId: string) {
   // expo-secure-store keys must be alphanumeric plus ".", "-", "_" only — no ":".
@@ -17,12 +18,10 @@ export async function checkWaitlistSpotsAndNotify(language: "en" | "he"): Promis
   const ok = await ensureNotificationPermission();
   if (!ok) return;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+  const userId = await getCurrentUserId();
+  if (!userId) return;
 
-  const { data: waits } = await supabase.from("waitlist_requests").select("session_id").eq("user_id", user.id);
+  const { data: waits } = await supabase.from("waitlist_requests").select("session_id").eq("user_id", userId);
   const sessionIds = [...new Set((waits ?? []).map((w) => w.session_id))];
   const countsBySession = await fetchActiveSignupCountsBySession(sessionIds);
 

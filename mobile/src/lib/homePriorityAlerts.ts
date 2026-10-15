@@ -15,6 +15,7 @@ import { appLocale } from "./appLocale";
 import { isRtlScript } from "./bidiEmbed";
 import { loadNotificationPrefs } from "./notificationPrefs";
 import { displayTimeRange } from "./displayFormat";
+import { getCurrentUserId } from "./currentUser";
 
 function tr(lang: LanguageCode, key: string, params?: Record<string, string | number>): string {
   let s = translations[lang][key] ?? key;
@@ -434,10 +435,8 @@ export async function fetchAthleteMultipleSessionsPerDayItems(
   language: LanguageCode,
   now = new Date()
 ): Promise<HomePriorityAlertItem[]> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
 
   const { data, error } = await supabase
     .from("session_registrations")
@@ -451,7 +450,7 @@ export async function fetchAthleteMultipleSessionsPerDayItems(
         trainer:profiles!coach_id(full_name, calendar_color)
       )`
     )
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("status", "active");
 
   if (error || !data?.length) return [];
@@ -579,12 +578,10 @@ export async function fetchAthleteWaitlistOpenSpotItems(
   language: LanguageCode,
   now = new Date()
 ): Promise<HomePriorityAlertItem[]> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
 
-  const { data: waits, error: wErr } = await supabase.from("waitlist_requests").select("session_id").eq("user_id", user.id);
+  const { data: waits, error: wErr } = await supabase.from("waitlist_requests").select("session_id").eq("user_id", userId);
   if (wErr || !waits?.length) return [];
 
   const sessionIds = [...new Set(waits.map((w) => w.session_id))];
@@ -598,7 +595,7 @@ export async function fetchAthleteWaitlistOpenSpotItems(
   const { data: activeRegs } = await supabase
     .from("session_registrations")
     .select("session_id")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("status", "active")
     .in("session_id", sessionIds);
   const activeSet = new Set((activeRegs ?? []).map((r) => r.session_id));

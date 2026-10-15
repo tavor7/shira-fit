@@ -4,6 +4,7 @@ import {
   normalizeManagerMessageTheme,
   type ManagerMessageTheme,
 } from "./managerMessageThemes";
+import { getCurrentUserId } from "./currentUser";
 
 export type { ManagerMessageTheme };
 
@@ -42,7 +43,7 @@ export async function searchMessageRecipients(termRaw: string, limit = 30): Prom
   const term = termRaw.trim();
   const safe = escapeIlike(term);
 
-  const me = (await supabase.auth.getUser()).data.user?.id ?? null;
+  const me = await getCurrentUserId();
 
   let query = supabase
     .from("profiles")

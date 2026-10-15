@@ -27,6 +27,7 @@ import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
 import { EmptyState } from "../../../../src/components/EmptyState";
 import { classifyUserError } from "../../../../src/lib/userFacingError";
 import { usePerfScreen } from "../../../../src/hooks/usePerfScreen";
+import { getCurrentUserId } from "../../../../src/lib/currentUser";
 type W = {
   user_id: string;
   requested_at: string;
@@ -135,7 +136,7 @@ export default function CoachSessionDetail() {
     loadCancellations();
     loadNotes();
     void (async () => {
-      const uid = (await supabase.auth.getUser()).data.user?.id ?? null;
+      const uid = await getCurrentUserId();
       setMyId(uid);
       const { data: s, error: sErr } = await supabase
         .from("training_sessions")

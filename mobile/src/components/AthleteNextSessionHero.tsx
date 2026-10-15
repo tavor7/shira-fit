@@ -35,6 +35,7 @@ import {
 } from "../lib/registrationOpeningSchedule";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayTimeRange } from "../lib/displayFormat";
+import { getCurrentUserId } from "../lib/currentUser";
 
 function sessionStartMs(s: Pick<TrainingSessionWithTrainer, "session_date" | "start_time">): number {
   const t = s.start_time.length >= 5 ? s.start_time.slice(0, 5) : s.start_time;
@@ -74,7 +75,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
       setWaitlist(false);
       return;
     }
-    const u = (await supabase.auth.getUser()).data.user?.id ?? null;
+    const u = await getCurrentUserId();
     setUserId(u);
     if (!u) return;
     const { data: r } = await supabase
@@ -120,7 +121,7 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
 
   async function onRegister() {
     if (!next) return;
-    const u = userId ?? (await supabase.auth.getUser()).data.user?.id ?? null;
+    const u = userId ?? (await getCurrentUserId());
     if (u) {
       const others = await fetchSameDayActiveRegistrations(u, next.session_date, next.id);
       if (others.length > 0) {
