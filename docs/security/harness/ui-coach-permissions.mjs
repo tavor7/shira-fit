@@ -65,7 +65,12 @@ const check = (label, cond, extra = "") => {
 };
 async function signIn(email) {
   const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true });
-  await ctx.addInitScript(() => localStorage.setItem("shira_fit_language", "en"));
+  await ctx.addInitScript(() => {
+    localStorage.setItem("shira_fit_language", "en");
+    // The web app restores the last visited route on load (src/lib/webLastRoute.ts). Forget it before the app starts on
+    // every load, so a direct URL is always honoured (clearing it before goto alone races with the page being left).
+    for (const k of Object.keys(localStorage)) if (k.startsWith("shirafit:lastWebAppRoute:")) localStorage.removeItem(k);
+  });
   await ctx.route(/\.supabase\.co\//, (r) => r.abort());
   const page = await ctx.newPage();
   await page.goto(`${BASE}/login`);
@@ -126,6 +131,8 @@ console.log(`== ${ENGINE}: coach`);
   await go(page, `/coach/session/${S_FULL}`);
   await visible(page, "Add participant").first().click();
   await page.waitForTimeout(1500);
+  // The modal decides "full" from counts it loads on open; pick only once they're shown, as a person would.
+  await page.getByText(/Capacity: 1\/1/).locator("visible=true").first().waitFor({ timeout: 15_000 });
   const search = page.getByPlaceholder(/search/i).locator("visible=true").first();
   if (await search.count()) await search.fill(`Athlete One ${n}`);
   await page.waitForTimeout(2000);
@@ -171,6 +178,8 @@ console.log(`== ${ENGINE}: manager`);
   await go(page, `/manager/session/${S_FULL}`);
   await visible(page, "Add participant").first().click().catch(() => {});
   await page.waitForTimeout(1500);
+  // The modal decides "full" from counts it loads on open; pick only once they're shown, as a person would.
+  await page.getByText(/Capacity: 1\/1/).locator("visible=true").first().waitFor({ timeout: 15_000 });
   const search = page.getByPlaceholder(/search/i).locator("visible=true").first();
   if (await search.count()) await search.fill(`Athlete One ${n}`);
   await page.waitForTimeout(2000);
