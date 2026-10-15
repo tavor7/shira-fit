@@ -114,8 +114,10 @@ function maxVisitId(sn) {
 function bytesTracker(page) {
   let bytes = 0;
   let count = 0;
+  let maxUrl = 0;
   page.on("requestfinished", async (req) => {
     if (!req.url().startsWith("https://127.0.0.1:57499")) return;
+    maxUrl = Math.max(maxUrl, req.url().length);
     try {
       const sz = await req.sizes();
       bytes += sz.responseBodySize + sz.responseHeadersSize;
@@ -126,9 +128,10 @@ function bytesTracker(page) {
   });
   return {
     take() {
-      const r = { bytes, count };
+      const r = { bytes, count, maxUrl };
       bytes = 0;
       count = 0;
+      maxUrl = 0;
       return r;
     },
   };

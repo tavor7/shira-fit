@@ -45,6 +45,8 @@ const metrics = [
   ["Realtime: requests in 5 s", (r) => r.steps.realtimeRegistration?.requestsIn5s],
   ["Realtime: skeleton (ms)", (r) => r.steps.realtimeRegistration?.skeletonMs],
   ["Resume: requests in 5 s", (r) => r.steps.resume?.requestsIn5s],
+  ["Longest request URL: cold start (chars)", (r) => r.steps.coldStart?.network?.maxUrl],
+  ["Longest request URL: back to home (chars)", (r) => r.steps.backToHome?.network?.maxUrl],
 ];
 
 /** Requests to `endpoint` attributed to a scenario: shell+home on cold start, detail visit, back visit. */
