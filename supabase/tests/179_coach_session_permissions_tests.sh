@@ -195,6 +195,28 @@ NOTE_C3=$(su -c "select id from public.session_notes where session_id = '$S1' an
 okjson "coach deletes own note" "$(api "$C" "select public.delete_session_note('$NOTE_C3')::text;")"
 expect "coach still reads own session's series" "1" "$(api "$C" "select count(*) from public.session_series where id = '$SER';" | tail -1)"
 
+echo "== P payment corrections and no-show charges (owner decisions 2026-10-15: allowed while unreceipted, audited)"
+evts() { su -c "select count(*) from public.user_activity_events where actor_user_id = '$C' and event_type = '$1' and metadata->>'session_id' = '$2'"; }
+OWED_A=$(su -c "select public.session_billing_price_ils('$S1', '$A')")
+PRICE_S1=$(su -c "select coalesce(custom_slot_price_ils::text, '-') from public.training_sessions where id = '$S1'")
+E0=$(evts registration_attendance_updated "$S1")
+okjson "coach records a payment (cash 50)" "$(api "$C" "select public.set_registration_attendance('$S1', '$A', 'arrived', 'cash', 50, false)::text;")"
+okjson "coach corrects it (bit 40)" "$(api "$C" "select public.set_registration_attendance('$S1', '$A', 'arrived', 'bit', 40, false)::text;")"
+expect "correction stored" "bit|40.00" "$(su -c "select payment_method || '|' || amount_paid from public.session_registrations where session_id = '$S1' and user_id = '$A'")"
+okjson "coach clears the payment (recorded by mistake)" "$(api "$C" "select public.set_registration_attendance('$S1', '$A', 'arrived', null, null, false)::text;")"
+expect "payment cleared, attendance kept" "true|-|-" "$(su -c "select attended || '|' || coalesce(payment_method, '-') || '|' || coalesce(amount_paid::text, '-') from public.session_registrations where session_id = '$S1' and user_id = '$A'")"
+okjson "coach marks the athlete absent with a no-show charge" "$(api "$C" "select public.set_registration_attendance('$S1', '$A', 'absent', null, null, true)::text;")"
+expect "no-show charge stored" "false|true" "$(su -c "select attended || '|' || charge_no_show from public.session_registrations where session_id = '$S1' and user_id = '$A'")"
+expect "each of the 4 changes is in the activity log" "$((E0 + 4))" "$(evts registration_attendance_updated "$S1")"
+expect "the log records the correction from cash 50 to bit 40" "1" "$(su -c "select count(*) from public.user_activity_events where actor_user_id = '$C' and metadata->>'session_id' = '$S1' and metadata->'changes'->'amount_paid'->>'from' = '50.00' and metadata->'changes'->'amount_paid'->>'to' = '40.00'")"
+expect "the log records the no-show charge" "1" "$(su -c "select count(*) from public.user_activity_events where actor_user_id = '$C' and metadata->>'session_id' = '$S1' and metadata->'changes'->'charge_no_show'->>'to' = 'true'")"
+expect "the amount owed is unchanged by corrections" "$OWED_A" "$(su -c "select public.session_billing_price_ils('$S1', '$A')")"
+expect "the session price is unchanged" "$PRICE_S1" "$(su -c "select coalesce(custom_slot_price_ils::text, '-') from public.training_sessions where id = '$S1'")"
+EW0=$(evts manual_participant_attendance_updated "$S1")
+okjson "coach corrects a walk-in payment (cash 15)" "$(api "$C" "select public.set_manual_participant_attendance('$S1', '$W', 'arrived', 'cash', 15, false)::text;")"
+expect "walk-in correction stored" "cash|15.00" "$(su -c "select payment_method || '|' || amount_paid from public.session_manual_participants where session_id = '$S1' and manual_participant_id = '$W'")"
+expect "walk-in correction is in the activity log" "$((EW0 + 1))" "$(evts manual_participant_attendance_updated "$S1")"
+
 echo "== P manager and super user keep configuration"
 okjson "manager changes time and capacity (this)" "$(api "$M" "select public.staff_update_session_series_scope('$S1', 'this', null, '06:10', null, 4, 60, null, null, null, null)::text;")"
 okjson "manager edits a series (this and future)" "$(api "$M" "select public.staff_update_session_series_scope('$SS1', 'future', null, '05:10', null, 5, 60, null, null, null, null)::text;")"
