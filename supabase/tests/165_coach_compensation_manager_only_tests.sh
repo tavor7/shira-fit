@@ -7,8 +7,9 @@
 #   N  coach C cannot insert / update / delete their own pay rate, cannot touch C2's, cannot set a per-session coach payout,
 #      cannot write training_sessions.custom_coach_rate_ils, cannot reassign C2's session (or its own) through
 #      staff_update_session_series_scope, cannot edit C2's session there at all; athlete and anon are refused everything
-#   P  manager keeps full compensation management; coach still reads own rates (and only own); coach still edits own
-#      session (time / capacity) through staff_update_session_series_scope; compensation rows are unchanged by the refusals
+#   P  manager keeps full compensation management; coach still reads own rates (and only own); compensation rows are
+#      unchanged by the refusals. (A coach editing their own session's time / capacity was a P check here until
+#      20261020100000 made session configuration manager-only; it is now an N check.)
 # Usage: PSQL=... PSQL_AUTH=... supabase/tests/165_coach_compensation_manager_only_tests.sh   (SCRATCH/LOCAL DATABASES ONLY)
 set -u
 PSQL=${PSQL:?set PSQL}
@@ -71,11 +72,10 @@ expect "refused writes left every compensation row unchanged" "$BEFORE" "$(snaps
 echo "== P: legitimate paths still work"
 expect "coach reads own pay rate" "1" "$(api "$C" "select count(*) from public.coach_capacity_pricing where coach_id = '$C';" | tail -1)"
 expect "coach does not read another coach's pay rate" "0" "$(api "$C" "select count(*) from public.coach_capacity_pricing where coach_id = '$C2';" | tail -1)"
-R=$(api "$C" "select public.staff_update_session_series_scope('$S1', 'this', null, '07:30', null, 6, 60, null, null, null, null)::text;")
-case "$R" in *'"ok" : true'*|*'"ok":true'*) ok "P coach edits own session time/capacity";; *) fail "P coach edits own session: $R";; esac
-R=$(api "$C" "select public.staff_update_session_series_scope('$S1', 'this', null, null, '$C', null, 60, null, null, null, null)::text;")
-case "$R" in *'"ok" : true'*|*'"ok":true'*) ok "P coach passes own id as coach (no change) on own session";; *) fail "P coach own id: $R";; esac
-expect "own-session edit applied" "07:30:00|6" "$(su -c "select start_time || '|' || max_participants from public.training_sessions where id = '$S1'")"
+# Since 20261020100000_coach_session_configuration_manager_only.sql coaches don't edit session configuration at all,
+# not even their own sessions (covered in full by 179).
+refused "coach edits own session time/capacity (manager-only since 20261020100000)" "$(api "$C" "select public.staff_update_session_series_scope('$S1', 'this', null, '07:30', null, 6, 60, null, null, null, null)::text;")"
+expect "own session unchanged" "07:15:00|4" "$(su -c "select start_time || '|' || max_participants from public.training_sessions where id = '$S1'")"
 works "manager updates a coach pay rate" "$(api "$M" "update public.coach_capacity_pricing set price_ils = 55 where id = '$R1'; select 1;")"
 expect "manager update saved" "55.00" "$(su -c "select price_ils from public.coach_capacity_pricing where id = '$R1'")"
 works "manager inserts a coach pay rate" "$(api "$M" "insert into public.coach_capacity_pricing (coach_id, max_participants, price_ils, effective_from) values ('$C', 8, 70, current_date); select 1;")"

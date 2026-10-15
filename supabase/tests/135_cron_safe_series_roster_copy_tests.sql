@@ -309,11 +309,19 @@ begin
   -- T9: the only client-callable functions that reach the copy path refuse non-staff callers and do nothing.
   select count(*) into v_regs from public.session_registrations;
   select count(*) into v_sessions from public.training_sessions;
+  -- Since 20261020100000_coach_session_configuration_manager_only.sql anon can't execute these at all (it used to get
+  -- {"error":"not_authenticated"} from inside the function); either way nothing runs.
   execute 'set local role anon';
-  v_res := public.staff_create_session_series(public._studio_today_date() + 3, '16:00'::time, v_coach, 4, 60, true, false, false, null, 'ongoing', null, true, array[v_a], '{}'::uuid[]);
-  if v_res->>'error' is distinct from 'not_authenticated' then execute 'reset role'; raise exception 'T9 FAILED: anon staff_create_session_series -> %', v_res; end if;
-  v_res := public.maintain_session_series_horizon();
-  if v_res->>'error' is distinct from 'not_authenticated' then execute 'reset role'; raise exception 'T9 FAILED: anon maintain horizon -> %', v_res; end if;
+  begin
+    v_res := public.staff_create_session_series(public._studio_today_date() + 3, '16:00'::time, v_coach, 4, 60, true, false, false, null, 'ongoing', null, true, array[v_a], '{}'::uuid[]);
+    raise exception 'T9 FAILED: anon could execute staff_create_session_series -> %', v_res;
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    v_res := public.maintain_session_series_horizon();
+    raise exception 'T9 FAILED: anon could execute maintain horizon -> %', v_res;
+  exception when insufficient_privilege then null;
+  end;
   execute 'reset role';
   execute 'set local role authenticated';
   perform set_config('request.jwt.claims', json_build_object('sub', v_z, 'role', 'authenticated')::text, true);
