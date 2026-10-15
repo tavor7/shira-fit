@@ -240,7 +240,9 @@ export function ParticipantAttendanceList({
     return template.replace(/\{name\}/g, name);
   }
 
-  const canOfferDecreaseGroupSize = maxParticipants != null && maxParticipants < 12 && maxParticipants > 1 && rows.length >= maxParticipants;
+  // Changing capacity is manager-only (the server refuses coaches), so only managers are offered this.
+  const canOfferDecreaseGroupSize =
+    viewerIsManager && maxParticipants != null && maxParticipants < 12 && maxParticipants > 1 && rows.length >= maxParticipants;
 
   function rowCanMove(item: Row): boolean {
     if (sessionNotStarted) {
@@ -300,11 +302,15 @@ export function ParticipantAttendanceList({
                     await Promise.resolve(onRemoveAthlete(item.userId));
 
                     // Update max participants after the athlete is removed to avoid transient capacity violations.
-                    const { error: capErr } = await supabase
+                    // Ask for the updated row back: RLS rejects a write by returning no row, not an error, and a
+                    // change that didn't happen must never look like it did.
+                    const { data: capRows, error: capErr } = await supabase
                       .from("training_sessions")
                       .update({ max_participants: nextMax })
-                      .eq("id", sessionId);
+                      .eq("id", sessionId)
+                      .select("id");
                     if (capErr) showOk(t("common.error"), capErr.message);
+                    else if (!capRows?.length) showOk(t("common.error"), t("common.failed"));
                     else setMaxParticipants(nextMax);
                   })();
                 },
@@ -1092,7 +1098,8 @@ export function ParticipantAttendanceList({
                 )}
                 {(() => {
                   const actions: FoldableActionsMenuItem[] = [];
-                  if (sessionMeta) actions.push({ label: t("ui.rosterSlotRateChip.rate"), onPress: () => setRateOpenFor(item.id) });
+                  // Per-athlete prices are manager-only (the server refuses coaches).
+                  if (sessionMeta && viewerIsManager) actions.push({ label: t("ui.rosterSlotRateChip.rate"), onPress: () => setRateOpenFor(item.id) });
                   if (item.kind === "registered" && superUserHiddenUserIds && onToggleHideAthlete) {
                     const isHidden = superUserHiddenUserIds.has(item.userId);
                     actions.push({
@@ -1124,7 +1131,7 @@ export function ParticipantAttendanceList({
                 })()}
               </View>
             </View>
-            {sessionMeta ? (
+            {sessionMeta && viewerIsManager ? (
               <RosterSlotRateChip
                 sessionId={sessionId}
                 userId={item.kind === "registered" ? item.userId : null}

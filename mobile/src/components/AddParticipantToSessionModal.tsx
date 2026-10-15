@@ -7,6 +7,7 @@ import { ParticipantQuickAddPanel } from "./ParticipantQuickAddPanel";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
+import { useAuth } from "../context/AuthContext";
 import { findExistingParticipantByNameOrPhone } from "../lib/findExistingParticipant";
 import { promptAddExistingParticipant } from "../lib/promptExistingParticipant";
 import { athleteSearchSubtitle } from "../lib/displayName";
@@ -60,6 +61,9 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   const { t, isRTL } = useI18n();
   const { showToast } = useToast();
   const { showAlert } = useAppAlert();
+  const { profile } = useAuth();
+  // Raising capacity or adding over it is manager-only; the server refuses coaches and answers "full".
+  const canExceedCapacity = profile?.role === "manager";
   const [maxCap, setMaxCap] = useState<number | null>(null);
   const [currentCount, setCurrentCount] = useState(0);
   const [q, setQ] = useState("");
@@ -119,9 +123,18 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     if (!sid) return false;
     const base = maxCap != null ? Math.max(maxCap, currentCount) : currentCount;
     const newMax = base + 1;
-    const { error } = await supabase.from("training_sessions").update({ max_participants: newMax }).eq("id", sid);
+    // RLS rejects by returning no row (not an error): treat that as a failure, never as success.
+    const { data: updated, error } = await supabase
+      .from("training_sessions")
+      .update({ max_participants: newMax })
+      .eq("id", sid)
+      .select("id");
     if (error) {
       toastError(t("common.error"), error.message);
+      return false;
+    }
+    if (!updated?.length) {
+      toastError(t("common.failed"));
       return false;
     }
     setMaxCap(newMax);
@@ -441,6 +454,10 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   }
 
   async function resolveFullAdd(prompt: NonNullable<WebFullAddPrompt>): Promise<void> {
+    if (!canExceedCapacity) {
+      toastInfo(t("ui.addParticipantToSession.sessionFull"));
+      return;
+    }
     if (Platform.OS === "web") {
       setWebFullAddPrompt(prompt);
       return;

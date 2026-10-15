@@ -32,6 +32,21 @@ export function isSharedAppPath(pathname: string): boolean {
   );
 }
 
+/**
+ * Coach screens that create or configure sessions. Session creation and configuration are manager-only (owner policy
+ * 2026-10-15; enforced on the server by 20261020100000_coach_session_configuration_manager_only.sql), so a coach who
+ * opens one of these URLs (old bookmark, shared link) is sent home instead of seeing a form that the server refuses.
+ */
+export function isCoachSessionConfigPath(pathname: string): boolean {
+  const p = normalizeAppPathname(pathname);
+  return (
+    p === "/coach/create-session" ||
+    p.startsWith("/coach/create-session/") ||
+    p === "/coach/session/manage" ||
+    p.startsWith("/coach/session/manage/")
+  );
+}
+
 export type RoleRouteAccessOpts = {
   /** Manager browsing athlete-style navigation may open `/athlete/*` routes. */
   managerAthletePreview?: boolean;
@@ -57,6 +72,7 @@ export function canRoleAccessAppPath(
     return p === "/athlete" || p.startsWith("/athlete/");
   }
   if (role === "coach") {
+    if (isCoachSessionConfigPath(p)) return false;
     return p === "/coach" || p.startsWith("/coach/") || p === "/staff" || p.startsWith("/staff/");
   }
   if (role === "manager") {

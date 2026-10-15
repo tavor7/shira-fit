@@ -216,7 +216,7 @@ export function MoveParticipantSheet({
     onMoved();
     onClose();
 
-    if (canOfferDecreaseSource && !opts.decreaseSourceMax) {
+    if (isManager && canOfferDecreaseSource && !opts.decreaseSourceMax) {
       showAlert({
         title: t("managerSession.decreaseGroupSizeTitle"),
         message: t("managerSession.decreaseGroupSizeMessage"),
@@ -227,12 +227,13 @@ export function MoveParticipantSheet({
             variant: "primary",
             onPress: () => {
               void (async () => {
-                const { error } = await supabase
+                const { data: updated, error } = await supabase
                   .from("training_sessions")
                   .update({ max_participants: fromMaxParticipants - 1 })
-                  .eq("id", fromSessionId);
-                if (error) {
-                  showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+                  .eq("id", fromSessionId)
+                  .select("id");
+                if (error || !updated?.length) {
+                  showToast({ message: t("common.error"), detail: error?.message ?? t("common.failed"), variant: "error" });
                 } else {
                   onMoved();
                 }
@@ -311,20 +312,27 @@ export function MoveParticipantSheet({
       {destFull && !fullChoice ? (
         <View style={styles.fullBlock}>
           <Text style={[styles.fullTitle, isRTL && styles.rtlText]}>{t("moveParticipant.fullTitle")}</Text>
-          <Text style={[styles.fullMsg, isRTL && styles.rtlText]}>{t("moveParticipant.fullMessage")}</Text>
-          <PrimaryButton
-            label={t("moveParticipant.increaseCap")}
-            onPress={() => setFullChoice("increase")}
-            disabled={moving}
-            style={styles.fullBtn}
-          />
-          <Pressable
-            onPress={() => setFullChoice("over")}
-            disabled={moving}
-            style={({ pressed }) => [styles.fullSecondary, pressed && { opacity: 0.88 }]}
-          >
-            <Text style={styles.fullSecondaryTxt}>{t("moveParticipant.overCap")}</Text>
-          </Pressable>
+          <Text style={[styles.fullMsg, isRTL && styles.rtlText]}>
+            {t(isManager ? "moveParticipant.fullMessage" : "moveParticipant.fullMessageCoach")}
+          </Text>
+          {/* Raising capacity or moving over it is manager-only (the server refuses coaches). */}
+          {isManager ? (
+            <>
+              <PrimaryButton
+                label={t("moveParticipant.increaseCap")}
+                onPress={() => setFullChoice("increase")}
+                disabled={moving}
+                style={styles.fullBtn}
+              />
+              <Pressable
+                onPress={() => setFullChoice("over")}
+                disabled={moving}
+                style={({ pressed }) => [styles.fullSecondary, pressed && { opacity: 0.88 }]}
+              >
+                <Text style={styles.fullSecondaryTxt}>{t("moveParticipant.overCap")}</Text>
+              </Pressable>
+            </>
+          ) : null}
           <Pressable
             onPress={() => {
               setPicked(null);

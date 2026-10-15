@@ -245,14 +245,16 @@ export default function CoachSessionDetail() {
     } else showOk(t("common.failed"), data?.error ?? "");
   }
 
-  const canEditSession = !!(myId && coachId && myId === coachId);
+  // Coaches manage participants, attendance, payments and their notes only on sessions assigned to them; session
+  // configuration (time, capacity, prices, visibility, deletion) is manager-only.
+  const canManageParticipants = !!(myId && coachId && myId === coachId);
   // Past (already-started) sessions are also eligible to move FROM, as long as the participant has
   // no recorded payment yet — ParticipantAttendanceList's per-row rowCanMove() enforces that, and the
   // destination picker (MoveParticipantSheet) already restricts choices to not-yet-started sessions.
-  const sessionCanMoveParticipants = canEditSession;
+  const sessionCanMoveParticipants = canManageParticipants;
 
   async function quickAddWaitlistedAthlete(userId: string) {
-    if (!id || waitlistQuickUserId || !canEditSession) return;
+    if (!id || waitlistQuickUserId || !canManageParticipants) return;
     setWaitlistQuickUserId(userId);
     try {
       const { data, error } = await supabase.rpc("coach_add_athlete", {
@@ -355,8 +357,8 @@ export default function CoachSessionDetail() {
         onChanged={afterParticipantsChange}
         onParticipantCountChange={handleParticipantCountChange}
         onAttendanceStatsChange={preserveScrollPosition}
-        onRemoveAthlete={canEditSession ? removeAthlete : undefined}
-        onRemoveManualParticipant={canEditSession ? removeManual : undefined}
+        onRemoveAthlete={canManageParticipants ? removeAthlete : undefined}
+        onRemoveManualParticipant={canManageParticipants ? removeManual : undefined}
         onMoveParticipant={
           sessionCanMoveParticipants
             ? (target) => {
@@ -391,7 +393,7 @@ export default function CoachSessionDetail() {
                       {formatDateTimeForDisplay(item.requested_at, language)}
                     </Text>
                   </View>
-                  {canEditSession ? (
+                  {canManageParticipants ? (
                     <Pressable
                       onPress={() => void quickAddWaitlistedAthlete(item.user_id)}
                       disabled={!!waitlistQuickUserId}
@@ -416,7 +418,7 @@ export default function CoachSessionDetail() {
           );
         })
       )}
-      {canEditSession ? (
+      {canManageParticipants ? (
         <PrimaryButton
           label={t("sessionDetail.addParticipant")}
           onPress={() => setAddOpen(true)}
@@ -469,7 +471,7 @@ export default function CoachSessionDetail() {
         {t("sessionDetail.notes")}
       </AppText>
       <View style={styles.notesCard}>
-        {!noteComposerOpen ? (
+        {canManageParticipants && !noteComposerOpen ? (
           <Pressable
             onPress={() => setNoteComposerOpen(true)}
             style={({ pressed }) => [styles.noteCollapsedTrigger, pressed && { opacity: 0.88 }]}
@@ -530,7 +532,7 @@ export default function CoachSessionDetail() {
             {notes.map((n, index) => {
               const p = n.profiles ? (Array.isArray(n.profiles) ? n.profiles[0] : n.profiles) : null;
               const name = p?.full_name ?? n.author_id;
-              const canDelete = !!myId && myId === n.author_id;
+              const canDelete = canManageParticipants && !!myId && myId === n.author_id;
               const isEditing = editingNoteId === n.id;
               return (
                 <FadeSlideIn key={n.id} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
@@ -626,20 +628,6 @@ export default function CoachSessionDetail() {
           </View>
         )}
       </View>
-
-      {canEditSession ? (
-        <PrimaryButton
-          label={t("sessionDetail.editSession")}
-          onPress={() => {
-            setNoteComposerOpen(false);
-            setNoteDraft("");
-            setEditingNoteId(null);
-            setNoteEditDraft("");
-            router.push(`/(app)/coach/session/manage/${id}`);
-          }}
-          variant="ghost"
-        />
-      ) : null}
 
       <AddParticipantToSessionModal
         sessionId={id}

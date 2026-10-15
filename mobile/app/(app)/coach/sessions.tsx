@@ -18,7 +18,7 @@ import { mergeStaffHomeAlerts, type HomePriorityAlertItem } from "../../../src/l
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
 import { AppText } from "../../../src/components/AppText";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
-import { isSessionInActiveSeries, maintainSessionSeriesHorizon } from "../../../src/lib/sessionSeries";
+import { isSessionInActiveSeries } from "../../../src/lib/sessionSeries";
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
 import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySlot";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
@@ -63,7 +63,6 @@ export default function CoachSessionsScreen() {
 
     // Idempotent server-side backup for a late cron; doesn't need to block the fetch below.
     void touchWeeklyRegistrationOpenIfDue();
-    void maintainSessionSeriesHorizon();
     const { data, error } = await fetchStaffTrainingSessionsForCalendar();
     setLoadError(!!error);
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
@@ -182,11 +181,6 @@ export default function CoachSessionsScreen() {
         variant="coach"
         calendarNotes={studioNotes}
         currentUserId={profile?.user_id ?? null}
-        onAddSession={() => {
-          const d = sheetDay;
-          setSheetDay(null);
-          if (d) router.push({ pathname: "/(app)/coach/create-session", params: { date: d } });
-        }}
         onChanged={() => load(true)}
       />
     </View>
