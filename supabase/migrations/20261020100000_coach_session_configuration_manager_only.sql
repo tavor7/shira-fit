@@ -39,7 +39,7 @@
 --
 -- Rollback: docs/security/rollback/20261020100000_coach_session_configuration_manager_only_ROLLBACK.sql restores the
 -- previous definitions and policies. It REOPENS V1-V10 and must only be applied with explicit owner approval; prefer a
--- targeted corrective migration that keeps the restrictions (see docs/security/2026-10-20-coach-permissions-fix.md).
+-- targeted corrective migration that keeps the restrictions (see docs/security/2026-10-15-coach-permissions-fix.md).
 
 -- ==============================================================================================================
 -- Precondition: every function replaced below is exactly the reviewed production source
@@ -93,7 +93,7 @@ declare
   v_occurrence_id uuid;
 begin
   if v_uid is null then return json_build_object('ok', false, 'error', 'not_authenticated'); end if;
-  -- Coach session permissions (2026-10-20): session configuration is manager-only.
+  -- Coach session permissions (owner policy 2026-10-15): session configuration is manager-only.
   if not public.is_manager(v_uid) then return json_build_object('ok', false, 'error', 'forbidden'); end if;
 
   select * into v_sess from public.training_sessions where id = p_session_id;
@@ -208,7 +208,7 @@ begin
   if v_uid is null then
     return json_build_object('ok', false, 'error', 'not_authenticated');
   end if;
-  -- Coach session permissions (2026-10-20): session configuration is manager-only.
+  -- Coach session permissions (owner policy 2026-10-15): session configuration is manager-only.
   if not public.is_manager(v_uid) then
     return json_build_object('ok', false, 'error', 'forbidden');
   end if;
@@ -355,7 +355,7 @@ declare
   v_occurrence_id uuid;
 begin
   if v_uid is null then return json_build_object('ok', false, 'error', 'not_authenticated'); end if;
-  -- Coach session permissions (2026-10-20): session configuration is manager-only.
+  -- Coach session permissions (owner policy 2026-10-15): session configuration is manager-only.
   if not public.is_manager(v_uid) then return json_build_object('ok', false, 'error', 'forbidden'); end if;
 
   select * into v_sess from public.training_sessions where id = p_session_id;
@@ -604,7 +604,7 @@ begin
   if not public._staff_can_manage_session(v_uid, v_to) then
     return json_build_object('ok', false, 'error', 'forbidden');
   end if;
-  -- Coach session permissions (2026-10-20): a coach (already required above to coach BOTH sessions) may move a
+  -- Coach session permissions (owner policy 2026-10-15): a coach (already required above to coach BOTH sessions) may move a
   -- participant, but never over capacity and never changing either session's capacity. Refused here, before any
   -- write, so nothing changes. Managers keep every option.
   if not public.is_manager(v_uid) and (
@@ -983,7 +983,7 @@ declare
   v_sess public.training_sessions%rowtype;
 begin
   if v_uid is null then return json_build_object('ok', false, 'error', 'not_authenticated'); end if;
-  -- Coach session permissions (2026-10-20): session configuration is manager-only.
+  -- Coach session permissions (owner policy 2026-10-15): session configuration is manager-only.
   if not public.is_manager(v_uid) then
     return json_build_object('ok', false, 'error', 'forbidden');
   end if;
@@ -1030,7 +1030,7 @@ begin
   if v_uid is null then
     return json_build_object('ok', false, 'error', 'not_authenticated');
   end if;
-  -- Coach session permissions (2026-10-20): session configuration is manager-only.
+  -- Coach session permissions (owner policy 2026-10-15): session configuration is manager-only.
   if not public.is_manager(v_uid) then
     return json_build_object('ok', false, 'error', 'forbidden');
   end if;
@@ -1159,7 +1159,7 @@ begin
   end if;
 
   v_count := public.active_registration_count(p_session_id);
-  -- Coach session permissions (2026-10-20): only a manager (or a system path with no actor) may add over capacity.
+  -- Coach session permissions (owner policy 2026-10-15): only a manager (or a system path with no actor) may add over capacity.
   -- The session row is locked FOR UPDATE above, so concurrent adds are counted one after another.
   if (not coalesce(p_allow_over_capacity, false) or (p_actor is not null and not public.is_manager(p_actor)))
      and v_count >= v_sess.max_participants then
@@ -1247,7 +1247,7 @@ begin
   end if;
 
   v_count := public.active_registration_count(p_session_id);
-  -- Coach session permissions (2026-10-20): only a manager may add over capacity (session row locked above).
+  -- Coach session permissions (owner policy 2026-10-15): only a manager may add over capacity (session row locked above).
   if (not coalesce(p_allow_over_capacity, false) or not public.is_manager(v_uid))
      and v_count >= v_sess.max_participants then
     return json_build_object('ok', false, 'error', 'full');
@@ -1315,7 +1315,7 @@ begin
   if auth.uid() is null then
     return json_build_object('ok', false, 'error', 'not_authenticated');
   end if;
-  -- Coach session permissions (2026-10-20): generates sessions, so manager-only; the daily cron uses its own entry point.
+  -- Coach session permissions (owner policy 2026-10-15): generates sessions, so manager-only; the daily cron uses its own entry point.
   if not public.is_manager(auth.uid()) then
     return json_build_object('ok', false, 'error', 'forbidden');
   end if;
@@ -1337,7 +1337,7 @@ begin
   if v_uid is null then
     return json_build_object('ok', false, 'error', 'not_authenticated');
   end if;
-  -- Coach session permissions (2026-10-20): session configuration is manager-only.
+  -- Coach session permissions (owner policy 2026-10-15): session configuration is manager-only.
   if not public.is_manager(v_uid) then
     return json_build_object('ok', false, 'error', 'forbidden');
   end if;
@@ -1371,7 +1371,7 @@ begin
   if not (public.is_manager(v_uid) or v_note.author_id = v_uid) then
     return json_build_object('ok', false, 'error', 'forbidden');
   end if;
-  -- Coach session permissions (2026-10-20): same rule as update_session_note -- the session must still be theirs.
+  -- Coach session permissions (owner policy 2026-10-15): same rule as update_session_note -- the session must still be theirs.
   if not public.is_manager(v_uid) and not exists (
     select 1 from public.training_sessions s where s.id = v_note.session_id and s.coach_id = v_uid
   ) then

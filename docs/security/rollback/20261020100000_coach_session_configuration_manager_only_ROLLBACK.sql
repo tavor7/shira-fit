@@ -19,17 +19,17 @@ declare
   r record;
 begin
   for r in select * from (values
-    ('public._coach_add_athlete_core(uuid,uuid,boolean,boolean,uuid)', '753efa10cc9bc7a1cb2d016a4ddcaa8e'),
-    ('public.add_manual_participant_to_session(uuid,uuid,boolean,boolean)', 'd4d431caa63eca9a485024783ab04b6f'),
-    ('public.delete_session_note(uuid)', 'f94663d8def9046e20b618795aab2d68'),
-    ('public.maintain_session_series_horizon()', '9c0b799eeabe7d55984dae0931714771'),
-    ('public.reconcile_series_duplicate_sessions()', '43d82b1589eee6a0e41cd29c46e5673e'),
-    ('public.staff_create_session_series(date,time without time zone,uuid,integer,integer,boolean,boolean,boolean,numeric,text,integer,boolean,uuid[],uuid[])', '000ae814a6c7d3fcecca48d56eb2600f'),
-    ('public.staff_delete_session_series_scope(uuid,text)', '836586c45eada0dfb06a83a4396ae058'),
-    ('public.staff_move_session_participant(uuid,uuid,uuid,uuid,boolean,boolean,boolean,boolean)', '68cefa8b6ee357f4c478f2851496b644'),
-    ('public.staff_set_session_custom_slot_price(uuid,numeric)', 'fd230924c9f77a1eb6ed6556e3a9e8e3'),
-    ('public.staff_set_session_roster_slot_price(uuid,uuid,uuid,numeric)', '74c5ad152141096f08eace44923d3c10'),
-    ('public.staff_update_session_series_scope(uuid,text,date,time without time zone,uuid,integer,integer,boolean,boolean,boolean,numeric)', 'efcbd8de5f01ddb8493600db1bd51356')
+    ('public._coach_add_athlete_core(uuid,uuid,boolean,boolean,uuid)', '7beee6ed572c6021e9d24465bf25089a'),
+    ('public.add_manual_participant_to_session(uuid,uuid,boolean,boolean)', '11675eeaaf5775ffa1f53673252aa1f0'),
+    ('public.delete_session_note(uuid)', '5e59c97a67de6aa4dd1274b64039555a'),
+    ('public.maintain_session_series_horizon()', 'fc7901bb36cebee74e12911fc1626d9e'),
+    ('public.reconcile_series_duplicate_sessions()', 'd997dcbf18d47deb85c771d60cac38e8'),
+    ('public.staff_create_session_series(date,time without time zone,uuid,integer,integer,boolean,boolean,boolean,numeric,text,integer,boolean,uuid[],uuid[])', '34155bfa4cf206f1a3d0c4d0fa441a3d'),
+    ('public.staff_delete_session_series_scope(uuid,text)', 'd3dabc884d0bf75538b19d2a1b3376a3'),
+    ('public.staff_move_session_participant(uuid,uuid,uuid,uuid,boolean,boolean,boolean,boolean)', 'fa403ec2c96cd612aa661b5e257bd11d'),
+    ('public.staff_set_session_custom_slot_price(uuid,numeric)', '7a099b33af0f7d7506a439279e19c7aa'),
+    ('public.staff_set_session_roster_slot_price(uuid,uuid,uuid,numeric)', 'c9ee2624103139b09f6a5f4c8771edb8'),
+    ('public.staff_update_session_series_scope(uuid,text,date,time without time zone,uuid,integer,integer,boolean,boolean,boolean,numeric)', 'e623ca1e2ea7c00e3a6d0b558d77e2d0')
   ) as t(fn, h) loop
     if to_regprocedure(r.fn) is null then
       v_bad := v_bad || ' missing:' || r.fn;
