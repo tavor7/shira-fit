@@ -1,0 +1,13 @@
+chromium perf-ath-002@perf.test home (this week): SAME (1076 chars, 32 labels)
+chromium perf-ath-002@perf.test home (next week): SAME (1014 chars, 34 labels)
+chromium perf-ath-002@perf.test my sessions: SAME (204 chars, 17 labels)
+chromium perf-ath-001@perf.test home (this week): SAME (1711 chars, 52 labels)
+chromium perf-ath-001@perf.test home (next week): SAME (1626 chars, 55 labels)
+chromium perf-ath-001@perf.test my sessions: SAME (331 chars, 19 labels)
+chromium perf-ath-009@perf.test home (this week): SAME (805 chars, 23 labels)
+chromium perf-ath-009@perf.test home (next week): SAME (774 chars, 25 labels)
+chromium perf-ath-009@perf.test my sessions: SAME (220 chars, 16 labels)
+chromium perf-coach-1@perf.test home: SAME (1592 chars, 18 labels)
+chromium perf-mgr-2@perf.test home: SAME (1473 chars, 20 labels)
+chromium perf-mgr-1@perf.test (super user) home: SAME (1083 chars, 20 labels)
+RESULT: identical screens in 12 scenarios

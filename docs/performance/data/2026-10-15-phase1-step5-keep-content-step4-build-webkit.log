@@ -1,0 +1,9 @@
+webkit back to athlete home: content hidden 578, 531, 588 ms
+webkit back to coach home: content hidden 487, 530, 543 ms
+webkit back to manager home: content hidden 533, 535, 492 ms
+webkit realtime on manager home (add + remove a registration): content hidden 1017 ms
+webkit failed refresh on athlete home: content kept=true, notice shown=false (requests blocked: 4)
+webkit failed refresh on coach home: content kept=true, notice shown=false (requests blocked: 4)
+webkit failed refresh on manager home: content kept=true, notice shown=false (requests blocked: 4)
+webkit account switch: A had 1 badges, B has 3; frames showing A's badges to B: 0
+{"engine":"webkit","base":"http://127.0.0.1:8202","back":{"athlete":[578,531,588],"coach":[487,530,543],"manager":[533,535,492]},"realtime":{"hiddenMs":1017},"failure":{"athlete":{"contentKept":true,"noticeShown":false,"blockedRequests":4},"coach":{"contentKept":true,"noticeShown":false,"blockedRequests":4},"manager":{"contentKept":true,"noticeShown":false,"blockedRequests":4}},"switch":{"aBadges":1,"bBadges":3,"leakedFrames":0}}

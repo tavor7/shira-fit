@@ -1,0 +1,9 @@
+chromium back to athlete home: content hidden 616, 590, 516 ms
+chromium back to coach home: content hidden 460, 495, 497 ms
+chromium back to manager home: content hidden 441, 507, 453 ms
+chromium realtime on manager home (add + remove a registration): content hidden 1022 ms
+chromium failed refresh on athlete home: content kept=true, notice shown=false (requests blocked: 4)
+chromium failed refresh on coach home: content kept=true, notice shown=false (requests blocked: 4)
+chromium failed refresh on manager home: content kept=true, notice shown=false (requests blocked: 4)
+chromium account switch: A had 1 badges, B has 3; frames showing A's badges to B: 0
+{"engine":"chromium","base":"http://127.0.0.1:8202","back":{"athlete":[616,590,516],"coach":[460,495,497],"manager":[441,507,453]},"realtime":{"hiddenMs":1022},"failure":{"athlete":{"contentKept":true,"noticeShown":false,"blockedRequests":4},"coach":{"contentKept":true,"noticeShown":false,"blockedRequests":4},"manager":{"contentKept":true,"noticeShown":false,"blockedRequests":4}},"switch":{"aBadges":1,"bBadges":3,"leakedFrames":0}}
