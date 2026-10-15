@@ -1,0 +1,89 @@
+=== chromium A=8201 B=8202 rep 1
+chromium athlete coldStart: SAME | requests 40 vs 40 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+chromium athlete openDetail: SAME | requests 11 vs 11 | route /athlete/session/:id vs /athlete/session/:id | text same | panel false | global false
+chromium athlete back: SAME | requests 20 vs 20 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+chromium coach coldStart: SAME | requests 42 vs 42 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+chromium coach openDetail: SAME | requests 19 vs 19 | route /coach/session/:id vs /coach/session/:id | text same | panel false | global false
+chromium coach back: SAME | requests 17 vs 17 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+chromium manager coldStart: SAME | requests 43 vs 43 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+chromium manager openDetail: SAME | requests 24 vs 24 | route /manager/session/:id vs /manager/session/:id | text same | panel false | global false
+chromium manager back: SAME | requests 18 vs 18 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+RESULT: identical behaviour with instrumentation disabled
+=== chromium A=8201 B=8202 rep 2
+chromium athlete coldStart: SAME | requests 40 vs 40 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+chromium athlete openDetail: SAME | requests 11 vs 11 | route /athlete/session/:id vs /athlete/session/:id | text same | panel false | global false
+chromium athlete back: SAME | requests 20 vs 20 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+chromium coach coldStart: SAME | requests 42 vs 42 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+chromium coach openDetail: SAME | requests 19 vs 19 | route /coach/session/:id vs /coach/session/:id | text same | panel false | global false
+chromium coach back: SAME | requests 17 vs 17 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+chromium manager coldStart: SAME | requests 43 vs 43 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+chromium manager openDetail: SAME | requests 24 vs 24 | route /manager/session/:id vs /manager/session/:id | text same | panel false | global false
+chromium manager back: SAME | requests 18 vs 18 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+RESULT: identical behaviour with instrumentation disabled
+=== chromium A=8202 B=8201 rep 1
+chromium athlete coldStart: SAME | requests 40 vs 40 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+chromium athlete openDetail: SAME | requests 11 vs 11 | route /athlete/session/:id vs /athlete/session/:id | text same | panel false | global false
+chromium athlete back: SAME | requests 20 vs 20 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+chromium coach coldStart: SAME | requests 42 vs 42 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+chromium coach openDetail: SAME | requests 19 vs 19 | route /coach/session/:id vs /coach/session/:id | text same | panel false | global false
+chromium coach back: SAME | requests 17 vs 17 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+chromium manager coldStart: SAME | requests 43 vs 43 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+chromium manager openDetail: SAME | requests 24 vs 24 | route /manager/session/:id vs /manager/session/:id | text same | panel false | global false
+chromium manager back: SAME | requests 18 vs 18 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+RESULT: identical behaviour with instrumentation disabled
+=== chromium A=8202 B=8201 rep 2
+chromium athlete coldStart: SAME | requests 40 vs 40 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+chromium athlete openDetail: SAME | requests 11 vs 11 | route /athlete/session/:id vs /athlete/session/:id | text same | panel false | global false
+chromium athlete back: SAME | requests 20 vs 20 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+chromium coach coldStart: SAME | requests 42 vs 42 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+chromium coach openDetail: SAME | requests 19 vs 19 | route /coach/session/:id vs /coach/session/:id | text same | panel false | global false
+chromium coach back: SAME | requests 17 vs 17 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+chromium manager coldStart: SAME | requests 43 vs 43 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+chromium manager openDetail: SAME | requests 24 vs 24 | route /manager/session/:id vs /manager/session/:id | text same | panel false | global false
+chromium manager back: SAME | requests 18 vs 18 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+RESULT: identical behaviour with instrumentation disabled
+=== webkit A=8201 B=8202 rep 1
+webkit athlete coldStart: SAME | requests 40 vs 40 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+webkit athlete openDetail: SAME | requests 11 vs 11 | route /athlete/session/:id vs /athlete/session/:id | text same | panel false | global false
+webkit athlete back: SAME | requests 20 vs 20 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+webkit coach coldStart: SAME | requests 42 vs 42 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+webkit coach openDetail: SAME | requests 19 vs 19 | route /coach/session/:id vs /coach/session/:id | text same | panel false | global false
+webkit coach back: SAME | requests 17 vs 17 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+webkit manager coldStart: SAME | requests 43 vs 43 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+webkit manager openDetail: SAME | requests 24 vs 24 | route /manager/session/:id vs /manager/session/:id | text same | panel false | global false
+webkit manager back: SAME | requests 18 vs 18 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+RESULT: identical behaviour with instrumentation disabled
+=== webkit A=8201 B=8202 rep 2
+webkit athlete coldStart: SAME | requests 40 vs 40 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+webkit athlete openDetail: SAME | requests 11 vs 11 | route /athlete/session/:id vs /athlete/session/:id | text same | panel false | global false
+webkit athlete back: SAME | requests 20 vs 20 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+webkit coach coldStart: SAME | requests 42 vs 42 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+webkit coach openDetail: SAME | requests 19 vs 19 | route /coach/session/:id vs /coach/session/:id | text same | panel false | global false
+webkit coach back: SAME | requests 17 vs 17 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+webkit manager coldStart: SAME | requests 43 vs 43 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+webkit manager openDetail: SAME | requests 24 vs 24 | route /manager/session/:id vs /manager/session/:id | text same | panel false | global false
+webkit manager back: SAME | requests 18 vs 18 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+RESULT: identical behaviour with instrumentation disabled
+=== webkit A=8202 B=8201 rep 1
+webkit athlete coldStart: SAME | requests 40 vs 40 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+webkit athlete openDetail: SAME | requests 11 vs 11 | route /athlete/session/:id vs /athlete/session/:id | text same | panel false | global false
+webkit athlete back: SAME | requests 20 vs 20 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+webkit coach coldStart: SAME | requests 42 vs 42 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+webkit coach openDetail: SAME | requests 19 vs 19 | route /coach/session/:id vs /coach/session/:id | text same | panel false | global false
+webkit coach back: SAME | requests 17 vs 17 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+webkit manager coldStart: SAME | requests 43 vs 43 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+webkit manager openDetail: SAME | requests 24 vs 24 | route /manager/session/:id vs /manager/session/:id | text same | panel false | global false
+webkit manager back: SAME | requests 18 vs 18 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+RESULT: identical behaviour with instrumentation disabled
+=== webkit A=8202 B=8201 rep 2
+webkit athlete coldStart: SAME | requests 40 vs 40 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+webkit athlete openDetail: SAME | requests 11 vs 11 | route /athlete/session/:id vs /athlete/session/:id | text same | panel false | global false
+webkit athlete back: SAME | requests 20 vs 20 | route /athlete/sessions vs /athlete/sessions | text same | panel false | global false
+webkit coach coldStart: SAME | requests 42 vs 42 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+webkit coach openDetail: SAME | requests 19 vs 19 | route /coach/session/:id vs /coach/session/:id | text same | panel false | global false
+webkit coach back: SAME | requests 17 vs 17 | route /coach/sessions vs /coach/sessions | text same | panel false | global false
+webkit manager coldStart: SAME | requests 43 vs 43 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+webkit manager openDetail: SAME | requests 24 vs 24 | route /manager/session/:id vs /manager/session/:id | text same | panel false | global false
+webkit manager back: SAME | requests 18 vs 18 | route /manager/sessions vs /manager/sessions | text same | panel false | global false
+RESULT: identical behaviour with instrumentation disabled
+ALLDONE
