@@ -1,6 +1,6 @@
 # Instrumentation-only production deployment — review package
 
-**Status: prepared, NOT deployed.** Deployment needs your explicit approval.
+**Status: DEPLOYED 2026-10-15 11:41 UTC with your approval.** See [2026-10-15-instrumentation-deployed.md](2026-10-15-instrumentation-deployed.md).
 
 | | |
 |---|---|
@@ -143,8 +143,19 @@ Old Home Screen PWAs keep their current bundle until their next cold start (`max
 
 **Accounts:**
 - Your own manager account for manager scenarios.
-- For athlete/coach scenarios, a dedicated test account in production, if you have one; please tell me which.
+- For athlete scenarios, your dedicated production test account with normal athlete permissions, signed in manually on the iPhone.
 - Manager "athlete preview" is not equivalent: it runs with staff permissions.
+
+### Confirm the iPhone is running the new version (do this first, every measurement day)
+
+Deployed bundle: `index-7c236757118d18835bbe934904986f01.js` (2026-10-15, commit `ad0d693`).
+
+1. Fully close Shira Fit: swipe it away in the app switcher. Wait 10 s, then open it from the Home Screen. The app re-checks for a new version on every launch; the CDN can keep the previous one for up to 5 minutes after a deploy.
+2. With the iPhone connected, open Mac Safari → **Develop → [your iPhone] → Shira Fit**. In the Console run:
+   `[...document.scripts].map(s => s.src).find(s => s.includes("/_expo/static/js/web/"))`
+   The result must end in **`index-7c236757118d18835bbe934904986f01.js`** (or a later hash, if something newer has been deployed since; I will tell you).
+3. If it shows another hash: close the app fully again, wait a couple of minutes, reopen and repeat step 2.
+4. After enabling (below) and signing in, `typeof __SF_PERF__` in the console returns `"object"`. That confirms the instrumentation is active in this install.
 
 ### Enable (once per Home Screen install)
 
@@ -170,7 +181,7 @@ Note your network (Wi-Fi or cellular) for each session.
 
 The data is in memory only, so **copy it before swiping the app away**. Swiping is the next run's cold start and clears it.
 
-Alternative export: in the Web Inspector console, run `copy(JSON.stringify(__SF_PERF__.snapshot()))`.
+Alternative export: in the Web Inspector console, run `copy(JSON.stringify(__SF_PERF__.snapshot()))`. This works once the app has recorded something, i.e. after signing in. The global is created on the first recorded request or screen.
 
 ### Turn off
 
