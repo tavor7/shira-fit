@@ -182,8 +182,12 @@ const scenarios = {
   },
 };
 
+// PERF_AUTH_ONLY=name1,name2 runs a subset; PERF_AUTH_REPEAT=n repeats each (to separate a timing race from a real change).
+const only = (process.env.PERF_AUTH_ONLY ?? "").split(",").filter(Boolean);
+const repeat = Number(process.env.PERF_AUTH_REPEAT ?? 1);
 let differ = 0;
-for (const [name, fn] of Object.entries(scenarios)) {
+for (const [name, fn] of Object.entries(scenarios)) for (let r = 0; r < repeat; r++) {
+  if (only.length && !only.includes(name)) continue;
   const a = await fn(A);
   const b = await fn(B);
   const same = JSON.stringify(a) === JSON.stringify(b);

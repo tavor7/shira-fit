@@ -80,13 +80,18 @@ for (const [role, email] of [["athlete", "perf-ath-002@perf.test"], ["coach", "p
   const { ctx, page } = await signIn("perf-mgr-2@perf.test");
   const sid = sql("select id from public.training_sessions where session_date between current_date and current_date + 6 and not is_hidden order by session_date, start_time limit 1");
   const uid = sql(`select p.user_id from public.profiles p join auth.users u on u.id = p.user_id where u.email like 'perf-ath-%' and p.user_id not in (select user_id from public.session_registrations where session_id = '${sid}') limit 1`);
-  const sampling = hiddenDuring(page, 6000);
+  const text = () => page.evaluate(() => document.body.innerText.replace(/\s+/g, " "));
+  const before = await text();
+  const sampling = hiddenDuring(page, 9000);
   await page.waitForTimeout(500);
   sql(`insert into public.session_registrations (session_id, user_id, status) values ('${sid}', '${uid}', 'active')`);
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(4000);
+  const afterAdd = await text();
   sql(`delete from public.session_registrations where session_id = '${sid}' and user_id = '${uid}'`);
-  out.realtime = { hiddenMs: await sampling };
-  console.log(`${ENGINE} realtime on manager home (add + remove a registration): content hidden ${out.realtime.hiddenMs} ms`);
+  await page.waitForTimeout(4000);
+  const afterRemove = await text();
+  out.realtime = { hiddenMs: await sampling, updatedOnAdd: afterAdd !== before, restoredOnRemove: afterRemove === before };
+  console.log(`${ENGINE} realtime on manager home (add + remove a registration): content hidden ${out.realtime.hiddenMs} ms; screen updated on add=${out.realtime.updatedOnAdd}, back to the original on remove=${out.realtime.restoredOnRemove}`);
   await ctx.close();
 }
 

@@ -115,6 +115,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /** Full load for a user: profile row (awaited), then the background signup sync. */
   const loadProfile = useCallback(
     async (uid: string) => {
+      // Mark the sync as pending BEFORE the profile arrives: a load that doesn't block the UI (background auth event)
+      // would otherwise render the new profile with `settled` still true for a moment, and a consent gate could flash
+      // for a brand-new user whose signup consents are about to be recorded (reproduced under CPU load, 3 of 16 runs).
+      if (!hasSignupSyncRun(uid)) setSignupSync((prev) => (prev.settled ? { ...prev, settled: false } : prev));
       const loaded = await fetchProfile(uid);
       if (mountedRef.current) startSignupSync(uid, loaded);
     },
