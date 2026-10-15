@@ -1,0 +1,31 @@
+{
+  "_about": "Production pg_stat_statements snapshot (read-only query). Cumulative since stats_reset; compare later snapshots as differences, never reset production stats.",
+  "captured_at": "2026-10-15T06:53:04Z",
+  "stats_reset": "2026-03-25T13:35:06Z",
+  "rpc": [
+    { "fn": "manager_weekly_stats", "calls": 3306, "mean_ms": 391.4, "max_ms": 6159, "total_s": 1293.9 },
+    { "fn": "active_registration_counts", "calls": 47536, "mean_ms": 8.6, "max_ms": 3078, "total_s": 407.3 },
+    { "fn": "open_next_week_sessions_if_due", "calls": 22372, "mean_ms": 15.2, "max_ms": 1836, "total_s": 340.9 },
+    { "fn": "maintain_session_series_horizon", "calls": 4690, "mean_ms": 65.7, "max_ms": 1448, "total_s": 307.9 },
+    { "fn": "visible_registration_counts", "calls": 5905, "mean_ms": 41.1, "max_ms": 410, "total_s": 242.5 },
+    { "fn": "list_session_participants", "calls": 13885, "mean_ms": 13.7, "max_ms": 1522, "total_s": 189.6 },
+    { "fn": "get_required_consents", "calls": 31996, "mean_ms": 4.7, "max_ms": 190, "total_s": 148.8 },
+    { "fn": "log_user_activity", "calls": 4806, "mean_ms": 29.5, "max_ms": 2168, "total_s": 141.6 },
+    { "fn": "manager_capacity_mismatch", "calls": 2294, "mean_ms": 51.4, "max_ms": 1712, "total_s": 118.0 },
+    { "fn": "session_billing_price_ils", "calls": 42354, "mean_ms": 2.8, "max_ms": 807, "total_s": 116.9 },
+    { "fn": "get_next_weekly_registration_banner_state", "calls": 8419, "mean_ms": 13.6, "max_ms": 2652, "total_s": 114.7 },
+    { "fn": "waitlist_counts", "calls": 14448, "mean_ms": 7.5, "max_ms": 2286, "total_s": 108.7 },
+    { "fn": "get_address_collection_required", "calls": 25599, "mean_ms": 3.7, "max_ms": 109, "total_s": 95.3 },
+    { "fn": "register_for_session", "calls": 2029, "mean_ms": 31.0, "max_ms": 1918, "total_s": 63.0 },
+    { "fn": "sync_signup_profile_from_metadata", "calls": 16754, "mean_ms": 3.4, "max_ms": 96, "total_s": 57.5 },
+    { "fn": "participant_registration_history", "calls": 2141, "mean_ms": 25.5, "max_ms": 2918, "total_s": 54.5 },
+    { "fn": "sync_signup_electronic_receipts_consent", "calls": 16577, "mean_ms": 3.0, "max_ms": 92, "total_s": 49.4 },
+    { "fn": "cancel_registration", "calls": 538, "mean_ms": 50.5, "max_ms": 1416, "total_s": 27.1 },
+    { "fn": "set_registration_attendance", "calls": 2418, "mean_ms": 11.1, "max_ms": 1292, "total_s": 26.8 },
+    { "fn": "coach_add_athlete", "calls": 890, "mean_ms": 28.0, "max_ms": 588, "total_s": 24.9 },
+    { "fn": "get_pending_manager_direct_message", "calls": 13459, "mean_ms": 1.7, "max_ms": 180, "total_s": 23.2 }
+  ],
+  "staff_calendar_select": { "calls": 56341, "mean_ms": 34.6, "note": "all variants of training_sessions.*, trainer(...) selects" },
+  "pending_approvals_count": { "calls": 64478, "mean_ms": 19.4, "note": "captured 2026-10-14 in the audit" },
+  "postgrest_timezone_names": { "calls": 18999, "mean_ms": 79.8, "note": "runs on every PostgREST schema-cache load" }
+}
