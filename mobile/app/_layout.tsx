@@ -19,6 +19,7 @@ import { AccessibilityStyleInjector } from "../src/components/AccessibilityStyle
 import { AccessibilityMenu } from "../src/components/AccessibilityMenu";
 import { RouteRestoreDebugPanel } from "../src/components/RouteRestoreDebugPanel";
 import { WebLastRouteTracker } from "../src/components/WebLastRouteTracker";
+import { PerfPanel } from "../src/components/PerfPanel";
 import { initNotificationHandler } from "../src/lib/notificationsInit";
 import { installWebBackDismiss } from "../src/lib/webBackDismiss";
 import { useEffect } from "react";
@@ -181,6 +182,7 @@ export default function RootLayout() {
                     </View>
                     </ConnectionBarLayout>
                     <StudioContactFooterGate />
+                    {Platform.OS === "web" ? <PerfPanel /> : null}
                   </BulkJobsProvider>
                 </ToastProvider>
               </AppErrorBoundary>

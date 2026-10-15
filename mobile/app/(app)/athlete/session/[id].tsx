@@ -50,6 +50,7 @@ import { useCountUp } from "../../../../src/hooks/useCountUp";
 import { rowFlipFor } from "../../../../src/lib/layoutDirection";
 import { displayTimeRange } from "../../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
+import { usePerfScreen } from "../../../../src/hooks/usePerfScreen";
 
 /** Same visual anchor for Hebrew + Latin names in the participants list. */
 function participantListLabel(name: string, uiRtl: boolean): string {
@@ -75,6 +76,7 @@ export default function AthleteSessionDetail() {
   const [reason, setReason] = useState("");
   const [names, setNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  usePerfScreen("athlete.session", !loading);
   const [loadError, setLoadError] = useState<string>("");
   const [registering, setRegistering] = useState(false);
   const [waitlisting, setWaitlisting] = useState(false);

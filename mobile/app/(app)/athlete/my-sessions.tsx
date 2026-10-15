@@ -12,6 +12,7 @@ import { SessionCardSkeleton } from "../../../src/components/SessionCardSkeleton
 import { useI18n } from "../../../src/context/I18nContext";
 import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
+import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
 
 type TsNested = {
   id: string;
@@ -28,6 +29,7 @@ export default function MySessionsScreen() {
   const calendarFrame = useScreenContentStyle("wide", { selfInset: theme.spacing.md });
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  usePerfScreen("athlete.mySessions", !loading);
   const [loadError, setLoadError] = useState(false);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);

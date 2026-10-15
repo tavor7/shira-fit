@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { withTransportCapture } from "./techReporting/transportCapture";
+import { withPerfTracking } from "./perf/requestTracker";
 import { installRpcOutcomeObserver } from "./rpcOutcomes/observer";
 import { reportTechnicalError } from "./techReporting/reporter";
 import { remoteReporting, startRemoteReporting } from "./remoteReporting";
@@ -149,13 +150,17 @@ export const supabase = createClient(url, key, {
     // Phase 3B: observe transport failures only (rejections, 5xx/408/429); the response and errors pass through unchanged.
     // Outermost on purpose, so a 401 recovered by authAwareFetch's refresh-and-retry is judged on its final outcome.
     // Phase 3E.3: the same 3B report also feeds the remote pipeline, which is inert while REMOTE_TECHNICAL_REPORTING_ENABLED is false.
-    fetch: withTransportCapture(authAwareFetch, {
-      supabaseUrl: url,
-      report: (r) => {
-        reportTechnicalError(r);
-        remoteReporting.submitTransport(r);
-      },
-    }),
+    // Performance Phase 0: outermost timing of what the app actually waits for; inert unless enabled (lib/perf/perfFlag).
+    fetch: withPerfTracking(
+      withTransportCapture(authAwareFetch, {
+        supabaseUrl: url,
+        report: (r) => {
+          reportTechnicalError(r);
+          remoteReporting.submitTransport(r);
+        },
+      }),
+      { supabaseUrl: url }
+    ),
   },
 });
 

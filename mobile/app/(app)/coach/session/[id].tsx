@@ -26,6 +26,7 @@ import { rowFlipFor } from "../../../../src/lib/layoutDirection";
 import { useScreenContentStyle } from "../../../../src/hooks/useScreenLayout";
 import { EmptyState } from "../../../../src/components/EmptyState";
 import { classifyUserError } from "../../../../src/lib/userFacingError";
+import { usePerfScreen } from "../../../../src/hooks/usePerfScreen";
 type W = {
   user_id: string;
   requested_at: string;
@@ -78,6 +79,7 @@ export default function CoachSessionDetail() {
   const [sessionSchedule, setSessionSchedule] = useState<{ session_date: string; start_time: string } | null>(null);
   // The session row does not exist (deleted / bad link): show "not found" instead of an empty session.
   const [sessionMissing, setSessionMissing] = useState(false);
+  usePerfScreen("coach.session", sessionSchedule != null || sessionMissing);
   const [isKickbox, setIsKickbox] = useState(false);
   const [myId, setMyId] = useState<string | null>(null);
   const [waitlistQuickUserId, setWaitlistQuickUserId] = useState<string | null>(null);

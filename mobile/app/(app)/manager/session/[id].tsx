@@ -95,6 +95,7 @@ import { EmptyState, ErrorState } from "../../../../src/components/EmptyState";
 import { classifyUserError, userFacingErrorMessage } from "../../../../src/lib/userFacingError";
 import { StatusChip } from "../../../../src/components/StatusChip";
 import { useWebBackDismiss } from "../../../../src/lib/webBackDismiss";
+import { usePerfScreen } from "../../../../src/hooks/usePerfScreen";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
@@ -272,6 +273,7 @@ export default function ManagerSessionDetail() {
   const [customCoachRateDraft, setCustomCoachRateDraft] = useState("");
   const [customCoachRateBusy, setCustomCoachRateBusy] = useState(false);
   const [session, setSession] = useState<TrainingSession | null>(null);
+  usePerfScreen("manager.session", session != null);
   // Why the session row is missing after a load (deleted / bad id / request failed) — without it the screen stayed on "Loading…".
   const [loadError, setLoadError] = useState<unknown>(null);
   const [waitlist, setWaitlist] = useState<WaitlistRow[]>([]);

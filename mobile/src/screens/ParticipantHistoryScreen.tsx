@@ -58,6 +58,7 @@ import { displayTimeRange, displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { pluralKey } from "../lib/pluralKey";
 import { ReportPageHeader } from "../components/ReportPageHeader";
+import { usePerfScreen } from "../hooks/usePerfScreen";
 
 export default function ParticipantHistoryScreen({
   hideTitle = false,
@@ -130,6 +131,7 @@ export default function ParticipantHistoryScreen({
   const [athletes, setAthletes] = useState<PickerRow[]>([]);
   const [athletesLoading, setAthletesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  usePerfScreen("participantHistory", !loading);
   const [hasSearched, setHasSearched] = useState(false);
   const [rows, setRows] = useState<ParticipantHistoryRow[]>([]);
   const [accountPayments, setAccountPayments] = useState<AthleteAccountPayment[]>([]);

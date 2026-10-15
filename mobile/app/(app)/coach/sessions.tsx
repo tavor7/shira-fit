@@ -23,6 +23,7 @@ import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../..
 import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySlot";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
+import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
 
 export default function CoachSessionsScreen() {
   const { profile } = useAuth();
@@ -36,6 +37,7 @@ export default function CoachSessionsScreen() {
   const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  usePerfScreen("coach.home", !loading);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [refreshSeq, setRefreshSeq] = useState(0);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);

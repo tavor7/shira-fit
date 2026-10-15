@@ -36,6 +36,7 @@ import type { MoveParticipantTarget } from "./MoveParticipantSheet";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 import { displayLtr, displayMoney } from "../lib/displayFormat";
 import { useWebBackDismiss } from "../lib/webBackDismiss";
+import { usePerfScreen } from "../hooks/usePerfScreen";
 
 type RegRow = {
   user_id: string;
@@ -204,6 +205,7 @@ export function ParticipantAttendanceList({
   const [rosterPriceByRowId, setRosterPriceByRowId] = useState<Record<string, number>>({});
   const [effectivePriceByRowId, setEffectivePriceByRowId] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  usePerfScreen("session.roster", !loading);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [duplicateRosterSessionId, setDuplicateRosterSessionId] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);

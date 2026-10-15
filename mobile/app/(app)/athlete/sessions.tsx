@@ -36,6 +36,7 @@ import { PressableScale } from "../../../src/components/PressableScale";
 import { rowFlipFor } from "../../../src/lib/layoutDirection";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
+import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
 
 export default function AthleteSessionsScreen() {
   const { profile, session } = useAuth();
@@ -50,6 +51,7 @@ export default function AthleteSessionsScreen() {
   const waitlistBusyRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  usePerfScreen("athlete.home", !loading);
   /** The week's sessions failed to load: show an error with retry instead of an empty (or endlessly loading) calendar. */
   const [calendarError, setCalendarError] = useState(false);
   const [sheetDay, setSheetDay] = useState<string | null>(null);

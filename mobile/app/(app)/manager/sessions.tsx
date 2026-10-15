@@ -33,6 +33,7 @@ import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHid
 import { displayTimeRange } from "../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 import { pluralKey } from "../../../src/lib/pluralKey";
+import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
 
 export default function ManagerSessionsScreen() {
   const { profile } = useAuth();
@@ -46,6 +47,7 @@ export default function ManagerSessionsScreen() {
   const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  usePerfScreen("manager.home", !loading);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [refreshSeq, setRefreshSeq] = useState(0);
   /** Keeps the calendar week when navigating to session detail and back. */

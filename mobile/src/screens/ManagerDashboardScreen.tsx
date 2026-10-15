@@ -43,6 +43,7 @@ import { displayDateRange, displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { selectionA11y } from "../lib/a11ySelection";
 import { pluralKey } from "../lib/pluralKey";
+import { usePerfScreen } from "../hooks/usePerfScreen";
 
 type PeriodMode = ManagerPeriodMode;
 
@@ -122,6 +123,7 @@ export default function ManagerDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<StatsPayload | null>(null);
+  usePerfScreen("manager.dashboard", !loading && data != null);
   const [capacityMismatchCount, setCapacityMismatchCount] = useState(0);
   const [expandedCoachId, setExpandedCoachId] = useState<string | null>(null);
   const [showAthleteList, setShowAthleteList] = useState(false);
