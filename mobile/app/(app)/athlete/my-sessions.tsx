@@ -14,6 +14,9 @@ import { CrossfadeSwap } from "../../../src/components/CrossfadeSwap";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
 import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
 import { getCurrentUserId } from "../../../src/lib/currentUser";
+import { createLoadSequencer, showInitialSkeleton } from "../../../src/lib/screenRefresh";
+import { UserScopedScreen } from "../../../src/components/UserScopedScreen";
+import { RefreshFailedNotice } from "../../../src/components/RefreshFailedNotice";
 
 type TsNested = {
   id: string;
@@ -26,19 +29,32 @@ type TsNested = {
 type Row = { session_id: string; training_sessions: TsNested };
 
 export default function MySessionsScreen() {
+  return (
+    <UserScopedScreen>
+      <MySessionsScreenContent />
+    </UserScopedScreen>
+  );
+}
+
+function MySessionsScreenContent() {
   const { t, isRTL } = useI18n();
   const calendarFrame = useScreenContentStyle("wide", { selfInset: theme.spacing.md });
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
-  usePerfScreen("athlete.mySessions", !loading);
+  /** Performance Phase 1 / step 5: once the list has data, refreshes keep it on screen (no skeleton). */
+  const [hasData, setHasData] = useState(false);
+  const showSkeleton = showInitialSkeleton(loading, hasData);
+  const [loadSeq] = useState(createLoadSequencer);
+  usePerfScreen("athlete.mySessions", !showSkeleton);
   const [loadError, setLoadError] = useState(false);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
 
   const load = useCallback(async () => {
+    const ticket = loadSeq.next();
     setLoading(true);
-    setLoadError(false);
     const u = await getCurrentUserId();
+    if (!loadSeq.isLatest(ticket)) return;
     if (!u) {
       setRows([]);
       setLoading(false);
@@ -53,9 +69,10 @@ export default function MySessionsScreen() {
       .select("session_id, training_sessions!inner(id, session_date, start_time, duration_minutes, is_kickbox)")
       .eq("user_id", u)
       .eq("status", "active");
+    if (!loadSeq.isLatest(ticket)) return;
 
     if (error) {
-      setRows([]);
+      // Step 5: a failed refresh keeps the sessions already on screen; the notice says they may be out of date.
       setLoadError(true);
       setLoading(false);
       return;
@@ -67,8 +84,10 @@ export default function MySessionsScreen() {
       if (ts?.id) list.push({ session_id: String(r.session_id), training_sessions: ts });
     }
     setRows(list);
+    setLoadError(false);
+    setHasData(true);
     setLoading(false);
-  }, []);
+  }, [loadSeq]);
 
   useFocusEffect(
     useCallback(() => {
@@ -103,8 +122,9 @@ export default function MySessionsScreen() {
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ title: t("screen.athleteMySessions") }} />
+      {loadError && hasData ? <RefreshFailedNotice onRetry={() => void load()} /> : null}
       <CrossfadeSwap
-        loading={loading}
+        loading={showSkeleton}
         skeleton={
           <View style={styles.loadingBox}>
             <SessionCardSkeleton />
@@ -113,7 +133,7 @@ export default function MySessionsScreen() {
           </View>
         }
       >
-        {loadError ? (
+        {loadError && !hasData ? (
           <EmptyState
             title={t("athleteMySessions.loadErrorTitle")}
             body={t("athleteMySessions.loadErrorBody")}

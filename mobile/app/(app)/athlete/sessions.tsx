@@ -39,8 +39,19 @@ import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
 import { getCurrentUserId } from "../../../src/lib/currentUser";
 import { sessionIdsOnCalendar } from "../../../src/lib/athleteCalendarMerge";
+import { createLoadSequencer, showInitialSkeleton } from "../../../src/lib/screenRefresh";
+import { UserScopedScreen } from "../../../src/components/UserScopedScreen";
+import { RefreshFailedNotice } from "../../../src/components/RefreshFailedNotice";
 
 export default function AthleteSessionsScreen() {
+  return (
+    <UserScopedScreen>
+      <AthleteSessionsScreenContent />
+    </UserScopedScreen>
+  );
+}
+
+function AthleteSessionsScreenContent() {
   const { profile, session } = useAuth();
   const screenContent = useScreenContentStyle("wide");
   const { language, t, isRTL } = useI18n();
@@ -53,7 +64,11 @@ export default function AthleteSessionsScreen() {
   const waitlistBusyRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  usePerfScreen("athlete.home", !loading);
+  /** Performance Phase 1 / step 5: once the calendar has data, refreshes keep it on screen (no skeleton). */
+  const [hasData, setHasData] = useState(false);
+  const showSkeleton = showInitialSkeleton(loading, hasData);
+  const [loadSeq] = useState(createLoadSequencer);
+  usePerfScreen("athlete.home", !showSkeleton);
   /** The week's sessions failed to load: show an error with retry instead of an empty (or endlessly loading) calendar. */
   const [calendarError, setCalendarError] = useState(false);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
@@ -79,6 +94,7 @@ export default function AthleteSessionsScreen() {
     homeAlerts.length > 0 && (priorityAlertsVisibleCount === null || priorityAlertsVisibleCount > 0);
 
   const load = useCallback(async (isRefresh: boolean) => {
+    const ticket = loadSeq.next();
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     // Idempotent server-side backup for a late cron; doesn't need to block the fetch below.
@@ -98,14 +114,19 @@ export default function AthleteSessionsScreen() {
         uid ? supabase.from("waitlist_requests").select("session_id").eq("user_id", uid) : null,
         fetchStudioCalendarNotesForRange(notesRange.start, notesRange.end),
       ]);
+      if (!loadSeq.isLatest(ticket)) return;
       setHomeAlerts(alertItems);
       const { data, error } = calendarRes;
       setCalendarError(!!error);
       // Nothing else on the calendar can be shown without its sessions; fail fast instead of retrying each dependent query.
+      // A failed refresh keeps the sessions already on screen (step 5); the notice says they may be out of date.
       if (error) return;
       const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
+      // Sessions and their counts are applied together, so a refresh never shows new sessions with old counts.
+      const counts = await fetchActiveSignupCountsBySession(list.map((s) => s.id));
+      if (!loadSeq.isLatest(ticket)) return;
       setRows(list);
-      setSignupBySession(await fetchActiveSignupCountsBySession(list.map((s) => s.id)));
+      setSignupBySession(counts);
 
       if (uid && list.length > 0) {
         setMyRegSessionIds(sessionIdsOnCalendar(myRegsRes?.data as { session_id: string }[] | null, list));
@@ -116,13 +137,17 @@ export default function AthleteSessionsScreen() {
       }
 
       setStudioNotes(notes);
+      setHasData(true);
     } catch {
-      setCalendarError(true);
+      if (loadSeq.isLatest(ticket)) setCalendarError(true);
     } finally {
-      if (isRefresh) setRefreshing(false);
-      else setLoading(false);
+      // Only the newest load ends the loading state (an older one finishing late must not hide a newer one's spinner).
+      if (loadSeq.isLatest(ticket)) {
+        setRefreshing(false);
+        setLoading(false);
+      }
     }
-  }, [language, defaultWeek.start, defaultWeek.end]);
+  }, [language, defaultWeek.start, defaultWeek.end, loadSeq]);
 
   useEffect(() => {
     if (!weekRange.start || !weekRange.end) return;
@@ -309,7 +334,7 @@ export default function AthleteSessionsScreen() {
           </View>
         ) : null}
         {/* Both loads failed (offline): one error with one retry below, not two identical ones. */}
-        {upcomingStatus === "error" && calendarError && rows.length === 0 ? null : (
+        {upcomingStatus === "error" && calendarError && !hasData ? null : (
         <View
           style={[
             styles.myUpcomingCard,
@@ -374,7 +399,8 @@ export default function AthleteSessionsScreen() {
         </View>
         )}
 
-        {calendarError && rows.length === 0 ? (
+        {calendarError && hasData ? <RefreshFailedNotice onRetry={() => void load(false)} /> : null}
+        {calendarError && !hasData ? (
           <ErrorState
             title={t("errors.loadFailedTitle")}
             body={t("errors.network")}
@@ -388,7 +414,7 @@ export default function AthleteSessionsScreen() {
         ) : (
           <SessionsWeekCalendar
             items={items}
-            isLoading={loading}
+            isLoading={showSkeleton}
             emptyLabel={t("dashboard.noSessionsThisWeek")}
             onDayPress={(iso) => setSheetDay(iso)}
             weekOffset={calendarWeekOffset}

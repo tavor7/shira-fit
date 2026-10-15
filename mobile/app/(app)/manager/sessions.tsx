@@ -34,11 +34,23 @@ import { displayTimeRange } from "../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 import { pluralKey } from "../../../src/lib/pluralKey";
 import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
+import { createLoadSequencer, showInitialSkeleton } from "../../../src/lib/screenRefresh";
+import { UserScopedScreen } from "../../../src/components/UserScopedScreen";
+import { RefreshFailedNotice } from "../../../src/components/RefreshFailedNotice";
+import { ErrorState } from "../../../src/components/EmptyState";
 
 export default function ManagerSessionsScreen() {
+  return (
+    <UserScopedScreen>
+      <ManagerSessionsScreenContent />
+    </UserScopedScreen>
+  );
+}
+
+function ManagerSessionsScreenContent() {
   const { profile } = useAuth();
   const screenContent = useScreenContentStyle("wide", { selfInset: theme.spacing.md });
-  const { language, t } = useI18n();
+  const { language, t, isRTL } = useI18n();
   const { showOk, showConfirm } = useAppAlert();
   const [rows, setRows] = useState<TrainingSessionWithTrainer[]>([]);
   const [signupBySession, setSignupBySession] = useState<Record<string, number>>({});
@@ -47,7 +59,12 @@ export default function ManagerSessionsScreen() {
   const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  usePerfScreen("manager.home", !loading);
+  /** Performance Phase 1 / step 5: once the calendar has data, refreshes (focus, realtime) keep it on screen. */
+  const [hasData, setHasData] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const showSkeleton = showInitialSkeleton(loading, hasData);
+  const [loadSeq] = useState(createLoadSequencer);
+  usePerfScreen("manager.home", !showSkeleton);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [refreshSeq, setRefreshSeq] = useState(0);
   /** Keeps the calendar week when navigating to session detail and back. */
@@ -74,6 +91,7 @@ export default function ManagerSessionsScreen() {
 
   const alertsSeqRef = useRef(0);
   const load = useCallback(async (isRefresh: boolean) => {
+    const ticket = loadSeq.next();
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
@@ -88,8 +106,15 @@ export default function ManagerSessionsScreen() {
       fetchStaffTrainingSessionsForCalendar(),
       w.start && w.end ? fetchStudioCalendarNotesForRange(w.start, w.end) : Promise.resolve(null),
     ]);
-    const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
-    setRows(list);
+    if (!loadSeq.isLatest(ticket)) return;
+    setLoadError(!!error);
+    if (error) {
+      // Step 5: a failed refresh keeps the sessions already on screen (it used to empty the calendar silently).
+      setRefreshing(false);
+      setLoading(false);
+      return;
+    }
+    const list = data ? (data as TrainingSessionWithTrainer[]) : [];
     const ids = list.map((s) => s.id);
     const [signup, waitlist, visibleSignup, hidden] = await Promise.all([
       fetchActiveSignupCountsBySession(ids),
@@ -97,20 +122,24 @@ export default function ManagerSessionsScreen() {
       fetchVisibleSignupCountsBySession(ids),
       isSuperUser ? fetchSessionIdsWithHiddenAthletes(ids) : Promise.resolve(new Set<string>()),
     ]);
+    if (!loadSeq.isLatest(ticket)) return;
+    // Sessions and their counts are applied together, so a refresh never shows new sessions with old counts.
+    setRows(list);
     setSignupBySession(signup);
     setWaitlistBySession(waitlist);
     setVisibleSignupBySession(visibleSignup);
     setHiddenSessionIds(hidden);
     if (notes) setStudioNotes(notes);
     setRefreshSeq((n) => n + 1);
+    setHasData(true);
 
-    if (isRefresh) setRefreshing(false);
-    else setLoading(false);
+    setRefreshing(false);
+    setLoading(false);
 
     const seq = ++alertsSeqRef.current;
     const alerts = await mergeStaffHomeAlerts("manager", list, signup, waitlist, language);
     if (seq === alertsSeqRef.current) setHomeAlerts(alerts);
-  }, [language, isSuperUser]);
+  }, [language, isSuperUser, loadSeq]);
 
   useEffect(() => {
     if (!weekRange.start || !weekRange.end) return;
@@ -238,10 +267,21 @@ export default function ManagerSessionsScreen() {
             />
           </View>
         ) : null}
+        {loadError && hasData ? <RefreshFailedNotice onRetry={() => void load(false)} /> : null}
+        {loadError && !hasData ? (
+          <ErrorState
+            compact
+            title={t("errors.loadFailedTitle")}
+            body={t("errors.network")}
+            actionLabel={t("auth.retryConnection")}
+            onAction={() => void load(false)}
+            isRTL={isRTL}
+          />
+        ) : null}
         <StaffHomeOverview userId={profile?.user_id} sessions={rows} variant="manager" refreshSeq={refreshSeq} />
         <StaffAthleteScheduleLookup variant="manager" />
         <CrossfadeSwap
-          loading={loading && rows.length === 0}
+          loading={showSkeleton}
           skeleton={
             <View style={styles.initialLoading}>
               <ListRowSkeleton />
@@ -252,7 +292,7 @@ export default function ManagerSessionsScreen() {
         >
           <SessionsWeekCalendar
             items={items}
-            isLoading={loading}
+            isLoading={showSkeleton}
             emptyLabel={t("empty.noSessionsFound")}
             onDayPress={(iso) => setSheetDay(iso)}
             weekOffset={calendarWeekOffset}

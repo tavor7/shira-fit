@@ -24,8 +24,19 @@ import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySl
 import { displayTimeRange } from "../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
+import { createLoadSequencer, showInitialSkeleton } from "../../../src/lib/screenRefresh";
+import { UserScopedScreen } from "../../../src/components/UserScopedScreen";
+import { RefreshFailedNotice } from "../../../src/components/RefreshFailedNotice";
 
 export default function CoachSessionsScreen() {
+  return (
+    <UserScopedScreen>
+      <CoachSessionsScreenContent />
+    </UserScopedScreen>
+  );
+}
+
+function CoachSessionsScreenContent() {
   const { profile } = useAuth();
   const screenContent = useScreenContentStyle("wide", { selfInset: theme.spacing.md });
   const { language, t, isRTL } = useI18n();
@@ -37,7 +48,11 @@ export default function CoachSessionsScreen() {
   const [waitlistBySession, setWaitlistBySession] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  usePerfScreen("coach.home", !loading);
+  /** Performance Phase 1 / step 5: once the calendar has data, refreshes keep it on screen (no skeleton). */
+  const [hasData, setHasData] = useState(false);
+  const showSkeleton = showInitialSkeleton(loading, hasData);
+  const [loadSeq] = useState(createLoadSequencer);
+  usePerfScreen("coach.home", !showSkeleton);
   const [sheetDay, setSheetDay] = useState<string | null>(null);
   const [refreshSeq, setRefreshSeq] = useState(0);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
@@ -59,6 +74,7 @@ export default function CoachSessionsScreen() {
 
   const alertsSeqRef = useRef(0);
   const load = useCallback(async (isRefresh: boolean) => {
+    const ticket = loadSeq.next();
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
@@ -73,28 +89,38 @@ export default function CoachSessionsScreen() {
       fetchStaffTrainingSessionsForCalendar(),
       w.start && w.end ? fetchStudioCalendarNotesForRange(w.start, w.end) : Promise.resolve(null),
     ]);
+    if (!loadSeq.isLatest(ticket)) return;
     setLoadError(!!error);
-    const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
-    setRows(list);
+    if (error) {
+      // Step 5: a failed refresh keeps the sessions already on screen (it used to empty the calendar).
+      setRefreshing(false);
+      setLoading(false);
+      return;
+    }
+    const list = data ? (data as TrainingSessionWithTrainer[]) : [];
     const ids = list.map((s) => s.id);
     const [signup, waitlist, visibleSignup] = await Promise.all([
       fetchActiveSignupCountsBySession(ids),
       fetchWaitlistCountsBySession(ids),
       fetchVisibleSignupCountsBySession(ids),
     ]);
+    if (!loadSeq.isLatest(ticket)) return;
+    // Sessions and their counts are applied together, so a refresh never shows new sessions with old counts.
+    setRows(list);
     setSignupBySession(signup);
     setWaitlistBySession(waitlist);
     setVisibleSignupBySession(visibleSignup);
     if (notes) setStudioNotes(notes);
     setRefreshSeq((n) => n + 1);
+    setHasData(true);
 
-    if (isRefresh) setRefreshing(false);
-    else setLoading(false);
+    setRefreshing(false);
+    setLoading(false);
 
     const seq = ++alertsSeqRef.current;
     const alerts = await mergeStaffHomeAlerts("coach", list, signup, waitlist, language);
     if (seq === alertsSeqRef.current) setHomeAlerts(alerts);
-  }, [language]);
+  }, [language, loadSeq]);
 
   useEffect(() => {
     if (!weekRange.start || !weekRange.end) return;
@@ -152,7 +178,8 @@ export default function CoachSessionsScreen() {
         contentContainerStyle={[styles.scrollContent, screenContent]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[theme.colors.cta]} />}
       >
-        {loadError ? (
+        {loadError && hasData ? <RefreshFailedNotice onRetry={() => void load(false)} /> : null}
+        {loadError && !hasData ? (
           <View style={styles.errorBanner}>
             <AppText variant="caption" isRTL={isRTL} style={styles.errorBannerTxt}>
               {t("coachSessions.loadError")}
@@ -172,7 +199,7 @@ export default function CoachSessionsScreen() {
         <StaffAthleteScheduleLookup variant="coach" />
         <SessionsWeekCalendar
           items={items}
-          isLoading={loading}
+          isLoading={showSkeleton}
           emptyLabel={t("empty.noSessionsFound")}
           onDayPress={(iso) => setSheetDay(iso)}
           weekOffset={calendarWeekOffset}

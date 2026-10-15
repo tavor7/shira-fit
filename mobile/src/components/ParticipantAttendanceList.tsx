@@ -205,6 +205,8 @@ export function ParticipantAttendanceList({
   const [rosterPriceByRowId, setRosterPriceByRowId] = useState<Record<string, number>>({});
   const [effectivePriceByRowId, setEffectivePriceByRowId] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  /** The session whose rows are currently on screen (step 5: silent refocus only for the same session). */
+  const rowsSessionIdRef = useRef<string | null>(null);
   usePerfScreen("session.roster", !loading);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [duplicateRosterSessionId, setDuplicateRosterSessionId] = useState<string | null>(null);
@@ -566,6 +568,7 @@ export function ParticipantAttendanceList({
       setLockedKeys(locked);
     }
     setRows(all);
+    rowsSessionIdRef.current = sessionId;
 
     // Mark rows that weren't in the previous roster as "entering" so they animate in —
     // skip on the very first load so the initial roster never flashes as new.
@@ -622,10 +625,13 @@ export function ParticipantAttendanceList({
     setLoading(false);
   }, [sessionId, onParticipantCountChange, onAttendanceStatsChange, onDuplicateRosterSession, viewerIsManager]);
 
+  // Performance Phase 1 / step 5: refocusing (e.g. back from a participant's profile) refreshes silently when THIS
+  // session's roster is already on screen, instead of swapping it for skeletons. A different session (adjacent-session
+  // navigation reuses this component) still gets a first-load skeleton, never the previous session's rows.
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      load({ silent: rowsSessionIdRef.current === sessionId });
+    }, [load, sessionId])
   );
 
   useEffect(() => {
