@@ -253,6 +253,10 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     if (code === "forbidden") {
       return t("ui.addParticipantToSession.notAllowed");
     }
+    if (code === "full") {
+      // The server decides capacity (coaches can never add over it); say so in words, not as a raw code.
+      return t("ui.addParticipantToSession.sessionFull");
+    }
     if (code === "session_ended") {
       return t("ui.addParticipantToSession.thisSessionHasAlreadyEnded");
     }

@@ -130,8 +130,10 @@ console.log(`== ${ENGINE}: coach`);
   if (await search.count()) await search.fill(`Athlete One ${n}`);
   await page.waitForTimeout(2000);
   await page.getByText(`Athlete One ${n}`).locator("visible=true").last().click();
-  await page.waitForTimeout(2000);
-  check("full session: coach is told it's full", await has(page, "Session full", false));
+  // The "Session full" toast appears and fades on its own timer: poll for it instead of looking once.
+  let toldFull = false;
+  for (let i = 0; i < 60 && !toldFull; i++) { toldFull = await has(page, "Session full", false); if (!toldFull) await page.waitForTimeout(100); }
+  check("full session: coach is told it's full", toldFull);
   check("full session: no Increase capacity", !(await has(page, "Increase capacity")));
   check("full session: no add-over-capacity", !(await has(page, "Keep capacity, add anyway")));
   const count = sql(`select count(*) from public.session_registrations where session_id = '${S_FULL}' and status = 'active'`);
