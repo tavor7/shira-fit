@@ -14,7 +14,7 @@ import { ManagerMessageCard } from "./ManagerMessageCard";
 
 /** Shows the oldest unread manager message after app load; chains if multiple are pending. */
 export function ManagerDirectMessageModal() {
-  const { session, profile } = useAuth();
+  const { session, profile, signupSync } = useAuth();
   const { t, isRTL } = useI18n();
   const [blockedByRequirements, setBlockedByRequirements] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -49,9 +49,10 @@ export function ManagerDirectMessageModal() {
     profile?.zip_code,
   ]);
 
+  // Re-check when a first-login signup sync recorded something (it can lift the receipt requirements).
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, signupSync.generation]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
@@ -71,7 +72,7 @@ export function ManagerDirectMessageModal() {
     setMessage(next);
   }
 
-  if (!session || loading || blockedByRequirements || !message) return null;
+  if (!session || loading || !signupSync.settled || blockedByRequirements || !message) return null;
 
   const senderLabel = message.sender_name.trim() || t("managerMessage.studioFallback");
 

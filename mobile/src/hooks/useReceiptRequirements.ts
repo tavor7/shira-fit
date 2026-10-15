@@ -20,7 +20,7 @@ export type ReceiptRequirementsState = {
 };
 
 export function useReceiptRequirements(): ReceiptRequirementsState {
-  const { session, profile } = useAuth();
+  const { session, profile, signupSync } = useAuth();
   const [loading, setLoading] = useState(true);
   const [consent, setConsent] = useState<RequiredConsent | null>(null);
   const [needsAddress, setNeedsAddress] = useState(false);
@@ -54,6 +54,8 @@ export function useReceiptRequirements(): ReceiptRequirementsState {
     profile?.electronic_receipts_consent_version,
     profile?.address,
     profile?.zip_code,
+    // Re-check when a first-login signup sync recorded something (AuthContext.signupSync).
+    signupSync.generation,
   ]);
 
   useEffect(() => {
@@ -66,7 +68,8 @@ export function useReceiptRequirements(): ReceiptRequirementsState {
   const mode = receiptRequirementsMode({ consent, needsAddress });
 
   return {
-    loading,
+    // Undecided while the signup sync may still be recording this user's signup consent.
+    loading: loading || !signupSync.settled,
     mode,
     consent,
     needsAddress,

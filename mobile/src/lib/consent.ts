@@ -9,21 +9,24 @@ export async function fetchCurrentElectronicReceiptsConsentVersion(): Promise<nu
   return row?.version ?? 1;
 }
 
-export async function syncPendingSignupConsent(): Promise<void> {
+/** Resolves to whether a pending electronic-receipts consent from signup was recorded now. */
+export async function syncPendingSignupConsent(): Promise<boolean> {
   const { data, error } = await supabase.rpc("sync_signup_electronic_receipts_consent");
   if (error) throw error;
-  const row = data as { ok?: boolean; error?: string } | null;
+  const row = data as { ok?: boolean; synced?: boolean; error?: string } | null;
   if (!row?.ok) throw new Error(row?.error ?? "consent_sync_failed");
+  return row.synced === true;
 }
 
 /** Fallback for terms_of_service / privacy_policy / marketing_communications signup
  *  consent when the inline record call at signup had no session yet (email confirmation
  *  pending) — mirrors syncPendingSignupConsent's role for electronic_receipts. */
-export async function syncPendingSignupLegalConsents(): Promise<void> {
+export async function syncPendingSignupLegalConsents(): Promise<number> {
   const { data, error } = await supabase.rpc("sync_signup_legal_consents");
   if (error) throw error;
-  const row = data as { ok?: boolean; error?: string } | null;
+  const row = data as { ok?: boolean; synced?: number; error?: string } | null;
   if (!row?.ok) throw new Error(row?.error ?? "legal_consent_sync_failed");
+  return Number(row.synced ?? 0);
 }
 
 export async function fetchRequiredConsents(): Promise<RequiredConsent[]> {

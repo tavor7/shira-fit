@@ -21,7 +21,7 @@ const GATED_TYPES = new Set(["terms_of_service", "privacy_policy"]);
  * once a manager has turned that rollout on.
  */
 export function useLegalConsentGate(): LegalConsentGateState {
-  const { session } = useAuth();
+  const { session, signupSync } = useAuth();
   const [loading, setLoading] = useState(true);
   const [required, setRequired] = useState<RequiredConsent[]>([]);
 
@@ -45,9 +45,10 @@ export function useLegalConsentGate(): LegalConsentGateState {
     }
   }, [session?.user?.id]);
 
+  // Re-check when a first-login signup sync recorded consents (AuthContext.signupSync).
   useEffect(() => {
     void reload();
-  }, [reload]);
+  }, [reload, signupSync.generation]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
@@ -56,5 +57,6 @@ export function useLegalConsentGate(): LegalConsentGateState {
     return () => sub.remove();
   }, [reload]);
 
-  return { loading, required, blocksApp: required.length > 0, reload };
+  // Undecided while the signup sync may still be recording this user's signup consents.
+  return { loading: loading || !signupSync.settled, required, blocksApp: required.length > 0, reload };
 }

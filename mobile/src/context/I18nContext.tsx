@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { I18nManager, Platform, StyleSheet, View } from "react-native";
 import { translations, type LanguageCode } from "../i18n/translations";
 import { useAuth } from "./AuthContext";
@@ -107,18 +107,28 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const t = useMemo(() => translatorFor(language), [language]);
 
-  async function setLanguage(lang: LanguageCode) {
-    setLanguageState(lang);
-    await writeStoredLanguage(LANGUAGE_STORAGE_KEY_GLOBAL, lang);
-    if (userId) await writeStoredLanguage(languageStorageKeyForUser(userId), lang);
-  }
+  const setLanguage = useCallback(
+    async (lang: LanguageCode) => {
+      setLanguageState(lang);
+      await writeStoredLanguage(LANGUAGE_STORAGE_KEY_GLOBAL, lang);
+      if (userId) await writeStoredLanguage(languageStorageKeyForUser(userId), lang);
+    },
+    [userId]
+  );
 
-  async function toggleLanguage() {
+  const toggleLanguage = useCallback(async () => {
     await setLanguage(language === "he" ? "en" : "he");
-  }
+  }, [language, setLanguage]);
+
+  // Stable value: every useI18n() consumer re-renders only when the language (or the signed-in user) changes,
+  // not on every auth/session update of the provider above.
+  const value = useMemo(
+    () => ({ language, isRTL, rowFlip, t, setLanguage, toggleLanguage }),
+    [language, isRTL, rowFlip, t, setLanguage, toggleLanguage]
+  );
 
   return (
-    <Ctx.Provider value={{ language, isRTL, rowFlip, t, setLanguage, toggleLanguage }}>
+    <Ctx.Provider value={value}>
       {Platform.OS === "web" ? (
         // react-native-web resolves logical styles (marginStart, paddingEnd, borderStartWidth, start/end,
         // textAlign "start"/"end") from its own locale context, not from <html dir>; a View with `dir`
