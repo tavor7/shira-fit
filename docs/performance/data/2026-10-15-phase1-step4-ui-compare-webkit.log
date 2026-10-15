@@ -1,0 +1,9 @@
+webkit athlete: registered session: SAME (363 chars, 10 labels)
+webkit athlete: not yet open session: SAME (316 chars, 8 labels)
+webkit athlete: open session: SAME (320 chars, 10 labels)
+webkit athlete: on the waitlist: SAME (388 chars, 10 labels)
+webkit coach: own session with roster: SAME (734 chars, 38 labels)
+webkit manager: session with roster: SAME (1065 chars, 42 labels)
+webkit manager: manual participants only: SAME (848 chars, 22 labels)
+webkit super user: session with roster: SAME (1065 chars, 42 labels)
+RESULT: identical screens in 8 scenarios

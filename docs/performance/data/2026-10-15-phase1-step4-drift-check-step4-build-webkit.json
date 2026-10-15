@@ -1,0 +1,3715 @@
+{
+  "engine": "webkit",
+  "runs": 5,
+  "base": "http://127.0.0.1:8202",
+  "results": [
+    {
+      "role": "athlete",
+      "run": 0,
+      "engine": "webkit",
+      "steps": {
+        "coldStart": {
+          "home": {
+            "visitId": 1,
+            "screen": "athlete.home",
+            "tapToContentMs": null,
+            "focusToContentMs": 760,
+            "requestsBeforeContent": 27,
+            "depthBeforeContent": 2,
+            "requestsInWindow": 27,
+            "depthInWindow": 2,
+            "settledMs": 747,
+            "notReadyMs": 0,
+            "endpoints": {
+              "auth:user": 4,
+              "rpc:get_required_consents": 3,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_address_collection_required": 2,
+              "rest:profiles": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:studio_calendar_notes": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:sync_signup_electronic_receipts_consent": 1,
+              "rpc:sync_signup_legal_consents": 1,
+              "rpc:get_pending_manager_direct_message": 1,
+              "rpc:active_registration_counts": 1
+            },
+            "contentAtSinceNavStart": 1420
+          },
+          "startup": {
+            "requests": 2,
+            "depth": 2,
+            "settledMs": 825,
+            "endpoints": {
+              "rest:profiles": 1,
+              "rpc:sync_signup_profile_from_metadata": 1
+            }
+          },
+          "jsStartAt": 221,
+          "nav": {
+            "domContentLoaded": 203,
+            "loadEvent": 207
+          },
+          "network": {
+            "bytes": 32011,
+            "count": 29,
+            "maxUrl": 339
+          }
+        },
+        "openDetail": {
+          "detail": {
+            "visitId": 2,
+            "screen": "athlete.session",
+            "tapToContentMs": 275,
+            "focusToContentMs": 260,
+            "requestsBeforeContent": 7,
+            "depthBeforeContent": 1,
+            "requestsInWindow": 9,
+            "depthInWindow": 2,
+            "settledMs": 616,
+            "notReadyMs": 0,
+            "endpoints": {
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rpc:active_registration_counts": 1,
+              "rest:training_sessions": 2,
+              "rest:session_registrations": 2,
+              "rest:waitlist_requests": 1,
+              "rpc:list_session_participants": 1
+            },
+            "contentAtSinceNavStart": 2757
+          },
+          "network": {
+            "bytes": 13972,
+            "count": 9,
+            "maxUrl": 304
+          }
+        },
+        "backToHome": {
+          "home": {
+            "visitId": 3,
+            "screen": "athlete.home",
+            "tapToContentMs": 1736,
+            "focusToContentMs": 0,
+            "requestsBeforeContent": 0,
+            "depthBeforeContent": 0,
+            "requestsInWindow": 15,
+            "depthInWindow": 2,
+            "settledMs": 649,
+            "notReadyMs": 652,
+            "endpoints": {
+              "auth:user": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:studio_calendar_notes": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:active_registration_counts": 1
+            },
+            "contentAtSinceNavStart": 4218
+          },
+          "network": {
+            "bytes": 28654,
+            "count": 15,
+            "maxUrl": 339
+          }
+        },
+        "resume": {
+          "hiddenMs": 35000,
+          "requestsIn5s": 8,
+          "endpoints": {
+            "rpc:get_required_consents": 3,
+            "rpc:get_my_subscription_terms": 1,
+            "rpc:get_address_collection_required": 2,
+            "rest:profiles": 1,
+            "rpc:get_pending_manager_direct_message": 1
+          },
+          "network": {
+            "bytes": 1412,
+            "count": 8,
+            "maxUrl": 97
+          }
+        }
+      },
+      "rawSnapshot": {
+        "version": 1,
+        "capturedAt": "2026-10-15T16:36:28.408Z",
+        "jsStartAt": 221,
+        "requests": [
+          {
+            "id": 1,
+            "endpoint": "rest:profiles",
+            "method": "GET",
+            "start": 358,
+            "visitId": null,
+            "end": 600,
+            "status": 200
+          },
+          {
+            "id": 2,
+            "endpoint": "rpc:sync_signup_profile_from_metadata",
+            "method": "POST",
+            "start": 601,
+            "visitId": null,
+            "end": 825,
+            "status": 200
+          },
+          {
+            "id": 3,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 664,
+            "visitId": 1,
+            "end": 1046,
+            "status": 200
+          },
+          {
+            "id": 4,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 665,
+            "visitId": 1,
+            "end": 1044,
+            "status": 200
+          },
+          {
+            "id": 5,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 665,
+            "visitId": 1,
+            "end": 1069,
+            "status": 200
+          },
+          {
+            "id": 6,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 665,
+            "visitId": 1,
+            "end": 1053,
+            "status": 200
+          },
+          {
+            "id": 7,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 666,
+            "visitId": 1,
+            "end": 904,
+            "status": 200
+          },
+          {
+            "id": 8,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 667,
+            "visitId": 1,
+            "end": 905,
+            "status": 200
+          },
+          {
+            "id": 9,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 667,
+            "visitId": 1,
+            "end": 910,
+            "status": 200
+          },
+          {
+            "id": 10,
+            "endpoint": "rpc:get_address_collection_required",
+            "method": "POST",
+            "start": 667,
+            "visitId": 1,
+            "end": 905,
+            "status": 200
+          },
+          {
+            "id": 11,
+            "endpoint": "rest:profiles",
+            "method": "GET",
+            "start": 667,
+            "visitId": 1,
+            "end": 913,
+            "status": 200
+          },
+          {
+            "id": 12,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 667,
+            "visitId": 1,
+            "end": 920,
+            "status": 200
+          },
+          {
+            "id": 13,
+            "endpoint": "rpc:get_address_collection_required",
+            "method": "POST",
+            "start": 667,
+            "visitId": 1,
+            "end": 954,
+            "status": 200
+          },
+          {
+            "id": 14,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 667,
+            "visitId": 1,
+            "end": 957,
+            "status": 200
+          },
+          {
+            "id": 15,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 667,
+            "visitId": 1,
+            "end": 940,
+            "status": 200
+          },
+          {
+            "id": 16,
+            "endpoint": "rpc:open_next_week_sessions_if_due",
+            "method": "POST",
+            "start": 667,
+            "visitId": 1,
+            "end": 964,
+            "status": 200
+          },
+          {
+            "id": 17,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 667,
+            "visitId": 1,
+            "end": 1150,
+            "status": 200
+          },
+          {
+            "id": 18,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 667,
+            "visitId": 1,
+            "end": 971,
+            "status": 200
+          },
+          {
+            "id": 19,
+            "endpoint": "rpc:get_next_weekly_registration_banner_state",
+            "method": "POST",
+            "start": 667,
+            "visitId": 1,
+            "end": 957,
+            "status": 200
+          },
+          {
+            "id": 20,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 667,
+            "visitId": 1,
+            "end": 927,
+            "status": 200
+          },
+          {
+            "id": 21,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 668,
+            "visitId": 1,
+            "end": 986,
+            "status": 200
+          },
+          {
+            "id": 22,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 668,
+            "visitId": 1,
+            "end": 955,
+            "status": 200
+          },
+          {
+            "id": 23,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 668,
+            "visitId": 1,
+            "end": 1000,
+            "status": 200
+          },
+          {
+            "id": 24,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 668,
+            "visitId": 1,
+            "end": 975,
+            "status": 200
+          },
+          {
+            "id": 25,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 668,
+            "visitId": 1,
+            "end": 1001,
+            "status": 200
+          },
+          {
+            "id": 26,
+            "endpoint": "rpc:sync_signup_electronic_receipts_consent",
+            "method": "POST",
+            "start": 825,
+            "visitId": 1,
+            "end": 1059,
+            "status": 200
+          },
+          {
+            "id": 27,
+            "endpoint": "rpc:sync_signup_legal_consents",
+            "method": "POST",
+            "start": 826,
+            "visitId": 1,
+            "end": 1055,
+            "status": 200
+          },
+          {
+            "id": 28,
+            "endpoint": "rpc:get_pending_manager_direct_message",
+            "method": "POST",
+            "start": 955,
+            "visitId": 1,
+            "end": 1194,
+            "status": 200
+          },
+          {
+            "id": 29,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 1156,
+            "visitId": 1,
+            "end": 1407,
+            "status": 200
+          },
+          {
+            "id": 30,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 2499,
+            "visitId": 2,
+            "end": 2724,
+            "status": 200
+          },
+          {
+            "id": 31,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 2499,
+            "visitId": 2,
+            "end": 2724,
+            "status": 200
+          },
+          {
+            "id": 32,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 2499,
+            "visitId": 2,
+            "end": 2728,
+            "status": 200
+          },
+          {
+            "id": 33,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 2499,
+            "visitId": 2,
+            "end": 2753,
+            "status": 200
+          },
+          {
+            "id": 34,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 2499,
+            "visitId": 2,
+            "end": 2746,
+            "status": 200
+          },
+          {
+            "id": 35,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 2499,
+            "visitId": 2,
+            "end": 2740,
+            "status": 200
+          },
+          {
+            "id": 36,
+            "endpoint": "rpc:list_session_participants",
+            "method": "POST",
+            "start": 2499,
+            "visitId": 2,
+            "end": 2753,
+            "status": 200
+          },
+          {
+            "id": 37,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 2759,
+            "visitId": 2,
+            "end": 3113,
+            "status": 200
+          },
+          {
+            "id": 38,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 2759,
+            "visitId": 2,
+            "end": 3013,
+            "status": 200
+          },
+          {
+            "id": 39,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 4237,
+            "visitId": 3,
+            "end": 4634,
+            "status": 200
+          },
+          {
+            "id": 40,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 4237,
+            "visitId": 3,
+            "end": 4628,
+            "status": 200
+          },
+          {
+            "id": 41,
+            "endpoint": "rpc:open_next_week_sessions_if_due",
+            "method": "POST",
+            "start": 4237,
+            "visitId": 3,
+            "end": 4510,
+            "status": 200
+          },
+          {
+            "id": 42,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 4238,
+            "visitId": 3,
+            "end": 4505,
+            "status": 200
+          },
+          {
+            "id": 43,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 4238,
+            "visitId": 3,
+            "end": 4515,
+            "status": 200
+          },
+          {
+            "id": 44,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 4238,
+            "visitId": 3,
+            "end": 4654,
+            "status": 200
+          },
+          {
+            "id": 45,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 4238,
+            "visitId": 3,
+            "end": 4537,
+            "status": 200
+          },
+          {
+            "id": 46,
+            "endpoint": "rpc:get_next_weekly_registration_banner_state",
+            "method": "POST",
+            "start": 4238,
+            "visitId": 3,
+            "end": 4524,
+            "status": 200
+          },
+          {
+            "id": 47,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 4238,
+            "visitId": 3,
+            "end": 4505,
+            "status": 200
+          },
+          {
+            "id": 48,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 4238,
+            "visitId": 3,
+            "end": 4546,
+            "status": 200
+          },
+          {
+            "id": 49,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 4238,
+            "visitId": 3,
+            "end": 4530,
+            "status": 200
+          },
+          {
+            "id": 50,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 4238,
+            "visitId": 3,
+            "end": 4566,
+            "status": 200
+          },
+          {
+            "id": 51,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 4238,
+            "visitId": 3,
+            "end": 4533,
+            "status": 200
+          },
+          {
+            "id": 52,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 4238,
+            "visitId": 3,
+            "end": 4554,
+            "status": 200
+          },
+          {
+            "id": 53,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 4656,
+            "visitId": 3,
+            "end": 4867,
+            "status": 200
+          },
+          {
+            "id": 54,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 40981,
+            "visitId": 3,
+            "end": 41291,
+            "status": 200
+          },
+          {
+            "id": 55,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 40982,
+            "visitId": 3,
+            "end": 41334,
+            "status": 200
+          },
+          {
+            "id": 56,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 40982,
+            "visitId": 3,
+            "end": 41333,
+            "status": 200
+          },
+          {
+            "id": 57,
+            "endpoint": "rpc:get_address_collection_required",
+            "method": "POST",
+            "start": 40982,
+            "visitId": 3,
+            "end": 41334,
+            "status": 200
+          },
+          {
+            "id": 58,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 40982,
+            "visitId": 3,
+            "end": 41291,
+            "status": 200
+          },
+          {
+            "id": 59,
+            "endpoint": "rpc:get_address_collection_required",
+            "method": "POST",
+            "start": 40982,
+            "visitId": 3,
+            "end": 41333,
+            "status": 200
+          },
+          {
+            "id": 60,
+            "endpoint": "rest:profiles",
+            "method": "GET",
+            "start": 40982,
+            "visitId": 3,
+            "end": 41291,
+            "status": 200
+          },
+          {
+            "id": 61,
+            "endpoint": "rpc:get_pending_manager_direct_message",
+            "method": "POST",
+            "start": 41333,
+            "visitId": 3,
+            "end": 41595,
+            "status": 200
+          }
+        ],
+        "visits": [
+          {
+            "id": 1,
+            "screen": "athlete.home",
+            "focusAt": 660,
+            "tapAt": null,
+            "readyAtFocus": false,
+            "contentAt": 1420,
+            "notReady": []
+          },
+          {
+            "id": 2,
+            "screen": "athlete.session",
+            "focusAt": 2497,
+            "tapAt": 2482,
+            "readyAtFocus": false,
+            "contentAt": 2757,
+            "notReady": []
+          },
+          {
+            "id": 3,
+            "screen": "athlete.home",
+            "focusAt": 4218,
+            "tapAt": 2482,
+            "readyAtFocus": true,
+            "contentAt": 4218,
+            "notReady": [
+              {
+                "start": 4227,
+                "end": 4879
+              }
+            ]
+          }
+        ],
+        "startup": {
+          "requests": 2,
+          "depth": 2,
+          "settledMs": 825,
+          "endpoints": {
+            "rest:profiles": 1,
+            "rpc:sync_signup_profile_from_metadata": 1
+          }
+        },
+        "summaries": [
+          {
+            "visitId": 1,
+            "screen": "athlete.home",
+            "tapToContentMs": null,
+            "focusToContentMs": 760,
+            "requestsBeforeContent": 27,
+            "depthBeforeContent": 2,
+            "requestsInWindow": 27,
+            "depthInWindow": 2,
+            "settledMs": 747,
+            "notReadyMs": 0,
+            "endpoints": {
+              "auth:user": 4,
+              "rpc:get_required_consents": 3,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_address_collection_required": 2,
+              "rest:profiles": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:studio_calendar_notes": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:sync_signup_electronic_receipts_consent": 1,
+              "rpc:sync_signup_legal_consents": 1,
+              "rpc:get_pending_manager_direct_message": 1,
+              "rpc:active_registration_counts": 1
+            }
+          },
+          {
+            "visitId": 2,
+            "screen": "athlete.session",
+            "tapToContentMs": 275,
+            "focusToContentMs": 260,
+            "requestsBeforeContent": 7,
+            "depthBeforeContent": 1,
+            "requestsInWindow": 9,
+            "depthInWindow": 2,
+            "settledMs": 616,
+            "notReadyMs": 0,
+            "endpoints": {
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rpc:active_registration_counts": 1,
+              "rest:training_sessions": 2,
+              "rest:session_registrations": 2,
+              "rest:waitlist_requests": 1,
+              "rpc:list_session_participants": 1
+            }
+          },
+          {
+            "visitId": 3,
+            "screen": "athlete.home",
+            "tapToContentMs": 1736,
+            "focusToContentMs": 0,
+            "requestsBeforeContent": 0,
+            "depthBeforeContent": 0,
+            "requestsInWindow": 15,
+            "depthInWindow": 2,
+            "settledMs": 649,
+            "notReadyMs": 652,
+            "endpoints": {
+              "auth:user": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:studio_calendar_notes": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:active_registration_counts": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "role": "athlete",
+      "run": 1,
+      "engine": "webkit",
+      "steps": {
+        "coldStart": {
+          "home": {
+            "visitId": 1,
+            "screen": "athlete.home",
+            "tapToContentMs": null,
+            "focusToContentMs": 1341,
+            "requestsBeforeContent": 27,
+            "depthBeforeContent": 3,
+            "requestsInWindow": 27,
+            "depthInWindow": 3,
+            "settledMs": 1327,
+            "notReadyMs": 0,
+            "endpoints": {
+              "auth:user": 4,
+              "rpc:get_required_consents": 3,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_address_collection_required": 2,
+              "rest:profiles": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:studio_calendar_notes": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:sync_signup_electronic_receipts_consent": 1,
+              "rpc:sync_signup_legal_consents": 1,
+              "rpc:get_pending_manager_direct_message": 1,
+              "rpc:active_registration_counts": 1
+            },
+            "contentAtSinceNavStart": 2117
+          },
+          "startup": {
+            "requests": 2,
+            "depth": 2,
+            "settledMs": 964,
+            "endpoints": {
+              "rest:profiles": 1,
+              "rpc:sync_signup_profile_from_metadata": 1
+            }
+          },
+          "jsStartAt": 277,
+          "nav": {
+            "domContentLoaded": 254,
+            "loadEvent": 258
+          },
+          "network": {
+            "bytes": 32091,
+            "count": 29,
+            "maxUrl": 339
+          }
+        },
+        "openDetail": {
+          "detail": {
+            "visitId": 2,
+            "screen": "athlete.session",
+            "tapToContentMs": 271,
+            "focusToContentMs": 256,
+            "requestsBeforeContent": 7,
+            "depthBeforeContent": 1,
+            "requestsInWindow": 9,
+            "depthInWindow": 2,
+            "settledMs": 599,
+            "notReadyMs": 0,
+            "endpoints": {
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rpc:active_registration_counts": 1,
+              "rest:training_sessions": 2,
+              "rest:session_registrations": 2,
+              "rest:waitlist_requests": 1,
+              "rpc:list_session_participants": 1
+            },
+            "contentAtSinceNavStart": 3520
+          },
+          "network": {
+            "bytes": 13941,
+            "count": 9,
+            "maxUrl": 304
+          }
+        },
+        "backToHome": {
+          "home": {
+            "visitId": 3,
+            "screen": "athlete.home",
+            "tapToContentMs": 1692,
+            "focusToContentMs": 0,
+            "requestsBeforeContent": 0,
+            "depthBeforeContent": 0,
+            "requestsInWindow": 15,
+            "depthInWindow": 2,
+            "settledMs": 648,
+            "notReadyMs": 649,
+            "endpoints": {
+              "auth:user": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:studio_calendar_notes": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:active_registration_counts": 1
+            },
+            "contentAtSinceNavStart": 4941
+          },
+          "network": {
+            "bytes": 28626,
+            "count": 15,
+            "maxUrl": 339
+          }
+        }
+      },
+      "rawSnapshot": {
+        "version": 1,
+        "capturedAt": "2026-10-15T16:36:35.471Z",
+        "jsStartAt": 277,
+        "requests": [
+          {
+            "id": 1,
+            "endpoint": "rest:profiles",
+            "method": "GET",
+            "start": 444,
+            "visitId": null,
+            "end": 718,
+            "status": 200
+          },
+          {
+            "id": 2,
+            "endpoint": "rpc:sync_signup_profile_from_metadata",
+            "method": "POST",
+            "start": 719,
+            "visitId": null,
+            "end": 964,
+            "status": 200
+          },
+          {
+            "id": 3,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 780,
+            "visitId": 1,
+            "end": 1697,
+            "status": 200
+          },
+          {
+            "id": 4,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 780,
+            "visitId": 1,
+            "end": 1722,
+            "status": 200
+          },
+          {
+            "id": 5,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 780,
+            "visitId": 1,
+            "end": 1677,
+            "status": 200
+          },
+          {
+            "id": 6,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 781,
+            "visitId": 1,
+            "end": 1748,
+            "status": 200
+          },
+          {
+            "id": 7,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 782,
+            "visitId": 1,
+            "end": 1052,
+            "status": 200
+          },
+          {
+            "id": 8,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 782,
+            "visitId": 1,
+            "end": 1103,
+            "status": 200
+          },
+          {
+            "id": 9,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 782,
+            "visitId": 1,
+            "end": 1050,
+            "status": 200
+          },
+          {
+            "id": 10,
+            "endpoint": "rpc:get_address_collection_required",
+            "method": "POST",
+            "start": 782,
+            "visitId": 1,
+            "end": 1056,
+            "status": 200
+          },
+          {
+            "id": 11,
+            "endpoint": "rest:profiles",
+            "method": "GET",
+            "start": 782,
+            "visitId": 1,
+            "end": 1052,
+            "status": 200
+          },
+          {
+            "id": 12,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 783,
+            "visitId": 1,
+            "end": 1091,
+            "status": 200
+          },
+          {
+            "id": 13,
+            "endpoint": "rpc:get_address_collection_required",
+            "method": "POST",
+            "start": 783,
+            "visitId": 1,
+            "end": 1056,
+            "status": 200
+          },
+          {
+            "id": 14,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 783,
+            "visitId": 1,
+            "end": 1069,
+            "status": 200
+          },
+          {
+            "id": 15,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 783,
+            "visitId": 1,
+            "end": 1091,
+            "status": 200
+          },
+          {
+            "id": 16,
+            "endpoint": "rpc:open_next_week_sessions_if_due",
+            "method": "POST",
+            "start": 783,
+            "visitId": 1,
+            "end": 1091,
+            "status": 200
+          },
+          {
+            "id": 17,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 783,
+            "visitId": 1,
+            "end": 1823,
+            "status": 200
+          },
+          {
+            "id": 18,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 783,
+            "visitId": 1,
+            "end": 1184,
+            "status": 200
+          },
+          {
+            "id": 19,
+            "endpoint": "rpc:get_next_weekly_registration_banner_state",
+            "method": "POST",
+            "start": 783,
+            "visitId": 1,
+            "end": 1117,
+            "status": 200
+          },
+          {
+            "id": 20,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 783,
+            "visitId": 1,
+            "end": 1103,
+            "status": 200
+          },
+          {
+            "id": 21,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 783,
+            "visitId": 1,
+            "end": 1114,
+            "status": 200
+          },
+          {
+            "id": 22,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 783,
+            "visitId": 1,
+            "end": 1078,
+            "status": 200
+          },
+          {
+            "id": 23,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 783,
+            "visitId": 1,
+            "end": 1140,
+            "status": 200
+          },
+          {
+            "id": 24,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 784,
+            "visitId": 1,
+            "end": 1069,
+            "status": 200
+          },
+          {
+            "id": 25,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 784,
+            "visitId": 1,
+            "end": 1202,
+            "status": 200
+          },
+          {
+            "id": 26,
+            "endpoint": "rpc:sync_signup_electronic_receipts_consent",
+            "method": "POST",
+            "start": 964,
+            "visitId": 1,
+            "end": 1207,
+            "status": 200
+          },
+          {
+            "id": 27,
+            "endpoint": "rpc:sync_signup_legal_consents",
+            "method": "POST",
+            "start": 964,
+            "visitId": 1,
+            "end": 1206,
+            "status": 200
+          },
+          {
+            "id": 28,
+            "endpoint": "rpc:get_pending_manager_direct_message",
+            "method": "POST",
+            "start": 1092,
+            "visitId": 1,
+            "end": 1636,
+            "status": 200
+          },
+          {
+            "id": 29,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 1836,
+            "visitId": 1,
+            "end": 2103,
+            "status": 200
+          },
+          {
+            "id": 30,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 3266,
+            "visitId": 2,
+            "end": 3494,
+            "status": 200
+          },
+          {
+            "id": 31,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 3266,
+            "visitId": 2,
+            "end": 3491,
+            "status": 200
+          },
+          {
+            "id": 32,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 3266,
+            "visitId": 2,
+            "end": 3494,
+            "status": 200
+          },
+          {
+            "id": 33,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 3266,
+            "visitId": 2,
+            "end": 3510,
+            "status": 200
+          },
+          {
+            "id": 34,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 3266,
+            "visitId": 2,
+            "end": 3506,
+            "status": 200
+          },
+          {
+            "id": 35,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 3266,
+            "visitId": 2,
+            "end": 3508,
+            "status": 200
+          },
+          {
+            "id": 36,
+            "endpoint": "rpc:list_session_participants",
+            "method": "POST",
+            "start": 3266,
+            "visitId": 2,
+            "end": 3516,
+            "status": 200
+          },
+          {
+            "id": 37,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 3522,
+            "visitId": 2,
+            "end": 3863,
+            "status": 200
+          },
+          {
+            "id": 38,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 3522,
+            "visitId": 2,
+            "end": 3769,
+            "status": 200
+          },
+          {
+            "id": 39,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 4957,
+            "visitId": 3,
+            "end": 5323,
+            "status": 200
+          },
+          {
+            "id": 40,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 4957,
+            "visitId": 3,
+            "end": 5328,
+            "status": 200
+          },
+          {
+            "id": 41,
+            "endpoint": "rpc:open_next_week_sessions_if_due",
+            "method": "POST",
+            "start": 4958,
+            "visitId": 3,
+            "end": 5229,
+            "status": 200
+          },
+          {
+            "id": 42,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 4958,
+            "visitId": 3,
+            "end": 5231,
+            "status": 200
+          },
+          {
+            "id": 43,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 4958,
+            "visitId": 3,
+            "end": 5235,
+            "status": 200
+          },
+          {
+            "id": 44,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 4958,
+            "visitId": 3,
+            "end": 5371,
+            "status": 200
+          },
+          {
+            "id": 45,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 4958,
+            "visitId": 3,
+            "end": 5250,
+            "status": 200
+          },
+          {
+            "id": 46,
+            "endpoint": "rpc:get_next_weekly_registration_banner_state",
+            "method": "POST",
+            "start": 4958,
+            "visitId": 3,
+            "end": 5224,
+            "status": 200
+          },
+          {
+            "id": 47,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 4959,
+            "visitId": 3,
+            "end": 5227,
+            "status": 200
+          },
+          {
+            "id": 48,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 4959,
+            "visitId": 3,
+            "end": 5229,
+            "status": 200
+          },
+          {
+            "id": 49,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 4959,
+            "visitId": 3,
+            "end": 5223,
+            "status": 200
+          },
+          {
+            "id": 50,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 4959,
+            "visitId": 3,
+            "end": 5254,
+            "status": 200
+          },
+          {
+            "id": 51,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 4959,
+            "visitId": 3,
+            "end": 5228,
+            "status": 200
+          },
+          {
+            "id": 52,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 4959,
+            "visitId": 3,
+            "end": 5247,
+            "status": 200
+          },
+          {
+            "id": 53,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 5376,
+            "visitId": 3,
+            "end": 5589,
+            "status": 200
+          }
+        ],
+        "visits": [
+          {
+            "id": 1,
+            "screen": "athlete.home",
+            "focusAt": 776,
+            "tapAt": null,
+            "readyAtFocus": false,
+            "contentAt": 2117,
+            "notReady": []
+          },
+          {
+            "id": 2,
+            "screen": "athlete.session",
+            "focusAt": 3264,
+            "tapAt": 3249,
+            "readyAtFocus": false,
+            "contentAt": 3520,
+            "notReady": []
+          },
+          {
+            "id": 3,
+            "screen": "athlete.home",
+            "focusAt": 4941,
+            "tapAt": 3249,
+            "readyAtFocus": true,
+            "contentAt": 4941,
+            "notReady": [
+              {
+                "start": 4950,
+                "end": 5599
+              }
+            ]
+          }
+        ],
+        "startup": {
+          "requests": 2,
+          "depth": 2,
+          "settledMs": 964,
+          "endpoints": {
+            "rest:profiles": 1,
+            "rpc:sync_signup_profile_from_metadata": 1
+          }
+        },
+        "summaries": [
+          {
+            "visitId": 1,
+            "screen": "athlete.home",
+            "tapToContentMs": null,
+            "focusToContentMs": 1341,
+            "requestsBeforeContent": 27,
+            "depthBeforeContent": 3,
+            "requestsInWindow": 27,
+            "depthInWindow": 3,
+            "settledMs": 1327,
+            "notReadyMs": 0,
+            "endpoints": {
+              "auth:user": 4,
+              "rpc:get_required_consents": 3,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_address_collection_required": 2,
+              "rest:profiles": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:studio_calendar_notes": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:sync_signup_electronic_receipts_consent": 1,
+              "rpc:sync_signup_legal_consents": 1,
+              "rpc:get_pending_manager_direct_message": 1,
+              "rpc:active_registration_counts": 1
+            }
+          },
+          {
+            "visitId": 2,
+            "screen": "athlete.session",
+            "tapToContentMs": 271,
+            "focusToContentMs": 256,
+            "requestsBeforeContent": 7,
+            "depthBeforeContent": 1,
+            "requestsInWindow": 9,
+            "depthInWindow": 2,
+            "settledMs": 599,
+            "notReadyMs": 0,
+            "endpoints": {
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rpc:active_registration_counts": 1,
+              "rest:training_sessions": 2,
+              "rest:session_registrations": 2,
+              "rest:waitlist_requests": 1,
+              "rpc:list_session_participants": 1
+            }
+          },
+          {
+            "visitId": 3,
+            "screen": "athlete.home",
+            "tapToContentMs": 1692,
+            "focusToContentMs": 0,
+            "requestsBeforeContent": 0,
+            "depthBeforeContent": 0,
+            "requestsInWindow": 15,
+            "depthInWindow": 2,
+            "settledMs": 648,
+            "notReadyMs": 649,
+            "endpoints": {
+              "auth:user": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:studio_calendar_notes": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:active_registration_counts": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "role": "athlete",
+      "run": 2,
+      "engine": "webkit",
+      "steps": {
+        "coldStart": {
+          "home": {
+            "visitId": 1,
+            "screen": "athlete.home",
+            "tapToContentMs": null,
+            "focusToContentMs": 836,
+            "requestsBeforeContent": 27,
+            "depthBeforeContent": 3,
+            "requestsInWindow": 27,
+            "depthInWindow": 3,
+            "settledMs": 823,
+            "notReadyMs": 0,
+            "endpoints": {
+              "auth:user": 4,
+              "rpc:get_required_consents": 3,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_address_collection_required": 2,
+              "rest:profiles": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:studio_calendar_notes": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:sync_signup_electronic_receipts_consent": 1,
+              "rpc:sync_signup_legal_consents": 1,
+              "rpc:get_pending_manager_direct_message": 1,
+              "rpc:active_registration_counts": 1
+            },
+            "contentAtSinceNavStart": 1526
+          },
+          "startup": {
+            "requests": 2,
+            "depth": 2,
+            "settledMs": 921,
+            "endpoints": {
+              "rest:profiles": 1,
+              "rpc:sync_signup_profile_from_metadata": 1
+            }
+          },
+          "jsStartAt": 213,
+          "nav": {
+            "domContentLoaded": 197,
+            "loadEvent": 200
+          },
+          "network": {
+            "bytes": 32026,
+            "count": 29,
+            "maxUrl": 339
+          }
+        },
+        "openDetail": {
+          "detail": {
+            "visitId": 2,
+            "screen": "athlete.session",
+            "tapToContentMs": 356,
+            "focusToContentMs": 342,
+            "requestsBeforeContent": 7,
+            "depthBeforeContent": 1,
+            "requestsInWindow": 9,
+            "depthInWindow": 2,
+            "settledMs": 694,
+            "notReadyMs": 0,
+            "endpoints": {
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rpc:active_registration_counts": 1,
+              "rest:training_sessions": 2,
+              "rest:session_registrations": 2,
+              "rest:waitlist_requests": 1,
+              "rpc:list_session_participants": 1
+            },
+            "contentAtSinceNavStart": 2979
+          },
+          "network": {
+            "bytes": 13951,
+            "count": 9,
+            "maxUrl": 304
+          }
+        },
+        "backToHome": {
+          "home": {
+            "visitId": 3,
+            "screen": "athlete.home",
+            "tapToContentMs": 1792,
+            "focusToContentMs": 0,
+            "requestsBeforeContent": 0,
+            "depthBeforeContent": 0,
+            "requestsInWindow": 15,
+            "depthInWindow": 2,
+            "settledMs": 1322,
+            "notReadyMs": 1330,
+            "endpoints": {
+              "auth:user": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:studio_calendar_notes": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:active_registration_counts": 1
+            },
+            "contentAtSinceNavStart": 4415
+          },
+          "network": {
+            "bytes": 28658,
+            "count": 15,
+            "maxUrl": 339
+          }
+        }
+      },
+      "rawSnapshot": {
+        "version": 1,
+        "capturedAt": "2026-10-15T16:36:42.693Z",
+        "jsStartAt": 213,
+        "requests": [
+          {
+            "id": 1,
+            "endpoint": "rest:profiles",
+            "method": "GET",
+            "start": 350,
+            "visitId": null,
+            "end": 590,
+            "status": 200
+          },
+          {
+            "id": 2,
+            "endpoint": "rpc:sync_signup_profile_from_metadata",
+            "method": "POST",
+            "start": 607,
+            "visitId": null,
+            "end": 921,
+            "status": 200
+          },
+          {
+            "id": 3,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 695,
+            "visitId": 1,
+            "end": 1160,
+            "status": 200
+          },
+          {
+            "id": 4,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 695,
+            "visitId": 1,
+            "end": 1195,
+            "status": 200
+          },
+          {
+            "id": 5,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 695,
+            "visitId": 1,
+            "end": 1190,
+            "status": 200
+          },
+          {
+            "id": 6,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 696,
+            "visitId": 1,
+            "end": 1200,
+            "status": 200
+          },
+          {
+            "id": 7,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 697,
+            "visitId": 1,
+            "end": 936,
+            "status": 200
+          },
+          {
+            "id": 8,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 697,
+            "visitId": 1,
+            "end": 935,
+            "status": 200
+          },
+          {
+            "id": 9,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 697,
+            "visitId": 1,
+            "end": 963,
+            "status": 200
+          },
+          {
+            "id": 10,
+            "endpoint": "rpc:get_address_collection_required",
+            "method": "POST",
+            "start": 697,
+            "visitId": 1,
+            "end": 988,
+            "status": 200
+          },
+          {
+            "id": 11,
+            "endpoint": "rest:profiles",
+            "method": "GET",
+            "start": 698,
+            "visitId": 1,
+            "end": 1011,
+            "status": 200
+          },
+          {
+            "id": 12,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 698,
+            "visitId": 1,
+            "end": 987,
+            "status": 200
+          },
+          {
+            "id": 13,
+            "endpoint": "rpc:get_address_collection_required",
+            "method": "POST",
+            "start": 698,
+            "visitId": 1,
+            "end": 987,
+            "status": 200
+          },
+          {
+            "id": 14,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 698,
+            "visitId": 1,
+            "end": 987,
+            "status": 200
+          },
+          {
+            "id": 15,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 698,
+            "visitId": 1,
+            "end": 1001,
+            "status": 200
+          },
+          {
+            "id": 16,
+            "endpoint": "rpc:open_next_week_sessions_if_due",
+            "method": "POST",
+            "start": 698,
+            "visitId": 1,
+            "end": 995,
+            "status": 200
+          },
+          {
+            "id": 17,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 698,
+            "visitId": 1,
+            "end": 1243,
+            "status": 200
+          },
+          {
+            "id": 18,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 698,
+            "visitId": 1,
+            "end": 1011,
+            "status": 200
+          },
+          {
+            "id": 19,
+            "endpoint": "rpc:get_next_weekly_registration_banner_state",
+            "method": "POST",
+            "start": 698,
+            "visitId": 1,
+            "end": 991,
+            "status": 200
+          },
+          {
+            "id": 20,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 698,
+            "visitId": 1,
+            "end": 984,
+            "status": 200
+          },
+          {
+            "id": 21,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 698,
+            "visitId": 1,
+            "end": 982,
+            "status": 200
+          },
+          {
+            "id": 22,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 698,
+            "visitId": 1,
+            "end": 960,
+            "status": 200
+          },
+          {
+            "id": 23,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 698,
+            "visitId": 1,
+            "end": 1035,
+            "status": 200
+          },
+          {
+            "id": 24,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 699,
+            "visitId": 1,
+            "end": 982,
+            "status": 200
+          },
+          {
+            "id": 25,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 699,
+            "visitId": 1,
+            "end": 1035,
+            "status": 200
+          },
+          {
+            "id": 26,
+            "endpoint": "rpc:sync_signup_electronic_receipts_consent",
+            "method": "POST",
+            "start": 922,
+            "visitId": 1,
+            "end": 1167,
+            "status": 200
+          },
+          {
+            "id": 27,
+            "endpoint": "rpc:sync_signup_legal_consents",
+            "method": "POST",
+            "start": 922,
+            "visitId": 1,
+            "end": 1167,
+            "status": 200
+          },
+          {
+            "id": 28,
+            "endpoint": "rpc:get_pending_manager_direct_message",
+            "method": "POST",
+            "start": 987,
+            "visitId": 1,
+            "end": 1219,
+            "status": 200
+          },
+          {
+            "id": 29,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 1248,
+            "visitId": 1,
+            "end": 1513,
+            "status": 200
+          },
+          {
+            "id": 30,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 2640,
+            "visitId": 2,
+            "end": 2861,
+            "status": 200
+          },
+          {
+            "id": 31,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 2640,
+            "visitId": 2,
+            "end": 2854,
+            "status": 200
+          },
+          {
+            "id": 32,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 2640,
+            "visitId": 2,
+            "end": 2857,
+            "status": 200
+          },
+          {
+            "id": 33,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 2640,
+            "visitId": 2,
+            "end": 2880,
+            "status": 200
+          },
+          {
+            "id": 34,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 2640,
+            "visitId": 2,
+            "end": 2888,
+            "status": 200
+          },
+          {
+            "id": 35,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 2640,
+            "visitId": 2,
+            "end": 2892,
+            "status": 200
+          },
+          {
+            "id": 36,
+            "endpoint": "rpc:list_session_participants",
+            "method": "POST",
+            "start": 2640,
+            "visitId": 2,
+            "end": 2975,
+            "status": 200
+          },
+          {
+            "id": 37,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 2981,
+            "visitId": 2,
+            "end": 3331,
+            "status": 200
+          },
+          {
+            "id": 38,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 2981,
+            "visitId": 2,
+            "end": 3247,
+            "status": 200
+          },
+          {
+            "id": 39,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 4430,
+            "visitId": 3,
+            "end": 5283,
+            "status": 200
+          },
+          {
+            "id": 40,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 4430,
+            "visitId": 3,
+            "end": 5283,
+            "status": 200
+          },
+          {
+            "id": 41,
+            "endpoint": "rpc:open_next_week_sessions_if_due",
+            "method": "POST",
+            "start": 4431,
+            "visitId": 3,
+            "end": 4672,
+            "status": 200
+          },
+          {
+            "id": 42,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 4431,
+            "visitId": 3,
+            "end": 4681,
+            "status": 200
+          },
+          {
+            "id": 43,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 4431,
+            "visitId": 3,
+            "end": 4681,
+            "status": 200
+          },
+          {
+            "id": 44,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 4431,
+            "visitId": 3,
+            "end": 5495,
+            "status": 200
+          },
+          {
+            "id": 45,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 4431,
+            "visitId": 3,
+            "end": 5026,
+            "status": 200
+          },
+          {
+            "id": 46,
+            "endpoint": "rpc:get_next_weekly_registration_banner_state",
+            "method": "POST",
+            "start": 4432,
+            "visitId": 3,
+            "end": 4672,
+            "status": 200
+          },
+          {
+            "id": 47,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 4432,
+            "visitId": 3,
+            "end": 4672,
+            "status": 200
+          },
+          {
+            "id": 48,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 4432,
+            "visitId": 3,
+            "end": 4672,
+            "status": 200
+          },
+          {
+            "id": 49,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 4432,
+            "visitId": 3,
+            "end": 4672,
+            "status": 200
+          },
+          {
+            "id": 50,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 4432,
+            "visitId": 3,
+            "end": 5017,
+            "status": 200
+          },
+          {
+            "id": 51,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 4432,
+            "visitId": 3,
+            "end": 4669,
+            "status": 200
+          },
+          {
+            "id": 52,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 4432,
+            "visitId": 3,
+            "end": 5091,
+            "status": 200
+          },
+          {
+            "id": 53,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 5508,
+            "visitId": 3,
+            "end": 5737,
+            "status": 200
+          }
+        ],
+        "visits": [
+          {
+            "id": 1,
+            "screen": "athlete.home",
+            "focusAt": 690,
+            "tapAt": null,
+            "readyAtFocus": false,
+            "contentAt": 1526,
+            "notReady": []
+          },
+          {
+            "id": 2,
+            "screen": "athlete.session",
+            "focusAt": 2637,
+            "tapAt": 2623,
+            "readyAtFocus": false,
+            "contentAt": 2979,
+            "notReady": []
+          },
+          {
+            "id": 3,
+            "screen": "athlete.home",
+            "focusAt": 4415,
+            "tapAt": 2623,
+            "readyAtFocus": true,
+            "contentAt": 4415,
+            "notReady": [
+              {
+                "start": 4422,
+                "end": 5752
+              }
+            ]
+          }
+        ],
+        "startup": {
+          "requests": 2,
+          "depth": 2,
+          "settledMs": 921,
+          "endpoints": {
+            "rest:profiles": 1,
+            "rpc:sync_signup_profile_from_metadata": 1
+          }
+        },
+        "summaries": [
+          {
+            "visitId": 1,
+            "screen": "athlete.home",
+            "tapToContentMs": null,
+            "focusToContentMs": 836,
+            "requestsBeforeContent": 27,
+            "depthBeforeContent": 3,
+            "requestsInWindow": 27,
+            "depthInWindow": 3,
+            "settledMs": 823,
+            "notReadyMs": 0,
+            "endpoints": {
+              "auth:user": 4,
+              "rpc:get_required_consents": 3,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_address_collection_required": 2,
+              "rest:profiles": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:studio_calendar_notes": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:sync_signup_electronic_receipts_consent": 1,
+              "rpc:sync_signup_legal_consents": 1,
+              "rpc:get_pending_manager_direct_message": 1,
+              "rpc:active_registration_counts": 1
+            }
+          },
+          {
+            "visitId": 2,
+            "screen": "athlete.session",
+            "tapToContentMs": 356,
+            "focusToContentMs": 342,
+            "requestsBeforeContent": 7,
+            "depthBeforeContent": 1,
+            "requestsInWindow": 9,
+            "depthInWindow": 2,
+            "settledMs": 694,
+            "notReadyMs": 0,
+            "endpoints": {
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rpc:active_registration_counts": 1,
+              "rest:training_sessions": 2,
+              "rest:session_registrations": 2,
+              "rest:waitlist_requests": 1,
+              "rpc:list_session_participants": 1
+            }
+          },
+          {
+            "visitId": 3,
+            "screen": "athlete.home",
+            "tapToContentMs": 1792,
+            "focusToContentMs": 0,
+            "requestsBeforeContent": 0,
+            "depthBeforeContent": 0,
+            "requestsInWindow": 15,
+            "depthInWindow": 2,
+            "settledMs": 1322,
+            "notReadyMs": 1330,
+            "endpoints": {
+              "auth:user": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:studio_calendar_notes": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:active_registration_counts": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "role": "athlete",
+      "run": 3,
+      "engine": "webkit",
+      "steps": {
+        "coldStart": {
+          "home": {
+            "visitId": 1,
+            "screen": "athlete.home",
+            "tapToContentMs": null,
+            "focusToContentMs": 1517,
+            "requestsBeforeContent": 27,
+            "depthBeforeContent": 3,
+            "requestsInWindow": 27,
+            "depthInWindow": 3,
+            "settledMs": 1502,
+            "notReadyMs": 0,
+            "endpoints": {
+              "auth:user": 4,
+              "rpc:get_required_consents": 3,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_address_collection_required": 2,
+              "rest:profiles": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:studio_calendar_notes": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:sync_signup_electronic_receipts_consent": 1,
+              "rpc:sync_signup_legal_consents": 1,
+              "rpc:get_pending_manager_direct_message": 1,
+              "rpc:active_registration_counts": 1
+            },
+            "contentAtSinceNavStart": 2365
+          },
+          "startup": {
+            "requests": 2,
+            "depth": 2,
+            "settledMs": 1025,
+            "endpoints": {
+              "rest:profiles": 1,
+              "rpc:sync_signup_profile_from_metadata": 1
+            }
+          },
+          "jsStartAt": 301,
+          "nav": {
+            "domContentLoaded": 280,
+            "loadEvent": 283
+          },
+          "network": {
+            "bytes": 32075,
+            "count": 29,
+            "maxUrl": 339
+          }
+        },
+        "openDetail": {
+          "detail": {
+            "visitId": 2,
+            "screen": "athlete.session",
+            "tapToContentMs": 303,
+            "focusToContentMs": 276,
+            "requestsBeforeContent": 7,
+            "depthBeforeContent": 1,
+            "requestsInWindow": 9,
+            "depthInWindow": 2,
+            "settledMs": 663,
+            "notReadyMs": 0,
+            "endpoints": {
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rpc:active_registration_counts": 1,
+              "rest:training_sessions": 2,
+              "rest:session_registrations": 2,
+              "rest:waitlist_requests": 1,
+              "rpc:list_session_participants": 1
+            },
+            "contentAtSinceNavStart": 3832
+          },
+          "network": {
+            "bytes": 13961,
+            "count": 9,
+            "maxUrl": 304
+          }
+        },
+        "backToHome": {
+          "home": {
+            "visitId": 3,
+            "screen": "athlete.home",
+            "tapToContentMs": 1722,
+            "focusToContentMs": 0,
+            "requestsBeforeContent": 0,
+            "depthBeforeContent": 0,
+            "requestsInWindow": 15,
+            "depthInWindow": 2,
+            "settledMs": 697,
+            "notReadyMs": 698,
+            "endpoints": {
+              "auth:user": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:studio_calendar_notes": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:active_registration_counts": 1
+            },
+            "contentAtSinceNavStart": 5251
+          },
+          "network": {
+            "bytes": 28617,
+            "count": 15,
+            "maxUrl": 339
+          }
+        }
+      },
+      "rawSnapshot": {
+        "version": 1,
+        "capturedAt": "2026-10-15T16:36:50.108Z",
+        "jsStartAt": 301,
+        "requests": [
+          {
+            "id": 1,
+            "endpoint": "rest:profiles",
+            "method": "GET",
+            "start": 511,
+            "visitId": null,
+            "end": 776,
+            "status": 200
+          },
+          {
+            "id": 2,
+            "endpoint": "rpc:sync_signup_profile_from_metadata",
+            "method": "POST",
+            "start": 777,
+            "visitId": null,
+            "end": 1025,
+            "status": 200
+          },
+          {
+            "id": 3,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 852,
+            "visitId": 1,
+            "end": 1665,
+            "status": 200
+          },
+          {
+            "id": 4,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 853,
+            "visitId": 1,
+            "end": 1767,
+            "status": 200
+          },
+          {
+            "id": 5,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 853,
+            "visitId": 1,
+            "end": 1783,
+            "status": 200
+          },
+          {
+            "id": 6,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 853,
+            "visitId": 1,
+            "end": 1813,
+            "status": 200
+          },
+          {
+            "id": 7,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 854,
+            "visitId": 1,
+            "end": 1220,
+            "status": 200
+          },
+          {
+            "id": 8,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 855,
+            "visitId": 1,
+            "end": 1237,
+            "status": 200
+          },
+          {
+            "id": 9,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 855,
+            "visitId": 1,
+            "end": 1218,
+            "status": 200
+          },
+          {
+            "id": 10,
+            "endpoint": "rpc:get_address_collection_required",
+            "method": "POST",
+            "start": 855,
+            "visitId": 1,
+            "end": 1238,
+            "status": 200
+          },
+          {
+            "id": 11,
+            "endpoint": "rest:profiles",
+            "method": "GET",
+            "start": 855,
+            "visitId": 1,
+            "end": 1216,
+            "status": 200
+          },
+          {
+            "id": 12,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 855,
+            "visitId": 1,
+            "end": 1208,
+            "status": 200
+          },
+          {
+            "id": 13,
+            "endpoint": "rpc:get_address_collection_required",
+            "method": "POST",
+            "start": 855,
+            "visitId": 1,
+            "end": 1298,
+            "status": 200
+          },
+          {
+            "id": 14,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 855,
+            "visitId": 1,
+            "end": 1218,
+            "status": 200
+          },
+          {
+            "id": 15,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 855,
+            "visitId": 1,
+            "end": 1264,
+            "status": 200
+          },
+          {
+            "id": 16,
+            "endpoint": "rpc:open_next_week_sessions_if_due",
+            "method": "POST",
+            "start": 855,
+            "visitId": 1,
+            "end": 1226,
+            "status": 200
+          },
+          {
+            "id": 17,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 855,
+            "visitId": 1,
+            "end": 1828,
+            "status": 200
+          },
+          {
+            "id": 18,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 856,
+            "visitId": 1,
+            "end": 1330,
+            "status": 200
+          },
+          {
+            "id": 19,
+            "endpoint": "rpc:get_next_weekly_registration_banner_state",
+            "method": "POST",
+            "start": 856,
+            "visitId": 1,
+            "end": 1194,
+            "status": 200
+          },
+          {
+            "id": 20,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 856,
+            "visitId": 1,
+            "end": 1255,
+            "status": 200
+          },
+          {
+            "id": 21,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 856,
+            "visitId": 1,
+            "end": 1256,
+            "status": 200
+          },
+          {
+            "id": 22,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 856,
+            "visitId": 1,
+            "end": 1250,
+            "status": 200
+          },
+          {
+            "id": 23,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 856,
+            "visitId": 1,
+            "end": 1403,
+            "status": 200
+          },
+          {
+            "id": 24,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 856,
+            "visitId": 1,
+            "end": 1230,
+            "status": 200
+          },
+          {
+            "id": 25,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 856,
+            "visitId": 1,
+            "end": 1352,
+            "status": 200
+          },
+          {
+            "id": 26,
+            "endpoint": "rpc:sync_signup_electronic_receipts_consent",
+            "method": "POST",
+            "start": 1026,
+            "visitId": 1,
+            "end": 1328,
+            "status": 200
+          },
+          {
+            "id": 27,
+            "endpoint": "rpc:sync_signup_legal_consents",
+            "method": "POST",
+            "start": 1026,
+            "visitId": 1,
+            "end": 1313,
+            "status": 200
+          },
+          {
+            "id": 28,
+            "endpoint": "rpc:get_pending_manager_direct_message",
+            "method": "POST",
+            "start": 1299,
+            "visitId": 1,
+            "end": 1726,
+            "status": 200
+          },
+          {
+            "id": 29,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 1834,
+            "visitId": 1,
+            "end": 2350,
+            "status": 200
+          },
+          {
+            "id": 30,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 3558,
+            "visitId": 2,
+            "end": 3786,
+            "status": 200
+          },
+          {
+            "id": 31,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 3559,
+            "visitId": 2,
+            "end": 3778,
+            "status": 200
+          },
+          {
+            "id": 32,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 3559,
+            "visitId": 2,
+            "end": 3781,
+            "status": 200
+          },
+          {
+            "id": 33,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 3559,
+            "visitId": 2,
+            "end": 3807,
+            "status": 200
+          },
+          {
+            "id": 34,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 3559,
+            "visitId": 2,
+            "end": 3803,
+            "status": 200
+          },
+          {
+            "id": 35,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 3559,
+            "visitId": 2,
+            "end": 3812,
+            "status": 200
+          },
+          {
+            "id": 36,
+            "endpoint": "rpc:list_session_participants",
+            "method": "POST",
+            "start": 3560,
+            "visitId": 2,
+            "end": 3828,
+            "status": 200
+          },
+          {
+            "id": 37,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 3835,
+            "visitId": 2,
+            "end": 4219,
+            "status": 200
+          },
+          {
+            "id": 38,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 3835,
+            "visitId": 2,
+            "end": 4117,
+            "status": 200
+          },
+          {
+            "id": 39,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 5269,
+            "visitId": 3,
+            "end": 5677,
+            "status": 200
+          },
+          {
+            "id": 40,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 5269,
+            "visitId": 3,
+            "end": 5676,
+            "status": 200
+          },
+          {
+            "id": 41,
+            "endpoint": "rpc:open_next_week_sessions_if_due",
+            "method": "POST",
+            "start": 5270,
+            "visitId": 3,
+            "end": 5606,
+            "status": 200
+          },
+          {
+            "id": 42,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 5270,
+            "visitId": 3,
+            "end": 5552,
+            "status": 200
+          },
+          {
+            "id": 43,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 5270,
+            "visitId": 3,
+            "end": 5596,
+            "status": 200
+          },
+          {
+            "id": 44,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 5271,
+            "visitId": 3,
+            "end": 5731,
+            "status": 200
+          },
+          {
+            "id": 45,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 5271,
+            "visitId": 3,
+            "end": 5602,
+            "status": 200
+          },
+          {
+            "id": 46,
+            "endpoint": "rpc:get_next_weekly_registration_banner_state",
+            "method": "POST",
+            "start": 5271,
+            "visitId": 3,
+            "end": 5587,
+            "status": 200
+          },
+          {
+            "id": 47,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 5271,
+            "visitId": 3,
+            "end": 5584,
+            "status": 200
+          },
+          {
+            "id": 48,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 5271,
+            "visitId": 3,
+            "end": 5532,
+            "status": 200
+          },
+          {
+            "id": 49,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 5271,
+            "visitId": 3,
+            "end": 5540,
+            "status": 200
+          },
+          {
+            "id": 50,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 5271,
+            "visitId": 3,
+            "end": 5626,
+            "status": 200
+          },
+          {
+            "id": 51,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 5271,
+            "visitId": 3,
+            "end": 5565,
+            "status": 200
+          },
+          {
+            "id": 52,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 5271,
+            "visitId": 3,
+            "end": 5605,
+            "status": 200
+          },
+          {
+            "id": 53,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 5734,
+            "visitId": 3,
+            "end": 5948,
+            "status": 200
+          }
+        ],
+        "visits": [
+          {
+            "id": 1,
+            "screen": "athlete.home",
+            "focusAt": 848,
+            "tapAt": null,
+            "readyAtFocus": false,
+            "contentAt": 2365,
+            "notReady": []
+          },
+          {
+            "id": 2,
+            "screen": "athlete.session",
+            "focusAt": 3556,
+            "tapAt": 3529,
+            "readyAtFocus": false,
+            "contentAt": 3832,
+            "notReady": []
+          },
+          {
+            "id": 3,
+            "screen": "athlete.home",
+            "focusAt": 5251,
+            "tapAt": 3529,
+            "readyAtFocus": true,
+            "contentAt": 5251,
+            "notReady": [
+              {
+                "start": 5260,
+                "end": 5958
+              }
+            ]
+          }
+        ],
+        "startup": {
+          "requests": 2,
+          "depth": 2,
+          "settledMs": 1025,
+          "endpoints": {
+            "rest:profiles": 1,
+            "rpc:sync_signup_profile_from_metadata": 1
+          }
+        },
+        "summaries": [
+          {
+            "visitId": 1,
+            "screen": "athlete.home",
+            "tapToContentMs": null,
+            "focusToContentMs": 1517,
+            "requestsBeforeContent": 27,
+            "depthBeforeContent": 3,
+            "requestsInWindow": 27,
+            "depthInWindow": 3,
+            "settledMs": 1502,
+            "notReadyMs": 0,
+            "endpoints": {
+              "auth:user": 4,
+              "rpc:get_required_consents": 3,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_address_collection_required": 2,
+              "rest:profiles": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:studio_calendar_notes": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:sync_signup_electronic_receipts_consent": 1,
+              "rpc:sync_signup_legal_consents": 1,
+              "rpc:get_pending_manager_direct_message": 1,
+              "rpc:active_registration_counts": 1
+            }
+          },
+          {
+            "visitId": 2,
+            "screen": "athlete.session",
+            "tapToContentMs": 303,
+            "focusToContentMs": 276,
+            "requestsBeforeContent": 7,
+            "depthBeforeContent": 1,
+            "requestsInWindow": 9,
+            "depthInWindow": 2,
+            "settledMs": 663,
+            "notReadyMs": 0,
+            "endpoints": {
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rpc:active_registration_counts": 1,
+              "rest:training_sessions": 2,
+              "rest:session_registrations": 2,
+              "rest:waitlist_requests": 1,
+              "rpc:list_session_participants": 1
+            }
+          },
+          {
+            "visitId": 3,
+            "screen": "athlete.home",
+            "tapToContentMs": 1722,
+            "focusToContentMs": 0,
+            "requestsBeforeContent": 0,
+            "depthBeforeContent": 0,
+            "requestsInWindow": 15,
+            "depthInWindow": 2,
+            "settledMs": 697,
+            "notReadyMs": 698,
+            "endpoints": {
+              "auth:user": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:studio_calendar_notes": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:active_registration_counts": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "role": "athlete",
+      "run": 4,
+      "engine": "webkit",
+      "steps": {
+        "coldStart": {
+          "home": {
+            "visitId": 1,
+            "screen": "athlete.home",
+            "tapToContentMs": null,
+            "focusToContentMs": 690,
+            "requestsBeforeContent": 27,
+            "depthBeforeContent": 2,
+            "requestsInWindow": 27,
+            "depthInWindow": 2,
+            "settledMs": 678,
+            "notReadyMs": 0,
+            "endpoints": {
+              "auth:user": 4,
+              "rpc:get_required_consents": 3,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_address_collection_required": 2,
+              "rest:profiles": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:studio_calendar_notes": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:sync_signup_electronic_receipts_consent": 1,
+              "rpc:sync_signup_legal_consents": 1,
+              "rpc:get_pending_manager_direct_message": 1,
+              "rpc:active_registration_counts": 1
+            },
+            "contentAtSinceNavStart": 1351
+          },
+          "startup": {
+            "requests": 2,
+            "depth": 2,
+            "settledMs": 826,
+            "endpoints": {
+              "rest:profiles": 1,
+              "rpc:sync_signup_profile_from_metadata": 1
+            }
+          },
+          "jsStartAt": 211,
+          "nav": {
+            "domContentLoaded": 194,
+            "loadEvent": 197
+          },
+          "network": {
+            "bytes": 32015,
+            "count": 29,
+            "maxUrl": 339
+          }
+        },
+        "openDetail": {
+          "detail": {
+            "visitId": 2,
+            "screen": "athlete.session",
+            "tapToContentMs": 260,
+            "focusToContentMs": 246,
+            "requestsBeforeContent": 7,
+            "depthBeforeContent": 1,
+            "requestsInWindow": 9,
+            "depthInWindow": 2,
+            "settledMs": 564,
+            "notReadyMs": 0,
+            "endpoints": {
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rpc:active_registration_counts": 1,
+              "rest:training_sessions": 2,
+              "rest:session_registrations": 2,
+              "rest:waitlist_requests": 1,
+              "rpc:list_session_participants": 1
+            },
+            "contentAtSinceNavStart": 2640
+          },
+          "network": {
+            "bytes": 13956,
+            "count": 9,
+            "maxUrl": 304
+          }
+        },
+        "backToHome": {
+          "home": {
+            "visitId": 3,
+            "screen": "athlete.home",
+            "tapToContentMs": 1596,
+            "focusToContentMs": 0,
+            "requestsBeforeContent": 0,
+            "depthBeforeContent": 0,
+            "requestsInWindow": 15,
+            "depthInWindow": 2,
+            "settledMs": 703,
+            "notReadyMs": 711,
+            "endpoints": {
+              "auth:user": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:studio_calendar_notes": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:active_registration_counts": 1
+            },
+            "contentAtSinceNavStart": 3976
+          },
+          "network": {
+            "bytes": 28648,
+            "count": 15,
+            "maxUrl": 339
+          }
+        }
+      },
+      "rawSnapshot": {
+        "version": 1,
+        "capturedAt": "2026-10-15T16:36:56.268Z",
+        "jsStartAt": 211,
+        "requests": [
+          {
+            "id": 1,
+            "endpoint": "rest:profiles",
+            "method": "GET",
+            "start": 353,
+            "visitId": null,
+            "end": 595,
+            "status": 200
+          },
+          {
+            "id": 2,
+            "endpoint": "rpc:sync_signup_profile_from_metadata",
+            "method": "POST",
+            "start": 595,
+            "visitId": null,
+            "end": 826,
+            "status": 200
+          },
+          {
+            "id": 3,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 665,
+            "visitId": 1,
+            "end": 1034,
+            "status": 200
+          },
+          {
+            "id": 4,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 665,
+            "visitId": 1,
+            "end": 1014,
+            "status": 200
+          },
+          {
+            "id": 5,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 666,
+            "visitId": 1,
+            "end": 1034,
+            "status": 200
+          },
+          {
+            "id": 6,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 666,
+            "visitId": 1,
+            "end": 1030,
+            "status": 200
+          },
+          {
+            "id": 7,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 667,
+            "visitId": 1,
+            "end": 902,
+            "status": 200
+          },
+          {
+            "id": 8,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 668,
+            "visitId": 1,
+            "end": 915,
+            "status": 200
+          },
+          {
+            "id": 9,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 668,
+            "visitId": 1,
+            "end": 907,
+            "status": 200
+          },
+          {
+            "id": 10,
+            "endpoint": "rpc:get_address_collection_required",
+            "method": "POST",
+            "start": 668,
+            "visitId": 1,
+            "end": 923,
+            "status": 200
+          },
+          {
+            "id": 11,
+            "endpoint": "rest:profiles",
+            "method": "GET",
+            "start": 668,
+            "visitId": 1,
+            "end": 923,
+            "status": 200
+          },
+          {
+            "id": 12,
+            "endpoint": "rpc:get_required_consents",
+            "method": "POST",
+            "start": 668,
+            "visitId": 1,
+            "end": 925,
+            "status": 200
+          },
+          {
+            "id": 13,
+            "endpoint": "rpc:get_address_collection_required",
+            "method": "POST",
+            "start": 668,
+            "visitId": 1,
+            "end": 923,
+            "status": 200
+          },
+          {
+            "id": 14,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 668,
+            "visitId": 1,
+            "end": 930,
+            "status": 200
+          },
+          {
+            "id": 15,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 668,
+            "visitId": 1,
+            "end": 961,
+            "status": 200
+          },
+          {
+            "id": 16,
+            "endpoint": "rpc:open_next_week_sessions_if_due",
+            "method": "POST",
+            "start": 668,
+            "visitId": 1,
+            "end": 958,
+            "status": 200
+          },
+          {
+            "id": 17,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 668,
+            "visitId": 1,
+            "end": 1102,
+            "status": 200
+          },
+          {
+            "id": 18,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 668,
+            "visitId": 1,
+            "end": 961,
+            "status": 200
+          },
+          {
+            "id": 19,
+            "endpoint": "rpc:get_next_weekly_registration_banner_state",
+            "method": "POST",
+            "start": 669,
+            "visitId": 1,
+            "end": 951,
+            "status": 200
+          },
+          {
+            "id": 20,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 669,
+            "visitId": 1,
+            "end": 958,
+            "status": 200
+          },
+          {
+            "id": 21,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 669,
+            "visitId": 1,
+            "end": 968,
+            "status": 200
+          },
+          {
+            "id": 22,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 669,
+            "visitId": 1,
+            "end": 948,
+            "status": 200
+          },
+          {
+            "id": 23,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 669,
+            "visitId": 1,
+            "end": 974,
+            "status": 200
+          },
+          {
+            "id": 24,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 669,
+            "visitId": 1,
+            "end": 952,
+            "status": 200
+          },
+          {
+            "id": 25,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 669,
+            "visitId": 1,
+            "end": 993,
+            "status": 200
+          },
+          {
+            "id": 26,
+            "endpoint": "rpc:sync_signup_electronic_receipts_consent",
+            "method": "POST",
+            "start": 826,
+            "visitId": 1,
+            "end": 1050,
+            "status": 200
+          },
+          {
+            "id": 27,
+            "endpoint": "rpc:sync_signup_legal_consents",
+            "method": "POST",
+            "start": 827,
+            "visitId": 1,
+            "end": 1049,
+            "status": 200
+          },
+          {
+            "id": 28,
+            "endpoint": "rpc:get_pending_manager_direct_message",
+            "method": "POST",
+            "start": 925,
+            "visitId": 1,
+            "end": 1158,
+            "status": 200
+          },
+          {
+            "id": 29,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 1105,
+            "visitId": 1,
+            "end": 1339,
+            "status": 200
+          },
+          {
+            "id": 30,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 2396,
+            "visitId": 2,
+            "end": 2602,
+            "status": 200
+          },
+          {
+            "id": 31,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 2396,
+            "visitId": 2,
+            "end": 2602,
+            "status": 200
+          },
+          {
+            "id": 32,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 2397,
+            "visitId": 2,
+            "end": 2604,
+            "status": 200
+          },
+          {
+            "id": 33,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 2397,
+            "visitId": 2,
+            "end": 2636,
+            "status": 200
+          },
+          {
+            "id": 34,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 2397,
+            "visitId": 2,
+            "end": 2635,
+            "status": 200
+          },
+          {
+            "id": 35,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 2397,
+            "visitId": 2,
+            "end": 2630,
+            "status": 200
+          },
+          {
+            "id": 36,
+            "endpoint": "rpc:list_session_participants",
+            "method": "POST",
+            "start": 2397,
+            "visitId": 2,
+            "end": 2635,
+            "status": 200
+          },
+          {
+            "id": 37,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 2641,
+            "visitId": 2,
+            "end": 2958,
+            "status": 200
+          },
+          {
+            "id": 38,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 2641,
+            "visitId": 2,
+            "end": 2874,
+            "status": 200
+          },
+          {
+            "id": 39,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 3992,
+            "visitId": 3,
+            "end": 4358,
+            "status": 200
+          },
+          {
+            "id": 40,
+            "endpoint": "auth:user",
+            "method": "GET",
+            "start": 3992,
+            "visitId": 3,
+            "end": 4362,
+            "status": 200
+          },
+          {
+            "id": 41,
+            "endpoint": "rpc:open_next_week_sessions_if_due",
+            "method": "POST",
+            "start": 3993,
+            "visitId": 3,
+            "end": 4263,
+            "status": 200
+          },
+          {
+            "id": 42,
+            "endpoint": "rpc:get_my_subscription_terms",
+            "method": "POST",
+            "start": 3993,
+            "visitId": 3,
+            "end": 4272,
+            "status": 200
+          },
+          {
+            "id": 43,
+            "endpoint": "rpc:get_my_subscription",
+            "method": "POST",
+            "start": 3993,
+            "visitId": 3,
+            "end": 4263,
+            "status": 200
+          },
+          {
+            "id": 44,
+            "endpoint": "rest:training_sessions",
+            "method": "GET",
+            "start": 3993,
+            "visitId": 3,
+            "end": 4389,
+            "status": 200
+          },
+          {
+            "id": 45,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 3993,
+            "visitId": 3,
+            "end": 4294,
+            "status": 200
+          },
+          {
+            "id": 46,
+            "endpoint": "rpc:get_next_weekly_registration_banner_state",
+            "method": "POST",
+            "start": 3993,
+            "visitId": 3,
+            "end": 4263,
+            "status": 200
+          },
+          {
+            "id": 47,
+            "endpoint": "rest:studio_calendar_notes",
+            "method": "GET",
+            "start": 3993,
+            "visitId": 3,
+            "end": 4272,
+            "status": 200
+          },
+          {
+            "id": 48,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 3994,
+            "visitId": 3,
+            "end": 4263,
+            "status": 200
+          },
+          {
+            "id": 49,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 3994,
+            "visitId": 3,
+            "end": 4271,
+            "status": 200
+          },
+          {
+            "id": 50,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 3994,
+            "visitId": 3,
+            "end": 4284,
+            "status": 200
+          },
+          {
+            "id": 51,
+            "endpoint": "rest:waitlist_requests",
+            "method": "GET",
+            "start": 3994,
+            "visitId": 3,
+            "end": 4260,
+            "status": 200
+          },
+          {
+            "id": 52,
+            "endpoint": "rest:session_registrations",
+            "method": "GET",
+            "start": 3994,
+            "visitId": 3,
+            "end": 4292,
+            "status": 200
+          },
+          {
+            "id": 53,
+            "endpoint": "rpc:active_registration_counts",
+            "method": "POST",
+            "start": 4391,
+            "visitId": 3,
+            "end": 4679,
+            "status": 200
+          }
+        ],
+        "visits": [
+          {
+            "id": 1,
+            "screen": "athlete.home",
+            "focusAt": 661,
+            "tapAt": null,
+            "readyAtFocus": false,
+            "contentAt": 1351,
+            "notReady": []
+          },
+          {
+            "id": 2,
+            "screen": "athlete.session",
+            "focusAt": 2394,
+            "tapAt": 2380,
+            "readyAtFocus": false,
+            "contentAt": 2640,
+            "notReady": []
+          },
+          {
+            "id": 3,
+            "screen": "athlete.home",
+            "focusAt": 3976,
+            "tapAt": 2380,
+            "readyAtFocus": true,
+            "contentAt": 3976,
+            "notReady": [
+              {
+                "start": 3984,
+                "end": 4695
+              }
+            ]
+          }
+        ],
+        "startup": {
+          "requests": 2,
+          "depth": 2,
+          "settledMs": 826,
+          "endpoints": {
+            "rest:profiles": 1,
+            "rpc:sync_signup_profile_from_metadata": 1
+          }
+        },
+        "summaries": [
+          {
+            "visitId": 1,
+            "screen": "athlete.home",
+            "tapToContentMs": null,
+            "focusToContentMs": 690,
+            "requestsBeforeContent": 27,
+            "depthBeforeContent": 2,
+            "requestsInWindow": 27,
+            "depthInWindow": 2,
+            "settledMs": 678,
+            "notReadyMs": 0,
+            "endpoints": {
+              "auth:user": 4,
+              "rpc:get_required_consents": 3,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_address_collection_required": 2,
+              "rest:profiles": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:studio_calendar_notes": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:sync_signup_electronic_receipts_consent": 1,
+              "rpc:sync_signup_legal_consents": 1,
+              "rpc:get_pending_manager_direct_message": 1,
+              "rpc:active_registration_counts": 1
+            }
+          },
+          {
+            "visitId": 2,
+            "screen": "athlete.session",
+            "tapToContentMs": 260,
+            "focusToContentMs": 246,
+            "requestsBeforeContent": 7,
+            "depthBeforeContent": 1,
+            "requestsInWindow": 9,
+            "depthInWindow": 2,
+            "settledMs": 564,
+            "notReadyMs": 0,
+            "endpoints": {
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rpc:active_registration_counts": 1,
+              "rest:training_sessions": 2,
+              "rest:session_registrations": 2,
+              "rest:waitlist_requests": 1,
+              "rpc:list_session_participants": 1
+            }
+          },
+          {
+            "visitId": 3,
+            "screen": "athlete.home",
+            "tapToContentMs": 1596,
+            "focusToContentMs": 0,
+            "requestsBeforeContent": 0,
+            "depthBeforeContent": 0,
+            "requestsInWindow": 15,
+            "depthInWindow": 2,
+            "settledMs": 703,
+            "notReadyMs": 711,
+            "endpoints": {
+              "auth:user": 2,
+              "rpc:open_next_week_sessions_if_due": 1,
+              "rpc:get_my_subscription_terms": 1,
+              "rpc:get_my_subscription": 1,
+              "rest:training_sessions": 1,
+              "rest:session_registrations": 4,
+              "rpc:get_next_weekly_registration_banner_state": 1,
+              "rest:studio_calendar_notes": 1,
+              "rest:waitlist_requests": 2,
+              "rpc:active_registration_counts": 1
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

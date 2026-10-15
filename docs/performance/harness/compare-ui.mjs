@@ -1,6 +1,7 @@
 // What-the-user-sees comparison of two builds on the ISOLATED perf stack (A = before, B = after a data-loading change):
 // for each scenario, waits until the network is quiet and the text is stable, then compares all visible text and all
 // accessibility labels (status badges such as "registered" are labels). Requests may differ by design; the screen must not.
+// PERF_UI_SET=detail compares the session detail screens instead of the home screens.
 // Usage: PLAYWRIGHT_MODULE_DIR=... PERF_BASE_A=http://127.0.0.1:8201 PERF_BASE_B=http://127.0.0.1:8202 PERF_ENGINE=chromium node compare-ui.mjs
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -57,7 +58,28 @@ async function capture(page) {
 }
 
 const scenarios = [];
-for (const email of ["perf-ath-002@perf.test", "perf-ath-001@perf.test", "perf-ath-009@perf.test"]) {
+const go = (p) => async (page) => { await page.goto(new URL(p, page.url()).href); };
+if (process.env.PERF_UI_SET === "detail") {
+  // Session detail screens (Phase 1 / step 4). Ids come from the seeded isolated dataset; override with PERF_UI_SESSIONS.
+  const ids = JSON.parse(process.env.PERF_UI_SESSIONS ?? "{}");
+  const S = {
+    athRegistered: "cd4c06d6-f8f3-4268-925d-a36e59335d7b",
+    notOpen: "e43e7451-acc9-4080-95a8-183a2fa12cc2",
+    open: "4d11c1e6-8f0d-4708-bdd0-555c368c0fd8",
+    waitlisted: "35e14a8f-8b4e-46eb-a89b-3d0e59c53ba8",
+    rich: "9d70a256-4a36-445e-b12d-9c0185cb412a",
+    manualOnly: "52375f9c-07b4-4b3c-b981-45963be44b65",
+    ...ids,
+  };
+  scenarios.push(["athlete: registered session", "perf-ath-002@perf.test", go(`/athlete/session/${S.athRegistered}`)]);
+  scenarios.push(["athlete: not yet open session", "perf-ath-002@perf.test", go(`/athlete/session/${S.notOpen}`)]);
+  scenarios.push(["athlete: open session", "perf-ath-002@perf.test", go(`/athlete/session/${S.open}`)]);
+  scenarios.push(["athlete: on the waitlist", "perf-ath-147@perf.test", go(`/athlete/session/${S.waitlisted}`)]);
+  scenarios.push(["coach: own session with roster", "perf-coach-1@perf.test", go(`/coach/session/${S.rich}`)]);
+  scenarios.push(["manager: session with roster", "perf-mgr-2@perf.test", go(`/manager/session/${S.rich}`)]);
+  scenarios.push(["manager: manual participants only", "perf-mgr-2@perf.test", go(`/manager/session/${S.manualOnly}`)]);
+  scenarios.push(["super user: session with roster", "perf-mgr-1@perf.test", go(`/manager/session/${S.rich}`)]);
+} else for (const email of ["perf-ath-002@perf.test", "perf-ath-001@perf.test", "perf-ath-009@perf.test"]) {
   scenarios.push([`${email} home (this week)`, email, async () => {}]);
   scenarios.push([`${email} home (next week)`, email, async (page) => {
     await page.locator('[aria-label="Next week"]').locator("visible=true").first().click();
@@ -66,9 +88,11 @@ for (const email of ["perf-ath-002@perf.test", "perf-ath-001@perf.test", "perf-a
     await page.goto(new URL("/athlete/my-sessions", page.url()).href);
   }]);
 }
-scenarios.push(["perf-coach-1@perf.test home", "perf-coach-1@perf.test", async () => {}]);
-scenarios.push(["perf-mgr-2@perf.test home", "perf-mgr-2@perf.test", async () => {}]);
-scenarios.push(["perf-mgr-1@perf.test (super user) home", "perf-mgr-1@perf.test", async () => {}]);
+if (process.env.PERF_UI_SET !== "detail") {
+  scenarios.push(["perf-coach-1@perf.test home", "perf-coach-1@perf.test", async () => {}]);
+  scenarios.push(["perf-mgr-2@perf.test home", "perf-mgr-2@perf.test", async () => {}]);
+  scenarios.push(["perf-mgr-1@perf.test (super user) home", "perf-mgr-1@perf.test", async () => {}]);
+}
 
 let differ = 0;
 for (const [name, email, act] of scenarios) {
