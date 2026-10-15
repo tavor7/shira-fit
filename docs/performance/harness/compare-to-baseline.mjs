@@ -1,11 +1,17 @@
 // Compares a run-scenarios.mjs result file against the Phase 0 baseline file (same engine): medians, deltas and
-// per-scenario counts of selected endpoints. Usage: node compare-to-baseline.mjs <baseline.json> <candidate.json> [endpoint ...]
+// per-scenario counts of selected endpoints.
+// Usage: node compare-to-baseline.mjs <baseline.json> <candidate.json> [--previous <previous-step.json>] [endpoint ...]
 import fs from "node:fs";
 
-const [baseFile, candFile, ...endpointsArg] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const prevIdx = args.indexOf("--previous");
+const prevFile = prevIdx >= 0 ? args[prevIdx + 1] : null;
+if (prevIdx >= 0) args.splice(prevIdx, 2);
+const [baseFile, candFile, ...endpointsArg] = args;
 const endpoints = endpointsArg.length ? endpointsArg : ["auth:user"];
 const base = JSON.parse(fs.readFileSync(baseFile, "utf8"));
 const cand = JSON.parse(fs.readFileSync(candFile, "utf8"));
+const prev = prevFile ? JSON.parse(fs.readFileSync(prevFile, "utf8")) : null;
 
 const median = (xs) => {
   const v = xs.filter((x) => typeof x === "number" && Number.isFinite(x)).sort((a, b) => a - b);
@@ -63,14 +69,24 @@ for (const ep of endpoints) {
 console.log(`### ${cand.engine}: baseline → candidate (median of ${base.runs} vs ${cand.runs} runs)\n`);
 const failures = cand.results.filter((r) => r.error);
 for (const f of failures) console.log(`- FAILED ${f.role} run ${f.run + 1}: ${f.error}`);
-console.log("| Role | Metric | Baseline | Candidate | Δ |\n|---|---|---|---|---|");
+const delta = (from, to) => {
+  if (from == null || to == null) return "–";
+  const d = to - from;
+  const pct = from ? ` (${d > 0 ? "+" : ""}${Math.round((d / from) * 100)}%)` : "";
+  return `${d > 0 ? "+" : ""}${Math.round(d)}${pct}`;
+};
+console.log(
+  prev
+    ? "| Role | Metric | Baseline | Previous step | Candidate | Δ vs baseline | Δ vs previous |\n|---|---|---|---|---|---|---|"
+    : "| Role | Metric | Baseline | Candidate | Δ |\n|---|---|---|---|---|"
+);
 for (const role of ["athlete", "coach", "manager"]) {
   for (const [label, get] of metrics) {
     const b = median(ok(base, role).map(get));
     const c = median(ok(cand, role).map(get));
+    const p = prev ? median(ok(prev, role).map(get)) : null;
     if (b == null && c == null) continue;
-    const d = b != null && c != null ? c - b : null;
-    const pct = d != null && b ? ` (${d > 0 ? "+" : ""}${Math.round((d / b) * 100)}%)` : "";
-    console.log(`| ${role} | ${label} | ${b ?? "–"} | ${c ?? "–"} | ${d == null ? "–" : `${d > 0 ? "+" : ""}${Math.round(d)}${pct}`} |`);
+    if (prev) console.log(`| ${role} | ${label} | ${b ?? "–"} | ${p ?? "–"} | ${c ?? "–"} | ${delta(b, c)} | ${delta(p, c)} |`);
+    else console.log(`| ${role} | ${label} | ${b ?? "–"} | ${c ?? "–"} | ${delta(b, c)} |`);
   }
 }
