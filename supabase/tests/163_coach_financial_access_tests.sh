@@ -7,7 +7,7 @@
 #      customers, external receipts, receipt settings, receipt PDFs (storage, when present), the 12 finance RPCs, studio and
 #      per-athlete price writes, roster rate writes on another coach's session
 #   P  legitimate paths still work: manager full access (payments CRUD, documents, finance RPCs, price writes); coach reads
-#      prices, records attendance + payment at check-in on own session, sets a roster rate on own session, reads own session
+#      prices, records attendance + payment at check-in on own session, reads own session
 #      roster; the coach's attendance on another coach's session stays refused (pre-existing scope)
 # Usage: PSQL=... PSQL_AUTH=... supabase/tests/163_coach_financial_access_tests.sh   (SCRATCH/LOCAL DATABASES ONLY)
 set -u
@@ -90,8 +90,9 @@ R=$(api "$C" "select public.set_registration_attendance('$S1', '$A', 'arrived', 
 case "$R" in *'"ok" : true'*|*'"ok":true'*) ok "P coach records attendance + payment at check-in on own session";; *) fail "P coach attendance own session: $R";; esac
 R=$(api "$C" "select public.set_registration_attendance('$S2', '$A', 'arrived', 'cash', 60, false)::text;")
 case "$R" in *forbidden*) ok "P coach attendance on another coach's session stays refused (pre-existing scope)";; *) fail "P coach attendance other session: $R";; esac
-works "coach sets a roster rate on own session" "$(api "$C" "insert into public.session_roster_slot_prices (session_id, user_id, price_ils) values ('$S1', '$A', 70); select 1;")"
-expect "coach's own-session rate saved" "70.00" "$(su -c "select price_ils from public.session_roster_slot_prices where session_id = '$S1' and user_id = '$A'")"
+# Per-athlete rates are manager-only since 20261020100000_coach_session_configuration_manager_only.sql (also covered by 179).
+refused "coach sets a roster rate on own session (manager-only since 20261020100000)" "$(api "$C" "insert into public.session_roster_slot_prices (session_id, user_id, price_ils) values ('$S1', '$A', 70); select 1;")"
+expect "no own-session rate saved by the coach" "" "$(su -c "select price_ils from public.session_roster_slot_prices where session_id = '$S1' and user_id = '$A'")"
 works "manager sets a roster rate on any session" "$(api "$M" "insert into public.session_roster_slot_prices (session_id, user_id, price_ils) values ('$S2', '$A', 75) on conflict (session_id, user_id) where user_id is not null do update set price_ils = 75; select 1;")"
 works "coach reads athlete profiles for coaching" "$(api "$C" "select count(*) from public.profiles where user_id = '$A';")"
 

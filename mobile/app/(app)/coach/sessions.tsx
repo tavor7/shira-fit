@@ -18,7 +18,7 @@ import { mergeStaffHomeAlerts, type HomePriorityAlertItem } from "../../../src/l
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
 import { AppText } from "../../../src/components/AppText";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
-import { isSessionInActiveSeries, maintainSessionSeriesHorizon } from "../../../src/lib/sessionSeries";
+import { isSessionInActiveSeries } from "../../../src/lib/sessionSeries";
 import { fetchStudioCalendarNotesForRange, type StudioCalendarNote } from "../../../src/lib/studioCalendarNotes";
 import { dedupeSessionsBySignupCount } from "../../../src/lib/dedupeSessionsBySlot";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
@@ -80,7 +80,6 @@ function CoachSessionsScreenContent() {
 
     // Idempotent server-side backup for a late cron; doesn't need to block the fetch below.
     void touchWeeklyRegistrationOpenIfDue();
-    void maintainSessionSeriesHorizon();
     // Performance Phase 1 / step 3: two request waves before the calendar shows (sessions + week notes, then the counts),
     // instead of five sequential steps. Alerts are computed afterwards: they use the same data but must not hold the
     // calendar back. The sequence guard keeps a slower, older alerts result from overwriting a newer one.
@@ -216,11 +215,6 @@ function CoachSessionsScreenContent() {
         variant="coach"
         calendarNotes={studioNotes}
         currentUserId={profile?.user_id ?? null}
-        onAddSession={() => {
-          const d = sheetDay;
-          setSheetDay(null);
-          if (d) router.push({ pathname: "/(app)/coach/create-session", params: { date: d } });
-        }}
         onChanged={() => load(true)}
       />
     </View>

@@ -223,18 +223,15 @@ export function DaySessionsSheet({
     void startDeleteFlow(sessionId);
   }
 
-  function goEdit(sessionId: string, coachId?: string) {
+  function goEdit(sessionId: string) {
     onClose();
     if (variant === "manager") {
       router.push(`/(app)/manager/session/${sessionId}`);
       return;
     }
     if (variant === "coach") {
-      if (coachId && currentUserId && coachId === currentUserId) {
-        router.push(`/(app)/coach/session/manage/${sessionId}`);
-      } else {
-        router.push(`/(app)/coach/session/${sessionId}`);
-      }
+      // Coaches never configure sessions (manager-only); their session page manages participants and attendance.
+      router.push(`/(app)/coach/session/${sessionId}`);
     }
   }
 
@@ -571,8 +568,8 @@ export function DaySessionsSheet({
             {items.length > 0 ? (
               <View style={styles.sessionList}>
                 {items.map((it, index) => {
-                  const ownAsCoach = variant === "coach" && it.coachId && currentUserId && it.coachId === currentUserId;
-                  const canDelete = !!(variant === "manager" || ownAsCoach);
+                  // Deleting sessions is manager-only (the server refuses coaches).
+                  const canDelete = variant === "manager";
 
                   return (
                     <FadeSlideIn key={it.key} delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
@@ -602,7 +599,7 @@ export function DaySessionsSheet({
                             it.onPress?.();
                             onClose();
                           } else {
-                            goEdit(it.key, it.coachId);
+                            goEdit(it.key);
                           }
                         }}
                       />

@@ -212,12 +212,6 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
           onPress: () => router.push("/(app)/coach/pricing" as never),
           isActive: (p) => startsWithAny(p, ["/coach/pricing"]),
         },
-        {
-          label: t("menu.createSession"),
-        icon: "add-circle-outline",
-          onPress: () => router.push("/(app)/coach/create-session"),
-          isActive: (p) => startsWithAny(p, ["/coach/create-session"]),
-        },
         legalItem,
       ];
     }

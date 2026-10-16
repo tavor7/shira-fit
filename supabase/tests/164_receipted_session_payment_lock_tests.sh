@@ -3,7 +3,8 @@
 #
 # Real `authenticator` connections as authenticated users with JWT claims (one transaction per call, like PostgREST).
 # Fixture: manager M, coach C (owns S1), athlete A registered to S1, manual participant MP on S1.
-#   F  coach manages payments freely while NO receipt exists (record, correct, mark unpaid; manual participant direct update)
+#   F  coach manages payments freely while NO receipt exists (record, correct, mark unpaid) through the attendance RPCs;
+#      direct table updates of walk-in rows are manager-only since 20261020100000
 #   L  after a receipt is issued for that payment the coach cannot change amount / method / mark unpaid / no-show charge,
 #      cannot update the manual participant's payment directly, cannot remove the participant or move them, while
 #      attendance-only changes still pass; the lock RPC reports the locked rows; managers can still change the payment
@@ -48,7 +49,10 @@ allowed "F coach marks it unpaid" "$(attend $C arrived null null)"
 allowed "F coach records it again (cash 60)" "$(attend $C arrived "'cash'" 60)"
 expect "F payment saved" "cash/60.00/false" "$(pay session_registrations $REG)"
 allowed "F coach records manual participant payment (RPC)" "$(attendm $C arrived "'cash'" 50)"
-allowed "F coach corrects manual participant payment directly (table update)" "$(api $C "update public.session_manual_participants set amount_paid = 55 where id = '$SMP'; select 1;")"
+# Since 20261020100000_coach_session_configuration_manager_only.sql a coach writes walk-in rows only through the RPCs
+# (which validate and log every payment change); a direct table update matches no row.
+expect "F coach can't correct the manual payment by direct table update (0 rows)" "0" "$(api $C "with u as (update public.session_manual_participants set amount_paid = 55 where id = '$SMP' returning 1) select count(*) from u;")"
+allowed "F coach corrects manual participant payment (RPC)" "$(attendm $C arrived "'cash'" 55)"
 expect "F manual payment saved" "cash/55.00/false" "$(pay session_manual_participants $SMP)"
 expect "F lock RPC: nothing locked yet" '{"ok" : true, "locked_user_ids" : [], "locked_manual_ids" : []}' "$(api $C "select public.session_payment_receipt_locks('$S1')::text;")"
 
@@ -67,7 +71,7 @@ allowed "L attendance-only re-save with the same payment still passes" "$(attend
 R=$(api "$M" "select public.mark_payment_receipt_external('session_manual:$SMP', 'paper receipt')::text;")
 case "$R" in *'"ok" : true'*) ok "X manager marks the manual participant's payment as receipted externally";; *) fail "X mark external: $R";; esac
 locked "X coach changes the manual payment via RPC" "$(attendm $C arrived "'bit'" 55)"
-locked "X coach changes the manual payment directly (table update)" "$(api $C "update public.session_manual_participants set amount_paid = 1 where id = '$SMP'; select 1;")"
+expect "X coach changes the manual payment directly (table update): no row (RLS, since 20261020100000)" "0" "$(api $C "with u as (update public.session_manual_participants set amount_paid = 1 where id = '$SMP' returning 1) select count(*) from u;")"
 locked "X coach removes the receipted manual participant" "$(api $C "select public.remove_manual_participant_from_session('$S1', '$MPID')::text;")"
 S3=$(su -c "insert into public.training_sessions (session_date, start_time, coach_id, max_participants, is_open_for_registration) values (current_date + 4, '07:45', '$C', 6, true) returning id" | head -1)
 MP3=$(su -c "insert into public.manual_participants (full_name, phone) values ('mp164b $n', '096$n') returning id" | head -1)
