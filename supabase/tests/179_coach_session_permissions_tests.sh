@@ -267,6 +267,21 @@ OUT=$(race "coach vs athlete" "select public.coach_add_athlete('$SR2', '$A3', tr
 expect "coach add racing an athlete's self-registration fills exactly 1 of 1 places" "1" "$(su -c "select count(*) from public.session_registrations where session_id = '$SR2' and status = 'active'")"
 case "$OUT" in *'"ok" : true'*) ok "C the coach got the place";; *) fail "C coach vs athlete: $OUT";; esac
 
+SR3=$(su -c "insert into public.training_sessions (session_date, start_time, coach_id, max_participants, is_open_for_registration)
+  values (current_date + 1, '22:05', '$C', 1, true) returning id" | head -1)
+OUT=$(race "manager override vs coach" "select public.coach_add_athlete('$SR3', '$A3', true, false)::text;" "$M" "select public.coach_add_athlete('$SR3', '$A4', true, false)::text;" "$C")
+expect "manager override racing a coach's over-capacity attempt: manager in, coach held to capacity (1 of 1)" "1" "$(su -c "select count(*) from public.session_registrations where session_id = '$SR3' and status = 'active'")"
+case "$OUT" in *'"ok" : true'*'"full"'*) ok "C manager got the place, the coach was told full";; *) fail "C manager vs coach: $OUT";; esac
+SR4=$(su -c "insert into public.training_sessions (session_date, start_time, coach_id, max_participants, is_open_for_registration)
+  values (current_date + 1, '22:35', '$C', 1, true) returning id" | head -1)
+OUT=$(race "coach first, manager override second" "select public.coach_add_athlete('$SR4', '$A3', false, false)::text;" "$C" "select public.coach_add_athlete('$SR4', '$A4', true, false)::text;" "$M")
+expect "coach takes the last place, the manager's override still adds one over capacity (2 on a 1-place session)" "2" "$(su -c "select count(*) from public.session_registrations where session_id = '$SR4' and status = 'active'")"
+case "$OUT" in *'"ok" : true'*'"ok" : true'*) ok "C both succeeded (manager override works on the first attempt)";; *) fail "C coach then manager: $OUT";; esac
+expect "capacity itself unchanged by the override" "1" "$(su -c "select max_participants from public.training_sessions where id = '$SR4'")"
+OUT=$(race "manager without override vs coach" "select public.coach_add_athlete('$SR3', '$A5', false, false)::text;" "$M" "select public.add_manual_participant_to_session('$SR3', '$W', true, false)::text;" "$C")
+case "$OUT" in *'"full"'*'"full"'*) ok "C on a full session, a manager without the override and a coach walk-in over capacity are both refused";; *) fail "C full refusals: $OUT";; esac
+expect "full session still 1 of 1" "1|0" "$(su -c "select (select count(*) from public.session_registrations where session_id = '$SR3' and status = 'active') || '|' || (select count(*) from public.session_manual_participants where session_id = '$SR3')")"
+
 echo
 echo "179 coach session permissions: $PASSED passed, $FAILED failed"
 [ $FAILED -eq 0 ]

@@ -57,6 +57,10 @@ const sess = (date, time, max) => sql(`insert into public.training_sessions (ses
 const S_OPEN = sess(D1, "06:10", 3);
 const S_FULL = sess(D1, "06:40", 1);
 sql(`insert into public.session_registrations (session_id, user_id, status) values ('${S_OPEN}', '${a1.id}', 'active'), ('${S_FULL}', '${a2.id}', 'active')`);
+// Two more full sessions for the "pick before the counts load" race (one per role, the manager's ends over capacity).
+const S_RACE_C = sess(D1, "07:10", 1);
+const S_RACE_M = sess(D1, "07:40", 1);
+sql(`insert into public.session_registrations (session_id, user_id, status) values ('${S_RACE_C}', '${a2.id}', 'active'), ('${S_RACE_M}', '${a2.id}', 'active')`);
 
 const browser = await (ENGINE === "webkit" ? webkit : chromium).launch();
 let failed = 0, passed = 0;
@@ -200,6 +204,56 @@ console.log(`== ${ENGINE}: manager`);
   await page.waitForTimeout(1500);
   if (process.env.UI_SHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SHOT_DIR, `manager-full-${ENGINE}.png`) });
   check("manager is offered Increase capacity on a full session", await has(page, "Increase capacity"));
+  await ctx.close();
+}
+
+// Race: the add modal decides "full" from counts it loads on open. Delay exactly those count requests so the pick happens
+// before they arrive and the server is the one saying "full". A manager must get the override choice on the FIRST
+// attempt; a coach must be held to capacity.
+async function pickBeforeCountsLoad(page, sessionId) {
+  // Only the three count requests the modal sends when it opens (capacity read + two HEAD counts), first time only;
+  // everything else (the "already registered?" check, the add itself, the recount after "full") runs normally.
+  let delayed = 0;
+  await page.route((u) => u.pathname.includes("/rest/v1/") && (u.search.includes("max_participants") || u.search.includes("session_id=eq." + sessionId)),
+    async (r) => {
+      const req = r.request();
+      const isOpenCount = (req.method() === "HEAD" && req.url().includes("session_id=eq." + sessionId)) ||
+        (req.method() === "GET" && req.url().includes("select=max_participants") && req.url().includes("id=eq." + sessionId));
+      if (isOpenCount && delayed < 3) { delayed++; await new Promise((res) => setTimeout(res, 6000)); }
+      await r.continue().catch(() => {});
+    });
+  await visible(page, "Add participant").first().waitFor({ timeout: 15_000 });
+  await visible(page, "Add participant").first().click();
+  const search = page.getByPlaceholder(/search/i).locator("visible=true").first();
+  await search.waitFor({ timeout: 10_000 });
+  await search.fill(`Athlete One ${n}`);
+  await page.getByText(`Athlete One ${n}`).locator("visible=true").last().click({ timeout: 10_000 });
+}
+const activeCount = (sid) => sql(`select count(*) from public.session_registrations where session_id = '${sid}' and status = 'active'`);
+console.log(`== ${ENGINE}: race, pick before the modal's counts load`);
+{
+  const { ctx, page } = await signIn(coach.email);
+  await go(page, `/coach/session/${S_RACE_C}`);
+  await pickBeforeCountsLoad(page, S_RACE_C);
+  let toldFull = false, offered = false;
+  for (let i = 0; i < 80 && !toldFull; i++) { toldFull = await has(page, "Session full", false); offered ||= await has(page, "Increase capacity"); if (!toldFull) await page.waitForTimeout(100); }
+  check("race: coach is told the session is full", toldFull);
+  check("race: coach is never offered capacity options", !offered && !(await has(page, "Keep capacity, add anyway")));
+  check("race: coach's session still 1 of 1", activeCount(S_RACE_C) === "1", activeCount(S_RACE_C));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await signIn(mgr.email);
+  await go(page, `/manager/session/${S_RACE_M}`);
+  await pickBeforeCountsLoad(page, S_RACE_M);
+  let offered = false;
+  for (let i = 0; i < 80 && !offered; i++) { offered = await has(page, "Keep capacity, add anyway"); if (!offered) await page.waitForTimeout(100); }
+  check("race: manager is offered the override on the first attempt", offered && (await has(page, "Increase capacity")));
+  if (offered) await visible(page, "Keep capacity, add anyway").first().click();
+  let stored = "";
+  for (let i = 0; i < 80; i++) { stored = activeCount(S_RACE_M); if (stored === "2") break; await page.waitForTimeout(100); }
+  check("race: manager's add-anyway is stored over capacity (2 on a 1-place session)", stored === "2", stored);
+  check("race: manager's add-anyway kept the capacity", sql(`select max_participants from public.training_sessions where id = '${S_RACE_M}'`) === "1");
   await ctx.close();
 }
 

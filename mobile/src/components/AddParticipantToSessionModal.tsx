@@ -267,6 +267,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   }
 
   async function runAddExistingAthleteCore(userId: string, allowOverCapacity = false) {
+    let serverSaysFull = false;
     setAdding(true);
     try {
       const { data: already, error: alreadyErr } = await supabase
@@ -308,6 +309,8 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
         // no error toast, no state change.
         if (isSubscriptionLimitExceeded(result)) {
           toastError(t("common.failed"), addParticipantSubscriptionLimitMessage(result.reason, t));
+        } else if (String(result.error) === "full" && !allowOverCapacity) {
+          serverSaysFull = true;
         } else {
           const errCode = String(result.error ?? "");
           toastError(t("common.failed"), rpcErrorMessage(errCode) || errCode || t("common.failed"));
@@ -318,9 +321,11 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     } finally {
       setAdding(false);
     }
+    if (serverSaysFull) await handleServerFull({ kind: "athlete", userId });
   }
 
   async function runAddExistingManualCore(manualId: string, allowOverCapacity = false) {
+    let serverSaysFull = false;
     setAdding(true);
     try {
       const { data: already, error: alreadyErr } = await supabase
@@ -364,6 +369,8 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
             t("ui.addParticipantToSession.alreadyRegistered"),
             t("ui.addParticipantToSession.thisParticipantIsAlreadyRegisteredFor")
           );
+        } else if (e === "full" && !allowOverCapacity) {
+          serverSaysFull = true;
         } else if (e === "full") {
           toastInfo(t("ui.addParticipantToSession.sessionFull"));
         } else if (isSubscriptionLimitExceeded(result)) {
@@ -377,6 +384,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     } finally {
       setAdding(false);
     }
+    if (serverSaysFull) await handleServerFull({ kind: "manual", manualId });
   }
 
   async function addExistingFromMatch(match: Awaited<ReturnType<typeof findExistingParticipantByNameOrPhone>>) {
@@ -393,6 +401,7 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
   }
 
   async function runQuickAddCore(allowOverCapacity = false) {
+    let fullForManualId: string | null = null;
     const name = quickName.trim();
     const phone = quickPhone.trim();
     const existing = await findExistingParticipantByNameOrPhone(name, phone);
@@ -439,6 +448,11 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
       } else if (result.error !== "cancelled") {
         if (isSubscriptionLimitExceeded(result)) {
           toastError(t("common.failed"), addParticipantSubscriptionLimitMessage(result.reason, t));
+        } else if (String(result.error) === "full" && !allowOverCapacity) {
+          // The walk-in now exists; any retry adds this same record (never a second one).
+          fullForManualId = mid;
+          setQuickName("");
+          setQuickPhone("");
         } else {
           toastError(t("common.failed"), String(result.error ?? ""));
         }
@@ -448,6 +462,18 @@ export function AddParticipantToSessionModal({ sessionId, visible, onClose, onAd
     } finally {
       setAdding(false);
     }
+    if (fullForManualId) await handleServerFull({ kind: "manual", manualId: fullForManualId });
+  }
+
+  /**
+   * The server refused a normal add because the session is full. This happens when the session filled up (or the
+   * modal's own counts hadn't loaded yet) between opening the modal and picking someone. Handle it exactly like a full
+   * session detected up front: a manager is offered the existing increase / add-anyway choice for the same
+   * participant right away; a coach is told the session is full (the server never lets a coach exceed capacity).
+   */
+  async function handleServerFull(prompt: NonNullable<WebFullAddPrompt>): Promise<void> {
+    await loadCounts();
+    await resolveFullAdd(prompt);
   }
 
   async function confirmWebFullAddChoice(choice: FullAddChoice) {
