@@ -192,6 +192,30 @@ Deno.serve(async (req) => {
 
   const stats = await processPendingDeliveries(admin, limit);
 
+  // System Issues coverage: a batch with failures still returns 200/ok:true to the cron caller (by
+  // design — a few bad deliveries must not fail the whole batch), so without this, partial failure
+  // here is invisible outside notification_deliveries' own status column. Runs over the service-role
+  // connection, independent of any business DB transaction, so this is durable regardless of whether
+  // the batch above partially rolled back.
+  if (stats.failed > 0) {
+    try {
+      await admin.rpc("system_report_trusted", {
+        p_payload: {
+          source: "trusted",
+          subsystem: "notifications",
+          operation: "dispatch_notifications_whatsapp",
+          error_class: "partial_failure",
+          message: `${stats.failed} of ${stats.processed} WhatsApp deliveries failed in this batch`,
+          severity: stats.failed === stats.processed ? "error" : "warning",
+          entities: { failed: stats.failed, processed: stats.processed, sent: stats.sent },
+          fingerprint_key: "notification_dispatch_partial_failure:whatsapp",
+        },
+      });
+    } catch {
+      // Best-effort only; a monitoring-report failure must never affect the dispatch response.
+    }
+  }
+
   return new Response(JSON.stringify({ ok: true, ...stats }), {
     headers: { ...cors, "Content-Type": "application/json" },
   });

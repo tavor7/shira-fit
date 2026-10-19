@@ -1,5 +1,5 @@
--- Regression tests for 20261021100000_fix_series_horizon_duplicate_date_conflict.sql and
--- 20261021110000_series_horizon_system_issues_reporting.sql.
+-- Regression tests for 20261019091826_fix_series_horizon_duplicate_date_conflict.sql and
+-- 20261019091924_series_horizon_system_issues_reporting.sql.
 --
 -- Root cause covered: a detached ("this occurrence only") session keeps its series_id by
 -- design (Stage 1), but when its coach/start_time no longer match the series' CURRENT

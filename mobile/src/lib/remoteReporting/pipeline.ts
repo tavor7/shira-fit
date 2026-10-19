@@ -56,7 +56,7 @@ const HOUR = 3_600_000;
 const SIX_HOURS = 6 * HOUR;
 
 export class RemoteReportingPipeline {
-  private readonly enabled: () => boolean;
+  private enabled: () => boolean;
   private deliverer: Deliverer | null;
   private readonly now: () => number;
   private readonly buildInfo: () => BuildInfo;
@@ -87,6 +87,11 @@ export class RemoteReportingPipeline {
 
   setDeliverer(d: Deliverer | null): void {
     this.deliverer = d;
+  }
+
+  /** Rebinds the live enabled() check (monitoring completion pass: the server flag, not a build-time constant). */
+  setEnabled(fn: () => boolean): void {
+    this.enabled = fn;
   }
 
   /** An RPC outcome seen by the observer (already classified by the Phase 3A-3D classifier). */

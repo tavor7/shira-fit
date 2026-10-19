@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import Head from "expo-router/head";
 import { AuthProvider } from "../src/context/AuthContext";
-import { Platform, View } from "react-native";
+import { AppState, Platform, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { BottomChromeProvider } from "../src/context/BottomChromeContext";
@@ -27,10 +27,26 @@ import * as Updates from "expo-updates";
 import { useAuth } from "../src/context/AuthContext";
 import { ConnectionBarLayout } from "../src/components/OfflineNotice";
 import { useSpaceActivatesControls } from "../src/hooks/useSpaceActivatesControls";
+import { installGlobalErrorHandlers, reportInitializationFailure } from "../src/lib/techReporting/globalHandlers";
+import { refreshRemoteReportingFlagOnForeground } from "../src/lib/remoteReporting";
+import { supabase } from "../src/lib/supabase";
 
-initNotificationHandler();
+// Before anything else mounts: unhandled JS exceptions and promise rejections must be caught from
+// the very first tick, not only once a screen is up (AppErrorBoundary only covers render errors).
+installGlobalErrorHandlers();
+try {
+  initNotificationHandler();
+} catch (error) {
+  reportInitializationFailure("notifications_init", error);
+}
 // Before the router mounts: the dialog Back-handler's popstate listener must run before expo-router's (see webBackDismiss).
 installWebBackDismiss();
+
+// Picks up a production server-side reporting-flag flip for an app that was already running,
+// without requiring the user to relaunch.
+AppState.addEventListener("change", (state) => {
+  if (state === "active") refreshRemoteReportingFlagOnForeground(supabase);
+});
 
 const rootHeaderStyle = appHeaderStyle;
 const rootHeaderTitleStyle = appHeaderTitleStyle;

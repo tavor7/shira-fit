@@ -11,6 +11,13 @@ import { createRpcDeliverer, type Deliverer, type DeliveryOutcome } from "./deli
 import { isValidWirePayload, mapOutcome, mapTransport, transportCandidateFrom, FIXED_MESSAGES, type OutcomeCandidate, type WirePayload } from "./eligibility";
 import { candidateFromEvent, remoteReporting, startRemoteReporting } from "./index";
 import { RemoteReportingPipeline } from "./pipeline";
+import { resetServerReportingFlagForTests } from "./serverFlag";
+
+afterEach(() => {
+  // startRemoteReporting's server-flag singleton holds a setInterval; without this, repeated calls
+  // across tests leak timers (and across-test flag-state bleed, since it's a module-level singleton).
+  resetServerReportingFlagForTests();
+});
 
 // Monitoring Phase 3E.3: the client pipeline (classification -> eligibility -> payload -> flood control -> delivery -> breaker),
 // reporting OFF in production. Everything enabled here is enabled by injection into a private instance, never through the build gate.
@@ -63,14 +70,14 @@ describe("A. the feature is OFF by construction", () => {
     expect(p.isSignedIn()).toBe(false);
   });
 
-  it("the app pipeline is gated by the constant and has no deliverer; startRemoteReporting installs nothing while the gate is false", () => {
-    const client = { rpc: jest.fn(), auth: { onAuthStateChange: jest.fn() } };
-    const before = client.rpc;
-    expect(startRemoteReporting(client)).toBe(false);
-    expect(client.rpc).toBe(before);
-    expect(client.auth.onAuthStateChange).not.toHaveBeenCalled();
+  it("the pipeline is gated by the server flag, not the build constant: startRemoteReporting installs plumbing unconditionally, but nothing is ever submitted until the server flag resolves true", () => {
+    const client = { rpc: jest.fn(() => Promise.resolve({ data: false, error: null })), auth: { onAuthStateChange: jest.fn() } };
+    expect(startRemoteReporting(client)).toBe(true);
+    expect(client.auth.onAuthStateChange).toHaveBeenCalled();
     remoteReporting.onAuth("SIGNED_IN", true);
     remoteReporting.submit(GOOD);
+    // Synchronous: the flag's async refresh() has not resolved yet, so it is still at its
+    // fail-closed default (false) - nothing is submitted even though the plumbing is installed.
     expect(remoteReporting.getStats().submitted).toBe(0);
   });
 
@@ -95,7 +102,9 @@ describe("A. the feature is OFF by construction", () => {
     await c.rpc("ok"); await c.rpc("tech"); await c.rpc("boom");
     await settle();
     expect(reqs.filter((u) => u.includes("report_client_error"))).toEqual([]);
-    expect(reqs.length).toBe(3);
+    // startRemoteReporting also fires one system_client_reporting_enabled flag read (fire-and-forget,
+    // not awaited above) in addition to the three deliberate business calls below.
+    expect(reqs.filter((u) => !u.includes("system_client_reporting_enabled")).length).toBe(3);
   });
 });
 
@@ -448,7 +457,7 @@ describe("F. real supabase-js integration: results unchanged, exact requests, no
     const mkc = (wired: boolean) => {
       const observer = new RpcOutcomeObserver({ isEnabled: () => true, aggregate: () => false });
       const c = createClient(URL0, "anon", { ...opts, global: { fetch: withTransportCapture(base as never, { supabaseUrl: URL0, report: (r) => { if (wired) p.submitTransport(r); } }) as never } });
-      if (wired) startRemoteReporting(c, p, true, observer);
+      if (wired) startRemoteReporting(c, p, observer, false);
       return c;
     };
     return { p, reqs, wired: mkc(true), plain: mkc(false), reports: () => reqs.filter((r) => r.url.includes("/rpc/report_client_error")) };

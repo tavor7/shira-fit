@@ -461,10 +461,19 @@ begin
              and p.prosrc ~* '(net\.http|notif|push|expo|whatsapp|invoke_|vault\.)') then
     raise exception 'R16 FAILED: a Phase 2.4 function references a notification / network path';
   end if;
-  if exists (select 1 from pg_trigger t join pg_class c on c.oid = t.tgrelid where c.relnamespace = 'public'::regnamespace and c.relname like 'system\_%' and not t.tgisinternal) then
-    raise exception 'R16 FAILED: a trigger exists on a monitoring table';
+  -- Monitoring completion pass (20261020140000) added exactly one reviewed trigger,
+  -- system_issues_critical_push_enqueue on system_issues, for the critical-push outbox (dark-
+  -- launched behind critical_push_enabled=false; see 182-185 and the release report). This check
+  -- still catches any OTHER, unreviewed trigger on a monitoring table by name rather than being
+  -- dropped outright.
+  if exists (
+    select 1 from pg_trigger t join pg_class c on c.oid = t.tgrelid
+    where c.relnamespace = 'public'::regnamespace and c.relname like 'system\_%' and not t.tgisinternal
+      and t.tgname <> 'system_issues_critical_push_enqueue'
+  ) then
+    raise exception 'R16 FAILED: an unreviewed trigger exists on a monitoring table';
   end if;
-  raise notice 'R16 PASSED: mode off is inert; the reporting functions contain no notification / network path; no triggers on monitoring tables';
+  raise notice 'R16 PASSED: mode off is inert; the reporting functions contain no notification / network path; no unreviewed triggers on monitoring tables';
 
   -- ===== R17: bounded storage =====
   perform pg_temp.fresh('dry_run');

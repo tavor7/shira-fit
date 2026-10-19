@@ -48,6 +48,12 @@ declare
   v_cols text[];
   r record;
 begin
+  -- The observer auto-discovers new pg_cron jobs on its own ~5-minute cadence, not immediately on
+  -- migration deploy (see the release report's dark-launch-safety section). Run it once here so S5/
+  -- S9/S10 below see a deterministic row count regardless of how long ago this stack was reset,
+  -- rather than depending on wall-clock timing.
+  perform public._system_job_observe();
+
   insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at)
   select u.id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', u.e,
          jsonb_build_object('full_name', u.e, 'phone', u.p, 'gender', 'female', 'address', 'A', 'zip_code', '1'), now(), now()
@@ -127,11 +133,12 @@ begin
   end if;
   raise notice 'S4 PASSED: one manager-gated SELECT policy';
 
-  -- S5: read access by role.
-  if pg_temp.t142_scalar('authenticated', v_mgr, 'select count(*) from public.system_job_state') <> 8 then
-    raise exception 'S5 FAILED: an active manager must see all 8 rows';
+  -- S5: read access by role. 9 rows as of 20261020140000 (see S9) - was 8 before the critical-push
+  -- outbox processor's cron job was added.
+  if pg_temp.t142_scalar('authenticated', v_mgr, 'select count(*) from public.system_job_state') <> 9 then
+    raise exception 'S5 FAILED: an active manager must see all 9 rows';
   end if;
-  if pg_temp.t142_scalar('authenticated', v_mgr, 'select count(*) from (select job_key, shadow, last_result, last_outcome, stale from public.system_job_state) x') <> 8 then
+  if pg_temp.t142_scalar('authenticated', v_mgr, 'select count(*) from (select job_key, shadow, last_result, last_outcome, stale from public.system_job_state) x') <> 9 then
     raise exception 'S5 FAILED: explicit safe columns must be readable';
   end if;
   if pg_temp.t142_scalar('authenticated', v_dis, 'select count(*) from public.system_job_state') <> 0 then
@@ -205,10 +212,15 @@ begin
   raise notice 'S8 PASSED: no API role can execute any observer function or adapter';
 
   -- S9: seeds + shadow configuration.
+  -- Monitoring completion pass (20261020140000) added a second, additive cron job for the critical-
+  -- push outbox processor (system-push-outbox-process); the observer auto-registers any cron job it
+  -- discovers, so it now tracks 9 jobs instead of 8. This is expected, immediate behavior once that
+  -- migration is deployed (see the release report's dark-launch-safety section) - it is not itself a
+  -- fabricated business success and does not change job_monitoring's shadow/report_enabled defaults.
   select array_agg(job_key order by job_key) into v_cols from public.system_job_state;
   if v_cols <> array['birthday-direct-messages', 'generate-subscription-charges', 'maintain-session-series-horizon',
                      'open-weekly-registrations', 'push-session-reminders', 'system-monitor-observe',
-                     'whatsapp-dispatch-notifications', 'whatsapp-session-reminders'] then
+                     'system-push-outbox-process', 'whatsapp-dispatch-notifications', 'whatsapp-session-reminders'] then
     raise exception 'S9 FAILED: seeded jobs are %', v_cols;
   end if;
   if exists (select 1 from public.system_job_state where last_business_success_at is not null) then
@@ -221,16 +233,24 @@ begin
   if (select value from public.system_monitoring_config where key = 'client_ingest_enabled') <> 'false'::jsonb then
     raise exception 'S9 FAILED: client ingestion must remain disabled';
   end if;
-  raise notice 'S9 PASSED: 8 seeded jobs by name, no fabricated business success, shadow=true, report_enabled=false, client ingestion disabled';
+  raise notice 'S9 PASSED: 9 tracked jobs by name, no fabricated business success, shadow=true, report_enabled=false, client ingestion disabled';
 
-  -- S10: the observer is the only monitoring cron job; business cron jobs are not wrapped by the monitor.
-  if (select count(*) from cron.job where command ~* '_system_|system_job_state|system_issue') > 1 then
-    raise exception 'S10 FAILED: more than one cron job references monitoring';
+  -- S10: only the named monitoring cron jobs reference monitoring internals; no business cron job is
+  -- wrapped by the monitor. Monitoring completion pass (20261020140000) added a second, explicitly
+  -- named, additive monitoring job (the critical-push outbox processor) alongside the observer - this
+  -- allowlist is now by exact job name rather than a count of 1, so it still catches the original
+  -- concern (an unexpected/unnamed job silently referencing monitoring) without being stale.
+  if (select count(*) from cron.job where command ~* '_system_|system_job_state|system_issue') > 2 then
+    raise exception 'S10 FAILED: more than the two known monitoring cron jobs reference monitoring';
   end if;
-  if exists (select 1 from cron.job where jobname <> 'system-monitor-observe' and command ~* '_system_|system_job_state|system_issue') then
+  if exists (
+    select 1 from cron.job
+    where jobname not in ('system-monitor-observe', 'system-push-outbox-process')
+      and command ~* '_system_|system_job_state|system_issue'
+  ) then
     raise exception 'S10 FAILED: a business cron job references monitoring (wrapper deployed?)';
   end if;
-  raise notice 'S10 PASSED: only the observer references monitoring; no business job is wrapped';
+  raise notice 'S10 PASSED: only the known monitoring jobs reference monitoring; no business job is wrapped';
 
   raise notice 'ALL SYSTEM JOB STATE SECURITY TESTS (S1-S10) PASSED';
 end $$;

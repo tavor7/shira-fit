@@ -76,6 +76,7 @@ export const CONSUMED_CALLS: Readonly<Record<string, Readonly<Record<string, str
   _copy_session_roster: {
     _coach_add_athlete_core: "result discarded (PERFORM) inside an exception-swallowing block",
     coach_add_athlete: "result discarded (PERFORM) inside an exception-swallowing block",
+    _series_add_manual_participant_checked: "result discarded (PERFORM) inside an exception-swallowing block; the function returns void anyway",
   },
   _series_add_manual_participant_checked: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
   add_manual_participant_to_session: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
@@ -88,7 +89,10 @@ export const CONSUMED_CALLS: Readonly<Record<string, Readonly<Record<string, str
   manager_revert_activity_event: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
   reactivate_subscription: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
   register_for_session: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
-  staff_create_session_series: { coach_add_athlete: "result discarded (PERFORM) inside an exception-swallowing block" },
+  staff_create_session_series: {
+    coach_add_athlete: "result discarded (PERFORM) inside an exception-swallowing block",
+    _series_add_manual_participant_checked: "result discarded (PERFORM) inside an exception-swallowing block; the function returns void anyway",
+  },
   staff_move_session_participant: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
   stop_subscription: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
   subscription_compute_impact: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
@@ -106,15 +110,19 @@ export const CONSUMED_CALLS: Readonly<Record<string, Readonly<Record<string, str
  *   coalesce(    fallback expression around a relayed code
  *   v_impact->>  code relayed from subscription_compute_impact (covered by DELEGATES)
  *   left(        truncated error text recorded per failed subscription in the job result
+ *   p_entities   named-argument call into _report_system_error (System Issues monitoring); the
+ *                extractor's regex matches the `p_entities :=` token near a jsonb_build_object call,
+ *                not an actual dynamically-constructed error code returned to any caller
  */
 export const DYNAMIC_ERROR_SITES: Readonly<Record<string, readonly string[]>> = {
   _create_document_from_payment_row: ["sqlerrm"],
-  _maintain_session_series_horizon_core: ["sqlerrm"],
+  _maintain_session_series_horizon_core: ["p_entities", "sqlerrm"],
+  _series_add_manual_participant_checked: ["p_entities"],
   clear_must_change_password: ["sqlerrm"],
-  coach_add_athlete: ["sqlerrm"],
+  coach_add_athlete: ["p_entities", "sqlerrm"],
   edit_subscription_version: ["v_impact->>"],
   freeze_subscription: ["v_impact->>"],
-  generate_due_subscription_charges: ["left("],
+  generate_due_subscription_charges: ["left(", "p_entities"],
   manager_revert_activity_event: ["coalesce(", "sqlerrm"],
   staff_get_temp_password: ["sqlerrm"],
   staff_list_payments_without_receipt: ["sqlerrm"],
@@ -129,6 +137,10 @@ export const DYNAMIC_ERROR_SITES: Readonly<Record<string, readonly string[]>> = 
  * (technical / uncertain / overrides) so that a reviewer sees the evidence next to the decision.
  */
 export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, RuleEntry>>>> = {
+  _system_push_outbox_process: {
+    missing_vault_secrets: [T, "The critical-push outbox processor is dark-launched (critical_push_enabled defaults to false) and has no app-visible caller; a missing vault configuration is an operational/infra state, not a classification a user can ever observe."],
+    internal: [T, "Internal, cron-only function with no app-visible caller; its own outer exception handler's generic fallback, never a business outcome."],
+  },
   _coach_add_athlete_core: {
     account_disabled: [B, "The TARGET participant is disabled on the session date; a business restriction on staff-added participants, not an authorization failure of the caller."],
     full: B,

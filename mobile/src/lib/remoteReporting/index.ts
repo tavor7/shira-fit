@@ -1,12 +1,19 @@
 /**
- * Remote technical reporting wiring (monitoring Phase 3E.3). With REMOTE_TECHNICAL_REPORTING_ENABLED === false (the only value in the
- * repository) every entry point is inert: `startRemoteReporting` installs nothing and `remoteReporting.submit*` return immediately.
+ * Remote technical reporting wiring (monitoring Phase 3E.3, reworked by the monitoring completion
+ * pass to be server-gated rather than build-gated - see serverFlag.ts for the full rationale).
+ *
+ * The release-ready build installs the observer and deliverer unconditionally; the pipeline's own
+ * `enabled()` callback is re-read on every submit and reflects the server's live
+ * system_client_reporting_enabled() flag (cached, refreshed periodically, fails closed). There is
+ * no longer a build-time boolean that must also be true - disabling or enabling reporting in
+ * production is a single server config change, not a new app deployment.
  */
 import { installRpcOutcomeObserver, rpcOutcomeObserver, type OutcomeEvent, type RpcOutcomeObserver } from "../rpcOutcomes/observer";
 import { REMOTE_TECHNICAL_REPORTING_ENABLED } from "./config";
 import { createRpcDeliverer } from "./delivery";
 import type { OutcomeCandidate } from "./eligibility";
 import { RemoteReportingPipeline } from "./pipeline";
+import { getServerReportingFlag, type ReportingFlagRpcClient } from "./serverFlag";
 
 export { REMOTE_TECHNICAL_REPORTING_ENABLED } from "./config";
 export { SERVER_ALLOWLIST, isAllowlisted } from "./allowlist";
@@ -14,8 +21,13 @@ export { mapOutcome, mapTransport, transportCandidateFrom, isValidWirePayload } 
 export type { OutcomeCandidate, TransportCandidate, WirePayload } from "./eligibility";
 export { RemoteReportingPipeline, DEFAULT_LIMITS } from "./pipeline";
 export { createRpcDeliverer } from "./delivery";
+export { ServerReportingFlag, getServerReportingFlag, resetServerReportingFlagForTests } from "./serverFlag";
 
-/** The app-wide pipeline. Gated by the build-time constant only. */
+/**
+ * The app-wide pipeline. `enabled` starts as the old build-time constant (false in the repository)
+ * so an app that never calls startRemoteReporting (e.g. a test harness) stays inert by default;
+ * startRemoteReporting below rebinds it to the live server-flag check once a real client exists.
+ */
 export const remoteReporting = new RemoteReportingPipeline({ enabled: () => REMOTE_TECHNICAL_REPORTING_ENABLED, deliver: null });
 
 type AuthClient = { auth?: { onAuthStateChange?: (cb: (event: unknown, session: unknown) => void) => unknown } };
@@ -28,19 +40,32 @@ export function candidateFromEvent(e: OutcomeEvent): OutcomeCandidate {
 }
 
 /**
- * Wires the app to a Supabase client: the delivery function, the auth lifecycle listener (a boolean only) and the RPC outcome
- * observer's listener (production: listener only, nothing retained; development keeps its aggregate as before).
- * No-op unless the build-time gate is on. Returns true if it started.
+ * Wires the app to a Supabase client: the delivery function, the auth lifecycle listener (a boolean
+ * only), the RPC outcome observer's listener, and the server reporting flag's first read + periodic
+ * refresh. Installs unconditionally (the server flag - not a build-time snapshot - decides whether
+ * anything is actually ever submitted), so a later server-side enable takes effect without a new
+ * build. Returns true if it started.
  */
 export function startRemoteReporting(
   client: unknown,
   pipeline: RemoteReportingPipeline = remoteReporting,
-  enabled: boolean = REMOTE_TECHNICAL_REPORTING_ENABLED,
-  observer: RpcOutcomeObserver = rpcOutcomeObserver
+  observer: RpcOutcomeObserver = rpcOutcomeObserver,
+  /**
+   * Rebinds pipeline.enabled() to the live server flag. Defaults to true for real app wiring; tests
+   * that construct their own pipeline with a deliberate `enabled` (e.g. to isolate server-side
+   * rejection behavior from the client-side gate) pass false to keep their own wiring intact.
+   */
+  useServerFlag: boolean = true
 ): boolean {
   try {
-    if (!enabled) return false;
+    const flag = getServerReportingFlag(client as ReportingFlagRpcClient);
     pipeline.setDeliverer(createRpcDeliverer(client));
+    if (useServerFlag) {
+      pipeline.setEnabled(() => flag.isEnabled());
+      flag.refresh().catch(() => undefined);
+    }
+    flag.startPeriodicRefresh();
+
     const dev = typeof __DEV__ !== "undefined" && __DEV__ === true;
     observer.configure({
       isEnabled: () => true,
@@ -61,5 +86,16 @@ export function startRemoteReporting(
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Call when the app returns to the foreground, so a production flag flip is picked up promptly. */
+export function refreshRemoteReportingFlagOnForeground(client: unknown): void {
+  try {
+    getServerReportingFlag(client as ReportingFlagRpcClient)
+      .refresh()
+      .catch(() => undefined);
+  } catch {
+    /* never affects app lifecycle */
   }
 }

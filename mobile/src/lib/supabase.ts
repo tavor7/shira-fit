@@ -5,6 +5,7 @@ import { withTransportCapture } from "./techReporting/transportCapture";
 import { withPerfTracking } from "./perf/requestTracker";
 import { installRpcOutcomeObserver } from "./rpcOutcomes/observer";
 import { reportTechnicalError } from "./techReporting/reporter";
+import { installTechnicalReportingDeliverer } from "./techReporting/remoteDeliverer";
 import { remoteReporting, startRemoteReporting } from "./remoteReporting";
 
 /**
@@ -172,6 +173,13 @@ if (typeof __DEV__ !== "undefined" && __DEV__) {
   installRpcOutcomeObserver(supabase);
 }
 
-// Phase 3E.3: remote technical reporting (RPC outcomes, approved transport failures). Inert unless the build-time gate
-// REMOTE_TECHNICAL_REPORTING_ENABLED is true, which it is not: a production build installs nothing and sends nothing.
+// Phase 3E.3: remote technical reporting (RPC outcomes, approved transport failures). Installed
+// unconditionally; the server's system_client_reporting_enabled() flag (not a build-time constant)
+// decides whether anything is ever actually submitted - see remoteReporting/serverFlag.ts.
 startRemoteReporting(supabase);
+
+// Separate channel: generic crashes/global-handler/error-boundary reports (techReporting/reporter.ts)
+// had no deliverer installed before the monitoring completion pass ("Phase 3B installs none").
+// Gated by the same server flag; the server's default-deny allowlist is the real authorization
+// boundary for this channel regardless of what the client attempts to send.
+installTechnicalReportingDeliverer(supabase);

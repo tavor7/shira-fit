@@ -1,6 +1,7 @@
 import React, { type ErrorInfo, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
+import { reportTechnicalError } from "../lib/techReporting/reporter";
 
 type Props = { children: ReactNode };
 
@@ -19,6 +20,16 @@ export class AppErrorBoundary extends React.Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     if (__DEV__) {
       console.error("[AppErrorBoundary]", error, info.componentStack);
+    }
+    try {
+      reportTechnicalError({
+        operation: "client/render_error",
+        error,
+        severity: "error",
+        context: { phase: "render" },
+      });
+    } catch {
+      /* never affects the fallback UI */
     }
   }
 

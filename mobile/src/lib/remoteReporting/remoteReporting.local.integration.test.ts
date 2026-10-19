@@ -81,7 +81,7 @@ run("Phase 3E.3 local end-to-end against the real server contract", () => {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       global: { fetch: withTransportCapture(base as never, { supabaseUrl: URL0!, report: (r) => pipeline.submitTransport(r) }) as never },
     });
-    startRemoteReporting(client, pipeline, true, new RpcOutcomeObserver({ isEnabled: () => true, aggregate: () => false }));
+    startRemoteReporting(client, pipeline, new RpcOutcomeObserver({ isEnabled: () => true, aggregate: () => false }), false);
     const si = await client.auth.signInWithPassword({ email, password: "Passw0rd!x" });
     if (si.error) throw si.error;
     await settle(300);
