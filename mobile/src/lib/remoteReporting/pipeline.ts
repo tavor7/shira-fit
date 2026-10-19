@@ -133,10 +133,17 @@ export class RemoteReportingPipeline {
    * Auth lifecycle: INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED / USER_UPDATED with a session => signed in; SIGNED_OUT or no
    * session => signed out. Only a boolean is kept (no user id, no token). A new sign-in lifts a pause caused by the previous
    * session (e.g. a disabled account) and forgets session-scoped suppression.
+   *
+   * Tracked unconditionally, independent of enabled() (the server flag): auth state and flag state resolve asynchronously in
+   * either order (cold startup races the flag's first network read against the auth library's initial session-restore event),
+   * and a persisted session's initial auth event fires at most once. Gating this on enabled() would silently and permanently
+   * drop that one event if the flag hadn't resolved true yet at that exact moment, leaving the pipeline marked "not signed in"
+   * for the rest of the session even after the flag later became true (confirmed via production browser testing). Submission
+   * (submit/submitTransport, both of which check enabled() first) and pump()/admit() (which check signedIn) are what actually
+   * enforce "only report once both are true" - this method's only job is to keep signedIn correct.
    */
   onAuth(event: unknown, hasSession: boolean): void {
     try {
-      if (!this.enabled()) return;
       const was = this.signedIn;
       this.signedIn = hasSession === true && event !== "SIGNED_OUT";
       if (!this.signedIn) {

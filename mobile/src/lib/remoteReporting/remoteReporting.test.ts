@@ -67,7 +67,10 @@ describe("A. the feature is OFF by construction", () => {
     await settle();
     expect(calls).toEqual([]);
     expect(p.getStats()).toMatchObject({ submitted: 0, sent: 0, pending: 0 });
-    expect(p.isSignedIn()).toBe(false);
+    // Auth tracking is intentionally independent of the flag (see "G. auth/flag ordering" below): a real
+    // sign-in is recorded as signed-in even while the flag is currently false. "Disabled pipeline does no
+    // work" is enforced by submit()/submitTransport() gating on enabled(), not by withholding signedIn.
+    expect(p.isSignedIn()).toBe(true);
   });
 
   it("the pipeline is gated by the server flag, not the build constant: startRemoteReporting installs plumbing unconditionally, but nothing is ever submitted until the server flag resolves true", () => {
@@ -588,5 +591,116 @@ describe("G. static safety", () => {
       if (f !== "delivery.ts" && f !== "eligibility.ts") expect(code).not.toMatch(/report_client_error/);
       expect(code).not.toMatch(/service_role|console\.|\.stack\b|JSON\.stringify\(\s*(res|result|data|body)/);
     }
+  });
+});
+
+// H. Confirmed via production browser testing (real Chromium + the real deployed client): a persisted
+// session's one-shot auth event can fire before the server flag's first async read resolves. The pipeline
+// used to gate onAuth() on enabled(), so that single event was silently dropped and signedIn stayed false
+// for the rest of the page's lifetime, even after the flag later became true - no report ever reached
+// report_client_error. These tests pin down every resolution order the lifecycle can actually hit.
+describe("H. auth/flag ordering (the production race)", () => {
+  function mkFlagged(initial: boolean) {
+    const flag = { value: initial };
+    const sent: WirePayload[] = [];
+    const p = new RemoteReportingPipeline({
+      enabled: () => flag.value,
+      deliver: async (x) => { sent.push(x); return { kind: "server", accepted: true }; },
+      schedule: (fn) => fn(),
+    });
+    return { p, flag, sent };
+  }
+
+  it("auth resolves before the flag: signing in while the flag is still false still records signed-in, and a submit after the flag later turns true is delivered", async () => {
+    const { p, flag, sent } = mkFlagged(false);
+    p.onAuth("SIGNED_IN", true); // the flag has not resolved yet (fail-closed default)
+    expect(p.isSignedIn()).toBe(true);
+    p.submit(GOOD); // enabled() still false here: nothing queued yet
+    await settle();
+    expect(sent).toEqual([]);
+    flag.value = true; // the flag's async refresh() now resolves true
+    p.submit(GOOD); // no further auth event ever fires again for this session - signedIn must already be true
+    await settle();
+    expect(sent).toHaveLength(1);
+  });
+
+  it("the flag resolves before auth: unchanged behavior, still requires signedIn", async () => {
+    const { p, sent } = mkFlagged(true);
+    p.submit(GOOD); // enabled() true, but not signed in yet
+    await settle();
+    expect(sent).toEqual([]);
+    p.onAuth("INITIAL_SESSION", true);
+    p.submit(GOOD);
+    await settle();
+    expect(sent).toHaveLength(1);
+  });
+
+  it("both resolve in the same tick: order between onAuth and the flag becoming true does not matter", async () => {
+    const a = mkFlagged(false);
+    a.p.onAuth("INITIAL_SESSION", true); a.flag.value = true;
+    a.p.submit(GOOD); await settle();
+    expect(a.sent).toHaveLength(1);
+
+    const b = mkFlagged(false);
+    b.flag.value = true; b.p.onAuth("INITIAL_SESSION", true);
+    b.p.submit(GOOD); await settle();
+    expect(b.sent).toHaveLength(1);
+  });
+
+  it("persisted session on cold startup: INITIAL_SESSION arriving before the flag resolves is the exact production scenario and must not be lost", async () => {
+    const { p, flag, sent } = mkFlagged(false);
+    p.onAuth("INITIAL_SESSION", true);
+    expect(p.isSignedIn()).toBe(true);
+    await new Promise((r) => setTimeout(r, 0)); // simulate the flag's network round trip completing later
+    flag.value = true;
+    p.submitTransport({ operation: "transport/rpc:get_current_legal_document", errorClass: "HttpError", errorCode: "http_503", context: { http_status: 503 } });
+    await settle();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ operation: "transport/infra", error_code: "http_503" });
+  });
+
+  it("sign-out then sign-in: signedIn tracks the real auth state regardless of the flag, both transitions", async () => {
+    const { p, sent } = mkFlagged(true);
+    p.onAuth("SIGNED_IN", true);
+    p.submit(GOOD); await settle();
+    expect(sent).toHaveLength(1);
+    p.onAuth("SIGNED_OUT", false);
+    expect(p.isSignedIn()).toBe(false);
+    p.submit(candidateFor(SERVER_ALLOWLIST[24]) as OutcomeCandidate); await settle();
+    expect(sent).toHaveLength(1); // nothing queued while signed out
+    p.onAuth("SIGNED_IN", true);
+    expect(p.isSignedIn()).toBe(true);
+    p.submit(candidateFor(SERVER_ALLOWLIST[24]) as OutcomeCandidate); await settle();
+    expect(sent).toHaveLength(2);
+  });
+
+  it("flag refresh after startup: already signed in while the flag is false, then the flag turns true on its own (no new auth event) - delivery starts without needing another sign-in", async () => {
+    const { p, flag, sent } = mkFlagged(false);
+    p.onAuth("SIGNED_IN", true);
+    p.submit(GOOD); await settle();
+    expect(sent).toEqual([]);
+    flag.value = true; // e.g. the 15-minute periodic refresh, or a later successful retry
+    p.submit(GOOD); await settle();
+    expect(sent).toHaveLength(1);
+  });
+
+  it("startRemoteReporting's real auth listener wiring: an onAuthStateChange callback fired synchronously by the client (before the flag's refresh promise settles) still produces a delivered report once the flag resolves", async () => {
+    let authCb: ((event: unknown, session: unknown) => void) | undefined;
+    const client = {
+      rpc: jest.fn((fn: string) =>
+        fn === "system_client_reporting_enabled"
+          ? new Promise((resolve) => setTimeout(() => resolve({ data: true, error: null }), 5))
+          : Promise.resolve({ data: { ok: true, accepted: true, reason: null, retry_after_s: null }, error: null })
+      ),
+      auth: { onAuthStateChange: jest.fn((cb: (event: unknown, session: unknown) => void) => { authCb = cb; }) },
+    };
+    const p = new RemoteReportingPipeline({ enabled: () => false, deliver: null, schedule: (fn) => fn() });
+    expect(startRemoteReporting(client, p)).toBe(true);
+    authCb?.("INITIAL_SESSION", { user: { id: "u1" } }); // fires before the flag promise above resolves
+    expect(p.isSignedIn()).toBe(true);
+    await new Promise((r) => setTimeout(r, 10)); // let the flag's rpc() resolve
+    p.submit(GOOD);
+    await settle();
+    expect(p.getStats().accepted).toBe(1);
   });
 });
