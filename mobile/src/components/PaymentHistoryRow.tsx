@@ -40,6 +40,7 @@ export function PaymentHistoryRow({
 }: Props) {
   const p = pay;
   const isDiscount = normalizePaymentMethodKey(p.payment_method) === "discount";
+  const isReversed = Boolean(p.reversed_at);
   const amt = parseMoney(p.amount_ils);
   const amtTxt = amt !== null && amt > 0 ? displayMoney(amt) : "—";
   const busyPay = deletingPaymentId === p.id;
@@ -51,14 +52,14 @@ export function PaymentHistoryRow({
   const assignedName = payeeMember?.name?.trim() || null;
   const payerName = (p.payer_name ?? "").trim();
   return (
-    <View style={[styles.row, isDiscount && styles.rowDiscount]}>
+    <View style={[styles.row, (isDiscount || isReversed) && styles.rowDiscount]}>
       <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
         {isRTL ? (
           <View style={[styles.sessionHeadRow, rtlRowFlip && styles.sessionHeadRowRtl]}>
             <Text style={[styles.cardDate, styles.rtlText, styles.sessionHeadMainFlex]} numberOfLines={1}>
               {formatISODateWeekdayDayMonthYear(p.paid_at, language)}
             </Text>
-            <Text style={[styles.sessionAmount, styles.ltrText, isDiscount && styles.sessionAmountDiscount]}>
+            <Text style={[styles.sessionAmount, styles.ltrText, (isDiscount || isReversed) && styles.sessionAmountDiscount]}>
               {isDiscount ? "−" : ""}
               {amtTxt}
             </Text>
@@ -68,7 +69,7 @@ export function PaymentHistoryRow({
             <Text style={styles.cardDate} numberOfLines={1}>
               {formatISODateWeekdayDayMonthYear(p.paid_at, language)}
             </Text>
-            <Text style={[styles.sessionAmount, isDiscount && styles.sessionAmountDiscount]}>
+            <Text style={[styles.sessionAmount, (isDiscount || isReversed) && styles.sessionAmountDiscount]}>
               {isDiscount ? "−" : ""}
               {amtTxt}
             </Text>
@@ -76,12 +77,14 @@ export function PaymentHistoryRow({
         )}
         <View style={[styles.receiptSublineRow, rtlRowFlip && styles.receiptSublineRowRtl]}>
           <Text
-            style={[styles.sessionSubline, isDiscount && styles.sessionSublineDiscount, isRTL && styles.rtlText]}
+            style={[styles.sessionSubline, (isDiscount || isReversed) && styles.sessionSublineDiscount, isRTL && styles.rtlText]}
             numberOfLines={1}
           >
-            {isDiscount
-              ? paymentMethodHistoryLabel(p.payment_method, language)
-              : `${t("billing.accountPayment")} · ${paymentMethodHistoryLabel(p.payment_method, language)}`}
+            {isReversed
+              ? `${t("billing.accountPayment")} · ${paymentMethodHistoryLabel(p.payment_method, language)} · ${t("billing.paymentReversed")}`
+              : isDiscount
+                ? paymentMethodHistoryLabel(p.payment_method, language)
+                : `${t("billing.accountPayment")} · ${paymentMethodHistoryLabel(p.payment_method, language)}`}
           </Text>
           {receiptDocumentNumber ? (
             <Pressable
@@ -119,19 +122,24 @@ export function PaymentHistoryRow({
           onPress={() => {
             onEdit(p);
           }}
-          disabled={busyPay}
-          style={({ pressed }) => [styles.actionBarItem, pressed && !busyPay && styles.actionBarItemPressed]}
+          disabled={busyPay || isReversed}
+          style={({ pressed }) => [
+            styles.actionBarItem,
+            pressed && !busyPay && !isReversed && styles.actionBarItemPressed,
+            isReversed && styles.actionBarItemDisabled,
+          ]}
         >
           <Text style={[styles.actionBarLabel, isRTL && styles.rtlText]}>{t("participantHistory.editShort")}</Text>
         </Pressable>
         <View style={styles.actionBarSep} />
         <Pressable
           onPress={() => onDelete(p.id)}
-          disabled={busyPay}
+          disabled={busyPay || isReversed}
           style={({ pressed }) => [
             styles.actionBarItem,
             styles.actionBarItemDanger,
-            pressed && !busyPay && styles.actionBarItemPressed,
+            pressed && !busyPay && !isReversed && styles.actionBarItemPressed,
+            isReversed && styles.actionBarItemDisabled,
           ]}
         >
           {busyPay ? (

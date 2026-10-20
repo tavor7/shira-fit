@@ -276,6 +276,7 @@ export const participantHistoryStyles = StyleSheet.create({
   actionBarItemDanger: {},
   actionBarItemActive: { backgroundColor: theme.colors.cta },
   actionBarItemPressed: { opacity: 0.88 },
+  actionBarItemDisabled: { opacity: 0.4 },
   actionBarSep: { width: StyleSheet.hairlineWidth, backgroundColor: theme.colors.borderMuted },
   actionBarLabel: { ...theme.typography.caption, color: theme.colors.text },
   actionBarLabelActive: { color: theme.colors.ctaText, fontWeight: "700" },

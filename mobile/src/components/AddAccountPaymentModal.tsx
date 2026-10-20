@@ -162,10 +162,13 @@ export function AddAccountPaymentModal({
         });
     setBusy(false);
     if (error) {
-      const msg =
-        error.message.includes("account_disabled_payee")
-          ? t("profile.accountDisabledPaymentHint")
-          : error.message;
+      const msg = error.message.includes("account_payment_locked_receipt_issued")
+        ? t("billing.cannotModifyPaymentMessage")
+        : error.message.includes("account_payment_reversed_immutable")
+          ? t("billing.cannotModifyReversedPaymentMessage")
+          : error.message.includes("account_disabled_payee")
+            ? t("profile.accountDisabledPaymentHint")
+            : error.message;
       showError(msg);
       return;
     }

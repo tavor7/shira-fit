@@ -134,7 +134,10 @@ PAY=$(su -c "insert into public.athlete_account_payments (payee_id, payee_is_man
 R=$(api "$M" "select public.create_document(80, 'other', 'Customer 162', null, null, 'cash', 'svc', null, '$A', null, 'account_payment', '$PAY', 'cash')::text;")
 okjson "W manager create_document from an account payment" "$R"; DOC2=$(jf "$(echo "$R" | grep '^{')" document_id)
 R=$(api "$M" "select public.cancel_document('$DOC2', 'test 162', true)::text;"); okjson "W manager cancel_document with payment revert (_revert_document_payment as definer)" "$R"
-expect "W the linked payment was reverted by the manager flow" "0" "$(su -c "select count(*) from public.athlete_account_payments where id='$PAY'")"
+# Updated 2026-10-21 (20261021100000_account_payment_reversal_status.sql): _revert_document_payment's
+# account_payment branch now marks the row reversed_at/reversed_by instead of deleting it (row preserved,
+# auditable, excluded from collected totals) -- it is no longer expected to disappear.
+expect "W the linked payment was reverted by the manager flow (preserved, marked reversed)" "1:true" "$(su -c "select count(*)::text || ':' || (bool_or(reversed_at is not null))::text from public.athlete_account_payments where id='$PAY'")"
 R=$(api "$M" "select public.log_document_event('$DOC', 'document_viewed', '{}')::text;"); okjson "L manager log_document_event" "$R"
 R=$(api "$C" "select public.log_document_event('$DOC', 'document_viewed', '{}')::text;"); okjson "L coach log_document_event" "$R"
 E0=$(su -c "select count(*) from public.document_events where document_id='$DOC'")

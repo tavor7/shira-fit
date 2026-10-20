@@ -154,7 +154,11 @@ export function DaySessionsSheet({
     }
     setBusyId(null);
     if (deleteError) {
-      showOk(t("ui.daySessions.couldNotDelete"), deleteError.message);
+      if (deleteError.message.includes("session_has_receipted_payment")) {
+        showOk(t("ui.daySessions.cannotDeleteReceiptedTitle"), t("ui.daySessions.cannotDeleteReceiptedMessage"));
+      } else {
+        showOk(t("ui.daySessions.couldNotDelete"), deleteError.message);
+      }
       return;
     }
     if (sessionRow) setUndo({ kind: "delete_one", sessions: [sessionRow] });
@@ -246,7 +250,11 @@ export function DaySessionsSheet({
     const { data, error } = await supabase.rpc("manager_clear_sessions_for_day", { p_date: dateIso });
     setBulkBusy(false);
     if (error) {
-      showError(t("ui.daySessions.couldNotClearDay"), appendNetworkHint(error, offlineHint));
+      if (error.message.includes("session_has_receipted_payment")) {
+        showError(t("ui.daySessions.cannotDeleteReceiptedTitle"), t("ui.daySessions.cannotDeleteReceiptedMessage"));
+      } else {
+        showError(t("ui.daySessions.couldNotClearDay"), appendNetworkHint(error, offlineHint));
+      }
       return;
     }
     if (!data?.ok) {
