@@ -33,10 +33,10 @@
 -- pattern, or a manual allowlist) that could itself be wrong in either direction, this migration makes EVERY
 -- document and EVERY document_events row permanently undeletable, unconditionally, for every caller including
 -- delete_document itself and any future manager tooling -- the same choice already made for subscription/billing
--- history (20261020130000_guard_subscription_hard_delete.sql) and for sessions with a receipt
--- (20261020120000_guard_delete_receipted_sessions.sql). Accepted, explicit consequence: delete_document's
+-- history (20261023130000_guard_subscription_hard_delete.sql) and for sessions with a receipt
+-- (20261023120000_guard_delete_receipted_sessions.sql). Accepted, explicit consequence: delete_document's
 -- p_delete_payment=true account-payment branch was already independently blocked by
--- 20261022100000 (the document referencing that payment still exists at the moment that DELETE runs, so
+-- 20261023170000 (the document referencing that payment still exists at the moment that DELETE runs, so
 -- _guard_receipted_account_payment's "ever had a receipt" rule refuses it before delete_document even reaches
 -- its own `delete from documents` statement); this migration additionally makes delete_document fail outright
 -- for every other case too (a document with no payment, or p_delete_payment=false), because its own final

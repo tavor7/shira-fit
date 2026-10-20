@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regression test for 20261021110000_duplicate_active_receipt_unique_index.sql.
+# Regression test for 20261023160000_duplicate_active_receipt_unique_index.sql.
 #
 # Real `authenticator` connections. Fixture: manager M, athlete A with a session registration payment and an
 # account payment.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Verification of receipt cancellation / payment reversal against the new receipt-lock guards
-# (20261020110000_guard_receipted_account_payments.sql, 20261020120000_guard_delete_receipted_sessions.sql,
-# 20261020140000_remove_manager_exemption_session_payment_guard.sql). Traces the real transactional behavior of
+# (20261023110000_guard_receipted_account_payments.sql, 20261023120000_guard_delete_receipted_sessions.sql,
+# 20261023140000_remove_manager_exemption_session_payment_guard.sql). Traces the real transactional behavior of
 # cancel_document / _revert_document_payment / _payment_has_active_document / _create_document_from_payment_row /
 # create_documents_from_payments.
 #

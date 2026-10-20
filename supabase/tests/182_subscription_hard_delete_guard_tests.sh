@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regression test for 20261020130000_guard_subscription_hard_delete.sql.
+# Regression test for 20261023130000_guard_subscription_hard_delete.sql.
 #
 # Real `authenticator` connections. Fixture: manager M, athlete A with a real subscription (via create_subscription,
 # so subscriptions / subscription_versions / subscription_version_allowances / subscription_billing_periods /

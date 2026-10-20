@@ -163,10 +163,10 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     session_has_receipted_payment: [B, "Raised by the row trigger when ANY caller tries to delete a training_sessions row carrying a payment with an active issued receipt (owner rule 2026-10-20); applies uniformly to every deletion path (series-scope delete, bulk day-clear, activity-log revert of session creation, direct PostgREST delete)."],
   },
   _reject_subscription_hard_delete: {
-    subscription_record_immutable: [B, "Raised by the row trigger when ANY caller attempts a hard DELETE on an append-only subscription/billing-history table (subscriptions, subscription_versions, subscription_freezes, subscription_billing_periods, subscription_charges, subscription_registration_coverage, subscription_impact_events, subscription_impact_event_registrations); no legitimate path ever does this (owner rule 2026-10-20) -- see migration 20261020130000."],
+    subscription_record_immutable: [B, "Raised by the row trigger when ANY caller attempts a hard DELETE on an append-only subscription/billing-history table (subscriptions, subscription_versions, subscription_freezes, subscription_billing_periods, subscription_charges, subscription_registration_coverage, subscription_impact_events, subscription_impact_event_registrations); no legitimate path ever does this (owner rule 2026-10-20) -- see migration 20261023130000."],
   },
   _reject_document_hard_delete: {
-    document_record_immutable: [B, "Raised by the row trigger when ANY caller (including delete_document and service_role) attempts a hard DELETE on documents or document_events; these are append-only financial/audit history -- cancel_document (a status update) is the only legitimate way to void a document (owner rule 2026-10-22, see migration 20261022120000)."],
+    document_record_immutable: [B, "Raised by the row trigger when ANY caller (including delete_document and service_role) attempts a hard DELETE on documents or document_events; these are append-only financial/audit history -- cancel_document (a status update) is the only legitimate way to void a document (owner rule 2026-10-22, see migration 20261023190000)."],
   },
   _create_document_from_payment_row: {
     business_id_required: V,

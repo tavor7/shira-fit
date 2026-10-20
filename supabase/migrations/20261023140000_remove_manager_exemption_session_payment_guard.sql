@@ -3,7 +3,7 @@
 -- Policy (explicitly approved by the owner): "Once a receipt has been issued for a payment, no user --
 -- including managers -- may modify or delete that payment while the receipt remains active." This closes the
 -- one remaining asymmetry between the two receipt locks introduced on this branch: the account-payment guard
--- added by 20261020110000_guard_receipted_account_payments.sql already has no manager exemption; the
+-- added by 20261023110000_guard_receipted_account_payments.sql already has no manager exemption; the
 -- session-payment guard added earlier, by 20261013140000_lock_receipted_session_payments_for_coaches.sql
 -- (a prior, separate release -- not touched here, only superseded by this forward-only migration), still had
 -- one: `if v_uid is null or public.is_manager(v_uid) then return ...`. That exemption is removed below. The
@@ -86,7 +86,7 @@ end;
 $$;
 
 comment on function public._guard_receipted_session_payment() is
-  'Refuses ANY change (including by a manager, since 2026-10-20 -- see migration 20261020140000) to the receipt-relevant fields of a session_registrations/session_manual_participants row, or deletion of its row, once an active receipt has been issued for it.';
+  'Refuses ANY change (including by a manager, since 2026-10-20 -- see migration 20261023140000) to the receipt-relevant fields of a session_registrations/session_manual_participants row, or deletion of its row, once an active receipt has been issued for it.';
 
 -- Self-check: the exemption is gone; the attendance-only / non-payment pass-through and the system/cron
 -- exemption both survive untouched.

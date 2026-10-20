@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regression test for 20261020100000_fix_create_documents_from_payments_manager_only.sql (SEC-1).
+# Regression test for 20261023100000_fix_create_documents_from_payments_manager_only.sql (SEC-1).
 #
 # Real `authenticator` connections as anon / authenticated with JWT claims (one transaction per call, like PostgREST).
 # Fixture: manager M, coach C, athlete A with an un-receipted account payment PAY.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regression test for 20261013140000_lock_receipted_session_payments_for_coaches.sql, updated by
-# 20261020140000_remove_manager_exemption_session_payment_guard.sql (owner policy, 2026-10-20: once a receipt
+# 20261023140000_remove_manager_exemption_session_payment_guard.sql (owner policy, 2026-10-20: once a receipt
 # has been issued, NO ONE -- including managers -- may modify or delete that payment while the receipt is active).
 #
 # Real `authenticator` connections as authenticated users with JWT claims (one transaction per call, like PostgREST).

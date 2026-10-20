@@ -25,7 +25,7 @@ begin
   end if;
   if (select prosrc from pg_proc where pronamespace = 'public'::regnamespace and proname = '_guard_receipted_session_payment')
      like '%is_manager(v_uid)%' then
-    raise exception 'precondition: _guard_receipted_session_payment still has the manager exemption (expected it removed by 20261020140000); refusing to change it';
+    raise exception 'precondition: _guard_receipted_session_payment still has the manager exemption (expected it removed by 20261023140000); refusing to change it';
   end if;
 end $$;
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regression test for 20261022120000_guard_document_hard_delete.sql.
+# Regression test for 20261023190000_guard_document_hard_delete.sql.
 #
 # Real `authenticator` connections. Fixture: manager M with receipt_settings.is_operational = false (confirmed
 # this is production's actual current value, read-only -- not changed by this test or this release) so

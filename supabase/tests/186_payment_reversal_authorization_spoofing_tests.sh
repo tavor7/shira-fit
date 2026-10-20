@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Security verification for the shira.allow_payment_reversal mechanism (20261022100000, final pre-deployment
+# Security verification for the shira.allow_payment_reversal mechanism (20261023170000, final pre-deployment
 # check, 2026-10-22). Unlike every other suite in this directory, this one goes through the REAL REST/PostgREST
 # gateway (real HTTP, a real signed JWT) instead of simulating roles over a raw psql session -- a raw-SQL
 # simulation cannot prove whether a client-exposed path to set_config exists, since psql bypasses PostgREST's own

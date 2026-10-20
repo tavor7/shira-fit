@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regression test for 20261020120000_guard_delete_receipted_sessions.sql.
+# Regression test for 20261023120000_guard_delete_receipted_sessions.sql.
 #
 # Real `authenticator` connections. Fixture: manager M, coach C, athlete A.
 #   B  baseline: a session with no receipted payment deletes normally (direct delete, and via

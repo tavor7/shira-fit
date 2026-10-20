@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Regression test for 20261020110000_guard_receipted_account_payments.sql (FIN-1), updated by
-# 20261022100000_account_payment_history_protection.sql for the final four-state model (owner policy, 2026-10-22):
+# Regression test for 20261023110000_guard_receipted_account_payments.sql (FIN-1), updated by
+# 20261023170000_account_payment_history_protection.sql for the final four-state model (owner policy, 2026-10-22):
 #   State A (never receipted)            -- edit/delete unrestricted (subject to existing RLS)
 #   State B (active receipt)             -- cannot edit, cannot delete
 #   State C (receipt cancelled, not reversed) -- MAY still be corrected, but can NEVER again be deleted (it has

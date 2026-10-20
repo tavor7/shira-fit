@@ -10,8 +10,8 @@
 --   deleted outright once its receipt was cancelled (_payment_has_active_document returns false for a cancelled
 --   document, and the prior guard only checked that).
 -- State D (reversed_at IS NOT NULL): fully immutable -- cannot be edited (at all, not just the previously-checked
---   "receipt-relevant fields"), cannot be deleted, cannot be un-reversed by ordinary editing, and (companion
---   migration 20261022... already in place from the prior release) cannot receive a new receipt.
+--   "receipt-relevant fields"), cannot be deleted, cannot be un-reversed by ordinary editing, and (this same
+--   migration's _create_document_from_payment_row change, below) cannot receive a new receipt.
 --
 -- Mechanism for "only the authorized cancellation workflow may reverse a payment" (owner policy, section 5):
 -- a transaction-local setting (set_config(..., true), auto-reset at COMMIT/ROLLBACK -- the same technique already
@@ -46,7 +46,7 @@ comment on function public._payment_has_any_document(text, uuid) is
   'Unlike _payment_has_active_document, this is true even if the only document ever issued for this payment is now CANCELLED (status is not checked at all) -- used to decide whether a payment row may ever be physically deleted (it may not, once any in-system or external receipt has ever existed for it). Mirrors _payment_has_active_document''s two sources (documents + external_manual_receipts), just without the status filter on the former.';
 
 -- Precondition: refuse to run against a database that doesn't already have this branch's prior guard/reversal
--- migrations applied (20261020110000, 20261021100000) -- checked by distinctive substrings from those migrations
+-- migrations applied (20261023110000, 20261023150000) -- checked by distinctive substrings from those migrations
 -- rather than an exact source hash, since both are this branch's own prior output, not an unmodified production
 -- function with one fixed, independently-knowable hash.
 do $$

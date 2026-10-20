@@ -52,7 +52,7 @@ comment on index public.documents_active_payment_source_uidx is
 -- the new index can now raise under a genuine race (two concurrent calls both passing the pre-check), so a
 -- losing concurrent caller gets the same friendly {ok:false, error:'document_already_exists'} instead of a raw
 -- database exception. Also rejects issuing a receipt for an already-reversed account payment (2026-10-21,
--- companion migration 20261021100000).
+-- companion migration 20261023150000).
 do $$
 begin
   if (select count(*) from pg_proc where pronamespace = 'public'::regnamespace and proname = 'create_document') <> 1 then
