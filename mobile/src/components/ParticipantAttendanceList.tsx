@@ -12,8 +12,8 @@ import { IconButton } from "./IconButton";
 import { FoldableActionsMenu, type FoldableActionsMenuItem } from "./FoldableActionsMenu";
 import { LAYOUT } from "../lib/screenLayout";
 import { useI18n } from "../context/I18nContext";
-import { useAuth } from "../context/AuthContext";
 import { useAppAlert } from "../context/AppAlertContext";
+import { useAuth } from "../context/AuthContext";
 import { useReduceMotionRef } from "../hooks/useReduceMotion";
 import { isBirthdayToday } from "../lib/birthday";
 import { ListRowSkeleton } from "./ListRowSkeleton";
@@ -213,10 +213,12 @@ export function ParticipantAttendanceList({
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const { profile } = useAuth();
-  /** Coach view: a payment with an issued receipt is read-only (enforced by the database; mirrored here). */
+  /** Used only for manager-only capacity/pricing actions (session configuration lockdown); payment locks below apply
+   * to everyone equally, with no manager exemption. */
   const viewerIsManager = profile?.role === "manager";
+  /** A payment with an issued receipt is read-only for everyone, including managers (enforced by the database; mirrored here). */
   const [lockedKeys, setLockedKeys] = useState<Set<string>>(() => new Set());
-  const isPaymentLocked = (item: Row) => !viewerIsManager && lockedKeys.has(item.id);
+  const isPaymentLocked = (item: Row) => lockedKeys.has(item.id);
   const writeErrorText = (msg: string) =>
     msg.includes("payment_locked_receipt_issued") ? t("attendance.paymentLockedReceipt") : msg;
   const [payFor, setPayFor] = useState<Row | null>(null);
@@ -396,7 +398,7 @@ export function ParticipantAttendanceList({
       supabase.from("session_roster_slot_prices").select("user_id, manual_participant_id, price_ils").eq("session_id", sessionId),
       fetchSessionRegistrationsWithProfiles(sessionId),
       fetchManual(),
-      viewerIsManager ? null : supabase.rpc("session_payment_receipt_locks", { p_session_id: sessionId }),
+      supabase.rpc("session_payment_receipt_locks", { p_session_id: sessionId }),
     ]);
     const sess = s as {
       max_participants?: number;
@@ -629,7 +631,7 @@ export function ParticipantAttendanceList({
     }
 
     setLoading(false);
-  }, [sessionId, onParticipantCountChange, onAttendanceStatsChange, onDuplicateRosterSession, viewerIsManager]);
+  }, [sessionId, onParticipantCountChange, onAttendanceStatsChange, onDuplicateRosterSession]);
 
   // Performance Phase 1 / step 5: refocusing (e.g. back from a participant's profile) refreshes silently when THIS
   // session's roster is already on screen, instead of swapping it for skeletons. A different session (adjacent-session

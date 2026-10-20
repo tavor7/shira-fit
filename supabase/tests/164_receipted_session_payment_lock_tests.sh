@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
-# Regression test for 20261013140000_lock_receipted_session_payments_for_coaches.sql.
+# Regression test for 20261013140000_lock_receipted_session_payments_for_coaches.sql, updated by
+# 20261023140000_remove_manager_exemption_session_payment_guard.sql (owner policy, 2026-10-20: once a receipt
+# has been issued, NO ONE -- including managers -- may modify or delete that payment while the receipt is active).
 #
 # Real `authenticator` connections as authenticated users with JWT claims (one transaction per call, like PostgREST).
 # Fixture: manager M, coach C (owns S1), athlete A registered to S1, manual participant MP on S1.
 #   F  coach manages payments freely while NO receipt exists (record, correct, mark unpaid) through the attendance RPCs;
-#      direct table updates of walk-in rows are manager-only since 20261020100000
-#   L  after a receipt is issued for that payment the coach cannot change amount / method / mark unpaid / no-show charge,
-#      cannot update the manual participant's payment directly, cannot remove the participant or move them, while
-#      attendance-only changes still pass; the lock RPC reports the locked rows; managers can still change the payment
-#   X  an externally-marked receipt locks the same way; cancelling the receipt unlocks
+#      direct table updates of walk-in rows are manager-only since 20261020100000 (session configuration lockdown)
+#   L  after a receipt is issued for that payment, NEITHER the coach NOR the manager can change amount / method / mark
+#      unpaid / no-show charge, or update the manual participant's payment directly, or remove the participant or move
+#      them, while attendance-only changes still pass; the lock RPC reports the locked rows the same way for both roles
+#      (manager exemption removed by the receipt-hardening release, owner policy 2026-10-20 -- a separate, later change
+#      from the same-day session-configuration lockdown above)
+#   X  an externally-marked receipt locks the same way; cancelling the receipt unlocks it for everyone again
 #   C  concurrency: a receipt being issued in a concurrent transaction cannot be bypassed (the coach waits, then is refused)
 # Usage: PSQL=... PSQL_AUTH=... supabase/tests/164_receipted_session_payment_lock_tests.sh   (SCRATCH/LOCAL DATABASES ONLY)
 set -u
@@ -22,8 +26,8 @@ expect() { if [ "$2" = "$3" ]; then ok "$1 (= $3)"; else fail "$1: expected '$2'
 api() { local uid=$1; shift
   { echo "begin; set local role authenticated; set local request.jwt.claims = '{\"sub\":\"$uid\",\"role\":\"authenticated\"}';"
     printf '%s\n' "$1"; echo "commit;"; } | $PSQL_AUTH -qAt -v ON_ERROR_STOP=1 -f - 2>&1; }
-allowed() { case "$2" in *payment_locked_receipt_issued*|*forbidden*|*ERROR*) fail "$1: $(echo "$2" | grep -m1 -E 'ERROR|forbidden' | cut -c1-150)";; *) ok "$1";; esac; }
-locked()  { case "$2" in *payment_locked_receipt_issued*) ok "$1 (refused: receipt issued)";; *) fail "$1 NOT refused: $(echo "$2" | head -1 | cut -c1-150)";; esac; }
+allowed() { case "$2" in *payment_locked_receipt_issued*|*session_payment_has_receipt_history*|*forbidden*|*ERROR*) fail "$1: $(echo "$2" | grep -m1 -E 'ERROR|forbidden' | cut -c1-150)";; *) ok "$1";; esac; }
+locked()  { case "$2" in *payment_locked_receipt_issued*|*session_payment_has_receipt_history*) ok "$1 (refused: receipt issued)";; *) fail "$1 NOT refused: $(echo "$2" | head -1 | cut -c1-150)";; esac; }
 pay() { su -c "select coalesce(payment_method,'-') || '/' || coalesce(amount_paid::text,'-') || '/' || charge_no_show from public.$1 where id = '$2'"; }
 
 n=$(date +%s%N | tail -c 9)
@@ -86,8 +90,8 @@ case "$R" in *"$A"*"$MPID"*) ok "L lock RPC reports both locked rows to the sess
 C2=$(su -c "select gen_random_uuid()")
 su -c "insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at) values ('$C2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f164-$n-c2@t.local', jsonb_build_object('full_name','c2','phone','095$n','gender','female','address','A','zip_code','1'), now(), now()); update public.profiles set approval_status='approved', role='coach' where user_id='$C2'" >/dev/null
 case "$(api $C2 "select public.session_payment_receipt_locks('$S1')::text;")" in *forbidden*) ok "L lock RPC refused to another coach";; *) fail "L lock RPC other coach";; esac
-allowed "L manager can still correct the receipted payment" "$(attend $M arrived "'cash'" 65)"
-expect "L manager's correction saved" "cash/65.00/false" "$(pay session_registrations $REG)"
+locked "L manager is ALSO refused (policy 2026-10-20: no exemption for anyone)" "$(attend $M arrived "'cash'" 65)"
+expect "L payment unchanged after the manager's refused attempt" "cash/60.00/false" "$(pay session_registrations $REG)"
 
 echo "== X: cancelling the receipt unlocks"
 R=$(api "$M" "select public.cancel_document('$DOCR', 'test 164', false)::text;")

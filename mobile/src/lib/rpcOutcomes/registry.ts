@@ -150,13 +150,30 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     subscription_limit_exceeded: B,
   },
   _guard_receipted_session_payment: {
-    payment_locked_receipt_issued: [V, "Raised by the row trigger when a coach tries to change or remove a session payment that already has a receipt; an expected authorization refusal (owner rule 2026-10-11), shown to the coach with an explanation."],
+    payment_locked_receipt_issued: [B, "Raised by the row trigger when ANY caller, including a manager (the manager exemption was removed 2026-10-20 -- owner policy: no one may modify/delete a receipted payment while the receipt is active), tries to change a receipt-relevant field of (or delete) a session_registrations/session_manual_participants row that already has an active issued receipt. A business-state refusal, not role-dependent, matching _guard_receipted_account_payment's account_payment_locked_receipt_issued."],
+    session_payment_has_receipt_history: [B, "Raised on DELETE only when ANY document (including a cancelled one) has ever referenced this row -- narrowly extends history protection to deletion once a receipt has ever existed, even after cancellation (owner rule 2026-10-22); ordinary attendance/payment UPDATEs are unaffected."],
+  },
+  _guard_receipted_account_payment: {
+    account_payment_locked_receipt_issued: [B, "Raised by the row trigger when ANY caller, including a manager, tries to change a receipt-relevant field of (or delete) an athlete_account_payments row that already has an active issued receipt; a business-state refusal protecting receipt/payment consistency (owner rule 2026-10-20), matching _guard_receipted_session_payment's payment_locked_receipt_issued since 2026-10-20."],
+    account_payment_reversed_immutable: [B, "Raised on any UPDATE or DELETE of a row already marked reversed_at (State D, owner rule 2026-10-22): a reversed payment is kept purely for historical auditability and can never again be edited, deleted, or un-reversed through ordinary editing."],
+    account_payment_has_receipt_history: [B, "Raised on DELETE only when a receipt has ever been issued for this payment, even if since cancelled (State C, owner rule 2026-10-22): the row must survive because a document still references it by id, even though that document is itself cancelled."],
+    unauthorized_payment_reversal: [B, "Raised when an UPDATE attempts to set reversed_at (or change reversed_by) outside the one authorized transition inside _revert_document_payment, which sets a transaction-local flag immediately before its own UPDATE; no other code path sets that flag, so this always indicates a direct bypass attempt, never a legitimate caller (owner rule 2026-10-22)."],
+  },
+  _guard_delete_receipted_session: {
+    session_has_receipted_payment: [B, "Raised by the row trigger when ANY caller tries to delete a training_sessions row carrying a payment with an active issued receipt (owner rule 2026-10-20); applies uniformly to every deletion path (series-scope delete, bulk day-clear, activity-log revert of session creation, direct PostgREST delete)."],
+  },
+  _reject_subscription_hard_delete: {
+    subscription_record_immutable: [B, "Raised by the row trigger when ANY caller attempts a hard DELETE on an append-only subscription/billing-history table (subscriptions, subscription_versions, subscription_freezes, subscription_billing_periods, subscription_charges, subscription_registration_coverage, subscription_impact_events, subscription_impact_event_registrations); no legitimate path ever does this (owner rule 2026-10-20) -- see migration 20261023130000."],
+  },
+  _reject_document_hard_delete: {
+    document_record_immutable: [B, "Raised by the row trigger when ANY caller (including delete_document and service_role) attempts a hard DELETE on documents or document_events; these are append-only financial/audit history -- cancel_document (a status update) is the only legitimate way to void a document (owner rule 2026-10-22, see migration 20261023190000)."],
   },
   _create_document_from_payment_row: {
     business_id_required: V,
     digital_receipts_disabled: B,
     document_already_exists: B,
     payment_not_found: [B, "Payment row id comes from the \"payments without receipt\" list and may have been documented/removed since: stale reference."],
+    payment_reversed: [B, "The account payment this row refers to has already been reversed (cancel_document with p_revert_payment=true); it has no remaining financial effect left to receipt (2026-10-21)."],
   },
   _try_sync_signup_consent_for_user: {
     missing_user_id: V,
@@ -217,7 +234,9 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   create_document: {
     business_id_required: V,
     digital_receipts_disabled: B,
+    document_already_exists: [B, "As of 2026-10-21, create_document also rejects a duplicate active receipt for the same payment source (pre-check and a unique_violation catch against documents_active_payment_source_uidx), matching create_document_with_payment / _create_document_from_payment_row."],
     invalid_amount: V,
+    payment_reversed: [B, "The account payment this call targets (p_source_type='account_payment', an existing p_source_id) has already been reversed; it has no remaining financial effect left to receipt (2026-10-21)."],
   },
   create_document_with_payment: {
     business_id_required: V,

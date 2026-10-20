@@ -217,7 +217,15 @@ export default function ParticipantHistoryScreen({
           const { error } = await supabase.from("athlete_account_payments").delete().eq("id", paymentId);
           setDeletingPaymentId(null);
           if (error) {
-            showError(error.message);
+            showError(
+              error.message.includes("account_payment_locked_receipt_issued")
+                ? t("billing.cannotModifyPaymentMessage")
+                : error.message.includes("account_payment_has_receipt_history")
+                  ? t("billing.cannotDeleteReceiptedPaymentMessage")
+                  : error.message.includes("account_payment_reversed_immutable")
+                    ? t("billing.cannotModifyReversedPaymentMessage")
+                    : error.message
+            );
             return;
           }
           showToast({ message: t("billing.paymentDeleted"), variant: "success" });
@@ -741,7 +749,7 @@ export default function ParticipantHistoryScreen({
       );
       acctPromise = supabase
         .from("athlete_account_payments")
-        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by")
+        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by, reversed_at, reversed_by")
         .gte("paid_at", s)
         .lte("paid_at", e)
         .or(orParts.join(","))
@@ -749,7 +757,7 @@ export default function ParticipantHistoryScreen({
     } else {
       acctPromise = supabase
         .from("athlete_account_payments")
-        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by")
+        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by, reversed_at, reversed_by")
         .gte("paid_at", s)
         .lte("paid_at", e)
         .eq("payee_id", athleteId)

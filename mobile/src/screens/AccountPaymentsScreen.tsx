@@ -516,7 +516,27 @@ export default function AccountPaymentsScreen() {
           const { error } = await supabase.from("athlete_account_payments").delete().eq("id", paymentId);
           setDeletingId(null);
           if (error) {
-            showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+            if (error.message.includes("account_payment_locked_receipt_issued")) {
+              showToast({
+                message: t("billing.cannotModifyPaymentTitle"),
+                detail: t("billing.cannotModifyPaymentMessage"),
+                variant: "error",
+              });
+            } else if (error.message.includes("account_payment_has_receipt_history")) {
+              showToast({
+                message: t("billing.cannotDeleteReceiptedPaymentTitle"),
+                detail: t("billing.cannotDeleteReceiptedPaymentMessage"),
+                variant: "error",
+              });
+            } else if (error.message.includes("account_payment_reversed_immutable")) {
+              showToast({
+                message: t("billing.cannotModifyReversedPaymentTitle"),
+                detail: t("billing.cannotModifyReversedPaymentMessage"),
+                variant: "error",
+              });
+            } else {
+              showToast({ message: t("common.error"), detail: error.message, variant: "error" });
+            }
             return;
           }
           showToast({ message: t("billing.paymentDeleted"), variant: "success" });

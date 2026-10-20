@@ -225,4 +225,7 @@ export type AthleteAccountPayment = {
   created_by: string | null;
   /** Resolved client-side from profiles.full_name when created_by is set. */
   created_by_name?: string | null;
+  /** Set when this payment's financial effect was reversed (receipt cancelled with payment reversal). */
+  reversed_at?: string | null;
+  reversed_by?: string | null;
 };

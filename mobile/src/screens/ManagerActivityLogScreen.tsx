@@ -472,7 +472,12 @@ export default function ManagerActivityLogScreen() {
         showOk(t("common.saved"), t("activityLog.revertDone"));
         await reload(pageIndex);
       } catch (e) {
-        showOk(t("common.error"), e instanceof Error ? e.message : t("activityLog.revertFailed"));
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("session_has_receipted_payment")) {
+          showOk(t("ui.daySessions.cannotDeleteReceiptedTitle"), t("ui.daySessions.cannotDeleteReceiptedMessage"));
+        } else {
+          showOk(t("common.error"), msg || t("activityLog.revertFailed"));
+        }
       } finally {
         setRevertingId(null);
       }
