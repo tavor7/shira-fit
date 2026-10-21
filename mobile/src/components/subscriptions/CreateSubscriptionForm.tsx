@@ -36,6 +36,7 @@ import { rpcGetSubscriptionTermsStatus } from "../../lib/subscriptionTerms";
 import { pluralKey } from "../../lib/pluralKey";
 import {
   emptyWeeklyLimits,
+  generateClientRequestId,
   rpcCreateSubscription,
   validateCreateSubscriptionInput,
   type WeeklyLimits,
@@ -43,6 +44,7 @@ import {
 import { rowFlipFor } from "../../lib/layoutDirection";
 import { displayMoney } from "../../lib/displayFormat";
 import { useScreenContentStyle } from "../../hooks/useScreenLayout";
+import { SESSION_PAYMENT_METHOD_KEYS, paymentMethodHistoryLabel, type SessionPaymentMethodKey } from "../../lib/paymentMethod";
 
 type DurationChoice = SubscriptionDurationMonths | "custom";
 
@@ -82,6 +84,12 @@ export function CreateSubscriptionForm() {
   const [priceDefaults, setPriceDefaults] = useState<GroupPriceDefaults>({});
   const [errors, setErrors] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const [recordInitialPayment, setRecordInitialPayment] = useState(false);
+  const [initialPaymentAmount, setInitialPaymentAmount] = useState("");
+  const [initialPaymentMethod, setInitialPaymentMethod] = useState<SessionPaymentMethodKey>("cash");
+  const [initialPaymentPayerName, setInitialPaymentPayerName] = useState("");
+  // Stable for this submit attempt and any of its retries, so a duplicate tap never double-records.
+  const clientRequestIdRef = useRef(generateClientRequestId());
 
   const allowLeaveRef = useRef(false);
   const formSerialized = useMemo(
@@ -165,6 +173,18 @@ export function CreateSubscriptionForm() {
 
   const priceNum = Number.parseFloat(price.replace(",", "."));
 
+  // Default the initial-payment amount to the current monthly price the moment the toggle turns
+  // on (not continuously afterward -- once set, a manager's own edit to either field is never
+  // silently overwritten).
+  function onToggleInitialPayment(next: boolean) {
+    setRecordInitialPayment(next);
+    if (next && !initialPaymentAmount && Number.isFinite(priceNum) && priceNum > 0) {
+      setInitialPaymentAmount(formatPriceInput(priceNum));
+    }
+  }
+
+  const initialPaymentAmountNum = Number.parseFloat(initialPaymentAmount.replace(",", "."));
+
   const input = useMemo(
     () => ({
       payeeId: payee?.id ?? "",
@@ -173,21 +193,46 @@ export function CreateSubscriptionForm() {
       startDate,
       endDate: noEndDate ? null : endDate || null,
       allowances,
+      // clientRequestId is intentionally NOT read here (refs must not be read during render) --
+      // submit() attaches it directly from clientRequestIdRef right before the RPC call.
+      initialPayment:
+        recordInitialPayment && Number.isFinite(initialPaymentAmountNum) && initialPaymentAmountNum > 0
+          ? {
+              amountIls: initialPaymentAmountNum,
+              paymentMethod: initialPaymentMethod,
+              payerName: initialPaymentPayerName.trim() || null,
+            }
+          : null,
     }),
-    [payee, priceNum, startDate, noEndDate, endDate, allowances]
+    [
+      payee,
+      priceNum,
+      startDate,
+      noEndDate,
+      endDate,
+      allowances,
+      recordInitialPayment,
+      initialPaymentAmountNum,
+      initialPaymentMethod,
+      initialPaymentPayerName,
+    ]
   );
 
   async function submit() {
     if (submitting) return; // duplicate-submit protection
     const problems = validateCreateSubscriptionInput(input);
-    if (problems.length > 0) {
-      setErrors(new Set(problems.map((p) => p.field)));
+    const errSet = new Set(problems.map((p) => p.field));
+    if (recordInitialPayment && (!Number.isFinite(initialPaymentAmountNum) || initialPaymentAmountNum <= 0)) {
+      errSet.add("initialPaymentAmount");
+    }
+    if (errSet.size > 0) {
+      setErrors(errSet);
       return;
     }
     setErrors(new Set());
     setSubmitting(true);
     try {
-      const res = await rpcCreateSubscription(supabase, input);
+      const res = await rpcCreateSubscription(supabase, { ...input, initialPaymentClientRequestId: clientRequestIdRef.current });
       if (!res.ok) {
         const msg = res.error === "conflicting_active_subscription" ? t("subscriptions.create.conflict") : t("subscriptions.genericError");
         showToast({ message: msg, variant: "error" });
@@ -322,6 +367,58 @@ export function CreateSubscriptionForm() {
             ) : null}
           </View>
 
+          <View style={sf.card}>
+            <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
+              <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.create.initialPaymentToggle")}</Text>
+              <AppSwitch
+                value={recordInitialPayment}
+                onValueChange={onToggleInitialPayment}
+                accessibilityLabel={t("subscriptions.create.initialPaymentToggle")}
+              />
+            </View>
+            {recordInitialPayment ? (
+              <View style={styles.spaced}>
+                <Text style={[sf.label, isRTL && sf.labelRtl]}>{t("billing.amount")}</Text>
+                <TextInput
+                  value={initialPaymentAmount}
+                  onChangeText={setInitialPaymentAmount}
+                  keyboardType="decimal-pad"
+                  inputMode="decimal"
+                  placeholder="0"
+                  style={[sf.control, sf.controlInput, isRTL && styles.rtlInput]}
+                />
+                {errors.has("initialPaymentAmount") ? (
+                  <Text style={[sf.error, isRTL && styles.rtlText]}>{t("subscriptions.errInitialPaymentAmountInvalid")}</Text>
+                ) : null}
+                <Text style={[sf.label, isRTL && sf.labelRtl, styles.durationLabel]}>{t("billing.method")}</Text>
+                <View style={[styles.methodRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
+                  {SESSION_PAYMENT_METHOD_KEYS.map((m) => {
+                    const on = initialPaymentMethod === m;
+                    return (
+                      <Pressable
+                        key={m}
+                        onPress={() => setInitialPaymentMethod(m)}
+                        style={({ pressed }) => [styles.methodChip, on && styles.methodChipOn, pressed && !on && { opacity: 0.9 }]}
+                      >
+                        <Text style={[styles.methodChipTxt, on && styles.methodChipTxtOn]}>{paymentMethodHistoryLabel(m, language)}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={[sf.label, isRTL && sf.labelRtl, styles.durationLabel]}>{t("families.payerNameLabel")}</Text>
+                <TextInput
+                  value={initialPaymentPayerName}
+                  onChangeText={setInitialPaymentPayerName}
+                  placeholder={t("families.payerNamePlaceholder")}
+                  style={[sf.control, sf.controlInput, isRTL && styles.rtlInput]}
+                />
+                <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl, styles.priceHint]}>
+                  {t("subscriptions.create.initialPaymentHint")}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
           {summaryLine ? (
             <View style={sf.card}>
               <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.create.summaryTitle")}</Text>
@@ -378,4 +475,16 @@ const styles = StyleSheet.create({
   secondaryActionTxt: { color: theme.colors.textMuted, fontWeight: "800" },
   rtlText: { textAlign: "right" },
   rtlInput: { textAlign: "right" },
+  methodRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
+  methodChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  methodChipOn: { backgroundColor: theme.colors.cta, borderColor: theme.colors.cta },
+  methodChipTxt: { fontSize: 13, fontWeight: "800", color: theme.colors.text },
+  methodChipTxtOn: { color: theme.colors.ctaText },
 });

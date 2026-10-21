@@ -31,6 +31,7 @@ import {
   type WeeklyFinanceFamily,
 } from "../lib/managerWeeklyStats";
 import { fetchActiveAccountCounts, type ActiveAccountCounts } from "../lib/activeAccountCounts";
+import { rpcManagerSubscriptionOverviewStats, type SubscriptionOverviewStats } from "../lib/subscriptions";
 import { useCountUp } from "../hooks/useCountUp";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
@@ -131,6 +132,7 @@ export default function ManagerDashboardScreen() {
   const [addPayFromFamily, setAddPayFromFamily] = useState(false);
   const [accountCounts, setAccountCounts] = useState<ActiveAccountCounts | null>(null);
   const [accountCountsLoading, setAccountCountsLoading] = useState(false);
+  const [subscriptionOverview, setSubscriptionOverview] = useState<SubscriptionOverviewStats | null>(null);
   const loadSeqRef = useRef(0);
 
   const displayRange = useMemo(() => {
@@ -142,6 +144,23 @@ export default function ManagerDashboardScreen() {
     }
     return periodRangeFromAnchor(anchorDate, periodMode);
   }, [anchorDate, periodMode, data?.week_start, data?.week_end]);
+
+  // Strictly additive subscription metrics (3.6) -- a separate RPC/effect so a failure or slow
+  // response here can never affect the pre-existing finance numbers above.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await rpcManagerSubscriptionOverviewStats(supabase, displayRange.start, displayRange.end);
+        if (!cancelled && res.ok) setSubscriptionOverview(res);
+      } catch {
+        // Informational card only; silently leave it unset.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [displayRange.start, displayRange.end]);
 
   useEffect(() => {
     if (!isSuperUser) {
@@ -924,6 +943,43 @@ export default function ManagerDashboardScreen() {
               </View>
             </AnimatedOptionExpand>
           </View>
+
+          {subscriptionOverview ? (
+            <View style={styles.financeCard}>
+              <Text style={[styles.financeCardTitle, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsTitle")}</Text>
+              <View style={styles.moneyGrid}>
+                <View style={styles.moneyCell}>
+                  <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsActive")}</Text>
+                  <Text style={[styles.moneyCellVal, isRTL && styles.rtl]}>{subscriptionOverview.active_subscriptions_count}</Text>
+                </View>
+                <View style={styles.moneyCell}>
+                  <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsCharges")}</Text>
+                  <Text style={[styles.moneyCellVal, isRTL && styles.rtl]}>{formatIls(subscriptionOverview.charges_total_ils, language)}</Text>
+                </View>
+                <View style={[styles.moneyCell, styles.moneyCellAccentWrap]}>
+                  <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsPayments")}</Text>
+                  <Text style={[styles.moneyCellVal, styles.moneyCellAccent, isRTL && styles.rtl]}>
+                    {formatIls(subscriptionOverview.payments_total_ils, language)}
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={[
+                  styles.balanceBanner,
+                  subscriptionOverview.outstanding_ils > 0
+                    ? styles.balanceBannerOwe
+                    : subscriptionOverview.outstanding_ils < 0
+                      ? styles.balanceBannerAhead
+                      : styles.balanceBannerOk,
+                ]}
+              >
+                <Text style={[styles.balanceBannerLbl, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsOutstanding")}</Text>
+                <Text style={[styles.balanceBannerVal, isRTL && styles.rtl]}>
+                  {formatIls(subscriptionOverview.outstanding_ils, language)}
+                </Text>
+              </View>
+            </View>
+          ) : null}
         </View>
       ) : null}
 
