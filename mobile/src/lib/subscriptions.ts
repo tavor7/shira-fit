@@ -164,6 +164,40 @@ export type CreateSubscriptionInput = {
   startDate: string; // YYYY-MM-DD
   endDate: string | null; // null => no end date
   allowances: WeeklyLimits;
+  /** Optional initial payment recorded in the same transaction as the subscription. clientRequestId
+   * is deliberately NOT part of this (it typically lives in a ref read only at submit time, and a
+   * ref must never be read during render/memoization) -- pass it as the sibling
+   * initialPaymentClientRequestId field instead. */
+  initialPayment?: Omit<SubscriptionPaymentInput, "clientRequestId"> | null;
+  initialPaymentClientRequestId?: string | null;
+};
+
+export type SubscriptionPaymentInput = {
+  amountIls: number;
+  paymentMethod: string;
+  payerName?: string | null;
+  note?: string | null;
+  /** Client-supplied idempotency token; a retry with the same value never duplicates the payment. */
+  clientRequestId: string;
+};
+
+export type SubscriptionPaymentRow = {
+  id: string;
+  amount_ils: number;
+  payment_method: string;
+  payer_name: string | null;
+  note: string | null;
+  paid_at: string;
+  reversed_at: string | null;
+  created_at: string;
+};
+
+export type SubscriptionOverviewStats = {
+  ok: true;
+  active_subscriptions_count: number;
+  charges_total_ils: number;
+  payments_total_ils: number;
+  outstanding_ils: number;
 };
 
 export type FieldValidationError = { field: string; messageKey: string };
@@ -188,6 +222,16 @@ export function validateCreateSubscriptionInput(input: CreateSubscriptionInput):
     }
   }
   return errors;
+}
+
+/** A per-attempt idempotency token for record_subscription_payment / create_subscription's
+ * initial-payment path -- does not need cryptographic randomness, just per-attempt uniqueness, so
+ * no extra dependency is pulled in for this. Generate once per submit attempt (not once per
+ * component mount) and reuse the SAME value across a retry of the SAME attempt. */
+export function generateClientRequestId(): string {
+  const hex = () => Math.floor(Math.random() * 16).toString(16);
+  const rand = (n: number) => Array.from({ length: n }, hex).join("");
+  return `${rand(8)}-${rand(4)}-4${rand(3)}-a${rand(3)}-${rand(12)}`;
 }
 
 export function isValidIsoDate(s: string | null | undefined): s is string {
@@ -228,7 +272,8 @@ export async function rpcGetSubscriptionDetail(
 export async function rpcCreateSubscription(
   supabase: SupabaseClient,
   input: CreateSubscriptionInput
-): Promise<RpcOutcome<{ subscription_id: string; version_id: string }>> {
+): Promise<RpcOutcome<{ subscription_id: string; version_id: string; payment_id: string | null }>> {
+  const p = input.initialPayment;
   const { data, error } = await supabase.rpc("create_subscription", {
     p_payee_id: input.payeeId,
     p_payee_is_manual: input.payeeIsManual,
@@ -237,9 +282,58 @@ export async function rpcCreateSubscription(
     p_end_date: input.endDate,
     p_anchor_day: null,
     p_allowances: allowancesRecordToArray(input.allowances),
+    p_initial_payment_amount_ils: p?.amountIls ?? null,
+    p_initial_payment_method: p?.paymentMethod ?? null,
+    p_initial_payment_payer_name: p?.payerName ?? null,
+    p_initial_payment_note: p?.note ?? null,
+    p_initial_payment_client_request_id: input.initialPaymentClientRequestId ?? null,
   });
   if (error) throw error;
-  return data as RpcOutcome<{ subscription_id: string; version_id: string }>;
+  return data as RpcOutcome<{ subscription_id: string; version_id: string; payment_id: string | null }>;
+}
+
+export async function rpcRecordSubscriptionPayment(
+  supabase: SupabaseClient,
+  subscriptionId: string,
+  payment: SubscriptionPaymentInput
+): Promise<RpcOutcome<{ payment_id: string; duplicate: boolean }>> {
+  const { data, error } = await supabase.rpc("record_subscription_payment", {
+    p_subscription_id: subscriptionId,
+    p_amount_ils: payment.amountIls,
+    p_payment_method: payment.paymentMethod,
+    p_payer_name: payment.payerName ?? null,
+    p_note: payment.note ?? null,
+    p_paid_at: null,
+    p_client_request_id: payment.clientRequestId,
+  });
+  if (error) throw error;
+  return data as RpcOutcome<{ payment_id: string; duplicate: boolean }>;
+}
+
+export async function fetchSubscriptionPayments(
+  supabase: SupabaseClient,
+  subscriptionId: string
+): Promise<SubscriptionPaymentRow[]> {
+  const { data, error } = await supabase
+    .from("athlete_account_payments")
+    .select("id, amount_ils, payment_method, payer_name, note, paid_at, reversed_at, created_at")
+    .eq("source_subscription_id", subscriptionId)
+    .order("paid_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as SubscriptionPaymentRow[];
+}
+
+export async function rpcManagerSubscriptionOverviewStats(
+  supabase: SupabaseClient,
+  startDate: string,
+  endDate: string
+): Promise<SubscriptionOverviewStats | RpcError> {
+  const { data, error } = await supabase.rpc("manager_subscription_overview_stats", {
+    p_start: startDate,
+    p_end: endDate,
+  });
+  if (error) throw error;
+  return data as SubscriptionOverviewStats | RpcError;
 }
 
 export type EditSubscriptionInput = {

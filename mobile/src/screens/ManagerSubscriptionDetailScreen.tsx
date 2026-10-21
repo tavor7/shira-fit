@@ -11,12 +11,16 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { formatISODateFull } from "../lib/dateFormat";
 import {
   currentEffectiveChargeAmount,
+  fetchSubscriptionPayments,
   rpcDeleteSubscription,
   rpcGetSubscriptionDetail,
   tierLabelKey,
   type SubscriptionDetail,
+  type SubscriptionPaymentRow,
   type SubscriptionVersionRow,
 } from "../lib/subscriptions";
+import { AddSubscriptionPaymentModal } from "../components/AddSubscriptionPaymentModal";
+import { paymentMethodHistoryLabel } from "../lib/paymentMethod";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { managerTermsStatusText, rpcGetSubscriptionTermsStatus, type ManagerTermsStatusItem } from "../lib/subscriptionTerms";
 import { displayMoney } from "../lib/displayFormat";
@@ -37,6 +41,17 @@ export function ManagerSubscriptionDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [terms, setTerms] = useState<ManagerTermsStatusItem | null>(null);
+  const [payments, setPayments] = useState<SubscriptionPaymentRow[]>([]);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+
+  const loadPayments = useCallback(async () => {
+    if (!id) return;
+    try {
+      setPayments(await fetchSubscriptionPayments(supabase, String(id)));
+    } catch {
+      // Non-critical: the subscription detail itself already loaded; leave the list empty.
+    }
+  }, [id]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -73,7 +88,8 @@ export function ManagerSubscriptionDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       void load();
-    }, [load])
+      void loadPayments();
+    }, [load, loadPayments])
   );
 
   if (loading) {
@@ -226,6 +242,30 @@ export function ManagerSubscriptionDetailScreen() {
           )}
         </Section>
 
+        <Section title={t("subscriptions.payment.historyTitle")} isRTL={isRTL}>
+          {payments.length === 0 ? (
+            <Text style={[styles.historyLine, isRTL && styles.rtl]}>{t("subscriptions.payment.noPayments")}</Text>
+          ) : (
+            payments.map((p) => (
+              <View key={p.id} style={[styles.kv, rowFlipFor(isRTL) && styles.kvRtl]}>
+                <Text style={[styles.historyLine, isRTL && styles.rtl]} numberOfLines={1}>
+                  {formatISODateFull(p.paid_at, language)} · {paymentMethodHistoryLabel(p.payment_method, language)}
+                  {p.reversed_at ? ` (${t("subscriptions.payment.reversed")})` : ""}
+                </Text>
+                <Text style={[styles.kvValue, isRTL && styles.rtl]}>{displayMoney(p.amount_ils)}</Text>
+              </View>
+            ))
+          )}
+          {!isTombstoned ? (
+            <PrimaryButton
+              label={t("subscriptions.payment.recordAction")}
+              onPress={() => setPaymentModalOpen(true)}
+              variant="ghost"
+              style={styles.recordPaymentBtn}
+            />
+          ) : null}
+        </Section>
+
         <Section title={t("subscriptions.detail.actionsTitle")} isRTL={isRTL}>
           <View style={styles.actions}>
             {!isTombstoned && isActiveGroup ? (
@@ -264,6 +304,14 @@ export function ManagerSubscriptionDetailScreen() {
           </View>
         </Section>
       </ScrollView>
+      <AddSubscriptionPaymentModal
+        visible={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        subscriptionId={String(id)}
+        payeeLabel={payeeName}
+        defaultAmountIls={current?.monthly_price_ils ?? 0}
+        onSaved={loadPayments}
+      />
     </View>
   );
 }
@@ -310,5 +358,6 @@ const styles = StyleSheet.create({
   historyLine: { ...theme.typography.caption, color: theme.colors.textMuted },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm },
   actionBtn: { flexGrow: 1, minWidth: 120 },
+  recordPaymentBtn: { marginTop: theme.spacing.sm },
   rtl: { textAlign: "right", writingDirection: "rtl" },
 });

@@ -258,6 +258,8 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     invalid_allowance: V,
     invalid_anchor_day: V,
     invalid_date_range: V,
+    invalid_initial_payment_amount: V,
+    invalid_initial_payment_method: V,
     invalid_payee: V,
     invalid_price: V,
     invalid_start_date: V,
@@ -374,6 +376,9 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     not_chargeable: B,
     not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
   },
+  manager_subscription_overview_stats: {
+    invalid_range: V,
+  },
   mark_manager_direct_message_read: {
     invalid_message: V,
     not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
@@ -408,6 +413,12 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     invalid_start_date: V,
     source_has_no_version: [T, "A subscription always has at least one version; occurrence = invariant violation."],
     source_subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
+  },
+  record_subscription_payment: {
+    invalid_amount: V,
+    invalid_payment_method: V,
+    invalid_subscription: V,
+    subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
   },
   register_for_session: {
     account_disabled: [V, "The CALLER's own account is disabled (profiles.disabled_at). Authorization outcome."],
