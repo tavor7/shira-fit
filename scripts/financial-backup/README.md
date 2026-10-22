@@ -91,6 +91,72 @@ integrity, subscription billing chain integrity, cancellation history + its audi
 archive version-1 path consistency, that the hard-delete guard trigger is still present and
 active, and that `list_documents()` actually executes against the restored data.
 
+**`verify.js` is a synthetic-fixture regression test, not a production verification tool.** It
+asserts against *specific known values* from `test/seed-synthetic-data.sql` — `document_number =
+'FINTEST-001'`, a reversed payment of exactly `90.00` ILS, a subscription freeze that must exist,
+a negative `edit_correction` charge that must exist. Those assertions prove the dump/restore
+*mechanism* works end-to-end against known data; they are meaningless against a real production
+restore, which will never contain those exact rows and will correctly "fail" 6 of `verify.js`'s
+17 checks for that reason alone (confirmed directly against this project's first production
+backup — every one of those 6 failures matched live production's own actual counts exactly, see
+`npm run verify-production` below). Keep using `npm run verify` for the synthetic regression
+suite; use `npm run verify-production` for anything restored from a real backup.
+
+## `verify-production.js` — production-data-agnostic verification
+
+Checks structure, referential integrity, and invariants that hold regardless of what the actual
+data is — never a specific row's value, a specific ID, or a specific fixture. Covers: required
+schemas/tables exist, document-number uniqueness, FK integrity (documents↔customers,
+document_events↔documents, PDF versions↔documents, charges↔billing periods, registrations↔
+sessions, payments↔documents), cancellation history + its audit trail, the hard-delete guard
+trigger, `list_documents()` executing, and a snapshot-time row-count comparison (below).
+
+**The settings/consent audit pattern is handled explicitly, not by exemption.** A prior read-only
+production audit found that `document_events` rows for `consent_declined`, `consent_accepted`,
+`request_address_setting_changed`, `request_consent_setting_changed`, and
+`operational_mode_changed` legitimately have no `document_id` — they reuse this table as a
+settings/consent audit log, by design. `verify-production.js`'s check for this is: *every event
+missing a document must have one of these five actions* — not "ignore events with no document."
+If some other, unexpected action type ever shows up with a missing document reference, that is
+flagged as genuine corruption, exactly as it should be. Proven both ways by
+`test/negative-production-tests.js`: a corrupted `document_cancelled` event (not in the list) is
+caught; a legitimately-inserted `consent_declined` event with no document is correctly not
+flagged.
+
+```bash
+FINANCIAL_BACKUP_TARGET_URL=... FINANCIAL_BACKUP_RUN_DIR=out/<id> npm run verify-production
+# or, restoring from R2:
+FINANCIAL_BACKUP_TARGET_URL=... FINANCIAL_BACKUP_BACKUP_ID=<id> npm run verify-production
+```
+
+### Source/restore comparison: what it actually proves
+
+`dump.js` now captures a row count for every table in `DATA_TABLES`, in the SAME `psql` session
+that exported the snapshot (`PgSnapshotSession.query`, still inside that one `REPEATABLE READ`
+transaction) — so the count is guaranteed consistent with the dump itself, never a separately-
+timed count that could race a write landing between the dump and the count. These land in the
+manifest as `data.table_counts` (manifest_version 2+). `verify-production.js` re-counts every
+table in the restored database and compares it against this **snapshot-time** figure — deliberately
+never against whatever the live production database looks like by the time someone gets around to
+checking, which could legitimately have changed (new receipts, new payments) since the backup was
+taken. A mismatch here means rows were lost or added somewhere in dump → upload → download →
+restore — not that production has since received new data, which this check cannot see and does
+not try to.
+
+**What each verification layer actually guarantees — and what it doesn't:**
+
+| Layer | Proves | Does NOT prove |
+|---|---|---|
+| SQL dump itself (`pg_dump` succeeding) | The source schema/data were readable and serializable at snapshot time | That every row's *content* is semantically correct (a value could be wrong but still dump fine) |
+| SHA-256 artifact verification (upload-time `putAndVerify`, restore-time check, `verify-remote.js`) | The bytes in R2 are exactly the bytes produced by `pg_dump` — no corruption or tampering in transit/at rest | Anything about whether those bytes represent a *correct* backup of the source — a bug in the dump itself would still hash-match |
+| Database restore succeeding (`psql` exit 0) | The SQL is syntactically valid and applied without a constraint violation | Nothing about completeness or correctness — a backup missing half its rows restores "successfully" too |
+| `verify-production.js` structural/referential checks | The restored schema matches what the application expects, and every FK/invariant this project knows about actually holds in the restored data | Any invariant not explicitly checked here; a new relationship added to the schema later needs its own check added |
+| Snapshot-count comparison | **Row-count completeness per table** — the restore has exactly as many rows per table as existed at snapshot time | **Row-level content parity** — two tables with the same count could still differ in which specific rows they contain, or in a column value within an otherwise-present row. This is NOT a content diff. |
+
+No claim of complete row-level parity is made anywhere in this pipeline based on table counts
+alone — row counts matching is evidence of completeness, not a guarantee of correctness for every
+individual value.
+
 ## Encryption
 
 **Decision: no application-managed encryption key.** Backups are stored as plain SQL text in the
@@ -161,6 +227,15 @@ can have a manifest and still be reported incomplete if either artifact is missi
 Postgres table was added (none is authorized yet); the manifests in R2 **are** the durable run
 records. Only manifests with `source.label === "production"` count toward the health metrics —
 test/dry-run backups remain in R2 forever (Bucket Lock) but are excluded from the aggregate.
+
+**Workflow step ordering**: the GitHub Actions workflow runs `verify-remote.js` (independent
+remote re-verification) *before* `health.js`, not after. Running them in the opposite order (the
+original ordering) meant `health.js`'s `verification_is_stale` flag was always true immediately
+after a brand-new backup — no verification record could exist yet — so every single successful
+backup was reported as job-level `failure`, purely from that ordering, not from anything actually
+wrong. Confirmed directly against this project's first production backup. The fix is `dump` →
+`verify-remote` → `health`, so `health.js` always runs after the verification it's checking for
+has had a chance to happen.
 
 ## Format identification (formerly "Key identification", Phase 3)
 

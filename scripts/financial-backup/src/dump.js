@@ -75,6 +75,17 @@ async function main() {
     console.log("3. Dumping financial-domain data against the SAME snapshot...");
     var dataSql = await dumpData(FINANCIAL_BACKUP_SOURCE_URL, snapshotId);
     console.log(`   ${dataSql.length} bytes`);
+
+    // Captured in the SAME session that exported the snapshot (still inside that one
+    // REPEATABLE READ transaction) -- guaranteed consistent with the dump itself, never a
+    // separately-timed count that could race a write landing between the dump and this query.
+    // This is what a later restore-verification compares the restored counts against, instead
+    // of against "whatever the live database looks like by the time someone checks."
+    console.log("   capturing per-table row counts at snapshot time...");
+    var tableCounts = {};
+    for (const table of DATA_TABLES) {
+      tableCounts[table] = Number(await session.query(`select count(*) from ${table};`));
+    }
   } catch (err) {
     throw new Error(`${err.message}`.replace(FINANCIAL_BACKUP_SOURCE_URL, redactConnectionString(FINANCIAL_BACKUP_SOURCE_URL)));
   } finally {
@@ -122,6 +133,7 @@ async function main() {
     sourceLabel,
     // kekId intentionally omitted: buildManifest() treats a missing kekId as "encryption.algorithm:
     // none" for this (current) backup format -- see manifest.js.
+    tableCounts,
   });
 
   if (uploadToR2) {

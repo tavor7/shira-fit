@@ -129,6 +129,23 @@ jobs:
           path: scripts/financial-backup/out/*/manifest.json
           retention-days: 3
 
+      - name: Independent remote verification (re-downloads + re-checks the just-uploaded artifacts)
+        # Runs BEFORE the health check, deliberately -- health.js's "verification_is_stale" signal
+        # is only meaningful once this has had a chance to run. Running health immediately after
+        # the dump (the previous ordering) meant every single successful backup was reported as
+        # "critical" purely because no verification record existed YET, not because anything was
+        # actually wrong -- confirmed by the project's own first production backup.
+        if: ${{ inputs.mode == 'backup' && inputs.upload_to_r2 }}
+        working-directory: scripts/financial-backup
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
+          R2_ARCHIVE_WRITER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_WRITER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_WRITER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_WRITER_SECRET_ACCESS_KEY }}
+          R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_READER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_READER_SECRET_ACCESS_KEY }}
+        run: npm run verify-remote
+
       - name: Health check (only meaningful once uploads to R2 are enabled)
         if: ${{ inputs.mode == 'backup' && inputs.upload_to_r2 }}
         working-directory: scripts/financial-backup

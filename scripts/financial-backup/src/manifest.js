@@ -5,7 +5,12 @@
 // weekly schema backup is compatible with every subsequent data backup" -- solved by not having
 // a separate weekly cadence at all.)
 
-export const MANIFEST_VERSION = 1;
+// v2 adds data.table_counts (per-table row counts captured at snapshot time -- see dump.js and
+// pg-exec.js's PgSnapshotSession.query) -- the source-of-truth a restore-verification compares
+// restored counts against. A v1 manifest (every backup made before this field existed) simply
+// omits it; verify-production.js treats that as "comparison unavailable for this manifest",
+// never as a failure -- see its own comments.
+export const MANIFEST_VERSION = 2;
 
 export function buildManifest({
   backupId,
@@ -18,6 +23,7 @@ export function buildManifest({
   postgresVersion,
   sourceLabel,
   kekId,
+  tableCounts,
 }) {
   // encryption.algorithm is the explicit, authoritative format marker restore.js/verify-remote.js
   // branch on: "none" (current default -- relies on R2 provider-managed encryption at rest,
@@ -54,6 +60,9 @@ export function buildManifest({
       sha256_plaintext: dataArtifact.plaintextSha256,
       sha256_ciphertext: dataArtifact.ciphertextSha256,
       r2_key: dataArtifact.r2Key ?? null,
+      // Snapshot-time row counts per table, or null on a v1 manifest (made before this field
+      // existed) -- never fabricated, never backfilled from a later, no-longer-consistent count.
+      table_counts: tableCounts ?? null,
     },
   };
 }

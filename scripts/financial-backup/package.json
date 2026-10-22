@@ -9,10 +9,12 @@
     "dump": "node src/dump.js",
     "restore": "node src/restore.js",
     "verify": "node src/verify.js",
+    "verify-production": "node src/verify-production.js",
     "generate-test-kek": "node src/generate-kek.js",
     "health": "node src/health.js",
     "verify-remote": "node src/verify-remote.js",
     "negative-tests": "node test/negative-tests.js",
+    "negative-production-tests": "node test/negative-production-tests.js",
     "make-legacy-fixture": "node test/make-legacy-fixture.js"
   },
   "dependencies": {

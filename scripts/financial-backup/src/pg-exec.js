@@ -130,6 +130,19 @@ export class PgSnapshotSession {
     this.child.stdin.write(sql + "\n");
   }
 
+  // Runs a single-row, single-column query in the SAME session that exported the snapshot --
+  // still inside that one REPEATABLE READ transaction, so the result is guaranteed consistent
+  // with `snapshotId` (the exact same MVCC view pg_dump attaches to via --snapshot=), not a
+  // separately-timed query that could race a concurrent write. Used to capture per-table row
+  // counts at snapshot time (see dump.js) -- the source-of-truth a later verification compares
+  // the restored row counts against, rather than against whatever the live database looks like
+  // by the time someone gets around to checking.
+  async query(sql) {
+    this._write(sql);
+    const line = await this._readLine();
+    return line.trim();
+  }
+
   _onData(chunk) {
     this._buf += chunk.toString("utf8");
     let idx;
