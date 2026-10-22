@@ -1,5 +1,5 @@
 import { requireEnv } from "./env.js";
-import { runPgTool, dockerizeConnectionString } from "./pg-exec.js";
+import { runPgTool, dockerizeConnectionString, redactConnectionString } from "./pg-exec.js";
 
 // Proves recovery, rather than asserting it from a clean pg_restore exit code. Each check is a
 // real query against the restored target, covering every item the brief asked to confirm:
@@ -170,6 +170,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("FAILED:", err.message);
+  console.error("FAILED:", redactConnectionString(err.message));
   process.exit(1);
 });

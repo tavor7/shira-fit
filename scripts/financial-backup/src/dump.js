@@ -166,6 +166,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("FAILED:", err.message);
+  console.error("FAILED:", redactConnectionString(err.message));
   process.exit(1);
 });

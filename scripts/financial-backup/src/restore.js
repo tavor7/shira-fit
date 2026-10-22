@@ -1,8 +1,8 @@
-import { readFile, writeFile, mkdtemp } from "node:fs/promises";
+import { readFile, writeFile, mkdtemp, chmod } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { requireEnv } from "./env.js";
-import { runPgTool, dockerizeConnectionString } from "./pg-exec.js";
+import { runPgTool, dockerizeConnectionString, redactConnectionString } from "./pg-exec.js";
 import { envelopeDecrypt, sha256Hex } from "./crypto.js";
 import { KEYS, getObject } from "./r2.js";
 
@@ -80,20 +80,33 @@ async function main() {
     console.log("   WARNING: no pairing hash present (older artifact format) -- consistency cannot be verified.");
   }
 
+  // These two files contain decrypted financial data in plaintext (real financial records for a
+  // real production restore). Restrict both the directory and the files to owner-only before
+  // anything is written to them -- never rely on the platform's default umask.
   const tmp = await mkdtemp(path.join(tmpdir(), "financial-restore-"));
+  await chmod(tmp, 0o700);
   const schemaPath = path.join(tmp, "schema.sql");
   const dataPath = path.join(tmp, "data.sql");
-  await writeFile(schemaPath, schemaSql);
-  await writeFile(dataPath, dataSql);
+  await writeFile(schemaPath, schemaSql, { mode: 0o600 });
+  await writeFile(dataPath, dataSql, { mode: 0o600 });
+  await chmod(schemaPath, 0o600);
+  await chmod(dataPath, 0o600);
 
-  console.log("4. Applying schema to target...");
-  await runPsqlFile(FINANCIAL_BACKUP_TARGET_URL, schemaPath);
+  try {
+    console.log("4. Applying schema to target...");
+    await runPsqlFile(FINANCIAL_BACKUP_TARGET_URL, schemaPath);
 
-  console.log("5. Applying data to target (triggers disabled for the load, per the dump's own --disable-triggers statements)...");
-  await runPsqlFile(FINANCIAL_BACKUP_TARGET_URL, dataPath);
+    console.log("5. Applying data to target (triggers disabled for the load, per the dump's own --disable-triggers statements)...");
+    await runPsqlFile(FINANCIAL_BACKUP_TARGET_URL, dataPath);
+  } catch (err) {
+    throw new Error(redactConnectionString(err.message));
+  }
 
   console.log("\nRestore complete. Run `npm run verify` next to check the result.");
-  console.log(`(Working files left at ${tmp} for inspection.)`);
+  console.log(
+    `\n*** PLAINTEXT financial data is sitting at ${tmp} (mode 0600, owner-only) for inspection. ***\n` +
+      `*** Delete it when you're done: rm -rf "${tmp}" ***`
+  );
 }
 
 async function runPsqlFile(connStr, filePath) {
@@ -102,6 +115,6 @@ async function runPsqlFile(connStr, filePath) {
 }
 
 main().catch((err) => {
-  console.error("FAILED:", err.message);
+  console.error("FAILED:", redactConnectionString(err.message));
   process.exit(1);
 });

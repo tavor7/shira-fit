@@ -17,9 +17,15 @@ on:
         options: [test, production]
         default: test
 
+permissions:
+  contents: read
+
 jobs:
   backup:
     runs-on: ubuntu-latest
+    # Guards against a manual dispatch accidentally being run against a feature branch's copy of
+    # this workflow -- a financial backup should only ever run from the reviewed, merged version.
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
@@ -75,8 +81,13 @@ jobs:
             sleep $((attempts * 10))
           done
 
-      - name: Upload backup artifact (CI-internal, short retention -- not R2)
-        if: always()
+      - name: Upload backup artifact (dry-run debugging only)
+        # Only kept for a dry run (upload_to_r2=false), where R2 has no copy at all and this is
+        # the only way to inspect what a run would have produced. When upload_to_r2=true, R2
+        # already holds the authoritative (ciphertext-only) copy under Bucket Lock -- keeping a
+        # second encrypted copy in GitHub's artifact storage would be a redundant exposure
+        # surface with no corresponding benefit, so it's skipped in that case.
+        if: ${{ always() && !inputs.upload_to_r2 }}
         uses: actions/upload-artifact@v4
         with:
           name: financial-backup-${{ github.run_id }}
