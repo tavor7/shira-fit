@@ -1,18 +1,14 @@
 import { randomBytes } from "node:crypto";
 
-// Procedure for generating and storing the offline recovery key (KEK) for financial backups.
+// Procedure for generating a key to decrypt/create a LEGACY (Phase 1-3) application-level
+// encrypted backup. As of the current backup format, financial backups are stored unencrypted
+// in R2 (relying on R2's provider-managed encryption at rest, private bucket access, and TLS --
+// see README.md "Encryption"), so this script is no longer part of the normal backup/restore
+// path. It remains only to (a) restore a legacy encrypted backup that predates that change, or
+// (b) generate a disposable test key if you need to exercise the legacy code path in restore.js.
 //
 // This script only ever PRINTS a freshly generated key to your terminal -- it never writes it to
-// disk, never uploads it, never stores it anywhere itself. That is deliberate: the KEK's only
-// copies should be (1) the production secret store (set manually by you, via `supabase secrets
-// set` / GitHub Actions secret -- never by this script) and (2) an offline copy you control
-// (password manager, printed and secured, hardware token, etc.) -- NOT a third copy sitting in a
-// file this tool created.
-//
-// Phase 1 note: do not use the output of this script as a real production key yet. Run it only
-// to produce a disposable TEST key for local restore-test purposes, and discard it afterward.
-// Generating and storing the real production KEK is a separate, explicit step for later,
-// requiring your own manual custody decision.
+// disk, never uploads it, never stores it anywhere itself.
 
 const kek = randomBytes(32);
 console.log("Generated a new 256-bit key (base64):");

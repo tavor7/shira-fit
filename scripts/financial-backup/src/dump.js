@@ -5,19 +5,12 @@ import { fileURLToPath } from "node:url";
 import { requireEnv } from "./env.js";
 import { SCHEMA_SCOPE, DATA_TABLES } from "./scope.js";
 import { runPgTool, dockerizeConnectionString, PgSnapshotSession, redactConnectionString } from "./pg-exec.js";
-import { envelopeEncrypt, sha256Hex } from "./crypto.js";
+import { sha256Hex } from "./crypto.js";
 import { buildManifest } from "./manifest.js";
 import { KEYS, putAndVerify } from "./r2.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.resolve(here, "..", "out");
-
-function kekBytesFromEnv() {
-  const { FINANCIAL_BACKUP_TEST_KEK } = requireEnv(["FINANCIAL_BACKUP_TEST_KEK"]);
-  const buf = Buffer.from(FINANCIAL_BACKUP_TEST_KEK, "base64");
-  if (buf.length !== 32) throw new Error("FINANCIAL_BACKUP_TEST_KEK must decode to 32 bytes");
-  return buf;
-}
 
 // Deliberately a SEPARATE switch from UPLOAD_TO_R2: uploading to R2 and being a real production
 // run are not the same thing (a test run can and should upload to R2 to prove the pipeline, as
@@ -66,14 +59,6 @@ async function main() {
   const { FINANCIAL_BACKUP_SOURCE_URL } = requireEnv(["FINANCIAL_BACKUP_SOURCE_URL"]);
   const uploadToR2 = process.env.UPLOAD_TO_R2 === "1";
   const sourceLabel = sourceLabelFromEnv();
-  const kekId = process.env.FINANCIAL_BACKUP_KEK_ID || null;
-  if (sourceLabel === "production" && !kekId) {
-    throw new Error(
-      "FINANCIAL_BACKUP_ENV=production requires FINANCIAL_BACKUP_KEK_ID to be set explicitly -- " +
-        "a production backup must never be stored with an unlabeled key."
-    );
-  }
-  const kek = kekBytesFromEnv();
 
   console.log(`0. source label: ${sourceLabel}${sourceLabel === "production" ? " (FINANCIAL_BACKUP_ENV=production)" : " (default -- set FINANCIAL_BACKUP_ENV=production explicitly for a real backup)"}`);
   console.log("1. Opening a shared snapshot session (REPEATABLE READ + pg_export_snapshot)...");
@@ -96,25 +81,22 @@ async function main() {
     await session.close();
   }
 
-  console.log("4. Encrypting both (AES-256-GCM envelope)...");
+  // No application-level encryption step: these are stored as plain SQL text in the private R2
+  // bucket. Protection for data at rest/in transit is R2's provider-managed encryption at rest,
+  // the bucket's private (non-public) access, TLS for every transfer, and the existing
+  // least-privilege writer/reader credentials -- not an application-managed key. See
+  // README.md "Encryption" for the owner's rationale and what this trades off.
+  console.log("4. Computing integrity hashes (no application-level encryption)...");
   const schemaSha256Plain = sha256Hex(schemaSql);
-  const schemaEnv = envelopeEncrypt(kek, schemaSql);
-  const dataEnv = envelopeEncrypt(kek, dataSql);
+  const dataSha256Plain = sha256Hex(dataSql);
 
   const backupId = randomUUID();
   const createdAt = new Date().toISOString();
   const runDir = path.join(OUT_DIR, backupId);
   await mkdir(runDir, { recursive: true });
 
-  const schemaFileBody = Buffer.from(JSON.stringify(schemaEnv, (k, v) => (v instanceof Buffer ? v.toString("base64") : v)));
-  const dataFileBody = Buffer.from(
-    JSON.stringify({ ...dataEnv, pairedSchemaSha256: schemaSha256Plain, kekId: kekId || "unlabeled" }, (k, v) =>
-      v instanceof Buffer ? v.toString("base64") : v
-    )
-  );
-
-  await writeFile(path.join(runDir, "schema.sql.enc.json"), schemaFileBody);
-  await writeFile(path.join(runDir, "data.sql.enc.json"), dataFileBody);
+  await writeFile(path.join(runDir, "schema.sql"), schemaSql);
+  await writeFile(path.join(runDir, "data.sql"), dataSql);
 
   const manifest = buildManifest({
     backupId,
@@ -124,28 +106,29 @@ async function main() {
     snapshotId,
     schemaArtifact: {
       plaintextSize: schemaSql.length,
-      ciphertextSize: schemaEnv.ciphertext.length,
+      ciphertextSize: schemaSql.length,
       plaintextSha256: schemaSha256Plain,
-      ciphertextSha256: sha256Hex(schemaFileBody),
+      ciphertextSha256: schemaSha256Plain,
       r2Key: uploadToR2 ? KEYS.schema(backupId) : null,
     },
     dataArtifact: {
       plaintextSize: dataSql.length,
-      ciphertextSize: dataEnv.ciphertext.length,
-      plaintextSha256: dataEnv.plaintextSha256,
-      ciphertextSha256: sha256Hex(dataFileBody),
+      ciphertextSize: dataSql.length,
+      plaintextSha256: dataSha256Plain,
+      ciphertextSha256: dataSha256Plain,
       r2Key: uploadToR2 ? KEYS.data(backupId) : null,
     },
     postgresVersion: (await runPgTool("pg_dump", ["--version"])).stdout.toString().trim(),
     sourceLabel,
-    kekId,
+    // kekId intentionally omitted: buildManifest() treats a missing kekId as "encryption.algorithm:
+    // none" for this (current) backup format -- see manifest.js.
   });
 
   if (uploadToR2) {
     console.log("5. Uploading to R2 (schema, then data, then manifest) -- each independently verified by re-reading it back...");
-    const schemaResult = await putAndVerify(KEYS.schema(backupId), schemaFileBody);
+    const schemaResult = await putAndVerify(KEYS.schema(backupId), schemaSql, { contentType: "application/sql" });
     console.log(`   schema uploaded + verified: ${schemaResult.key} (sha256 ${schemaResult.sha256.slice(0, 12)}...)`);
-    const dataResult = await putAndVerify(KEYS.data(backupId), dataFileBody);
+    const dataResult = await putAndVerify(KEYS.data(backupId), dataSql, { contentType: "application/sql" });
     console.log(`   data uploaded + verified:   ${dataResult.key} (sha256 ${dataResult.sha256.slice(0, 12)}...)`);
     // Manifest uploaded LAST, deliberately: its presence in R2 is this tool's definition of "a
     // backup completed successfully." If the process dies after uploading schema/data but before
@@ -160,9 +143,9 @@ async function main() {
 
   await writeFile(path.join(runDir, "manifest.json"), JSON.stringify(manifest, null, 2));
 
-  console.log(`\nBackup ${backupId} complete.`);
-  console.log(`  schema: ${manifest.schema.size_bytes_plaintext} -> ${manifest.schema.size_bytes_ciphertext} bytes`);
-  console.log(`  data:   ${manifest.data.size_bytes_plaintext} -> ${manifest.data.size_bytes_ciphertext} bytes`);
+  console.log(`\nBackup ${backupId} complete (unencrypted -- relies on R2 encryption-at-rest + private bucket access).`);
+  console.log(`  schema: ${manifest.schema.size_bytes_plaintext} bytes (sha256 ${schemaSha256Plain.slice(0, 12)}...)`);
+  console.log(`  data:   ${manifest.data.size_bytes_plaintext} bytes (sha256 ${dataSha256Plain.slice(0, 12)}...)`);
 }
 
 main().catch((err) => {

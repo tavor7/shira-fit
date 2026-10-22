@@ -1,9 +1,10 @@
 name: Financial backup (schema + scoped data)
 
-# Phase 2: manual trigger only, R2 upload optional via input. The `schedule:` trigger remains
-# intentionally omitted -- do not add it until the production KEK's offline custody has been
-# confirmed by the owner and a real run against production has been reviewed. See
-# scripts/financial-backup/README.md for the full design and the Supavisor connectivity findings.
+# Manual trigger only, R2 upload optional via input. The `schedule:` trigger remains
+# intentionally omitted -- do not add it until a real run against production has been reviewed.
+# See scripts/financial-backup/README.md for the full design, the Supavisor connectivity
+# findings, and the owner's decision to rely on R2's provider-managed encryption at rest +
+# private bucket access + TLS rather than an application-managed key.
 on:
   workflow_dispatch:
     inputs:
@@ -12,7 +13,7 @@ on:
         type: boolean
         default: false
       environment:
-        description: "Backup label -- 'production' requires FINANCIAL_BACKUP_KEK_ID to be set; every other value is always treated as a test run"
+        description: "Backup label -- every value other than 'production' is always treated as a test run"
         type: choice
         options: [test, production]
         default: test
@@ -49,7 +50,7 @@ jobs:
         working-directory: scripts/financial-backup
         run: npm install
 
-      - name: Run schema + data dump (encrypted, consistent snapshot)
+      - name: Run schema + data dump (consistent snapshot, unencrypted -- see README "Encryption")
         working-directory: scripts/financial-backup
         env:
           # Supavisor SESSION pooler (port 5432) -- confirmed, not the direct connection (IPv6-only
@@ -58,8 +59,6 @@ jobs:
           # the exported-snapshot mechanism this tool relies on for schema/data consistency).
           # Host/user format: aws-<region>.pooler.supabase.com, postgres.<project-ref>.
           FINANCIAL_BACKUP_SOURCE_URL: ${{ secrets.FINANCIAL_BACKUP_SOURCE_URL }}
-          FINANCIAL_BACKUP_TEST_KEK: ${{ secrets.FINANCIAL_BACKUP_KEK }}
-          FINANCIAL_BACKUP_KEK_ID: ${{ secrets.FINANCIAL_BACKUP_KEK_ID }}
           FINANCIAL_BACKUP_ENV: ${{ inputs.environment }}
           UPLOAD_TO_R2: ${{ inputs.upload_to_r2 && '1' || '0' }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
@@ -81,17 +80,17 @@ jobs:
             sleep $((attempts * 10))
           done
 
-      - name: Upload backup artifact (dry-run debugging only)
-        # Only kept for a dry run (upload_to_r2=false), where R2 has no copy at all and this is
-        # the only way to inspect what a run would have produced. When upload_to_r2=true, R2
-        # already holds the authoritative (ciphertext-only) copy under Bucket Lock -- keeping a
-        # second encrypted copy in GitHub's artifact storage would be a redundant exposure
-        # surface with no corresponding benefit, so it's skipped in that case.
+      - name: Upload backup manifest (dry-run debugging only -- metadata only, never the SQL itself)
+        # Backups are stored UNENCRYPTED now (see README "Encryption") -- schema.sql/data.sql under
+        # out/ are real plaintext financial data (or synthetic test data) and must never be written
+        # to a GitHub Actions artifact, which is a different trust/retention boundary than the
+        # private R2 bucket. Only manifest.json (metadata + non-sensitive hashes, no row data) is
+        # uploaded here, and only for a dry run (upload_to_r2=false) where R2 has no copy at all.
         if: ${{ always() && !inputs.upload_to_r2 }}
         uses: actions/upload-artifact@v4
         with:
-          name: financial-backup-${{ github.run_id }}
-          path: scripts/financial-backup/out/
+          name: financial-backup-manifest-${{ github.run_id }}
+          path: scripts/financial-backup/out/*/manifest.json
           retention-days: 3
 
       - name: Health check (only meaningful once uploads to R2 are enabled)

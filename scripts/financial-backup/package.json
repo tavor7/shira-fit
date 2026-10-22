@@ -2,7 +2,7 @@
   "name": "shirafit-financial-backup-tools",
   "version": "1.0.0",
   "private": true,
-  "description": "Local/CI tooling for the independent financial database backup (schema + scoped data, encrypted, uploaded to R2). Phase 1: local implementation and restore-test only -- not wired to production.",
+  "description": "Local/CI tooling for the independent financial database backup (schema + scoped data, uploaded to R2 relying on R2's own encryption at rest). Not wired to a production schedule.",
   "type": "module",
   "scripts": {
     "dump": "node src/dump.js",
@@ -11,7 +11,8 @@
     "generate-test-kek": "node src/generate-kek.js",
     "health": "node src/health.js",
     "verify-remote": "node src/verify-remote.js",
-    "negative-tests": "node test/negative-tests.js"
+    "negative-tests": "node test/negative-tests.js",
+    "make-legacy-fixture": "node test/make-legacy-fixture.js"
   },
   "dependencies": {
     "dotenv": "^18.0.8",

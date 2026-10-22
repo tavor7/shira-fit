@@ -34,11 +34,13 @@ async function main() {
 
   const runs = [];
   for (const manifest of manifests) {
-    const schemaOk = await objectExists(KEYS.schema(manifest.backup_id));
-    const dataOk = await objectExists(KEYS.data(manifest.backup_id));
+    const legacy = manifest.encryption?.algorithm === "aes-256-gcm-envelope";
+    const schemaOk = await objectExists(KEYS.schema(manifest.backup_id, { legacy }));
+    const dataOk = await objectExists(KEYS.data(manifest.backup_id, { legacy }));
     runs.push({
       backup_id: manifest.backup_id,
       created_at: manifest.created_at,
+      format: manifest.encryption?.algorithm ?? "unknown",
       kek_id: manifest.encryption?.kek_id ?? null,
       schema_status: schemaOk ? "present" : "MISSING",
       data_status: dataOk ? "present" : "MISSING",

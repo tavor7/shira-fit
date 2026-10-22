@@ -4,10 +4,17 @@ import { requireEnv } from "./env.js";
 
 // Reuses the SAME dedicated R2 archive (bucket, writer/reader credentials) already provisioned
 // for the PDF archive -- not a new bucket, not new credentials -- under three new prefixes:
-//   db-backups/schema/<backup_id>.sql.enc.json
-//   db-backups/data/<backup_id>.sql.enc.json
+//   db-backups/schema/<backup_id>.sql            (current format -- raw SQL, no app-level envelope)
+//   db-backups/schema/<backup_id>.sql.enc.json   (legacy Phase 1-3 format -- AES-256-GCM envelope)
+//   db-backups/data/<backup_id>.sql(.enc.json)
 //   db-backups/manifests/<backup_id>.json
-// Same indefinite Bucket Lock already governing that bucket applies here automatically.
+// Same indefinite Bucket Lock already governing that bucket applies here automatically. The
+// object body itself is unencrypted for the current format -- R2's provider-managed
+// encryption-at-rest, the bucket's private access, and TLS in transit are the protections for
+// data at rest/in transit now, per the owner's decision to drop application-level key
+// management. The distinct extension lets you tell format at a glance in a bucket listing; the
+// manifest's `encryption.algorithm` field is the authoritative marker restore.js/verify-remote.js
+// actually branch on.
 
 function client(kind) {
   const { CF_ACCOUNT_ID, R2_ARCHIVE_WRITER_ACCESS_KEY_ID, R2_ARCHIVE_WRITER_SECRET_ACCESS_KEY, R2_ARCHIVE_READER_ACCESS_KEY_ID, R2_ARCHIVE_READER_SECRET_ACCESS_KEY } =
@@ -32,8 +39,8 @@ function bucket() {
 }
 
 export const KEYS = {
-  schema: (backupId) => `db-backups/schema/${backupId}.sql.enc.json`,
-  data: (backupId) => `db-backups/data/${backupId}.sql.enc.json`,
+  schema: (backupId, { legacy = false } = {}) => `db-backups/schema/${backupId}.${legacy ? "sql.enc.json" : "sql"}`,
+  data: (backupId, { legacy = false } = {}) => `db-backups/data/${backupId}.${legacy ? "sql.enc.json" : "sql"}`,
   manifest: (backupId) => `db-backups/manifests/${backupId}.json`,
 };
 

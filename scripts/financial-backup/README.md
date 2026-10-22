@@ -1,8 +1,9 @@
-# Financial backup & recovery tooling (Phase 1 — local only)
+# Financial backup & recovery tooling
 
-Schema + scoped financial-data backup, AES-256-GCM envelope encrypted, with a proven restore
-procedure. **Not wired to production, R2, or a schedule yet** — see
-`.github/workflows/financial-backup.yml` (manual trigger only, upload disabled).
+Schema + scoped financial-data backup, with a proven restore procedure. Backups are stored
+**unencrypted** in a private Cloudflare R2 bucket — see "Encryption" below for why, and what
+protects the data instead. **Not wired to a production schedule yet** — see
+`.github/workflows/financial-backup.yml` (manual trigger only).
 
 ## What's backed up
 
@@ -51,9 +52,6 @@ testing recoverability independent of Supabase.
 
 ```bash
 npm install
-node src/generate-kek.js        # prints a disposable key for THIS test run only
-# paste it into .env.local as FINANCIAL_BACKUP_TEST_KEK=
-
 # .env.local: FINANCIAL_BACKUP_SOURCE_URL=postgresql://...
 
 PG_TOOLS_VIA_DOCKER=1 npm run dump     # omit PG_TOOLS_VIA_DOCKER if pg_dump is on PATH
@@ -65,6 +63,11 @@ PG_TOOLS_VIA_DOCKER=1 npm run dump     # omit PG_TOOLS_VIA_DOCKER if pg_dump is 
 #   4. FINANCIAL_BACKUP_TARGET_URL=... npm run verify
 ```
 
+Restoring a **legacy** (pre-simplification) encrypted backup additionally requires the original
+KEK: `FINANCIAL_BACKUP_TEST_KEK=<base64 key> FINANCIAL_BACKUP_RUN_DIR=out/<id> FINANCIAL_BACKUP_TARGET_URL=... npm run restore`.
+`restore.js` reads `manifest.json`'s `encryption.algorithm` to decide which code path to take —
+you don't need to tell it which format it is.
+
 ## What `verify.js` actually checks
 
 Not "did `psql` exit 0" — real queries against the restored copy: FK integrity (documents↔
@@ -75,10 +78,39 @@ active, and that `list_documents()` actually executes against the restored data.
 
 ## Encryption
 
-AES-256-GCM envelope (native Node `crypto`, no new dependency): a fresh random DEK per backup,
-wrapped by a long-lived KEK. The KEK is never written to this backup's artifacts. See
-`src/generate-kek.js` for the generation procedure — **do not use a key it prints as a real
-production key without a separate, explicit decision about offline custody.**
+**Decision: no application-managed encryption key.** Backups are stored as plain SQL text in the
+private R2 bucket. This was a deliberate simplification, not an oversight: application-level
+envelope encryption (AES-256-GCM, Phase 1-3 of this project) added real operational burden — a
+production KEK with its own offline-custody procedure, rotation story, and a way for a backup to
+become permanently unrestorable if that key were ever lost — without changing the actual threat
+model, because the bucket, credentials, and transport were already protecting the same data. The
+owner chose to drop it and rely entirely on:
+
+- **R2 provider-managed encryption at rest** — Cloudflare encrypts all object data at rest by
+  default; this requires no key management on our side at all.
+- **Private bucket access** — the bucket has no public access and no public object URLs; every
+  read/write requires one of the scoped R2 credentials below.
+- **TLS in transit** — every `pg_dump`/R2 request already runs over HTTPS/TLS; nothing here was
+  stored or sent in the clear even under the old design.
+- **Least-privilege, scoped credentials** — the existing writer/reader R2 API tokens, scoped to
+  this one bucket, reused from the PDF archive (see "R2 integration" below) — no new credential,
+  no broader scope than before.
+- **Integrity, independent of encryption** — SHA-256 of each artifact is recorded in the manifest
+  at backup time and re-checked at restore time and by `verify-remote.js`; this catches corruption
+  or tampering exactly as reliably as the AES-GCM auth tag did, just without needing a key to do
+  it.
+
+**What this trades away**: previously, someone with read access to the R2 bucket but without the
+KEK could not read backup contents (defense in depth against a compromised reader credential or a
+misconfigured bucket). Under the new model, R2 bucket access alone is sufficient to read backup
+contents — access control is entirely the bucket's privacy + the credential scope, not a second
+independent secret. The owner's call: this is an acceptable trade for the simplification.
+
+**Legacy backups**: Phase 1-3 of this project produced AES-256-GCM-encrypted backups. Those
+remain restorable — `restore.js` reads the manifest's `encryption.algorithm` and takes the
+decrypt path automatically when it finds `"aes-256-gcm-envelope"` instead of `"none"`. `src/
+generate-kek.js` still exists, but only to regenerate/exercise that legacy path (e.g. a disposable
+test key for the compatibility test); it is not part of the normal backup/restore flow anymore.
 
 ## Consistency guarantee (Phase 2)
 
@@ -96,10 +128,15 @@ the schema it's about to apply doesn't match.
 ## R2 integration (Phase 2)
 
 Reuses the existing `shirafit-receipt-archive` bucket and its writer/reader credentials — no new
-bucket, no new credentials — under `db-backups/{schema,data,manifests}/<backup_id>.*`. Every
-upload is independently re-read with the reader credential and SHA-256-compared before being
-considered successful (never trusts a 200 status or ETag alone), retried 3x with backoff on
-transient failure, and refuses outright if the target key already exists. See `src/r2.js`.
+bucket, no new credentials — under `db-backups/{schema,data,manifests}/<backup_id>.*`. Current
+backups are stored as raw SQL under `<backup_id>.sql`; legacy encrypted backups remain under
+`<backup_id>.sql.enc.json` (both prefixes are still read by `restore.js`/`health.js`, selected by
+the manifest's format marker). Every upload is independently re-read with the reader credential
+and SHA-256-compared before being considered successful (never trusts a 200 status or ETag
+alone), retried 3x with backoff on transient failure, and refuses outright if the target key
+already exists. See `src/r2.js`. The bucket itself remains private (no public access, no public
+object URLs) and is accessed only over HTTPS/TLS with these same scoped credentials — see
+"Encryption" above.
 
 ## Monitoring (Phase 2)
 
@@ -110,19 +147,16 @@ Postgres table was added (none is authorized yet); the manifests in R2 **are** t
 records. Only manifests with `source.label === "production"` count toward the health metrics —
 test/dry-run backups remain in R2 forever (Bucket Lock) but are excluded from the aggregate.
 
-## Key identification (Phase 3)
+## Format identification (formerly "Key identification", Phase 3)
 
-Every manifest now carries a non-secret `encryption.kek_id` label (e.g. `"test-kek-1"`,
-`"prod-2026-10"`, or `"unlabeled"` for backups made before this field existed) — never the key
-itself, never a derivative of it. The data artifact embeds the same label. `restore.js` compares
-the backup's label against `FINANCIAL_BACKUP_TEST_KEK_ID` (the key the operator is about to use)
-and refuses, **before attempting decryption**, if they don't match — a friendlier error than
-waiting for the AES-GCM auth-tag failure, which remains the actual cryptographic backstop
-regardless. A `FINANCIAL_BACKUP_ENV=production` run is *required* to set an explicit
-`FINANCIAL_BACKUP_KEK_ID` — `dump.js` refuses outright (before even connecting to the database)
-if a production-labeled backup would otherwise be stored with an unlabeled key. Key rotation:
-generate a new key with a new label; old backups keep decrypting with whichever key/label was
-current when they were made, no migration of old artifacts needed.
+Every manifest carries an explicit `encryption.algorithm` field: `"none"` for the current
+(unencrypted) format, or `"aes-256-gcm-envelope"` for a legacy Phase 1-3 backup — plus, only for
+the legacy format, a non-secret `encryption.kek_id` label (e.g. `"prod-2026-10"`) identifying
+which key was used, never the key itself. `restore.js` and `verify-remote.js` both read this
+field first and branch accordingly — nothing about restoring a backup requires the operator to
+know in advance which format it's in. For a legacy backup, the same fail-fast label check as
+before still applies: a mismatched `FINANCIAL_BACKUP_TEST_KEK_ID` is rejected before decryption is
+even attempted, with the AES-GCM auth tag as the actual cryptographic backstop.
 
 ## Stale backup detection (Phase 3)
 
@@ -155,44 +189,37 @@ this either.
   "production"` filter — noted here so that code inherits this isolation rather than
   re-discovering it.
 
-## Production KEK setup procedure (not automated — do this yourself)
+## Legacy KEK procedure (only relevant for a Phase 1-3 encrypted backup)
 
-1. Run `node src/generate-kek.js` on a machine you trust, **once**, for the real production key
-   (not the disposable test key used above). Choose a label for it too (e.g. `prod-2026-10`).
-2. Store copy #1 in the production secret store (`FINANCIAL_BACKUP_KEK` GitHub Actions secret),
-   alongside `FINANCIAL_BACKUP_KEK_ID` set to the label you chose.
-3. Store copy #2 somewhere **independent of both Supabase and GitHub** — a password manager,
-   a printed copy in a safe, or a hardware token. This is the copy that lets you recover even if
-   GitHub and Supabase are both unavailable at once.
-4. Do not let a third copy exist anywhere — including this terminal's scrollback. Clear it.
-5. Rotating the key later: generate a new one the same way, with a new label; old backups keep
-   decrypting with whichever key/label was current when they were made (see "Key identification"
-   above).
-
-This script never performs any of these steps for you — it only ever prints a key to your
-terminal once, and never writes, uploads, or stores it anywhere itself.
+There is no production KEK to generate or store for the current backup format — see
+"Encryption" above. `src/generate-kek.js` and `FINANCIAL_BACKUP_TEST_KEK`/
+`FINANCIAL_BACKUP_TEST_KEK_ID` still exist solely to restore a legacy encrypted backup that
+predates this change, or to generate a disposable key for exercising that code path in a test
+(see `test/make-legacy-fixture.js`). If you still hold a real legacy production KEK from before
+this change, keep it in secure offline custody until you're confident no legacy backup will ever
+need restoring again — do not add it back to GitHub Actions secrets, since the workflow no longer
+reads or needs it.
 
 ## Production rollout procedure (prepared, NOT executed)
 
-1. Generate the production KEK + label (above); store both copies.
-2. Add GitHub Actions secrets: `FINANCIAL_BACKUP_SOURCE_URL` (Supavisor **session pooler**
-   connection string — confirmed the correct mode, see Phase 1 research), `FINANCIAL_BACKUP_KEK`,
-   `FINANCIAL_BACKUP_KEK_ID`. Reuse the existing `CF_ACCOUNT_ID`/`R2_ARCHIVE_*` secrets (already
-   configured for the PDF archive) — no new R2 credentials.
-3. First manual run: trigger the workflow by hand (`workflow_dispatch`) with
+1. Add GitHub Actions secrets: `FINANCIAL_BACKUP_SOURCE_URL` (Supavisor **session pooler**
+   connection string — confirmed the correct mode, see Phase 1 research). Reuse the existing
+   `CF_ACCOUNT_ID`/`R2_ARCHIVE_*` secrets (already configured for the PDF archive) — no new R2
+   credentials, and no encryption key to generate or store.
+2. First manual run: trigger the workflow by hand (`workflow_dispatch`) with
    `FINANCIAL_BACKUP_ENV=production` and `upload_to_r2: true`.
-4. Independently verify the uploaded objects: run `npm run health` (reader credential only) and
+3. Independently verify the uploaded objects: run `npm run health` (reader credential only) and
    confirm `complete_backups: 1`, `incomplete_backups: 0`.
-5. Restore test: run `npm run restore` with `FINANCIAL_BACKUP_BACKUP_ID` set to that backup,
+4. Restore test: run `npm run restore` with `FINANCIAL_BACKUP_BACKUP_ID` set to that backup,
    targeting a fresh, isolated scratch Postgres (never production) — exactly the procedure
-   already proven in Phase 1/2 testing, now against the real production backup. Run `npm run
-   verify` (or the project's own financial regression checks) against the restored copy.
-6. Only after step 5 succeeds: run `npm run verify-remote` once by hand to produce the first real
+   already proven in testing, now against the real production backup. Run `npm run verify` (or
+   the project's own financial regression checks) against the restored copy.
+5. Only after step 4 succeeds: run `npm run verify-remote` once by hand to produce the first real
    verification record, then confirm `npm run health` shows `verification_is_stale: false`.
-7. Only after steps 3–6 have all succeeded at least once: add the `schedule:` trigger to
+6. Only after steps 2-5 have all succeeded at least once: add the `schedule:` trigger to
    `.github/workflows/financial-backup.yml` (currently absent by design) for the daily cadence,
    and a second scheduled invocation of `verify-remote.js`.
-8. Monitoring/alerting for missed backups: wire a scheduled `npm run health` check (its non-zero
+7. Monitoring/alerting for missed backups: wire a scheduled `npm run health` check (its non-zero
    exit code on `backup_is_stale`/`verification_is_stale`/incomplete already signals failure) into
    whatever alerting channel is appropriate — no new mechanism needed, the signal already exists.
 

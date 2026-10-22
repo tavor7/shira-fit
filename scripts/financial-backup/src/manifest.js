@@ -19,6 +19,16 @@ export function buildManifest({
   sourceLabel,
   kekId,
 }) {
+  // encryption.algorithm is the explicit, authoritative format marker restore.js/verify-remote.js
+  // branch on: "none" (current default -- relies on R2 provider-managed encryption at rest,
+  // private bucket access, and TLS in transit, per the owner's decision to drop
+  // application-level key management) or "aes-256-gcm-envelope" (legacy, Phase 1-3 backups made
+  // before this decision -- kekId is passed in only for those, so they keep decrypting with
+  // whichever key/label was current when they were made; see restore.js).
+  const encryption = kekId !== undefined && kekId !== null
+    ? { algorithm: "aes-256-gcm-envelope", kek_id: kekId || "unlabeled" }
+    : { algorithm: "none" };
+
   return {
     manifest_version: MANIFEST_VERSION,
     backup_id: backupId,
@@ -28,14 +38,7 @@ export function buildManifest({
     // PgSnapshotSession) -- the consistency guarantee this backup actually provides.
     consistency: { mechanism: "pg_export_snapshot + --snapshot on both pg_dump calls", snapshot_id: snapshotId },
     source: { postgres_version: postgresVersion, label: sourceLabel },
-    // kek_id is a non-secret LABEL identifying which Key-Encrypting-Key was used (e.g.
-    // "prod-2026-10" or "test-local") -- never the key itself, never a derivative of it. Lets
-    // restore.js tell the operator which key a given backup needs, and lets key rotation keep
-    // old backups decryptable: each one just remembers which key it was encrypted with.
-    // "unlabeled" (rather than silently omitting the field) marks older/synthetic manifests
-    // produced before this field existed or without an explicit label set -- still a valid,
-    // restorable manifest, just without rotation tracking.
-    encryption: { algorithm: "aes-256-gcm-envelope", kek_id: kekId || "unlabeled" },
+    encryption,
     schema: {
       scope: schemaScope,
       size_bytes_plaintext: schemaArtifact.plaintextSize,
