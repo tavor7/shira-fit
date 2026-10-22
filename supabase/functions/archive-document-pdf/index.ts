@@ -4,8 +4,11 @@
  * checksums against the live R2 bytes (never trusting R2's ETag as equivalent to SHA-256).
  *
  * Triggered by pg_cron via invoke_archive_worker_edge() / invoke_archive_reconciliation_edge()
- * (see 20261025120000_receipt_archive_worker_and_cron.sql), same CRON_SECRET-authenticated
- * pattern as generate-subscription-charges / dispatch-notifications.
+ * (see 20261025120000_receipt_archive_worker_and_cron.sql), same Bearer-secret-authenticated
+ * pattern as generate-subscription-charges / dispatch-notifications -- but with its own
+ * dedicated ARCHIVE_CRON_SECRET rather than reusing the shared CRON_SECRET, so this function's
+ * auth is fully self-contained and rotating it can never affect any other cron-triggered
+ * function (and vice versa).
  *
  * POST { mode: "process" | "verify", limit?: number }
  */
@@ -170,7 +173,7 @@ async function verifyArchived(admin: ReturnType<typeof createClient>, limit: num
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
-  const secret = Deno.env.get("CRON_SECRET");
+  const secret = Deno.env.get("ARCHIVE_CRON_SECRET");
   const auth = req.headers.get("Authorization")?.replace("Bearer ", "");
   if (!secret) return json(500, { error: "missing_cron_secret" });
   if (auth !== secret) return json(401, { error: "unauthorized" });
