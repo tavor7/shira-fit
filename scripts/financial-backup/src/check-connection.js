@@ -6,24 +6,22 @@ import { runPgTool, dockerizeConnectionString, redactConnectionString } from "./
 // FINANCIAL_BACKUP_SOURCE_URL can be proven reachable before ever running a real backup against
 // it -- running the full dump is not an acceptable substitute for this, since a dump mutates
 // nothing but does read the entire financial dataset.
-
-// Forces sslmode=verify-full unconditionally -- this is the one property this check exists to
-// prove, so it must never be silently satisfiable by a weaker mode (verify-full validates the
-// server certificate against a trusted CA AND that its hostname matches, unlike "require", which
-// encrypts but accepts any certificate). Takes effect even if the secret's own connection string
-// already specifies a different sslmode.
-export function withVerifyFullSsl(connectionString) {
-  const url = new URL(connectionString);
-  url.searchParams.set("sslmode", "verify-full");
-  return url.toString();
-}
+//
+// TLS enforcement (sslmode=verify-full + sslrootcert=system) is NOT done here -- it's centralized
+// in pg-exec.js's dockerizeConnectionString/withEnforcedTls, which every Postgres-connecting
+// script in this tool (this one, dump.js, restore.js, verify.js) already routes through, so the
+// same enforcement applies consistently everywhere rather than being re-implemented per script.
 
 async function main() {
   const { FINANCIAL_BACKUP_SOURCE_URL } = requireEnv(["FINANCIAL_BACKUP_SOURCE_URL"]);
-  const connStr = dockerizeConnectionString(withVerifyFullSsl(FINANCIAL_BACKUP_SOURCE_URL));
+  const connStr = dockerizeConnectionString(FINANCIAL_BACKUP_SOURCE_URL);
 
   console.log("Connectivity check: SELECT 1 only -- no pg_dump, no R2 upload, no financial data read.");
-  console.log("TLS: sslmode=verify-full (server certificate chain + hostname both verified).");
+  console.log(
+    process.env.PG_TOOLS_VIA_DOCKER === "1"
+      ? "TLS: enforcement skipped (PG_TOOLS_VIA_DOCKER=1 -- local test container, no TLS configured)."
+      : "TLS: sslmode=verify-full, sslrootcert=system (server certificate chain + hostname both verified)."
+  );
 
   let result;
   try {

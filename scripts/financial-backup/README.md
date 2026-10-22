@@ -204,13 +204,30 @@ reads or needs it.
 
 `src/check-connection.js` (`npm run check-connection`) does exactly one thing: `SELECT 1` against
 `FINANCIAL_BACKUP_SOURCE_URL`, nothing else — no `pg_dump`, no R2 touch, no financial data read.
-It forces `sslmode=verify-full` on the connection string unconditionally, overriding any weaker
-mode the secret itself might specify, so this check actually proves what it claims to prove (the
-server's certificate chain AND hostname are both validated, not just "a TLS handshake happened").
 In the workflow, pick `mode: connection-check` on a manual run to exercise only this step — use it
 to prove a new or rotated `FINANCIAL_BACKUP_SOURCE_URL` is reachable before ever pointing a real
 backup at it. Running a full backup is not a substitute for this: a backup, even a dry run, reads
 the entire financial dataset, where this check reads nothing.
+
+## TLS enforcement (applies to every real connection, not just the check above)
+
+`src/pg-exec.js`'s `withEnforcedTls` (applied automatically inside `dockerizeConnectionString`,
+which every script that talks to Postgres already calls) forces `sslmode=verify-full` AND
+`sslrootcert=system` on every real connection this tool makes — `check-connection.js`, `dump.js`,
+`restore.js`, `verify.js` — unconditionally, overriding any weaker mode the connection string
+itself specifies. `verify-full` is what actually proves something (server certificate chain AND
+hostname both validated, not just "a TLS handshake happened"); `sslrootcert=system` tells libpq to
+validate against the OS's own trusted CA store instead of the default `~/.postgresql/root.crt`,
+which doesn't exist on a fresh GitHub Actions runner — this supplies the trust anchor
+`verify-full` needs to run at all, it does not relax verification. Supported by libpq 16+ (added
+upstream in PostgreSQL 16); confirmed present in the `postgresql-client-17` package this workflow
+installs.
+
+This enforcement is skipped ONLY when `PG_TOOLS_VIA_DOCKER=1` — that flag exclusively targets a
+disposable local `postgres:17` Docker container with no TLS configured at all, used for local
+development and CI-free testing against synthetic data (see "Usage" above). It never touches
+Supabase, production, or real financial data, so forcing TLS there would make local testing
+impossible without buying any real security.
 
 ## Production rollout procedure (prepared, NOT executed)
 

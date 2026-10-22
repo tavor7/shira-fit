@@ -40,11 +40,36 @@ export function runPgTool(tool, args, { input, env } = {}) {
   });
 }
 
+// Forces full TLS certificate-chain + hostname verification on every REAL connection this tool
+// makes (production backup's pg_dump/psql, restore.js, verify.js, check-connection.js) --
+// unconditionally, overriding anything weaker the connection string itself specifies, so this can
+// never be silently satisfied by "require" (encrypts but accepts any certificate) or "prefer"
+// (may not encrypt at all). sslrootcert=system tells libpq to validate against the OS's own
+// trusted CA store (Ubuntu's ca-certificates on the GitHub Actions runner) instead of the
+// default ~/.postgresql/root.crt, which doesn't exist there -- this supplies the trust anchor
+// verify-full needs to run at all; it does not relax verification in any way. Supported by libpq
+// 16+ (added upstream in PostgreSQL 16); this project's runner installs postgresql-client-17.
+//
+// Skipped ONLY when PG_TOOLS_VIA_DOCKER=1 -- that flag exclusively targets a disposable local
+// `postgres:17` Docker container with no TLS configured at all, used for local development/CI-
+// free testing against synthetic data. It never touches Supabase, production, or real financial
+// data, so forcing TLS there would make local testing impossible without buying any real
+// security -- see dockerizeConnectionString below, which is the only other place a connection
+// string is rewritten for that same local-only case.
+export function withEnforcedTls(connStr) {
+  if (viaDocker()) return connStr;
+  const url = new URL(connStr);
+  url.searchParams.set("sslmode", "verify-full");
+  url.searchParams.set("sslrootcert", "system");
+  return url.toString();
+}
+
 // host.docker.internal only resolves FROM inside a docker container TO the host -- when running
 // the docker-wrapped tool, rewrite a localhost/127.0.0.1 connection string to point there instead.
 export function dockerizeConnectionString(connStr) {
-  if (!viaDocker()) return connStr;
-  return connStr.replace(/(127\.0\.0\.1|localhost)/, "host.docker.internal");
+  const enforced = withEnforcedTls(connStr);
+  if (!viaDocker()) return enforced;
+  return enforced.replace(/(127\.0\.0\.1|localhost)/, "host.docker.internal");
 }
 
 // Never let a connection-string password end up in a thrown error or log line.
