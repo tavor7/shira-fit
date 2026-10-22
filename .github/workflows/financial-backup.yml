@@ -1,0 +1,54 @@
+name: Financial backup (schema + scoped data)
+
+# Phase 1: manual trigger only. The `schedule:` trigger is intentionally omitted -- do not add it
+# back until the KEK custody decision, R2 upload target, and a real connectivity test against
+# Supabase's Supavisor session pooler have all been confirmed. See
+# scripts/financial-backup/README.md for the full design.
+on:
+  workflow_dispatch:
+    inputs:
+      upload_to_r2:
+        description: "Upload the resulting backup to R2 (leave false until Phase 2 is approved)"
+        type: boolean
+        default: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install postgresql-client
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install backup tool dependencies
+        working-directory: scripts/financial-backup
+        run: npm install
+
+      - name: Run schema + data dump (encrypted)
+        working-directory: scripts/financial-backup
+        env:
+          # Supavisor SESSION pooler (port 5432), not the direct connection (IPv6-only without
+          # the paid IPv4 add-on; confirmed unreachable from this runner by default) and not the
+          # transaction pooler (port 6543; doesn't support the session-level features pg_dump
+          # needs). Host/user format: aws-<region>.pooler.supabase.com, postgres.<project-ref>.
+          FINANCIAL_BACKUP_SOURCE_URL: ${{ secrets.FINANCIAL_BACKUP_SOURCE_URL }}
+          FINANCIAL_BACKUP_TEST_KEK: ${{ secrets.FINANCIAL_BACKUP_KEK }}
+        run: npm run dump
+
+      - name: Upload backup artifact (CI-internal, short retention -- not R2)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: financial-backup-${{ github.run_id }}
+          path: scripts/financial-backup/out/
+          retention-days: 3
+
+      # Phase 2 (not enabled): upload the encrypted artifacts + manifest to the dedicated R2
+      # prefix, using a writer-only, bucket-scoped credential (same least-privilege model as the
+      # PDF archive). Left out entirely for Phase 1, per instruction not to upload production
+      # financial data yet.

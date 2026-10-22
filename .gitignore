@@ -8,6 +8,11 @@ scripts/receipt-archive/node_modules/
 scripts/receipt-archive/out/
 supabase/functions/.env.test-local
 
+# Financial backup tooling (DB connection string, test KEK, local dump output)
+scripts/financial-backup/.env.local
+scripts/financial-backup/node_modules/
+scripts/financial-backup/out/
+
 # macOS Finder metadata
 .DS_Store
 
