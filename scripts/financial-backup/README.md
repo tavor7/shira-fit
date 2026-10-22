@@ -110,27 +110,96 @@ Postgres table was added (none is authorized yet); the manifests in R2 **are** t
 records. Only manifests with `source.label === "production"` count toward the health metrics —
 test/dry-run backups remain in R2 forever (Bucket Lock) but are excluded from the aggregate.
 
+## Key identification (Phase 3)
+
+Every manifest now carries a non-secret `encryption.kek_id` label (e.g. `"test-kek-1"`,
+`"prod-2026-10"`, or `"unlabeled"` for backups made before this field existed) — never the key
+itself, never a derivative of it. The data artifact embeds the same label. `restore.js` compares
+the backup's label against `FINANCIAL_BACKUP_TEST_KEK_ID` (the key the operator is about to use)
+and refuses, **before attempting decryption**, if they don't match — a friendlier error than
+waiting for the AES-GCM auth-tag failure, which remains the actual cryptographic backstop
+regardless. A `FINANCIAL_BACKUP_ENV=production` run is *required* to set an explicit
+`FINANCIAL_BACKUP_KEK_ID` — `dump.js` refuses outright (before even connecting to the database)
+if a production-labeled backup would otherwise be stored with an unlabeled key. Key rotation:
+generate a new key with a new label; old backups keep decrypting with whichever key/label was
+current when they were made, no migration of old artifacts needed.
+
+## Stale backup detection (Phase 3)
+
+`health.js` now distinguishes two different questions: "is the most recent backup well-formed"
+(Phase 2) and "did a production backup actually happen recently" (Phase 3 — this is what catches
+a scheduled job that silently stopped running). `backup_is_stale` is true if the last successful
+*production* backup is older than `FINANCIAL_BACKUP_STALE_THRESHOLD_HOURS` (default **36**) or if
+no production backup has ever completed. `verification_is_stale` is the same check against
+`src/verify-remote.js`'s independent re-verification records (`db-backups/verifications/` — a
+new immutable record per check, not a mutable field, consistent with everything else in this
+archive). `health_status` is only `"healthy"` when nothing is incomplete, stale, or unverified —
+never derived solely from the shape of the latest manifest. No new Postgres table was added for
+this either.
+
+## Test/production isolation (Phase 3)
+
+- `source.label` is set by exactly one switch, `FINANCIAL_BACKUP_ENV=production` — every other
+  case defaults to `"test"`, so a run can only become "production" by deliberate, explicit opt-in,
+  never by omission. (Phase 2's logic incorrectly tied this label to whether R2 upload happened,
+  which is a different question — fixed in this phase.)
+- `health.js` and `verify-remote.js` both filter on `source.label === "production"` before
+  touching anything else — a test backup can never contribute to a health metric, and a
+  verification record for a test backup is ignored even if it exists.
+- Every artifact already uploaded during Phase 1/2 testing remains labeled `"test-upload"` /
+  `"local-test"` (the pre-fix values) and is correctly excluded under the new filter too —
+  confirmed by running `health.js` against the real bucket right now: `total_backups: 0`, because
+  no production backup has ever actually happened yet. **No existing R2 object needed deleting**,
+  and none was deleted — Bucket Lock wouldn't allow it even if desired.
+- A future accounting export, built later, should apply the identical `source.label ===
+  "production"` filter — noted here so that code inherits this isolation rather than
+  re-discovering it.
+
 ## Production KEK setup procedure (not automated — do this yourself)
 
 1. Run `node src/generate-kek.js` on a machine you trust, **once**, for the real production key
-   (not the disposable test key used above).
-2. Store copy #1 in the production secret store (`FINANCIAL_BACKUP_KEK` GitHub Actions secret).
+   (not the disposable test key used above). Choose a label for it too (e.g. `prod-2026-10`).
+2. Store copy #1 in the production secret store (`FINANCIAL_BACKUP_KEK` GitHub Actions secret),
+   alongside `FINANCIAL_BACKUP_KEK_ID` set to the label you chose.
 3. Store copy #2 somewhere **independent of both Supabase and GitHub** — a password manager,
    a printed copy in a safe, or a hardware token. This is the copy that lets you recover even if
    GitHub and Supabase are both unavailable at once.
 4. Do not let a third copy exist anywhere — including this terminal's scrollback. Clear it.
-5. Rotating the key later: generate a new one the same way; old backups keep decrypting with
-   whichever key was current when they were made (each backup's manifest could record a `kek_id`
-   label for this, not yet wired up — a Phase 3 detail, not a blocker).
+5. Rotating the key later: generate a new one the same way, with a new label; old backups keep
+   decrypting with whichever key/label was current when they were made (see "Key identification"
+   above).
 
 This script never performs any of these steps for you — it only ever prints a key to your
 terminal once, and never writes, uploads, or stores it anywhere itself.
 
-## Not yet done (Phase 3+, needs separate approval)
+## Production rollout procedure (prepared, NOT executed)
 
+1. Generate the production KEK + label (above); store both copies.
+2. Add GitHub Actions secrets: `FINANCIAL_BACKUP_SOURCE_URL` (Supavisor **session pooler**
+   connection string — confirmed the correct mode, see Phase 1 research), `FINANCIAL_BACKUP_KEK`,
+   `FINANCIAL_BACKUP_KEK_ID`. Reuse the existing `CF_ACCOUNT_ID`/`R2_ARCHIVE_*` secrets (already
+   configured for the PDF archive) — no new R2 credentials.
+3. First manual run: trigger the workflow by hand (`workflow_dispatch`) with
+   `FINANCIAL_BACKUP_ENV=production` and `upload_to_r2: true`.
+4. Independently verify the uploaded objects: run `npm run health` (reader credential only) and
+   confirm `complete_backups: 1`, `incomplete_backups: 0`.
+5. Restore test: run `npm run restore` with `FINANCIAL_BACKUP_BACKUP_ID` set to that backup,
+   targeting a fresh, isolated scratch Postgres (never production) — exactly the procedure
+   already proven in Phase 1/2 testing, now against the real production backup. Run `npm run
+   verify` (or the project's own financial regression checks) against the restored copy.
+6. Only after step 5 succeeds: run `npm run verify-remote` once by hand to produce the first real
+   verification record, then confirm `npm run health` shows `verification_is_stale: false`.
+7. Only after steps 3–6 have all succeeded at least once: add the `schedule:` trigger to
+   `.github/workflows/financial-backup.yml` (currently absent by design) for the daily cadence,
+   and a second scheduled invocation of `verify-remote.js`.
+8. Monitoring/alerting for missed backups: wire a scheduled `npm run health` check (its non-zero
+   exit code on `backup_is_stale`/`verification_is_stale`/incomplete already signals failure) into
+   whatever alerting channel is appropriate — no new mechanism needed, the signal already exists.
+
+## Not yet done (needs separate approval)
+
+- Executing the rollout procedure above.
 - Enabling the GitHub Actions `schedule:` trigger (currently `workflow_dispatch` only).
-- Real production KEK generation and offline custody (procedure above, action still pending).
 - Running a real backup against production data (everything proven so far uses synthetic data
   only, per instruction).
-- `kek_id` labeling for key-rotation tracking in the manifest.
 - The manager-only Backup Management screen and filtered accounting exports (UI, separate scope).

@@ -11,6 +11,11 @@ on:
         description: "Upload the resulting backup to R2 under db-backups/ (leave false for a dry run)"
         type: boolean
         default: false
+      environment:
+        description: "Backup label -- 'production' requires FINANCIAL_BACKUP_KEK_ID to be set; every other value is always treated as a test run"
+        type: choice
+        options: [test, production]
+        default: test
 
 jobs:
   backup:
@@ -48,6 +53,8 @@ jobs:
           # Host/user format: aws-<region>.pooler.supabase.com, postgres.<project-ref>.
           FINANCIAL_BACKUP_SOURCE_URL: ${{ secrets.FINANCIAL_BACKUP_SOURCE_URL }}
           FINANCIAL_BACKUP_TEST_KEK: ${{ secrets.FINANCIAL_BACKUP_KEK }}
+          FINANCIAL_BACKUP_KEK_ID: ${{ secrets.FINANCIAL_BACKUP_KEK_ID }}
+          FINANCIAL_BACKUP_ENV: ${{ inputs.environment }}
           UPLOAD_TO_R2: ${{ inputs.upload_to_r2 && '1' || '0' }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}

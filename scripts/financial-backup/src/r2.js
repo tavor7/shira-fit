@@ -90,15 +90,23 @@ export async function objectExists(key) {
   return headExists(key);
 }
 
-export async function listManifestKeys() {
+async function listKeysWithPrefix(prefix) {
   const { ListObjectsV2Command } = await import("@aws-sdk/client-s3");
   const reader = client("reader");
   let token;
   const keys = [];
   do {
-    const res = await reader.send(new ListObjectsV2Command({ Bucket: bucket(), Prefix: "db-backups/manifests/", ContinuationToken: token }));
+    const res = await reader.send(new ListObjectsV2Command({ Bucket: bucket(), Prefix: prefix, ContinuationToken: token }));
     for (const o of res.Contents ?? []) keys.push(o.Key);
     token = res.NextContinuationToken;
   } while (token);
   return keys;
+}
+
+export async function listManifestKeys() {
+  return listKeysWithPrefix("db-backups/manifests/");
+}
+
+export async function listVerificationKeys() {
+  return listKeysWithPrefix("db-backups/verifications/");
 }

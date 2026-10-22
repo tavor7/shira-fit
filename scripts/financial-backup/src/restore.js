@@ -40,6 +40,21 @@ async function main() {
     throw new Error(`Could not load one or both backup artifacts -- treat this as an incomplete/missing backup, never as "nothing to restore": ${err.message}`);
   }
 
+  // Fail-fast key check: a non-secret label comparison, BEFORE attempting decryption. This is a
+  // friendlier error for the common case (operator has the wrong key on hand); the AES-GCM
+  // auth-tag check below remains the actual cryptographic backstop regardless -- this check is
+  // advisory, not the security boundary.
+  const expectedKekId = process.env.FINANCIAL_BACKUP_TEST_KEK_ID;
+  if (dataRaw.kekId && dataRaw.kekId !== "unlabeled" && expectedKekId && dataRaw.kekId !== expectedKekId) {
+    throw new Error(
+      `This backup was encrypted with key "${dataRaw.kekId}", but you provided a key labeled "${expectedKekId}". ` +
+        `Fetch the correct key for "${dataRaw.kekId}" before retrying -- refusing to attempt decryption with a key that's already known to be wrong.`
+    );
+  }
+  if (dataRaw.kekId && dataRaw.kekId !== "unlabeled") {
+    console.log(`   this backup is labeled kek_id="${dataRaw.kekId}"`);
+  }
+
   console.log("2. Decrypting (wrong key or corrupted ciphertext fails here, loudly, via AES-GCM auth-tag verification)...");
   let schemaSql, dataSql;
   try {

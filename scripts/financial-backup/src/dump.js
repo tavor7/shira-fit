@@ -19,6 +19,15 @@ function kekBytesFromEnv() {
   return buf;
 }
 
+// Deliberately a SEPARATE switch from UPLOAD_TO_R2: uploading to R2 and being a real production
+// run are not the same thing (a test run can and should upload to R2 to prove the pipeline, as
+// every prior phase of this project did). Only this exact variable can mark a backup
+// "production" -- defaulting to "test" in every other case means a run can never be mislabeled
+// as production by omission, only by a deliberate, explicit opt-in.
+function sourceLabelFromEnv() {
+  return process.env.FINANCIAL_BACKUP_ENV === "production" ? "production" : "test";
+}
+
 // Both dumps attach to the SAME exported snapshot (see PgSnapshotSession) -- this is the actual
 // consistency guarantee: two separate pg_dump processes, but one shared MVCC view, so the data
 // dump can never reflect a write that happened after the schema dump started (or vice versa).
@@ -56,8 +65,17 @@ async function dumpData(connStr, snapshotId) {
 async function main() {
   const { FINANCIAL_BACKUP_SOURCE_URL } = requireEnv(["FINANCIAL_BACKUP_SOURCE_URL"]);
   const uploadToR2 = process.env.UPLOAD_TO_R2 === "1";
+  const sourceLabel = sourceLabelFromEnv();
+  const kekId = process.env.FINANCIAL_BACKUP_KEK_ID || null;
+  if (sourceLabel === "production" && !kekId) {
+    throw new Error(
+      "FINANCIAL_BACKUP_ENV=production requires FINANCIAL_BACKUP_KEK_ID to be set explicitly -- " +
+        "a production backup must never be stored with an unlabeled key."
+    );
+  }
   const kek = kekBytesFromEnv();
 
+  console.log(`0. source label: ${sourceLabel}${sourceLabel === "production" ? " (FINANCIAL_BACKUP_ENV=production)" : " (default -- set FINANCIAL_BACKUP_ENV=production explicitly for a real backup)"}`);
   console.log("1. Opening a shared snapshot session (REPEATABLE READ + pg_export_snapshot)...");
   const session = new PgSnapshotSession(FINANCIAL_BACKUP_SOURCE_URL);
   let snapshotId;
@@ -90,7 +108,9 @@ async function main() {
 
   const schemaFileBody = Buffer.from(JSON.stringify(schemaEnv, (k, v) => (v instanceof Buffer ? v.toString("base64") : v)));
   const dataFileBody = Buffer.from(
-    JSON.stringify({ ...dataEnv, pairedSchemaSha256: schemaSha256Plain }, (k, v) => (v instanceof Buffer ? v.toString("base64") : v))
+    JSON.stringify({ ...dataEnv, pairedSchemaSha256: schemaSha256Plain, kekId: kekId || "unlabeled" }, (k, v) =>
+      v instanceof Buffer ? v.toString("base64") : v
+    )
   );
 
   await writeFile(path.join(runDir, "schema.sql.enc.json"), schemaFileBody);
@@ -117,7 +137,8 @@ async function main() {
       r2Key: uploadToR2 ? KEYS.data(backupId) : null,
     },
     postgresVersion: (await runPgTool("pg_dump", ["--version"])).stdout.toString().trim(),
-    sourceLabel: uploadToR2 ? "test-upload" : "local-test",
+    sourceLabel,
+    kekId,
   });
 
   if (uploadToR2) {
