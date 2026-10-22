@@ -10,7 +10,8 @@
     "list-storage": "node src/list-storage-objects.js",
     "list-archive": "node src/list-archive-objects.js",
     "backfill:dry-run": "node src/backfill.js --dry-run",
-    "backfill": "node src/backfill.js"
+    "backfill": "node src/backfill.js",
+    "smoke-test": "node src/production-smoke-test.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1155.0",

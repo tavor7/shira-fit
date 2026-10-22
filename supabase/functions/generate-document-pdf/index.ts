@@ -554,25 +554,62 @@ Deno.serve(async (req) => {
   // finalize_document_pdf re-derives the authoritative version under its own row lock, so a
   // concurrent regeneration racing this one is resolved there (version_conflict), not here --
   // retry a couple of times rather than failing the whole request outright.
+  //
+  // Deployment-order compatibility: this function may be deployed before the versioning
+  // migrations land (so receipt issuance doesn't have to wait on a coordinated release).
+  // allocate_document_pdf_version missing is detected and handled explicitly below -- see the
+  // isMissingVersioningSchema branch.
+  const isMissingVersioningSchema = (err: { code?: string; message?: string } | null | undefined) =>
+    !!err && (err.code === "PGRST202" || /could not find the function/i.test(err.message ?? ""));
+
   let finRow: { ok?: boolean; error?: string; pdf_version?: number } | null = null;
   let storagePath = "";
   for (let attempt = 0; attempt < 3 && !finRow?.ok; attempt++) {
     const { data: alloc, error: allocErr } = await admin.rpc("allocate_document_pdf_version", {
       p_document_id: row.id,
     });
-    if (allocErr) return json(500, { ok: false, error: allocErr.message });
-    const allocRow = alloc as { ok?: boolean; error?: string; next_pdf_path?: string };
-    if (!allocRow?.ok || !allocRow.next_pdf_path) {
-      return json(500, { ok: false, error: allocRow?.error ?? "allocate_version_failed" });
+
+    let legacyFallback = false;
+    if (allocErr) {
+      if (!isMissingVersioningSchema(allocErr)) return json(500, { ok: false, error: allocErr.message });
+      // The versioning migrations haven't been applied yet. Only safe to proceed for first-ever
+      // issuance (row.pdf_url is still null, so there is nothing at the unversioned path to
+      // overwrite). Regeneration must wait -- without the new schema there is no way to tell
+      // the DB "this is a legitimate reissue," and upsert:true would bypass the whole
+      // never-overwrite guarantee this feature exists for.
+      if (row.pdf_url) {
+        return json(503, {
+          ok: false,
+          error: "archive_migration_pending",
+          detail: "PDF regeneration is temporarily unavailable during a platform update; please retry shortly.",
+        });
+      }
+      legacyFallback = true;
+      storagePath = `documents/${row.id}/${row.document_number}.pdf`;
+    } else {
+      const allocRow = alloc as { ok?: boolean; error?: string; next_pdf_path?: string };
+      if (!allocRow?.ok || !allocRow.next_pdf_path) {
+        return json(500, { ok: false, error: allocRow?.error ?? "allocate_version_failed" });
+      }
+      storagePath = allocRow.next_pdf_path;
     }
-    storagePath = allocRow.next_pdf_path;
 
     const { error: uploadErr } = await admin.storage.from("document-pdfs").upload(storagePath, pdfBytes, {
       contentType: "application/pdf",
       cacheControl: "no-cache, max-age=0",
-      upsert: false, // never overwrite -- each version has its own unique path.
+      upsert: false, // never overwrite, in either mode -- each version/path is unique, or the
+      // database-level document_pdf_overwrite_guard trigger rejects it as a last resort.
     });
-    if (uploadErr) return json(500, { ok: false, error: uploadErr.message });
+    if (uploadErr) {
+      if (legacyFallback) {
+        return json(503, {
+          ok: false,
+          error: "archive_migration_pending",
+          detail: "PDF generation is temporarily unavailable during a platform update; please retry shortly.",
+        });
+      }
+      return json(500, { ok: false, error: uploadErr.message });
+    }
 
     const { data: fin, error: finErr } = await admin.rpc("finalize_document_pdf", {
       p_document_id: row.id,
@@ -583,6 +620,8 @@ Deno.serve(async (req) => {
     if (finErr) return json(500, { ok: false, error: finErr.message });
     finRow = fin as { ok?: boolean; error?: string; pdf_version?: number };
 
+    if (legacyFallback) break; // no version_conflict retry in legacy mode -- succeeded or failed outright.
+
     if (!finRow?.ok && finRow?.error !== "version_conflict") {
       return json(500, { ok: false, error: finRow?.error ?? "finalize_failed" });
     }
@@ -590,7 +629,9 @@ Deno.serve(async (req) => {
     // harmless (it's never referenced by any document_pdf_versions row) and the loop retries with
     // a freshly allocated path.
   }
-  if (!finRow?.ok) return json(500, { ok: false, error: "version_conflict_retry_exhausted" });
+  if (!finRow?.ok) {
+    return json(500, { ok: false, error: finRow?.error === "version_conflict" ? "version_conflict_retry_exhausted" : finRow?.error ?? "finalize_failed" });
+  }
 
   return json(200, { ok: true, pdf_path: storagePath, signature_hash: hash, pdf_version: finRow.pdf_version });
 });
