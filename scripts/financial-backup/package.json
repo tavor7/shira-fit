@@ -5,6 +5,7 @@
   "description": "Local/CI tooling for the independent financial database backup (schema + scoped data, uploaded to R2 relying on R2's own encryption at rest). Not wired to a production schedule.",
   "type": "module",
   "scripts": {
+    "check-connection": "node src/check-connection.js",
     "dump": "node src/dump.js",
     "restore": "node src/restore.js",
     "verify": "node src/verify.js",

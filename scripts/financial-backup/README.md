@@ -200,26 +200,40 @@ this change, keep it in secure offline custody until you're confident no legacy 
 need restoring again — do not add it back to GitHub Actions secrets, since the workflow no longer
 reads or needs it.
 
+## Connection-only check
+
+`src/check-connection.js` (`npm run check-connection`) does exactly one thing: `SELECT 1` against
+`FINANCIAL_BACKUP_SOURCE_URL`, nothing else — no `pg_dump`, no R2 touch, no financial data read.
+It forces `sslmode=verify-full` on the connection string unconditionally, overriding any weaker
+mode the secret itself might specify, so this check actually proves what it claims to prove (the
+server's certificate chain AND hostname are both validated, not just "a TLS handshake happened").
+In the workflow, pick `mode: connection-check` on a manual run to exercise only this step — use it
+to prove a new or rotated `FINANCIAL_BACKUP_SOURCE_URL` is reachable before ever pointing a real
+backup at it. Running a full backup is not a substitute for this: a backup, even a dry run, reads
+the entire financial dataset, where this check reads nothing.
+
 ## Production rollout procedure (prepared, NOT executed)
 
 1. Add GitHub Actions secrets: `FINANCIAL_BACKUP_SOURCE_URL` (Supavisor **session pooler**
    connection string — confirmed the correct mode, see Phase 1 research). Reuse the existing
    `CF_ACCOUNT_ID`/`R2_ARCHIVE_*` secrets (already configured for the PDF archive) — no new R2
    credentials, and no encryption key to generate or store.
-2. First manual run: trigger the workflow by hand (`workflow_dispatch`) with
+2. Run the workflow once with `mode: connection-check` to prove the secret is reachable (`SELECT
+   1` only) before doing anything else with it.
+3. First manual run: trigger the workflow by hand (`workflow_dispatch`) with `mode: backup`,
    `FINANCIAL_BACKUP_ENV=production` and `upload_to_r2: true`.
-3. Independently verify the uploaded objects: run `npm run health` (reader credential only) and
+4. Independently verify the uploaded objects: run `npm run health` (reader credential only) and
    confirm `complete_backups: 1`, `incomplete_backups: 0`.
-4. Restore test: run `npm run restore` with `FINANCIAL_BACKUP_BACKUP_ID` set to that backup,
+5. Restore test: run `npm run restore` with `FINANCIAL_BACKUP_BACKUP_ID` set to that backup,
    targeting a fresh, isolated scratch Postgres (never production) — exactly the procedure
    already proven in testing, now against the real production backup. Run `npm run verify` (or
    the project's own financial regression checks) against the restored copy.
-5. Only after step 4 succeeds: run `npm run verify-remote` once by hand to produce the first real
+6. Only after step 5 succeeds: run `npm run verify-remote` once by hand to produce the first real
    verification record, then confirm `npm run health` shows `verification_is_stale: false`.
-6. Only after steps 2-5 have all succeeded at least once: add the `schedule:` trigger to
+7. Only after steps 2-6 have all succeeded at least once: add the `schedule:` trigger to
    `.github/workflows/financial-backup.yml` (currently absent by design) for the daily cadence,
    and a second scheduled invocation of `verify-remote.js`.
-7. Monitoring/alerting for missed backups: wire a scheduled `npm run health` check (its non-zero
+8. Monitoring/alerting for missed backups: wire a scheduled `npm run health` check (its non-zero
    exit code on `backup_is_stale`/`verification_is_stale`/incomplete already signals failure) into
    whatever alerting channel is appropriate — no new mechanism needed, the signal already exists.
 

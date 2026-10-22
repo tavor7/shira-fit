@@ -8,12 +8,17 @@ name: Financial backup (schema + scoped data)
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "'connection-check' runs ONLY `SELECT 1` against FINANCIAL_BACKUP_SOURCE_URL (no dump, no R2) -- use this to prove a new/rotated connection string works before ever running a real backup against it."
+        type: choice
+        options: [backup, connection-check]
+        default: backup
       upload_to_r2:
-        description: "Upload the resulting backup to R2 under db-backups/ (leave false for a dry run)"
+        description: "backup mode only: upload the resulting backup to R2 under db-backups/ (leave false for a dry run)"
         type: boolean
         default: false
       environment:
-        description: "Backup label -- every value other than 'production' is always treated as a test run"
+        description: "backup mode only: backup label -- every value other than 'production' is always treated as a test run"
         type: choice
         options: [test, production]
         default: test
@@ -50,7 +55,15 @@ jobs:
         working-directory: scripts/financial-backup
         run: npm install
 
+      - name: Connection check only (SELECT 1, no dump, no R2)
+        if: ${{ inputs.mode == 'connection-check' }}
+        working-directory: scripts/financial-backup
+        env:
+          FINANCIAL_BACKUP_SOURCE_URL: ${{ secrets.FINANCIAL_BACKUP_SOURCE_URL }}
+        run: npm run check-connection
+
       - name: Run schema + data dump (consistent snapshot, unencrypted -- see README "Encryption")
+        if: ${{ inputs.mode == 'backup' }}
         working-directory: scripts/financial-backup
         env:
           # Supavisor SESSION pooler (port 5432) -- confirmed, not the direct connection (IPv6-only
@@ -86,7 +99,7 @@ jobs:
         # to a GitHub Actions artifact, which is a different trust/retention boundary than the
         # private R2 bucket. Only manifest.json (metadata + non-sensitive hashes, no row data) is
         # uploaded here, and only for a dry run (upload_to_r2=false) where R2 has no copy at all.
-        if: ${{ always() && !inputs.upload_to_r2 }}
+        if: ${{ always() && inputs.mode == 'backup' && !inputs.upload_to_r2 }}
         uses: actions/upload-artifact@v4
         with:
           name: financial-backup-manifest-${{ github.run_id }}
@@ -94,7 +107,7 @@ jobs:
           retention-days: 3
 
       - name: Health check (only meaningful once uploads to R2 are enabled)
-        if: ${{ inputs.upload_to_r2 }}
+        if: ${{ inputs.mode == 'backup' && inputs.upload_to_r2 }}
         working-directory: scripts/financial-backup
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
