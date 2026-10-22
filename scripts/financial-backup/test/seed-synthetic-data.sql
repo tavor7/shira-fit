@@ -14,6 +14,8 @@ declare
   v_sub_id uuid;
   v_version_id uuid;
   v_period_id uuid;
+  v_reversal_payment_id uuid;
+  v_doc_reversal_id uuid;
 begin
   insert into auth.users (id, email) values (v_manager_id, 'fin-backup-test-manager@example.com')
   on conflict (id) do nothing;
@@ -72,6 +74,36 @@ begin
   insert into public.subscription_charges (billing_period_id, subscription_id, payee_id, payee_is_manual, amount_ils, charge_type, created_by)
   values (v_period_id, v_sub_id, v_athlete_id, false, 400, 'recurring', v_manager_id);
 
-  raise notice 'Synthetic data seeded: customer=%, active_doc=%, cancelled_doc=%, payment=%, subscription=%',
-    v_customer_id, v_doc_active_id, v_doc_cancelled_id, v_payment_id, v_sub_id;
+  -- Billing adjustment (a correction charge against the same period).
+  insert into public.subscription_charges (billing_period_id, subscription_id, payee_id, payee_is_manual, amount_ils, charge_type, created_by)
+  values (v_period_id, v_sub_id, v_athlete_id, false, -50, 'edit_correction', v_manager_id);
+
+  -- Subscription freeze.
+  insert into public.subscription_freezes (subscription_id, freeze_from, freeze_until, created_by)
+  values (v_sub_id, current_date + 7, current_date + 14, v_manager_id);
+
+  -- Multiple PDF versions: regenerate the active document (prepare + finalize -> version 2).
+  perform public.prepare_document_pdf_regeneration(v_doc_active_id);
+  perform public.finalize_document_pdf(v_doc_active_id, 'documents/' || v_doc_active_id || '/FINTEST-001-v2.pdf', 'test-hash-active-v2');
+
+  -- Payment reversal: cancel a THIRD document, this time reverting the payment (reversed_at set).
+  insert into public.athlete_account_payments (payee_id, payee_is_manual, amount_ils, payment_method, paid_at, created_by)
+  values (v_athlete_id, false, 90.00, 'bit', current_date, v_manager_id)
+  returning id into v_reversal_payment_id;
+
+  insert into public.documents
+    (document_number, customer_id, gross_amount, net_amount, vat_amount, vat_rate, service_type, payment_method,
+     customer_name, business_name, business_id, business_address, business_phone, business_email,
+     source_type, source_id)
+  values
+    ('FINTEST-003', v_customer_id, 90, 76.92, 13.08, 0.17, 'personal', 'bit',
+     'Fin Backup Test Customer', 'Test Studio', '000000000', 'Test Address', '0500000000', 'studio@example.com',
+     'account_payment', v_reversal_payment_id)
+  returning id into v_doc_reversal_id;
+
+  perform public.finalize_document_pdf(v_doc_reversal_id, 'documents/' || v_doc_reversal_id || '/FINTEST-003.pdf', 'test-hash-reversal-v1');
+  perform public.cancel_document(v_doc_reversal_id, 'synthetic reversal test', true);
+
+  raise notice 'Synthetic data seeded: customer=%, active_doc=%, cancelled_doc=%, reversal_doc=%, payment=%, reversal_payment=%, subscription=%',
+    v_customer_id, v_doc_active_id, v_doc_cancelled_id, v_doc_reversal_id, v_payment_id, v_reversal_payment_id, v_sub_id;
 end $$;

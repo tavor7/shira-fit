@@ -8,9 +8,12 @@
     "dump": "node src/dump.js",
     "restore": "node src/restore.js",
     "verify": "node src/verify.js",
-    "generate-test-kek": "node src/generate-kek.js"
+    "generate-test-kek": "node src/generate-kek.js",
+    "health": "node src/health.js",
+    "negative-tests": "node test/negative-tests.js"
   },
   "dependencies": {
-    "dotenv": "^18.0.8"
+    "dotenv": "^18.0.8",
+    "@aws-sdk/client-s3": "^3.1155.0"
   }
 }

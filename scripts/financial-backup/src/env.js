@@ -6,9 +6,12 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
 const repoRoot = path.resolve(root, "..", "..");
 
-// Fallback to the existing gitignored Supabase secret file for SB_URL/SB_SERVICE_ROLE_KEY,
-// then layer this tool's own .env.local on top (same pattern as scripts/receipt-archive/).
+// Fallback chain: the existing gitignored Supabase secret file (SB_URL/SB_SERVICE_ROLE_KEY), the
+// existing receipt-archive tool's R2 credentials (same bucket, same credentials -- this tool
+// reuses them under new prefixes rather than provisioning anything new), then this tool's own
+// .env.local on top (same pattern as scripts/receipt-archive/).
 loadDotenv({ path: path.join(repoRoot, "supabase", ".secrets", ".env") });
+loadDotenv({ path: path.join(repoRoot, "scripts", "receipt-archive", ".env.local") });
 loadDotenv({ path: path.join(root, ".env.local") });
 
 export function requireEnv(names) {

@@ -1,14 +1,14 @@
 name: Financial backup (schema + scoped data)
 
-# Phase 1: manual trigger only. The `schedule:` trigger is intentionally omitted -- do not add it
-# back until the KEK custody decision, R2 upload target, and a real connectivity test against
-# Supabase's Supavisor session pooler have all been confirmed. See
-# scripts/financial-backup/README.md for the full design.
+# Phase 2: manual trigger only, R2 upload optional via input. The `schedule:` trigger remains
+# intentionally omitted -- do not add it until the production KEK's offline custody has been
+# confirmed by the owner and a real run against production has been reviewed. See
+# scripts/financial-backup/README.md for the full design and the Supavisor connectivity findings.
 on:
   workflow_dispatch:
     inputs:
       upload_to_r2:
-        description: "Upload the resulting backup to R2 (leave false until Phase 2 is approved)"
+        description: "Upload the resulting backup to R2 under db-backups/ (leave false for a dry run)"
         type: boolean
         default: false
 
@@ -18,8 +18,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install postgresql-client
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+      - name: Install postgresql-client-17
+        # The generic `postgresql-client` apt package on ubuntu-latest can lag behind Supabase's
+        # Postgres 17 server -- pg_dump's client must be >= the server's major version. Add the
+        # PGDG apt repo explicitly rather than assume the default package is new enough.
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-17
+          pg_dump --version
 
       - uses: actions/setup-node@v4
         with:
@@ -29,16 +38,35 @@ jobs:
         working-directory: scripts/financial-backup
         run: npm install
 
-      - name: Run schema + data dump (encrypted)
+      - name: Run schema + data dump (encrypted, consistent snapshot)
         working-directory: scripts/financial-backup
         env:
-          # Supavisor SESSION pooler (port 5432), not the direct connection (IPv6-only without
-          # the paid IPv4 add-on; confirmed unreachable from this runner by default) and not the
-          # transaction pooler (port 6543; doesn't support the session-level features pg_dump
-          # needs). Host/user format: aws-<region>.pooler.supabase.com, postgres.<project-ref>.
+          # Supavisor SESSION pooler (port 5432) -- confirmed, not the direct connection (IPv6-only
+          # without the paid IPv4 add-on; this runner has no outbound IPv6) and not the transaction
+          # pooler (port 6543; lacks the session-level features pg_dump/pg_restore need, including
+          # the exported-snapshot mechanism this tool relies on for schema/data consistency).
+          # Host/user format: aws-<region>.pooler.supabase.com, postgres.<project-ref>.
           FINANCIAL_BACKUP_SOURCE_URL: ${{ secrets.FINANCIAL_BACKUP_SOURCE_URL }}
           FINANCIAL_BACKUP_TEST_KEK: ${{ secrets.FINANCIAL_BACKUP_KEK }}
-        run: npm run dump
+          UPLOAD_TO_R2: ${{ inputs.upload_to_r2 && '1' || '0' }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
+          R2_ARCHIVE_WRITER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_WRITER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_WRITER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_WRITER_SECRET_ACCESS_KEY }}
+          R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_READER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_READER_SECRET_ACCESS_KEY }}
+        run: |
+          set -eo pipefail
+          attempts=0
+          until npm run dump; do
+            attempts=$((attempts+1))
+            if [ "$attempts" -ge 3 ]; then
+              echo "::error::Backup failed after 3 attempts -- see job log above (connection strings are redacted on failure, never printed in full)."
+              exit 1
+            fi
+            echo "Attempt $attempts failed, retrying in $((attempts * 10))s..."
+            sleep $((attempts * 10))
+          done
 
       - name: Upload backup artifact (CI-internal, short retention -- not R2)
         if: always()
@@ -48,7 +76,12 @@ jobs:
           path: scripts/financial-backup/out/
           retention-days: 3
 
-      # Phase 2 (not enabled): upload the encrypted artifacts + manifest to the dedicated R2
-      # prefix, using a writer-only, bucket-scoped credential (same least-privilege model as the
-      # PDF archive). Left out entirely for Phase 1, per instruction not to upload production
-      # financial data yet.
+      - name: Health check (only meaningful once uploads to R2 are enabled)
+        if: ${{ inputs.upload_to_r2 }}
+        working-directory: scripts/financial-backup
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
+          R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_READER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_READER_SECRET_ACCESS_KEY }}
+        run: npm run health

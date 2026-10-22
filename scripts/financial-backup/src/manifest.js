@@ -12,6 +12,7 @@ export function buildManifest({
   createdAt,
   schemaScope,
   dataTables,
+  snapshotId,
   schemaArtifact,
   dataArtifact,
   postgresVersion,
@@ -22,6 +23,9 @@ export function buildManifest({
     backup_id: backupId,
     created_at: createdAt,
     kind: "financial-backup",
+    // Proof that schema and data came from one shared MVCC snapshot (see pg-exec.js
+    // PgSnapshotSession) -- the consistency guarantee this backup actually provides.
+    consistency: { mechanism: "pg_export_snapshot + --snapshot on both pg_dump calls", snapshot_id: snapshotId },
     source: { postgres_version: postgresVersion, label: sourceLabel },
     encryption: { algorithm: "aes-256-gcm-envelope", kek_id: process.env.FINANCIAL_BACKUP_KEK_ID ?? "unset" },
     schema: {

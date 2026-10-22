@@ -109,10 +109,45 @@ async function main() {
     "0"
   );
   await record(
-    "a document's pdf_url matches its own version-1 storage_path (versioning integrity)",
+    "a never-regenerated document's pdf_url matches its sole (version-1) storage_path",
     c,
-    "select count(*) from public.documents d join archive.document_pdf_versions v on v.document_id = d.id and v.pdf_version = 1 where d.pdf_url is not null and d.pdf_url <> v.storage_path",
+    "select count(*) from public.documents d join archive.document_pdf_versions v on v.document_id = d.id and v.pdf_version = 1" +
+      " where d.pdf_url is not null and d.pdf_url <> v.storage_path" +
+      " and not exists (select 1 from archive.document_pdf_versions v2 where v2.document_id = d.id and v2.pdf_version > 1)",
     "0"
+  );
+
+  console.log("=== Payment reversals ===");
+  await record(
+    "a reversed account payment retains reversed_at/reversed_by (never hard-deleted)",
+    c,
+    "select count(*) from public.athlete_account_payments where amount_ils = 90.00 and reversed_at is not null and reversed_by is not null",
+    "1"
+  );
+
+  console.log("=== Multiple PDF versions ===");
+  await record(
+    "a document with 2 PDF versions restores both, each with its own storage_path",
+    c,
+    "select count(distinct storage_path) from archive.document_pdf_versions where document_number = 'FINTEST-001'",
+    "2"
+  );
+  await record(
+    "the document's pdf_url points at the LATEST version's path, not an earlier one",
+    c,
+    "select v.storage_path = d.pdf_url from public.documents d join archive.document_pdf_versions v on v.document_id = d.id and v.pdf_version = (select max(pdf_version) from archive.document_pdf_versions where document_id = d.id) where d.document_number = 'FINTEST-001'",
+    "t"
+  );
+
+  console.log("=== Subscription freezes ===");
+  await record("subscription freeze restored", c, "select count(*) from public.subscription_freezes where freeze_until > freeze_from", (r) => Number(r) >= 1);
+
+  console.log("=== Billing adjustments ===");
+  await record(
+    "a negative edit_correction charge restores correctly (billing adjustment)",
+    c,
+    "select count(*) from public.subscription_charges where charge_type = 'edit_correction' and amount_ils < 0",
+    "1"
   );
 
   console.log("=== Relevant financial RPCs and triggers actually run ===");
