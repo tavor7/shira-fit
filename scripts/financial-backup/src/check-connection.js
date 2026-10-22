@@ -7,10 +7,11 @@ import { runPgTool, dockerizeConnectionString, redactConnectionString } from "./
 // it -- running the full dump is not an acceptable substitute for this, since a dump mutates
 // nothing but does read the entire financial dataset.
 //
-// TLS enforcement (sslmode=verify-full + sslrootcert=system) is NOT done here -- it's centralized
-// in pg-exec.js's dockerizeConnectionString/withEnforcedTls, which every Postgres-connecting
-// script in this tool (this one, dump.js, restore.js, verify.js) already routes through, so the
-// same enforcement applies consistently everywhere rather than being re-implemented per script.
+// TLS enforcement (sslmode=verify-full against Supabase's own bundled root CA) is NOT done here
+// -- it's centralized in pg-exec.js's dockerizeConnectionString/withEnforcedTls, which every
+// Postgres-connecting script in this tool (this one, dump.js, restore.js, verify.js) already
+// routes through, so the same enforcement applies consistently everywhere rather than being
+// re-implemented per script.
 
 async function main() {
   const { FINANCIAL_BACKUP_SOURCE_URL } = requireEnv(["FINANCIAL_BACKUP_SOURCE_URL"]);
@@ -20,7 +21,7 @@ async function main() {
   console.log(
     process.env.PG_TOOLS_VIA_DOCKER === "1"
       ? "TLS: enforcement skipped (PG_TOOLS_VIA_DOCKER=1 -- local test container, no TLS configured)."
-      : "TLS: sslmode=verify-full, sslrootcert=system (server certificate chain + hostname both verified)."
+      : "TLS: sslmode=verify-full against Supabase's bundled root CA (server certificate chain + hostname both verified)."
   );
 
   let result;

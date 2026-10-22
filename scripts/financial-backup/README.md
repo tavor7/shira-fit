@@ -212,16 +212,23 @@ the entire financial dataset, where this check reads nothing.
 ## TLS enforcement (applies to every real connection, not just the check above)
 
 `src/pg-exec.js`'s `withEnforcedTls` (applied automatically inside `dockerizeConnectionString`,
-which every script that talks to Postgres already calls) forces `sslmode=verify-full` AND
-`sslrootcert=system` on every real connection this tool makes — `check-connection.js`, `dump.js`,
-`restore.js`, `verify.js` — unconditionally, overriding any weaker mode the connection string
-itself specifies. `verify-full` is what actually proves something (server certificate chain AND
-hostname both validated, not just "a TLS handshake happened"); `sslrootcert=system` tells libpq to
-validate against the OS's own trusted CA store instead of the default `~/.postgresql/root.crt`,
-which doesn't exist on a fresh GitHub Actions runner — this supplies the trust anchor
-`verify-full` needs to run at all, it does not relax verification. Supported by libpq 16+ (added
-upstream in PostgreSQL 16); confirmed present in the `postgresql-client-17` package this workflow
-installs.
+which every script that talks to Postgres already calls) forces `sslmode=verify-full` on every
+real connection this tool makes — `check-connection.js`, `dump.js`, `restore.js`, `verify.js` —
+unconditionally, overriding any weaker mode the connection string itself specifies. `verify-full`
+is what actually proves something (server certificate chain AND hostname both validated, not
+just "a TLS handshake happened").
+
+`sslrootcert` points at `certs/supabase-root-2021-ca.pem` (bundled in this repo), NOT
+`sslrootcert=system`. Supabase's Supavisor pooler terminates TLS with a certificate chain rooted
+at Supabase's own private CA ("Supabase Root 2021 CA") — confirmed by probing the pooler's actual
+certificate pre-authentication (no credentials needed: Postgres's SSL negotiation happens before
+auth) and independently by `sslrootcert=system` failing with `SSL error: certificate verify
+failed` against the real pooler. This CA is never present in any OS's default trust store, so
+`system` can never work here — this is a public certificate (its only purpose is to be
+distributed so clients can verify the server), checked into this repo for exactly that reason,
+and independently verified with `openssl s_client -starttls postgres -CAfile
+certs/supabase-root-2021-ca.pem -verify_hostname <pooler host>` returning `Verify return code: 0
+(ok)`.
 
 This enforcement is skipped ONLY when `PG_TOOLS_VIA_DOCKER=1` — that flag exclusively targets a
 disposable local `postgres:17` Docker container with no TLS configured at all, used for local

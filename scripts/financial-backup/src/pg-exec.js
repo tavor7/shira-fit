@@ -1,4 +1,18 @@
 import { spawn } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+// Supabase's Supavisor pooler terminates TLS with a certificate chain rooted at Supabase's own
+// private CA ("Supabase Root 2021 CA") -- NOT a publicly trusted root, so it is never present in
+// an OS's default trust store (confirmed directly: sslrootcert=system produced "SSL error:
+// certificate verify failed" against the real pooler, and probing the pooler's actual cert chain
+// pre-auth showed a self-signed Supabase root, not a public CA). This file is that root
+// certificate, fetched directly from the real pooler and independently verified with `openssl
+// s_client -starttls postgres -CAfile <this file> -verify_hostname <host>` (returned "Verify
+// return code: 0 (ok)" for the full chain AND hostname). It is a PUBLIC certificate -- its only
+// purpose is to be distributed so clients can verify the server, never a secret.
+const SUPABASE_ROOT_CA_PATH = path.join(here, "..", "certs", "supabase-root-2021-ca.pem");
 
 // Thin wrapper around pg_dump/pg_restore/psql. In CI (GitHub Actions), these are installed
 // directly on the runner (`apt-get install postgresql-client`) and called as-is. For local
@@ -44,11 +58,8 @@ export function runPgTool(tool, args, { input, env } = {}) {
 // makes (production backup's pg_dump/psql, restore.js, verify.js, check-connection.js) --
 // unconditionally, overriding anything weaker the connection string itself specifies, so this can
 // never be silently satisfied by "require" (encrypts but accepts any certificate) or "prefer"
-// (may not encrypt at all). sslrootcert=system tells libpq to validate against the OS's own
-// trusted CA store (Ubuntu's ca-certificates on the GitHub Actions runner) instead of the
-// default ~/.postgresql/root.crt, which doesn't exist there -- this supplies the trust anchor
-// verify-full needs to run at all; it does not relax verification in any way. Supported by libpq
-// 16+ (added upstream in PostgreSQL 16); this project's runner installs postgresql-client-17.
+// (may not encrypt at all). sslrootcert points at SUPABASE_ROOT_CA_PATH -- NOT "system" -- since
+// Supabase's pooler uses its own private CA, absent from any OS's default trust store (see above).
 //
 // Skipped ONLY when PG_TOOLS_VIA_DOCKER=1 -- that flag exclusively targets a disposable local
 // `postgres:17` Docker container with no TLS configured at all, used for local development/CI-
@@ -60,7 +71,7 @@ export function withEnforcedTls(connStr) {
   if (viaDocker()) return connStr;
   const url = new URL(connStr);
   url.searchParams.set("sslmode", "verify-full");
-  url.searchParams.set("sslrootcert", "system");
+  url.searchParams.set("sslrootcert", SUPABASE_ROOT_CA_PATH);
   return url.toString();
 }
 
