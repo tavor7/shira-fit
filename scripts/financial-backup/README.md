@@ -48,13 +48,28 @@ needed and citing the real object that required it. **None of this is needed whe
 an actual Supabase-provisioned Postgres** (new project or existing installation) — only for
 testing recoverability independent of Supabase.
 
+## PostgreSQL client version
+
+`pg_dump`'s (and `psql`'s) client major version must be ≥ the server's (production is PostgreSQL
+17) -- an older client dumping a newer server's schema is not a supported combination. The
+workflow installs `postgresql-client-17` via the PGDG apt repo, but on `ubuntu-latest` that alone
+is not enough: an older client is already earlier on `PATH` from the runner's own toolcache, so
+bare `pg_dump`/`psql` keep resolving to it even after the newer package is installed (confirmed by
+a real run: 17.11 was installed, but `pg_dump --version` in a later step still reported 16.15).
+The install step now explicitly prepends `/usr/lib/postgresql/17/bin` to `$GITHUB_PATH` (so every
+later step, including the npm scripts that spawn these tools by bare name, resolves the right
+one) and asserts both `pg_dump --version` and `psql --version` report major version 17 by their
+exact path -- not bare name -- failing the job immediately if they don't, rather than silently
+running the wrong client. `PG_TOOLS_VIA_DOCKER=1` (local testing) is unaffected and needs no such
+check: every tool there runs inside the pinned `postgres:17` image itself.
+
 ## Usage
 
 ```bash
 npm install
 # .env.local: FINANCIAL_BACKUP_SOURCE_URL=postgresql://...
 
-PG_TOOLS_VIA_DOCKER=1 npm run dump     # omit PG_TOOLS_VIA_DOCKER if pg_dump is on PATH
+PG_TOOLS_VIA_DOCKER=1 npm run dump     # omit PG_TOOLS_VIA_DOCKER if pg_dump 17+ is on PATH
 
 # Restore test (clean target):
 #   1. docker run -d -e POSTGRES_PASSWORD=postgres -p 55499:5432 postgres:17

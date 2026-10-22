@@ -39,13 +39,36 @@ jobs:
         # The generic `postgresql-client` apt package on ubuntu-latest can lag behind Supabase's
         # Postgres 17 server -- pg_dump's client must be >= the server's major version. Add the
         # PGDG apt repo explicitly rather than assume the default package is new enough.
+        #
+        # ubuntu-latest's toolcache already has an OLDER postgresql-client earlier on PATH --
+        # confirmed by a real run: this step installed 17.11 here, but bare `pg_dump`/`psql` in
+        # LATER steps still resolved to 16.15 regardless. Installing the package is not enough;
+        # PATH must be fixed explicitly, and verified, not assumed.
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
           sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends postgresql-client-17
-          pg_dump --version
+
+          # Prepend the version-17 bin dir so it wins over whatever came before it on PATH, for
+          # every later step in this job -- including the npm scripts that spawn `pg_dump`/`psql`
+          # by bare name. ($GITHUB_PATH changes apply to subsequent steps, not the rest of this one.)
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+          # Fail HERE, loudly, if that didn't produce a real v17 binary -- check the exact path
+          # directly rather than bare `pg_dump` (which still resolves via the OLD PATH within this
+          # same step) or just printing the version for someone to notice later.
+          pg_dump_version=$(/usr/lib/postgresql/17/bin/pg_dump --version)
+          psql_version=$(/usr/lib/postgresql/17/bin/psql --version)
+          echo "pg_dump: $pg_dump_version"
+          echo "psql:    $psql_version"
+          for v in "$pg_dump_version" "$psql_version"; do
+            case "$v" in
+              *"(PostgreSQL) 17."*) ;;
+              *) echo "::error::Expected PostgreSQL client major version 17 (matching the production server), got: $v"; exit 1 ;;
+            esac
+          done
 
       - uses: actions/setup-node@v4
         with:
