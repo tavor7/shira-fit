@@ -80,9 +80,57 @@ wrapped by a long-lived KEK. The KEK is never written to this backup's artifacts
 `src/generate-kek.js` for the generation procedure — **do not use a key it prints as a real
 production key without a separate, explicit decision about offline custody.**
 
-## Not yet done (Phase 2+, needs separate approval)
+## Consistency guarantee (Phase 2)
 
-- R2 upload (credentials, dedicated prefix, Bucket Lock key scheme).
-- The GitHub Actions `schedule:` trigger (currently `workflow_dispatch` only).
-- Real production KEK generation and offline custody.
-- `archive.db_backup_runs` table / health metrics / alerting.
+The schema dump and data dump are two separate `pg_dump` processes, but both attach to the
+**same exported Postgres snapshot** (`PgSnapshotSession` in `pg-exec.js`: one long-lived `psql`
+session opens a `REPEATABLE READ` transaction, calls `pg_export_snapshot()`, and stays open for
+the duration of both dumps, each invoked with `--snapshot=<id>`). **Guarantee**: the data dump
+can never reflect a write that happened after the schema dump started, or vice versa — both see
+the database exactly as it was at one instant. **Limitation**: this only guarantees that *this
+run's* schema and data are mutually consistent — it says nothing about whether an operator later
+mixes artifacts from two different `backup_id`s. That specific mistake is caught separately: the
+data artifact embeds the SHA-256 of its paired schema dump, and `restore.js` refuses to proceed if
+the schema it's about to apply doesn't match.
+
+## R2 integration (Phase 2)
+
+Reuses the existing `shirafit-receipt-archive` bucket and its writer/reader credentials — no new
+bucket, no new credentials — under `db-backups/{schema,data,manifests}/<backup_id>.*`. Every
+upload is independently re-read with the reader credential and SHA-256-compared before being
+considered successful (never trusts a 200 status or ETag alone), retried 3x with backoff on
+transient failure, and refuses outright if the target key already exists. See `src/r2.js`.
+
+## Monitoring (Phase 2)
+
+`src/health.js` lists the manifests in `db-backups/manifests/` and, for each, independently
+confirms the paired schema+data objects actually exist before counting it as complete — a backup
+can have a manifest and still be reported incomplete if either artifact is missing. No new
+Postgres table was added (none is authorized yet); the manifests in R2 **are** the durable run
+records. Only manifests with `source.label === "production"` count toward the health metrics —
+test/dry-run backups remain in R2 forever (Bucket Lock) but are excluded from the aggregate.
+
+## Production KEK setup procedure (not automated — do this yourself)
+
+1. Run `node src/generate-kek.js` on a machine you trust, **once**, for the real production key
+   (not the disposable test key used above).
+2. Store copy #1 in the production secret store (`FINANCIAL_BACKUP_KEK` GitHub Actions secret).
+3. Store copy #2 somewhere **independent of both Supabase and GitHub** — a password manager,
+   a printed copy in a safe, or a hardware token. This is the copy that lets you recover even if
+   GitHub and Supabase are both unavailable at once.
+4. Do not let a third copy exist anywhere — including this terminal's scrollback. Clear it.
+5. Rotating the key later: generate a new one the same way; old backups keep decrypting with
+   whichever key was current when they were made (each backup's manifest could record a `kek_id`
+   label for this, not yet wired up — a Phase 3 detail, not a blocker).
+
+This script never performs any of these steps for you — it only ever prints a key to your
+terminal once, and never writes, uploads, or stores it anywhere itself.
+
+## Not yet done (Phase 3+, needs separate approval)
+
+- Enabling the GitHub Actions `schedule:` trigger (currently `workflow_dispatch` only).
+- Real production KEK generation and offline custody (procedure above, action still pending).
+- Running a real backup against production data (everything proven so far uses synthetic data
+  only, per instruction).
+- `kek_id` labeling for key-rotation tracking in the manifest.
+- The manager-only Backup Management screen and filtered accounting exports (UI, separate scope).
