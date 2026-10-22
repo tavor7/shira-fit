@@ -548,27 +548,49 @@ Deno.serve(async (req) => {
   pdfBytes = signed.pdfBytes;
   const hash = await sha256Hex(pdfBytes);
 
-  const storagePath = `documents/${row.id}/${row.document_number}.pdf`;
-  if (allowOverwrite) {
-    await admin.storage.from("document-pdfs").remove([storagePath]);
+  // PDF versioning: every finalize call gets a new, unique, permanent Storage path -- the
+  // previous version's object is never removed or overwritten (see
+  // 20261025110000_document_pdf_versioning.sql). allocate_document_pdf_version() is advisory;
+  // finalize_document_pdf re-derives the authoritative version under its own row lock, so a
+  // concurrent regeneration racing this one is resolved there (version_conflict), not here --
+  // retry a couple of times rather than failing the whole request outright.
+  let finRow: { ok?: boolean; error?: string; pdf_version?: number } | null = null;
+  let storagePath = "";
+  for (let attempt = 0; attempt < 3 && !finRow?.ok; attempt++) {
+    const { data: alloc, error: allocErr } = await admin.rpc("allocate_document_pdf_version", {
+      p_document_id: row.id,
+    });
+    if (allocErr) return json(500, { ok: false, error: allocErr.message });
+    const allocRow = alloc as { ok?: boolean; error?: string; next_pdf_path?: string };
+    if (!allocRow?.ok || !allocRow.next_pdf_path) {
+      return json(500, { ok: false, error: allocRow?.error ?? "allocate_version_failed" });
+    }
+    storagePath = allocRow.next_pdf_path;
+
+    const { error: uploadErr } = await admin.storage.from("document-pdfs").upload(storagePath, pdfBytes, {
+      contentType: "application/pdf",
+      cacheControl: "no-cache, max-age=0",
+      upsert: false, // never overwrite -- each version has its own unique path.
+    });
+    if (uploadErr) return json(500, { ok: false, error: uploadErr.message });
+
+    const { data: fin, error: finErr } = await admin.rpc("finalize_document_pdf", {
+      p_document_id: row.id,
+      p_pdf_path: storagePath,
+      p_signature_hash: hash,
+      p_signature_provider: signed.provider,
+    });
+    if (finErr) return json(500, { ok: false, error: finErr.message });
+    finRow = fin as { ok?: boolean; error?: string; pdf_version?: number };
+
+    if (!finRow?.ok && finRow?.error !== "version_conflict") {
+      return json(500, { ok: false, error: finRow?.error ?? "finalize_failed" });
+    }
+    // On version_conflict the uploaded object at `storagePath` is simply left in place, unused --
+    // harmless (it's never referenced by any document_pdf_versions row) and the loop retries with
+    // a freshly allocated path.
   }
-  const { error: uploadErr } = await admin.storage.from("document-pdfs").upload(storagePath, pdfBytes, {
-    contentType: "application/pdf",
-    cacheControl: "no-cache, max-age=0",
-    upsert: allowOverwrite,
-  });
-  if (uploadErr) return json(500, { ok: false, error: uploadErr.message });
+  if (!finRow?.ok) return json(500, { ok: false, error: "version_conflict_retry_exhausted" });
 
-  const { data: fin, error: finErr } = await admin.rpc("finalize_document_pdf", {
-    p_document_id: row.id,
-    p_pdf_path: storagePath,
-    p_signature_hash: hash,
-    p_signature_provider: signed.provider,
-    p_allow_overwrite: allowOverwrite,
-  });
-  if (finErr) return json(500, { ok: false, error: finErr.message });
-  const finRow = fin as { ok?: boolean; error?: string };
-  if (!finRow?.ok) return json(500, { ok: false, error: finRow.error ?? "finalize_failed" });
-
-  return json(200, { ok: true, pdf_path: storagePath, signature_hash: hash });
+  return json(200, { ok: true, pdf_path: storagePath, signature_hash: hash, pdf_version: finRow.pdf_version });
 });

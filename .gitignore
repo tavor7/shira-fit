@@ -2,11 +2,18 @@
 supabase/.secrets/.env
 supabase/.secrets/
 
+# Receipt archive tooling (R2 credentials, local-only run artifacts)
+scripts/receipt-archive/.env.local
+scripts/receipt-archive/node_modules/
+scripts/receipt-archive/out/
+supabase/functions/.env.test-local
+
 # macOS Finder metadata
 .DS_Store
 
 # Supabase CLI local cache
 supabase/.temp/
+supabase/.branches/
 
 
 # Claude Code worktrees and per-machine agent tooling

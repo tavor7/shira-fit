@@ -1,4 +1,25 @@
 
+# Local-only port overrides for this worktree (receipt-archive-automation) so
+# `supabase start` doesn't collide with another project's local stack already
+# running on the default ports. Not meaningful for deployment.
+project_id = "receipt-archive-automation"
+
+[api]
+port = 55421
+
+[db]
+port = 55422
+shadow_port = 55420
+
+[studio]
+port = 55423
+
+[inbucket]
+port = 55424
+
+[analytics]
+port = 55427
+
 [functions.open-weekly-registrations]
 enabled = true
 verify_jwt = false
@@ -48,3 +69,8 @@ entrypoint = "./functions/dispatch-notifications/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/staff-confirm-email/index.ts"
+
+[functions.archive-document-pdf]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/archive-document-pdf/index.ts"

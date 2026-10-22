@@ -1,0 +1,20 @@
+{
+  "name": "shirafit-receipt-archive-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local tooling for the independent R2 receipt archive — connectivity/lock verification and the historical backfill. Never deployed; run locally only.",
+  "type": "module",
+  "scripts": {
+    "verify": "node src/verify-connectivity.js",
+    "verify:lock": "node src/verify-bucket-lock.js",
+    "list-storage": "node src/list-storage-objects.js",
+    "list-archive": "node src/list-archive-objects.js",
+    "backfill:dry-run": "node src/backfill.js --dry-run",
+    "backfill": "node src/backfill.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1155.0",
+    "@supabase/supabase-js": "^2.118.0",
+    "dotenv": "^18.0.8"
+  }
+}
