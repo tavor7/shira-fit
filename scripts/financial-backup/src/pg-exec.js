@@ -37,6 +37,12 @@ export function runPgTool(tool, args, { input, env } = {}) {
     const stderrChunks = [];
     child.stdout.on("data", (d) => stdoutChunks.push(d));
     child.stderr.on("data", (d) => stderrChunks.push(d));
+    // If the child exits early (e.g. ON_ERROR_STOP on a bad statement) while a large `input` is
+    // still being flushed to its stdin, the write fails with EPIPE. Without this handler that's an
+    // unhandled 'error' event on the stdin stream -- it crashes the whole process before the
+    // `close` handler below gets a chance to report the real exit code/stderr, which is what
+    // actually matters here. The close handler is always what decides success/failure.
+    child.stdin.on("error", () => {});
     if (input) {
       child.stdin.write(input);
       child.stdin.end();

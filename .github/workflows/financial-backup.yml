@@ -246,28 +246,6 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "create extension if not exists btree_gist;"
           PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f scripts/financial-backup/test/supabase-compat-stub.sql
 
-      - name: DEBUG reproduce the exact runPgTool stdin-piping pattern with a 1MB payload
-        run: |
-          node -e '
-            const { spawn } = require("node:child_process");
-            const big = "-- padding line\n".repeat(60000); // ~1MB, same order of magnitude as the real schema dump
-            const sql = big + "select 1;\n";
-            console.log("payload bytes:", Buffer.byteLength(sql));
-            const child = spawn("docker", ["run", "--rm", "-i", "--add-host=host.docker.internal:host-gateway", "postgres:17", "psql", "postgresql://postgres:postgres@host.docker.internal:5432/postgres", "-v", "ON_ERROR_STOP=1", "-f", "/dev/stdin"]);
-            let out = "", err = "";
-            child.stdout.on("data", (d) => (out += d));
-            child.stderr.on("data", (d) => (err += d));
-            child.on("error", (e) => console.log("SPAWN ERROR:", e.message));
-            child.on("close", (code) => {
-              console.log("EXIT CODE:", code);
-              console.log("STDOUT:", out.slice(0, 2000));
-              console.log("STDERR:", err.slice(0, 2000));
-            });
-            child.stdin.on("error", (e) => console.log("STDIN ERROR:", e.message));
-            child.stdin.write(sql);
-            child.stdin.end();
-          '
-
       - name: Restore the named backup from R2 into the ephemeral target
         working-directory: scripts/financial-backup
         env:
