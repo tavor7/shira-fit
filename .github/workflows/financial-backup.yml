@@ -246,6 +246,11 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "create extension if not exists btree_gist;"
           PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f scripts/financial-backup/test/supabase-compat-stub.sql
 
+      - name: DEBUG connectivity from a nested docker container to the service container
+        run: |
+          docker run --rm --add-host=host.docker.internal:host-gateway postgres:17 \
+            psql "postgresql://postgres:postgres@host.docker.internal:5432/postgres" -c "select 1" || echo "DEBUG EXIT CODE: $?"
+
       - name: Restore the named backup from R2 into the ephemeral target
         working-directory: scripts/financial-backup
         env:
