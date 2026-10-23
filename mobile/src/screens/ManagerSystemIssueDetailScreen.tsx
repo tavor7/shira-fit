@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   fact: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm, paddingVertical: 4 }, // wraps the value under its label on very narrow / zoomed screens
   factLabel: { width: 112 },
   factValue: { flexGrow: 1, flexShrink: 1, flexBasis: 120, minWidth: 0, gap: 2 },
-  bars: { flexDirection: "row", direction: "ltr", alignItems: "flex-end", height: 48, gap: 3 },
+  bars: { flexDirection: "row", writingDirection: "ltr", alignItems: "flex-end", height: 48, gap: 3 },
   barSlot: { flex: 1, height: 48, justifyContent: "flex-end" },
   bar: { width: "100%", borderRadius: 3, backgroundColor: theme.colors.warning },
   advToggle: { minHeight: theme.controls.minTouch, justifyContent: "center", paddingHorizontal: theme.spacing.md, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.borderMuted, backgroundColor: theme.colors.surface },

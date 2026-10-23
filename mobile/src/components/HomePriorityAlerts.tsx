@@ -438,7 +438,7 @@ export function HomePriorityAlerts({
             onPress={() => setSheetOpen(false)}
             accessibilityLabel={t("common.cancel")}
           />
-          <View style={[modalStyles.sheet, isRTL && { direction: "rtl" }]}>
+          <View style={[modalStyles.sheet, isRTL && modalStyles.sheetRtl]}>
             <View style={modalStyles.handle} />
             <Text style={[modalStyles.title, isRTL && styles.rtl]}>{t("homeAlerts.sheetTitle")}</Text>
             <Text style={[modalStyles.sub, isRTL && styles.rtl]}>
@@ -712,6 +712,10 @@ const modalStyles = StyleSheet.create({
     letterSpacing: 0.08,
   },
   rtlSheet: { writingDirection: "rtl", textAlign: "right" },
+  // Same writingDirection the row-level styles elsewhere in this app pair with a real ViewStyle
+  // property (e.g. AllowancesEditor's `stepper`) -- alignSelf here is just `sheet`'s own existing
+  // value, included so this reads as a genuine View style rather than a bare direction override.
+  sheetRtl: { writingDirection: "rtl", alignSelf: "center" },
   doneBtn: {
     marginHorizontal: theme.spacing.lg,
     marginTop: theme.spacing.sm,

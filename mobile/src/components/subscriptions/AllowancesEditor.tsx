@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   rowRtl: { flexDirection: "row-reverse" },
   tierLabel: { flex: 1, ...theme.typography.secondary, color: theme.colors.text },
   // direction ltr: on web the browser would otherwise mirror the row in Hebrew (see the note at the stepper).
-  stepper: { flexDirection: "row", alignItems: "center", gap: 8, direction: "ltr" },
+  stepper: { flexDirection: "row", alignItems: "center", gap: 8, writingDirection: "ltr" },
   // 44px hit area around the 32px circle (padding cancelled by a negative margin; hitSlop is ignored on web).
   stepperHit: { padding: 6, margin: -6 },
   stepperButton: {
