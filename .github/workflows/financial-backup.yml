@@ -249,6 +249,16 @@ jobs:
       - name: Restore the named backup from R2 into the ephemeral target
         working-directory: scripts/financial-backup
         env:
+          # PG_TOOLS_VIA_DOCKER=1: pg-exec.js unconditionally forces sslmode=verify-full (with
+          # Supabase's own private CA) onto any "real" connection, as a deliberate control against
+          # production -- correctly so, and not something to weaken here. This flag is its documented
+          # escape hatch, built specifically for "a disposable local postgres:17 Docker container
+          # with no TLS at all" (see pg-exec.js's own comment), which is exactly what the ephemeral
+          # `target` service container is. It also runs pg_dump/pg_restore/psql from inside a throwaway
+          # postgres:17 container rather than the natively-installed client, and rewrites
+          # localhost -> host.docker.internal so that container can reach the service container's
+          # published port on the runner.
+          PG_TOOLS_VIA_DOCKER: "1"
           # Only R2 READER credentials -- this step never receives FINANCIAL_BACKUP_SOURCE_URL
           # (production) or the R2 WRITER keys. The target is the local service container, not
           # production, and it is never reachable from outside this job.
@@ -268,6 +278,7 @@ jobs:
         # reading CHECKS in src/verify-production.js, not assumed).
         working-directory: scripts/financial-backup
         env:
+          PG_TOOLS_VIA_DOCKER: "1"
           FINANCIAL_BACKUP_TARGET_URL: postgresql://postgres:postgres@localhost:5432/postgres
           FINANCIAL_BACKUP_BACKUP_ID: ${{ inputs.backup_id }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
