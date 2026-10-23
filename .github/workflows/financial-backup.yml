@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "'connection-check' runs ONLY `SELECT 1` against FINANCIAL_BACKUP_SOURCE_URL (no dump, no R2) -- use this to prove a new/rotated connection string works before ever running a real backup against it."
+        description: "'connection-check' runs ONLY `SELECT 1` against FINANCIAL_BACKUP_SOURCE_URL (no dump, no R2) -- use this to prove a new/rotated connection string works before ever running a real backup against it. 'restore-test' proves a named backup (backup_id, below) is genuinely restorable -- into a throwaway container, never production."
         type: choice
-        options: [backup, connection-check]
+        options: [backup, connection-check, restore-test]
         default: backup
       upload_to_r2:
         description: "backup mode only: upload the resulting backup to R2 under db-backups/ (leave false for a dry run)"
@@ -22,6 +22,10 @@ on:
         type: choice
         options: [test, production]
         default: test
+      backup_id:
+        description: "restore-test mode only: the backup_id (from db-backups/manifests/<id>.json) to restore and verify"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -155,3 +159,122 @@ jobs:
           R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
           R2_ARCHIVE_READER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_READER_SECRET_ACCESS_KEY }}
         run: npm run health
+
+  # Proves a named backup is genuinely restorable -- not just that its files exist and match their
+  # checksums (that's already covered by verify-remote above). Restores into an ephemeral
+  # postgres:17 *service container*: created fresh for this job, reachable only from this job's own
+  # steps (GitHub Actions never exposes service container ports outside the runner), and destroyed
+  # automatically when the job ends -- no new persistent infrastructure, no ongoing cost. It never
+  # receives production credentials (only R2 READER creds, to fetch the already-made backup's
+  # files) and never connects outbound to the production database at all.
+  #
+  # Only runs on an explicit `mode: restore-test` dispatch with a `backup_id` -- never as part of an
+  # ordinary backup run, so this never slows down or risks the existing backup/connection-check path.
+  restore-test:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && inputs.mode == 'restore-test'
+    permissions:
+      contents: read
+    services:
+      target:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require backup_id
+        # Passed via env, never interpolated directly into the shell script string -- the input is
+        # free text, and $-expansion of an unescaped `${{ }}` value inside a quoted test is an
+        # unnecessary injection surface even though workflow_dispatch already requires write access.
+        env:
+          BACKUP_ID: ${{ inputs.backup_id }}
+        run: |
+          if [ -z "$BACKUP_ID" ]; then
+            echo "::error::restore-test mode requires the backup_id input (the backup to restore and verify)."
+            exit 1
+          fi
+
+      - name: Install postgresql-client-17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          pg_dump_version=$(/usr/lib/postgresql/17/bin/pg_dump --version)
+          psql_version=$(/usr/lib/postgresql/17/bin/psql --version)
+          echo "pg_dump: $pg_dump_version"
+          echo "psql:    $psql_version"
+          for v in "$pg_dump_version" "$psql_version"; do
+            case "$v" in
+              *"(PostgreSQL) 17."*) ;;
+              *) echo "::error::Expected PostgreSQL client major version 17, got: $v"; exit 1 ;;
+            esac
+          done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install backup tool dependencies
+        working-directory: scripts/financial-backup
+        run: npm install
+
+      - name: Wait for the ephemeral target to accept connections
+        run: |
+          for i in $(seq 1 30); do
+            PGPASSWORD=postgres pg_isready -h localhost -U postgres && break
+            sleep 1
+          done
+
+      - name: Prepare the ephemeral target (compat stub + btree_gist -- never touches production)
+        # The stub exists purely to satisfy platform dependencies a stock postgres:17 image lacks
+        # (auth.users/auth.uid(), pg_cron tables a monitoring view joins against, the btree_gist
+        # extension some GiST indexes need) -- see scripts/financial-backup/README.md "Real
+        # dependencies found" for the reviewed reasoning behind every one of them.
+        run: |
+          set -eo pipefail
+          PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "create extension if not exists btree_gist;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f scripts/financial-backup/test/supabase-compat-stub.sql
+
+      - name: Restore the named backup from R2 into the ephemeral target
+        working-directory: scripts/financial-backup
+        env:
+          # Only R2 READER credentials -- this step never receives FINANCIAL_BACKUP_SOURCE_URL
+          # (production) or the R2 WRITER keys. The target is the local service container, not
+          # production, and it is never reachable from outside this job.
+          FINANCIAL_BACKUP_TARGET_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          FINANCIAL_BACKUP_BACKUP_ID: ${{ inputs.backup_id }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
+          R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_READER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_READER_SECRET_ACCESS_KEY }}
+        run: npm run restore
+
+      - name: Structural, referential-integrity, and snapshot-row-count verification
+        # verify-production.js (not verify.js): production-data-agnostic checks -- structure, FK
+        # integrity, invariants, and a snapshot-time row-count comparison against the manifest --
+        # never a specific row's value, so nothing financial or personal ever appears in this step's
+        # output (every check here returns a count or a short fixed status string; confirmed by
+        # reading CHECKS in src/verify-production.js, not assumed).
+        working-directory: scripts/financial-backup
+        env:
+          FINANCIAL_BACKUP_TARGET_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          FINANCIAL_BACKUP_BACKUP_ID: ${{ inputs.backup_id }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
+          R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_READER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_READER_SECRET_ACCESS_KEY }}
+        run: npm run verify-production
+      # No upload-artifact step, ever: the restored schema/data exist only inside the `target`
+      # service container, which GitHub Actions destroys unconditionally when this job ends --
+      # nothing restored here outlives the run, and nothing unencrypted is written to any artifact.
