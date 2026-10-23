@@ -168,6 +168,9 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   _reject_document_hard_delete: {
     document_record_immutable: [B, "Raised by the row trigger when ANY caller (including delete_document and service_role) attempts a hard DELETE on documents or document_events; these are append-only financial/audit history -- cancel_document (a status update) is the only legitimate way to void a document (owner rule 2026-10-22, see migration 20261023190000)."],
   },
+  _reject_document_pdf_overwrite: {
+    document_pdf_object_immutable: [B, "Raised by the Storage row trigger when ANY caller attempts to UPDATE (including upsert=true) an existing documents/* object in the document-pdfs bucket; every PDF version must use a new, unique path via finalize_document_pdf, so a legitimate upload never hits this -- it exists specifically so a redeployed older generate-document-pdf (e.g. during a rollback) can't silently destroy a previously issued receipt (see migration 20261025160000). Same append-only-guard pattern as _reject_subscription_hard_delete / _reject_document_hard_delete above."],
+  },
   _create_document_from_payment_row: {
     business_id_required: V,
     digital_receipts_disabled: B,
@@ -292,9 +295,12 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     invalid_price: V,
     no_current_version: [T, "Every subscription keeps exactly one open version (stop_subscription only sets stopped_effective_date; prod has 0 subscriptions without one). Occurrence = invariant violation."],
   },
+  allocate_document_pdf_version: {
+    not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
+  },
   finalize_document_pdf: {
     not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
-    pdf_already_exists: B,
+    version_conflict: [B, "Expected race-loser outcome when two regenerations finalize concurrently -- the migration's own comment documents this as safe to retry (nothing was overwritten, the loser's upload just goes to an unreferenced path). Replaces the old pdf_already_exists code, which finalize_document_pdf no longer emits (overwriting is categorically impossible since 20261025110000; p_allow_overwrite is accepted only for call-signature compatibility)."],
   },
   freeze_subscription: {
     freeze_overlap: B,
@@ -398,6 +404,9 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     needs_payment_method: B,
     not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
     operational_mode_locked: B,
+  },
+  queue_ops_smoke_test_job: {
+    ops_smoke_test_path_must_be_isolated: [V, "Input validation on this service_role-only entry point: p_storage_path must be under _ops_smoke_test/, structurally preventing it from ever queuing anything that could resemble a real receipt. Same class as other invalid_* input-validation rejections (e.g. record_subscription_payment's invalid_amount/invalid_payment_method)."],
   },
   publish_legal_document: {
     unsupported_consent_type: V,

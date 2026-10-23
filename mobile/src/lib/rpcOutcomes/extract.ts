@@ -15,7 +15,8 @@
  *   - literal codes under extra code-bearing keys     declared per operation in CODE_BEARING_KEYS (e.g. 'reason')
  *   - NON-literal `'error', <expression>` sites       (raw SQLERRM, relayed variables, coalesce(...)) -> reported as
  *                                                     "dynamic sites"; their possible values cannot be enumerated
- *   - calls from one outcome-emitting function to another (call edges) so relays can be reviewed
+ *   - calls from one outcome-emitting function to another (call edges) so relays can be reviewed; `--` line comments
+ *   are stripped first so a function merely mentioned in prose is never mistaken for a real call site
  *
  * What it can NOT detect (documented, not hidden):
  *   - codes assembled at runtime (string concatenation, format(), values read from a table or a variable)
@@ -51,6 +52,13 @@ export interface Inventory {
 export type CodeBearingKeys = Record<string, string[]>;
 
 const CODE = "[a-z0-9_:.\\-]+";
+
+/** Strips SQL `--` line comments so a function name merely mentioned in prose (e.g. "see allocate_document_pdf_version()
+ * for the preview path") is never mistaken for a real call. Call-edge detection only; the lit/raise code-scanning
+ * regexes look for quoted string literals, which this would not help and could only hide a real occurrence of. */
+function stripLineComments(body: string): string {
+  return body.replace(/--.*$/gm, "");
+}
 
 function splitTopLevel(args: string): string[] {
   const out: string[] = [];
@@ -162,9 +170,10 @@ export function extractInventory(migrationsDir: string, codeBearingKeys: CodeBea
   for (const op of dynamicSites.keys()) emitters.add(op);
   const callEdges = new Set<string>();
   for (const fn of live.values()) {
+    const bodyWithoutComments = stripLineComments(fn.body);
     for (const callee of emitters) {
       if (callee === fn.name) continue;
-      if (new RegExp(`(?<![a-z0-9_])(?:public\\.)?${callee}\\s*\\(`, "i").test(fn.body)) {
+      if (new RegExp(`(?<![a-z0-9_])(?:public\\.)?${callee}\\s*\\(`, "i").test(bodyWithoutComments)) {
         callEdges.add(`${fn.name}->${callee}`);
       }
     }
