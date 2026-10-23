@@ -31,7 +31,12 @@ import {
   type WeeklyFinanceFamily,
 } from "../lib/managerWeeklyStats";
 import { fetchActiveAccountCounts, type ActiveAccountCounts } from "../lib/activeAccountCounts";
-import { rpcManagerSubscriptionOverviewStats, type SubscriptionOverviewStats } from "../lib/subscriptions";
+import {
+  rpcManagerSubscriptionOverviewStats,
+  rpcManagerSubscriptionOverviewBreakdown,
+  type SubscriptionOverviewStats,
+  type SubscriptionOverviewBreakdownRow,
+} from "../lib/subscriptions";
 import { useCountUp } from "../hooks/useCountUp";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { AnimatedOptionExpand } from "../components/AnimatedOptionExpand";
@@ -99,6 +104,25 @@ function formatSessionTimeShort(isoTime: string): string {
 }
 
 /** PostgREST when RPC signature is missing (DB not migrated yet). */
+function subscriptionStatusLabelKey(status: string): string {
+  switch (status) {
+    case "active":
+      return "subscriptions.statusActive";
+    case "frozen":
+      return "subscriptions.statusFrozen";
+    case "scheduled":
+      return "subscriptions.statusScheduled";
+    case "stopped":
+      return "subscriptions.statusStopped";
+    case "completed":
+      return "subscriptions.statusCompleted";
+    case "superseded":
+      return "subscriptions.statusSuperseded";
+    default:
+      return "subscriptions.statusActive";
+  }
+}
+
 function isMissingRpcSignature(err: { message?: string } | null | undefined): boolean {
   const m = String(err?.message ?? "").toLowerCase();
   return (
@@ -133,6 +157,9 @@ export default function ManagerDashboardScreen() {
   const [accountCounts, setAccountCounts] = useState<ActiveAccountCounts | null>(null);
   const [accountCountsLoading, setAccountCountsLoading] = useState(false);
   const [subscriptionOverview, setSubscriptionOverview] = useState<SubscriptionOverviewStats | null>(null);
+  const [showSubscriptionList, setShowSubscriptionList] = useState(false);
+  const [subscriptionBreakdown, setSubscriptionBreakdown] = useState<SubscriptionOverviewBreakdownRow[] | null>(null);
+  const [subscriptionBreakdownLoading, setSubscriptionBreakdownLoading] = useState(false);
   const loadSeqRef = useRef(0);
 
   const displayRange = useMemo(() => {
@@ -425,6 +452,63 @@ export default function ManagerDashboardScreen() {
   function openAddPayment(a: WeeklyFinanceAthlete, fromFamily = false) {
     setAddPayFromFamily(fromFamily);
     setAddPayAthlete(a);
+  }
+
+  async function toggleSubscriptionList() {
+    const next = !showSubscriptionList;
+    setShowSubscriptionList(next);
+    // Lazy, one-time fetch -- the Overview's default load never pays for this list; it's only
+    // fetched the first time a manager actually expands it.
+    if (next && subscriptionBreakdown === null && !subscriptionBreakdownLoading) {
+      setSubscriptionBreakdownLoading(true);
+      try {
+        const res = await rpcManagerSubscriptionOverviewBreakdown(supabase);
+        if (Array.isArray(res)) setSubscriptionBreakdown(res);
+      } catch {
+        // Informational list only; silently leave it unset, the ghost button stays tappable to retry.
+      } finally {
+        setSubscriptionBreakdownLoading(false);
+      }
+    }
+  }
+
+  function openSubscriptionDetail(row: SubscriptionOverviewBreakdownRow) {
+    router.push({ pathname: "/(app)/manager/subscriptions/[id]", params: { id: row.subscription_id } } as Href);
+  }
+
+  function renderSubscriptionBreakdownRow(row: SubscriptionOverviewBreakdownRow) {
+    const owe = row.outstanding_ils > 0.005;
+    const endLabel = row.has_no_end_date || !row.plan_end_date ? t("subscriptions.noEndDate") : formatISODateFull(row.plan_end_date, language);
+    const periodLabel = `${formatISODateFull(row.plan_start_date, language)} – ${endLabel}`;
+    const statusLabel = row.is_deleted ? t("subscriptions.statusDeleted") : t(subscriptionStatusLabelKey(row.display_status));
+    return (
+      <View key={row.subscription_id} style={styles.athleteRow}>
+        <Pressable onPress={() => openSubscriptionDetail(row)} style={({ pressed }) => [pressed && styles.athleteRowPressed]}>
+          <View style={[styles.athleteRowTop, rowFlipFor(isRTL) && styles.athleteRowTopRtl]}>
+            <Text style={[styles.athleteName, isRTL && styles.rtl]} numberOfLines={1}>
+              {row.payee_display_name}
+            </Text>
+            <Text
+              style={[
+                styles.athleteBal,
+                owe ? styles.athleteBalOwe : row.outstanding_ils < -0.005 ? styles.athleteBalAhead : styles.athleteBalOk,
+                isRTL && styles.rtl,
+              ]}
+            >
+              {formatIls(row.outstanding_ils, language)}
+            </Text>
+          </View>
+          <Text style={[styles.athleteSub, isRTL && styles.rtl]} numberOfLines={1}>
+            {statusLabel} · {periodLabel}
+          </Text>
+          <Text style={[styles.athleteSub, isRTL && styles.rtl]} numberOfLines={1}>
+            {t("dashboard.financeSubscriptionsCharges")}: {formatIls(row.charges_total_ils, language)} ·{" "}
+            {t("dashboard.financeSubscriptionsPayments")}: {formatIls(row.payments_total_ils, language)}
+          </Text>
+          <Text style={[styles.sessionTapHint, isRTL && styles.rtl]}>{t("subscriptions.detail.title")}</Text>
+        </Pressable>
+      </View>
+    );
   }
 
   const rangeLabelStart = displayRange.start;
@@ -797,6 +881,66 @@ export default function ManagerDashboardScreen() {
             </View>
           </View>
 
+          {subscriptionOverview ? (
+            <View style={styles.financeCard}>
+              <Text style={[styles.financeCardTitle, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsTitle")}</Text>
+              <View style={styles.moneyGrid}>
+                <View style={styles.moneyCell}>
+                  <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsActive")}</Text>
+                  <Text style={[styles.moneyCellVal, isRTL && styles.rtl]}>{subscriptionOverview.active_subscriptions_count}</Text>
+                </View>
+                <View style={styles.moneyCell}>
+                  <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsCharges")}</Text>
+                  <Text style={[styles.moneyCellVal, isRTL && styles.rtl]}>{formatIls(subscriptionOverview.charges_total_ils, language)}</Text>
+                </View>
+                <View style={[styles.moneyCell, styles.moneyCellAccentWrap]}>
+                  <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsPayments")}</Text>
+                  <Text style={[styles.moneyCellVal, styles.moneyCellAccent, isRTL && styles.rtl]}>
+                    {formatIls(subscriptionOverview.payments_total_ils, language)}
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={[
+                  styles.balanceBanner,
+                  subscriptionOverview.outstanding_ils > 0
+                    ? styles.balanceBannerOwe
+                    : subscriptionOverview.outstanding_ils < 0
+                      ? styles.balanceBannerAhead
+                      : styles.balanceBannerOk,
+                ]}
+              >
+                <Text style={[styles.balanceBannerLbl, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsOutstanding")}</Text>
+                <Text style={[styles.balanceBannerVal, isRTL && styles.rtl]}>
+                  {formatIls(subscriptionOverview.outstanding_ils, language)}
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={() => void toggleSubscriptionList()}
+                style={({ pressed }) => [styles.ghostBtn, styles.ghostBtnSpaced, pressed && styles.ghostBtnPressed]}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showSubscriptionList }}
+              >
+                <Text style={[styles.ghostBtnTxt, isRTL && styles.rtl]}>
+                  {showSubscriptionList ? t("dashboard.financeSubscriptionsHideBalances") : t("dashboard.financeSubscriptionsShowBalances")}
+                </Text>
+              </Pressable>
+
+              <AnimatedOptionExpand open={showSubscriptionList}>
+                <View style={styles.athleteList}>
+                  {subscriptionBreakdownLoading ? (
+                    <Text style={[styles.muted, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsLoading")}</Text>
+                  ) : subscriptionBreakdown === null || subscriptionBreakdown.length === 0 ? (
+                    <Text style={[styles.muted, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsNoRows")}</Text>
+                  ) : (
+                    subscriptionBreakdown.map((row) => renderSubscriptionBreakdownRow(row))
+                  )}
+                </View>
+              </AnimatedOptionExpand>
+            </View>
+          ) : null}
+
           <View style={styles.financeCard}>
             <Text style={[styles.financeCardTitle, isRTL && styles.rtl]}>{t("dashboard.financeAthleteRevenue")}</Text>
 
@@ -944,42 +1088,6 @@ export default function ManagerDashboardScreen() {
             </AnimatedOptionExpand>
           </View>
 
-          {subscriptionOverview ? (
-            <View style={styles.financeCard}>
-              <Text style={[styles.financeCardTitle, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsTitle")}</Text>
-              <View style={styles.moneyGrid}>
-                <View style={styles.moneyCell}>
-                  <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsActive")}</Text>
-                  <Text style={[styles.moneyCellVal, isRTL && styles.rtl]}>{subscriptionOverview.active_subscriptions_count}</Text>
-                </View>
-                <View style={styles.moneyCell}>
-                  <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsCharges")}</Text>
-                  <Text style={[styles.moneyCellVal, isRTL && styles.rtl]}>{formatIls(subscriptionOverview.charges_total_ils, language)}</Text>
-                </View>
-                <View style={[styles.moneyCell, styles.moneyCellAccentWrap]}>
-                  <Text style={[styles.moneyCellLbl, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsPayments")}</Text>
-                  <Text style={[styles.moneyCellVal, styles.moneyCellAccent, isRTL && styles.rtl]}>
-                    {formatIls(subscriptionOverview.payments_total_ils, language)}
-                  </Text>
-                </View>
-              </View>
-              <View
-                style={[
-                  styles.balanceBanner,
-                  subscriptionOverview.outstanding_ils > 0
-                    ? styles.balanceBannerOwe
-                    : subscriptionOverview.outstanding_ils < 0
-                      ? styles.balanceBannerAhead
-                      : styles.balanceBannerOk,
-                ]}
-              >
-                <Text style={[styles.balanceBannerLbl, isRTL && styles.rtl]}>{t("dashboard.financeSubscriptionsOutstanding")}</Text>
-                <Text style={[styles.balanceBannerVal, isRTL && styles.rtl]}>
-                  {formatIls(subscriptionOverview.outstanding_ils, language)}
-                </Text>
-              </View>
-            </View>
-          ) : null}
         </View>
       ) : null}
 

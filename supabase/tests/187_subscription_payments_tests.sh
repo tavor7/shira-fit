@@ -18,7 +18,9 @@
 #      row preserved)
 #  13  protection of receipted payment history: a receipted subscription payment cannot be edited
 #      or deleted, same as any other account payment
-#  14  subscription deletion (tombstone) does not touch or lock already-recorded payments
+#  14  subscription deletion is BLOCKED while it has any recorded payment (owner policy, 2026-10-26 --
+#      see 20261026100000_subscription_delete_payment_guard.sql and test suite 189 for full coverage);
+#      the subscription and its payments are left completely untouched by the blocked attempt
 #  15  manager_subscription_overview_stats: active count, totals, and double-count check (the
 #      same money is NOT also missing from the pre-existing athlete_totals calculation)
 # Usage: PSQL=... PSQL_AUTH=... supabase/tests/187_subscription_payments_tests.sh   (SCRATCH/LOCAL ONLY)
@@ -147,12 +149,12 @@ case "$R" in *'"ok" : true'*'"payment_reverted" : true'*) ok "12 cancel_document
 expect "12 the payment is marked reversed, row preserved" "true" "$(su -c "select (reversed_at is not null)::text from public.athlete_account_payments where id = '$PAY2'")"
 reversed_locked "13 the reversed subscription payment can never be deleted (reversed takes precedence over the history check)" "$(api "$M" "delete from public.athlete_account_payments where id = '$PAY2'; select 1;")"
 
-echo "== 14: subscription deletion (tombstone) does not touch already-recorded payments"
+echo "== 14: subscription deletion is blocked while any payment is recorded against it (owner policy)"
 R=$(api "$M" "select public.delete_subscription('$SUB1')::text;")
-case "$R" in *'"ok" : true'*) ok "14 subscription tombstoned";; *) fail "14 delete_subscription: $R";; esac
+case "$R" in *'"error" : "subscription_has_payments"'*) ok "14 delete_subscription blocked by the recorded payments";; *) fail "14 delete_subscription: $R";; esac
 N=$(su -c "select count(*) from public.athlete_account_payments where source_subscription_id = '$SUB1'")
 [ "$N" = "2" ] && ok "14 both payments previously tagged to SUB1 (test 5 + test 6) still exist, untouched" || fail "14 expected 2 payments, got $N"
-expect "14 the subscription row itself is tombstoned, not deleted" "true" "$(su -c "select (deleted_at is not null)::text from public.subscriptions where id = '$SUB1'")"
+expect "14 the subscription row itself is NOT tombstoned (blocked attempt modifies nothing)" "false" "$(su -c "select (deleted_at is not null)::text from public.subscriptions where id = '$SUB1'")"
 
 echo "== 15: manager_subscription_overview_stats -- additive, no double counting"
 R=$(api "$M" "select public.manager_subscription_overview_stats(current_date - 30, current_date + 30)::text;")

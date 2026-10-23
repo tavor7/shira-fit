@@ -200,6 +200,21 @@ export type SubscriptionOverviewStats = {
   outstanding_ils: number;
 };
 
+export type SubscriptionOverviewBreakdownRow = {
+  subscription_id: string;
+  payee_id: string;
+  payee_is_manual: boolean;
+  payee_display_name: string;
+  display_status: string;
+  is_deleted: boolean;
+  plan_start_date: string;
+  plan_end_date: string | null;
+  has_no_end_date: boolean;
+  charges_total_ils: number;
+  payments_total_ils: number;
+  outstanding_ils: number;
+};
+
 export type FieldValidationError = { field: string; messageKey: string };
 
 /** Basic input-shape validation only (never re-implements the backend's business rules, e.g.
@@ -334,6 +349,15 @@ export async function rpcManagerSubscriptionOverviewStats(
   });
   if (error) throw error;
   return data as SubscriptionOverviewStats | RpcError;
+}
+
+export async function rpcManagerSubscriptionOverviewBreakdown(
+  supabase: SupabaseClient
+): Promise<SubscriptionOverviewBreakdownRow[] | RpcError> {
+  const { data, error } = await supabase.rpc("manager_subscription_overview_breakdown");
+  if (error) throw error;
+  if (data && typeof data === "object" && !Array.isArray(data)) return data as RpcError;
+  return (data ?? []) as SubscriptionOverviewBreakdownRow[];
 }
 
 export type EditSubscriptionInput = {

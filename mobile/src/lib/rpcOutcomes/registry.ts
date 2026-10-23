@@ -280,6 +280,7 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   },
   delete_subscription: {
     subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
+    subscription_has_payments: [B, "Owner policy (2026-10-26): a subscription with any valid (unreversed) payment, even partial, cannot be deleted. Expected rejection -- the UI should show a localized warning and suggest stop_subscription instead."],
   },
   discard_subscription_terms_draft: {
     draft_changed: [B, "The draft was saved again after the manager loaded it; the screen reloads instead of deleting newer text (optimistic concurrency, expected)."],
@@ -419,6 +420,7 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     invalid_payment_method: V,
     invalid_subscription: V,
     subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
+    subscription_deleted: [B, "Added 2026-10-26 alongside the delete-payment-guard advisory lock: the subscription was tombstoned (by a concurrent or earlier delete) before this payment could be recorded against it. Expected race outcome, not an error in the caller's input."],
   },
   register_for_session: {
     account_disabled: [V, "The CALLER's own account is disabled (profiles.disabled_at). Authorization outcome."],

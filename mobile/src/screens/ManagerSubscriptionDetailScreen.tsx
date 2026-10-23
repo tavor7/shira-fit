@@ -138,7 +138,11 @@ export function ManagerSubscriptionDetailScreen() {
     try {
       const res = await rpcDeleteSubscription(supabase, String(id));
       if (!res.ok) {
-        showToast({ message: t("subscriptions.genericError"), detail: res.error, variant: "error" });
+        if (res.error === "subscription_has_payments") {
+          showToast({ message: t("subscriptions.delete.blockedByPayments"), variant: "error" });
+        } else {
+          showToast({ message: t("subscriptions.genericError"), detail: res.error, variant: "error" });
+        }
         return;
       }
       showToast({ message: t("subscriptions.delete.success"), variant: "success" });
