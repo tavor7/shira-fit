@@ -239,9 +239,10 @@ jobs:
       - name: Prepare the ephemeral target (drop+recreate public, compat stub -- never touches production)
         # Exact sequence from scripts/financial-backup/README.md's own proven "Restore test (clean
         # target)" recipe:
-        #   1. drop+recreate public -- a stock postgres:17 image already has a `public` schema, and
-        #      the schema dump's own `CREATE SCHEMA public` statement is not IF NOT EXISTS, so
-        #      without this the restore fails immediately with "schema public already exists".
+        #   1. drop public (and leave it dropped) -- a stock postgres:17 image already has a
+        #      `public` schema, and the schema dump's own `CREATE SCHEMA public` statement is not
+        #      IF NOT EXISTS, so it has to be the one to (re)create it: recreating it here first
+        #      just reproduces the identical "already exists" conflict one statement later.
         #   2. apply the compat stub, which creates auth/cron/extensions schemas, the btree_gist
         #      extension (into its own `extensions` schema, matching Supabase's own convention, so
         #      it survives the DROP SCHEMA public CASCADE above), and the auth.users/auth.uid()
@@ -250,7 +251,7 @@ jobs:
         #      need `extensions` on the path, per the stub's own documented instruction.
         run: |
           set -eo pipefail
-          PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "drop schema public cascade; create schema public;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "drop schema public cascade;"
           PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f scripts/financial-backup/test/supabase-compat-stub.sql
           PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "alter database postgres set search_path to public, extensions;"
 
