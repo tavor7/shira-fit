@@ -62,6 +62,7 @@ export const DELEGATES: Readonly<Record<string, readonly string[]>> = {
   manager_weekly_stats: ["manager_weekly_stats_core"],
   staff_update_profile_text: ["staff_update_profile"],
   stop_subscription: ["subscription_compute_impact"],
+  stop_subscription_with_future_registrations: ["subscription_compute_impact"],
   sync_signup_electronic_receipts_consent: ["_try_sync_signup_consent_for_user"],
   sync_signup_legal_consents: ["_try_sync_signup_legal_consents_for_user"],
 };
@@ -73,6 +74,10 @@ export const DELEGATES: Readonly<Record<string, readonly string[]>> = {
  */
 export const CONSUMED_CALLS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   _coach_add_athlete_core: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
+  _subscription_resolve_future_registrations: {
+    manager_remove_athlete: "result discarded (PERFORM); the nested is_manager check is already true (same already-verified manager caller) and not_active is impossible here (the resolver's own query filters to status='active' under FOR UPDATE)",
+    remove_manual_participant_from_session: "result discarded (PERFORM); the nested is_coach_or_manager check is already true (same already-verified manager caller) and not_in_session is impossible here (the resolver's own query just locked this exact row)",
+  },
   _copy_session_roster: {
     _coach_add_athlete_core: "result discarded (PERFORM) inside an exception-swallowing block",
     coach_add_athlete: "result discarded (PERFORM) inside an exception-swallowing block",
@@ -95,6 +100,11 @@ export const CONSUMED_CALLS: Readonly<Record<string, Readonly<Record<string, str
   },
   staff_move_session_participant: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
   stop_subscription: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
+  stop_subscription_with_future_registrations: {
+    subscription_generate_or_correct_billing_period: "result discarded (PERFORM)",
+    _subscription_resolve_future_registrations: "returns a plain int (rows resolved), not an error-code-bearing result; stored into v_future_resolved and reported back as a count, never relayed as a code",
+  },
+  delete_subscription_with_future_registrations: { _subscription_resolve_future_registrations: "returns a plain int (rows resolved), not an error-code-bearing result; stored into v_future_resolved and reported back as a count, never relayed as a code" },
   subscription_compute_impact: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
   tg_auth_user_signup_consent: {
     _try_sync_signup_consent_for_user: "trigger; result discarded and exceptions swallowed so signup can never be blocked",
@@ -130,6 +140,7 @@ export const DYNAMIC_ERROR_SITES: Readonly<Record<string, readonly string[]>> = 
   staff_set_manual_participant_disabled: ["sqlerrm"],
   staff_set_session_roster_slot_price: ["sqlerrm"],
   stop_subscription: ["v_impact->>"],
+  stop_subscription_with_future_registrations: ["v_impact->>"],
 };
 
 /**
@@ -284,6 +295,14 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   delete_subscription: {
     subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
     subscription_has_payments: [B, "Owner policy (2026-10-26): a subscription with any valid (unreversed) payment, even partial, cannot be deleted. Expected rejection -- the UI should show a localized warning and suggest stop_subscription instead."],
+  },
+  delete_subscription_with_future_registrations: {
+    subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
+    subscription_has_payments: [B, "Owner policy (2026-10-26): a subscription with any valid (unreversed) payment, even partial, cannot be deleted. Expected rejection -- the UI should show a localized warning and suggest stop instead."],
+    invalid_future_registration_action: V,
+    future_registration_action_required: [V, "Returned on the confirmed call only when future (session_date >= today, not yet ended) subscription-covered registrations exist and the UI didn't supply p_future_registration_action -- the preview response already lists them, so a well-behaved client always resolves this by re-submitting with 'remove' or 'charge_regular_price' chosen."],
+    future_registrations_expectation_required: [V, "Returned on the confirmed call when resolving something but the UI omitted p_expected_future_registration_ids/p_expected_future_manual_participant_ids -- the staleness check (see future_registrations_changed) cannot be skipped by a client that forgets to pass what it previewed."],
+    future_registrations_changed: [B, "A registration for a future session appeared (e.g. the athlete self-registered) AFTER the manager's preview and before they confirmed -- expected optimistic-concurrency rejection, same class as discard_subscription_terms_draft's draft_changed / finalize_document_pdf's version_conflict. The UI should re-preview and let the manager re-decide, never silently resolve the unseen registration."],
   },
   discard_subscription_terms_draft: {
     draft_changed: [B, "The draft was saved again after the manager loaded it; the screen reloads instead of deleting newer text (optimistic concurrency, expected)."],
@@ -601,6 +620,20 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   stop_subscription: {
     no_current_version: [T, "Every subscription keeps exactly one open version (stop_subscription only sets stopped_effective_date; prod has 0 subscriptions without one). Occurrence = invariant violation."],
     stop_date_required: V,
+  },
+  stop_subscription_with_future_registrations: {
+    no_current_version: [T, "Every subscription keeps exactly one open version (stop_subscription only sets stopped_effective_date; prod has 0 subscriptions without one). Occurrence = invariant violation."],
+    stop_date_required: V,
+    invalid_future_registration_action: V,
+    future_registration_action_required: [V, "Returned on the confirmed call only when future (session_date >= p_stop_date, not yet ended) subscription-covered registrations exist and the UI didn't supply p_future_registration_action -- the preview response already lists them, so a well-behaved client always resolves this by re-submitting with 'remove' or 'charge_regular_price' chosen."],
+    future_registrations_expectation_required: [V, "Returned on the confirmed call when resolving something but the UI omitted p_expected_future_registration_ids/p_expected_future_manual_participant_ids -- the staleness check (see future_registrations_changed) cannot be skipped by a client that forgets to pass what it previewed."],
+    future_registrations_changed: [B, "A registration for a future session appeared (e.g. the athlete self-registered) AFTER the manager's preview and before they confirmed -- expected optimistic-concurrency rejection, same class as discard_subscription_terms_draft's draft_changed / finalize_document_pdf's version_conflict. The UI should re-preview and let the manager re-decide, never silently resolve the unseen registration."],
+  },
+  _subscription_resolve_future_registrations: {
+    invalid_future_registration_action: [T, "Defensive guard -- stop_subscription_with_future_registrations/delete_subscription_with_future_registrations both validate p_future_registration_action is 'remove' or 'charge_regular_price' before ever calling this internal helper, so reaching this RAISE indicates a caller bug, not a reachable user-facing state."],
+  },
+  get_subscription_weekly_usage: {
+    subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
   },
   subscription_compute_impact: {
     effective_from_before_current_version: B,

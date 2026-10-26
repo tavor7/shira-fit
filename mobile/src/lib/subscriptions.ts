@@ -118,6 +118,26 @@ export type SubscriptionDetail = {
   next_billing_date: string | null;
 };
 
+/** Per-tier usage row for one studio week -- same shape as the athlete's AthleteWeeklyUsageRow
+ * (both come from the shared _subscription_week_usage engine), reusable with tierUsageFromRow. */
+export type SubscriptionWeeklyUsageRow = {
+  tier: SubscriptionTier;
+  configured_weekly_limit: number;
+  effective_weekly_limit: number;
+  used: number;
+  extra: number;
+};
+
+export type SubscriptionWeeklyUsage = {
+  ok: true;
+  week_start: string;
+  week_end: string;
+  window_days: number;
+  active_days: number;
+  frozen_days: number;
+  usage: SubscriptionWeeklyUsageRow[];
+};
+
 export type ImpactRegistrationItem = {
   registration_id: string | null;
   manual_participant_id: string | null;
@@ -125,6 +145,21 @@ export type ImpactRegistrationItem = {
   week_start: string;
   tier: SubscriptionTier;
   new_non_coverage_reason: string | null;
+};
+
+export type FutureRegistrationAction = "remove" | "charge_regular_price";
+
+/** One currently-covered registration for a session on/after the subscription's termination date
+ * (stop_subscription / delete_subscription's future-registrations preview). week_start is not part of
+ * this payload -- unlike ImpactRegistrationItem, these are never-yet-reconciled rows. */
+export type FutureRegistrationItem = {
+  registration_id: string | null;
+  manual_participant_id: string | null;
+  session_date: string;
+  tier: SubscriptionTier;
+  /** What this session would cost if resolved as "charge_regular_price" -- informational only, never
+   * charged by the preview itself. */
+  regular_price_ils: number;
 };
 
 export type SubscriptionImpact = {
@@ -141,7 +176,16 @@ export type SubscriptionImpact = {
 };
 
 export type RpcResult<T> = { ok: true } & T;
-export type RpcError = { ok: false; error: string; subscription_id?: string };
+export type RpcError = {
+  ok: false;
+  error: string;
+  subscription_id?: string;
+  /** Present only on stop/delete-with-future-registrations' future_registrations_changed /
+   * future_registrations_expectation_required errors -- the freshly recomputed list, so the UI can
+   * refresh its own state from the SAME response instead of a second round trip. */
+  future_registrations?: FutureRegistrationItem[];
+  future_registrations_count?: number;
+};
 export type RpcOutcome<T> = RpcResult<T> | RpcError;
 
 /** Convert an allowances record (from server jsonb) into the fixed 7-tier array the create/edit
@@ -284,6 +328,19 @@ export async function rpcGetSubscriptionDetail(
   return data as SubscriptionDetail | RpcError;
 }
 
+export async function rpcGetSubscriptionWeeklyUsage(
+  supabase: SupabaseClient,
+  subscriptionId: string,
+  weekStart: string
+): Promise<SubscriptionWeeklyUsage | RpcError> {
+  const { data, error } = await supabase.rpc("get_subscription_weekly_usage", {
+    p_subscription_id: subscriptionId,
+    p_week_start: weekStart,
+  });
+  if (error) throw error;
+  return data as SubscriptionWeeklyUsage | RpcError;
+}
+
 export async function rpcCreateSubscription(
   supabase: SupabaseClient,
   input: CreateSubscriptionInput
@@ -416,28 +473,75 @@ export async function rpcFreezeSubscription(
   return data as RpcOutcome<FreezeSubscriptionOutcome>;
 }
 
+export type StopSubscriptionOutcome = {
+  action: "preview" | "applied" | "already_applied";
+  impact?: SubscriptionImpact;
+  future_registrations?: FutureRegistrationItem[];
+  future_registrations_count?: number;
+  future_registrations_resolved?: number;
+};
+
+/** Extracted from a FutureRegistrationItem[] the caller already has (typically its own earlier
+ * preview response) -- sent back on the confirmed call so the server can refuse to silently resolve
+ * anything that wasn't in what the manager actually reviewed (error future_registrations_changed if
+ * something new appeared since). */
+export function futureRegistrationExpectedIds(items: FutureRegistrationItem[]): {
+  registrationIds: string[];
+  manualParticipantIds: string[];
+} {
+  return {
+    registrationIds: items.map((i) => i.registration_id).filter((x): x is string => !!x),
+    manualParticipantIds: items.map((i) => i.manual_participant_id).filter((x): x is string => !!x),
+  };
+}
+
 export async function rpcStopSubscription(
   supabase: SupabaseClient,
   subscriptionId: string,
   stopDate: string,
-  confirmed: boolean
-): Promise<RpcOutcome<{ action: "preview" | "applied" | "already_applied"; impact?: SubscriptionImpact }>> {
-  const { data, error } = await supabase.rpc("stop_subscription", {
+  confirmed: boolean,
+  futureRegistrationAction: FutureRegistrationAction | null = null,
+  expectedFutureRegistrations: FutureRegistrationItem[] | null = null
+): Promise<RpcOutcome<StopSubscriptionOutcome>> {
+  const expected = expectedFutureRegistrations ? futureRegistrationExpectedIds(expectedFutureRegistrations) : null;
+  const { data, error } = await supabase.rpc("stop_subscription_with_future_registrations", {
     p_subscription_id: subscriptionId,
     p_stop_date: stopDate,
     p_confirmed: confirmed,
+    p_future_registration_action: futureRegistrationAction,
+    p_expected_future_registration_ids: expected?.registrationIds ?? null,
+    p_expected_future_manual_participant_ids: expected?.manualParticipantIds ?? null,
   });
   if (error) throw error;
-  return data as RpcOutcome<{ action: "preview" | "applied" | "already_applied"; impact?: SubscriptionImpact }>;
+  return data as RpcOutcome<StopSubscriptionOutcome>;
 }
+
+export type DeleteSubscriptionOutcome = {
+  action: "preview" | "tombstoned" | "already_deleted";
+  future_registrations?: FutureRegistrationItem[];
+  future_registrations_count?: number;
+  future_registrations_resolved?: number;
+  reversed_charge_count?: number;
+  reversed_total_ils?: number;
+};
 
 export async function rpcDeleteSubscription(
   supabase: SupabaseClient,
-  subscriptionId: string
-): Promise<RpcOutcome<{ action: "tombstoned" }>> {
-  const { data, error } = await supabase.rpc("delete_subscription", { p_subscription_id: subscriptionId });
+  subscriptionId: string,
+  confirmed: boolean = false,
+  futureRegistrationAction: FutureRegistrationAction | null = null,
+  expectedFutureRegistrations: FutureRegistrationItem[] | null = null
+): Promise<RpcOutcome<DeleteSubscriptionOutcome>> {
+  const expected = expectedFutureRegistrations ? futureRegistrationExpectedIds(expectedFutureRegistrations) : null;
+  const { data, error } = await supabase.rpc("delete_subscription_with_future_registrations", {
+    p_subscription_id: subscriptionId,
+    p_future_registration_action: futureRegistrationAction,
+    p_confirmed: confirmed,
+    p_expected_future_registration_ids: expected?.registrationIds ?? null,
+    p_expected_future_manual_participant_ids: expected?.manualParticipantIds ?? null,
+  });
   if (error) throw error;
-  return data as RpcOutcome<{ action: "tombstoned" }>;
+  return data as RpcOutcome<DeleteSubscriptionOutcome>;
 }
 
 export async function rpcReactivateSubscription(

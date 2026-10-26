@@ -42,3 +42,8 @@ export function athleteBrowseWeekBounds(now = new Date()): { start: string; end:
 
 /** Calendar week offset cap: 0 = this week, 1 = next week; no cap going backward. */
 export const ATHLETE_BROWSE_MAX_WEEK_OFFSET = 1;
+
+/** Shift a week-start date (Sunday) by `deltaWeeks` whole weeks (may be negative). */
+export function addStudioWeeksIso(weekStartIso: string, deltaWeeks: number): string {
+  return addDaysIso(weekStartIso, deltaWeeks * 7);
+}

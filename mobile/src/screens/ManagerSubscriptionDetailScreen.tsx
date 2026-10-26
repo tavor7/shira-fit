@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
@@ -8,18 +8,26 @@ import { useAppAlert } from "../context/AppAlertContext";
 import { supabase } from "../lib/supabase";
 import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
-import { formatISODateFull } from "../lib/dateFormat";
+import { WeeklyAllowanceMeter } from "../components/WeeklyAllowanceMeter";
+import { formatISODateDayMonth, formatISODateFull } from "../lib/dateFormat";
+import { studioTodayIso, weekBoundsSunday, addStudioWeeksIso } from "../lib/studioWeek";
+import { tierUsageFromRow, sessionsLeftLabel, usedOfLimitLabel, extraSessionsLabel } from "../lib/athleteSubscription";
 import {
   currentEffectiveChargeAmount,
   fetchSubscriptionPayments,
   rpcDeleteSubscription,
   rpcGetSubscriptionDetail,
+  rpcGetSubscriptionWeeklyUsage,
   tierLabelKey,
+  type FutureRegistrationAction,
+  type FutureRegistrationItem,
   type SubscriptionDetail,
   type SubscriptionPaymentRow,
   type SubscriptionVersionRow,
+  type SubscriptionWeeklyUsage,
 } from "../lib/subscriptions";
 import { AddSubscriptionPaymentModal } from "../components/AddSubscriptionPaymentModal";
+import { FutureRegistrationsChoiceModal } from "../components/subscriptions/FutureRegistrationsChoiceModal";
 import { paymentMethodHistoryLabel } from "../lib/paymentMethod";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { managerTermsStatusText, rpcGetSubscriptionTermsStatus, type ManagerTermsStatusItem } from "../lib/subscriptionTerms";
@@ -43,6 +51,13 @@ export function ManagerSubscriptionDetailScreen() {
   const [terms, setTerms] = useState<ManagerTermsStatusItem | null>(null);
   const [payments, setPayments] = useState<SubscriptionPaymentRow[]>([]);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [futureRegs, setFutureRegs] = useState<FutureRegistrationItem[]>([]);
+  const [futureRegsOpen, setFutureRegsOpen] = useState(false);
+  const [futureRegsNotice, setFutureRegsNotice] = useState<string | undefined>(undefined);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [usage, setUsage] = useState<SubscriptionWeeklyUsage | null>(null);
+  const [usageLoading, setUsageLoading] = useState(true);
+  const [usageError, setUsageError] = useState(false);
 
   const loadPayments = useCallback(async () => {
     if (!id) return;
@@ -92,6 +107,42 @@ export function ManagerSubscriptionDetailScreen() {
     }, [load, loadPayments])
   );
 
+  const weekStart = addStudioWeeksIso(weekBoundsSunday(studioTodayIso()).start, weekOffset);
+
+  const loadUsage = useCallback(
+    async (cancelledRef: { current: boolean }) => {
+      if (!id) return;
+      setUsageLoading(true);
+      setUsageError(false);
+      try {
+        const res = await rpcGetSubscriptionWeeklyUsage(supabase, String(id), weekStart);
+        if (cancelledRef.current) return;
+        if (!res.ok) {
+          setUsage(null);
+          setUsageError(true);
+          return;
+        }
+        setUsage(res);
+      } catch {
+        if (!cancelledRef.current) {
+          setUsage(null);
+          setUsageError(true);
+        }
+      } finally {
+        if (!cancelledRef.current) setUsageLoading(false);
+      }
+    },
+    [id, weekStart]
+  );
+
+  useEffect(() => {
+    const cancelledRef = { current: false };
+    void loadUsage(cancelledRef);
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, [loadUsage]);
+
   if (loading) {
     return (
       <View style={styles.centerScreen}>
@@ -132,11 +183,25 @@ export function ManagerSubscriptionDetailScreen() {
     });
   }
 
+  async function finishDelete(res: { ok: true; action: "preview" | "tombstoned" | "already_deleted"; future_registrations?: FutureRegistrationItem[] }) {
+    if (res.action === "preview") {
+      setFutureRegs(res.future_registrations ?? []);
+      setFutureRegsNotice(undefined);
+      setFutureRegsOpen(true);
+      return;
+    }
+    setFutureRegsOpen(false);
+    showToast({ message: t("subscriptions.delete.success"), variant: "success" });
+    router.replace("/(app)/manager/subscriptions");
+  }
+
+  // First call: previews (p_confirmed=false). A subscription with nothing upcoming never gets a
+  // "preview" back and deletes in this single round trip -- no extra step added for the common case.
   async function runDelete() {
     if (!id || deleting) return;
     setDeleting(true);
     try {
-      const res = await rpcDeleteSubscription(supabase, String(id));
+      const res = await rpcDeleteSubscription(supabase, String(id), false, null);
       if (!res.ok) {
         if (res.error === "subscription_has_payments") {
           showToast({ message: t("subscriptions.delete.blockedByPayments"), variant: "error" });
@@ -145,8 +210,34 @@ export function ManagerSubscriptionDetailScreen() {
         }
         return;
       }
-      showToast({ message: t("subscriptions.delete.success"), variant: "success" });
-      router.replace("/(app)/manager/subscriptions");
+      await finishDelete(res);
+    } catch (e) {
+      showToast({ message: t("subscriptions.genericError"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  // Second call, from the future-registrations choice dialog: always confirmed, with the chosen action.
+  async function confirmDeleteWithFutureAction(action: FutureRegistrationAction) {
+    if (!id || deleting) return;
+    setDeleting(true);
+    try {
+      const res = await rpcDeleteSubscription(supabase, String(id), true, action, futureRegs);
+      if (!res.ok) {
+        // See StopSubscriptionForm's identical handling: the list changed since preview (or the
+        // staleness check was never satisfied) -- refresh it from this same response and require an
+        // explicit new review + confirm, never a silent retry.
+        if (res.error === "future_registrations_changed" || res.error === "future_registrations_expectation_required") {
+          setFutureRegs(res.future_registrations ?? []);
+          setFutureRegsNotice(t("subscriptions.futureRegs.changed"));
+          setFutureRegsOpen(true);
+          return;
+        }
+        showToast({ message: t("subscriptions.genericError"), detail: res.error, variant: "error" });
+        return;
+      }
+      await finishDelete(res);
     } catch (e) {
       showToast({ message: t("subscriptions.genericError"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
     } finally {
@@ -205,6 +296,62 @@ export function ManagerSubscriptionDetailScreen() {
             <Text style={[styles.allowanceLine, isRTL && styles.rtl]}>{t("subscriptions.notIncluded")}</Text>
           ) : null}
         </Section>
+
+        <View style={styles.section}>
+          <View style={[styles.weekNavRow, rowFlipFor(isRTL) && styles.weekNavRowRtl]}>
+            <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>{t("subscriptions.detail.usageTitle")}</Text>
+            <View style={[styles.weekNav, rowFlipFor(isRTL) && styles.weekNavRtl]}>
+              <Pressable
+                onPress={() => setWeekOffset((w) => w - 1)}
+                style={styles.weekNavBtn}
+                accessibilityRole="button"
+                accessibilityLabel={t("dashboard.a11yPrevWeek")}
+              >
+                <Text style={styles.weekNavChevron}>{isRTL ? "→" : "←"}</Text>
+              </Pressable>
+              <Text style={styles.weekNavLabel} numberOfLines={1}>
+                {t("athleteSubscription.weekRange")
+                  .replace("{from}", formatISODateDayMonth(weekStart, language))
+                  .replace("{to}", formatISODateDayMonth(weekBoundsSunday(weekStart).end, language))}
+              </Text>
+              <Pressable
+                onPress={() => setWeekOffset((w) => w + 1)}
+                style={styles.weekNavBtn}
+                accessibilityRole="button"
+                accessibilityLabel={t("dashboard.a11yNextWeek")}
+              >
+                <Text style={styles.weekNavChevron}>{isRTL ? "←" : "→"}</Text>
+              </Pressable>
+            </View>
+          </View>
+          <View style={styles.sectionBody}>
+            {usageLoading ? (
+              <ActivityIndicator color={theme.colors.cta} style={styles.usageSpinner} />
+            ) : usageError ? (
+              <Text style={[styles.historyLine, isRTL && styles.rtl]}>{t("subscriptions.detail.usageLoadError")}</Text>
+            ) : !usage || usage.usage.length === 0 ? (
+              <Text style={[styles.historyLine, isRTL && styles.rtl]}>{t("subscriptions.detail.noUsage")}</Text>
+            ) : (
+              usage.usage.map((row, idx) => {
+                const tierUsage = tierUsageFromRow(row);
+                return (
+                  <View key={tierUsage.tier} style={idx > 0 ? styles.meterRowDivider : undefined}>
+                    <WeeklyAllowanceMeter
+                      title={t(tierLabelKey(tierUsage.tier))}
+                      used={tierUsage.used}
+                      limit={tierUsage.weeklyLimit}
+                      usedLabel={usedOfLimitLabel(tierUsage.used, tierUsage.weeklyLimit, t)}
+                      statusLabel={tierUsage.exhausted ? t("athleteSubscription.allowanceUsedUp") : sessionsLeftLabel(tierUsage.remaining, t)}
+                      noteLabel={tierUsage.extra > 0 ? extraSessionsLabel(tierUsage.extra, t) : undefined}
+                      exhausted={tierUsage.exhausted}
+                      isRTL={isRTL}
+                    />
+                  </View>
+                );
+              })
+            )}
+          </View>
+        </View>
 
         <Section title={t("subscriptions.detail.versionHistoryTitle")} isRTL={isRTL}>
           {versions.map((v) => (
@@ -316,6 +463,17 @@ export function ManagerSubscriptionDetailScreen() {
         defaultAmountIls={current?.monthly_price_ils ?? 0}
         onSaved={loadPayments}
       />
+      <FutureRegistrationsChoiceModal
+        visible={futureRegsOpen}
+        items={futureRegs}
+        busy={deleting}
+        notice={futureRegsNotice}
+        onCancel={() => {
+          setFutureRegsOpen(false);
+          setFutureRegsNotice(undefined);
+        }}
+        onConfirm={(action) => void confirmDeleteWithFutureAction(action)}
+      />
     </View>
   );
 }
@@ -353,6 +511,15 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   sectionTitle: { fontSize: 12, fontWeight: "800", color: theme.colors.textSoft, textTransform: "uppercase", marginBottom: theme.spacing.sm },
+  weekNavRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: theme.spacing.sm },
+  weekNavRowRtl: { flexDirection: "row-reverse" },
+  weekNav: { flexDirection: "row", alignItems: "center", gap: theme.spacing.xs },
+  weekNavRtl: { flexDirection: "row-reverse" },
+  weekNavBtn: { padding: 4 },
+  weekNavChevron: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  weekNavLabel: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, minWidth: 92, textAlign: "center" },
+  usageSpinner: { paddingVertical: theme.spacing.sm },
+  meterRowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.borderMuted },
   sectionBody: { gap: 6 },
   kv: { flexDirection: "row", justifyContent: "space-between", gap: theme.spacing.sm },
   kvRtl: { flexDirection: "row-reverse" },

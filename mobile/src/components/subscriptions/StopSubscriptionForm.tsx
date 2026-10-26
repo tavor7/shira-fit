@@ -12,7 +12,8 @@ import { DatePickerField } from "../DatePickerField";
 import { PrimaryButton } from "../PrimaryButton";
 import { toISODateLocal } from "../../lib/isoDate";
 import { SubscriptionImpactConfirmModal } from "./SubscriptionImpactConfirmModal";
-import { rpcStopSubscription, type SubscriptionImpact } from "../../lib/subscriptions";
+import { FutureRegistrationsChoiceModal } from "./FutureRegistrationsChoiceModal";
+import { rpcStopSubscription, type FutureRegistrationAction, type FutureRegistrationItem, type SubscriptionImpact } from "../../lib/subscriptions";
 import { useScreenContentStyle } from "../../hooks/useScreenLayout";
 
 export function StopSubscriptionForm({ subscriptionId }: { subscriptionId: string }) {
@@ -27,6 +28,9 @@ export function StopSubscriptionForm({ subscriptionId }: { subscriptionId: strin
   const [submitting, setSubmitting] = useState(false);
   const [impact, setImpact] = useState<SubscriptionImpact | null>(null);
   const [impactOpen, setImpactOpen] = useState(false);
+  const [futureRegs, setFutureRegs] = useState<FutureRegistrationItem[]>([]);
+  const [futureRegsOpen, setFutureRegsOpen] = useState(false);
+  const [futureRegsNotice, setFutureRegsNotice] = useState<string | undefined>(undefined);
 
   const allowLeaveRef = useRef(false);
   const dirtyRef = useRef(false);
@@ -65,22 +69,45 @@ export function StopSubscriptionForm({ subscriptionId }: { subscriptionId: strin
     );
   }
 
-  async function runStop(confirmed: boolean) {
+  async function runStop(confirmed: boolean, futureRegistrationAction: FutureRegistrationAction | null = null) {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const res = await rpcStopSubscription(supabase, subscriptionId, stopDate, confirmed);
+      const res = await rpcStopSubscription(
+        supabase,
+        subscriptionId,
+        stopDate,
+        confirmed,
+        futureRegistrationAction,
+        futureRegistrationAction ? futureRegs : null
+      );
       if (!res.ok) {
+        // The future-registrations list changed (or the staleness check was never satisfied) between
+        // the manager's preview and this confirm -- never silently retry with stale/no expectations.
+        // Refresh the list from this same response and require an explicit new review + confirm.
+        if (res.error === "future_registrations_changed" || res.error === "future_registrations_expectation_required") {
+          setFutureRegs(res.future_registrations ?? []);
+          setFutureRegsNotice(t("subscriptions.futureRegs.changed"));
+          setFutureRegsOpen(true);
+          return;
+        }
         showToast({ message: t("subscriptions.genericError"), detail: res.error, variant: "error" });
         return;
       }
       if (res.action === "preview") {
+        const regs = res.future_registrations ?? [];
         setImpact(res.impact ?? null);
-        setImpactOpen(true);
+        setFutureRegs(regs);
+        setFutureRegsNotice(undefined);
+        // No future registrations: go straight to the existing impact dialog (or, if that's also
+        // empty, this branch never fires -- the backend only previews when there's something to show).
+        if ((res.impact?.count ?? 0) > 0) setImpactOpen(true);
+        else if (regs.length > 0) setFutureRegsOpen(true);
         return;
       }
       showToast({ message: t("subscriptions.stop.success"), variant: "success" });
       setImpactOpen(false);
+      setFutureRegsOpen(false);
       allowLeaveRef.current = true;
       router.back();
     } catch (e) {
@@ -124,7 +151,27 @@ export function StopSubscriptionForm({ subscriptionId }: { subscriptionId: strin
         impact={impact}
         busy={submitting}
         onCancel={() => setImpactOpen(false)}
-        onConfirm={() => void runStop(true)}
+        onConfirm={() => {
+          // Preserves the existing one-step flow when nothing upcoming is affected: only inserts the
+          // extra future-registrations step when there actually is one.
+          if (futureRegs.length > 0) {
+            setImpactOpen(false);
+            setFutureRegsOpen(true);
+          } else {
+            void runStop(true);
+          }
+        }}
+      />
+      <FutureRegistrationsChoiceModal
+        visible={futureRegsOpen}
+        items={futureRegs}
+        busy={submitting}
+        notice={futureRegsNotice}
+        onCancel={() => {
+          setFutureRegsOpen(false);
+          setFutureRegsNotice(undefined);
+        }}
+        onConfirm={(action) => void runStop(true, action)}
       />
       {discardDialog}
     </>

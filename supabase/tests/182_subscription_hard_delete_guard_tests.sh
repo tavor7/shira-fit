@@ -6,9 +6,14 @@
 # subscription_charges are all populated exactly as production would produce them).
 #   G  a direct hard DELETE (as manager, who passes RLS) is refused on every guarded table: subscriptions,
 #      subscription_versions, subscription_freezes, subscription_billing_periods, subscription_charges,
-#      subscription_registration_coverage, subscription_impact_events, subscription_impact_event_registrations
+#      subscription_impact_events
 #   U  subscription_version_allowances is deliberately NOT guarded (edit_subscription_version depends on
 #      deleting and reinserting it) -- a direct delete there still works
+#   U2 (20261026160000 fix) subscription_registration_coverage and subscription_impact_event_registrations
+#      are ALSO not guarded -- they are coverage/audit metadata with no money column, always designed (original
+#      schema) to cascade away with their registration; the guard on them broke session deletion
+#      (subscription_record_immutable) for any session with a subscription-covered participant. See
+#      191_session_delete_subscription_coverage_cascade_tests.sh for the end-to-end session-delete regression.
 #   P  the real, intended way to remove a subscription (delete_subscription, a tombstone) is completely
 #      unaffected by this migration and still works
 #   Z  existing subscription RPCs (freeze/stop/edit) are still fully functional (spot check: freeze_subscription
@@ -64,14 +69,15 @@ if [ -z "$REGX" ] || [[ "$REGX" != *-*-*-*-* ]]; then
   SX=$(su -c "insert into public.training_sessions (session_date, start_time, coach_id, max_participants, is_open_for_registration) values (current_date + 20, '06:00', '$CX', 6, true) returning id" | head -1)
   REGX=$(su -c "insert into public.session_registrations (session_id, user_id, status) values ('$SX', '$A', 'active') returning id" | head -1)
 fi
-COV=$(su -c "insert into public.subscription_registration_coverage (subscription_id, version_id, registration_id, session_date, week_start, tier, covered, non_coverage_reason, decided_by) values ('$SUB', '$VER', '$REGX', current_date, current_date, 'personal', false, 'frozen', 'reconcile') returning id" 2>&1 | head -1)
-case "$COV" in *-*-*-*-*) refused "G subscription_registration_coverage" "$(api "$M" "delete from public.subscription_registration_coverage where id = '$COV'; select 1;")";; *) fail "G coverage fixture insert failed: $COV";; esac
-
 EVT=$(su -c "insert into public.subscription_impact_events (subscription_id, action_type, action_source_id, effective_date, confirmed) values ('$SUB', 'freeze', gen_random_uuid(), current_date, true) returning id" | head -1)
 refused "G subscription_impact_events" "$(api "$M" "delete from public.subscription_impact_events where id = '$EVT'; select 1;")"
 
+echo "== U2: subscription_registration_coverage and subscription_impact_event_registrations stay deletable (20261026160000 fix -- no money column, always cascade-on-registration-delete by original schema design)"
+COV=$(su -c "insert into public.subscription_registration_coverage (subscription_id, version_id, registration_id, session_date, week_start, tier, covered, non_coverage_reason, decided_by) values ('$SUB', '$VER', '$REGX', current_date, current_date, 'personal', false, 'frozen', 'reconcile') returning id" 2>&1 | head -1)
+case "$COV" in *-*-*-*-*) allowed "U2 direct delete of a subscription_registration_coverage row" "$(api "$M" "delete from public.subscription_registration_coverage where id = '$COV'; select 1;")";; *) fail "U2 coverage fixture insert failed: $COV";; esac
+
 EVTREG=$(su -c "insert into public.subscription_impact_event_registrations (event_id, registration_id, previous_covered, new_covered) values ('$EVT', '$REGX', true, false) returning id" 2>&1 | head -1)
-case "$EVTREG" in *-*-*-*-*) refused "G subscription_impact_event_registrations" "$(api "$M" "delete from public.subscription_impact_event_registrations where id = '$EVTREG'; select 1;")";; *) fail "G impact_event_registrations fixture insert failed: $EVTREG";; esac
+case "$EVTREG" in *-*-*-*-*) allowed "U2 direct delete of a subscription_impact_event_registrations row" "$(api "$M" "delete from public.subscription_impact_event_registrations where id = '$EVTREG'; select 1;")";; *) fail "U2 impact_event_registrations fixture insert failed: $EVTREG";; esac
 
 echo "== U: subscription_version_allowances stays deletable (edit_subscription_version depends on this)"
 su -c "insert into public.subscription_version_allowances (version_id, tier, weekly_limit) values ('$VER', 'pair', 2) on conflict do nothing" >/dev/null

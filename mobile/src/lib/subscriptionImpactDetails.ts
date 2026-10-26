@@ -12,7 +12,9 @@ export function impactItemKey(item: Pick<ImpactRegistrationItem, "registration_i
  * Looks up when and with whom each affected registration takes place. The impact itself (which rows,
  * how many) still comes only from the server preview; if this lookup fails the dialog shows dates only.
  */
-export async function fetchImpactSessionDetails(items: ImpactRegistrationItem[]): Promise<Map<string, ImpactSessionDetail>> {
+export async function fetchImpactSessionDetails(
+  items: Pick<ImpactRegistrationItem, "registration_id" | "manual_participant_id">[]
+): Promise<Map<string, ImpactSessionDetail>> {
   const out = new Map<string, ImpactSessionDetail>();
   const regIds = [...new Set(items.map((i) => i.registration_id).filter((x): x is string => !!x))];
   const manIds = [...new Set(items.map((i) => i.manual_participant_id).filter((x): x is string => !!x))];

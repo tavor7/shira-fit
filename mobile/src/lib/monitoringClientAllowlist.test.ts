@@ -6,11 +6,17 @@ import { classifyPostgrestError, REVIEWED_REASON_SHAPES } from "./rpcOutcomes/po
 import { DELEGATES, GLOBAL_RULES, OPERATION_RULES } from "./rpcOutcomes/registry";
 import { classifyHttpStatus } from "./techReporting/transportCapture";
 
-// Monitoring Phase 3E.2: the SERVER-side client reporting allowlist (migration 20261015100000) must stay in step with the reviewed
-// client-side classification. The server is the security boundary; this test only guards against the two drifting apart.
+// Monitoring Phase 3E.2: the SERVER-side client reporting allowlist (migration 20261015100000, plus any
+// later `*client_allowlist*` follow-up migration that adds more seed rows -- e.g. 20261026094140) must
+// stay in step with the reviewed client-side classification. The server is the security boundary; this
+// test only guards against the two drifting apart.
 
-const MIG = path.resolve(__dirname, "../../../supabase/migrations/20261015100000_system_monitoring_client_allowlist.sql");
-const sql = fs.readFileSync(MIG, "utf8");
+const MIGRATIONS_DIR = path.resolve(__dirname, "../../../supabase/migrations");
+const SEED_FILES = fs
+  .readdirSync(MIGRATIONS_DIR)
+  .filter((f) => f.endsWith(".sql") && /client_allowlist/i.test(f))
+  .sort();
+const sql = SEED_FILES.map((f) => fs.readFileSync(path.join(MIGRATIONS_DIR, f), "utf8")).join("\n");
 const seed = [...sql.matchAll(/^\s*\('([^']+)', '([^']+)', '([^']+)', '([^']+)', '((?:[^']|'')*)'\),?$/gm)].map((m) => ({ op: m[1], cls: m[2], code: m[3], subsys: m[4], title: m[5].replace(/''/g, "'") }));
 
 // Registry operations that are NOT callable by an API role (EXECUTE revoked from clients, SEC-1/SEC-2): their codes can never reach a client.
