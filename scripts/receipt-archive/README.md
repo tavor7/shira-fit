@@ -22,6 +22,7 @@ deployed as part of the app or edge functions — run it from a developer machin
 - `npm run list-storage` — read-only enumeration of `document-pdfs` in Supabase Storage. No downloads, no R2 calls.
 - `npm run backfill:dry-run` — plans the historical archive against the real object list (checks what's already in R2 via HEAD) without downloading or uploading anything. Writes `out/manifest.jsonl` and `out/checkpoint.json` (gitignored).
 - `npm run backfill` — the real, resumable, idempotent historical backfill. **Do not run until explicitly authorized** — this uploads every object in `document-pdfs` to the R2 archive.
+- `npm run reconcile [-- --limit N]` (Backup Management Phase 9) — bounded, read-only: HEAD-checks up to `N` (default 500) `archive.r2_archive_jobs` rows marked `completed` in R2, reports any missing object to System Issues (never a push), and records the run in `archive.reconciliation_runs`. Never writes to R2, never re-queues anything. See `docs/backup-management/disaster-recovery.md`.
 
 ## Notes
 
