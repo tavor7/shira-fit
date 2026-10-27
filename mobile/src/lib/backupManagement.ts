@@ -16,6 +16,8 @@ export interface FinancialBackupHealth {
   restore_test_is_stale?: boolean;
   total_size_bytes?: number;
   health_status?: "ok" | "critical" | string;
+  next_scheduled_backup?: string;
+  next_scheduled_restore_test?: string;
 }
 
 export interface BackupHealthSnapshot {
@@ -67,4 +69,45 @@ export async function fetchArchiveHealth(): Promise<ArchiveHealth | null> {
   if (!row?.ok) return null;
   const { ok: _ok, ...rest } = row;
   return rest;
+}
+
+export interface BackupAutomationState {
+  enabled: boolean;
+  changedAt: string | null;
+  changedByLabel: string | null;
+}
+
+/** Thrown when manage-backup-automation itself fails (e.g. R2 temporarily unreachable) --
+ *  distinct from a normal {ok:false} authorization result, so the UI can tell "you can't do this"
+ *  apart from "this failed, try again." */
+export class BackupAutomationUnavailableError extends Error {
+  constructor(detail?: string) {
+    super(detail || "backup_automation_unavailable");
+  }
+}
+
+async function callAutomationFunction(body: { action: "get" | "set"; enabled?: boolean }): Promise<BackupAutomationState> {
+  const { data, error } = await supabase.functions.invoke("manage-backup-automation", { body });
+  const row = data as { ok?: boolean; enabled?: boolean; changed_at?: string | null; changed_by_label?: string | null; error?: string } | null;
+  if (error || !row?.ok) {
+    const code = row?.error;
+    if (code === "forbidden" || code === "unauthorized") throw new Error(code);
+    throw new BackupAutomationUnavailableError(code);
+  }
+  return { enabled: !!row.enabled, changedAt: row.changed_at ?? null, changedByLabel: row.changed_by_label ?? null };
+}
+
+/** Manager-only. Current effective automation state (daily backup + weekly restore-test, tied
+ *  together for now) -- read from the same R2-resident config the scheduled workflow itself
+ *  reads, never a locally-cached UI preference. */
+export function fetchBackupAutomationState(): Promise<BackupAutomationState> {
+  return callAutomationFunction({ action: "get" });
+}
+
+/** Manager-only. Appends a new automation on/off record (never overwrites -- see
+ *  manage-backup-automation's own comment on R2 Bucket Lock) and returns the new effective
+ *  state. Throws BackupAutomationUnavailableError if the write itself couldn't be confirmed --
+ *  the caller must treat that as "unknown, don't assume it changed," not as success. */
+export function setBackupAutomationEnabled(enabled: boolean): Promise<BackupAutomationState> {
+  return callAutomationFunction({ action: "set", enabled });
 }

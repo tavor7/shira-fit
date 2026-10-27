@@ -1,4 +1,5 @@
 import { loadProductionManifests, loadRestoreTestResults } from "./backup-queries.js";
+import { getAutomationConfig } from "./r2.js";
 
 // Decides whether a `schedule`-triggered workflow run should actually do anything, for BOTH the
 // daily-backup and weekly-restore-test schedules. Two independent questions, both answered
@@ -65,6 +66,20 @@ async function main() {
     throw new Error(`GUARD_KIND must be "daily-backup" or "weekly-restore-test", got: "${guardKind}"`);
   }
   if (!eventSchedule) throw new Error("EVENT_SCHEDULE is required (the exact cron string that fired, from github.event.schedule).");
+
+  // Manager-controlled kill switch (Setup -> Backups / הגדרות -> גיבויים), not the static
+  // SCHEDULED_BACKUPS_ENABLED repo variable -- that var only controls whether this job starts at
+  // all (so the lightweight guard check itself can run on a registered schedule); the actual
+  // decision to ever create a real backup or run a real restore-test lives here, in R2, settable
+  // from the app without any GitHub credential. No config object ever written yet means
+  // disabled -- the safe default. Checked before the DST/season logic since there's no reason to
+  // even compute that when automation is off.
+  const automation = await getAutomationConfig();
+  if (!automation.enabled) {
+    console.log(`Skipping -- automatic backups are currently disabled (set from the app; last changed: ${automation.changed_at ?? "never"}).`);
+    await writeOutput("should_run", "false");
+    return;
+  }
 
   const expectedSeason = SEASON_BY_CRON[eventSchedule];
   if (!expectedSeason) throw new Error(`Unrecognized cron string "${eventSchedule}" -- add it to SEASON_BY_CRON if this is a real new schedule entry.`);

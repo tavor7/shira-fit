@@ -342,14 +342,19 @@ end-to-end (structural + referential-integrity + snapshot-row-count checks, all 
 5. ~~Restore test~~ — done, both as an explicit `mode: restore-test` dispatch and (once the
    `record-restore-test-result` job below lands) with its result durably recorded.
 6. ~~First real verification record~~ — done (`npm run verify-remote`).
-7. **Scheduling — implemented, gated off by default.** `.github/workflows/financial-backup.yml`
-   now has four `schedule:` cron entries (two per trigger, one for each Israel DST season — see
-   `src/scheduled-run-guard.js` for why a single UTC cron can't express "~03:00 Israel time" and
-   why the guard is calendar-grain, never a strict wall-clock-hour check, since GitHub's own
-   scheduled runs "may be delayed... or occasionally be skipped"). **Every scheduled firing is a
-   no-op unless the repository variable `SCHEDULED_BACKUPS_ENABLED` is exactly `"true"`** —
-   merging the workflow file does not, by itself, start anything. Setting that variable is the
-   one explicit activation step, deliberately left for a separate, reviewed decision.
+7. **Scheduling — implemented, gated off by default, manager-controlled.**
+   `.github/workflows/financial-backup.yml` has four `schedule:` cron entries (two per trigger,
+   one for each Israel DST season — see `src/scheduled-run-guard.js` for why a single UTC cron
+   can't express "~03:00 Israel time" and why the guard is calendar-grain, never a strict
+   wall-clock-hour check, since GitHub's own scheduled runs "may be delayed... or occasionally be
+   skipped"). Both jobs now start unconditionally on every matching cron tick (no GitHub repo
+   variable gates this anymore) — but `scheduled-run-guard.js` reads a small, auditable,
+   append-only config object in R2 (`db-backups/config/automation-*.json`) and no-ops immediately
+   if it says disabled. **No config object ever having been written means disabled** — the safe
+   default. The ONLY way to turn this on is the manager-only toggle in the app (Setup → Backups /
+   הגדרות → גיבויים), which calls `supabase/functions/manage-backup-automation` — there is no
+   GitHub repo variable to flip instead. See that function's own header comment for the full
+   credential-reuse design (zero new secrets in Supabase or GitHub Actions).
 8. Monitoring/alerting for missed backups: `npm run health`'s non-zero exit code on
    `backup_is_stale`/`verification_is_stale`/`restore_test_is_stale`/incomplete already signals
    failure — see the Backup Management screen work (separate scope) for where this actually
@@ -389,8 +394,11 @@ end-to-end (structural + referential-integrity + snapshot-row-count checks, all 
 
 ## Not yet done (needs separate approval or further work)
 
-- **Setting `SCHEDULED_BACKUPS_ENABLED=true`** — the one remaining activation step for everything
-  in "Scheduling design" above.
+- **Turning automation on** — the manager-only toggle (Setup → Backups) and its backend
+  (`manage-backup-automation` Edge Function, `scheduled-run-guard.js`'s R2-config check) are
+  implemented and reviewed, but the Edge Function is not yet deployed and no manager has turned
+  it on. Default remains disabled until a manager explicitly flips it in the app.
 - The manager-only Backup Management screen, receipt-archive health reporting, and the
-  accounting-document export feature (UI + new backend APIs, separate, larger scope — see the
-  project's Backup Management implementation plan).
+  accounting-document export feature are implemented (separate, larger scope — see the project's
+  Backup Management implementation plan) but their migrations/Edge Function are not yet applied
+  to production.

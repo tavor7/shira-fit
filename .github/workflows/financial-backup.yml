@@ -1,12 +1,17 @@
 name: Financial backup (schema + scoped data)
 
 # Manual trigger (workflow_dispatch) plus a `schedule:` trigger for an automated daily backup and
-# weekly restore-test. The schedule entries exist and are wired end-to-end, but every scheduled
-# firing is a no-op unless the repository variable SCHEDULED_BACKUPS_ENABLED is exactly "true" --
-# merging this file does NOT, by itself, start any automated backup. Flipping that variable on is
-# a deliberate, separate, reviewed activation step (see scripts/financial-backup/README.md
-# "Production rollout procedure"). See also scripts/financial-backup/src/scheduled-run-guard.js
-# for why there are four cron entries, not two or one.
+# weekly restore-test. The schedule entries fire unconditionally (both jobs start on every
+# matching cron tick) -- but every scheduled firing is a no-op unless a manager has explicitly
+# turned automation on from the app (Setup -> Backups / הגדרות -> גיבויים). That on/off state is
+# NOT a GitHub repo variable (the app has no GitHub credential to set one) -- it's a small,
+# auditable, append-only config object in the same R2 bucket this workflow already reads/writes,
+# set by the manage-backup-automation Edge Function and read here by the "Scheduled-run guard"
+# step (src/scheduled-run-guard.js) using the SAME R2 reader credential already in this job. No
+# config object ever having been written means disabled -- the safe default -- so merging this
+# file, or this file's schedule simply existing, never starts a real backup on its own. See also
+# scripts/financial-backup/src/scheduled-run-guard.js for why there are four cron entries, not two
+# or one.
 #
 # Israel has no single fixed UTC offset (IDT in summer / IST in winter), and a GitHub Actions cron
 # is UTC-only and can't express "the DST-adjusted local time." Two cron entries per schedule (one
@@ -54,15 +59,19 @@ jobs:
     # Guards against a manual dispatch accidentally being run against a feature branch's copy of
     # this workflow -- a financial backup should only ever run from the reviewed, merged version.
     # For a `schedule` event: only the two daily-backup cron entries reach this job at all (the
-    # weekly-restore-test entries are filtered out here so they never start this job uselessly),
-    # and only if SCHEDULED_BACKUPS_ENABLED is "true" -- see the file header.
+    # weekly-restore-test entries are filtered out here so they never start this job uselessly).
+    # Deliberately NOT gated here on a static GitHub repo variable -- the real on/off decision is
+    # the manager-controlled, R2-resident automation config the "Scheduled-run guard" step below
+    # reads (see src/scheduled-run-guard.js and supabase/functions/manage-backup-automation). This
+    # job-level `if:` only decides whether the lightweight guard check runs at all on a schedule
+    # firing; it always does, so a disabled-but-registered schedule is visibly a fast no-op in the
+    # Actions log rather than the run never appearing.
     if: >-
       github.ref == 'refs/heads/main' &&
       (
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'schedule' &&
-          vars.SCHEDULED_BACKUPS_ENABLED == 'true' &&
           contains(fromJSON('["0 0 * * *","0 1 * * *"]'), github.event.schedule)
         )
       )
@@ -222,8 +231,10 @@ jobs:
   # files) and never connects outbound to the production database at all.
   #
   # Runs on an explicit `mode: restore-test` dispatch (backup_id optional -- auto-selects the
-  # latest remotely-verified backup if blank), OR on the weekly `schedule` entries once
-  # SCHEDULED_BACKUPS_ENABLED is "true" -- never as part of an ordinary backup run.
+  # latest remotely-verified backup if blank), OR on the weekly `schedule` entries (never as part
+  # of an ordinary backup run). Same as the `backup` job above: not gated on a static repo
+  # variable -- the "Scheduled-run guard" step inside reads the manager-controlled, R2-resident
+  # automation config and no-ops if it's disabled (the default).
   restore-test:
     runs-on: ubuntu-latest
     if: >-
@@ -232,7 +243,6 @@ jobs:
         (github.event_name == 'workflow_dispatch' && inputs.mode == 'restore-test') ||
         (
           github.event_name == 'schedule' &&
-          vars.SCHEDULED_BACKUPS_ENABLED == 'true' &&
           contains(fromJSON('["0 2 * * 0","0 3 * * 0"]'), github.event.schedule)
         )
       )

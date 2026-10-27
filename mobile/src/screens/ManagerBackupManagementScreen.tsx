@@ -2,11 +2,23 @@ import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
+import { useAppAlert } from "../context/AppAlertContext";
+import { useToast } from "../context/ToastContext";
 import { AppText } from "../components/AppText";
+import { AppSwitch } from "../components/AppSwitch";
 import { Skeleton } from "../components/Skeleton";
 import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { formatDateTimeForDisplay } from "../lib/dateFormat";
-import { fetchArchiveHealth, fetchBackupHealth, type ArchiveHealth, type BackupHealthSnapshot } from "../lib/backupManagement";
+import {
+  fetchArchiveHealth,
+  fetchBackupAutomationState,
+  fetchBackupHealth,
+  setBackupAutomationEnabled,
+  BackupAutomationUnavailableError,
+  type ArchiveHealth,
+  type BackupAutomationState,
+  type BackupHealthSnapshot,
+} from "../lib/backupManagement";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 
@@ -35,10 +47,14 @@ function StatusRow({ label, value, warn, isRTL }: Row & { isRTL: boolean }) {
 export default function ManagerBackupManagementScreen() {
   const { t, language, isRTL } = useI18n();
   const screenContent = useScreenContentStyle("narrow");
+  const { showConfirm } = useAppAlert();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [backup, setBackup] = useState<BackupHealthSnapshot | null>(null);
   const [archive, setArchive] = useState<ArchiveHealth | null>(null);
+  const [automation, setAutomation] = useState<BackupAutomationState | null>(null);
+  const [automationBusy, setAutomationBusy] = useState(false);
 
   const replace = useCallback((key: string, n: number) => t(key).replace("{n}", String(n)), [t]);
 
@@ -46,9 +62,10 @@ export default function ManagerBackupManagementScreen() {
     setLoading(true);
     setLoadError(false);
     try {
-      const [b, a] = await Promise.all([fetchBackupHealth(), fetchArchiveHealth()]);
+      const [b, a, auto] = await Promise.all([fetchBackupHealth(), fetchArchiveHealth(), fetchBackupAutomationState()]);
       setBackup(b);
       setArchive(a);
+      setAutomation(auto);
     } catch {
       setLoadError(true);
     } finally {
@@ -59,6 +76,38 @@ export default function ManagerBackupManagementScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function applyAutomationChange(nextEnabled: boolean) {
+    if (automationBusy) return; // prevents a double-tap from firing two requests
+    setAutomationBusy(true);
+    try {
+      const state = await setBackupAutomationEnabled(nextEnabled);
+      setAutomation(state);
+      showToast({
+        message: nextEnabled ? t("backupMgmt.automation.enabledToast") : t("backupMgmt.automation.disabledToast"),
+        variant: "success",
+      });
+    } catch (e) {
+      if (e instanceof BackupAutomationUnavailableError) {
+        showToast({ message: t("backupMgmt.automation.unavailable"), variant: "error" });
+      } else {
+        showToast({ message: t("common.error"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+      }
+    } finally {
+      setAutomationBusy(false);
+    }
+  }
+
+  function onToggleAutomation(nextEnabled: boolean) {
+    showConfirm({
+      title: nextEnabled ? t("backupMgmt.automation.confirmEnableTitle") : t("backupMgmt.automation.confirmDisableTitle"),
+      message: nextEnabled ? t("backupMgmt.automation.confirmEnableBody") : t("backupMgmt.automation.confirmDisableBody"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: nextEnabled ? t("backupMgmt.automation.enable") : t("backupMgmt.automation.disable"),
+      confirmVariant: nextEnabled ? "primary" : "danger",
+      onConfirm: () => void applyAutomationChange(nextEnabled),
+    });
+  }
 
   const h = backup?.health;
   const attention: string[] = [];
@@ -102,6 +151,39 @@ export default function ManagerBackupManagementScreen() {
       <AppText variant="caption" muted isRTL={isRTL} style={styles.hint}>
         {t("backupMgmt.hint")}
       </AppText>
+
+      <View style={styles.card}>
+        <AppText variant="title" isRTL={isRTL} style={styles.cardTitle}>
+          {t("backupMgmt.automation.title")}
+        </AppText>
+        <AppText variant="caption" muted isRTL={isRTL} style={styles.cardDesc}>
+          {t("backupMgmt.automation.description")}
+        </AppText>
+
+        <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
+          <AppText variant="body" isRTL={isRTL} style={styles.toggleLabel}>
+            {automation?.enabled ? t("backupMgmt.automation.stateOn") : t("backupMgmt.automation.stateOff")}
+          </AppText>
+          <AppSwitch
+            value={!!automation?.enabled}
+            onValueChange={onToggleAutomation}
+            onColor={theme.colors.success}
+            accessibilityLabel={t("backupMgmt.automation.title")}
+            disabled={automationBusy || !automation}
+          />
+        </View>
+
+        {automation?.changedAt ? (
+          <AppText variant="caption" muted isRTL={isRTL} style={styles.snapshotAge}>
+            {t("backupMgmt.automation.lastChanged")
+              .replace("{when}", formatDateTimeForDisplay(automation.changedAt, language))
+              .replace("{who}", automation.changedByLabel ?? "—")}
+          </AppText>
+        ) : null}
+
+        <StatusRow isRTL={isRTL} label={t("backupMgmt.automation.dailySchedule")} value={h?.next_scheduled_backup ?? t("backupMgmt.automation.scheduleFallbackDaily")} />
+        <StatusRow isRTL={isRTL} label={t("backupMgmt.automation.weeklySchedule")} value={h?.next_scheduled_restore_test ?? t("backupMgmt.automation.scheduleFallbackWeekly")} />
+      </View>
 
       {attention.length > 0 && (
         <View style={[styles.card, styles.attentionCard]}>
@@ -246,6 +328,10 @@ const styles = StyleSheet.create({
   attentionTitle: { marginBottom: theme.spacing.xs, color: theme.colors.warning },
   attentionItem: { marginTop: 2 },
   cardTitle: { marginBottom: theme.spacing.sm },
+  cardDesc: { marginBottom: theme.spacing.sm, lineHeight: 19 },
+  toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: theme.spacing.xs },
+  toggleRowRtl: { flexDirection: "row-reverse" },
+  toggleLabel: { flex: 1, fontWeight: "700" },
   statRow: {
     flexDirection: "row",
     alignItems: "center",

@@ -48,6 +48,12 @@ export const KEYS = {
   // the writer credential for this one operation only -- see .github/workflows/financial-backup.yml
   // and src/write-restore-test-result.js.
   restoreTest: (backupId, testedAtIso) => `db-backups/restore-tests/${backupId}-${testedAtIso.replace(/[:.]/g, "-")}.json`,
+  // Manager-controlled on/off switch for the scheduled automation (see src/scheduled-run-guard.js
+  // and supabase/functions/manage-backup-automation -- the manager-facing write path for this
+  // SAME prefix, in the SAME bucket, using the SAME R2 credentials already present as Edge
+  // Function secrets). Append-only for the same Bucket Lock reason as restoreTest above; "current
+  // state" is always the lexicographically (= chronologically) latest key under this prefix.
+  automationConfigPrefix: "db-backups/config/automation-",
 };
 
 async function headExists(key) {
@@ -126,4 +132,14 @@ export async function listVerificationKeys() {
 
 export async function listRestoreTestKeys() {
   return listKeysWithPrefix("db-backups/restore-tests/");
+}
+
+/** Reader-only. The latest manager-set automation on/off state, or disabled if none was ever
+ *  set (safe default -- see KEYS.automationConfigPrefix). */
+export async function getAutomationConfig() {
+  const keys = await listKeysWithPrefix(KEYS.automationConfigPrefix);
+  if (keys.length === 0) return { enabled: false, changed_at: null, changed_by_label: null };
+  const latestKey = keys.sort().at(-1);
+  const body = await getObject(latestKey);
+  return JSON.parse(body.toString("utf8"));
 }
