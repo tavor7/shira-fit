@@ -312,7 +312,18 @@ jobs:
         run: |
           set -eo pipefail
           if [ -n "$DISPATCH_BACKUP_ID" ]; then
-            echo "backup_id=$DISPATCH_BACKUP_ID" >> "$GITHUB_OUTPUT"
+            # Fail fast and clearly on a malformed manual input, rather than letting it propagate
+            # into a confusing R2 404 three steps later, or (worse) into the result-recording
+            # job's object key -- every real backup_id is a crypto.randomUUID() output.
+            case "$DISPATCH_BACKUP_ID" in
+              [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]-[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]-[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]-[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]-[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])
+                echo "backup_id=$DISPATCH_BACKUP_ID" >> "$GITHUB_OUTPUT"
+                ;;
+              *)
+                echo "::error::backup_id must be a well-formed UUID (every real backup_id is one), got: \"$DISPATCH_BACKUP_ID\""
+                exit 1
+                ;;
+            esac
           else
             npm run --silent select-latest-verified-backup
           fi

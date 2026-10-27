@@ -19,6 +19,28 @@ import { KEYS, putAndVerify } from "./r2.js";
 //                               raw SQL or row contents -- this is written to a durable, public-
 //                               within-the-bucket-readers record, same discipline as every other
 //                               manifest/verification record in this archive.
+//
+// RESIDUAL RISK, documented rather than silently accepted: R2_ARCHIVE_WRITER_* is a bucket-wide
+// credential (PutObject anywhere in the bucket) -- the same one dump.js uses to write
+// schema/data/manifest objects. There is no Cloudflare account-level API token in this repo to
+// even check whether a path-prefix-scoped R2 token is available, let alone provision one (see
+// the Backup Management audit). The actual guarantee that this job only ever writes under
+// db-backups/restore-tests/ is enforced ENTIRELY by this script's own code (KEYS.restoreTest()
+// is the only key-building function it calls) plus job isolation (this job never receives
+// FINANCIAL_BACKUP_TARGET_URL and never imports dump.js/restore.js) -- NOT by the credential
+// itself, which could technically write anywhere in the bucket if this script's logic were
+// changed. If that separation ever needs to be credential-enforced rather than code-enforced, a
+// genuinely prefix-scoped R2 API token would need to be provisioned via the Cloudflare dashboard
+// first -- a separate, explicit decision, not something to assume is already in place.
+
+// Every real backup_id is a crypto.randomUUID() output (see dump.js) -- never anything else.
+// RESTORE_TEST_BACKUP_ID ultimately traces back to either select-latest-verified-backup.js (safe
+// by construction: only ever emits a backup_id it just read off a real manifest) or a manual
+// workflow_dispatch's free-text `backup_id` input (NOT safe by construction -- a human can type
+// anything). Rejecting anything that isn't a well-formed UUID here, before it's used to build an
+// R2 object key, closes that gap at the one place a new key is actually constructed from it,
+// regardless of which path the value came from.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function main() {
   const { RESTORE_TEST_BACKUP_ID, RESTORE_TEST_RESULT, RESTORE_TEST_TRIGGER } = requireEnv([
@@ -26,6 +48,12 @@ async function main() {
     "RESTORE_TEST_RESULT",
     "RESTORE_TEST_TRIGGER",
   ]);
+  if (!UUID_RE.test(RESTORE_TEST_BACKUP_ID)) {
+    throw new Error(
+      `RESTORE_TEST_BACKUP_ID must be a well-formed UUID (every real backup_id is), got: "${RESTORE_TEST_BACKUP_ID}" -- ` +
+        "refusing to construct an R2 object key from an unvalidated value."
+    );
+  }
   if (!["passed", "failed"].includes(RESTORE_TEST_RESULT)) {
     throw new Error(`RESTORE_TEST_RESULT must be "passed" or "failed", got: "${RESTORE_TEST_RESULT}"`);
   }
