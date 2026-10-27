@@ -19,9 +19,13 @@
  *   the most recent one, UNLESS that most recent one already failed (a legitimate quick retry
  *   after a failure is allowed) -- a simple anti-spam measure against rapid repeated taps
  *   producing a pile of real backups, without any new infrastructure.
+ *
+ * GitHub client inlined here (not imported from ../_shared/githubActions.ts) because this
+ * function is deployed standalone -- see that shared file's own copy (kept in the repo for a
+ * future CLI-based multi-function deploy) for the canonical, commented version of this logic;
+ * keep both in sync if either changes.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { dispatchBackupWorkflow, GithubDispatchNotConfiguredError } from "../_shared/githubActions.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +34,42 @@ const cors = {
 
 const RATE_LIMIT_SECONDS = 120;
 const ACTIVE_STATUSES = ["pending", "dispatched", "running"];
+
+const OWNER = "tavor7";
+const REPO = "shira-fit";
+const WORKFLOW_FILE = "financial-backup.yml";
+const API_BASE = `https://api.github.com/repos/${OWNER}/${REPO}`;
+
+class GithubDispatchNotConfiguredError extends Error {
+  constructor() {
+    super("github_dispatch_not_configured");
+  }
+}
+
+function githubToken(): string {
+  const t = Deno.env.get("GITHUB_DISPATCH_TOKEN");
+  if (!t) throw new GithubDispatchNotConfiguredError();
+  return t;
+}
+
+async function dispatchBackupWorkflow(): Promise<void> {
+  const res = await fetch(`${API_BASE}/actions/workflows/${WORKFLOW_FILE}/dispatches`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${githubToken()}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      ref: "main",
+      inputs: { mode: "backup", upload_to_r2: "true", environment: "production" },
+    }),
+  });
+  if (res.status !== 204) {
+    throw new Error(`GitHub dispatch failed: ${res.status} ${await res.text()}`);
+  }
+}
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });

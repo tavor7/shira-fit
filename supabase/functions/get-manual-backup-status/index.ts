@@ -7,10 +7,14 @@
  * request 'completed', and only once the real workflow run's job conclusion is 'success'.
  *
  * POST { request_id: uuid } -> { ok, request: {...} }
+ *
+ * GitHub client inlined here (not imported from ../_shared/githubActions.ts) because this
+ * function is deployed standalone -- see that shared file's own copy (kept in the repo for a
+ * future CLI-based multi-function deploy) for the canonical, commented version of this logic;
+ * keep both in sync if either changes.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AwsClient } from "https://esm.sh/aws4fetch@1.0.17";
-import { currentStageFromJob, getRun, getRunJobs, listRecentDispatchRuns } from "../_shared/githubActions.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -21,6 +25,63 @@ const cors = {
 // with correlation itself (not with the backup) -- surface 'unknown' rather than silently
 // polling forever or guessing a result.
 const CORRELATION_TIMEOUT_MS = 3 * 60 * 1000;
+
+const OWNER = "tavor7";
+const REPO = "shira-fit";
+const WORKFLOW_FILE = "financial-backup.yml";
+const API_BASE = `https://api.github.com/repos/${OWNER}/${REPO}`;
+
+function githubHeaders(): Record<string, string> {
+  const t = Deno.env.get("GITHUB_DISPATCH_TOKEN");
+  if (!t) throw new Error("github_dispatch_not_configured");
+  return { Authorization: `Bearer ${t}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+}
+
+type GithubRunSummary = { id: number; status: string; conclusion: string | null; html_url: string; created_at: string; updated_at: string };
+type GithubStep = { name: string; status: string; conclusion: string | null; number: number };
+type GithubJob = { name: string; status: string; conclusion: string | null; steps: GithubStep[] };
+
+async function listRecentDispatchRuns(perPage = 10): Promise<GithubRunSummary[]> {
+  const res = await fetch(
+    `${API_BASE}/actions/workflows/${WORKFLOW_FILE}/runs?event=workflow_dispatch&per_page=${perPage}`,
+    { headers: githubHeaders() }
+  );
+  if (!res.ok) throw new Error(`GitHub list-runs failed: ${res.status} ${await res.text()}`);
+  const data = (await res.json()) as { workflow_runs: GithubRunSummary[] };
+  return data.workflow_runs ?? [];
+}
+
+async function getRun(runId: number): Promise<GithubRunSummary> {
+  const res = await fetch(`${API_BASE}/actions/runs/${runId}`, { headers: githubHeaders() });
+  if (!res.ok) throw new Error(`GitHub get-run failed: ${res.status} ${await res.text()}`);
+  return (await res.json()) as GithubRunSummary;
+}
+
+async function getRunJobs(runId: number): Promise<GithubJob[]> {
+  const res = await fetch(`${API_BASE}/actions/runs/${runId}/jobs`, { headers: githubHeaders() });
+  if (!res.ok) throw new Error(`GitHub get-jobs failed: ${res.status} ${await res.text()}`);
+  const data = (await res.json()) as { jobs: GithubJob[] };
+  return data.jobs ?? [];
+}
+
+/** Maps the `backup` job's real step names (financial-backup.yml) to the small set of
+ *  manager-facing stage labels the UI knows how to render. Only ever reflects a step that
+ *  actually ran or is running -- never invents a stage the workflow doesn't have evidence for. */
+function mapStepToStage(stepName: string): string | null {
+  if (/^Install /.test(stepName) || /^Checkout/.test(stepName)) return "preparing";
+  if (/^Run schema \+ data dump/.test(stepName)) return "creating_and_uploading";
+  if (/^Independent remote verification/.test(stepName)) return "verifying";
+  if (/^Health check/.test(stepName)) return "running_health_checks";
+  return null;
+}
+
+function currentStageFromJob(job: GithubJob | undefined): string | null {
+  if (!job) return "waiting_to_start";
+  const inProgress = [...job.steps].reverse().find((s) => s.status === "in_progress");
+  if (inProgress) return mapStepToStage(inProgress.name);
+  const lastDone = [...job.steps].reverse().find((s) => s.status === "completed");
+  return lastDone ? mapStepToStage(lastDone.name) : "waiting_to_start";
+}
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
