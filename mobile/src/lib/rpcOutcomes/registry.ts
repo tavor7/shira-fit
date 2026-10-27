@@ -123,6 +123,9 @@ export const CONSUMED_CALLS: Readonly<Record<string, Readonly<Record<string, str
  *   p_entities   named-argument call into _report_system_error (System Issues monitoring); the
  *                extractor's regex matches the `p_entities :=` token near a jsonb_build_object call,
  *                not an actual dynamically-constructed error code returned to any caller
+ *   p_message    same as p_entities but for a `p_message := format(...)` call into
+ *                _report_system_error -- a human-readable System Issues description, never a
+ *                code relayed to any ok:false caller
  */
 export const DYNAMIC_ERROR_SITES: Readonly<Record<string, readonly string[]>> = {
   _create_document_from_payment_row: ["sqlerrm"],
@@ -131,6 +134,7 @@ export const DYNAMIC_ERROR_SITES: Readonly<Record<string, readonly string[]>> = 
   clear_must_change_password: ["sqlerrm"],
   coach_add_athlete: ["p_entities", "sqlerrm"],
   edit_subscription_version: ["v_impact->>"],
+  financial_backup_record_health_snapshot: ["p_message"],
   freeze_subscription: ["v_impact->>"],
   generate_due_subscription_charges: ["left(", "p_entities"],
   manager_revert_activity_event: ["coalesce(", "sqlerrm"],

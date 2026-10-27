@@ -71,6 +71,7 @@ export const STUDIO_SETUP_ITEM_PATHS = [
   "/manager/whatsapp-rollout",
   "/manager/legal-settings",
   "/manager/system-issues",
+  "/manager/backup-management",
 ] as const;
 
 export function isStudioSetupIndex(pathname: string): boolean {
