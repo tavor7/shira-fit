@@ -12,7 +12,8 @@
     "backfill:dry-run": "node src/backfill.js --dry-run",
     "backfill": "node src/backfill.js",
     "smoke-test": "node src/production-smoke-test.js",
-    "reconcile": "node src/reconcile.js"
+    "reconcile": "node src/reconcile.js",
+    "backfill-pdf-sizes": "node src/backfill-pdf-sizes.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1155.0",

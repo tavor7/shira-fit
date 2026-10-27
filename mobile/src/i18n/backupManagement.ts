@@ -10,6 +10,7 @@ export const backupManagementEn: Record<string, string> = {
   "backupMgmt.retry": "Try again",
 
   "backupMgmt.attention.title": "Needs attention",
+  "backupMgmt.showDetails": "Show details",
 
   "backupMgmt.automation.title": "Automatic backups",
   "backupMgmt.automation.description": "Daily financial backup and weekly restore-test, run automatically on this schedule.",
@@ -71,6 +72,9 @@ export const backupManagementEn: Record<string, string> = {
   "backupMgmt.financial.stale.backup": "Last backup is older than expected",
   "backupMgmt.financial.stale.verification": "Last verification is older than expected",
   "backupMgmt.financial.stale.restoreTest": "Restore test is older than expected",
+  "backupMgmt.financial.advisory.ageWhileOff": "Automatic backups are off — the latest backup is from {when}. This is informational, not a missed run.",
+  "backupMgmt.financial.problem.incomplete": "{n} backup(s) have a missing schema or data file",
+  "backupMgmt.financial.problem.restoreTestFailed": "The last restore test failed",
 
   "backupMgmt.archive.title": "Receipt & invoice archive",
   "backupMgmt.archive.coverage": "Archive coverage",
@@ -87,6 +91,7 @@ export const backupManagementEn: Record<string, string> = {
   "backupMgmt.archive.uploadSection": "Upload status",
   "backupMgmt.archive.integritySection": "Integrity verification (periodic sampling)",
   "backupMgmt.archive.integrityCheckedPct": "% of archived documents checked so far",
+  "backupMgmt.archive.problemsFound": "Problems found",
 
   "backupMgmt.export.title": "Accounting-document export",
   "backupMgmt.export.description": "ZIP/CSV export, filters, and full history — on the Documents & Invoices screen",
@@ -108,6 +113,7 @@ export const backupManagementHe: Record<string, string> = {
   "backupMgmt.retry": "ניסיון חוזר",
 
   "backupMgmt.attention.title": "דורש תשומת לב",
+  "backupMgmt.showDetails": "הצג פרטים",
 
   "backupMgmt.automation.title": "גיבויים אוטומטיים",
   "backupMgmt.automation.description": "גיבוי פיננסי יומי ובדיקת שחזור שבועית, לפי הלו\"ז הקבוע.",
@@ -169,6 +175,9 @@ export const backupManagementHe: Record<string, string> = {
   "backupMgmt.financial.stale.backup": "הגיבוי האחרון ישן מהצפוי",
   "backupMgmt.financial.stale.verification": "האימות האחרון ישן מהצפוי",
   "backupMgmt.financial.stale.restoreTest": "בדיקת השחזור ישנה מהצפוי",
+  "backupMgmt.financial.advisory.ageWhileOff": "גיבויים אוטומטיים כבויים — הגיבוי האחרון מתאריך {when}. זהו מידע כללי, לא גיבוי שנכשל.",
+  "backupMgmt.financial.problem.incomplete": "ל-{n} גיבויים חסר קובץ סכימה או נתונים",
+  "backupMgmt.financial.problem.restoreTestFailed": "בדיקת השחזור האחרונה נכשלה",
 
   "backupMgmt.archive.title": "ארכיון קבלות וחשבוניות",
   "backupMgmt.archive.coverage": "כיסוי ארכיון",
@@ -185,6 +194,7 @@ export const backupManagementHe: Record<string, string> = {
   "backupMgmt.archive.uploadSection": "סטטוס העלאה",
   "backupMgmt.archive.integritySection": "בדיקת תקינות (דגימה תקופתית)",
   "backupMgmt.archive.integrityCheckedPct": "% מהמסמכים שבארכיון שנבדקו עד כה",
+  "backupMgmt.archive.problemsFound": "בעיות שנמצאו",
 
   "backupMgmt.export.title": "ייצוא מסמכי הנהלת חשבונות",
   "backupMgmt.export.description": "ייצוא ZIP/CSV, סינון והיסטוריה מלאה — במסך מסמכים וחשבוניות",

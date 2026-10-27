@@ -14,7 +14,16 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AwsClient } from "https://esm.sh/aws4fetch@1.0.17";
-import { sha256Hex } from "../_shared/signature/types.ts";
+
+// Inlined (not imported from ../_shared/signature/types.ts): this function is deployed
+// standalone, same reason/convention as trigger-manual-backup/get-manual-backup-status inlining
+// their own GitHub client -- the deploy tool bundles each function in isolation and can't
+// resolve a cross-function _shared import. Keep this in sync with _shared/signature/types.ts's
+// own copy if either ever changes.
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 // aws4fetch, not the full @aws-sdk/client-s3: the AWS SDK's npm package graph doesn't boot
 // cleanly under this Edge Runtime (verified against the local stack — InvalidWorkerCreation /
@@ -81,6 +90,7 @@ type ArchiveJob = {
   storage_path: string;
   r2_key: string;
   sha256: string | null;
+  document_version_id: string | null;
 };
 
 async function processPending(admin: ReturnType<typeof createClient>, limit: number) {
@@ -119,6 +129,19 @@ async function processPending(admin: ReturnType<typeof createClient>, limit: num
 
       const { error: completeErr } = await admin.rpc("complete_archive_job", { p_job_id: job.id, p_sha256: hash });
       if (completeErr) throw new Error(`complete_job failed: ${completeErr.message}`);
+
+      // Records the real, already-known byte length (bytes.length -- no extra fetch, no PDF
+      // content involved beyond what was already downloaded/hashed above) so NEW archive writes
+      // never reopen the size_bytes gap the backfill (scripts/receipt-archive/src/backfill-pdf-
+      // sizes.js) is separately closing for existing rows. Best-effort: a failure here must never
+      // fail the archive job itself (the object is already correctly uploaded and verified).
+      if (job.document_version_id) {
+        const { error: sizeErr } = await admin.rpc("record_pdf_size_for_worker", {
+          p_version_id: job.document_version_id,
+          p_size_bytes: bytes.length,
+        });
+        if (sizeErr) console.error(`record_pdf_size failed for ${job.document_version_id}: ${sizeErr.message}`);
+      }
     } catch (e) {
       failed++;
       const message = e instanceof Error ? e.message : String(e);

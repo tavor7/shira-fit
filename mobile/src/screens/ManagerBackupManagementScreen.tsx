@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { theme } from "../theme";
@@ -75,10 +75,9 @@ function formatBytes(bytes: number): string {
 
 type Row = { label: string; value: string; warn?: boolean };
 
-/** Label above value (not side-by-side) -- a long label next to a long value ("Weekly
- *  restore-test" / "weekly, Sunday ~04:00/05:00 Israel time...") previously overlapped and
- *  wrapped incorrectly on narrow screens; stacking removes that failure mode regardless of how
- *  long either Hebrew or English text ends up being, at any screen width. */
+/** Label above value (not side-by-side) -- a long label next to a long value previously
+ *  overlapped and wrapped incorrectly on narrow screens; stacking removes that failure mode
+ *  regardless of how long either Hebrew or English text ends up being, at any screen width. */
 function StatusRow({ label, value, warn, isRTL }: Row & { isRTL: boolean }) {
   return (
     <View style={styles.statRow}>
@@ -88,6 +87,31 @@ function StatusRow({ label, value, warn, isRTL }: Row & { isRTL: boolean }) {
       <AppText variant="body" isRTL={isRTL} style={[styles.statValue, warn && styles.statValueWarn]}>
         {value}
       </AppText>
+    </View>
+  );
+}
+
+/** Collapsed by default -- same chevron-toggle convention as CollapsibleDateRangeCard. Keeps the
+ *  screen's primary, always-visible metrics short; secondary/technical detail lives here instead
+ *  of adding to the main scroll length. */
+function ExpandableSection({ title, isRTL, children }: { title: string; isRTL: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.expandable}>
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        style={({ pressed }) => [styles.expandableToggle, rowFlipFor(isRTL) && styles.expandableToggleRtl, pressed && { opacity: 0.7 }]}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+      >
+        <AppText variant="caption" isRTL={isRTL} style={styles.expandableToggleTxt}>
+          {title}
+        </AppText>
+        <AppText variant="caption" style={styles.expandableChevron}>
+          {open ? "︿" : "﹀"}
+        </AppText>
+      </Pressable>
+      {open ? <View style={styles.expandableBody}>{children}</View> : null}
     </View>
   );
 }
@@ -270,10 +294,30 @@ export default function ManagerBackupManagementScreen() {
   }
 
   const h = backup?.health;
+  const automationOn = !!automation?.enabled;
+
+  // Automation-aware: a disabled schedule is a manager CHOICE, not a missed run -- staleness
+  // warnings only fire while automation is actually on. Genuine correctness problems (a manifest
+  // with a missing artifact, an actual failed restore-test, archive upload/checksum failures)
+  // are real regardless of the automation setting and always warn.
   const attention: string[] = [];
-  if (h?.backup_is_stale) attention.push(t("backupMgmt.financial.stale.backup"));
-  if (h?.verification_is_stale) attention.push(t("backupMgmt.financial.stale.verification"));
-  if (h?.restore_test_is_stale) attention.push(t("backupMgmt.financial.stale.restoreTest"));
+  const advisories: string[] = [];
+  if (h) {
+    if (automationOn) {
+      if (h.backup_is_stale) attention.push(t("backupMgmt.financial.stale.backup"));
+      if (h.verification_is_stale) attention.push(t("backupMgmt.financial.stale.verification"));
+      if (h.restore_test_is_stale) attention.push(t("backupMgmt.financial.stale.restoreTest"));
+    } else if (h.last_successful_backup) {
+      advisories.push(
+        t("backupMgmt.financial.advisory.ageWhileOff").replace(
+          "{when}",
+          formatDateTimeForDisplay(h.last_successful_backup.created_at, language)
+        )
+      );
+    }
+    if ((h.incomplete_backups ?? 0) > 0) attention.push(replace("backupMgmt.financial.problem.incomplete", h.incomplete_backups ?? 0));
+    if (h.last_restore_test?.result === "failed") attention.push(t("backupMgmt.financial.problem.restoreTestFailed"));
+  }
   if (archive && archive.failed_count > 0) attention.push(replace("backupMgmt.archive.problem.failed", archive.failed_count));
   if (archive && archive.hash_mismatch_count > 0) attention.push(replace("backupMgmt.archive.problem.hashMismatch", archive.hash_mismatch_count));
 
@@ -322,10 +366,10 @@ export default function ManagerBackupManagementScreen() {
 
         <View style={[styles.toggleRow, rowFlipFor(isRTL) && styles.toggleRowRtl]}>
           <AppText variant="body" isRTL={isRTL} style={styles.toggleLabel}>
-            {automation?.enabled ? t("backupMgmt.automation.stateOn") : t("backupMgmt.automation.stateOff")}
+            {automationOn ? t("backupMgmt.automation.stateOn") : t("backupMgmt.automation.stateOff")}
           </AppText>
           <AppSwitch
-            value={!!automation?.enabled}
+            value={automationOn}
             onValueChange={onToggleAutomation}
             onColor={theme.colors.success}
             accessibilityLabel={t("backupMgmt.automation.title")}
@@ -341,8 +385,10 @@ export default function ManagerBackupManagementScreen() {
           </AppText>
         ) : null}
 
-        <StatusRow isRTL={isRTL} label={t("backupMgmt.automation.dailySchedule")} value={h?.next_scheduled_backup ?? t("backupMgmt.automation.scheduleFallbackDaily")} />
-        <StatusRow isRTL={isRTL} label={t("backupMgmt.automation.weeklySchedule")} value={h?.next_scheduled_restore_test ?? t("backupMgmt.automation.scheduleFallbackWeekly")} />
+        {/* Always the short, manager-facing description -- never the DST-guard implementation
+            detail from health.js's own next_scheduled_* strings (those are for logs/docs). */}
+        <StatusRow isRTL={isRTL} label={t("backupMgmt.automation.dailySchedule")} value={t("backupMgmt.automation.scheduleFallbackDaily")} />
+        <StatusRow isRTL={isRTL} label={t("backupMgmt.automation.weeklySchedule")} value={t("backupMgmt.automation.scheduleFallbackWeekly")} />
       </View>
 
       <View style={styles.card}>
@@ -419,6 +465,17 @@ export default function ManagerBackupManagementScreen() {
         </View>
       )}
 
+      {advisories.length > 0 && (
+        <View style={[styles.card, styles.advisoryCard]}>
+          {advisories.map((a, i) => (
+            <AppText key={i} variant="caption" muted isRTL={isRTL} style={styles.attentionItem}>
+              {"ℹ︎ "}
+              {a}
+            </AppText>
+          ))}
+        </View>
+      )}
+
       <View style={styles.card}>
         <AppText variant="title" isRTL={isRTL} style={styles.cardTitle}>
           {t("backupMgmt.financial.title")}
@@ -434,13 +491,7 @@ export default function ManagerBackupManagementScreen() {
               isRTL={isRTL}
               label={t("backupMgmt.financial.lastBackup")}
               value={h.last_successful_backup ? formatDateTimeForDisplay(h.last_successful_backup.created_at, language) : "—"}
-              warn={h.backup_is_stale}
-            />
-            <StatusRow
-              isRTL={isRTL}
-              label={t("backupMgmt.financial.lastVerified")}
-              value={h.last_verified_backup ? formatDateTimeForDisplay(h.last_verified_backup.verified_at, language) : "—"}
-              warn={h.verification_is_stale}
+              warn={automationOn && h.backup_is_stale}
             />
             <StatusRow
               isRTL={isRTL}
@@ -450,28 +501,31 @@ export default function ManagerBackupManagementScreen() {
                   ? `${h.last_restore_test.result === "passed" ? t("backupMgmt.financial.restoreTest.passed") : t("backupMgmt.financial.restoreTest.failed")} · ${formatDateTimeForDisplay(h.last_restore_test.tested_at, language)}`
                   : t("backupMgmt.financial.restoreTest.none")
               }
-              warn={h.restore_test_is_stale || h.last_restore_test?.result === "failed"}
+              warn={h.last_restore_test?.result === "failed" || (automationOn && h.restore_test_is_stale)}
             />
-            <StatusRow
-              isRTL={isRTL}
-              label={t("backupMgmt.financial.totalBackups")}
-              value={String(h.total_backups ?? 0)}
-            />
-            <StatusRow
-              isRTL={isRTL}
-              label={t("backupMgmt.financial.totalSize")}
-              value={h.total_size_bytes != null ? formatBytes(h.total_size_bytes) : t("backupMgmt.archive.sizeUnavailable")}
-            />
-
             <AppText variant="body" isRTL={isRTL} style={[styles.coverageNote, !h.newest_backup_restore_tested && styles.statValueWarn]}>
               {h.newest_backup_restore_tested ? t("backupMgmt.financial.restoreTest.latestCovered") : t("backupMgmt.financial.restoreTest.latestNotCovered")}
             </AppText>
 
-            {backup?.computed_at ? (
-              <AppText variant="caption" muted isRTL={isRTL} style={styles.snapshotAge}>
-                {t("backupMgmt.financial.snapshotAge").replace("{when}", formatDateTimeForDisplay(backup.computed_at, language))}
-              </AppText>
-            ) : null}
+            <ExpandableSection title={t("backupMgmt.showDetails")} isRTL={isRTL}>
+              <StatusRow
+                isRTL={isRTL}
+                label={t("backupMgmt.financial.lastVerified")}
+                value={h.last_verified_backup ? formatDateTimeForDisplay(h.last_verified_backup.verified_at, language) : "—"}
+                warn={automationOn && h.verification_is_stale}
+              />
+              <StatusRow isRTL={isRTL} label={t("backupMgmt.financial.totalBackups")} value={String(h.total_backups ?? 0)} />
+              <StatusRow
+                isRTL={isRTL}
+                label={t("backupMgmt.financial.totalSize")}
+                value={h.total_size_bytes != null ? formatBytes(h.total_size_bytes) : t("backupMgmt.archive.sizeUnavailable")}
+              />
+              {backup?.computed_at ? (
+                <AppText variant="caption" muted isRTL={isRTL} style={styles.snapshotAge}>
+                  {t("backupMgmt.financial.snapshotAge").replace("{when}", formatDateTimeForDisplay(backup.computed_at, language))}
+                </AppText>
+              ) : null}
+            </ExpandableSection>
           </>
         )}
       </View>
@@ -487,54 +541,63 @@ export default function ManagerBackupManagementScreen() {
           </AppText>
         ) : (
           <>
-            <AppText variant="caption" muted isRTL={isRTL} style={styles.sectionLabel}>
-              {t("backupMgmt.archive.uploadSection")}
-            </AppText>
+            <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.archived")} value={String(archive.archived_count)} />
             <StatusRow
               isRTL={isRTL}
               label={t("backupMgmt.archive.coverage")}
               value={archive.upload_coverage_pct !== null ? `${archive.upload_coverage_pct}%` : "—"}
             />
-            <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.archived")} value={String(archive.archived_count)} />
-            <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.pending")} value={String(archive.pending_count)} />
-            <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.failed")} value={String(archive.failed_count)} warn={archive.failed_count > 0} />
-            <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.pdfVersions")} value={String(archive.total_pdf_version_count)} />
-            <StatusRow
-              isRTL={isRTL}
-              label={t("backupMgmt.archive.totalSize")}
-              value={archive.total_size_bytes != null ? formatBytes(archive.total_size_bytes) : t("backupMgmt.archive.sizeUnavailable")}
-            />
-
-            <AppText variant="caption" muted isRTL={isRTL} style={styles.sectionLabel}>
-              {t("backupMgmt.archive.integritySection")}
-            </AppText>
             <StatusRow
               isRTL={isRTL}
               label={t("backupMgmt.archive.integrityCheckedPct")}
               value={archive.integrity_checked_pct !== null ? `${archive.integrity_checked_pct}%` : "—"}
             />
-            <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.hashVerified")} value={String(archive.hash_verified_count)} />
             <StatusRow
               isRTL={isRTL}
-              label={t("backupMgmt.archive.hashMismatch")}
-              value={String(archive.hash_mismatch_count)}
-              warn={archive.hash_mismatch_count > 0}
+              label={t("backupMgmt.archive.problemsFound")}
+              value={String(archive.failed_count + archive.hash_mismatch_count)}
+              warn={archive.failed_count + archive.hash_mismatch_count > 0}
             />
-            <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.neverChecked")} value={String(archive.never_integrity_checked_count)} />
-            <StatusRow
-              isRTL={isRTL}
-              label={t("backupMgmt.archive.lastReconciliation")}
-              value={archive.last_reconciliation ? formatDateTimeForDisplay(archive.last_reconciliation.started_at, language) : t("backupMgmt.archive.never")}
-            />
-            <StatusRow
-              isRTL={isRTL}
-              label={t("backupMgmt.archive.lastIntegrityCheck")}
-              value={
-                archive.last_integrity_verification
-                  ? formatDateTimeForDisplay(archive.last_integrity_verification.started_at, language)
-                  : t("backupMgmt.archive.never")
-              }
-            />
+
+            <ExpandableSection title={t("backupMgmt.showDetails")} isRTL={isRTL}>
+              <AppText variant="caption" muted isRTL={isRTL} style={styles.sectionLabel}>
+                {t("backupMgmt.archive.uploadSection")}
+              </AppText>
+              <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.pending")} value={String(archive.pending_count)} />
+              <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.failed")} value={String(archive.failed_count)} warn={archive.failed_count > 0} />
+              <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.pdfVersions")} value={String(archive.total_pdf_version_count)} />
+              <StatusRow
+                isRTL={isRTL}
+                label={t("backupMgmt.archive.totalSize")}
+                value={archive.total_size_bytes != null ? formatBytes(archive.total_size_bytes) : t("backupMgmt.archive.sizeUnavailable")}
+              />
+
+              <AppText variant="caption" muted isRTL={isRTL} style={styles.sectionLabel}>
+                {t("backupMgmt.archive.integritySection")}
+              </AppText>
+              <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.hashVerified")} value={String(archive.hash_verified_count)} />
+              <StatusRow
+                isRTL={isRTL}
+                label={t("backupMgmt.archive.hashMismatch")}
+                value={String(archive.hash_mismatch_count)}
+                warn={archive.hash_mismatch_count > 0}
+              />
+              <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.neverChecked")} value={String(archive.never_integrity_checked_count)} />
+              <StatusRow
+                isRTL={isRTL}
+                label={t("backupMgmt.archive.lastReconciliation")}
+                value={archive.last_reconciliation ? formatDateTimeForDisplay(archive.last_reconciliation.started_at, language) : t("backupMgmt.archive.never")}
+              />
+              <StatusRow
+                isRTL={isRTL}
+                label={t("backupMgmt.archive.lastIntegrityCheck")}
+                value={
+                  archive.last_integrity_verification
+                    ? formatDateTimeForDisplay(archive.last_integrity_verification.started_at, language)
+                    : t("backupMgmt.archive.never")
+                }
+              />
+            </ExpandableSection>
           </>
         )}
       </View>
@@ -586,14 +649,15 @@ const styles = StyleSheet.create({
   attentionCard: { backgroundColor: theme.colors.warningBg, borderColor: theme.colors.warningBorder },
   attentionTitle: { marginBottom: theme.spacing.xs, color: theme.colors.warning },
   attentionItem: { marginTop: 2 },
+  advisoryCard: { backgroundColor: theme.colors.surfaceElevated, paddingVertical: theme.spacing.sm },
   cardTitle: { marginBottom: theme.spacing.sm },
   cardDesc: { marginBottom: theme.spacing.sm, lineHeight: 19 },
   toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: theme.spacing.xs },
   toggleRowRtl: { flexDirection: "row-reverse" },
   toggleLabel: { flex: 1, fontWeight: "700" },
   // Stacked (label above value), not side-by-side -- a long label and a long value next to each
-  // other previously overlapped/wrapped incorrectly on narrow screens (e.g. "Weekly restore-test"
-  // + its schedule description); stacking is immune to that regardless of text length/language.
+  // other previously overlapped/wrapped incorrectly on narrow screens; stacking is immune to
+  // that regardless of text length/language.
   statRow: {
     paddingVertical: theme.spacing.xs,
     gap: 2,
@@ -635,4 +699,10 @@ const styles = StyleSheet.create({
   exportLinkTextWrap: { flex: 1, gap: 2 },
   exportLinkArrow: { fontSize: 24, color: theme.colors.textSoft },
   manualHistory: { marginTop: theme.spacing.sm },
+  expandable: { marginTop: theme.spacing.xs },
+  expandableToggle: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: theme.spacing.xs, minHeight: 32 },
+  expandableToggleRtl: { flexDirection: "row-reverse" },
+  expandableToggleTxt: { fontWeight: "700", color: theme.colors.cta },
+  expandableChevron: { color: theme.colors.textSoft },
+  expandableBody: { marginTop: theme.spacing.xs },
 });
