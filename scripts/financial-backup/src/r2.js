@@ -42,6 +42,12 @@ export const KEYS = {
   schema: (backupId, { legacy = false } = {}) => `db-backups/schema/${backupId}.${legacy ? "sql.enc.json" : "sql"}`,
   data: (backupId, { legacy = false } = {}) => `db-backups/data/${backupId}.${legacy ? "sql.enc.json" : "sql"}`,
   manifest: (backupId) => `db-backups/manifests/${backupId}.json`,
+  // One immutable record per restore-test run -- never overwritten (putAndVerify already refuses
+  // to overwrite any existing key), timestamped so the SAME backup_id can be restore-tested more
+  // than once over its lifetime without collision. Written by a dedicated, minimal job that holds
+  // the writer credential for this one operation only -- see .github/workflows/financial-backup.yml
+  // and src/write-restore-test-result.js.
+  restoreTest: (backupId, testedAtIso) => `db-backups/restore-tests/${backupId}-${testedAtIso.replace(/[:.]/g, "-")}.json`,
 };
 
 async function headExists(key) {
@@ -116,4 +122,8 @@ export async function listManifestKeys() {
 
 export async function listVerificationKeys() {
   return listKeysWithPrefix("db-backups/verifications/");
+}
+
+export async function listRestoreTestKeys() {
+  return listKeysWithPrefix("db-backups/restore-tests/");
 }

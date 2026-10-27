@@ -326,35 +326,71 @@ development and CI-free testing against synthetic data (see "Usage" above). It n
 Supabase, production, or real financial data, so forcing TLS there would make local testing
 impossible without buying any real security.
 
-## Production rollout procedure (prepared, NOT executed)
+## Production rollout procedure
 
-1. Add GitHub Actions secrets: `FINANCIAL_BACKUP_SOURCE_URL` (Supavisor **session pooler**
-   connection string — confirmed the correct mode, see Phase 1 research). Reuse the existing
-   `CF_ACCOUNT_ID`/`R2_ARCHIVE_*` secrets (already configured for the PDF archive) — no new R2
-   credentials, and no encryption key to generate or store.
-2. Run the workflow once with `mode: connection-check` to prove the secret is reachable (`SELECT
-   1` only) before doing anything else with it.
-3. First manual run: trigger the workflow by hand (`workflow_dispatch`) with `mode: backup`,
-   `FINANCIAL_BACKUP_ENV=production` and `upload_to_r2: true`.
-4. Independently verify the uploaded objects: run `npm run health` (reader credential only) and
-   confirm `complete_backups: 1`, `incomplete_backups: 0`.
-5. Restore test: run `npm run restore` with `FINANCIAL_BACKUP_BACKUP_ID` set to that backup,
-   targeting a fresh, isolated scratch Postgres (never production) — exactly the procedure
-   already proven in testing, now against the real production backup. Run `npm run verify` (or
-   the project's own financial regression checks) against the restored copy.
-6. Only after step 5 succeeds: run `npm run verify-remote` once by hand to produce the first real
-   verification record, then confirm `npm run health` shows `verification_is_stale: false`.
-7. Only after steps 2-6 have all succeeded at least once: add the `schedule:` trigger to
-   `.github/workflows/financial-backup.yml` (currently absent by design) for the daily cadence,
-   and a second scheduled invocation of `verify-remote.js`.
-8. Monitoring/alerting for missed backups: wire a scheduled `npm run health` check (its non-zero
-   exit code on `backup_is_stale`/`verification_is_stale`/incomplete already signals failure) into
-   whatever alerting channel is appropriate — no new mechanism needed, the signal already exists.
+Steps 1-6 below are **done** -- all GitHub Actions secrets are configured, `connection-check` and
+real production `backup` runs have succeeded multiple times, `health`/`verify-remote` have run
+against real production backups, and a real production backup has been restore-tested
+end-to-end (structural + referential-integrity + snapshot-row-count checks, all passing). Step 7
+(scheduling) is **implemented but not activated** -- see below.
 
-## Not yet done (needs separate approval)
+1. ~~Add GitHub Actions secrets~~ — done (`FINANCIAL_BACKUP_SOURCE_URL`, `CF_ACCOUNT_ID`,
+   `R2_ARCHIVE_*`, reused from the existing PDF archive — no new R2 credentials).
+2. ~~Prove the secret is reachable~~ — done (`mode: connection-check`).
+3. ~~First real production backup~~ — done, more than once.
+4. ~~Verify uploaded objects~~ — done (`npm run health`).
+5. ~~Restore test~~ — done, both as an explicit `mode: restore-test` dispatch and (once the
+   `record-restore-test-result` job below lands) with its result durably recorded.
+6. ~~First real verification record~~ — done (`npm run verify-remote`).
+7. **Scheduling — implemented, gated off by default.** `.github/workflows/financial-backup.yml`
+   now has four `schedule:` cron entries (two per trigger, one for each Israel DST season — see
+   `src/scheduled-run-guard.js` for why a single UTC cron can't express "~03:00 Israel time" and
+   why the guard is calendar-grain, never a strict wall-clock-hour check, since GitHub's own
+   scheduled runs "may be delayed... or occasionally be skipped"). **Every scheduled firing is a
+   no-op unless the repository variable `SCHEDULED_BACKUPS_ENABLED` is exactly `"true"`** —
+   merging the workflow file does not, by itself, start anything. Setting that variable is the
+   one explicit activation step, deliberately left for a separate, reviewed decision.
+8. Monitoring/alerting for missed backups: `npm run health`'s non-zero exit code on
+   `backup_is_stale`/`verification_is_stale`/`restore_test_is_stale`/incomplete already signals
+   failure — see the Backup Management screen work (separate scope) for where this actually
+   surfaces to a manager.
 
-- Executing the rollout procedure above.
-- Enabling the GitHub Actions `schedule:` trigger (currently `workflow_dispatch` only).
-- Running a real backup against production data (everything proven so far uses synthetic data
-  only, per instruction).
-- The manager-only Backup Management screen and filtered accounting exports (UI, separate scope).
+## Scheduling design (daily backup + weekly restore-test)
+
+- **Daily backup**: crons `0 0 * * *` (Israel IDT season) and `0 1 * * *` (Israel IST season),
+  both ~03:00 Israel local time depending on season. Each firing runs `scheduled-run-guard.js`
+  (`GUARD_KIND=daily-backup`), which checks (a) is Israel's *actual current* UTC offset the one
+  this cron entry was written for (skips otherwise — the other entry is the one that's "live"
+  this half of the year), and (b) has a production backup already completed for *today's* Israel
+  calendar date (skips otherwise — the idempotency net against overlap/retry/manual-run-same-day).
+  Only if both say "proceed" does the real `npm run dump` (with `FINANCIAL_BACKUP_ENV=production`,
+  `UPLOAD_TO_R2=1`) run, followed by `verify-remote` and `health`, exactly like a manual
+  `mode: backup` run.
+- **Weekly restore-test**: crons `0 2 * * 0` / `0 3 * * 0` (Sundays, same DST-season split). Guard
+  kind `weekly-restore-test` checks the DST season the same way, plus "has a restore-test run in
+  roughly the last 6 days" (rolling window, not an ISO-week boundary). The backup to test is
+  **never** a fixed/manual `backup_id` for a scheduled run — `select-latest-verified-backup.js`
+  picks the newest production backup that already has a successful `verify-remote` record,
+  falling back to an older one if the newest hasn't been remotely verified yet for some reason.
+- **Overlap/duplicate protection**: the idempotency checks above are the primary guard (a
+  same-day/same-week duplicate correctly no-ops); additionally, GitHub Actions itself serializes
+  `schedule` events for the same workflow (a new scheduled run is skipped if a prior run of the
+  same workflow is still in progress past a platform-defined queue limit) — see GitHub's own
+  documented scheduled-workflow behavior.
+- **Result persistence**: daily backups already persist to R2 via the existing manifest/
+  verification-record mechanism. Restore-tests now also persist one immutable record per run
+  (`db-backups/restore-tests/<backup_id>-<timestamp>.json`, via `write-restore-test-result.js`),
+  written by a dedicated `record-restore-test-result` job that `needs: restore-test` and does
+  nothing else — deliberately kept separate so the R2 **writer** credential this needs is never
+  granted to the `restore-test` job itself (which downloads and restores real backup content into
+  an ephemeral target). `health.js` reads these records to report `last_restore_test` and
+  `newest_backup_restore_tested` (specifically whether the *current newest* backup — not just
+  *some* backup — has a passing restore-test on record).
+
+## Not yet done (needs separate approval or further work)
+
+- **Setting `SCHEDULED_BACKUPS_ENABLED=true`** — the one remaining activation step for everything
+  in "Scheduling design" above.
+- The manager-only Backup Management screen, receipt-archive health reporting, and the
+  accounting-document export feature (UI + new backend APIs, separate, larger scope — see the
+  project's Backup Management implementation plan).

@@ -1,11 +1,29 @@
 name: Financial backup (schema + scoped data)
 
-# Manual trigger only, R2 upload optional via input. The `schedule:` trigger remains
-# intentionally omitted -- do not add it until a real run against production has been reviewed.
-# See scripts/financial-backup/README.md for the full design, the Supavisor connectivity
-# findings, and the owner's decision to rely on R2's provider-managed encryption at rest +
-# private bucket access + TLS rather than an application-managed key.
+# Manual trigger (workflow_dispatch) plus a `schedule:` trigger for an automated daily backup and
+# weekly restore-test. The schedule entries exist and are wired end-to-end, but every scheduled
+# firing is a no-op unless the repository variable SCHEDULED_BACKUPS_ENABLED is exactly "true" --
+# merging this file does NOT, by itself, start any automated backup. Flipping that variable on is
+# a deliberate, separate, reviewed activation step (see scripts/financial-backup/README.md
+# "Production rollout procedure"). See also scripts/financial-backup/src/scheduled-run-guard.js
+# for why there are four cron entries, not two or one.
+#
+# Israel has no single fixed UTC offset (IDT in summer / IST in winter), and a GitHub Actions cron
+# is UTC-only and can't express "the DST-adjusted local time." Two cron entries per schedule (one
+# written for each season) plus a guard step that checks Israel's ACTUAL current UTC offset is
+# what lands this at ~03:00 Israel time year-round without any external scheduling service.
+# Deliberately NOT a strict wall-clock-hour check: GitHub's own documented behavior is that
+# scheduled runs "may be delayed during periods of high load" or occasionally skipped outright --
+# an hour-equality guard would incorrectly skip exactly the delayed run it should still perform.
+# The guard instead asks two calendar-grain questions ("is this cron entry for the DST season
+# Israel is CURRENTLY in" and "has today's/this week's work already happened"), both robust to a
+# run being minutes or hours late.
 on:
+  schedule:
+    - cron: "0 0 * * *"   # daily backup -- Israel IDT season (00:00 UTC = 03:00 IDT)
+    - cron: "0 1 * * *"   # daily backup -- Israel IST season (01:00 UTC = 03:00 IST)
+    - cron: "0 2 * * 0"   # weekly restore-test, Sundays -- Israel IDT season
+    - cron: "0 3 * * 0"   # weekly restore-test, Sundays -- Israel IST season
   workflow_dispatch:
     inputs:
       mode:
@@ -23,7 +41,7 @@ on:
         options: [test, production]
         default: test
       backup_id:
-        description: "restore-test mode only: the backup_id (from db-backups/manifests/<id>.json) to restore and verify"
+        description: "restore-test mode only: the backup_id (from db-backups/manifests/<id>.json) to restore and verify. Leave blank to auto-select the latest remotely-verified production backup (same selection a scheduled weekly run uses)."
         type: string
         default: ""
 
@@ -35,7 +53,26 @@ jobs:
     runs-on: ubuntu-latest
     # Guards against a manual dispatch accidentally being run against a feature branch's copy of
     # this workflow -- a financial backup should only ever run from the reviewed, merged version.
-    if: github.ref == 'refs/heads/main'
+    # For a `schedule` event: only the two daily-backup cron entries reach this job at all (the
+    # weekly-restore-test entries are filtered out here so they never start this job uselessly),
+    # and only if SCHEDULED_BACKUPS_ENABLED is "true" -- see the file header.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'schedule' &&
+          vars.SCHEDULED_BACKUPS_ENABLED == 'true' &&
+          contains(fromJSON('["0 0 * * *","0 1 * * *"]'), github.event.schedule)
+        )
+      )
+    env:
+      # Unifies workflow_dispatch inputs and the (input-less) schedule event into one set of
+      # names every later step/condition reads -- a `schedule` event always means a real
+      # production backup upload, never a dry run or a test label, by design.
+      RUN_MODE: ${{ github.event_name == 'schedule' && 'backup' || inputs.mode }}
+      RUN_ENVIRONMENT: ${{ github.event_name == 'schedule' && 'production' || inputs.environment }}
+      RUN_UPLOAD_TO_R2: ${{ github.event_name == 'schedule' && 'true' || (inputs.upload_to_r2 && 'true' || 'false') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -82,15 +119,31 @@ jobs:
         working-directory: scripts/financial-backup
         run: npm install
 
+      - name: Scheduled-run guard (DST season + already-done-today check)
+        # Only meaningful for a `schedule` event -- a manual dispatch always proceeds (this step
+        # no-ops otherwise). See src/scheduled-run-guard.js for exactly what this checks and why
+        # it's calendar-grain, not a wall-clock-hour check.
+        id: guard
+        if: ${{ github.event_name == 'schedule' }}
+        working-directory: scripts/financial-backup
+        env:
+          GUARD_KIND: daily-backup
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
+          R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_READER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_READER_SECRET_ACCESS_KEY }}
+        run: npm run scheduled-run-guard
+
       - name: Connection check only (SELECT 1, no dump, no R2)
-        if: ${{ inputs.mode == 'connection-check' }}
+        if: ${{ env.RUN_MODE == 'connection-check' }}
         working-directory: scripts/financial-backup
         env:
           FINANCIAL_BACKUP_SOURCE_URL: ${{ secrets.FINANCIAL_BACKUP_SOURCE_URL }}
         run: npm run check-connection
 
       - name: Run schema + data dump (consistent snapshot, unencrypted -- see README "Encryption")
-        if: ${{ inputs.mode == 'backup' }}
+        if: ${{ env.RUN_MODE == 'backup' && (github.event_name != 'schedule' || steps.guard.outputs.should_run == 'true') }}
         working-directory: scripts/financial-backup
         env:
           # Supavisor SESSION pooler (port 5432) -- confirmed, not the direct connection (IPv6-only
@@ -99,8 +152,8 @@ jobs:
           # the exported-snapshot mechanism this tool relies on for schema/data consistency).
           # Host/user format: aws-<region>.pooler.supabase.com, postgres.<project-ref>.
           FINANCIAL_BACKUP_SOURCE_URL: ${{ secrets.FINANCIAL_BACKUP_SOURCE_URL }}
-          FINANCIAL_BACKUP_ENV: ${{ inputs.environment }}
-          UPLOAD_TO_R2: ${{ inputs.upload_to_r2 && '1' || '0' }}
+          FINANCIAL_BACKUP_ENV: ${{ env.RUN_ENVIRONMENT }}
+          UPLOAD_TO_R2: ${{ env.RUN_UPLOAD_TO_R2 == 'true' && '1' || '0' }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
           R2_ARCHIVE_WRITER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_WRITER_ACCESS_KEY_ID }}
@@ -126,7 +179,7 @@ jobs:
         # to a GitHub Actions artifact, which is a different trust/retention boundary than the
         # private R2 bucket. Only manifest.json (metadata + non-sensitive hashes, no row data) is
         # uploaded here, and only for a dry run (upload_to_r2=false) where R2 has no copy at all.
-        if: ${{ always() && inputs.mode == 'backup' && !inputs.upload_to_r2 }}
+        if: ${{ always() && env.RUN_MODE == 'backup' && env.RUN_UPLOAD_TO_R2 != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: financial-backup-manifest-${{ github.run_id }}
@@ -139,7 +192,7 @@ jobs:
         # the dump (the previous ordering) meant every single successful backup was reported as
         # "critical" purely because no verification record existed YET, not because anything was
         # actually wrong -- confirmed by the project's own first production backup.
-        if: ${{ inputs.mode == 'backup' && inputs.upload_to_r2 }}
+        if: ${{ env.RUN_MODE == 'backup' && env.RUN_UPLOAD_TO_R2 == 'true' && (github.event_name != 'schedule' || steps.guard.outputs.should_run == 'true') }}
         working-directory: scripts/financial-backup
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
@@ -151,7 +204,7 @@ jobs:
         run: npm run verify-remote
 
       - name: Health check (only meaningful once uploads to R2 are enabled)
-        if: ${{ inputs.mode == 'backup' && inputs.upload_to_r2 }}
+        if: ${{ env.RUN_MODE == 'backup' && env.RUN_UPLOAD_TO_R2 == 'true' && (github.event_name != 'schedule' || steps.guard.outputs.should_run == 'true') }}
         working-directory: scripts/financial-backup
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
@@ -168,13 +221,25 @@ jobs:
   # receives production credentials (only R2 READER creds, to fetch the already-made backup's
   # files) and never connects outbound to the production database at all.
   #
-  # Only runs on an explicit `mode: restore-test` dispatch with a `backup_id` -- never as part of an
-  # ordinary backup run, so this never slows down or risks the existing backup/connection-check path.
+  # Runs on an explicit `mode: restore-test` dispatch (backup_id optional -- auto-selects the
+  # latest remotely-verified backup if blank), OR on the weekly `schedule` entries once
+  # SCHEDULED_BACKUPS_ENABLED is "true" -- never as part of an ordinary backup run.
   restore-test:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && inputs.mode == 'restore-test'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (
+        (github.event_name == 'workflow_dispatch' && inputs.mode == 'restore-test') ||
+        (
+          github.event_name == 'schedule' &&
+          vars.SCHEDULED_BACKUPS_ENABLED == 'true' &&
+          contains(fromJSON('["0 2 * * 0","0 3 * * 0"]'), github.event.schedule)
+        )
+      )
     permissions:
       contents: read
+    outputs:
+      backup_id: ${{ steps.select.outputs.backup_id }}
     services:
       target:
         image: postgres:17
@@ -189,18 +254,6 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v4
-
-      - name: Require backup_id
-        # Passed via env, never interpolated directly into the shell script string -- the input is
-        # free text, and $-expansion of an unescaped `${{ }}` value inside a quoted test is an
-        # unnecessary injection surface even though workflow_dispatch already requires write access.
-        env:
-          BACKUP_ID: ${{ inputs.backup_id }}
-        run: |
-          if [ -z "$BACKUP_ID" ]; then
-            echo "::error::restore-test mode requires the backup_id input (the backup to restore and verify)."
-            exit 1
-          fi
 
       - name: Install postgresql-client-17
         run: |
@@ -229,7 +282,43 @@ jobs:
         working-directory: scripts/financial-backup
         run: npm install
 
+      - name: Scheduled-run guard (weekly cadence check)
+        # Only meaningful for a `schedule` event -- a manual dispatch always proceeds.
+        id: guard
+        if: ${{ github.event_name == 'schedule' }}
+        working-directory: scripts/financial-backup
+        env:
+          GUARD_KIND: weekly-restore-test
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
+          R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_READER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_READER_SECRET_ACCESS_KEY }}
+        run: npm run scheduled-run-guard
+
+      - name: Select backup to test
+        # A manual dispatch may name an explicit backup_id, or leave it blank to use the SAME
+        # auto-selection a scheduled run uses ("the latest backup with a successful remote
+        # verification" -- see select-latest-verified-backup.js). Never required to proceed.
+        id: select
+        if: ${{ github.event_name != 'schedule' || steps.guard.outputs.should_run == 'true' }}
+        working-directory: scripts/financial-backup
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
+          R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_READER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_READER_SECRET_ACCESS_KEY }}
+          DISPATCH_BACKUP_ID: ${{ inputs.backup_id }}
+        run: |
+          set -eo pipefail
+          if [ -n "$DISPATCH_BACKUP_ID" ]; then
+            echo "backup_id=$DISPATCH_BACKUP_ID" >> "$GITHUB_OUTPUT"
+          else
+            npm run --silent select-latest-verified-backup
+          fi
+
       - name: Wait for the ephemeral target to accept connections
+        if: ${{ steps.select.outputs.backup_id != '' }}
         run: |
           for i in $(seq 1 30); do
             PGPASSWORD=postgres pg_isready -h localhost -U postgres && break
@@ -249,6 +338,7 @@ jobs:
         #      stub -- see README "Real dependencies found" for the reviewed reasoning behind each.
         #   3. point search_path at both -- the dump's own unqualified references to btree_gist
         #      need `extensions` on the path, per the stub's own documented instruction.
+        if: ${{ steps.select.outputs.backup_id != '' }}
         run: |
           set -eo pipefail
           PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "drop schema public cascade;"
@@ -256,6 +346,7 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "alter database postgres set search_path to public, extensions;"
 
       - name: Restore the named backup from R2 into the ephemeral target
+        if: ${{ steps.select.outputs.backup_id != '' }}
         working-directory: scripts/financial-backup
         env:
           # PG_TOOLS_VIA_DOCKER=1: pg-exec.js unconditionally forces sslmode=verify-full (with
@@ -272,7 +363,7 @@ jobs:
           # (production) or the R2 WRITER keys. The target is the local service container, not
           # production, and it is never reachable from outside this job.
           FINANCIAL_BACKUP_TARGET_URL: postgresql://postgres:postgres@localhost:5432/postgres
-          FINANCIAL_BACKUP_BACKUP_ID: ${{ inputs.backup_id }}
+          FINANCIAL_BACKUP_BACKUP_ID: ${{ steps.select.outputs.backup_id }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
           R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
@@ -285,11 +376,12 @@ jobs:
         # never a specific row's value, so nothing financial or personal ever appears in this step's
         # output (every check here returns a count or a short fixed status string; confirmed by
         # reading CHECKS in src/verify-production.js, not assumed).
+        if: ${{ steps.select.outputs.backup_id != '' }}
         working-directory: scripts/financial-backup
         env:
           PG_TOOLS_VIA_DOCKER: "1"
           FINANCIAL_BACKUP_TARGET_URL: postgresql://postgres:postgres@localhost:5432/postgres
-          FINANCIAL_BACKUP_BACKUP_ID: ${{ inputs.backup_id }}
+          FINANCIAL_BACKUP_BACKUP_ID: ${{ steps.select.outputs.backup_id }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
           R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
@@ -298,3 +390,47 @@ jobs:
       # No upload-artifact step, ever: the restored schema/data exist only inside the `target`
       # service container, which GitHub Actions destroys unconditionally when this job ends --
       # nothing restored here outlives the run, and nothing unencrypted is written to any artifact.
+
+  # Persists the restore-test verdict as one immutable R2 record, and ONLY that -- no restore, no
+  # download of real backup content, no access to FINANCIAL_BACKUP_TARGET_URL or the ephemeral
+  # target. Deliberately a SEPARATE job so the R2 WRITER credential this needs is never granted to
+  # the `restore-test` job itself (which downloads and restores real backup content into an
+  # ephemeral container) -- "narrowly scoped, append-only verification-result storage" without
+  # expanding what that job can do. Runs after restore-test unconditionally (`always()`), but only
+  # does anything if restore-test actually ran and reached a real pass/fail (never for a skipped
+  # run, e.g. backup/connection-check mode, or a guard-skipped scheduled week).
+  record-restore-test-result:
+    runs-on: ubuntu-latest
+    needs: restore-test
+    if: always() && (needs.restore-test.result == 'success' || needs.restore-test.result == 'failure')
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install backup tool dependencies
+        working-directory: scripts/financial-backup
+        run: npm install
+
+      - name: Record restore-test result
+        # If restore-test's own "Select backup to test" step somehow produced no backup_id (it
+        # shouldn't reach here in that case, since every real check step is itself gated on that
+        # output being non-empty -- but guarded again here rather than writing a record for an
+        # empty/unknown backup_id).
+        if: ${{ needs.restore-test.outputs.backup_id != '' }}
+        working-directory: scripts/financial-backup
+        env:
+          RESTORE_TEST_BACKUP_ID: ${{ needs.restore-test.outputs.backup_id }}
+          RESTORE_TEST_RESULT: ${{ needs.restore-test.result == 'success' && 'passed' || 'failed' }}
+          RESTORE_TEST_TRIGGER: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
+          R2_ARCHIVE_WRITER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_WRITER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_WRITER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_WRITER_SECRET_ACCESS_KEY }}
+          R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_READER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_READER_SECRET_ACCESS_KEY }}
+        run: npm run write-restore-test-result
