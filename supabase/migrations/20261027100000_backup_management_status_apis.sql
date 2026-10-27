@@ -127,12 +127,16 @@ begin
     return json_build_object('ok', false, 'error', 'forbidden');
   end if;
 
-  select count(*) into v_total_real from archive.r2_archive_jobs where is_historical = false;
-  select count(*) into v_archived from archive.r2_archive_jobs where is_historical = false and status = 'completed';
-  select count(*) into v_pending from archive.r2_archive_jobs where is_historical = false and status in ('pending', 'processing');
-  select count(*) into v_failed from archive.r2_archive_jobs where is_historical = false and status = 'failed';
-  select count(*) into v_verified from archive.r2_archive_jobs where hash_verified = true;
-  select count(*) into v_hash_mismatch from archive.r2_archive_jobs where hash_verified = false;
+  -- is_ops_test rows (the post-deployment smoke-test object, 20261025170000) are structurally
+  -- never a real receipt (queue_ops_smoke_test_job is the only way to create one, and it always
+  -- sets document_id=null, is_historical=false) -- excluded from every count here, same
+  -- discipline as the existing archive.backup_health view.
+  select count(*) into v_total_real from archive.r2_archive_jobs where is_historical = false and not is_ops_test;
+  select count(*) into v_archived from archive.r2_archive_jobs where is_historical = false and not is_ops_test and status = 'completed';
+  select count(*) into v_pending from archive.r2_archive_jobs where is_historical = false and not is_ops_test and status in ('pending', 'processing');
+  select count(*) into v_failed from archive.r2_archive_jobs where is_historical = false and not is_ops_test and status = 'failed';
+  select count(*) into v_verified from archive.r2_archive_jobs where not is_ops_test and hash_verified = true;
+  select count(*) into v_hash_mismatch from archive.r2_archive_jobs where not is_ops_test and hash_verified = false;
   select coalesce(sum(size_bytes), 0) into v_total_size from archive.document_pdf_versions;
   select count(*) into v_version_count from archive.document_pdf_versions;
 

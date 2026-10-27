@@ -34,6 +34,8 @@ $$;
 
 -- Completed jobs never checked, or checked longest ago -- same "eventually cover everything"
 -- ordering as pick_verification_candidates, applied to existence rather than content checks.
+-- Excludes is_ops_test rows (20261025170000's smoke-test object) -- reconciling and potentially
+-- reporting on a known-synthetic test path would be noise, never a real finding.
 create or replace function archive.pick_reconcile_candidates(p_limit integer default 500)
 returns setof archive.r2_archive_jobs
 language sql
@@ -41,7 +43,7 @@ security definer
 set search_path = archive, public
 as $$
   select * from archive.r2_archive_jobs
-  where status = 'completed'
+  where status = 'completed' and not is_ops_test
   order by last_reconciled_at asc nulls first
   limit p_limit;
 $$;
