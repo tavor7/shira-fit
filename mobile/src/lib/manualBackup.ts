@@ -103,3 +103,39 @@ export async function fetchManualBackupHistory(limit = 20): Promise<ManualBackup
   if (!row?.ok) return [];
   return (row.requests ?? []).map(toRequest);
 }
+
+export interface GithubIntegrationCheck {
+  ok: boolean;
+  error?: string;
+  tokenConfigured: boolean;
+  repoAccessible: boolean;
+  workflowFound: boolean;
+  recentRunsRetrieved: boolean;
+  recentRunCount: number | null;
+}
+
+/** Manager-only. STRICTLY READ-ONLY -- never dispatches anything. Confirms
+ *  GITHUB_DISPATCH_TOKEN is present and valid, the repo/workflow are reachable, and recent runs
+ *  can be listed, without ever starting a real backup. */
+export async function verifyGithubIntegration(): Promise<GithubIntegrationCheck> {
+  const { data, error } = await supabase.functions.invoke("verify-github-integration", { body: {} });
+  const row = data as {
+    ok?: boolean;
+    error?: string;
+    token_configured?: boolean;
+    repo_accessible?: boolean;
+    workflow_found?: boolean;
+    recent_runs_retrieved?: boolean;
+    recent_run_count?: number;
+  } | null;
+  if (error && !row) throw new Error("verify_github_integration_failed");
+  return {
+    ok: !!row?.ok,
+    error: row?.error,
+    tokenConfigured: !!row?.token_configured,
+    repoAccessible: !!row?.repo_accessible,
+    workflowFound: !!row?.workflow_found,
+    recentRunsRetrieved: !!row?.recent_runs_retrieved,
+    recentRunCount: row?.recent_run_count ?? null,
+  };
+}

@@ -24,6 +24,7 @@ import {
   fetchManualBackupStatus,
   generateManualBackupRequestId,
   triggerManualBackup,
+  verifyGithubIntegration,
   ACTIVE_MANUAL_BACKUP_STATUSES,
   ManualBackupRejectedError,
   type ManualBackupRequest,
@@ -85,7 +86,7 @@ function StatusRow({ label, value, warn, isRTL }: Row & { isRTL: boolean }) {
 export default function ManagerBackupManagementScreen() {
   const { t, language, isRTL } = useI18n();
   const screenContent = useScreenContentStyle("narrow");
-  const { showConfirm } = useAppAlert();
+  const { showConfirm, showOk } = useAppAlert();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -95,6 +96,7 @@ export default function ManagerBackupManagementScreen() {
   const [automationBusy, setAutomationBusy] = useState(false);
   const [manualHistory, setManualHistory] = useState<ManualBackupRequest[]>([]);
   const [manualBusy, setManualBusy] = useState(false);
+  const [githubCheckBusy, setGithubCheckBusy] = useState(false);
 
   const replace = useCallback((key: string, n: number) => t(key).replace("{n}", String(n)), [t]);
 
@@ -196,6 +198,34 @@ export default function ManagerBackupManagementScreen() {
       confirmVariant: "primary",
       onConfirm: () => void onBackUpNow(),
     });
+  }
+
+  /** Strictly read-only -- never dispatches a backup. Lets a manager confirm the GitHub
+   *  integration (token validity, repo/workflow visibility) is ready before ever pressing
+   *  "Back Up Now" for real. */
+  async function onTestGithubConnection() {
+    if (githubCheckBusy) return;
+    setGithubCheckBusy(true);
+    try {
+      const result = await verifyGithubIntegration();
+      if (result.ok) {
+        showOk(
+          t("backupMgmt.manual.testConnectionOkTitle"),
+          t("backupMgmt.manual.testConnectionOkBody").replace("{n}", String(result.recentRunCount ?? 0))
+        );
+      } else if (result.error === "github_dispatch_not_configured") {
+        showOk(t("backupMgmt.manual.testConnectionFailTitle"), t("backupMgmt.manual.notConfigured"));
+      } else {
+        showOk(
+          t("backupMgmt.manual.testConnectionFailTitle"),
+          `${t("backupMgmt.manual.testConnectionFailBody")} (${result.error ?? "unknown"})`
+        );
+      }
+    } catch (e) {
+      showOk(t("backupMgmt.manual.testConnectionFailTitle"), e instanceof Error ? e.message : t("common.error"));
+    } finally {
+      setGithubCheckBusy(false);
+    }
   }
 
   async function applyAutomationChange(nextEnabled: boolean) {
@@ -327,6 +357,17 @@ export default function ManagerBackupManagementScreen() {
         >
           <AppText variant="body" style={styles.backUpNowBtnTxt}>
             {t("backupMgmt.manual.button")}
+          </AppText>
+        </Pressable>
+
+        <Pressable
+          onPress={() => void onTestGithubConnection()}
+          disabled={githubCheckBusy}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.testConnectionBtn, pressed && !githubCheckBusy && { opacity: 0.7 }]}
+        >
+          <AppText variant="caption" muted isRTL={isRTL} style={styles.testConnectionBtnTxt}>
+            {githubCheckBusy ? t("common.loading") : t("backupMgmt.manual.testConnection")}
           </AppText>
         </Pressable>
 
@@ -524,5 +565,7 @@ const styles = StyleSheet.create({
   },
   backUpNowBtnDisabled: { opacity: 0.5 },
   backUpNowBtnTxt: { color: theme.colors.ctaText, fontWeight: "800" },
+  testConnectionBtn: { alignItems: "center", paddingVertical: theme.spacing.xs, marginTop: theme.spacing.xs },
+  testConnectionBtnTxt: { textDecorationLine: "underline" },
   manualHistory: { marginTop: theme.spacing.sm },
 });
