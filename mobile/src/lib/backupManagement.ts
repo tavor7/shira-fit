@@ -31,11 +31,20 @@ export interface ArchiveHealth {
   archived_count: number;
   pending_count: number;
   failed_count: number;
-  coverage_pct: number | null;
+  /** % of real documents with a successful UPLOAD -- distinct from integrity_checked_pct. */
+  upload_coverage_pct: number | null;
   hash_verified_count: number;
   hash_mismatch_count: number;
+  /** Archived but never yet sampled by a periodic integrity-verification pass. */
+  never_integrity_checked_count: number;
+  /** % of archived documents that have EVER been sampled (verified or mismatched) -- never the
+   *  same question as upload_coverage_pct. */
+  integrity_checked_pct: number | null;
   total_pdf_version_count: number;
-  total_size_bytes: number;
+  /** null (never 0) when no document_pdf_versions row has a recorded size -- show "unavailable",
+   *  not "0 MB". */
+  total_size_bytes: number | null;
+  size_unknown_count: number;
   last_reconciliation: {
     started_at: string;
     finished_at: string | null;
@@ -52,12 +61,18 @@ export interface ArchiveHealth {
   } | null;
 }
 
-/** Manager-only. Null if the caller isn't a manager (RPC returns {ok:false}) or on error. */
+/** Manager-only. Reads LIVE from R2 (get-backup-health Edge Function) -- NOT from the
+ *  financial_backup_health_snapshot table, which is never written (that write needs a new
+ *  GitHub Actions credential this project has deliberately not added -- see that function's own
+ *  header comment). Null if the caller isn't a manager or on error. */
 export async function fetchBackupHealth(): Promise<BackupHealthSnapshot | null> {
-  const { data, error } = await supabase.rpc("manager_get_backup_health");
-  if (error) throw error;
-  const row = data as { ok?: boolean; has_data?: boolean; computed_at?: string; health?: FinancialBackupHealth } | null;
-  if (!row?.ok) return null;
+  const { data, error } = await supabase.functions.invoke("get-backup-health", { body: {} });
+  const row = data as { ok?: boolean; has_data?: boolean; computed_at?: string; health?: FinancialBackupHealth; error?: string } | null;
+  if (error && !row) throw error;
+  if (!row?.ok) {
+    if (row?.error === "forbidden" || row?.error === "unauthorized") return null;
+    throw new Error(row?.error ?? "backup_health_unavailable");
+  }
   return { has_data: !!row.has_data, computed_at: row.computed_at, health: row.health };
 }
 

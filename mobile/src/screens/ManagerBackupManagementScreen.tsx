@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAppAlert } from "../context/AppAlertContext";
@@ -61,8 +62,12 @@ function manualBackupStatusLabel(req: ManualBackupRequest, t: (k: string) => str
   return manualBackupStageLabel(req.currentStep, t);
 }
 
-function formatBytes(bytes: number | undefined): string {
-  if (!bytes || bytes <= 0) return "0 MB";
+/** KB-aware (never shows a misleading "0 MB" for a genuinely small size) -- callers pass `null`
+ *  explicitly (never call this with null) when the size is actually unknown, showing a dedicated
+ *  "unavailable" string instead of any number. */
+function formatBytes(bytes: number): string {
+  if (bytes <= 0) return "0 KB";
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   const mb = bytes / (1024 * 1024);
   if (mb < 1024) return `${mb.toFixed(1)} MB`;
   return `${(mb / 1024).toFixed(2)} GB`;
@@ -70,10 +75,14 @@ function formatBytes(bytes: number | undefined): string {
 
 type Row = { label: string; value: string; warn?: boolean };
 
+/** Label above value (not side-by-side) -- a long label next to a long value ("Weekly
+ *  restore-test" / "weekly, Sunday ~04:00/05:00 Israel time...") previously overlapped and
+ *  wrapped incorrectly on narrow screens; stacking removes that failure mode regardless of how
+ *  long either Hebrew or English text ends up being, at any screen width. */
 function StatusRow({ label, value, warn, isRTL }: Row & { isRTL: boolean }) {
   return (
-    <View style={[styles.statRow, rowFlipFor(isRTL) && styles.statRowRtl]}>
-      <AppText variant="body" isRTL={isRTL} style={styles.statLabel}>
+    <View style={styles.statRow}>
+      <AppText variant="caption" muted isRTL={isRTL} style={styles.statLabel}>
         {label}
       </AppText>
       <AppText variant="body" isRTL={isRTL} style={[styles.statValue, warn && styles.statValueWarn]}>
@@ -374,14 +383,15 @@ export default function ManagerBackupManagementScreen() {
         {manualHistory.length > 0 ? (
           <View style={styles.manualHistory}>
             {manualHistory.map((req) => (
-              <View key={req.id} style={[styles.statRow, rowFlipFor(isRTL) && styles.statRowRtl]}>
-                <AppText variant="body" isRTL={isRTL} style={styles.statLabel}>
+              <View key={req.id} style={[styles.historyRow, rowFlipFor(isRTL) && styles.historyRowRtl]}>
+                <AppText variant="body" isRTL={isRTL} style={styles.historyDate} numberOfLines={1}>
                   {formatDateTimeForDisplay(req.requestedAt, language)}
                 </AppText>
                 <AppText
                   variant="body"
                   isRTL={isRTL}
-                  style={[styles.statValue, (req.status === "failed" || req.status === "unknown") && styles.statValueWarn]}
+                  style={[styles.historyStatus, (req.status === "failed" || req.status === "unknown") && styles.statValueWarn]}
+                  numberOfLines={1}
                 >
                   {manualBackupStatusLabel(req, t)}
                 </AppText>
@@ -447,7 +457,11 @@ export default function ManagerBackupManagementScreen() {
               label={t("backupMgmt.financial.totalBackups")}
               value={String(h.total_backups ?? 0)}
             />
-            <StatusRow isRTL={isRTL} label={t("backupMgmt.financial.totalSize")} value={formatBytes(h.total_size_bytes)} />
+            <StatusRow
+              isRTL={isRTL}
+              label={t("backupMgmt.financial.totalSize")}
+              value={h.total_size_bytes != null ? formatBytes(h.total_size_bytes) : t("backupMgmt.archive.sizeUnavailable")}
+            />
 
             <AppText variant="body" isRTL={isRTL} style={[styles.coverageNote, !h.newest_backup_restore_tested && styles.statValueWarn]}>
               {h.newest_backup_restore_tested ? t("backupMgmt.financial.restoreTest.latestCovered") : t("backupMgmt.financial.restoreTest.latestNotCovered")}
@@ -473,16 +487,32 @@ export default function ManagerBackupManagementScreen() {
           </AppText>
         ) : (
           <>
+            <AppText variant="caption" muted isRTL={isRTL} style={styles.sectionLabel}>
+              {t("backupMgmt.archive.uploadSection")}
+            </AppText>
             <StatusRow
               isRTL={isRTL}
               label={t("backupMgmt.archive.coverage")}
-              value={archive.coverage_pct !== null ? `${archive.coverage_pct}%` : "—"}
+              value={archive.upload_coverage_pct !== null ? `${archive.upload_coverage_pct}%` : "—"}
             />
             <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.archived")} value={String(archive.archived_count)} />
             <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.pending")} value={String(archive.pending_count)} />
             <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.failed")} value={String(archive.failed_count)} warn={archive.failed_count > 0} />
             <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.pdfVersions")} value={String(archive.total_pdf_version_count)} />
-            <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.totalSize")} value={formatBytes(archive.total_size_bytes)} />
+            <StatusRow
+              isRTL={isRTL}
+              label={t("backupMgmt.archive.totalSize")}
+              value={archive.total_size_bytes != null ? formatBytes(archive.total_size_bytes) : t("backupMgmt.archive.sizeUnavailable")}
+            />
+
+            <AppText variant="caption" muted isRTL={isRTL} style={styles.sectionLabel}>
+              {t("backupMgmt.archive.integritySection")}
+            </AppText>
+            <StatusRow
+              isRTL={isRTL}
+              label={t("backupMgmt.archive.integrityCheckedPct")}
+              value={archive.integrity_checked_pct !== null ? `${archive.integrity_checked_pct}%` : "—"}
+            />
             <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.hashVerified")} value={String(archive.hash_verified_count)} />
             <StatusRow
               isRTL={isRTL}
@@ -490,6 +520,7 @@ export default function ManagerBackupManagementScreen() {
               value={String(archive.hash_mismatch_count)}
               warn={archive.hash_mismatch_count > 0}
             />
+            <StatusRow isRTL={isRTL} label={t("backupMgmt.archive.neverChecked")} value={String(archive.never_integrity_checked_count)} />
             <StatusRow
               isRTL={isRTL}
               label={t("backupMgmt.archive.lastReconciliation")}
@@ -507,6 +538,24 @@ export default function ManagerBackupManagementScreen() {
           </>
         )}
       </View>
+
+      <Pressable
+        onPress={() => router.push("/(app)/manager/documents-invoices" as never)}
+        accessibilityRole="link"
+        style={({ pressed }) => [styles.card, styles.exportLinkCard, pressed && { opacity: 0.8 }]}
+      >
+        <View style={styles.exportLinkTextWrap}>
+          <AppText variant="title" isRTL={isRTL} style={styles.cardTitle}>
+            {t("backupMgmt.export.title")}
+          </AppText>
+          <AppText variant="caption" muted isRTL={isRTL}>
+            {t("backupMgmt.export.description")}
+          </AppText>
+        </View>
+        <AppText variant="body" style={styles.exportLinkArrow}>
+          {isRTL ? "‹" : "›"}
+        </AppText>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -542,18 +591,33 @@ const styles = StyleSheet.create({
   toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: theme.spacing.xs },
   toggleRowRtl: { flexDirection: "row-reverse" },
   toggleLabel: { flex: 1, fontWeight: "700" },
+  // Stacked (label above value), not side-by-side -- a long label and a long value next to each
+  // other previously overlapped/wrapped incorrectly on narrow screens (e.g. "Weekly restore-test"
+  // + its schedule description); stacking is immune to that regardless of text length/language.
   statRow: {
+    paddingVertical: theme.spacing.xs,
+    gap: 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.borderMuted,
+  },
+  statLabel: { opacity: 0.8 },
+  statValue: { fontWeight: "700" },
+  statValueWarn: { color: theme.colors.warning },
+  sectionLabel: { marginTop: theme.spacing.sm, marginBottom: theme.spacing.xs, textTransform: "uppercase", letterSpacing: 0.5 },
+  // Manual-backup history rows stay side-by-side (date + a short status word, both always short
+  // enough not to collide) -- distinct styles from statRow/statLabel/statValue above.
+  historyRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: theme.spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderMuted,
+    gap: theme.spacing.sm,
   },
-  statRowRtl: { flexDirection: "row-reverse" },
-  statLabel: { flex: 1, opacity: 0.8 },
-  statValue: { fontWeight: "700" },
-  statValueWarn: { color: theme.colors.warning },
+  historyRowRtl: { flexDirection: "row-reverse" },
+  historyDate: { flex: 1, opacity: 0.8 },
+  historyStatus: { fontWeight: "700", flexShrink: 0 },
   coverageNote: { marginTop: theme.spacing.sm, fontWeight: "700" },
   snapshotAge: { marginTop: theme.spacing.xs },
   backUpNowBtn: {
@@ -567,5 +631,8 @@ const styles = StyleSheet.create({
   backUpNowBtnTxt: { color: theme.colors.ctaText, fontWeight: "800" },
   testConnectionBtn: { alignItems: "center", paddingVertical: theme.spacing.xs, marginTop: theme.spacing.xs },
   testConnectionBtnTxt: { textDecorationLine: "underline" },
+  exportLinkCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: theme.spacing.md },
+  exportLinkTextWrap: { flex: 1, gap: 2 },
+  exportLinkArrow: { fontSize: 24, color: theme.colors.textSoft },
   manualHistory: { marginTop: theme.spacing.sm },
 });
