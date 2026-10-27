@@ -93,7 +93,18 @@ async function getCurrentState(): Promise<AutomationState> {
 async function appendState(enabled: boolean, changedByLabel: string): Promise<AutomationState> {
   const writer = r2Client("writer");
   const changedAt = new Date().toISOString();
-  const key = `${CONFIG_PREFIX}${changedAt.replace(/[:.]/g, "-")}.json`;
+  // A random suffix, not just the millisecond timestamp, is the key -- two managers tapping the
+  // toggle in the same millisecond (same `changedAt`) would otherwise race for the identical R2
+  // key: Bucket Lock would let the first PUT through and hard-reject the second (neither manager
+  // gets a silent/ambiguous result -- the second sees a clear {ok:false, error:'r2_unavailable'}
+  // and must retry), but that's a worse failure mode than simply never colliding in the first
+  // place. The suffix makes every append collision-free regardless of timing, while "current
+  // state" is still unambiguous: keys sort by their `changedAt` prefix first, so the random tail
+  // never affects ordering between two DIFFERENT timestamps -- it only disambiguates two appends
+  // that would otherwise claim the exact same millisecond, which is the one case where "which of
+  // these happened first" has no meaningful answer anyway (true behavior, not hidden).
+  const suffix = crypto.randomUUID().slice(0, 8);
+  const key = `${CONFIG_PREFIX}${changedAt.replace(/[:.]/g, "-")}-${suffix}.json`;
   const record = { enabled, changed_at: changedAt, changed_by_label: changedByLabel };
   const res = await writer.fetch(objectUrl(key), {
     method: "PUT",

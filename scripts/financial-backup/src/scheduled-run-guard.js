@@ -74,6 +74,15 @@ async function main() {
   // from the app without any GitHub credential. No config object ever written yet means
   // disabled -- the safe default. Checked before the DST/season logic since there's no reason to
   // even compute that when automation is off.
+  // Fail CLOSED, not open, on an R2 read error: getAutomationConfig() throws on anything other
+  // than "the prefix is empty" (= genuinely never configured, which legitimately means disabled).
+  // An unhandled throw here propagates out of main() to the top-level `.catch` below, which exits
+  // 1 WITHOUT ever writing `should_run` -- the step shows failed (red X) in the Actions log,
+  // distinguishable at a glance from the normal "disabled" path below (which exits 0, logs a
+  // plain Skipping message, and writes should_run=false). Either way no downstream step can run:
+  // they're all gated on `steps.guard.outputs.should_run == 'true'`, which is simply absent, not
+  // "true", when this step fails outright. A flaky/unavailable R2 can therefore only ever prevent
+  // a backup, never accidentally cause one.
   const automation = await getAutomationConfig();
   if (!automation.enabled) {
     console.log(`Skipping -- automatic backups are currently disabled (set from the app; last changed: ${automation.changed_at ?? "never"}).`);
