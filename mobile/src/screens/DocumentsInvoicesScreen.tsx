@@ -67,6 +67,7 @@ import {
 import { DOCUMENT_PAYMENT_METHOD_KEYS, documentPaymentMethodLabel } from "../lib/documentPaymentMethod";
 import { documentServiceTypeLabel } from "../lib/documentServiceTypes";
 import { buildCsv, downloadCsvWeb } from "../lib/csvExport";
+import { AccountingExportTooLargeError, runAccountingExport } from "../lib/accountingExport";
 import { supabase } from "../lib/supabase";
 import { formatDateTimeForDisplay, formatISODateFull } from "../lib/dateFormat";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
@@ -189,6 +190,7 @@ export default function DocumentsInvoicesScreen() {
   const [pdfBusyId, setPdfBusyId] = useState<string | null>(null);
   const [accountantBusyId, setAccountantBusyId] = useState<string | null>(null);
   const [bulkAccountantBusy, setBulkAccountantBusy] = useState(false);
+  const [zipExportBusy, setZipExportBusy] = useState(false);
   const [monthlySummaryBusy, setMonthlySummaryBusy] = useState(false);
   const [deletingSummaryId, setDeletingSummaryId] = useState<string | null>(null);
   const [cancelBusyId, setCancelBusyId] = useState<string | null>(null);
@@ -806,6 +808,33 @@ export default function DocumentsInvoicesScreen() {
     else showToast({ message: t("ui.documentsInvoices.exportAvailableOnWeb"), variant: "info" });
   }
 
+  /** Server-side export (export-accounting-documents Edge Function): includes each document's
+   *  PDF alongside a CSV summary, works on native (unlike exportCsv above), bounded by the
+   *  function's own row cap so a wide date range can't cause unbounded cost -- see
+   *  AccountingExportTooLargeError below. */
+  async function exportZip() {
+    if (zipExportBusy) return;
+    setZipExportBusy(true);
+    try {
+      await runAccountingExport({
+        format: "zip",
+        dateStart: `${dateStart}T00:00:00.000Z`,
+        dateEnd: `${dateEnd}T23:59:59.999Z`,
+      });
+    } catch (e) {
+      if (e instanceof AccountingExportTooLargeError) {
+        showToast({
+          message: t("ui.documentsInvoices.exportZipTooLarge").replace("{cap}", String(e.rowCap)),
+          variant: "error",
+        });
+      } else {
+        showToast({ message: t("common.error"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+      }
+    } finally {
+      setZipExportBusy(false);
+    }
+  }
+
   const sectionTabs: { id: HubSection; label: string; managerOnly?: boolean }[] = [
     { id: "pending", label: t("ui.documentsInvoices.pendingReceipts") },
     { id: "documents", label: t("ui.documentsInvoices.documents") },
@@ -1380,6 +1409,12 @@ export default function DocumentsInvoicesScreen() {
         </View>
       </View>
       <PrimaryButton label={t("ui.documentsInvoices.exportCsv")} onPress={exportCsv} />
+      <PrimaryButton
+        label={t("ui.documentsInvoices.exportZip")}
+        onPress={() => void exportZip()}
+        loading={zipExportBusy}
+        loadingLabel={t("common.loading")}
+      />
       <PrimaryButton
         label={t("ui.documentsInvoices.sendAllToAccountant")}
         onPress={() => void sendAllToAccountant()}
