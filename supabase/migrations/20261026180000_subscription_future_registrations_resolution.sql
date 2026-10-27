@@ -68,6 +68,18 @@
 --     (future_registrations_expectation_required) -- the check cannot be silently skipped by a client
 --     that forgets to pass it.
 --
+-- (4) REPLAY SAFETY. 20261026095809 (filename-earlier) revokes PUBLIC/anon EXECUTE on both new RPCs,
+--     but references functions this migration is the one that creates -- a fresh `supabase db reset`
+--     replaying migrations strictly in filename order hits that revoke first and fails with
+--     "function ... does not exist" (42883). Production itself was never broken (its real execution
+--     order, via the SQL Editor, differed from the committed files' filename order -- its current
+--     grants were independently confirmed correct), but a clean local/CI replay was. Fixed two ways,
+--     both purely additive/idempotent and deployed to no environment that already has these functions:
+--     (a) 20261026095809's revoke is now wrapped in a to_regprocedure(...) is not null guard, so a
+--     fresh replay skips it harmlessly instead of erroring; (b) THIS migration now also explicitly
+--     revokes PUBLIC/anon right after each grant below, so it is self-sufficient for the correct final
+--     permission state regardless of which order the two migrations actually run in.
+--
 -- (3) ATOMICITY IN THE SQL EDITOR. Every statement here (CREATE OR REPLACE FUNCTION, COMMENT, REVOKE,
 --     GRANT, DO) is transaction-safe (no CONCURRENTLY, no VACUUM, no bare ALTER TYPE ... ADD VALUE --
 --     that lives in the prior, separate 20261026090258 migration specifically because a new enum
@@ -429,6 +441,15 @@ comment on function public.stop_subscription_with_future_registrations(uuid, dat
 
 grant execute on function public.stop_subscription_with_future_registrations(uuid, date, boolean, text, uuid[], uuid[]) to authenticated;
 
+-- Replay-safety: 20261026095809 (filename-earlier) also revokes PUBLIC/anon on this function, but a
+-- fresh replay reaches that migration BEFORE this one creates the function (the function didn't exist
+-- yet when that revoke was first run against production either -- see that migration's updated
+-- comment). This explicit revoke makes THIS migration self-sufficient for the final permission state,
+-- regardless of replay order: CREATE OR REPLACE above only grants PUBLIC an implicit EXECUTE, which
+-- this immediately narrows back down to authenticated-only, same as 20261026095809 already does for
+-- every environment where it ran after this function existed.
+revoke execute on function public.stop_subscription_with_future_registrations(uuid, date, boolean, text, uuid[], uuid[]) from public, anon;
+
 -- ---------------------------------------------------------------------------------------------------
 -- delete_subscription_with_future_registrations: a NEW, separately-named RPC (delete_subscription(uuid)
 -- is untouched by this file). Body is delete_subscription's full logic (20261026100000) plus the
@@ -603,6 +624,10 @@ comment on function public.delete_subscription_with_future_registrations(uuid, t
 
 grant execute on function public.delete_subscription_with_future_registrations(uuid, text, boolean, uuid[], uuid[]) to authenticated;
 
+-- Replay-safety: see the identical note above stop_subscription_with_future_registrations's own
+-- revoke -- this makes this migration self-sufficient for the final permission state too.
+revoke execute on function public.delete_subscription_with_future_registrations(uuid, text, boolean, uuid[], uuid[]) from public, anon;
+
 -- Self-check: new internal helpers stay client-unreachable; both new public entry points are callable;
 -- the two ORIGINAL entry points are untouched (still exist with their exact original signature).
 do $$
@@ -620,6 +645,12 @@ begin
   end if;
   if not has_function_privilege('authenticated', 'public.delete_subscription_with_future_registrations(uuid,text,boolean,uuid[],uuid[])'::regprocedure, 'EXECUTE') then
     raise exception 'self-check: delete_subscription_with_future_registrations missing EXECUTE for authenticated';
+  end if;
+  if has_function_privilege('anon', 'public.stop_subscription_with_future_registrations(uuid,date,boolean,text,uuid[],uuid[])'::regprocedure, 'EXECUTE') then
+    raise exception 'self-check: anon must not retain EXECUTE on stop_subscription_with_future_registrations';
+  end if;
+  if has_function_privilege('anon', 'public.delete_subscription_with_future_registrations(uuid,text,boolean,uuid[],uuid[])'::regprocedure, 'EXECUTE') then
+    raise exception 'self-check: anon must not retain EXECUTE on delete_subscription_with_future_registrations';
   end if;
   if not has_function_privilege('authenticated', 'public.stop_subscription(uuid,date,boolean)'::regprocedure, 'EXECUTE') then
     raise exception 'self-check: the ORIGINAL stop_subscription(uuid,date,boolean) must remain untouched and callable';
