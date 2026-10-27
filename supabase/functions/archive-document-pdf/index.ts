@@ -133,14 +133,18 @@ async function processPending(admin: ReturnType<typeof createClient>, limit: num
       // Records the real, already-known byte length (bytes.length -- no extra fetch, no PDF
       // content involved beyond what was already downloaded/hashed above) so NEW archive writes
       // never reopen the size_bytes gap the backfill (scripts/receipt-archive/src/backfill-pdf-
-      // sizes.js) is separately closing for existing rows. Best-effort: a failure here must never
-      // fail the archive job itself (the object is already correctly uploaded and verified).
+      // sizes.js) is separately closing for existing rows. document_pdf_versions.size_bytes is
+      // NULL at this point (finalize_document_pdf doesn't set it), so this goes into the same
+      // insert-once supplementary table the historical backfill uses (20261027172038) rather than
+      // ever attempting to UPDATE document_pdf_versions, which its own immutability trigger
+      // rejects unconditionally. Best-effort: a failure here must never fail the archive job
+      // itself (the object is already correctly uploaded and verified).
       if (job.document_version_id) {
-        const { error: sizeErr } = await admin.rpc("record_pdf_size_for_worker", {
+        const { error: sizeErr } = await admin.rpc("record_pdf_size_supplement_for_worker", {
           p_version_id: job.document_version_id,
           p_size_bytes: bytes.length,
         });
-        if (sizeErr) console.error(`record_pdf_size failed for ${job.document_version_id}: ${sizeErr.message}`);
+        if (sizeErr) console.error(`record_pdf_size_supplement failed for ${job.document_version_id}: ${sizeErr.message}`);
       }
     } catch (e) {
       failed++;

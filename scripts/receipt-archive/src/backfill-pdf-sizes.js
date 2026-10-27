@@ -1,20 +1,27 @@
 /**
- * Backup Management: bounded, resumable, idempotent size_bytes backfill for
+ * Backup Management: bounded, resumable, idempotent historical size backfill for
  * archive.document_pdf_versions.
  *
- * Every row has had size_bytes = NULL since the historical backfill and the archive-document-pdf
- * worker both never populated it (confirmed finding; the worker now does for NEW writes --
- * 20261027190000). This script closes the gap for EXISTING rows by HEAD-requesting each one's
- * already-archived R2 object (R2's HEAD response includes Content-Length) and recording it --
- * never downloads any PDF content, never writes to R2, never touches any financial record or
- * accounting document.
+ * Every row has had size_bytes = NULL since before that column was recorded at write time. A
+ * first attempt (20261027190000) tried to UPDATE document_pdf_versions.size_bytes directly and
+ * was correctly rejected in production by that table's own document_pdf_versions_immutable
+ * trigger (confirmed live against a --limit 5 run: zero rows modified). That trigger, and
+ * document_pdf_versions itself, are never touched by this script or by anything it calls.
+ *
+ * Instead this closes the gap via a SEPARATE, insert-once supplementary table
+ * (archive.document_pdf_version_sizes, 20261027200000), linked to document_pdf_versions by
+ * version_id. This script HEAD-requests each candidate's already-archived R2 object (R2's HEAD
+ * response includes Content-Length) and records it into that supplementary table -- never
+ * downloads any PDF content, never writes to R2, never touches any financial record, accounting
+ * document, or document_pdf_versions row.
  *
  * Idempotent/resumable by construction, no separate cursor/offset state needed:
- * pick_missing_size_candidates only ever returns rows still NULL, and record_pdf_size only ever
- * writes a row that's still NULL (a re-run after a crash, or a second invocation entirely, can
- * never double-process or overwrite an already-recorded size). A HEAD 404 (object genuinely
- * missing -- a reconcile.js-style finding) is logged and skipped, never a reason to abort the
- * whole run; a real zero-byte object is recorded as 0, never conflated with "unknown" (NULL).
+ * pick_missing_size_candidates only returns rows with no size_bytes AND no supplementary row yet,
+ * and record_pdf_size_supplement is itself insert-once (a retry for an already-recorded
+ * version_id is a harmless no-op; a genuinely conflicting size is reported to System Issues, never
+ * written). A HEAD 404 (object genuinely missing -- a reconcile.js-style finding) is logged and
+ * skipped, never a reason to abort the whole run; a real zero-byte object is recorded as 0, never
+ * conflated with "unknown" (NULL).
  *
  * Usage: node src/backfill-pdf-sizes.js [--limit 200]
  */
@@ -48,13 +55,13 @@ async function main() {
     try {
       const head = await reader.send(new HeadObjectCommand({ Bucket: bucket, Key: row.r2_key }));
       const sizeBytes = head.ContentLength ?? 0;
-      const { error: recErr } = await supabase.rpc("record_pdf_size_for_worker", {
+      const { error: recErr } = await supabase.rpc("record_pdf_size_supplement_for_worker", {
         p_version_id: row.version_id,
         p_size_bytes: sizeBytes,
       });
       if (recErr) {
         errored++;
-        console.error(`  warning: record_pdf_size failed for ${row.version_id}: ${recErr.message}`);
+        console.error(`  warning: record_pdf_size_supplement failed for ${row.version_id}: ${recErr.message}`);
       } else {
         filled++;
       }
