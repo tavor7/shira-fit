@@ -455,6 +455,14 @@ export function useStudioSetupItems(): StudioSetupItem[] {
         href: "/(app)/manager/system-issues",
         isActive: (p) => startsWithAny(p, ["/manager/system-issues"]),
       },
+      {
+        id: "backupManagement",
+        label: t("menu.backupManagement"),
+        icon: "server-outline",
+        description: t("setup.desc.backupManagement"),
+        href: "/(app)/manager/backup-management",
+        isActive: (p) => startsWithAny(p, ["/manager/backup-management"]),
+      },
     ],
     [t]
   );

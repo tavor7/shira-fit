@@ -1,4 +1,5 @@
 import { systemIssuesEn, systemIssuesHe } from "./systemIssues";
+import { backupManagementEn, backupManagementHe } from "./backupManagement";
 
 export type LanguageCode = "en" | "he";
 
@@ -2216,6 +2217,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "ui.timePickerField.cancel2": "Cancel",
     "ui.timePickerField.done2": "Done",
     ...systemIssuesEn,
+    ...backupManagementEn,
   },
   he: {
     "tab.athleteBrowse": "אימונים",
@@ -4418,6 +4420,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "ui.timePickerField.cancel2": "ביטול",
     "ui.timePickerField.done2": "אישור",
     ...systemIssuesHe,
+    ...backupManagementHe,
   },
 };
 
