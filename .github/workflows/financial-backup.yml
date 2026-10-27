@@ -27,9 +27,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "'connection-check' runs ONLY `SELECT 1` against FINANCIAL_BACKUP_SOURCE_URL (no dump, no R2) -- use this to prove a new/rotated connection string works before ever running a real backup against it. 'restore-test' proves a named backup (backup_id, below) is genuinely restorable -- into a throwaway container, never production."
+        description: "'connection-check' runs ONLY `SELECT 1` against FINANCIAL_BACKUP_SOURCE_URL (no dump, no R2) -- use this to prove a new/rotated connection string works before ever running a real backup against it. 'restore-test' proves a named backup (backup_id, below) is genuinely restorable -- into a throwaway container, never production. 'health' is read-only (reader R2 credential only, no writes) -- lists existing manifests/verifications/restore-test results and reports health.js's computed status, for independently checking state without running a backup or restore-test."
         type: choice
-        options: [backup, connection-check, restore-test]
+        options: [backup, connection-check, restore-test, health]
         default: backup
       upload_to_r2:
         description: "backup mode only: upload the resulting backup to R2 under db-backups/ (leave false for a dry run)"
@@ -445,3 +445,32 @@ jobs:
           R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
           R2_ARCHIVE_READER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_READER_SECRET_ACCESS_KEY }}
         run: npm run write-restore-test-result
+
+  # Read-only on-demand status check -- no dump, no restore, no R2 write, only the READER R2
+  # credential. Exists so "what does health.js currently report" can be answered independently of
+  # ever running a real backup (the existing Health check step above only runs right after a real
+  # upload) or waiting for the next scheduled run. Runs only on an explicit `mode: health` dispatch.
+  health-check:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.mode == 'health'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install backup tool dependencies
+        working-directory: scripts/financial-backup
+        run: npm install
+
+      - name: Health check (read-only, reader credential only)
+        working-directory: scripts/financial-backup
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_ARCHIVE_BUCKET: ${{ secrets.R2_ARCHIVE_BUCKET }}
+          R2_ARCHIVE_READER_ACCESS_KEY_ID: ${{ secrets.R2_ARCHIVE_READER_ACCESS_KEY_ID }}
+          R2_ARCHIVE_READER_SECRET_ACCESS_KEY: ${{ secrets.R2_ARCHIVE_READER_SECRET_ACCESS_KEY }}
+        run: npm run health
