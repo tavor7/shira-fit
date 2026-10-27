@@ -19,8 +19,46 @@ import {
   type BackupAutomationState,
   type BackupHealthSnapshot,
 } from "../lib/backupManagement";
+import {
+  fetchManualBackupHistory,
+  fetchManualBackupStatus,
+  generateManualBackupRequestId,
+  triggerManualBackup,
+  ACTIVE_MANUAL_BACKUP_STATUSES,
+  ManualBackupRejectedError,
+  type ManualBackupRequest,
+} from "../lib/manualBackup";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { useRefetchOnResume } from "../hooks/useRefetchOnResume";
+
+const MANUAL_BACKUP_POLL_MS = 5000;
+const MANUAL_BACKUP_POLL_MAX_MS = 20 * 60 * 1000; // bounded -- stop polling after 20 minutes even if still "active"
+
+function manualBackupStageLabel(step: string | null, t: (k: string) => string): string {
+  switch (step) {
+    case "preparing":
+      return t("backupMgmt.manual.stage.preparing");
+    case "creating_and_uploading":
+      return t("backupMgmt.manual.stage.creatingAndUploading");
+    case "verifying":
+      return t("backupMgmt.manual.stage.verifying");
+    case "running_health_checks":
+      return t("backupMgmt.manual.stage.runningHealthChecks");
+    case "completed_successfully":
+      return t("backupMgmt.manual.stage.completedSuccessfully");
+    case "waiting_to_start":
+    default:
+      return t("backupMgmt.manual.stage.waitingToStart");
+  }
+}
+
+function manualBackupStatusLabel(req: ManualBackupRequest, t: (k: string) => string): string {
+  if (req.status === "completed") return manualBackupStageLabel("completed_successfully", t);
+  if (req.status === "failed") return t("backupMgmt.manual.stage.failed");
+  if (req.status === "unknown") return t("backupMgmt.manual.stage.unknown");
+  return manualBackupStageLabel(req.currentStep, t);
+}
 
 function formatBytes(bytes: number | undefined): string {
   if (!bytes || bytes <= 0) return "0 MB";
@@ -55,6 +93,8 @@ export default function ManagerBackupManagementScreen() {
   const [archive, setArchive] = useState<ArchiveHealth | null>(null);
   const [automation, setAutomation] = useState<BackupAutomationState | null>(null);
   const [automationBusy, setAutomationBusy] = useState(false);
+  const [manualHistory, setManualHistory] = useState<ManualBackupRequest[]>([]);
+  const [manualBusy, setManualBusy] = useState(false);
 
   const replace = useCallback((key: string, n: number) => t(key).replace("{n}", String(n)), [t]);
 
@@ -62,10 +102,16 @@ export default function ManagerBackupManagementScreen() {
     setLoading(true);
     setLoadError(false);
     try {
-      const [b, a, auto] = await Promise.all([fetchBackupHealth(), fetchArchiveHealth(), fetchBackupAutomationState()]);
+      const [b, a, auto, manual] = await Promise.all([
+        fetchBackupHealth(),
+        fetchArchiveHealth(),
+        fetchBackupAutomationState(),
+        fetchManualBackupHistory(5),
+      ]);
       setBackup(b);
       setArchive(a);
       setAutomation(auto);
+      setManualHistory(manual);
     } catch {
       setLoadError(true);
     } finally {
@@ -76,6 +122,81 @@ export default function ManagerBackupManagementScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useRefetchOnResume(
+    () => void load(),
+    () => !loading,
+    30_000
+  );
+
+  const activeManualRequest = manualHistory.find((r) => ACTIVE_MANUAL_BACKUP_STATUSES.includes(r.status));
+
+  // Bounded polling: only while a request is actually active, stops itself after
+  // MANUAL_BACKUP_POLL_MAX_MS even if somehow still "active" (e.g. correlation got stuck), and
+  // always cleans up its interval on unmount or when the active request changes/clears.
+  useEffect(() => {
+    if (!activeManualRequest) return;
+    const startedAt = Date.now();
+    const id = activeManualRequest.id;
+    const interval = setInterval(() => {
+      if (Date.now() - startedAt > MANUAL_BACKUP_POLL_MAX_MS) {
+        clearInterval(interval);
+        return;
+      }
+      fetchManualBackupStatus(id)
+        .then((updated) => {
+          setManualHistory((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+          if (!ACTIVE_MANUAL_BACKUP_STATUSES.includes(updated.status)) {
+            clearInterval(interval);
+            void load(); // refresh backup history/health now that a run just finished
+          }
+        })
+        .catch(() => {
+          /* transient poll failure -- next tick retries; the request's own status is untouched */
+        });
+    }, MANUAL_BACKUP_POLL_MS);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on the active request's id only
+  }, [activeManualRequest?.id]);
+
+  async function onBackUpNow() {
+    if (manualBusy || activeManualRequest) return;
+    setManualBusy(true);
+    const clientRequestId = generateManualBackupRequestId();
+    try {
+      const req = await triggerManualBackup(clientRequestId);
+      setManualHistory((prev) => [req, ...prev.filter((r) => r.id !== req.id)].slice(0, 5));
+      showToast({ message: t("backupMgmt.manual.requestAccepted"), variant: "success" });
+    } catch (e) {
+      if (e instanceof ManualBackupRejectedError) {
+        if (e.code === "rate_limited") {
+          showToast({ message: t("backupMgmt.manual.rateLimited"), variant: "info" });
+        } else if (e.code === "github_dispatch_not_configured") {
+          showToast({ message: t("backupMgmt.manual.notConfigured"), variant: "error" });
+        } else if (e.existingRequest) {
+          setManualHistory((prev) => [e.existingRequest!, ...prev.filter((r) => r.id !== e.existingRequest!.id)].slice(0, 5));
+          showToast({ message: t("backupMgmt.manual.alreadyActive"), variant: "info" });
+        } else {
+          showToast({ message: t("common.error"), detail: e.code, variant: "error" });
+        }
+      } else {
+        showToast({ message: t("common.error"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+      }
+    } finally {
+      setManualBusy(false);
+    }
+  }
+
+  function onPressBackUpNow() {
+    showConfirm({
+      title: t("backupMgmt.manual.confirmTitle"),
+      message: t("backupMgmt.manual.confirmBody"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("backupMgmt.manual.confirm"),
+      confirmVariant: "primary",
+      onConfirm: () => void onBackUpNow(),
+    });
+  }
 
   async function applyAutomationChange(nextEnabled: boolean) {
     if (automationBusy) return; // prevents a double-tap from firing two requests
@@ -183,6 +304,54 @@ export default function ManagerBackupManagementScreen() {
 
         <StatusRow isRTL={isRTL} label={t("backupMgmt.automation.dailySchedule")} value={h?.next_scheduled_backup ?? t("backupMgmt.automation.scheduleFallbackDaily")} />
         <StatusRow isRTL={isRTL} label={t("backupMgmt.automation.weeklySchedule")} value={h?.next_scheduled_restore_test ?? t("backupMgmt.automation.scheduleFallbackWeekly")} />
+      </View>
+
+      <View style={styles.card}>
+        <AppText variant="title" isRTL={isRTL} style={styles.cardTitle}>
+          {t("backupMgmt.manual.title")}
+        </AppText>
+        <AppText variant="caption" muted isRTL={isRTL} style={styles.cardDesc}>
+          {t("backupMgmt.manual.description")}
+        </AppText>
+
+        <Pressable
+          onPress={onPressBackUpNow}
+          disabled={manualBusy || !!activeManualRequest}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: manualBusy || !!activeManualRequest }}
+          style={({ pressed }) => [
+            styles.backUpNowBtn,
+            (manualBusy || !!activeManualRequest) && styles.backUpNowBtnDisabled,
+            pressed && !(manualBusy || !!activeManualRequest) && { opacity: 0.85 },
+          ]}
+        >
+          <AppText variant="body" style={styles.backUpNowBtnTxt}>
+            {t("backupMgmt.manual.button")}
+          </AppText>
+        </Pressable>
+
+        {manualHistory.length > 0 ? (
+          <View style={styles.manualHistory}>
+            {manualHistory.map((req) => (
+              <View key={req.id} style={[styles.statRow, rowFlipFor(isRTL) && styles.statRowRtl]}>
+                <AppText variant="body" isRTL={isRTL} style={styles.statLabel}>
+                  {formatDateTimeForDisplay(req.requestedAt, language)}
+                </AppText>
+                <AppText
+                  variant="body"
+                  isRTL={isRTL}
+                  style={[styles.statValue, (req.status === "failed" || req.status === "unknown") && styles.statValueWarn]}
+                >
+                  {manualBackupStatusLabel(req, t)}
+                </AppText>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <AppText variant="body" muted isRTL={isRTL} style={styles.manualHistory}>
+            {t("backupMgmt.manual.noHistory")}
+          </AppText>
+        )}
       </View>
 
       {attention.length > 0 && (
@@ -346,4 +515,14 @@ const styles = StyleSheet.create({
   statValueWarn: { color: theme.colors.warning },
   coverageNote: { marginTop: theme.spacing.sm, fontWeight: "700" },
   snapshotAge: { marginTop: theme.spacing.xs },
+  backUpNowBtn: {
+    alignItems: "center",
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.cta,
+    marginTop: theme.spacing.xs,
+  },
+  backUpNowBtnDisabled: { opacity: 0.5 },
+  backUpNowBtnTxt: { color: theme.colors.ctaText, fontWeight: "800" },
+  manualHistory: { marginTop: theme.spacing.sm },
 });
