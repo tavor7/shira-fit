@@ -1,14 +1,17 @@
 -- Personal rates for Quick Add (manual_participants) without an app account.
 
+-- Reordered: the PK constraint must be dropped before DROP NOT NULL on
+-- user_id -- Postgres forbids removing NOT NULL from a column that's still
+-- part of a primary key.
+alter table public.athlete_session_capacity_pricing
+  drop constraint if exists athlete_session_capacity_pricing_pkey;
+
 alter table public.athlete_session_capacity_pricing
   alter column user_id drop not null;
 
 alter table public.athlete_session_capacity_pricing
   add column if not exists manual_participant_id uuid
     references public.manual_participants (id) on delete cascade;
-
-alter table public.athlete_session_capacity_pricing
-  drop constraint if exists athlete_session_capacity_pricing_pkey;
 
 alter table public.athlete_session_capacity_pricing
   add constraint athlete_session_capacity_pricing_payee_chk check (

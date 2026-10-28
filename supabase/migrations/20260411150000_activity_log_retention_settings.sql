@@ -1,24 +1,11 @@
 -- Manager-configurable retention for user_activity_events (default 14 days) + prune helpers.
 
-create table if not exists public.app_settings (
-  key text primary key,
-  value_json jsonb not null,
-  updated_at timestamptz not null default now()
-);
-
-alter table public.app_settings enable row level security;
-
-drop policy if exists "app_settings_manager_all" on public.app_settings;
-create policy "app_settings_manager_all"
-  on public.app_settings
-  for all
-  to authenticated
-  using (public.is_manager(auth.uid()))
-  with check (public.is_manager(auth.uid()));
-
-insert into public.app_settings (key, value_json)
-values ('activity_log_retention_days', '14'::jsonb)
-on conflict (key) do nothing;
+-- The block previously here created a key/value `app_settings` table that
+-- collided with the singleton `app_settings` table already created by
+-- 20250331230000 (id-based, one column per setting) -- the INSERT below it
+-- could never succeed against the real table. Superseded by 20260429140000,
+-- which introduces the correctly-named `app_kv_settings` table for this
+-- purpose; production already holds that final shape.
 
 -- Current retention (days). Managers only; others get default 14 via RPC error handling on client.
 create or replace function public.get_activity_log_retention_days()
