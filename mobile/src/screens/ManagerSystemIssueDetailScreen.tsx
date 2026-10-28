@@ -344,10 +344,16 @@ export default function ManagerSystemIssueDetailScreen() {
             {t("sysIssues.detail.advancedNote")}
           </AppText>
           <Tech label={t("sysIssues.adv.operation")} value={issue.operation} />
+          <Tech label={t("sysIssues.adv.operationLabel")} value={issue.operation_label} />
           <Tech label={t("sysIssues.adv.errorClass")} value={issue.error_class} />
           <Tech label={t("sysIssues.adv.errorCode")} value={issue.error_code} />
           <Tech label={t("sysIssues.adv.subsystem")} value={issue.subsystem} />
           <Tech label={t("sysIssues.adv.sourceRaw")} value={issue.source} />
+          <Tech label={t("sysIssues.adv.envComplete")} value={t(issue.env_history_complete ? "sysIssues.adv.envComplete.exact" : "sysIssues.adv.envComplete.approximate")} />
+          <Tech label={t("sysIssues.adv.prodOccurrences")} value={issue.prod_occurrence_count != null ? formatCount(issue.prod_occurrence_count, language) : null} />
+          <Tech label={t("sysIssues.adv.prodLastSeen")} value={issue.prod_last_seen ? formatDateTimeForDisplay(issue.prod_last_seen, language) : null} />
+          <Tech label={t("sysIssues.adv.devOccurrences")} value={issue.dev_occurrence_count != null ? formatCount(issue.dev_occurrence_count, language) : null} />
+          <Tech label={t("sysIssues.adv.devLastSeen")} value={issue.dev_last_seen ? formatDateTimeForDisplay(issue.dev_last_seen, language) : null} />
           <Tech label={t("sysIssues.adv.impact")} value={issue.impact} />
           <Tech label={t("sysIssues.adv.baseSeverity")} value={issue.base_severity} />
           <Tech label={t("sysIssues.adv.firstVersion")} value={issue.first_seen_version} />

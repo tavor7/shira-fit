@@ -6,16 +6,31 @@ import { Pill } from "../Pill";
 import { rowFlipFor } from "../../lib/layoutDirection";
 import { pluralKey } from "../../lib/pluralKey";
 import { fill, formatCount, isRepeated, issueHeadline, relativeTime, severityKey, severityTone, sourceKey, statusKey, statusTone } from "../../lib/systemIssues/presentation";
-import type { SystemIssueRow } from "../../lib/systemIssues/types";
+import type { EnvironmentFilter, SystemIssueRow } from "../../lib/systemIssues/types";
 import type { LanguageCode } from "../../i18n/translations";
 
-type Props = { issue: SystemIssueRow; now: number; t: (k: string) => string; isRTL: boolean; lang: LanguageCode; onPress: () => void };
+type Props = {
+  issue: SystemIssueRow;
+  now: number;
+  t: (k: string) => string;
+  isRTL: boolean;
+  lang: LanguageCode;
+  onPress: () => void;
+  /** Which environment's count/last-seen to show. Defaults to "all" (the row's own global fields). */
+  environment?: EnvironmentFilter;
+};
 
 /** One issue in the list: readable headline first, chips for severity/status, compact meta line. */
-export function IssueRow({ issue, now, t, isRTL, lang, onPress }: Props) {
+export function IssueRow({ issue, now, t, isRTL, lang, onPress, environment = "all" }: Props) {
   const headline = issueHeadline(issue, t);
-  const when = relativeTime(issue.last_seen, now, t);
-  const occ = fill(pluralKey(t, "sysIssues.row.occurrences", issue.occurrence_count), { n: formatCount(issue.occurrence_count, lang) });
+  // Under a specific environment filter, show that environment's own last-seen/count, not the global ones --
+  // a mixed-environment issue's global last_seen could be a more recent occurrence in the OTHER environment.
+  const scopedLastSeen = environment === "production" ? issue.prod_last_seen : environment === "development" ? issue.dev_last_seen : issue.last_seen;
+  const scopedCount = environment === "production" ? issue.prod_occurrence_count : environment === "development" ? issue.dev_occurrence_count : issue.occurrence_count;
+  const when = relativeTime(scopedLastSeen ?? issue.last_seen, now, t);
+  const occCount = scopedCount ?? 0;
+  const occ = fill(pluralKey(t, "sysIssues.row.occurrences", occCount), { n: formatCount(occCount, lang) });
+  const envIncomplete = environment !== "all" && !issue.env_history_complete;
   return (
     <Pressable
       onPress={onPress}
@@ -34,7 +49,7 @@ export function IssueRow({ issue, now, t, isRTL, lang, onPress }: Props) {
         {issue.reopen_count > 0 ? <Pill label={fill(t("sysIssues.row.reopened"), { n: formatCount(issue.reopen_count, lang) })} tone="neutral" /> : null}
       </View>
       <AppText variant="caption" muted isRTL={isRTL} numberOfLines={2}>
-        {t(sourceKey(issue.source))} · {fill(t("sysIssues.row.lastSeen"), { when })} · {occ}
+        {t(sourceKey(issue.source))} · {fill(t("sysIssues.row.lastSeen"), { when })} · {envIncomplete ? `${occ} ${t("sysIssues.row.envIncomplete")}` : occ}
       </AppText>
     </Pressable>
   );

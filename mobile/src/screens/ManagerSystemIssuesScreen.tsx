@@ -17,18 +17,25 @@ import { ManagerStudioSetupTabs } from "../components/ManagerOverviewTabs";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { fetchIssuePage, fetchSummary } from "../lib/systemIssues/queries";
 import { useRefetchOnResume } from "../hooks/useRefetchOnResume";
-import { DEFAULT_FILTERS, type IssueFilters, type IssueSummary, type SortKey, type StatusFilter, type SystemIssueRow } from "../lib/systemIssues/types";
+import { DEFAULT_FILTERS, type EnvironmentFilter, type IssueFilters, type IssueSummary, type SortKey, type StatusFilter, type SystemIssueRow } from "../lib/systemIssues/types";
 
 const STATUS_OPTS: StatusFilter[] = ["active", "open", "acknowledged", "muted", "resolved", "all"];
 const SEVERITY_OPTS = ["all", "critical", "error", "warning", "info"] as const;
 const SOURCE_OPTS = ["all", "cron", "client", "db", "edge", "other"] as const;
 const RECENCY_OPTS = ["all", "24h", "7d", "30d"] as const;
+const ENVIRONMENT_OPTS: EnvironmentFilter[] = ["production", "development", "all"];
 const SORT_OPTS: SortKey[] = ["recent", "severe", "frequent"];
 
 type LoadState = "loading" | "ready" | "error";
 
 function activeFilterCount(f: IssueFilters): number {
-  return (f.status !== DEFAULT_FILTERS.status ? 1 : 0) + (f.severity !== "all" ? 1 : 0) + (f.source !== "all" ? 1 : 0) + (f.recency !== "all" ? 1 : 0);
+  return (
+    (f.status !== DEFAULT_FILTERS.status ? 1 : 0) +
+    (f.severity !== "all" ? 1 : 0) +
+    (f.source !== "all" ? 1 : 0) +
+    (f.recency !== "all" ? 1 : 0) +
+    (f.environment !== DEFAULT_FILTERS.environment ? 1 : 0)
+  );
 }
 
 /**
@@ -78,10 +85,10 @@ export default function ManagerSystemIssuesScreen() {
     }
   }, []);
 
-  const loadSummary = useCallback(async () => {
+  const loadSummary = useCallback(async (environment: EnvironmentFilter) => {
     setSummaryLoading(true);
     try {
-      setSummary(await fetchSummary(supabase));
+      setSummary(await fetchSummary(supabase, Date.now(), environment));
     } catch {
       setSummary(null);
     } finally {
@@ -94,7 +101,7 @@ export default function ManagerSystemIssuesScreen() {
     useCallback(() => {
       focused.current = true;
       void loadList(current.current.filters, current.current.sort);
-      void loadSummary();
+      void loadSummary(current.current.filters.environment);
       return () => {
         focused.current = false;
       };
@@ -103,7 +110,7 @@ export default function ManagerSystemIssuesScreen() {
   const markFreshFn = useRefetchOnResume(
     () => {
       void loadList(current.current.filters, current.current.sort);
-      void loadSummary();
+      void loadSummary(current.current.filters.environment);
     },
     () => focused.current
   );
@@ -112,10 +119,18 @@ export default function ManagerSystemIssuesScreen() {
   }, [markFreshFn]);
 
   function changeFilters(next: IssueFilters) {
-    if (next.status === filters.status && next.severity === filters.severity && next.source === filters.source && next.recency === filters.recency) return; // re-selecting the current option is not a change
+    if (
+      next.status === filters.status &&
+      next.severity === filters.severity &&
+      next.source === filters.source &&
+      next.recency === filters.recency &&
+      next.environment === filters.environment
+    )
+      return; // re-selecting the current option is not a change
     setFilters(next);
     setState("loading");
     void loadList(next, sort);
+    if (next.environment !== filters.environment) void loadSummary(next.environment);
   }
   function changeSort(next: SortKey) {
     if (next === sort) return;
@@ -147,7 +162,7 @@ export default function ManagerSystemIssuesScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await Promise.all([loadList(filters, sort), loadSummary()]);
+    await Promise.all([loadList(filters, sort), loadSummary(filters.environment)]);
     setRefreshing(false);
   }
 
@@ -156,6 +171,7 @@ export default function ManagerSystemIssuesScreen() {
   const severityOptions = useMemo(() => SEVERITY_OPTS.map((v) => ({ value: v, label: t(`sysIssues.severity.${v}`) })), [t]);
   const sourceOptions = useMemo(() => SOURCE_OPTS.map((v) => ({ value: v, label: t(`sysIssues.source.${v}`) })), [t]);
   const recencyOptions = useMemo(() => RECENCY_OPTS.map((v) => ({ value: v, label: t(`sysIssues.recency.${v}`) })), [t]);
+  const environmentOptions = useMemo(() => ENVIRONMENT_OPTS.map((v) => ({ value: v, label: t(`sysIssues.environment.${v}`) })), [t]);
   const sortOptions = useMemo(() => SORT_OPTS.map((v) => ({ value: v, label: t(`sysIssues.sort.${v}`) })), [t]);
 
   const header = (
@@ -188,6 +204,7 @@ export default function ManagerSystemIssuesScreen() {
           <ChipRow label={t("sysIssues.filter.severity")} options={severityOptions} value={filters.severity} onChange={(v) => changeFilters({ ...filters, severity: v })} isRTL={isRTL} />
           <ChipRow label={t("sysIssues.filter.source")} options={sourceOptions} value={filters.source} onChange={(v) => changeFilters({ ...filters, source: v })} isRTL={isRTL} />
           <ChipRow label={t("sysIssues.filter.recency")} options={recencyOptions} value={filters.recency} onChange={(v) => changeFilters({ ...filters, recency: v })} isRTL={isRTL} />
+          <ChipRow label={t("sysIssues.filter.environment")} options={environmentOptions} value={filters.environment} onChange={(v) => changeFilters({ ...filters, environment: v })} isRTL={isRTL} />
           <ChipRow label={t("sysIssues.filter.sort")} options={sortOptions} value={sort} onChange={changeSort} isRTL={isRTL} />
           {nFilters > 0 ? <PrimaryButton label={t("sysIssues.filters.reset")} onPress={() => changeFilters(DEFAULT_FILTERS)} variant="ghost" size="compact" /> : null}
         </View>
@@ -224,7 +241,9 @@ export default function ManagerSystemIssuesScreen() {
       ListHeaderComponent={header}
       ListEmptyComponent={body}
       ItemSeparatorComponent={Separator}
-      renderItem={({ item }) => <IssueRow issue={item} now={now} t={t} isRTL={isRTL} lang={language} onPress={() => router.push(`/(app)/manager/system-issues/${item.id}` as never)} />}
+      renderItem={({ item }) => (
+        <IssueRow issue={item} now={now} t={t} isRTL={isRTL} lang={language} environment={filters.environment} onPress={() => router.push(`/(app)/manager/system-issues/${item.id}` as never)} />
+      )}
       ListFooterComponent={
         hasMore ? (
           <View style={styles.footer}>

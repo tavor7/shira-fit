@@ -7,7 +7,9 @@ export function issue(over: Partial<SystemIssueRow> = {}): SystemIssueRow {
     id: "11111111-1111-4111-8111-111111111111", source: "client", subsystem: "client", operation: "rpc/postgrest", error_class: "PostgrestError", error_code: "21000",
     title: "RPC database error: 21000", latest_summary: "RPC database error: 21000", severity: "warning", base_severity: "warning", impact: null, status: "open",
     resolution: null, muted_until: null, first_seen: "2026-10-12T08:00:00Z", last_seen: "2026-10-13T08:00:00Z", occurrence_count: 3, reopen_count: 0, reopened_at: null,
-    acknowledged_at: null, resolved_at: null, first_seen_version: "1.0.0", last_seen_version: "1.0.0", regressed_in_version: null, ...over,
+    acknowledged_at: null, resolved_at: null, first_seen_version: "1.0.0", last_seen_version: "1.0.0", regressed_in_version: null,
+    operation_label: null, env_history_complete: true, prod_occurrence_count: 3, prod_last_seen: "2026-10-13T08:00:00Z",
+    dev_occurrence_count: 0, dev_last_seen: null, has_dev_occurrence: false, ...over,
   };
 }
 

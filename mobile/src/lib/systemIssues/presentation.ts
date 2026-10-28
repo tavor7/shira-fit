@@ -55,7 +55,9 @@ export function formatCount(n: number, language: LanguageCode): string {
   }
 }
 
-export function describeIssue(issue: Pick<SystemIssueRow, "source" | "operation" | "error_class" | "error_code" | "title" | "subsystem">): IssueDescription {
+export function describeIssue(
+  issue: Pick<SystemIssueRow, "source" | "operation" | "error_class" | "error_code" | "title" | "subsystem" | "operation_label">
+): IssueDescription {
   const op = typeof issue.operation === "string" ? issue.operation : "";
   const code = issue.error_code ?? "";
   if (op.startsWith("cron/")) {
@@ -69,7 +71,12 @@ export function describeIssue(issue: Pick<SystemIssueRow, "source" | "operation"
   }
   if (op === "transport/infra") return { category: "temporaryServer", titleKey: "sysIssues.desc.temporaryServer", descKey: "sysIssues.desc.temporaryServer.body", vars: { status: `HTTP ${code.replace(/^http_/, "")}` }, usesServerTitle: false };
   if (op === "transport/server") return { category: "serverError", titleKey: "sysIssues.desc.serverError", descKey: "sysIssues.desc.serverError.body", vars: { status: `HTTP ${code.replace(/^http_/, "")}` }, usesServerTitle: false };
-  if (op === "rpc/postgrest") return { category: "database", titleKey: "sysIssues.desc.database", descKey: "sysIssues.desc.database.body", vars: {}, usesServerTitle: false };
+  if (op === "rpc/postgrest") {
+    const rpcName = typeof issue.operation_label === "string" && NAME_RE.test(issue.operation_label) ? issue.operation_label : "";
+    return rpcName
+      ? { category: "database", titleKey: "sysIssues.desc.database.named", descKey: "sysIssues.desc.database.body", vars: { rpc: rpcName }, usesServerTitle: false }
+      : { category: "database", titleKey: "sysIssues.desc.database", descKey: "sysIssues.desc.database.body", vars: {}, usesServerTitle: false };
+  }
   if (op.startsWith("rpc/")) {
     const rpc = op.slice(4);
     if (/subscription/.test(rpc)) return { category: "subscription", titleKey: "sysIssues.desc.subscription", descKey: "sysIssues.desc.subscription.body", vars: {}, usesServerTitle: false };

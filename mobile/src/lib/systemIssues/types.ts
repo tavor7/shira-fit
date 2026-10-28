@@ -27,6 +27,13 @@ export interface SystemIssueRow {
   first_seen_version: string | null;
   last_seen_version: string | null;
   regressed_in_version: string | null;
+  operation_label: string | null;
+  env_history_complete: boolean;
+  prod_occurrence_count: number | null;
+  prod_last_seen: string | null;
+  dev_occurrence_count: number | null;
+  dev_last_seen: string | null;
+  has_dev_occurrence: boolean;
 }
 
 export interface IssueEventRow {
@@ -63,15 +70,23 @@ export type SeverityFilter = "all" | IssueSeverity;
 export type SourceFilter = "all" | "cron" | "client" | "db" | "edge" | "other";
 export type RecencyFilter = "all" | "24h" | "7d" | "30d";
 export type SortKey = "recent" | "severe" | "frequent";
+export type EnvironmentFilter = "production" | "development" | "all";
 
 export interface IssueFilters {
   status: StatusFilter;
   severity: SeverityFilter;
   source: SourceFilter;
   recency: RecencyFilter;
+  environment: EnvironmentFilter;
 }
 
-export const DEFAULT_FILTERS: IssueFilters = { status: "active", severity: "all", source: "all", recency: "all" };
+export const DEFAULT_FILTERS: IssueFilters = {
+  status: "active",
+  severity: "all",
+  source: "all",
+  recency: "all",
+  environment: "production",
+};
 export const PAGE_SIZE = 20;
 
 export interface IssueSummary {

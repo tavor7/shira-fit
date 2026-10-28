@@ -71,8 +71,12 @@ const reopened = issue({ id: "o1", reopen_count: 2, reopened_at: "2026-10-13T00:
 function listDb(rows: SystemIssueRow[], counts: Record<string, number> = {}) {
   return fakeDb((table, calls) => {
     if (calls.some((c) => c[0] === "select" && (c[1][1] as { head?: boolean } | undefined)?.head)) {
-      const eq = calls.find((c) => c[0] === "eq");
-      return { count: eq ? counts[(eq[1] as string[])[1]] ?? 0 : calls.some((c) => c[0] === "gt") ? counts.reopened ?? 0 : counts.recent ?? 0 };
+      // Distinguish the five summary queries by their own identifying call, checked before the environment
+      // scoping's own always-appended `.gt("prod_occurrence_count", ...)` / `.eq("has_dev_occurrence", ...)`.
+      const eq = calls.find((c) => c[0] === "eq" && (c[1] as string[])[0] === "status");
+      const gte = calls.find((c) => c[0] === "gte" && (c[1] as string[])[0] === "first_seen");
+      const reopen = calls.some((c) => c[0] === "gt" && (c[1] as string[])[0] === "reopen_count");
+      return { count: eq ? counts[(eq[1] as string[])[1]] ?? 0 : gte ? counts.recent ?? 0 : reopen ? counts.reopened ?? 0 : 0 };
     }
     if (table === "system_issues") {
       const r = calls.find((c) => c[0] === "range");
@@ -155,6 +159,20 @@ describe("System issues list screen", () => {
     expect(last3.calls.some((c) => c[0] === "eq" && (c[1] as string[])[0] === "severity")).toBe(false);
   });
 
+  it("the environment filter defaults to production and sends the existence-check scoping, not a plain env equality", async () => {
+    mockDbRef.current = listDb([warn]);
+    const r = await mount(ListScreen);
+    const initial = mockDbRef.current.log.filter((l) => l.calls.some((c) => c[0] === "range")).pop()!;
+    expect(initial.calls).toContainEqual(["gt", ["prod_occurrence_count", 0]]); // default filter is "production"
+    await press(r, t("sysIssues.filters"));
+    // "development"'s label is unique among the filter chips (unlike "All", which several rows share), so it
+    // can be pressed unambiguously without an index.
+    await press(r, t("sysIssues.environment.development"));
+    const dev = mockDbRef.current.log.filter((l) => l.calls.some((c) => c[0] === "range")).pop()!;
+    expect(dev.calls).toContainEqual(["eq", ["has_dev_occurrence", true]]);
+    expect(dev.calls.some((c) => c[0] === "gt" && (c[1] as string[])[0] === "prod_occurrence_count")).toBe(false);
+  });
+
   it("tapping a counter filters by that status; tapping an issue opens its detail", async () => {
     mockDbRef.current = listDb([warn], { muted: 3 });
     const r = await mount(ListScreen);
@@ -195,7 +213,7 @@ describe("System issues list screen", () => {
 
 describe("Phase 4B: grouping, partial failures, invalid ids, resume", () => {
   it("large counts are grouped (list and detail)", async () => {
-    mockDbRef.current = listDb([issue({ id: "big", occurrence_count: 1234567 })], { open: 1234 });
+    mockDbRef.current = listDb([issue({ id: "big", occurrence_count: 1234567, prod_occurrence_count: 1234567 })], { open: 1234 });
     const r = await mount(ListScreen);
     expect(textOf(r)).toContain("1,234,567");
     expect(textOf(r)).toContain("1,234");

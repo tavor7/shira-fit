@@ -23,6 +23,8 @@ describe("presentation: readable categories, never the raw code as the headline"
     [{ source: "cron", operation: "cron/whatsapp-dispatch-notifications", error_class: "JobHealth", error_code: "job_stale" }, "en", "Scheduled job “whatsapp-dispatch-notifications” didn't run on time"],
     [{ source: "cron", operation: "cron/generate-subscription-charges", error_class: "JobHealth", error_code: "job_failed" }, "en", "Scheduled job “generate-subscription-charges” failed"],
     [{ operation: "rpc/postgrest", error_code: "21000" }, "en", "A database operation failed"],
+    [{ operation: "rpc/postgrest", error_code: "PGRST202", operation_label: "get_subscription_weekly_usage" }, "en", "Database error — get_subscription_weekly_usage"],
+    [{ operation: "rpc/postgrest", error_code: "PGRST202", operation_label: "get_subscription_weekly_usage" }, "he", "שגיאת מסד נתונים — get_subscription_weekly_usage"],
     [{ operation: "transport/infra", error_class: "HttpError", error_code: "http_503" }, "en", "Temporary server failure (HTTP 503)"],
     [{ operation: "transport/server", error_class: "HttpError", error_code: "http_500" }, "en", "Server error (HTTP 500)"],
     [{ operation: "rpc/edit_subscription_version", error_class: "RpcOutcome", error_code: "no_current_version" }, "en", "Subscription processing failed"],
@@ -50,6 +52,13 @@ describe("presentation: readable categories, never the raw code as the headline"
   it("a malformed job name never reaches the headline", () => {
     const i = issue({ source: "cron", operation: "cron/Bad Name!;drop", error_class: "JobHealth", error_code: "job_stale", title: "t" });
     expect(describeIssue(i).category).toBe("unknown");
+  });
+
+  it("an rpc/postgrest issue with a missing or malformed operation_label falls back to the generic database title", () => {
+    const missing = describeIssue(issue({ operation: "rpc/postgrest", error_code: "42883", operation_label: null }));
+    expect(missing.titleKey).toBe("sysIssues.desc.database");
+    const malformed = describeIssue(issue({ operation: "rpc/postgrest", error_code: "42883", operation_label: "drop table x; --" }));
+    expect(malformed.titleKey).toBe("sysIssues.desc.database");
   });
 
   it("severity/status/source tones and keys, repeated detection", () => {
@@ -132,7 +141,7 @@ describe("Phase 4B regressions", () => {
 describe("queries: bounded, server-side, only the granted columns", () => {
   it("the issue list is a server-paged request of PAGE_SIZE+1 rows with the exact filters and sort", async () => {
     const { db, log } = fakeDb(() => ({ data: Array.from({ length: PAGE_SIZE + 1 }, (_, i) => issue({ id: `${i}` })) }));
-    const res = await fetchIssuePage(db, { status: "active", severity: "error", source: "cron", recency: "7d" }, "severe", 2, Date.parse("2026-10-13T00:00:00Z"));
+    const res = await fetchIssuePage(db, { status: "active", severity: "error", source: "cron", recency: "7d", environment: "all" }, "severe", 2, Date.parse("2026-10-13T00:00:00Z"));
     expect(res.rows).toHaveLength(PAGE_SIZE);
     expect(res.hasMore).toBe(true);
     const c = log[0].calls;
@@ -151,20 +160,21 @@ describe("queries: bounded, server-side, only the granted columns", () => {
     expect(short.rows).toHaveLength(1);
   });
 
-  it("every status/severity/source/recency/sort combination builds a valid, finite request", () => {
+  it("every status/severity/source/recency/environment/sort combination builds a valid, finite request", () => {
     const seen = new Set<string>();
     for (const status of ["active", "all", "open", "acknowledged", "muted", "resolved"] as const)
       for (const severity of ["all", "critical", "error", "warning", "info"] as const)
         for (const source of ["all", "cron", "client", "db", "edge", "other"] as const)
           for (const recency of ["all", "24h", "7d", "30d"] as const)
-            for (const sort of ["recent", "severe", "frequent"] as const) {
-              const calls: [string, unknown[]][] = [];
-              const rec: Record<string, unknown> = {};
-              for (const m of ["in", "eq", "not", "gte", "order"]) rec[m] = (...a: unknown[]) => { calls.push([m, a]); return rec; };
-              applySort(applyFilters(rec, { status, severity, source, recency }, 0), sort);
-              seen.add(JSON.stringify(calls));
-              expect(calls.length).toBeLessThan(10);
-            }
+            for (const environment of ["all", "production", "development"] as const)
+              for (const sort of ["recent", "severe", "frequent"] as const) {
+                const calls: [string, unknown[]][] = [];
+                const rec: Record<string, unknown> = {};
+                for (const m of ["in", "eq", "not", "gte", "gt", "order"]) rec[m] = (...a: unknown[]) => { calls.push([m, a]); return rec; };
+                applySort(applyFilters(rec, { status, severity, source, recency, environment }, 0), sort);
+                seen.add(JSON.stringify(calls));
+                expect(calls.length).toBeLessThan(10);
+              }
     expect(seen.size).toBeGreaterThan(100);
   });
 
@@ -186,6 +196,21 @@ describe("queries: bounded, server-side, only the granted columns", () => {
     expect(log).toHaveLength(5);
     for (const l of log) expect(l.calls[0]).toEqual(["select", ["id", { count: "exact", head: true }]]);
     expect(log[4].calls).toContainEqual(["gte", ["first_seen", "2026-10-12T00:00:00.000Z"]]);
+  });
+
+  it("environment filter: the list and the summary are scoped by the same existence check (never a plain env equality)", async () => {
+    const { db: dbProd, log: logProd } = fakeDb(() => ({ data: [issue()] }));
+    await fetchIssuePage(dbProd, { ...DEFAULT_FILTERS, environment: "production" }, "recent", 0);
+    expect(logProd[0].calls).toContainEqual(["gt", ["prod_occurrence_count", 0]]);
+    expect(logProd[0].calls.map((c) => c[0])).not.toContain("eq"); // no plain .eq("env", ...)
+
+    const { db: dbDev, log: logDev } = fakeDb(() => ({ data: [issue()] }));
+    await fetchIssuePage(dbDev, { ...DEFAULT_FILTERS, environment: "development" }, "recent", 0);
+    expect(logDev[0].calls).toContainEqual(["eq", ["has_dev_occurrence", true]]);
+
+    const { db: dbSum, log: logSum } = fakeDb(() => ({ count: 1 }));
+    await fetchSummary(dbSum, Date.parse("2026-10-13T00:00:00Z"), "production");
+    for (const l of logSum) expect(l.calls).toContainEqual(["gt", ["prod_occurrence_count", 0]]);
   });
 
   it("issue details: four bounded requests in one round, none of the sensitive columns", async () => {

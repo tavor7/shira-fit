@@ -12,7 +12,8 @@ export type DbClient = { from: (table: string) => any; rpc: (fn: string, args?: 
 
 export const ISSUE_COLUMNS =
   "id,source,subsystem,operation,error_class,error_code,title,latest_summary,severity,base_severity,impact,status,resolution,muted_until," +
-  "first_seen,last_seen,occurrence_count,reopen_count,reopened_at,acknowledged_at,resolved_at,first_seen_version,last_seen_version,regressed_in_version";
+  "first_seen,last_seen,occurrence_count,reopen_count,reopened_at,acknowledged_at,resolved_at,first_seen_version,last_seen_version,regressed_in_version," +
+  "operation_label,env_history_complete,prod_occurrence_count,prod_last_seen,dev_occurrence_count,dev_last_seen,has_dev_occurrence";
 export const EVENT_COLUMNS = "id,occurred_at,severity,app_version,build,platform,env,user_role,message,context,sample_reason,coalesced_count";
 export const TRANSITION_COLUMNS = "id,at,from_status,to_status,kind,reason";
 export const KNOWN_SOURCES = ["cron", "client", "db", "edge"] as const;
@@ -33,6 +34,12 @@ export function applyFilters(q: any, f: IssueFilters, now: number): any {
   if (f.source === "other") b = b.not("source", "in", `(${["cron", "client", "db", "edge"].join(",")})`);
   else if (f.source !== "all") b = b.eq("source", f.source);
   if (f.recency !== "all") b = b.gte("last_seen", new Date(now - SINCE[f.recency]).toISOString());
+  // Not a plain `.eq("env", ...)`: a single issue row can carry both production and development
+  // occurrences (prod_occurrence_count / dev_occurrence_count are independent counters, not a fingerprint
+  // split), so "production" / "development" are existence checks, not mutually-exclusive partitions --
+  // a mixed-environment issue correctly appears under both.
+  if (f.environment === "production") b = b.gt("prod_occurrence_count", 0);
+  else if (f.environment === "development") b = b.eq("has_dev_occurrence", true);
   return b;
 }
 
@@ -60,14 +67,27 @@ async function headCount(db: DbClient, build: (q: unknown) => unknown): Promise<
   return typeof count === "number" ? count : 0;
 }
 
-/** Dashboard numbers: five parallel head-only counts (no rows are transferred). "Recent" = first detected in the last 24 hours. */
-export async function fetchSummary(db: DbClient, now: number = Date.now()): Promise<IssueSummary> {
+/** Same existence-check scoping as applyFilters's environment branch, applied on top of any other condition. */
+function scopeEnv(q: unknown, environment: import("./types").EnvironmentFilter): unknown {
+  if (environment === "production") return (q as { gt: (c: string, v: number) => unknown }).gt("prod_occurrence_count", 0);
+  if (environment === "development") return (q as { eq: (c: string, v: boolean) => unknown }).eq("has_dev_occurrence", true);
+  return q;
+}
+
+/**
+ * Dashboard numbers: five parallel head-only counts (no rows are transferred). "Recent" = first detected in the
+ * last 24 hours. Scoped by the same environment filter as the list, so the cards and the list never disagree --
+ * a mixed-environment issue counts toward both the Production and the Development summary.
+ */
+export async function fetchSummary(db: DbClient, now: number = Date.now(), environment: import("./types").EnvironmentFilter = "all"): Promise<IssueSummary> {
   const [open, acknowledged, muted, reopened, recent] = await Promise.all([
-    headCount(db, (q) => (q as { eq: (c: string, v: string) => unknown }).eq("status", "open")),
-    headCount(db, (q) => (q as { eq: (c: string, v: string) => unknown }).eq("status", "acknowledged")),
-    headCount(db, (q) => (q as { eq: (c: string, v: string) => unknown }).eq("status", "muted")),
-    headCount(db, (q) => (q as { in: (c: string, v: string[]) => { gt: (c: string, v: number) => unknown } }).in("status", ["open", "acknowledged"]).gt("reopen_count", 0)),
-    headCount(db, (q) => (q as { gte: (c: string, v: string) => unknown }).gte("first_seen", new Date(now - 24 * HOUR).toISOString())),
+    headCount(db, (q) => scopeEnv((q as { eq: (c: string, v: string) => unknown }).eq("status", "open"), environment)),
+    headCount(db, (q) => scopeEnv((q as { eq: (c: string, v: string) => unknown }).eq("status", "acknowledged"), environment)),
+    headCount(db, (q) => scopeEnv((q as { eq: (c: string, v: string) => unknown }).eq("status", "muted"), environment)),
+    headCount(db, (q) =>
+      scopeEnv((q as { in: (c: string, v: string[]) => { gt: (c: string, v: number) => unknown } }).in("status", ["open", "acknowledged"]).gt("reopen_count", 0), environment)
+    ),
+    headCount(db, (q) => scopeEnv((q as { gte: (c: string, v: string) => unknown }).gte("first_seen", new Date(now - 24 * HOUR).toISOString()), environment)),
   ]);
   return { open, acknowledged, muted, reopened, recent };
 }
