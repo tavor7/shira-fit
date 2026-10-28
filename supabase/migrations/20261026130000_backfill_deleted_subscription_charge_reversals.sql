@@ -31,6 +31,19 @@ declare
   v_payment_count int;
   r record;
 begin
+  -- Fresh-database short-circuit: skip only when there is no subscription or payment
+  -- activity of any kind yet (not merely an empty subscription_charges table -- a
+  -- subscription could in principle exist before its first charge is generated, or a
+  -- payment could exist unrelated to any charge). Any one of these three tables having
+  -- a row falls straight through to the exact-match guards below, unchanged.
+  if not exists (select 1 from public.subscriptions)
+     and not exists (select 1 from public.subscription_charges)
+     and not exists (select 1 from public.athlete_account_payments)
+  then
+    raise notice 'backfill skipped: no subscription or payment activity exists yet (fresh database) -- nothing to correct';
+    return;
+  end if;
+
   -- Exact-match guard, part 1: all four named charges must still exist, still unreversed, still
   -- recurring/proration, and sum to exactly ₪960.
   select count(*), coalesce(sum(c.amount_ils), 0)
