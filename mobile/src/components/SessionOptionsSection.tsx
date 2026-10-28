@@ -20,6 +20,8 @@ export type SessionOptionItem = {
   /** Shown under the row while the switch is on */
   detailWhenOn?: string;
   expandedWhenOn?: ReactNode;
+  /** When true, the switch (and its label tap target) cannot be toggled; `hint` should explain why. */
+  disabled?: boolean;
 };
 
 function rowToneStyle(tone: SessionOptionTone | undefined, value: boolean): ViewStyle | null {
@@ -59,10 +61,11 @@ function OptionList({ options, isRTL }: Pick<Props, "options" | "isRTL">) {
             <View style={[styles.rowShell, toneStyle]}>
             <View style={[styles.row, rowFlipFor(isRTL) && styles.rowRtl]}>
               <Pressable
-                style={({ pressed }) => [styles.labelBlock, pressed && { opacity: 0.7 }]}
-                onPress={() => opt.onValueChange(!opt.value)}
+                style={({ pressed }) => [styles.labelBlock, pressed && !opt.disabled && { opacity: 0.7 }, opt.disabled && styles.labelDisabled]}
+                onPress={() => !opt.disabled && opt.onValueChange(!opt.value)}
+                disabled={opt.disabled}
                 accessibilityRole="switch"
-                accessibilityState={{ checked: opt.value }}
+                accessibilityState={{ checked: opt.value, disabled: !!opt.disabled }}
                 aria-checked={opt.value}
                 accessibilityLabel={opt.label}
               >
@@ -74,6 +77,7 @@ function OptionList({ options, isRTL }: Pick<Props, "options" | "isRTL">) {
                 onValueChange={opt.onValueChange}
                 onColor={switchTrackColor(opt.tone, opt.value).true}
                 offColor={switchTrackOff}
+                disabled={opt.disabled}
                 accessibilityLabel={opt.label}
               />
             </View>
@@ -148,6 +152,9 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     minHeight: theme.controls.minTouch,
     justifyContent: "center",
+  },
+  labelDisabled: {
+    opacity: 0.5,
   },
   label: {
     fontSize: 15,

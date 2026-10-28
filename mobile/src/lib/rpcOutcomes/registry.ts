@@ -382,7 +382,7 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   manager_announce_group_session: {
     not_found: [B, "Looks the session up by an id the client just received from creating it; absence would mean it was deleted/changed in the meantime (stale reference), an expected state."],
     not_group: [B, "Expected no-op: the announcement is a GROUP-session-only feature, and the UI already only offers the toggle for group-capacity sessions -- a non-group session reaching this RPC at all would itself be unexpected, but the server-side check is the authoritative one."],
-    not_bookable: [B, "Expected no-op: a hidden or not-open-for-registration session has no eligible audience to announce to."],
+    not_bookable: [B, "Expected no-op: a hidden session, a not-open-for-registration session, or a recurring-series occurrence has no eligible audience to announce to (as of 20261028120000, the client's own announceEligible gate already keeps the toggle off for all three)."],
     push_disabled: [B, "Expected no-op while the global push kill switch is off; deliberately does not consume the one-shot dedupe row, so a later retry with the switch back on can still send."],
   },
   manager_duplicate_sessions_day: {

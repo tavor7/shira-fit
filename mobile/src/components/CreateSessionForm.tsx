@@ -200,6 +200,15 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   }, [max, date, isKickbox]);
   formSerializedRef.current = formSerialized;
 
+  // "Notify athletes" may only be armed for a session that is a single (non-recurring),
+  // visible, open-for-registration slot. Whenever any of the three flags drifts out of that
+  // state -- in any order the manager toggles them -- force the switch back off; re-entering
+  // a valid state never auto-restores a previous "on" value, so the manager must opt back in.
+  const announceEligible = !repeatWeekly && !hidden && open;
+  useEffect(() => {
+    if (!announceEligible) setAnnounceNewSession(false);
+  }, [announceEligible]);
+
   useEffect(() => {
     setCreateBaseline(null);
   }, [initialDate, date]);
@@ -702,10 +711,13 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
             {
               key: "announce",
               label: t("session.announceNewSession"),
-              hint: t("session.announceNewSessionHint"),
+              hint: announceEligible
+                ? t("session.announceNewSessionHint")
+                : t("session.announceNewSessionUnavailableHint"),
               value: announceNewSession,
               onValueChange: setAnnounceNewSession,
               tone: "open" as const,
+              disabled: !announceEligible,
             },
           ]
         : []),
@@ -733,6 +745,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
       hidden,
       isKickbox,
       announceNewSession,
+      announceEligible,
       isManagerContext,
       isGroupCapacity,
       repeatWeekly,

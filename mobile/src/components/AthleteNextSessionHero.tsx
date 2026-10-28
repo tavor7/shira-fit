@@ -144,12 +144,14 @@ export function AthleteNextSessionHero({ sessions, signupBySession, onDidChange 
     );
     setBusy(false);
     if (result.ok) {
-      const when = `${formatISODateFull(next.session_date, language)} · ${formatSessionTimeRange(next.start_time, next.duration_minutes ?? 60)}`;
+      // Notification content is always Hebrew regardless of the app's current display
+      // language (general UI i18n via `t`/`language` is untouched elsewhere in this screen).
+      const when = `${formatISODateFull(next.session_date, "he")} · ${formatSessionTimeRange(next.start_time, next.duration_minutes ?? 60)}`;
       await scheduleSessionReminders({
         sessionId: next.id,
         sessionDate: next.session_date,
         startTime: next.start_time,
-        title: t("ui.athleteNextSessionHero.workoutReminder"),
+        title: "תזכורת לאימון",
         bodyNear: when,
       });
       await clearWaitlistSpotFlag(next.id);

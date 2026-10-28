@@ -12,7 +12,8 @@ function key(sessionId: string) {
   return `waitlist_spot_notified_${sessionId}`;
 }
 
-export async function checkWaitlistSpotsAndNotify(language: "en" | "he"): Promise<void> {
+/** Notification content is always Hebrew, independent of the app's current display language. */
+export async function checkWaitlistSpotsAndNotify(): Promise<void> {
   const prefs = await loadNotificationPrefs();
   if (!prefs.waitlistAlerts) return;
   const ok = await ensureNotificationPermission();
@@ -40,11 +41,8 @@ export async function checkWaitlistSpotsAndNotify(language: "en" | "he"): Promis
       if (been) continue;
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: language === "he" ? "ייתכן שיש מקום פנוי" : "A spot may be open",
-          body:
-            language === "he"
-              ? `אימון ${formatISODateFull(s.session_date, language)} — ניתן לנסות להירשם.`
-              : `Session ${formatISODateFull(s.session_date, language)} — you can try to register.`,
+          title: "ייתכן שיש מקום פנוי",
+          body: `אימון ${formatISODateFull(s.session_date, "he")} — ניתן לנסות להירשם.`,
           data: { session_id: sid },
         },
         trigger: null,

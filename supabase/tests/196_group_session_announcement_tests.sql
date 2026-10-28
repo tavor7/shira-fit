@@ -14,6 +14,8 @@ declare
   v_pair_sess uuid;
   v_hidden_sess uuid;
   v_not_open_sess uuid;
+  v_series_id uuid := gen_random_uuid();
+  v_series_sess uuid;
   v_sun date := current_date - extract(dow from current_date)::int + 14;
   v_res json;
   v_count int;
@@ -37,6 +39,15 @@ begin
   select id into v_pair_sess from public.training_sessions where coach_id = v_coach and start_time = '19:00' and session_date = v_sun;
   select id into v_hidden_sess from public.training_sessions where coach_id = v_coach and start_time = '20:00' and session_date = v_sun;
   select id into v_not_open_sess from public.training_sessions where coach_id = v_coach and start_time = '21:00' and session_date = v_sun;
+
+  -- A group, visible, open-for-registration occurrence that belongs to a weekly series -- must be
+  -- treated as not-bookable for this one-shot announcement too (Task 2 server-side guard,
+  -- 20261028120000_group_session_announcement_series_guard.sql).
+  insert into public.session_series (id, coach_id, anchor_date, start_time, max_participants, is_open_for_registration, is_hidden, repeat_mode)
+  values (v_series_id, v_coach, v_sun, '22:00', 10, true, false, 'ongoing');
+  insert into public.training_sessions (id, session_date, start_time, coach_id, max_participants, is_open_for_registration, is_hidden, series_id)
+  values (gen_random_uuid(), v_sun, '22:00', v_coach, 10, true, false, v_series_id);
+  select id into v_series_sess from public.training_sessions where coach_id = v_coach and start_time = '22:00' and session_date = v_sun;
 
   -- === A: non-manager (coach) is forbidden, nothing dispatched ===
   perform set_config('app.current_uid', v_coach::text, true);
@@ -72,6 +83,17 @@ begin
     raise exception 'D FAILED: expected not_bookable (not open), got %', v_res;
   end if;
   raise notice 'D PASSED: not-open-for-registration group session is a no-op';
+
+  -- === D2: a group, visible, open session that is part of a weekly series is a no-op -- the
+  --         client only ever arms this for a single/non-recurring session, and the server must
+  --         refuse it too even if a client bug or a direct RPC call submits a series occurrence ===
+  v_res := public.manager_announce_group_session(v_series_sess);
+  if (v_res->>'ok')::boolean is distinct from false or v_res->>'error' <> 'not_bookable' then
+    raise exception 'D2 FAILED: expected not_bookable (series occurrence), got %', v_res;
+  end if;
+  select count(*) into v_count from public.group_session_announcements where session_id = v_series_sess;
+  if v_count <> 0 then raise exception 'D2 FAILED: series-occurrence no-op must not write a dedupe row'; end if;
+  raise notice 'D2 PASSED: recurring-series occurrence is a no-op';
 
   -- === E: a bookable group session dispatches to every eligible athlete, excluding
   --        pending-approval and disabled athletes, and records recipients_notified ===

@@ -422,6 +422,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "session.hiddenStaffOnlyHintCoach": "Hidden; athletes cannot self-register",
     "session.announceNewSession": "Notify athletes about this new session",
     "session.announceNewSessionHint": "Sends a push notification announcing the new group session",
+    "session.announceNewSessionUnavailableHint":
+      "Only available for a single (non-recurring), visible, open-for-registration session",
     "session.repeatWeekly": "Weekly series",
     "session.weeklyOccurrences": "Number of weeks",
     "session.seriesOngoing": "Ongoing (no end date)",
@@ -2641,6 +2643,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "session.hiddenStaffOnlyHintCoach": "מוסתר; אין הרשמה עצמית למתאמנים",
     "session.announceNewSession": "שליחת התראה למתאמנים על האימון החדש",
     "session.announceNewSessionHint": "שולח התראת פוש על האימון הקבוצתי החדש",
+    "session.announceNewSessionUnavailableHint":
+      "זמין רק לאימון בודד (לא סדרה), גלוי, ופתוח להרשמה",
     "session.repeatWeekly": "סדרה שבועית",
     "session.weeklyOccurrences": "מספר שבועות",
     "session.seriesOngoing": "ללא תאריך סיום",

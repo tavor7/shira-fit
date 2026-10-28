@@ -92,8 +92,13 @@ Deno.serve(async (req) => {
     });
   }
 
-  const waitlistTitle = "Spot available";
-  const waitlistBody = `A spot opened for ${sess.session_date} ${sess.start_time}. Open the app to register.`;
+  // Notification content is always Hebrew (matches every other push template in this codebase,
+  // e.g. send_test_push_notification's 'waitlist_spot' case in 20260910120000_restore_descriptive_titles.sql).
+  const dateParts = String(sess.session_date).split("-");
+  const dateLabel = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}` : String(sess.session_date);
+  const timeLabel = String(sess.start_time).slice(0, 5);
+  const waitlistTitle = "התפנה מקום";
+  const waitlistBody = `התפנה מקום לאימון בתאריך ${dateLabel} בשעה ${timeLabel}. היכנסו לאפליקציה כדי להירשם.`;
 
   const token = (first as { profiles?: { expo_push_token?: string } }).profiles?.expo_push_token;
   if (token) {
