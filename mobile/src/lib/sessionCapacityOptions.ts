@@ -43,3 +43,8 @@ export function isValidSessionDuration(n: number): boolean {
 export function isValidSessionMaxParticipants(n: number): boolean {
   return Number.isFinite(n) && n >= SESSION_MAX_PARTICIPANTS_MIN && n <= SESSION_MAX_PARTICIPANTS_MAX;
 }
+
+/** Matches the server's public.subscription_tier_for_capacity: >= 7 is the 'group' tier. */
+export function isGroupSessionCapacity(n: number): boolean {
+  return Number.isFinite(n) && n >= 7;
+}

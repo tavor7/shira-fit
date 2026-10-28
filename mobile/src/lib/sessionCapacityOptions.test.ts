@@ -1,6 +1,7 @@
 import {
   clampSessionDuration,
   clampSessionMaxParticipants,
+  isGroupSessionCapacity,
   isValidSessionDuration,
   isValidSessionMaxParticipants,
   normalizeSessionDurationString,
@@ -81,5 +82,17 @@ describe("isValidSessionDuration / isValidSessionMaxParticipants", () => {
     expect(isValidSessionDuration(NaN)).toBe(false);
     expect(isValidSessionMaxParticipants(SESSION_MAX_PARTICIPANTS_MIN - 1)).toBe(false);
     expect(isValidSessionMaxParticipants(SESSION_MAX_PARTICIPANTS_MAX + 1)).toBe(false);
+  });
+});
+
+describe("isGroupSessionCapacity", () => {
+  it("matches the server's subscription_tier_for_capacity group threshold (>= 7)", () => {
+    expect(isGroupSessionCapacity(6)).toBe(false);
+    expect(isGroupSessionCapacity(7)).toBe(true);
+    expect(isGroupSessionCapacity(15)).toBe(true);
+  });
+
+  it("rejects non-finite input", () => {
+    expect(isGroupSessionCapacity(NaN)).toBe(false);
   });
 });

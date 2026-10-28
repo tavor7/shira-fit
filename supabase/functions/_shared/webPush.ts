@@ -41,17 +41,40 @@ type WebPushSubscriptionRow = {
   auth: string;
 };
 
+async function logDeliveryOutcome(
+  adminClient: SupabaseClient,
+  row: { userId: string; subscriptionId: string; notificationKind: string | null; outcome: "sent" | "failed" | "pruned"; httpStatus?: number | null; errorDetail?: string | null }
+): Promise<void> {
+  try {
+    await adminClient.from("web_push_delivery_log").insert({
+      user_id: row.userId,
+      subscription_id: row.subscriptionId,
+      notification_kind: row.notificationKind,
+      outcome: row.outcome,
+      http_status: row.httpStatus ?? null,
+      error_detail: row.errorDetail ? row.errorDetail.slice(0, 500) : null,
+    });
+  } catch (logErr) {
+    // A logging failure must never change or interrupt the actual send/prune behavior.
+    console.error(`web_push_delivery_log insert failed: ${logErr instanceof Error ? logErr.message : String(logErr)}`);
+  }
+}
+
 /**
  * Sends a push to every subscription on file for a user. Best-effort per-subscription:
  * a single failed/expired endpoint doesn't stop delivery to the user's other devices.
- * Expired subscriptions (410 Gone / 404) are pruned automatically.
+ * Expired subscriptions (410 Gone / 404) are pruned automatically. Every attempt's outcome
+ * (sent/failed/pruned) is persisted to web_push_delivery_log for later diagnosis.
  */
 export async function sendWebPushToUser(
   adminClient: SupabaseClient,
   userId: string,
-  payload: { title: string; body: string; data?: Record<string, unknown> }
+  payload: { title: string; body: string; data?: Record<string, unknown> },
+  notificationKind?: string | null
 ): Promise<{ sent: number; pruned: number }> {
   ensureVapidConfigured();
+
+  const kind = notificationKind ?? (typeof payload.data?.kind === "string" ? (payload.data.kind as string) : null);
 
   const { data: subs } = await adminClient
     .from("web_push_subscriptions")
@@ -77,17 +100,31 @@ export async function sendWebPushToUser(
           { urgency: "high" }
         );
         sent += 1;
+        await logDeliveryOutcome(adminClient, { userId, subscriptionId: row.id, notificationKind: kind, outcome: "sent" });
       } catch (err) {
         const statusCode = (err as { statusCode?: number } | null)?.statusCode;
         if (statusCode === 404 || statusCode === 410) {
           await adminClient.from("web_push_subscriptions").delete().eq("id", row.id);
           pruned += 1;
+          await logDeliveryOutcome(adminClient, {
+            userId,
+            subscriptionId: row.id,
+            notificationKind: kind,
+            outcome: "pruned",
+            httpStatus: statusCode,
+          });
           return;
         }
-        console.error(
-          `push send failed for ${row.id}: statusCode=${statusCode} ` +
-            `body=${(err as { body?: string } | null)?.body} message=${err instanceof Error ? err.message : String(err)}`
-        );
+        const errorDetail = `body=${(err as { body?: string } | null)?.body} message=${err instanceof Error ? err.message : String(err)}`;
+        console.error(`push send failed for ${row.id}: statusCode=${statusCode} ${errorDetail}`);
+        await logDeliveryOutcome(adminClient, {
+          userId,
+          subscriptionId: row.id,
+          notificationKind: kind,
+          outcome: "failed",
+          httpStatus: statusCode ?? null,
+          errorDetail,
+        });
       }
     })
   );

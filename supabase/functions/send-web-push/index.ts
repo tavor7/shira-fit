@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
   if (!secret) return json(500, { ok: false, error: "missing_invoke_secret" });
   if (auth !== secret) return json(401, { ok: false, error: "unauthorized" });
 
-  let body: { user_id?: string; title?: string; body?: string; data?: Record<string, unknown> };
+  let body: { user_id?: string; title?: string; body?: string; data?: Record<string, unknown>; kind?: string };
   try {
     body = await req.json();
   } catch {
@@ -99,11 +99,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const result = await sendWebPushToUser(adminClient, userId, {
-      title,
-      body: message,
-      data: body.data,
-    });
+    const result = await sendWebPushToUser(
+      adminClient,
+      userId,
+      {
+        title,
+        body: message,
+        data: body.data,
+      },
+      body.kind ?? null
+    );
     if (idempotencyKey) {
       await adminClient
         .from("system_push_idempotency_keys")

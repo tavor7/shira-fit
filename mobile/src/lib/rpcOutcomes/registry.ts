@@ -379,6 +379,12 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     session_note_already_exists: B,
     session_note_missing: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
   },
+  manager_announce_group_session: {
+    not_found: [B, "Looks the session up by an id the client just received from creating it; absence would mean it was deleted/changed in the meantime (stale reference), an expected state."],
+    not_group: [B, "Expected no-op: the announcement is a GROUP-session-only feature, and the UI already only offers the toggle for group-capacity sessions -- a non-group session reaching this RPC at all would itself be unexpected, but the server-side check is the authoritative one."],
+    not_bookable: [B, "Expected no-op: a hidden or not-open-for-registration session has no eligible audience to announce to."],
+    push_disabled: [B, "Expected no-op while the global push kill switch is off; deliberately does not consume the one-shot dedupe row, so a later retry with the switch back on can still send."],
+  },
   manager_duplicate_sessions_day: {
     invalid_dates: V,
     same_day: B,

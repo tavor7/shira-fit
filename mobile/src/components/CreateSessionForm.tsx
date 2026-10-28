@@ -23,6 +23,7 @@ import { SessionCapacityFields } from "./SessionCapacityFields";
 import {
   clampSessionDuration,
   clampSessionMaxParticipants,
+  isGroupSessionCapacity,
   isValidSessionDuration,
   isValidSessionMaxParticipants,
   normalizeSessionDurationString,
@@ -90,6 +91,7 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(true);
   const [isKickbox, setIsKickbox] = useState(false);
+  const [announceNewSession, setAnnounceNewSession] = useState(false);
   const [note, setNote] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
   const [customSlotPriceDraft, setCustomSlotPriceDraft] = useState("");
@@ -597,6 +599,30 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
 
     setSaving(false);
 
+    // Session creation has already succeeded at this point (insertedIds is non-empty) -- a
+    // notification failure below must never retroactively undo or taint that success. One
+    // announcement per creation action (covers the whole series, not one per occurrence):
+    // insertedIds is ordered by session_date ascending for both the single-session and series
+    // paths, so insertedIds[0] is always the earliest/anchor occurrence.
+    if (announceNewSession && insertedIds.length > 0) {
+      try {
+        const { data: announceData, error: announceError } = await supabase.rpc("manager_announce_group_session", {
+          p_session_id: insertedIds[0],
+        });
+        if (announceError || !announceData?.ok) {
+          showToast({
+            message: t("ui.createSessionForm.savedButTheAnnouncementCouldNot"),
+            variant: "info",
+          });
+        }
+      } catch {
+        showToast({
+          message: t("ui.createSessionForm.savedButTheAnnouncementCouldNot"),
+          variant: "info",
+        });
+      }
+    }
+
     const noteBody = note.trim();
     if (noteBody && insertedIds.length > 0) {
       const batch = await supabase.rpc("add_session_note_many", { p_session_ids: insertedIds, p_body: noteBody });
@@ -641,6 +667,13 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
     router.back();
   }
 
+  const isGroupCapacity = isGroupSessionCapacity(clampSessionMaxParticipants(parseInt(max, 10) || 1));
+  // Only a manager can create/configure sessions (coach create/edit is fully blocked server-side);
+  // this form is shared with the coach route only for its (now unreachable) legacy screen, so gate
+  // the announcement control on the same "acting as manager" signal the rest of this file already
+  // uses: fixedCoachId is only ever set when a coach is creating for themself.
+  const isManagerContext = !fixedCoachId;
+
   const sessionOptions = useMemo<SessionOptionItem[]>(
     () => [
       {
@@ -664,6 +697,18 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         onValueChange: setIsKickbox,
         tone: "kickbox",
       },
+      ...(isManagerContext && isGroupCapacity
+        ? [
+            {
+              key: "announce",
+              label: t("session.announceNewSession"),
+              hint: t("session.announceNewSessionHint"),
+              value: announceNewSession,
+              onValueChange: setAnnounceNewSession,
+              tone: "open" as const,
+            },
+          ]
+        : []),
       {
         key: "repeat",
         label: t("session.repeatWeekly"),
@@ -682,7 +727,20 @@ export function CreateSessionForm({ initialDate, fixedCoachId, fixedCoachLabel }
         ),
       },
     ],
-    [t, open, hidden, isKickbox, repeatWeekly, repeatOngoing, repeatCopyRoster, weeklyOccurrences, isRTL]
+    [
+      t,
+      open,
+      hidden,
+      isKickbox,
+      announceNewSession,
+      isManagerContext,
+      isGroupCapacity,
+      repeatWeekly,
+      repeatOngoing,
+      repeatCopyRoster,
+      weeklyOccurrences,
+      isRTL,
+    ]
   );
 
   const traineeCount = selectedAthletes.length + selectedManual.length;
