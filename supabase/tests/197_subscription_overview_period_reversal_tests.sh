@@ -73,11 +73,16 @@ CHARGES_AFTER=$(echo "$R_AFTER" | grep -o '"charges_total_ils" : [0-9.-]*' | hea
 DELTA=$(su -c "select ($CHARGES_AFTER - $CHARGES_BEFORE)::text")
 expect "1 charges_total_ils for the billing-period window drops by exactly 360 (nets to 0 for this subscription), not 0 (the pre-fix bug)" "-360.00" "$DELTA"
 
-ROW=$(api "$M" "select public.manager_subscription_overview_breakdown()::text;")
-case "$ROW" in *"\"subscription_id\":\"$SUB\""*'"charges_total_ils":0'*) ok "2 manager_subscription_overview_breakdown shows 0 charges_total_ils for the cancelled subscription";; *)
-  SUB_ROW=$(echo "$ROW" | tr ',' '\n' | grep -A20 "$SUB" | head -1)
-  fail "2 breakdown row for $SUB did not net to 0: $(echo "$ROW" | head -c 400)";;
-esac
+# manager_subscription_overview_breakdown() returns SETOF, not JSON -- select a single
+# scalar column filtered to this subscription instead of parsing composite-row text.
+# A cancelled subscription with charges and payments that both net to exactly 0 is hidden
+# entirely by this function's own WHERE clause (20261027195000_subscription_overview_
+# breakdown_hide_empty_deleted.sql: "s.deleted_at is null or charges<>0 or payments<>0") --
+# nothing left to show, by design -- so the correct assertion is that it does NOT appear,
+# not that it appears showing a literal 0. (Before the fix, it WOULD have appeared, showing
+# the stale gross 360 instead of being correctly hidden.)
+BREAKDOWN_ROW_COUNT=$(api "$M" "select count(*)::text from public.manager_subscription_overview_breakdown() where subscription_id = '$SUB';")
+expect "2 manager_subscription_overview_breakdown hides the cancelled subscription once charges net to 0 (nothing left to show)" "0" "$BREAKDOWN_ROW_COUNT"
 
 echo "== 3: a window that does not include the billing period start sees neither the charge nor its reversal"
 R_OUTSIDE=$(api "$M" "select public.manager_subscription_overview_stats('$BP_START'::date + 90, '$BP_START'::date + 120)::text;")
@@ -98,6 +103,8 @@ R2_STATS=$(api "$M" "select public.manager_subscription_overview_stats('$BP2_STA
 C2=$(echo "$R2_STATS" | grep -o '"charges_total_ils" : [0-9.-]*' | head -1 | grep -o '[0-9.-]*$')
 DIRECT2=$(su -c "select coalesce(sum(c.amount_ils),0)::text from public.subscription_charges c join public.subscription_billing_periods bp on bp.id = c.billing_period_id where bp.period_start = '$BP2_START'::date")
 expect "4 an un-reversed charge's window matches a direct sum exactly (still counted in full)" "$DIRECT2" "$C2"
+BREAKDOWN2=$(api "$M" "select charges_total_ils::text from public.manager_subscription_overview_breakdown() where subscription_id = '$SUB2';")
+expect "4 manager_subscription_overview_breakdown's own charges_total_ils for a visible, un-reversed subscription matches its lifetime charge exactly" "250.00" "$BREAKDOWN2"
 
 echo "== 5: lifetime outstanding_ils still nets the cancelled subscription to 0"
 R5=$(api "$M" "select public.manager_subscription_overview_stats('2000-01-01'::date, '2100-01-01'::date)::text;")
