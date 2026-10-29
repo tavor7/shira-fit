@@ -178,6 +178,15 @@ export function ManagerSubscriptionDetailScreen() {
   );
   const totalPaid = payments.reduce((sum, p) => (p.reversed_at ? sum : sum + p.amount_ils), 0);
   const outstanding = totalCharged - totalPaid;
+  // A negative outstanding is a credit (overpayment), not a debt -- label it as such instead
+  // of showing a bare negative amount, same convention as Reports' balance tile
+  // (billing.balanceOwes / billing.balanceCredit / billing.balanceEven).
+  const outstandingLabel =
+    outstanding > 0
+      ? t("billing.balanceOwes").replace("{n}", displayMoney(outstanding))
+      : outstanding < 0
+        ? t("billing.balanceCredit").replace("{n}", displayMoney(Math.abs(outstanding)))
+        : t("billing.balanceEven");
 
   function todayIso() {
     const d = new Date();
@@ -266,7 +275,7 @@ export function ManagerSubscriptionDetailScreen() {
           <KeyValue label={t("subscriptions.detail.price")} value={displayMoney(current?.monthly_price_ils ?? 0)} isRTL={isRTL} />
           <KeyValue label={t("subscriptions.detail.totalCharged")} value={displayMoney(totalCharged)} isRTL={isRTL} />
           <KeyValue label={t("subscriptions.detail.totalPaid")} value={displayMoney(totalPaid)} isRTL={isRTL} />
-          <KeyValue label={t("subscriptions.detail.outstandingBalance")} value={displayMoney(outstanding)} isRTL={isRTL} />
+          <KeyValue label={t("subscriptions.detail.outstandingBalance")} value={outstandingLabel} isRTL={isRTL} />
           <KeyValue label={t("subscriptions.rowStart")} value={formatISODateFull(current?.plan_start_date ?? "", language)} isRTL={isRTL} />
           <KeyValue
             label={t("subscriptions.rowEnd")}
@@ -476,7 +485,7 @@ export function ManagerSubscriptionDetailScreen() {
         subscriptionId={String(id)}
         payeeLabel={payeeName}
         defaultAmountIls={current?.monthly_price_ils ?? 0}
-        outstandingIls={outstanding}
+        outstandingLabel={outstanding !== 0 ? outstandingLabel : null}
         onSaved={loadPayments}
       />
       <FutureRegistrationsChoiceModal
