@@ -178,14 +178,50 @@ describe("computeBillingSummary", () => {
     expect(summary.balance).toBe(60);
   });
 
-  it("a discount account payment reduces expected instead of adding to received", () => {
+  it("a discount account payment reduces expected instead of adding to received, and is reported separately rather than as a payment method", () => {
     const regs = [makeRow({ reg_status: "active", attended: true, max_participants: 4 })];
     const payments = [makePayment({ amount_ils: 50, payment_method: "discount" })];
     const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {}, {}, () => false);
     expect(summary.expected).toBe(50); // 100 owed - 50 discount
     expect(summary.received).toBe(0);
     expect(summary.balance).toBe(50);
-    expect(summary.byMethod).toContainEqual({ key: "discount", total: 50 });
+    expect(summary.discountTotal).toBe(50);
+    expect(summary.byMethod).toEqual([]);
+  });
+
+  it("excludes a reversed discount from discountTotal, same as any other reversed payment", () => {
+    const regs = [makeRow({ reg_status: "active", attended: true, max_participants: 4 })];
+    const payments = [
+      makePayment({ amount_ils: 50, payment_method: "discount", reversed_at: "2026-07-14T00:00:00Z" }),
+    ];
+    const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {}, {}, () => false);
+    expect(summary.discountTotal).toBe(0);
+    expect(summary.expected).toBe(100);
+  });
+
+  it("reconciles: byMethod sums to received even with a mix of real payments, a discount, and a cancellation penalty", () => {
+    const regs = [
+      makeRow({
+        reg_status: "active",
+        attended: true,
+        max_participants: 4,
+        amount_paid: 40,
+        payment_method: "cash",
+      }),
+      makeRow({ registration_id: "reg-2", cancellation_penalty_collected: 20, cancellation_payment_method: "card" }),
+    ];
+    const payments = [
+      makePayment({ amount_ils: 30, payment_method: "card" }),
+      makePayment({ amount_ils: 25, payment_method: "discount" }),
+    ];
+    const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {}, {}, () => false);
+    expect(summary.received).toBe(90); // 40 cash + 30 card + 20 penalty, discount excluded
+    expect(summary.discountTotal).toBe(25);
+    const byMethodSum = summary.byMethod.reduce((sum, m) => sum + m.total, 0);
+    expect(byMethodSum).toBe(summary.received);
+    expect(summary.byMethod).toContainEqual({ key: "cash", total: 40 });
+    expect(summary.byMethod).toContainEqual({ key: "card", total: 50 });
+    expect(summary.byMethod.find((m) => m.key === "discount")).toBeUndefined();
   });
 
   it("a discount matching the full owed amount zeroes the balance", () => {
@@ -322,5 +358,25 @@ describe("computeBillingSummary", () => {
     expect(summary.expected).toBe(360);
     expect(summary.received).toBe(360);
     expect(summary.balance).toBe(0);
+  });
+
+  it("scopes cleanly to whatever rows/payments are passed in, e.g. one athlete's or one date range's pre-filtered data, with no leakage between independent calls", () => {
+    // ParticipantHistoryScreen filters rows/payments to one athlete and one date range
+    // *before* calling this function, so computeBillingSummary itself must stay a pure
+    // function of exactly what it's given — two separate scopes computed back to back
+    // must not share any total.
+    const athleteARegs = [makeRow({ athlete_user_id: "user-a", amount_paid: 40, payment_method: "cash" })];
+    const athleteAPayments = [makePayment({ payee_id: "user-a", amount_ils: 20, payment_method: "discount" })];
+    const athleteBRegs = [makeRow({ athlete_user_id: "user-b", amount_paid: 70, payment_method: "card" })];
+    const athleteBPayments: AthleteAccountPayment[] = [];
+
+    const summaryA = computeBillingSummary(athleteARegs, athleteAPayments, [], [], [], {}, {}, {}, () => false);
+    const summaryB = computeBillingSummary(athleteBRegs, athleteBPayments, [], [], [], {}, {}, {}, () => false);
+
+    expect(summaryA.received).toBe(40);
+    expect(summaryA.discountTotal).toBe(20);
+    expect(summaryB.received).toBe(70);
+    expect(summaryB.discountTotal).toBe(0);
+    expect(summaryB.byMethod).toEqual([{ key: "card", total: 70 }]);
   });
 });

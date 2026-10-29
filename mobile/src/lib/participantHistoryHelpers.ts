@@ -35,13 +35,17 @@ export function attStatusLabel(status: AttStatus, t: (key: string) => string): s
 }
 
 export type BillingSummary = {
+  /** Actual money collected (account payments + session amounts + cancellation penalties), excluding discounts. */
   received: number;
   expected: number;
   missingRuleCount: number;
+  /** Breakdown of `received` by recorded payment method. Discounts are never a "method" here — see `discountTotal`. Sums to `received`. */
   byMethod: { key: string; total: number }[];
   balance: number;
   /** Net subscription charges (recurring/proration minus reversals) accrued in this period; included in `expected`. */
   subscriptionChargesIls: number;
+  /** Total discount granted in this scope (not reversed). Already subtracted out of `expected`; reported separately so it's never mistaken for a collected payment. */
+  discountTotal: number;
 };
 
 export function computeBillingSummary(
@@ -85,17 +89,19 @@ export function computeBillingSummary(
   }
   for (const p of payments) {
     // A reversed payment (refund / cancelled receipt) is kept for audit but is no longer
-    // real money collected — excluding it here matches the backend's authoritative
-    // reconciliation (_period_merged_athlete_finance / manager_weekly_stats_core).
+    // real money collected, nor a discount still in effect — excluding it here matches the
+    // backend's authoritative reconciliation (_period_merged_athlete_finance / manager_weekly_stats_core).
     if (p.reversed_at) continue;
     const amt = parseMoney(p.amount_ils);
     if (amt !== null && amt > 0) {
       if (normalizePaymentMethodKey(p.payment_method) === "discount") {
+        // A discount isn't a collected payment and isn't a payment method — it's reported
+        // on its own via `discountTotal`, never folded into `received`/`byMethod`.
         discountTotal += amt;
       } else {
         received += amt;
+        addToMethod(p.payment_method, amt);
       }
-      addToMethod(p.payment_method, amt);
     }
   }
 
@@ -162,6 +168,7 @@ export function computeBillingSummary(
     byMethod,
     balance: expected - received,
     subscriptionChargesIls: netSubscriptionCharges,
+    discountTotal,
   };
 }
 

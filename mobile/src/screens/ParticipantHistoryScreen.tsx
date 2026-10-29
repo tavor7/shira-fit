@@ -590,6 +590,7 @@ export default function ParticipantHistoryScreen({
   const billingReceivedDisplay = useCountUp(billingSummary?.received ?? 0);
   const billingExpectedDisplay = useCountUp(billingSummary?.expected ?? 0);
   const billingBalanceDisplay = useCountUp(billingSummary?.balance ?? 0);
+  const billingDiscountDisplay = useCountUp(billingSummary?.discountTotal ?? 0);
 
   useEffect(() => {
     if (!athleteId) {
@@ -1413,6 +1414,18 @@ export default function ParticipantHistoryScreen({
                         </View>
                       ))}
                     </View>
+                  </View>
+                </AnimatedOptionExpand>
+                <AnimatedOptionExpand open={billingSummary.discountTotal > 0}>
+                  {/* Discounts are not a payment method and are never folded into Received/By
+                      method — shown on their own line so they can't be misread as money collected. */}
+                  <View style={[styles.billingDiscountRow, rtlRowFlip && styles.billingDiscountRowRtl]}>
+                    <Text style={[styles.billingDiscountLabel, isRTL && styles.rtlText]}>
+                      {t("billing.discountsLabel")}
+                    </Text>
+                    <Text style={[styles.billingDiscountValue, isRTL && styles.rtlText]}>
+                      {displayMoney(billingDiscountDisplay)}
+                    </Text>
                   </View>
                 </AnimatedOptionExpand>
                 <AnimatedOptionExpand open={billingSummary.missingRuleCount > 0}>
