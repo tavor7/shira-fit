@@ -1376,13 +1376,21 @@ export default function ParticipantHistoryScreen({
                       ]}
                       numberOfLines={1}
                     >
+                      {/* This tile is this period's own expected-minus-received, not a lifetime
+                          outstanding/credit figure -- a late payment for a charge from an
+                          EARLIER period lands as "received" in a LATER period's own window
+                          with no charge of its own to offset it, which is a benign catch-up,
+                          not a genuine overpayment. "balanceOwes"/"balanceCredit" (reused
+                          as-is on the subscription detail screen's real lifetime balance)
+                          would misleadingly suggest that reading here, so this tile uses its
+                          own period-scoped wording instead. */}
                       {billingSummary.balance > 0
-                        ? t("billing.balanceOwes").replace(
+                        ? t("billing.balanceOwesPeriod").replace(
                             "{n}",
                             displayMoney(Math.abs(billingBalanceDisplay))
                           )
                         : billingSummary.balance < 0
-                          ? t("billing.balanceCredit").replace(
+                          ? t("billing.balanceReceivedMorePeriod").replace(
                               "{n}",
                               displayMoney(Math.abs(billingBalanceDisplay))
                             )
