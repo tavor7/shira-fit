@@ -41,6 +41,8 @@ export function PaymentHistoryRow({
   const p = pay;
   const isDiscount = normalizePaymentMethodKey(p.payment_method) === "discount";
   const isReversed = Boolean(p.reversed_at);
+  const isSubscriptionPayment = Boolean(p.source_subscription_id);
+  const paymentKindLabel = t(isSubscriptionPayment ? "billing.subscriptionPayment" : "billing.accountPayment");
   const amt = parseMoney(p.amount_ils);
   const amtTxt = amt !== null && amt > 0 ? displayMoney(amt) : "—";
   const busyPay = deletingPaymentId === p.id;
@@ -81,10 +83,10 @@ export function PaymentHistoryRow({
             numberOfLines={1}
           >
             {isReversed
-              ? `${t("billing.accountPayment")} · ${paymentMethodHistoryLabel(p.payment_method, language)} · ${t("billing.paymentReversed")}`
+              ? `${paymentKindLabel} · ${paymentMethodHistoryLabel(p.payment_method, language)} · ${t("billing.paymentReversed")}`
               : isDiscount
                 ? paymentMethodHistoryLabel(p.payment_method, language)
-                : `${t("billing.accountPayment")} · ${paymentMethodHistoryLabel(p.payment_method, language)}`}
+                : `${paymentKindLabel} · ${paymentMethodHistoryLabel(p.payment_method, language)}`}
           </Text>
           {receiptDocumentNumber ? (
             <Pressable

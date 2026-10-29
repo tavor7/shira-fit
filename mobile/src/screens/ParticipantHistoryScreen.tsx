@@ -17,7 +17,7 @@ import { athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
 
 import { isValidISODateString, lastNDaysRangeISO } from "../lib/isoDate";
 import { formatISODateFull } from "../lib/dateFormat";
-import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/database";
+import type { AthleteAccountPayment, ParticipantHistoryRow, SubscriptionChargeHistoryRow } from "../types/database";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
@@ -51,6 +51,7 @@ import {
 import { fetchSessionBillingPriceIls } from "../lib/sessionSlotPrice";
 import { participantHistoryStyles as styles } from "./participantHistoryStyles";
 import { PaymentHistoryRow } from "../components/PaymentHistoryRow";
+import { SubscriptionChargeHistoryRow as SubscriptionChargeHistoryRowView } from "../components/SubscriptionChargeHistoryRow";
 import { SessionHistoryRow } from "../components/SessionHistoryRow";
 import { EditSessionAmountModal } from "../components/EditSessionAmountModal";
 import { rowFlipFor } from "../lib/layoutDirection";
@@ -137,6 +138,7 @@ export default function ParticipantHistoryScreen({
   const [accountPayments, setAccountPayments] = useState<AthleteAccountPayment[]>([]);
   const [coveredRegistrationIds, setCoveredRegistrationIds] = useState<Set<string>>(new Set());
   const [subscriptionChargesIls, setSubscriptionChargesIls] = useState(0);
+  const [subscriptionCharges, setSubscriptionCharges] = useState<SubscriptionChargeHistoryRow[]>([]);
   const [globalTiers, setGlobalTiers] = useState<PricingRateTierRow[]>([]);
   const [athleteTiers, setAthleteTiers] = useState<PricingRateTierRow[]>([]);
   const [globalKickboxTiers, setGlobalKickboxTiers] = useState<PricingRateTierRow[]>([]);
@@ -549,8 +551,8 @@ export default function ParticipantHistoryScreen({
 
   const sections = useMemo(() => {
     if (!hasSearched) return [];
-    return mergedHistorySections(rows, accountPayments, athleteLabel, familyContext);
-  }, [hasSearched, rows, accountPayments, athleteLabel, familyContext]);
+    return mergedHistorySections(rows, accountPayments, athleteLabel, familyContext, subscriptionCharges);
+  }, [hasSearched, rows, accountPayments, athleteLabel, familyContext, subscriptionCharges]);
 
   const billingSummary = useMemo(() => {
     if (!hasSearched || !athleteId) return null;
@@ -756,7 +758,7 @@ export default function ParticipantHistoryScreen({
       );
       acctPromise = supabase
         .from("athlete_account_payments")
-        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by, reversed_at, reversed_by")
+        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by, reversed_at, reversed_by, source_subscription_id")
         .gte("paid_at", s)
         .lte("paid_at", e)
         .or(orParts.join(","))
@@ -764,7 +766,7 @@ export default function ParticipantHistoryScreen({
     } else {
       acctPromise = supabase
         .from("athlete_account_payments")
-        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by, reversed_at, reversed_by")
+        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by, reversed_at, reversed_by, source_subscription_id")
         .gte("paid_at", s)
         .lte("paid_at", e)
         .eq("payee_id", athleteId)
@@ -776,23 +778,30 @@ export default function ParticipantHistoryScreen({
     // starts inside this report's range — same attribution rule as the backend's
     // _period_merged_athlete_finance / manager_weekly_stats_core, so this report and the
     // Dashboard never disagree about which period a charge belongs to.
+    type SubChargeQueryRow = {
+      id: string;
+      amount_ils: number | string;
+      charge_type: SubscriptionChargeHistoryRow["charge_type"];
+      created_at: string;
+      subscription_billing_periods: { period_start: string } | { period_start: string }[] | null;
+    };
     let subChargesPromise;
     if (!showFinance) {
-      subChargesPromise = Promise.resolve({ data: [] as { amount_ils: number | string }[], error: null });
+      subChargesPromise = Promise.resolve({ data: [] as SubChargeQueryRow[], error: null });
     } else if (familyId && familyMembers.length > 0) {
       const orParts = familyMembers.map(
         (m) => `and(payee_id.eq.${m.id},payee_is_manual.eq.${m.kind === "manual"})`
       );
       subChargesPromise = supabase
         .from("subscription_charges")
-        .select("amount_ils, subscription_billing_periods!inner(period_start)")
+        .select("id, amount_ils, charge_type, created_at, subscription_billing_periods!inner(period_start)")
         .gte("subscription_billing_periods.period_start", s)
         .lte("subscription_billing_periods.period_start", e)
         .or(orParts.join(","));
     } else {
       subChargesPromise = supabase
         .from("subscription_charges")
-        .select("amount_ils, subscription_billing_periods!inner(period_start)")
+        .select("id, amount_ils, charge_type, created_at, subscription_billing_periods!inner(period_start)")
         .gte("subscription_billing_periods.period_start", s)
         .lte("subscription_billing_periods.period_start", e)
         .eq("payee_id", athleteId)
@@ -845,6 +854,7 @@ export default function ParticipantHistoryScreen({
         setAccountPayments([]);
         setCoveredRegistrationIds(new Set());
         setSubscriptionChargesIls(0);
+        setSubscriptionCharges([]);
         setReportReady(false);
         setHasSearched(true);
       }
@@ -858,6 +868,7 @@ export default function ParticipantHistoryScreen({
         setAccountPayments([]);
         setCoveredRegistrationIds(new Set());
         setSubscriptionChargesIls(0);
+        setSubscriptionCharges([]);
         setReportReady(false);
         setHasSearched(true);
       }
@@ -871,6 +882,7 @@ export default function ParticipantHistoryScreen({
         setAccountPayments([]);
         setCoveredRegistrationIds(new Set());
         setSubscriptionChargesIls(0);
+        setSubscriptionCharges([]);
         setReportReady(false);
         setHasSearched(true);
       }
@@ -889,6 +901,7 @@ export default function ParticipantHistoryScreen({
             setAccountPayments([]);
             setCoveredRegistrationIds(new Set());
             setSubscriptionChargesIls(0);
+        setSubscriptionCharges([]);
             setReportReady(false);
             setHasSearched(true);
           }
@@ -920,6 +933,7 @@ export default function ParticipantHistoryScreen({
           setAccountPayments([]);
           setCoveredRegistrationIds(new Set());
           setSubscriptionChargesIls(0);
+        setSubscriptionCharges([]);
           setReportReady(false);
           setHasSearched(true);
         }
@@ -976,9 +990,28 @@ export default function ParticipantHistoryScreen({
     }
 
     const subChargeRows =
-      (subChargesRes.data as { amount_ils: number | string }[] | null) ?? [];
+      (subChargesRes.data as {
+        id: string;
+        amount_ils: number | string;
+        charge_type: SubscriptionChargeHistoryRow["charge_type"];
+        created_at: string;
+        subscription_billing_periods: { period_start: string } | { period_start: string }[] | null;
+      }[] | null) ?? [];
     setSubscriptionChargesIls(
       subChargeRows.reduce((sum, r) => sum + (parseMoney(r.amount_ils) ?? 0), 0)
+    );
+    setSubscriptionCharges(
+      subChargeRows.map((r) => {
+        const periods = r.subscription_billing_periods;
+        const periodStart = Array.isArray(periods) ? periods[0]?.period_start : periods?.period_start;
+        return {
+          id: r.id,
+          amount_ils: r.amount_ils,
+          charge_type: r.charge_type,
+          created_at: r.created_at,
+          period_start: periodStart ?? r.created_at,
+        };
+      })
     );
 
     setHiddenKeys(
@@ -1235,7 +1268,13 @@ export default function ParticipantHistoryScreen({
       <SectionList
         style={styles.list}
         sections={sections}
-        keyExtractor={(item) => (item.kind === "session" ? item.reg.registration_id : `pay:${item.pay.id}`)}
+        keyExtractor={(item) =>
+          item.kind === "session"
+            ? item.reg.registration_id
+            : item.kind === "payment"
+              ? `pay:${item.pay.id}`
+              : `charge:${item.charge.id}`
+        }
         ListHeaderComponent={
           <>
             {headerExtra}
@@ -1273,6 +1312,7 @@ export default function ParticipantHistoryScreen({
                     setAccountPayments([]);
                     setCoveredRegistrationIds(new Set());
                     setSubscriptionChargesIls(0);
+        setSubscriptionCharges([]);
                     setReportReady(false);
                     setHasSearched(false);
                   }}
@@ -1485,10 +1525,15 @@ export default function ParticipantHistoryScreen({
                 }}
               />
             </FadeSlideIn>
+          ) : item.kind === "charge" ? (
+            <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
+              <SubscriptionChargeHistoryRowView charge={item.charge} isRTL={isRTL} language={language} t={t} />
+            </FadeSlideIn>
           ) : (
             <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <SessionHistoryRow
               reg={item.reg}
+              isCovered={coveredRegistrationIds.has(item.reg.registration_id)}
               superUserHidden={isSuperUser && hiddenKeys.has(hiddenRegistrationKey(item.reg.session_id, item.reg.athlete_user_id))}
               canToggleHide={
                 isSuperUser &&

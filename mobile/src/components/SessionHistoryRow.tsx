@@ -26,6 +26,8 @@ import { displayMoney } from "../lib/displayFormat";
 
 type Props = {
   reg: ParticipantHistoryRow;
+  /** True when this session is covered by the athlete's active subscription — owes nothing of its own. */
+  isCovered?: boolean;
   /** Super User only: this registration is currently hidden from the athlete/debt. Never set for other roles. */
   superUserHidden?: boolean;
   /** Super User only: this row is eligible for the hide/unhide toggle (active, real athlete registration). */
@@ -74,6 +76,7 @@ type Props = {
 
 export function SessionHistoryRow({
   reg,
+  isCovered,
   superUserHidden,
   canToggleHide,
   hideToggleBusy,
@@ -175,7 +178,8 @@ export function SessionHistoryRow({
   const attOpen = expandedAttendanceId === reg.registration_id;
   const attLabel = attStatusLabel(attCurrent, t);
   const showPaidStatus = showPaymentBlock && hasPaymentMethod;
-  const showUnpaidStatus = showPaymentBlock && !hasPaymentMethod;
+  const showCoveredStatus = showPaymentBlock && !hasPaymentMethod && isCovered === true;
+  const showUnpaidStatus = showPaymentBlock && !hasPaymentMethod && !showCoveredStatus;
   const timeCoachPart = coachName
     ? `${formatSessionStartTime(reg.start_time)} · ${coachName}`
     : formatSessionStartTime(reg.start_time);
@@ -207,23 +211,27 @@ export function SessionHistoryRow({
           {t("ui.sessionHistoryRow.cancelled")}
         </Text>
       </View>
-    ) : showPaidStatus || showUnpaidStatus ? (
+    ) : showPaidStatus || showCoveredStatus || showUnpaidStatus ? (
       <View
         style={[
           styles.payPill,
-          showPaidStatus ? styles.payPillPaid : styles.payPillUnpaid,
+          showPaidStatus ? styles.payPillPaid : showCoveredStatus ? styles.payPillCovered : styles.payPillUnpaid,
           rowFlipFor(isRTL) && styles.payPillRtl,
         ]}
       >
         <Text
           style={[
             styles.payPillTxt,
-            showPaidStatus ? styles.payPillTxtPaid : styles.payPillTxtUnpaid,
+            showPaidStatus ? styles.payPillTxtPaid : showCoveredStatus ? styles.payPillTxtCovered : styles.payPillTxtUnpaid,
             isRTL && styles.rtlText,
           ]}
           numberOfLines={1}
         >
-          {showPaidStatus ? t("participantHistory.paidBadge") : t("participantHistory.unpaidBadge")}
+          {showPaidStatus
+            ? t("participantHistory.paidBadge")
+            : showCoveredStatus
+              ? t("participantHistory.coveredBadge")
+              : t("participantHistory.unpaidBadge")}
         </Text>
         {showPaidStatus && amtOk ? (
           <Text style={[styles.payPillAmt, styles.ltrText]} numberOfLines={1}>
