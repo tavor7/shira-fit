@@ -94,16 +94,16 @@ export function AddAccountPaymentModal({
   const [isSubscriptionPayment, setIsSubscriptionPayment] = useState(false);
   const clientRequestIdRef = useRef(generateClientRequestId());
 
-  // Subscription-payment eligibility for one payee as of one date, mirroring
-  // subscription_version_display_status's own lifecycle rule (same migration as
-  // subscription_effective_context, 20260924100000): the version whose
-  // [effective_from, effective_to) window contains asOfDate must exist, and must not already be
-  // stopped or past its plan_end_date as of that date. A frozen version is still eligible -- a
-  // freeze pauses billing/coverage, it does not end the relationship. Both display_status and
-  // effective_context are internal helpers with no direct client grant (deliberately, to avoid an
-  // information-disclosure surface -- see their migration comments), so this replicates the same
-  // published rule against the subscriptions/subscription_versions tables directly, which RLS
-  // already scopes to managers only -- the same role record_subscription_payment itself requires.
+  // Subscription-payment eligibility for one payee as of one date -- exactly mirrors
+  // record_subscription_payment's own server-side check (migration 20261029220000): prefer the
+  // version effective on the selected date; if none covers it yet because the subscription hasn't
+  // started (an advance payment against a scheduled subscription is legitimate, not "inactive"),
+  // fall back to its earliest version instead. Either way, ineligible if that version is already
+  // stopped or past its plan_end_date as of the date; a frozen version is still eligible -- a
+  // freeze pauses billing/coverage, it does not end the relationship. The RPC is the actual
+  // authority (this is a client-side replica, not the enforcement -- see that migration's
+  // comment), reading subscriptions/subscription_versions directly since RLS already scopes them
+  // to managers only, the same role record_subscription_payment itself requires.
   useEffect(() => {
     if (!visible || isEdit) {
       setActiveSubscriptionId(null);
@@ -137,10 +137,19 @@ export function AddAccountPaymentModal({
       type SubRow = { id: string; subscription_versions: VersionRow[] | null };
       let eligibleId: string | null = null;
       for (const sub of (data as SubRow[] | null) ?? []) {
-        const versions = (sub.subscription_versions ?? [])
+        const all = sub.subscription_versions ?? [];
+        // The version effective at dateToCheck, if any.
+        const covering = all
           .filter((v) => v.effective_from <= dateToCheck && (v.effective_to === null || v.effective_to > dateToCheck))
-          .sort((a, b) => b.effective_from.localeCompare(a.effective_from));
-        const v = versions[0];
+          .sort((a, b) => b.effective_from.localeCompare(a.effective_from))[0];
+        // Otherwise, if dateToCheck is before the subscription has even started, an advance
+        // payment is still legitimate -- fall back to the earliest (not-yet-started) version so a
+        // stop applied in advance still correctly blocks it. Mirrors
+        // record_subscription_payment's own fallback exactly.
+        const notYetStarted = all
+          .filter((v) => v.effective_from > dateToCheck)
+          .sort((a, b) => a.effective_from.localeCompare(b.effective_from))[0];
+        const v = covering ?? notYetStarted;
         if (!v) continue;
         if (v.stopped_effective_date !== null && dateToCheck >= v.stopped_effective_date) continue;
         if (v.plan_end_date !== null && dateToCheck > v.plan_end_date) continue;

@@ -459,6 +459,7 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     invalid_subscription: V,
     subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
     subscription_deleted: [B, "Added 2026-10-26 alongside the delete-payment-guard advisory lock: the subscription was tombstoned (by a concurrent or earlier delete) before this payment could be recorded against it. Expected race outcome, not an error in the caller's input."],
+    subscription_not_eligible_for_date: [B, "Added 2026-10-29: paid_at falls outside the subscription's effective window, or its effective version is already stopped/past plan_end_date as of that date. Server-side half of AddAccountPaymentModal's own eligibility check -- expected whenever the UI's client-side replica of the same rule is stale or was bypassed, not a malformed-input error."],
   },
   register_for_session: {
     account_disabled: [V, "The CALLER's own account is disabled (profiles.disabled_at). Authorization outcome."],

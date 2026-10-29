@@ -17,7 +17,10 @@
 #   D  a payment dated after plan_end_date is refused
 #   E  a payment dated during an active freeze still succeeds -- a freeze pauses billing/coverage,
 #      it does not end the relationship
-#   F  a payment dated before plan_start_date (no version covers that date yet) is refused
+#   F  an ADVANCE payment dated before plan_start_date succeeds -- the subscription hasn't started
+#      yet as of that date, which is a legitimate, already-relied-upon case (not "inactive"; see
+#      189_subscription_delete_payment_guard_tests.sh scenarios 3/4, which record a same-day
+#      payment against a subscription whose plan_start_date is the next day)
 #   G  a nonexistent subscription_id still returns subscription_not_found, unchanged
 #
 # Usage: PSQL="docker exec -i <db> psql -U postgres" \
@@ -104,11 +107,12 @@ api "$M" "select public.freeze_subscription('$SUB', '$(d -5)', '$(d 5)', true)::
 pay "$SUB" "$TODAY"
 expect "E succeeds while frozen" "true" "$(jf "$R" ok)"
 
-echo "== F: a payment dated before plan_start_date is refused (no version covers it yet)"
-mksub "$TODAY"
-pay "$SUB" "$(d -5)"
-expect "F refused before plan_start_date" "false" "$(jf "$R" ok)"
-expect "F error is subscription_not_eligible_for_date" "subscription_not_eligible_for_date" "$(jf "$R" error)"
+echo "== F: an advance payment dated before plan_start_date succeeds (legitimate, not 'inactive')"
+mksub "$(d 10)"
+pay "$SUB" "$TODAY"
+expect "F advance payment succeeds" "true" "$(jf "$R" ok)"
+PID_F=$(jf "$R" payment_id)
+expect "F advance payment is linked to the subscription" "$SUB" "$(su -c "select source_subscription_id from public.athlete_account_payments where id='$PID_F'")"
 
 echo "== G: a nonexistent subscription_id still returns subscription_not_found"
 R=$(api "$M" "select public.record_subscription_payment(gen_random_uuid(), 50, 'cash', null, null, '$TODAY')::text;")
