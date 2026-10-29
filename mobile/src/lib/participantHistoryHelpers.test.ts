@@ -157,11 +157,19 @@ describe("computeBillingSummary", () => {
     expect(summary.expected).toBe(100);
   });
 
-  it("adds a collected cancellation penalty to received, grouped as 'other'", () => {
+  it("adds a collected cancellation penalty to received, grouped as 'other' when no payment method was recorded", () => {
     const regs = [makeRow({ cancellation_penalty_collected: 60 })];
     const summary = computeBillingSummary(regs, [], [], [], [], {}, {}, {}, () => false);
     expect(summary.received).toBe(60);
     expect(summary.byMethod).toContainEqual({ key: "other", total: 60 });
+  });
+
+  it("groups a collected cancellation penalty by its actual recorded payment method, not always 'other'", () => {
+    const regs = [makeRow({ cancellation_penalty_collected: 60, cancellation_payment_method: "cash" })];
+    const summary = computeBillingSummary(regs, [], [], [], [], {}, {}, {}, () => false);
+    expect(summary.received).toBe(60);
+    expect(summary.byMethod).toContainEqual({ key: "cash", total: 60 });
+    expect(summary.byMethod).not.toContainEqual({ key: "other", total: 60 });
   });
 
   it("computes balance as expected minus received", () => {

@@ -440,9 +440,6 @@ export const participantHistoryStyles = StyleSheet.create({
   billingStatValue: { fontSize: 15, fontWeight: "800", color: theme.colors.text, textAlign: "center", lineHeight: 18 },
   billingStatValueOwed: { color: theme.colors.error },
   billingStatValueCredit: { color: theme.colors.success },
-  /** Balance value has an extra "Owes"/"Credit" word RECEIVED/EXPECTED don't — smaller
-   *  so it still fits on one line, keeping the tile the same 2-line height as the others. */
-  billingStatValueCompact: { fontSize: 12, lineHeight: 15 },
   billingMethodsBlock: { gap: 6, marginTop: 2 },
   billingMethodsTitle: { fontSize: 11, fontWeight: "800", color: theme.colors.textMuted, letterSpacing: 0.25, textTransform: "uppercase" },
   billingMethodGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },

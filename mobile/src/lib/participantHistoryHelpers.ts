@@ -147,7 +147,7 @@ export function computeBillingSummary(
     const pc = parseMoney(r.cancellation_penalty_collected);
     if (pc != null && pc > 0) {
       received += pc;
-      addToMethod("other", pc);
+      addToMethod(r.cancellation_payment_method, pc);
     }
   }
 
