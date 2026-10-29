@@ -263,8 +263,8 @@ function AthleteSessionsScreenContent() {
       void loadMyUpcoming();
       void syncExpoPushTokenIfNeeded();
       void syncWebPushSubscriptionIfNeeded();
-      void checkWaitlistSpotsAndNotify(language === "he" ? "he" : "en");
-    }, [load, loadMyUpcoming, language])
+      void checkWaitlistSpotsAndNotify();
+    }, [load, loadMyUpcoming])
   );
 
   const regSet = useMemo(() => new Set(myRegSessionIds), [myRegSessionIds.join("|")]);
