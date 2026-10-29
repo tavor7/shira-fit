@@ -22,11 +22,16 @@ const LABEL_KEY_BY_TYPE: Record<SubscriptionCharge["charge_type"], string> = {
 };
 
 // Display-only: this amount is already folded into computeBillingSummary's subscriptionChargesIls.
+// Color semantics: a charge increases what's owed (amber, ▲), never green -- green is reserved for
+// actual cash received (see PaymentHistoryRow). A credit/reversal reduces what's owed (muted, ▽):
+// it isn't a payment either, since no cash moved.
 export function SubscriptionChargeHistoryRow({ charge, isRTL, language, t }: Props) {
   const amt = parseMoney(charge.amount_ils) ?? 0;
   const isNegative = amt < 0;
   const amtTxt = displayMoney(Math.abs(amt));
   const label = t(LABEL_KEY_BY_TYPE[charge.charge_type] ?? "billing.subscriptionChargeRecurring");
+  const amountStyle = isNegative ? styles.sessionAmountNeutral : styles.sessionAmountCharge;
+  const glyph = isNegative ? "▽" : "▲";
   return (
     <View style={[styles.row, isNegative && styles.rowDiscount]}>
       <View style={[styles.sessionCardBody, isRTL && styles.sessionCardBodyRtl]}>
@@ -35,8 +40,8 @@ export function SubscriptionChargeHistoryRow({ charge, isRTL, language, t }: Pro
             <Text style={[styles.cardDate, styles.rtlText, styles.sessionHeadMainFlex]} numberOfLines={1}>
               {formatISODateWeekdayDayMonthYear(charge.period_start, language)}
             </Text>
-            <Text style={[styles.sessionAmount, styles.ltrText, isNegative && styles.sessionAmountDiscount]}>
-              {isNegative ? "−" : ""}
+            <Text style={[styles.sessionAmount, styles.ltrText, amountStyle]}>
+              {glyph} {isNegative ? "−" : ""}
               {amtTxt}
             </Text>
           </View>
@@ -45,8 +50,8 @@ export function SubscriptionChargeHistoryRow({ charge, isRTL, language, t }: Pro
             <Text style={styles.cardDate} numberOfLines={1}>
               {formatISODateWeekdayDayMonthYear(charge.period_start, language)}
             </Text>
-            <Text style={[styles.sessionAmount, isNegative && styles.sessionAmountDiscount]}>
-              {isNegative ? "−" : ""}
+            <Text style={[styles.sessionAmount, amountStyle]}>
+              {glyph} {isNegative ? "−" : ""}
               {amtTxt}
             </Text>
           </View>

@@ -211,7 +211,7 @@ export const participantHistoryStyles = StyleSheet.create({
   cardDatePrimary: { fontSize: 15, fontWeight: "800", color: theme.colors.text, lineHeight: 21 },
   cardDateMeta: { fontSize: 14, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 20 },
   sessionSubline: { fontSize: 13, color: theme.colors.textMuted, lineHeight: 18 },
-  sessionSublineDiscount: { color: theme.colors.warning, fontWeight: "800" },
+  sessionSublineDiscount: { color: theme.colors.textMuted, fontWeight: "800" },
   receiptSublineRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
   receiptSublineRowRtl: { flexDirection: "row-reverse" },
   receiptBadge: {
@@ -253,8 +253,14 @@ export const participantHistoryStyles = StyleSheet.create({
     borderTopColor: theme.colors.borderMuted,
   },
   sessionFootnote: { fontSize: 12, fontWeight: "600", color: theme.colors.textMuted, lineHeight: 17 },
+  // Financial-event color semantics (Reports timeline): green = cash received, amber = an
+  // amount owed/charged, muted = a non-cash adjustment (discount, reversal, credit). A single
+  // "sessionAmount" green was previously reused for every event type, making a subscription
+  // charge visually identical to its payment -- see sessionAmountCharge / sessionAmountNeutral.
   sessionAmount: { fontSize: 17, fontWeight: "800", color: theme.colors.success, flexShrink: 0 },
-  sessionAmountDiscount: { color: theme.colors.warning },
+  sessionAmountCharge: { color: theme.colors.warning },
+  sessionAmountNeutral: { color: theme.colors.textMuted },
+  sessionAmountDiscount: { color: theme.colors.textMuted },
   actionBar: {
     flexDirection: "row",
     alignItems: "stretch",
