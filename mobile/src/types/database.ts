@@ -231,3 +231,13 @@ export type AthleteAccountPayment = {
   /** Set when this payment was recorded as a subscription payment (not an ordinary account payment). */
   source_subscription_id?: string | null;
 };
+
+// Display-only: a subscription billing-ledger event shown as its own Reports timeline line item.
+export type SubscriptionChargeHistoryRow = {
+  id: string;
+  amount_ils: number | string;
+  charge_type: "recurring" | "proration" | "freeze_credit" | "stop_proration" | "reversal";
+  created_at: string;
+  /** The billing period this charge belongs to — the date the Reports screen attributes it to. */
+  period_start: string;
+};

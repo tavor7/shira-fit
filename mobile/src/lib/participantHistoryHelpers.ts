@@ -2,12 +2,13 @@ import { normalizePaymentMethodKey } from "./paymentMethod";
 import { resolveSessionBillingPriceLocal } from "./sessionSlotPrice";
 import type { AthleteFamily } from "./athleteFamilies";
 import type { PricingRateTierRow } from "./pricingRates";
-import type { AthleteAccountPayment, ParticipantHistoryRow } from "../types/database";
+import type { AthleteAccountPayment, ParticipantHistoryRow, SubscriptionChargeHistoryRow } from "../types/database";
 
 export type HistorySection = { title: string; data: HistoryListItem[] };
 export type HistoryListItem =
   | { kind: "session"; reg: ParticipantHistoryRow }
-  | { kind: "payment"; pay: AthleteAccountPayment };
+  | { kind: "payment"; pay: AthleteAccountPayment }
+  | { kind: "charge"; charge: SubscriptionChargeHistoryRow };
 
 export function parseMoney(raw: unknown): number | null {
   if (raw === null || raw === undefined) return null;
@@ -176,20 +177,23 @@ export function mergedHistorySections(
   rows: ParticipantHistoryRow[],
   payments: AthleteAccountPayment[],
   athleteLabel: string,
-  familyContext?: AthleteFamily | null
+  familyContext?: AthleteFamily | null,
+  /** Subscription billing-ledger events, shown as their own line item (see SubscriptionChargeHistoryRow). */
+  charges: SubscriptionChargeHistoryRow[] = []
 ): HistorySection[] {
   const title = familyContext
     ? familyContext.name
     : rows.length > 0
       ? `${rows[0]!.athlete_name} · ${rows[0]!.athlete_phone}`
       : athleteLabel.trim() || "—";
+  const itemDate = (item: HistoryListItem): string =>
+    item.kind === "session" ? item.reg.session_date : item.kind === "payment" ? item.pay.paid_at : item.charge.period_start;
   const data: HistoryListItem[] = [
     ...payments.map((pay) => ({ kind: "payment" as const, pay })),
     ...rows.map((reg) => ({ kind: "session" as const, reg })),
+    ...charges.map((charge) => ({ kind: "charge" as const, charge })),
   ].sort((a, b) => {
-    const da = a.kind === "session" ? a.reg.session_date : a.pay.paid_at;
-    const db = b.kind === "session" ? b.reg.session_date : b.pay.paid_at;
-    const c = db.localeCompare(da);
+    const c = itemDate(b).localeCompare(itemDate(a));
     if (c !== 0) return c;
     if (a.kind === "session" && b.kind === "session") {
       return String(b.reg.start_time).localeCompare(String(a.reg.start_time));
