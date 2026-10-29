@@ -167,6 +167,18 @@ export function ManagerSubscriptionDetailScreen() {
     (f) => !f.cancelled_at && f.freeze_from <= todayIso() && f.freeze_until >= todayIso()
   );
 
+  // Lifetime reconciliation for this one subscription: every currently-effective charge
+  // (reversals already excluded by currentEffectiveChargeAmount) minus every unreversed
+  // payment ever recorded against it. Mirrors manager_subscription_overview_stats's
+  // lifetime convention — not period-scoped, since payments aren't allocated to a specific
+  // billing period (by design: see subscription payment UX decision).
+  const totalCharged = detail.billing_periods.reduce(
+    (sum, p) => sum + (currentEffectiveChargeAmount(p.charges) ?? 0),
+    0
+  );
+  const totalPaid = payments.reduce((sum, p) => (p.reversed_at ? sum : sum + p.amount_ils), 0);
+  const outstanding = totalCharged - totalPaid;
+
   function todayIso() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -252,6 +264,9 @@ export function ManagerSubscriptionDetailScreen() {
 
         <Section title={t("subscriptions.detail.overview")} isRTL={isRTL}>
           <KeyValue label={t("subscriptions.detail.price")} value={displayMoney(current?.monthly_price_ils ?? 0)} isRTL={isRTL} />
+          <KeyValue label={t("subscriptions.detail.totalCharged")} value={displayMoney(totalCharged)} isRTL={isRTL} />
+          <KeyValue label={t("subscriptions.detail.totalPaid")} value={displayMoney(totalPaid)} isRTL={isRTL} />
+          <KeyValue label={t("subscriptions.detail.outstandingBalance")} value={displayMoney(outstanding)} isRTL={isRTL} />
           <KeyValue label={t("subscriptions.rowStart")} value={formatISODateFull(current?.plan_start_date ?? "", language)} isRTL={isRTL} />
           <KeyValue
             label={t("subscriptions.rowEnd")}
@@ -461,6 +476,7 @@ export function ManagerSubscriptionDetailScreen() {
         subscriptionId={String(id)}
         payeeLabel={payeeName}
         defaultAmountIls={current?.monthly_price_ils ?? 0}
+        outstandingIls={outstanding}
         onSaved={loadPayments}
       />
       <FutureRegistrationsChoiceModal

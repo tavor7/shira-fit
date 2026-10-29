@@ -40,6 +40,8 @@ export type BillingSummary = {
   missingRuleCount: number;
   byMethod: { key: string; total: number }[];
   balance: number;
+  /** Net subscription charges (recurring/proration minus reversals) accrued in this period; included in `expected`. */
+  subscriptionChargesIls: number;
 };
 
 export function computeBillingSummary(
@@ -53,7 +55,11 @@ export function computeBillingSummary(
   rosterPriceByKey: Record<string, number>,
   isManualRow: (reg: ParticipantHistoryRow) => boolean,
   athleteTiersByMember?: Record<string, PricingRateTierRow[]>,
-  memberKeyForRow?: (reg: ParticipantHistoryRow) => string | null
+  memberKeyForRow?: (reg: ParticipantHistoryRow) => string | null,
+  /** registration_id (app rows) or manual_participant_id (manual rows) of sessions covered by an active subscription — owe nothing of their own. */
+  coveredRegistrationIds?: Set<string>,
+  /** Net subscription charges (recurring/proration minus reversals) posted for this payee whose billing period starts in this report's date range. */
+  subscriptionChargesIls?: number
 ): BillingSummary {
   const methodTotals = new Map<string, number>();
 
@@ -78,6 +84,10 @@ export function computeBillingSummary(
     }
   }
   for (const p of payments) {
+    // A reversed payment (refund / cancelled receipt) is kept for audit but is no longer
+    // real money collected — excluding it here matches the backend's authoritative
+    // reconciliation (_period_merged_athlete_finance / manager_weekly_stats_core).
+    if (p.reversed_at) continue;
     const amt = parseMoney(p.amount_ils);
     if (amt !== null && amt > 0) {
       if (normalizePaymentMethodKey(p.payment_method) === "discount") {
@@ -92,6 +102,10 @@ export function computeBillingSummary(
   let expected = 0;
   let missingRuleCount = 0;
   for (const r of regs) {
+    // A session covered by an active subscription owes nothing of its own — the
+    // subscription charge itself (added below) is its sole debt line, so this is never
+    // double-counted with the charge.
+    if (coveredRegistrationIds?.has(r.registration_id)) continue;
     const cap = typeof r.max_participants === "number" ? r.max_participants : null;
     const lateCancelOwes =
       r.reg_status === "cancelled" &&
@@ -121,8 +135,13 @@ export function computeBillingSummary(
     if (price === null) missingRuleCount += 1;
     else expected += price;
   }
+  // Subscription charges (recurring/proration, net of reversals) are an additional
+  // debt-feed line item, attributed to the billing period they were posted for — not
+  // smeared across individual sessions. Added after per-session `expected` but before
+  // the discount clamp, matching the backend's merged reconciliation.
+  const netSubscriptionCharges = subscriptionChargesIls ?? 0;
   // Clamp rather than let expected go negative if a discount exceeds what was actually owed.
-  expected = Math.max(0, expected - discountTotal);
+  expected = Math.max(0, expected + netSubscriptionCharges - discountTotal);
 
   for (const r of regs) {
     const pc = parseMoney(r.cancellation_penalty_collected);
@@ -136,7 +155,14 @@ export function computeBillingSummary(
     .map(([key, total]) => ({ key, total }))
     .sort((a, b) => b.total - a.total);
 
-  return { received, expected, missingRuleCount, byMethod, balance: expected - received };
+  return {
+    received,
+    expected,
+    missingRuleCount,
+    byMethod,
+    balance: expected - received,
+    subscriptionChargesIls: netSubscriptionCharges,
+  };
 }
 
 export function mergedHistorySections(

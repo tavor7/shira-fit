@@ -215,4 +215,104 @@ describe("computeBillingSummary", () => {
     );
     expect(summary.expected).toBe(60);
   });
+
+  it("does not charge a session covered by an active subscription", () => {
+    const regs = [
+      makeRow({ registration_id: "reg-covered", reg_status: "active", attended: true, max_participants: 4 }),
+    ];
+    const summary = computeBillingSummary(
+      regs,
+      [],
+      globalTiers,
+      [],
+      [],
+      {},
+      {},
+      {},
+      () => false,
+      undefined,
+      undefined,
+      new Set(["reg-covered"])
+    );
+    expect(summary.expected).toBe(0);
+    expect(summary.missingRuleCount).toBe(0);
+  });
+
+  it("adds net subscription charges for the period to expected", () => {
+    const summary = computeBillingSummary(
+      [],
+      [],
+      [],
+      [],
+      [],
+      {},
+      {},
+      {},
+      () => false,
+      undefined,
+      undefined,
+      undefined,
+      360
+    );
+    expect(summary.expected).toBe(360);
+    expect(summary.subscriptionChargesIls).toBe(360);
+    expect(summary.balance).toBe(360);
+  });
+
+  it("nets a reversed subscription charge (e.g. cancellation) to zero expected", () => {
+    const summary = computeBillingSummary(
+      [],
+      [],
+      [],
+      [],
+      [],
+      {},
+      {},
+      {},
+      () => false,
+      undefined,
+      undefined,
+      undefined,
+      0 // +360 recurring, -360 reversal already netted by the caller
+    );
+    expect(summary.expected).toBe(0);
+  });
+
+  it("excludes a reversed account payment from received", () => {
+    const regs = [makeRow({ reg_status: "active", attended: true, max_participants: 4 })];
+    const payments = [
+      makePayment({ amount_ils: 100, payment_method: "cash", reversed_at: "2026-07-06T00:00:00Z" }),
+    ];
+    const summary = computeBillingSummary(regs, payments, globalTiers, [], [], {}, {}, {}, () => false);
+    expect(summary.received).toBe(0);
+    expect(summary.byMethod).toEqual([]);
+    expect(summary.balance).toBe(100);
+  });
+
+  it("a covered session plus its subscription charge produces no double-counting", () => {
+    const regs = [
+      makeRow({ registration_id: "reg-covered", reg_status: "active", attended: true, max_participants: 4 }),
+    ];
+    const payments = [makePayment({ amount_ils: 360, payment_method: "cash" })];
+    const summary = computeBillingSummary(
+      regs,
+      payments,
+      globalTiers,
+      [],
+      [],
+      {},
+      {},
+      {},
+      () => false,
+      undefined,
+      undefined,
+      new Set(["reg-covered"]),
+      360
+    );
+    // Session (worth 100 by tier) owes nothing — the subscription charge (360) is the
+    // only debt line — so expected is exactly the subscription charge, not 460.
+    expect(summary.expected).toBe(360);
+    expect(summary.received).toBe(360);
+    expect(summary.balance).toBe(0);
+  });
 });

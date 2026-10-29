@@ -135,6 +135,8 @@ export default function ParticipantHistoryScreen({
   const [hasSearched, setHasSearched] = useState(false);
   const [rows, setRows] = useState<ParticipantHistoryRow[]>([]);
   const [accountPayments, setAccountPayments] = useState<AthleteAccountPayment[]>([]);
+  const [coveredRegistrationIds, setCoveredRegistrationIds] = useState<Set<string>>(new Set());
+  const [subscriptionChargesIls, setSubscriptionChargesIls] = useState(0);
   const [globalTiers, setGlobalTiers] = useState<PricingRateTierRow[]>([]);
   const [athleteTiers, setAthleteTiers] = useState<PricingRateTierRow[]>([]);
   const [globalKickboxTiers, setGlobalKickboxTiers] = useState<PricingRateTierRow[]>([]);
@@ -563,7 +565,9 @@ export default function ParticipantHistoryScreen({
       sessionRosterPriceByKey,
       isManualHistoryRow,
       familyContext ? athleteTiersByMember : undefined,
-      familyContext ? memberKeyForRow : undefined
+      familyContext ? memberKeyForRow : undefined,
+      coveredRegistrationIds,
+      subscriptionChargesIls
     );
   }, [
     hasSearched,
@@ -579,6 +583,8 @@ export default function ParticipantHistoryScreen({
     sessionKickboxById,
     sessionRosterPriceByKey,
     payeeIsManual,
+    coveredRegistrationIds,
+    subscriptionChargesIls,
   ]);
 
   const billingReceivedDisplay = useCountUp(billingSummary?.received ?? 0);
@@ -765,6 +771,33 @@ export default function ParticipantHistoryScreen({
         .order("paid_at", { ascending: false });
     }
 
+    // Net subscription charges (recurring/proration minus reversals) whose billing period
+    // starts inside this report's range — same attribution rule as the backend's
+    // _period_merged_athlete_finance / manager_weekly_stats_core, so this report and the
+    // Dashboard never disagree about which period a charge belongs to.
+    let subChargesPromise;
+    if (!showFinance) {
+      subChargesPromise = Promise.resolve({ data: [] as { amount_ils: number | string }[], error: null });
+    } else if (familyId && familyMembers.length > 0) {
+      const orParts = familyMembers.map(
+        (m) => `and(payee_id.eq.${m.id},payee_is_manual.eq.${m.kind === "manual"})`
+      );
+      subChargesPromise = supabase
+        .from("subscription_charges")
+        .select("amount_ils, subscription_billing_periods!inner(period_start)")
+        .gte("subscription_billing_periods.period_start", s)
+        .lte("subscription_billing_periods.period_start", e)
+        .or(orParts.join(","));
+    } else {
+      subChargesPromise = supabase
+        .from("subscription_charges")
+        .select("amount_ils, subscription_billing_periods!inner(period_start)")
+        .gte("subscription_billing_periods.period_start", s)
+        .lte("subscription_billing_periods.period_start", e)
+        .eq("payee_id", athleteId)
+        .eq("payee_is_manual", payeeIsManual);
+    }
+
     const ovPromise =
       familyId && familyMembers.length > 0
         ? Promise.all(
@@ -792,11 +825,12 @@ export default function ParticipantHistoryScreen({
               .select("max_participants, price_ils, effective_from, effective_to")
               .eq("user_id", athleteId);
 
-    const [histRes, priceRes, acctRes, ovRes] = await Promise.all([
+    const [histRes, priceRes, acctRes, ovRes, subChargesRes] = await Promise.all([
       histPromise,
       pricePromise,
       acctPromise,
       ovPromise,
+      subChargesPromise,
     ]);
 
     // A newer load() call started while these were in flight — drop this stale response
@@ -808,6 +842,8 @@ export default function ParticipantHistoryScreen({
         setLoading(false);
         setRows([]);
         setAccountPayments([]);
+        setCoveredRegistrationIds(new Set());
+        setSubscriptionChargesIls(0);
         setReportReady(false);
         setHasSearched(true);
       }
@@ -819,6 +855,8 @@ export default function ParticipantHistoryScreen({
         setLoading(false);
         setRows([]);
         setAccountPayments([]);
+        setCoveredRegistrationIds(new Set());
+        setSubscriptionChargesIls(0);
         setReportReady(false);
         setHasSearched(true);
       }
@@ -830,6 +868,8 @@ export default function ParticipantHistoryScreen({
         setLoading(false);
         setRows([]);
         setAccountPayments([]);
+        setCoveredRegistrationIds(new Set());
+        setSubscriptionChargesIls(0);
         setReportReady(false);
         setHasSearched(true);
       }
@@ -846,6 +886,8 @@ export default function ParticipantHistoryScreen({
             setLoading(false);
             setRows([]);
             setAccountPayments([]);
+            setCoveredRegistrationIds(new Set());
+            setSubscriptionChargesIls(0);
             setReportReady(false);
             setHasSearched(true);
           }
@@ -875,6 +917,8 @@ export default function ParticipantHistoryScreen({
           setLoading(false);
           setRows([]);
           setAccountPayments([]);
+          setCoveredRegistrationIds(new Set());
+          setSubscriptionChargesIls(0);
           setReportReady(false);
           setHasSearched(true);
         }
@@ -898,6 +942,44 @@ export default function ParticipantHistoryScreen({
 
     const next = (histRes.data as ParticipantHistoryRow[]) ?? [];
     setRows(next);
+
+    if (!showFinance) {
+      setCoveredRegistrationIds(new Set());
+    } else {
+      const appRegIds = next.filter((r) => !isManualHistoryRow(r)).map((r) => r.registration_id);
+      const manualIds = next.filter((r) => isManualHistoryRow(r)).map((r) => r.registration_id);
+      const [appCovRes, manualCovRes] = await Promise.all([
+        appRegIds.length > 0
+          ? supabase
+              .from("subscription_registration_coverage")
+              .select("registration_id")
+              .eq("covered", true)
+              .in("registration_id", appRegIds)
+          : Promise.resolve({ data: [] as { registration_id: string | null }[], error: null }),
+        manualIds.length > 0
+          ? supabase
+              .from("subscription_registration_coverage")
+              .select("manual_participant_id")
+              .eq("covered", true)
+              .in("manual_participant_id", manualIds)
+          : Promise.resolve({ data: [] as { manual_participant_id: string | null }[], error: null }),
+      ]);
+      const covered = new Set<string>();
+      for (const row of appCovRes.data ?? []) {
+        if (row.registration_id) covered.add(row.registration_id);
+      }
+      for (const row of manualCovRes.data ?? []) {
+        if (row.manual_participant_id) covered.add(row.manual_participant_id);
+      }
+      setCoveredRegistrationIds(covered);
+    }
+
+    const subChargeRows =
+      (subChargesRes.data as { amount_ils: number | string }[] | null) ?? [];
+    setSubscriptionChargesIls(
+      subChargeRows.reduce((sum, r) => sum + (parseMoney(r.amount_ils) ?? 0), 0)
+    );
+
     setHiddenKeys(
       isSuperUser
         ? await fetchHiddenRegistrationKeys([...new Set(next.map((r) => r.session_id))])
@@ -1188,6 +1270,8 @@ export default function ParticipantHistoryScreen({
                     setAthleteTiersByMember({});
                     setRows([]);
                     setAccountPayments([]);
+                    setCoveredRegistrationIds(new Set());
+                    setSubscriptionChargesIls(0);
                     setReportReady(false);
                     setHasSearched(false);
                   }}

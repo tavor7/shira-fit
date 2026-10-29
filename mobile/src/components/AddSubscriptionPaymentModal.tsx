@@ -19,6 +19,8 @@ type Props = {
   payeeLabel?: string;
   /** Pre-fills the amount field (the subscription's monthly price) -- the manager can change it. */
   defaultAmountIls: number;
+  /** Lifetime outstanding (charged minus paid) for this subscription, shown as context only -- never allocated to a specific period. */
+  outstandingIls?: number;
   onSaved: () => void | Promise<void>;
 };
 
@@ -34,6 +36,7 @@ export function AddSubscriptionPaymentModal({
   subscriptionId,
   payeeLabel,
   defaultAmountIls,
+  outstandingIls,
   onSaved,
 }: Props) {
   const { t, isRTL, language } = useI18n();
@@ -114,6 +117,11 @@ export function AddSubscriptionPaymentModal({
           {payeeLabel?.trim() ? (
             <Text style={[styles.subtitle, isRTL && styles.rtlText]} numberOfLines={2}>
               {payeeLabel.trim()}
+            </Text>
+          ) : null}
+          {outstandingIls != null ? (
+            <Text style={[styles.subtitle, isRTL && styles.rtlText]}>
+              {t("subscriptions.payment.outstandingHint").replace("{amount}", displayMoney(outstandingIls))}
             </Text>
           ) : null}
         </View>
