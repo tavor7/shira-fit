@@ -62,6 +62,7 @@ export function PaymentHistoryRow({
               {formatISODateWeekdayDayMonthYear(p.paid_at, language)}
             </Text>
             <Text style={[styles.sessionAmount, styles.ltrText, (isDiscount || isReversed) && styles.sessionAmountDiscount]}>
+              {isDiscount || isReversed ? "▽ " : "▼ "}
               {isDiscount ? "−" : ""}
               {amtTxt}
             </Text>
@@ -72,6 +73,7 @@ export function PaymentHistoryRow({
               {formatISODateWeekdayDayMonthYear(p.paid_at, language)}
             </Text>
             <Text style={[styles.sessionAmount, (isDiscount || isReversed) && styles.sessionAmountDiscount]}>
+              {isDiscount || isReversed ? "▽ " : "▼ "}
               {isDiscount ? "−" : ""}
               {amtTxt}
             </Text>
