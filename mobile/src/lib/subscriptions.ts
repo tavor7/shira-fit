@@ -221,6 +221,8 @@ export type SubscriptionPaymentInput = {
   paymentMethod: string;
   payerName?: string | null;
   note?: string | null;
+  /** ISO date; omit/null to default to today (record_subscription_payment's own default). */
+  paidAt?: string | null;
   /** Client-supplied idempotency token; a retry with the same value never duplicates the payment. */
   clientRequestId: string;
 };
@@ -375,7 +377,7 @@ export async function rpcRecordSubscriptionPayment(
     p_payment_method: payment.paymentMethod,
     p_payer_name: payment.payerName ?? null,
     p_note: payment.note ?? null,
-    p_paid_at: null,
+    p_paid_at: payment.paidAt ?? null,
     p_client_request_id: payment.clientRequestId,
   });
   if (error) throw error;

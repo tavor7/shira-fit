@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from "react-native";
 import { theme } from "../theme";
 import { AppModal } from "./AppModal";
@@ -16,11 +16,19 @@ import {
   type SessionPaymentMethodKey,
 } from "../lib/paymentMethod";
 import { rowFlipFor } from "../lib/layoutDirection";
+import { generateClientRequestId, rpcRecordSubscriptionPayment } from "../lib/subscriptions";
 
 /**
  * "Discount" is recorded through the separate AddDiscountModal, not offered as a chip
  * here — this modal is for real payments only. An existing discount payment can still be
  * opened for editing (its chip is shown, but only in that case — see methodChoices below).
+ *
+ * When creating a new payment for a payee with an active subscription, an explicit "this is a
+ * subscription payment" toggle (off by default) is offered. Checking it routes the save through
+ * record_subscription_payment (the same manager-only RPC AddSubscriptionPaymentModal uses) rather
+ * than a direct table insert, so the payment is correctly tagged source_subscription_id and
+ * counts toward subscription-specific totals regardless of which screen it was recorded from.
+ * Unchecked (or no active subscription), behavior is unchanged: a plain account payment.
  */
 export type AccountPaymentMethodKey = SessionPaymentMethodKey | "discount";
 
@@ -70,9 +78,42 @@ export function AddAccountPaymentModal({
   const [paidAt, setPaidAt] = useState(() => toISODateLocal(new Date()));
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
+  // The athlete's active subscription, if any -- fetched fresh each time the modal opens for a
+  // NEW payment (never for an edit: an existing payment's subscription link is never changed
+  // here). Drives the optional "this is a subscription payment" toggle below. Null while loading
+  // or when there's no active subscription, in which case the toggle is never shown.
+  const [activeSubscriptionId, setActiveSubscriptionId] = useState<string | null>(null);
+  // Explicit opt-in, defaults to off every time the modal opens -- a general account payment is
+  // never auto-attached to a subscription just because one exists (see modal docstring below).
+  const [isSubscriptionPayment, setIsSubscriptionPayment] = useState(false);
+  const clientRequestIdRef = useRef(generateClientRequestId());
+
+  useEffect(() => {
+    if (!visible || isEdit) {
+      setActiveSubscriptionId(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .eq("payee_id", payeeId)
+        .eq("payee_is_manual", payeeIsManual)
+        .is("deleted_at", null)
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) setActiveSubscriptionId((data as { id: string } | null)?.id ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, isEdit, payeeId, payeeIsManual]);
 
   useEffect(() => {
     if (!visible) return;
+    setIsSubscriptionPayment(false);
+    clientRequestIdRef.current = generateClientRequestId();
     if (editPayment) {
       const rawAmt = editPayment.amount_ils;
       setAmount(rawAmt !== null && rawAmt !== undefined ? String(rawAmt) : "");
@@ -153,6 +194,43 @@ export function AddAccountPaymentModal({
     if (showPayerName) {
       payload.payer_name = payerName.trim() || null;
     }
+
+    // Explicit opt-in subscription payment: reuse the same manager-only, server-validated RPC
+    // Subscription Detail's AddSubscriptionPaymentModal uses, rather than a second accounting
+    // path -- the backend, not this toggle, is what actually enforces the subscription-id link.
+    if (!isEdit && isSubscriptionPayment && activeSubscriptionId) {
+      try {
+        const res = await rpcRecordSubscriptionPayment(supabase, activeSubscriptionId, {
+          amountIls: amt,
+          paymentMethod: method,
+          payerName: showPayerName ? payerName.trim() || null : null,
+          note: note.trim() || null,
+          paidAt: paidAt.trim(),
+          clientRequestId: clientRequestIdRef.current,
+        });
+        setBusy(false);
+        if (!res.ok) {
+          showError(
+            res.error === "invalid_subscription" || res.error === "subscription_not_found"
+              ? t("subscriptions.detail.loadError")
+              : t("subscriptions.genericError")
+          );
+          return;
+        }
+      } catch (e) {
+        setBusy(false);
+        showError(e instanceof Error ? e.message : t("subscriptions.genericError"));
+        return;
+      }
+      setSuccess(true);
+      await new Promise((resolve) => setTimeout(resolve, theme.motion.normal));
+      setSuccess(false);
+      onClose();
+      showToast({ message: t("billing.paymentSaved"), variant: "success" });
+      await onSaved();
+      return;
+    }
+
     const { error } = isEdit
       ? await supabase.from("athlete_account_payments").update(payload).eq("id", editPayment!.id)
       : await supabase.from("athlete_account_payments").insert({
@@ -265,6 +343,23 @@ export function AddAccountPaymentModal({
         {method === "discount" ? (
           <Text style={[styles.discountHint, isRTL && styles.rtlText]}>{t("billing.discountHint")}</Text>
         ) : null}
+        {!isEdit && activeSubscriptionId ? (
+          <Pressable
+            onPress={() => setIsSubscriptionPayment((v) => !v)}
+            disabled={busy}
+            style={({ pressed }) => [styles.subPayToggleRow, rowFlipFor(isRTL) && styles.subPayToggleRowRtl, pressed && { opacity: 0.9 }]}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: isSubscriptionPayment }}
+          >
+            <View style={[styles.subPayCheckbox, isSubscriptionPayment && styles.subPayCheckboxOn]}>
+              {isSubscriptionPayment ? <Text style={styles.subPayCheckboxMark}>✓</Text> : null}
+            </View>
+            <View style={styles.subPayToggleTextWrap}>
+              <Text style={[styles.subPayToggleLabel, isRTL && styles.rtlText]}>{t("billing.isSubscriptionPayment")}</Text>
+              <Text style={[styles.subPayToggleHint, isRTL && styles.rtlText]}>{t("billing.isSubscriptionPaymentHint")}</Text>
+            </View>
+          </Pressable>
+        ) : null}
         {showPayerName ? (
           <>
             <Text style={[styles.label, isRTL && styles.rtlText]}>{t("families.payerNameLabel")}</Text>
@@ -352,4 +447,31 @@ const styles = StyleSheet.create({
     color: theme.colors.warning,
     marginTop: -2,
   },
+  subPayToggleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginTop: 6,
+    padding: 10,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.infoBorder,
+    backgroundColor: theme.colors.infoBg,
+  },
+  subPayToggleRowRtl: { flexDirection: "row-reverse" },
+  subPayCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: theme.colors.info,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  subPayCheckboxOn: { backgroundColor: theme.colors.info },
+  subPayCheckboxMark: { fontSize: 13, fontWeight: "800", color: theme.colors.background },
+  subPayToggleTextWrap: { flex: 1, minWidth: 0 },
+  subPayToggleLabel: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
+  subPayToggleHint: { fontSize: 12, lineHeight: 16, color: theme.colors.textMuted, marginTop: 2 },
 });
