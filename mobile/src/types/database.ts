@@ -228,4 +228,6 @@ export type AthleteAccountPayment = {
   /** Set when this payment's financial effect was reversed (receipt cancelled with payment reversal). */
   reversed_at?: string | null;
   reversed_by?: string | null;
+  /** Set when this payment was recorded as a subscription payment (not an ordinary account payment). */
+  source_subscription_id?: string | null;
 };

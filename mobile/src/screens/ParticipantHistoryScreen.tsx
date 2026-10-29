@@ -756,7 +756,7 @@ export default function ParticipantHistoryScreen({
       );
       acctPromise = supabase
         .from("athlete_account_payments")
-        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by, reversed_at, reversed_by")
+        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by, reversed_at, reversed_by, source_subscription_id")
         .gte("paid_at", s)
         .lte("paid_at", e)
         .or(orParts.join(","))
@@ -764,7 +764,7 @@ export default function ParticipantHistoryScreen({
     } else {
       acctPromise = supabase
         .from("athlete_account_payments")
-        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by, reversed_at, reversed_by")
+        .select("id, payee_id, payee_is_manual, amount_ils, payment_method, note, payer_name, paid_at, created_at, created_by, reversed_at, reversed_by, source_subscription_id")
         .gte("paid_at", s)
         .lte("paid_at", e)
         .eq("payee_id", athleteId)
@@ -1489,6 +1489,7 @@ export default function ParticipantHistoryScreen({
             <FadeSlideIn delay={Math.min(index, theme.motion.maxStaggerIndex) * 30}>
             <SessionHistoryRow
               reg={item.reg}
+              isCovered={coveredRegistrationIds.has(item.reg.registration_id)}
               superUserHidden={isSuperUser && hiddenKeys.has(hiddenRegistrationKey(item.reg.session_id, item.reg.athlete_user_id))}
               canToggleHide={
                 isSuperUser &&
