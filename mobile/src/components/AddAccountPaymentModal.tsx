@@ -78,37 +78,86 @@ export function AddAccountPaymentModal({
   const [paidAt, setPaidAt] = useState(() => toISODateLocal(new Date()));
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
-  // The athlete's active subscription, if any -- fetched fresh each time the modal opens for a
-  // NEW payment (never for an edit: an existing payment's subscription link is never changed
-  // here). Drives the optional "this is a subscription payment" toggle below. Null while loading
-  // or when there's no active subscription, in which case the toggle is never shown.
+  // The subscription eligible to receive THIS payment (by payee and the selected paidAt date),
+  // if any -- re-resolved whenever the payee or date changes, never for an edit (an existing
+  // payment's subscription link is never changed here). Drives the optional "this is a
+  // subscription payment" toggle below. Null while loading or when nothing is eligible, in which
+  // case the toggle is never shown -- see eligibilityLoading for why "loading" and "none" are
+  // kept separate.
   const [activeSubscriptionId, setActiveSubscriptionId] = useState<string | null>(null);
+  // True until the eligibility query for the CURRENT payee/date has resolved. The toggle is never
+  // rendered while this is true, so a stale/incorrect eligibility state from a prior payee or
+  // date can never be acted on mid-flight.
+  const [eligibilityLoading, setEligibilityLoading] = useState(true);
   // Explicit opt-in, defaults to off every time the modal opens -- a general account payment is
   // never auto-attached to a subscription just because one exists (see modal docstring below).
   const [isSubscriptionPayment, setIsSubscriptionPayment] = useState(false);
   const clientRequestIdRef = useRef(generateClientRequestId());
 
+  // Subscription-payment eligibility for one payee as of one date, mirroring
+  // subscription_version_display_status's own lifecycle rule (same migration as
+  // subscription_effective_context, 20260924100000): the version whose
+  // [effective_from, effective_to) window contains asOfDate must exist, and must not already be
+  // stopped or past its plan_end_date as of that date. A frozen version is still eligible -- a
+  // freeze pauses billing/coverage, it does not end the relationship. Both display_status and
+  // effective_context are internal helpers with no direct client grant (deliberately, to avoid an
+  // information-disclosure surface -- see their migration comments), so this replicates the same
+  // published rule against the subscriptions/subscription_versions tables directly, which RLS
+  // already scopes to managers only -- the same role record_subscription_payment itself requires.
   useEffect(() => {
     if (!visible || isEdit) {
       setActiveSubscriptionId(null);
+      setEligibilityLoading(false);
+      return;
+    }
+    const dateToCheck = paidAt.trim();
+    if (!dateToCheck) {
+      setActiveSubscriptionId(null);
+      setEligibilityLoading(false);
       return;
     }
     let cancelled = false;
+    setEligibilityLoading(true);
     void (async () => {
       const { data } = await supabase
         .from("subscriptions")
-        .select("id")
+        .select(
+          "id, subscription_versions(id, effective_from, effective_to, stopped_effective_date, plan_end_date)"
+        )
         .eq("payee_id", payeeId)
         .eq("payee_is_manual", payeeIsManual)
-        .is("deleted_at", null)
-        .limit(1)
-        .maybeSingle();
-      if (!cancelled) setActiveSubscriptionId((data as { id: string } | null)?.id ?? null);
+        .is("deleted_at", null);
+      type VersionRow = {
+        id: string;
+        effective_from: string;
+        effective_to: string | null;
+        stopped_effective_date: string | null;
+        plan_end_date: string | null;
+      };
+      type SubRow = { id: string; subscription_versions: VersionRow[] | null };
+      let eligibleId: string | null = null;
+      for (const sub of (data as SubRow[] | null) ?? []) {
+        const versions = (sub.subscription_versions ?? [])
+          .filter((v) => v.effective_from <= dateToCheck && (v.effective_to === null || v.effective_to > dateToCheck))
+          .sort((a, b) => b.effective_from.localeCompare(a.effective_from));
+        const v = versions[0];
+        if (!v) continue;
+        if (v.stopped_effective_date !== null && dateToCheck >= v.stopped_effective_date) continue;
+        if (v.plan_end_date !== null && dateToCheck > v.plan_end_date) continue;
+        eligibleId = sub.id;
+        break;
+      }
+      if (cancelled) return;
+      setActiveSubscriptionId(eligibleId);
+      setEligibilityLoading(false);
+      // The athlete/date changed and the previously-eligible subscription no longer is (or never
+      // was) -- never leave a stale opt-in checked against an invalid selection.
+      if (!eligibleId) setIsSubscriptionPayment(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [visible, isEdit, payeeId, payeeIsManual]);
+  }, [visible, isEdit, payeeId, payeeIsManual, paidAt]);
 
   useEffect(() => {
     if (!visible) return;
@@ -213,7 +262,9 @@ export function AddAccountPaymentModal({
           showError(
             res.error === "invalid_subscription" || res.error === "subscription_not_found"
               ? t("subscriptions.detail.loadError")
-              : t("subscriptions.genericError")
+              : res.error === "subscription_not_eligible_for_date"
+                ? t("billing.subscriptionNotEligibleForDate")
+                : t("subscriptions.genericError")
           );
           return;
         }
@@ -343,7 +394,7 @@ export function AddAccountPaymentModal({
         {method === "discount" ? (
           <Text style={[styles.discountHint, isRTL && styles.rtlText]}>{t("billing.discountHint")}</Text>
         ) : null}
-        {!isEdit && activeSubscriptionId ? (
+        {!isEdit && !eligibilityLoading && activeSubscriptionId ? (
           <Pressable
             onPress={() => setIsSubscriptionPayment((v) => !v)}
             disabled={busy}
