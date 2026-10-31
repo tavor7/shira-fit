@@ -1266,7 +1266,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "managerSession.rosterSlotRateDue": "Amount due: {amount}",
     "managerSession.rosterSlotRateNoPrice": "No rate set",
     "managerSession.rosterSlotRateCustomBadge": "custom",
-    "managerSession.rosterSlotCoveredBySubscription": "Covered by subscription",
+    "managerSession.rosterSlotCoveredBySubscription": "Subscription covered",
     "managerSession.rosterSlotRegularPrice": "Regular price: {amount}",
     "managerSession.customSlotPriceHint": "Applies to every trainee on this workout (attendance, late cancel, no-show).",
     "managerSession.customSlotPriceActive": "Custom rate for this session: {amount}",
