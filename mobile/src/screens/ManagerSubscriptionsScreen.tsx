@@ -23,6 +23,7 @@ import {
 import { rowFlipFor } from "../lib/layoutDirection";
 import { displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { usePerfScreen } from "../hooks/usePerfScreen";
 
 type Tab = "active" | "history";
 
@@ -54,6 +55,7 @@ export function ManagerSubscriptionsScreen() {
   const [active, setActive] = useState<SubscriptionListRow[]>([]);
   const [history, setHistory] = useState<SubscriptionHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
+  usePerfScreen("manager.subscriptions", !loading);
   const [error, setError] = useState<string | null>(null);
   const [awaitingTerms, setAwaitingTerms] = useState<Set<string>>(new Set());
 

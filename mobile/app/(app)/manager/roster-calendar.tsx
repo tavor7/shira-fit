@@ -25,6 +25,7 @@ import { fetchSessionIdsWithHiddenAthletes } from "../../../src/lib/superUserHid
 import { rowFlipFor } from "../../../src/lib/layoutDirection";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
+import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
 
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
@@ -45,6 +46,7 @@ export default function ManagerRosterCalendarScreen() {
   const [rosterBySession, setRosterBySession] = useState<Record<string, RosterEntry[]>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  usePerfScreen("manager.rosterCalendar", !loading);
   const [namesLoading, setNamesLoading] = useState(false);
   const [weekStartIso, setWeekStartIso] = useState<string>("");
   const [weekEndIso, setWeekEndIso] = useState<string>("");

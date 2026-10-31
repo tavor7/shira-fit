@@ -19,6 +19,7 @@ const pwDir = process.env.PLAYWRIGHT_MODULE_DIR;
 const { chromium, webkit } = require(pwDir ? path.join(pwDir, "playwright") : "playwright");
 
 const BASE = process.env.PERF_BASE ?? "http://127.0.0.1:8199";
+const PROXY_ORIGIN = process.env.PERF_PROXY_ORIGIN ?? "https://127.0.0.1:57499";
 const DIRECT_API = process.env.PERF_DIRECT_API ?? "http://127.0.0.1:57421";
 const ANON_KEY = process.env.PERF_ANON_KEY ?? "";
 const ENGINE = process.env.PERF_ENGINE ?? "chromium";
@@ -116,7 +117,7 @@ function bytesTracker(page) {
   let count = 0;
   let maxUrl = 0;
   page.on("requestfinished", async (req) => {
-    if (!req.url().startsWith("https://127.0.0.1:57499")) return;
+    if (!req.url().startsWith(PROXY_ORIGIN)) return;
     maxUrl = Math.max(maxUrl, req.url().length);
     try {
       const sz = await req.sizes();

@@ -33,6 +33,7 @@ import { rowFlipFor } from "../lib/layoutDirection";
 import { managerTermsStatusText, rpcGetSubscriptionTermsStatus, type ManagerTermsStatusItem } from "../lib/subscriptionTerms";
 import { displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
+import { usePerfScreen } from "../hooks/usePerfScreen";
 
 const ACTIVE_STATUSES = new Set(["active", "frozen", "scheduled"]);
 
@@ -46,6 +47,7 @@ export function ManagerSubscriptionDetailScreen() {
   const [detail, setDetail] = useState<SubscriptionDetail | null>(null);
   const [payeeName, setPayeeName] = useState("");
   const [loading, setLoading] = useState(true);
+  usePerfScreen("manager.subscriptionDetail", !loading);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [terms, setTerms] = useState<ManagerTermsStatusItem | null>(null);

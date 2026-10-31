@@ -22,7 +22,7 @@ async function open(base, email) {
   await ctx.route(/\.supabase\.co\//, (r) => r.abort());
   const page = await ctx.newPage();
   const net = { inFlight: 0, last: Date.now() };
-  const mine = (r) => new URL(r.url()).port === "57499";
+  const mine = (r) => new URL(r.url()).port === (process.env.PERF_PROXY_PORT ?? "57499");
   page.on("request", (r) => { if (mine(r)) { net.inFlight++; net.last = Date.now(); } });
   const done = (r) => { if (mine(r)) { net.inFlight = Math.max(0, net.inFlight - 1); net.last = Date.now(); } };
   page.on("requestfinished", done);
