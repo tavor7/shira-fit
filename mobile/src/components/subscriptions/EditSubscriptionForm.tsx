@@ -16,6 +16,7 @@ import { AllowancesEditor } from "./AllowancesEditor";
 import { SubscriptionImpactConfirmModal } from "./SubscriptionImpactConfirmModal";
 import {
   emptyWeeklyLimits,
+  rpcCorrectSubscriptionStartDate,
   rpcEditSubscriptionVersion,
   rpcGetSubscriptionDetail,
   type SubscriptionImpact,
@@ -42,6 +43,12 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [subscriptionStartDate, setSubscriptionStartDate] = useState("");
+  /** Only a subscription that has never been edited and has zero billing/charge/payment/freeze/
+   * coverage history is eligible for a start-date correction (correct_subscription_start_date()
+   * re-validates this server-side regardless -- this just decides whether to show the field). */
+  const [canCorrectStartDate, setCanCorrectStartDate] = useState(false);
+  const [startDateDraft, setStartDateDraft] = useState("");
+  const [startDateSubmitting, setStartDateSubmitting] = useState(false);
 
   const [mode, setMode] = useState<Mode>("date");
   const [effectiveDate, setEffectiveDate] = useState(toISODateLocal(new Date()));
@@ -77,6 +84,10 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
         const versions = [...res.versions].sort((a, b) => a.version_no - b.version_no);
         const current = versions.find((v) => v.effective_to === null) ?? versions[versions.length - 1];
         setSubscriptionStartDate(versions[0]?.plan_start_date ?? current?.plan_start_date ?? "");
+        setStartDateDraft(versions[0]?.plan_start_date ?? current?.plan_start_date ?? "");
+        setCanCorrectStartDate(
+          versions.length === 1 && versions[0]?.version_no === 1 && versions[0]?.superseded_by == null
+        );
         setPrice(String(current?.monthly_price_ils ?? 0));
         setClearEndDate(current?.plan_end_date == null);
         setEndDate(current?.plan_end_date ?? "");
@@ -134,6 +145,29 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
     );
   }
 
+  async function runCorrectStartDate() {
+    if (startDateSubmitting || !startDateDraft || startDateDraft === subscriptionStartDate) return;
+    setStartDateSubmitting(true);
+    try {
+      const res = await rpcCorrectSubscriptionStartDate(supabase, subscriptionId, startDateDraft);
+      if (!res.ok) {
+        const detail =
+          res.error === "has_history"
+            ? t("subscriptions.edit.startDateHasHistory")
+            : res.error;
+        showToast({ message: t("subscriptions.genericError"), detail, variant: "error" });
+        return;
+      }
+      setSubscriptionStartDate(res.plan_start_date);
+      setStartDateDraft(res.plan_start_date);
+      showToast({ message: t("subscriptions.edit.startDateSuccess"), variant: "success" });
+    } catch (e) {
+      showToast({ message: t("subscriptions.genericError"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+    } finally {
+      setStartDateSubmitting(false);
+    }
+  }
+
   async function runEdit(confirmed: boolean) {
     if (submitting) return;
     setSubmitting(true);
@@ -188,6 +222,30 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
     <>
       <ScrollView contentContainerStyle={[sf.content, screenContent]} style={sf.screen} keyboardShouldPersistTaps="handled">
         <View style={sf.sections}>
+          {canCorrectStartDate ? (
+            <View style={sf.card}>
+              <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.edit.startDateLabel")}</Text>
+              <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl]}>{t("subscriptions.edit.startDateHint")}</Text>
+              <View style={styles.spaced}>
+                <DatePickerField appearance="embedded" label={t("subscriptions.edit.startDateLabel")} value={startDateDraft} onChange={setStartDateDraft} />
+              </View>
+              <Pressable
+                onPress={() => void runCorrectStartDate()}
+                disabled={startDateSubmitting || !startDateDraft || startDateDraft === subscriptionStartDate}
+                style={({ pressed }) => [
+                  styles.secondaryAction,
+                  (startDateSubmitting || !startDateDraft || startDateDraft === subscriptionStartDate) && { opacity: 0.5 },
+                  pressed && { opacity: 0.85 },
+                ]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.secondaryActionTxt}>
+                  {startDateSubmitting ? t("common.loading") : t("subscriptions.edit.startDateSave")}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <View style={sf.card}>
             <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.edit.modeLabel")}</Text>
             <View style={[styles.modeRow, rowFlipFor(isRTL) && styles.modeRowRtl]}>

@@ -446,6 +446,25 @@ export async function rpcEditSubscriptionVersion(
   return data as RpcOutcome<{ action: "preview" | "applied" | "already_applied"; impact?: SubscriptionImpact; version_id?: string }>;
 }
 
+/**
+ * Manager-only. Corrects plan_start_date for a subscription that has never been edited and has
+ * zero billing/charge/payment/freeze/coverage history (see correct_subscription_start_date() —
+ * returns ok:false/error:"has_history" for anything else; this function never recomputes
+ * financial or coverage history, it only covers the one case where there is none to recompute).
+ */
+export async function rpcCorrectSubscriptionStartDate(
+  supabase: SupabaseClient,
+  subscriptionId: string,
+  newStartDate: string
+): Promise<RpcOutcome<{ plan_start_date: string; anchor_day: number }>> {
+  const { data, error } = await supabase.rpc("correct_subscription_start_date", {
+    p_subscription_id: subscriptionId,
+    p_new_start_date: newStartDate,
+  });
+  if (error) throw error;
+  return data as RpcOutcome<{ plan_start_date: string; anchor_day: number }>;
+}
+
 export type FreezeSubscriptionOutcome = {
   action: "preview" | "applied" | "already_applied";
   impact?: SubscriptionImpact;

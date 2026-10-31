@@ -318,6 +318,12 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     invalid_price: V,
     no_current_version: [T, "Every subscription keeps exactly one open version (stop_subscription only sets stopped_effective_date; prod has 0 subscriptions without one). Occurrence = invariant violation."],
   },
+  correct_subscription_start_date: {
+    invalid_start_date: V,
+    invalid_date_range: V,
+    no_current_version: [T, "Every subscription keeps exactly one open version (stop_subscription only sets stopped_effective_date; prod has 0 subscriptions without one). Occurrence = invariant violation."],
+    has_history: [B, "The subscription has been edited (version_no > 1 / superseded_by set) or has any billing period, charge, payment, freeze or coverage row -- the one scenario this RPC deliberately refuses, since correcting plan_start_date for those would require recomputing financial/coverage history it does not attempt. Expected rejection; the UI should explain why the start-date field isn't offered."],
+  },
   allocate_document_pdf_version: {
     not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
   },
