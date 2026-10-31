@@ -2,8 +2,8 @@
 // roster calendar, participant history, athlete My Sessions / subscription), plus the cost of navigation itself.
 // Same isolated environment, safety checks and instrumentation as run-scenarios.mjs (docs/performance/README.md).
 //
-// Navigation is in-app (history.pushState + popstate, which expo-router handles like a link), never a page reload, and
-// read-only: no scenario writes.
+// Navigation is by real taps (menu, tabs, rows, browser Back), never a page reload, and read-only: no scenario writes.
+// (An earlier draft used history.pushState + popstate; that remounted the app layout, so it measured the wrong thing.)
 //
 // Usage: PLAYWRIGHT_MODULE_DIR=… PERF_BUNDLE_DIR=… PERF_OUT=… PERF_BASE=http://127.0.0.1:8299 \
 //   PERF_PROXY_ORIGIN=https://127.0.0.1:57599 PERF_ENGINE=chromium PERF_RUNS=3 node run-screens.mjs
@@ -11,7 +11,6 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 
 const require = createRequire(import.meta.url);
 const pwDir = process.env.PLAYWRIGHT_MODULE_DIR;
@@ -23,7 +22,6 @@ const ENGINE = process.env.PERF_ENGINE ?? "chromium";
 const RUNS = Number(process.env.PERF_RUNS ?? 3);
 const OUT = process.env.PERF_OUT ?? "perf-results";
 const PASSWORD = process.env.PERF_PASSWORD ?? "PerfPass123!";
-const DB_CONTAINER = process.env.PERF_DB_CONTAINER ?? "supabase_db_shirafit-perf";
 const LABEL = process.env.PERF_LABEL ?? "run";
 
 for (const u of [BASE, PROXY_ORIGIN]) {
@@ -38,45 +36,48 @@ for (const u of [BASE, PROXY_ORIGIN]) {
   }
 }
 
-const psql = (sql) =>
-  execFileSync("docker", ["exec", "-i", DB_CONTAINER, "psql", "-U", "postgres", "-At", "-c", sql], { encoding: "utf8" }).trim();
 
-const subId = psql(
-  "select s.id from public.subscriptions s join auth.users u on u.id = s.payee_id where u.email = 'perf-ath-002@perf.test' limit 1;"
-);
-const athleteId = psql("select id from auth.users where email = 'perf-ath-002@perf.test';");
-
+// Each step is a real user action (menu tap, tab tap, row tap, Back), measured until the target screen shows content
+// and the network is quiet. Menu taps use router.push like the app does, so the stack grows exactly as it does for users.
+const menu = (name) => async (page) => {
+  await page.locator('[aria-label="Open navigation menu"]').locator("visible=true").first().click();
+  await page.getByRole("button", { name, exact: true }).locator("visible=true").first().click();
+};
+const tapText = (text) => async (page) => {
+  await page.getByText(text, { exact: true }).locator("visible=true").first().click();
+};
+const back = () => async (page) => page.goBack();
 const FLOWS = {
   manager: {
     email: "perf-mgr-2@perf.test",
     home: ["/manager/sessions", "manager.home"],
     steps: [
-      ["rosterCalendar", "/manager/roster-calendar", "manager.rosterCalendar"],
-      ["accountPayments", "/manager/account-payments", "manager.accountPayments"],
-      ["subscriptions", "/manager/subscriptions", "manager.subscriptions"],
-      ["subscriptionDetail", `/manager/subscriptions/${subId}`, "manager.subscriptionDetail"],
-      ["subscriptionsAgain", "/manager/subscriptions", "manager.subscriptions"],
-      ["participantHistory", `/manager/participant-history?presetUserId=${athleteId}`, "participantHistory"],
-      ["dashboard", "/manager/dashboard", "manager.dashboard"],
-      ["homeAgain", "/manager/sessions", "manager.home"],
+      ["menuRosterCalendar", menu("Roster calendar"), "manager.rosterCalendar"],
+      ["backToHome1", back(), "manager.home"],
+      ["menuMoney", menu("Money"), "manager.accountPayments"],
+      ["tabSubscriptions", tapText("Subscriptions"), "manager.subscriptions"],
+      ["openSubscription", tapText("Perf Athlete 002"), "manager.subscriptionDetail"],
+      ["backToSubscriptions", back(), "manager.subscriptions"],
+      ["menuOverview", menu("Overview"), "manager.dashboard"],
+      ["menuSessions", menu("Sessions"), "manager.home"],
     ],
   },
   athlete: {
     email: "perf-ath-002@perf.test",
     home: ["/athlete/sessions", "athlete.home"],
     steps: [
-      ["mySessions", "/athlete/my-sessions", "athlete.mySessions"],
-      ["homeAgain", "/athlete/sessions", "athlete.home"],
-      ["mySessionsAgain", "/athlete/my-sessions", "athlete.mySessions"],
-      ["homeAgain2", "/athlete/sessions", "athlete.home"],
+      ["menuMySessions", menu("My sessions"), "athlete.mySessions"],
+      ["backToHome", back(), "athlete.home"],
+      ["menuMySessions2", menu("My sessions"), "athlete.mySessions"],
+      ["menuSessions", menu("Sessions"), "athlete.home"],
     ],
   },
   coach: {
     email: "perf-coach-1@perf.test",
     home: ["/coach/sessions", "coach.home"],
     steps: [
-      ["participantHistory", `/coach/participant-history?presetUserId=${athleteId}`, "participantHistory"],
-      ["homeAgain", "/coach/sessions", "coach.home"],
+      ["menuAthleteActivity", menu("Athlete activity"), "participantHistory"],
+      ["backToHome", back(), "coach.home"],
     ],
   },
 };
@@ -154,13 +155,6 @@ async function login(role) {
   await ctx.close();
 }
 
-async function navigate(page, url) {
-  await page.evaluate((u) => {
-    window.history.pushState({}, "", u);
-    window.dispatchEvent(new PopStateEvent("popstate", { state: {} }));
-  }, url);
-}
-
 async function runRole(role, run) {
   const flow = FLOWS[role];
   const ctx = await newContext(role);
@@ -170,10 +164,10 @@ async function runRole(role, run) {
   await page.goto(`${BASE}${flow.home[0]}`);
   await waitVisit(page, flow.home[1], 0, { quietMs: 1500 });
   bytes.take();
-  for (const [name, url, screen] of flow.steps) {
+  for (const [name, act, screen] of flow.steps) {
     const before = maxVisitId(await snap(page));
     const t0 = await page.evaluate(() => performance.now());
-    await navigate(page, url);
+    await act(page);
     const vid = await waitVisit(page, screen, before);
     const sn = await snap(page);
     const v = sn.visits.find((x) => x.id === vid);
