@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import { supabase } from "./supabase";
+import { shareConcurrent } from "./shareConcurrent";
 import type { RequiredConsent } from "./documents";
 
 export async function fetchCurrentElectronicReceiptsConsentVersion(): Promise<number> {
@@ -29,7 +30,10 @@ export async function syncPendingSignupLegalConsents(): Promise<number> {
   return Number(row.synced ?? 0);
 }
 
-export async function fetchRequiredConsents(): Promise<RequiredConsent[]> {
+/** Callers in the same JS task (the gates on mount / resume) share one request; see shareConcurrent. */
+export const fetchRequiredConsents = shareConcurrent(fetchRequiredConsentsOnce);
+
+async function fetchRequiredConsentsOnce(): Promise<RequiredConsent[]> {
   const { data, error } = await supabase.rpc("get_required_consents");
   if (error) throw error;
   const row = data as { ok?: boolean; required?: RequiredConsent[]; error?: string };
