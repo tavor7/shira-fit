@@ -20,6 +20,7 @@ const median = (xs) => {
   return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
 };
 const ok = (d, role) => d.results.filter((r) => !r.error && r.role === role);
+const kb = (bytes) => (typeof bytes === "number" ? Math.round(bytes / 1024) : null);
 
 const metrics = [
   ["Cold start: content since navigation start (ms)", (r) => r.steps.coldStart?.home?.contentAtSinceNavStart],
@@ -45,6 +46,11 @@ const metrics = [
   ["Realtime: requests in 5 s", (r) => r.steps.realtimeRegistration?.requestsIn5s],
   ["Realtime: skeleton (ms)", (r) => r.steps.realtimeRegistration?.skeletonMs],
   ["Resume: requests in 5 s", (r) => r.steps.resume?.requestsIn5s],
+  ["Cold start: response KB", (r) => kb(r.steps.coldStart?.network?.bytes)],
+  ["Open detail: response KB", (r) => kb(r.steps.openDetail?.network?.bytes)],
+  ["Back: response KB", (r) => kb(r.steps.backToHome?.network?.bytes)],
+  ["Menu → Sessions: requests in 5 s", (r) => r.steps.menuToHome?.home?.requestsInWindow],
+  ["Menu → Sessions: response KB", (r) => kb(r.steps.menuToHome?.network?.bytes)],
   ["Longest request URL: cold start (chars)", (r) => r.steps.coldStart?.network?.maxUrl],
   ["Longest request URL: back to home (chars)", (r) => r.steps.backToHome?.network?.maxUrl],
 ];
