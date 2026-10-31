@@ -27,6 +27,7 @@ import {
   SESSION_PAYMENT_METHOD_KEYS,
 } from "../lib/paymentMethod";
 import { fetchSessionBillingPriceIls, resolveRowBillingPriceIls } from "../lib/sessionSlotPrice";
+import { shouldWarnBeforeRecordingCoveredPayment } from "../lib/coveredPaymentWarning";
 import { RosterSlotRateChip, formatRosterIls, type SessionRateMeta } from "./RosterSlotRateChip";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueries";
@@ -710,16 +711,39 @@ export function ParticipantAttendanceList({
   }
 
   function openPaymentModal(row: Row, mode: "arrived" | "absent_penalty" = "arrived") {
-    setPayMode(mode);
-    setPayFor(row);
-    setPayPhase("method");
-    setPayChosenMethod(null);
     const existing =
       mode === "arrived" && row.attended === true
         ? row.amountPaid
         : mode === "absent_penalty" && row.attended === false && row.chargeNoShow
           ? row.amountPaid
           : null;
+    // Covered-session duplicate-collection guard: this row's session is already covered by the
+    // subscription for this date (the same authoritative decision the "Covered by subscription"
+    // line above is sourced from), so there should normally be nothing to collect. Only warn when
+    // about to record a FIRST payment (existing == null) -- correcting/viewing an already-recorded
+    // payment on a covered row isn't the accidental-double-collection scenario this guards against,
+    // and a manager who confirms through this can still record a legitimate supplemental charge
+    // (e.g. a drop-in add-on) exactly as before. This is a UX guard only: it changes no calculation,
+    // creates no charge, and never blocks the action outright.
+    if (shouldWarnBeforeRecordingCoveredPayment(isCoveredBySubscription(row), existing)) {
+      showConfirm({
+        title: t("attendance.coveredPaymentWarningTitle"),
+        message: t("attendance.coveredPaymentWarningMessage"),
+        cancelLabel: t("common.cancel"),
+        confirmLabel: t("attendance.coveredPaymentWarningConfirm"),
+        confirmVariant: "primary",
+        onConfirm: () => openPaymentModalConfirmed(row, mode, existing),
+      });
+      return;
+    }
+    openPaymentModalConfirmed(row, mode, existing);
+  }
+
+  function openPaymentModalConfirmed(row: Row, mode: "arrived" | "absent_penalty", existing: number | null) {
+    setPayMode(mode);
+    setPayFor(row);
+    setPayPhase("method");
+    setPayChosenMethod(null);
     setPayAmountDraft(existing != null ? formatBillingAmountDraft(existing) : "");
     setPayOpen(true);
   }
