@@ -1,0 +1,31 @@
+-- Client error-reporting allowlist: add the one reviewed-technical outcome introduced by
+-- correct_subscription_start_date (20261031162229) -- no_current_version, same invariant-violation
+-- meaning as the pre-existing edit_subscription_version / freeze_subscription / stop_subscription_*
+-- seed entries it sits beside (every subscription keeps exactly one open version). Client ingestion
+-- stays disabled (client_ingest_enabled is not touched) -- this only keeps the server-side allowlist
+-- exhaustive for when it is eventually turned on, matching mobile's registry.ts classification.
+-- Follows the exact seeding pattern established by 20261015100000 / 20261026094140 (same columns,
+-- same ON CONFLICT idempotency guard); has_history is classified "business" (expected rejection), not
+-- technical, so it needs no seed row here.
+
+insert into public.system_issue_rules
+  (priority, match_source, match_operation, match_error_class, match_error_code, action, set_subsystem, set_title,
+   severity_cap, authorizes_client, note)
+select 100, 'client', v.op, v.cls, v.code, 'classify', v.subsys, v.title, 'warning', true,
+       'Phase 3E.2 seed follow-up (20261031163000): reviewed technical failure approved for client reporting'
+from (values
+  ('rpc/correct_subscription_start_date', 'RpcOutcome', 'no_current_version', 'rpc', 'RPC technical outcome: correct_subscription_start_date (no_current_version)')
+) as v(op, cls, code, subsys, title)
+on conflict (match_operation, match_error_class, match_error_code) where authorizes_client do nothing;
+
+do $$
+begin
+  if not exists (
+    select 1 from public.system_issue_rules
+    where authorizes_client and enabled
+      and match_operation = 'rpc/correct_subscription_start_date'
+      and match_error_class = 'RpcOutcome' and match_error_code = 'no_current_version'
+  ) then
+    raise exception 'self-check: correct_subscription_start_date|no_current_version allowlist seed missing';
+  end if;
+end $$;

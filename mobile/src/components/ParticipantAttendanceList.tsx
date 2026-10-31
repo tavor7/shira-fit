@@ -27,6 +27,7 @@ import {
   SESSION_PAYMENT_METHOD_KEYS,
 } from "../lib/paymentMethod";
 import { fetchSessionBillingPriceIls, resolveRowBillingPriceIls } from "../lib/sessionSlotPrice";
+import { shouldWarnBeforeRecordingCoveredPayment } from "../lib/coveredPaymentWarning";
 import { RosterSlotRateChip, formatRosterIls, type SessionRateMeta } from "./RosterSlotRateChip";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueries";
@@ -219,6 +220,11 @@ export function ParticipantAttendanceList({
   /** A payment with an issued receipt is read-only for everyone, including managers (enforced by the database; mirrored here). */
   const [lockedKeys, setLockedKeys] = useState<Set<string>>(() => new Set());
   const isPaymentLocked = (item: Row) => lockedKeys.has(item.id);
+  /** Rows whose registration/manual participation was already decided `covered = true` by the
+   * subscription coverage engine (subscription_registration_coverage) for this session's date —
+   * fetched read-only via session_subscription_coverage(), never recomputed here. */
+  const [coveredKeys, setCoveredKeys] = useState<Set<string>>(() => new Set());
+  const isCoveredBySubscription = (item: Row) => coveredKeys.has(item.id);
   const writeErrorText = (msg: string) =>
     msg.includes("payment_locked_receipt_issued") ? t("attendance.paymentLockedReceipt") : msg;
   const [payFor, setPayFor] = useState<Row | null>(null);
@@ -389,7 +395,7 @@ export function ParticipantAttendanceList({
       }
       return res;
     };
-    const [{ data: s }, { data: rosterPriceRows }, regRes, manRes, lockRes] = await Promise.all([
+    const [{ data: s }, { data: rosterPriceRows }, regRes, manRes, lockRes, coverageRes] = await Promise.all([
       supabase
         .from("training_sessions")
         .select("max_participants, session_date, start_time, coach_id, is_kickbox, custom_slot_price_ils")
@@ -399,6 +405,7 @@ export function ParticipantAttendanceList({
       fetchSessionRegistrationsWithProfiles(sessionId),
       fetchManual(),
       supabase.rpc("session_payment_receipt_locks", { p_session_id: sessionId }),
+      supabase.rpc("session_subscription_coverage", { p_session_id: sessionId }),
     ]);
     const sess = s as {
       max_participants?: number;
@@ -551,10 +558,19 @@ export function ParticipantAttendanceList({
         }
       })
     );
+    const coverageData = coverageRes?.data as
+      | { ok?: boolean; covered_user_ids?: string[]; covered_manual_ids?: string[] }
+      | null
+      | undefined;
+    const coveredKeySet = new Set<string>();
+    if (coverageData?.ok) {
+      for (const u of coverageData.covered_user_ids ?? []) coveredKeySet.add(`u:${u}`);
+      for (const m of coverageData.covered_manual_ids ?? []) coveredKeySet.add(`m:${m}`);
+    }
     all.forEach((r, i) => {
       const price = prices[i];
       effectiveMap[r.id] = price;
-      const owes = r.attended === true || (r.attended === false && r.chargeNoShow);
+      const owes = (r.attended === true || (r.attended === false && r.chargeNoShow)) && !coveredKeySet.has(r.id);
       if (owes) {
         expectedPaymentSlots += 1;
         expectedPaymentsIls += price;
@@ -575,6 +591,7 @@ export function ParticipantAttendanceList({
       }
       setLockedKeys(locked);
     }
+    setCoveredKeys(coveredKeySet);
     setRows(all);
     rowsSessionIdRef.current = sessionId;
 
@@ -694,16 +711,39 @@ export function ParticipantAttendanceList({
   }
 
   function openPaymentModal(row: Row, mode: "arrived" | "absent_penalty" = "arrived") {
-    setPayMode(mode);
-    setPayFor(row);
-    setPayPhase("method");
-    setPayChosenMethod(null);
     const existing =
       mode === "arrived" && row.attended === true
         ? row.amountPaid
         : mode === "absent_penalty" && row.attended === false && row.chargeNoShow
           ? row.amountPaid
           : null;
+    // Covered-session duplicate-collection guard: this row's session is already covered by the
+    // subscription for this date (the same authoritative decision the "Covered by subscription"
+    // line above is sourced from), so there should normally be nothing to collect. Only warn when
+    // about to record a FIRST payment (existing == null) -- correcting/viewing an already-recorded
+    // payment on a covered row isn't the accidental-double-collection scenario this guards against,
+    // and a manager who confirms through this can still record a legitimate supplemental charge
+    // (e.g. a drop-in add-on) exactly as before. This is a UX guard only: it changes no calculation,
+    // creates no charge, and never blocks the action outright.
+    if (shouldWarnBeforeRecordingCoveredPayment(isCoveredBySubscription(row), existing)) {
+      showConfirm({
+        title: t("attendance.coveredPaymentWarningTitle"),
+        message: t("attendance.coveredPaymentWarningMessage"),
+        cancelLabel: t("common.cancel"),
+        confirmLabel: t("attendance.coveredPaymentWarningConfirm"),
+        confirmVariant: "primary",
+        onConfirm: () => openPaymentModalConfirmed(row, mode, existing),
+      });
+      return;
+    }
+    openPaymentModalConfirmed(row, mode, existing);
+  }
+
+  function openPaymentModalConfirmed(row: Row, mode: "arrived" | "absent_penalty", existing: number | null) {
+    setPayMode(mode);
+    setPayFor(row);
+    setPayPhase("method");
+    setPayChosenMethod(null);
     setPayAmountDraft(existing != null ? formatBillingAmountDraft(existing) : "");
     setPayOpen(true);
   }
@@ -954,6 +994,7 @@ export function ParticipantAttendanceList({
         const busy = busyKey === item.id || busyKey === "__all__";
         const effectivePrice = effectivePriceByRowId[item.id] ?? 0;
         const hasRateOverride = rosterPriceByRowId[item.id] != null;
+        const covered = isCoveredBySubscription(item);
         const entering = enteringIds.has(item.id);
         return (
           <FadeSlideIn
@@ -979,7 +1020,22 @@ export function ParticipantAttendanceList({
                     {displayLtr(item.phone)}
                   </Text>
                 ) : null}
-                {sessionMeta && effectivePrice > 0 ? (
+                {sessionMeta && effectivePrice > 0 && covered ? (
+                  <>
+                    <Text
+                      style={[styles.coveredLine, isRTL && styles.rtlText]}
+                      numberOfLines={1}
+                    >
+                      {t("managerSession.rosterSlotCoveredBySubscription")}
+                    </Text>
+                    <Text style={[styles.sub, isRTL && styles.rtlText]} numberOfLines={1}>
+                      {t("managerSession.rosterSlotRegularPrice").replace(
+                        "{amount}",
+                        formatRosterIls(effectivePrice, language)
+                      )}
+                    </Text>
+                  </>
+                ) : sessionMeta && effectivePrice > 0 ? (
                   <Text
                     style={[
                       styles.dueLine,
@@ -1369,6 +1425,7 @@ const styles = StyleSheet.create({
   sub: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
   dueLine: { marginTop: 6, fontSize: 14, fontWeight: "800", color: theme.colors.text },
   dueLineCustom: { color: theme.colors.cta },
+  coveredLine: { marginTop: 6, fontSize: 14, fontWeight: "800", color: theme.colors.info },
   paymentLine: { marginTop: 6, fontSize: 13, fontWeight: "800" },
   paymentUnpaid: { color: theme.colors.error },
   paymentCash: { color: theme.colors.success },

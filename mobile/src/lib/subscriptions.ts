@@ -446,6 +446,68 @@ export async function rpcEditSubscriptionVersion(
   return data as RpcOutcome<{ action: "preview" | "applied" | "already_applied"; impact?: SubscriptionImpact; version_id?: string }>;
 }
 
+/**
+ * Manager-only. Corrects plan_start_date for a subscription that has never been edited and has
+ * zero billing/charge/payment/freeze/coverage history (see correct_subscription_start_date() —
+ * returns ok:false/error:"has_history" for anything else; this function never recomputes
+ * financial or coverage history, it only covers the one case where there is none to recompute).
+ */
+export async function rpcCorrectSubscriptionStartDate(
+  supabase: SupabaseClient,
+  subscriptionId: string,
+  newStartDate: string
+): Promise<RpcOutcome<{ plan_start_date: string; anchor_day: number }>> {
+  const { data, error } = await supabase.rpc("correct_subscription_start_date", {
+    p_subscription_id: subscriptionId,
+    p_new_start_date: newStartDate,
+  });
+  if (error) throw error;
+  return data as RpcOutcome<{ plan_start_date: string; anchor_day: number }>;
+}
+
+export type StartDateCorrectionCoverageChange = {
+  registration_id: string | null;
+  manual_participant_id: string | null;
+  session_date: string;
+  week_start: string;
+  tier: string;
+  new_covered: boolean;
+  new_non_coverage_reason: string | null;
+};
+
+export type StartDateCorrectionOutcome = {
+  action: "preview" | "applied";
+  count: number;
+  items: StartDateCorrectionCoverageChange[];
+  new_anchor_day: number;
+  /** Only present on action="applied". */
+  plan_start_date?: string;
+  anchor_day?: number;
+};
+
+/**
+ * Scenario B of start-date correction (correct_subscription_start_date_for_new_subscriptions is
+ * scenario A, zero-coverage-history only). Safe for a subscription with future registrations but
+ * zero completed activity and zero billing/charge/payment/freeze history -- anything else returns
+ * ok:false/error:"has_history". p_confirmed=false (default) always rolls back server-side and
+ * returns a dry-run diff of exactly which coverage decisions would change; the caller must re-call
+ * with confirmed=true (which re-validates eligibility fresh) to actually apply it.
+ */
+export async function rpcCorrectSubscriptionStartDateWithFutureRegistrations(
+  supabase: SupabaseClient,
+  subscriptionId: string,
+  newStartDate: string,
+  confirmed: boolean
+): Promise<RpcOutcome<StartDateCorrectionOutcome>> {
+  const { data, error } = await supabase.rpc("correct_subscription_start_date_with_future_registrations", {
+    p_subscription_id: subscriptionId,
+    p_new_start_date: newStartDate,
+    p_confirmed: confirmed,
+  });
+  if (error) throw error;
+  return data as RpcOutcome<StartDateCorrectionOutcome>;
+}
+
 export type FreezeSubscriptionOutcome = {
   action: "preview" | "applied" | "already_applied";
   impact?: SubscriptionImpact;
