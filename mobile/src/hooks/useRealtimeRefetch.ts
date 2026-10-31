@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 
 export type RealtimeTableSub = {
@@ -6,6 +7,15 @@ export type RealtimeTableSub = {
   /** Postgres Changes filter, e.g. `session_id=eq.${id}` — scopes events to just this screen's row(s). */
   filter?: string;
 };
+
+/**
+ * What to do with a change that arrives while the screen is not the focused one (it is still mounted underneath a
+ * pushed screen):
+ * - "always": refetch anyway (the original behaviour).
+ * - "skip": do nothing. Only for screens that already reload every time they regain focus, so nothing is lost.
+ * - "deferUntilFocus": remember it and refetch once when the screen regains focus.
+ */
+export type RealtimeHiddenMode = "always" | "skip" | "deferUntilFocus";
 
 /**
  * Monotonic per-hook-instance suffix so two mounts (e.g. leaving a screen and coming right back
@@ -23,10 +33,34 @@ let instanceCounter = 0;
  * `onChange` — debounced, so a burst of changes triggers one refetch, not several — instead of
  * waiting for a manual pull-to-refresh. Reuses whatever fetch function the caller already has;
  * this hook only decides *when* to call it, not how to merge data.
+ *
+ * Performance Phase 2: menu navigation pushes screens, so earlier screens stay mounted underneath. With "always", every
+ * hidden copy refetched on every change (one attendance tap on Session Detail reloaded each hidden staff home in
+ * full). `whenHidden` lets a screen skip or defer that work; the subscription itself stays open, so no change is missed.
  */
-export function useRealtimeRefetch(subs: RealtimeTableSub[], onChange: () => void, debounceMs = 500) {
+export function useRealtimeRefetch(
+  subs: RealtimeTableSub[],
+  onChange: () => void,
+  debounceMs = 500,
+  whenHidden: RealtimeHiddenMode = "always"
+) {
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const focusedRef = useRef(true);
+  const missedRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      focusedRef.current = true;
+      if (missedRef.current) {
+        missedRef.current = false;
+        if (whenHidden === "deferUntilFocus") onChangeRef.current();
+      }
+      return () => {
+        focusedRef.current = false;
+      };
+    }, [whenHidden])
+  );
 
   const subsKey = subs.map((s) => `${s.table}:${s.filter ?? ""}`).join("|");
 
@@ -36,9 +70,17 @@ export function useRealtimeRefetch(subs: RealtimeTableSub[], onChange: () => voi
     const channel = supabase.channel(`realtime-refetch:${instanceId}:${subsKey}`);
     let timer: ReturnType<typeof setTimeout> | null = null;
 
+    const fire = () => {
+      if (!focusedRef.current && whenHidden !== "always") {
+        missedRef.current = true;
+        return;
+      }
+      onChangeRef.current();
+    };
+
     const scheduleRefetch = () => {
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => onChangeRef.current(), debounceMs);
+      timer = setTimeout(fire, debounceMs);
     };
 
     for (const sub of subs) {
@@ -60,5 +102,5 @@ export function useRealtimeRefetch(subs: RealtimeTableSub[], onChange: () => voi
       void supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subsKey, debounceMs]);
+  }, [subsKey, debounceMs, whenHidden]);
 }

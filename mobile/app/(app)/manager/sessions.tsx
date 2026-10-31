@@ -169,7 +169,8 @@ function ManagerSessionsScreenContent() {
     ],
     []
   );
-  useRealtimeRefetch(realtimeTables, () => load(false));
+  // Hidden under a pushed screen: skip, because returning to this screen reloads it anyway (focus effect above).
+  useRealtimeRefetch(realtimeTables, () => load(false), 500, "skip");
 
   const rowsRef = useRef(rows);
   rowsRef.current = rows;

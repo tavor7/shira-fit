@@ -860,7 +860,8 @@ export default function ManagerSessionDetail() {
     loadCancellations();
     loadNotes();
     setParticipantsRev((n) => n + 1);
-  });
+    // Hidden under a pushed screen: refresh once on return instead of on every change (this screen has no focus reload).
+  }, 500, "deferUntilFocus");
 
   async function loadNotes() {
     const { data, error } = await supabase
