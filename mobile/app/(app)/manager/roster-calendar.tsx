@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl, Text, ActivityIndicator, Pressable, Linking } from "react-native";
 import { Redirect, router, useFocusEffect, Stack } from "expo-router";
 import type { TrainingSessionWithTrainer } from "../../../src/types/database";
@@ -26,6 +26,8 @@ import { rowFlipFor } from "../../../src/lib/layoutDirection";
 import { displayTimeRange } from "../../../src/lib/displayFormat";
 import { useScreenContentStyle } from "../../../src/hooks/useScreenLayout";
 import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
+import { createLoadSequencer, showInitialSkeleton } from "../../../src/lib/screenRefresh";
+import { isStaffWeekLoaded, needsEarlierStaffRange, staffCalendarFromDate } from "../../../src/lib/staffCalendarRange";
 
 function inWeek(iso: string, weekStartIso: string, weekEndIso: string) {
   if (!weekStartIso || !weekEndIso) return true;
@@ -46,9 +48,14 @@ export default function ManagerRosterCalendarScreen() {
   const [rosterBySession, setRosterBySession] = useState<Record<string, RosterEntry[]>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  usePerfScreen("manager.rosterCalendar", !loading);
+  /** Performance Phase 2: refreshes keep the calendar on screen (as on the homes); newest load wins. */
+  const [hasData, setHasData] = useState(false);
+  const [loadedFrom, setLoadedFrom] = useState<string | null>(null);
+  const [loadSeq] = useState(createLoadSequencer);
   const [namesLoading, setNamesLoading] = useState(false);
   const [weekStartIso, setWeekStartIso] = useState<string>("");
+  const weekStartRef = useRef(weekStartIso);
+  weekStartRef.current = weekStartIso;
   const [weekEndIso, setWeekEndIso] = useState<string>("");
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
   const [showSmall, setShowSmall] = useState(false);
@@ -64,28 +71,48 @@ export default function ManagerRosterCalendarScreen() {
   const filtersOn = showSmall || showBig;
 
   const load = useCallback(async (isRefresh: boolean) => {
+    const ticket = loadSeq.next();
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
     await touchWeeklyRegistrationOpenIfDue();
-    const { data, error } = await fetchStaffTrainingSessionsForCalendar();
+    // Performance Phase 2: only the needed date range (see staffCalendarRange), and the four count lookups in one
+    // parallel wave instead of one after another. Sessions and counts are applied together.
+    const fromDate = staffCalendarFromDate(weekStartRef.current);
+    const { data, error } = await fetchStaffTrainingSessionsForCalendar({ fromDate });
     const list = !error && data ? (data as TrainingSessionWithTrainer[]) : [];
-    setRows(list);
     const ids = list.map((s) => s.id);
-    setSignupBySession(await fetchActiveSignupCountsBySession(ids));
-    setVisibleSignupBySession(await fetchVisibleSignupCountsBySession(ids));
-    setWaitlistBySession(await fetchWaitlistCountsBySession(ids));
-    setHiddenSessionIds(isSuperUser ? await fetchSessionIdsWithHiddenAthletes(ids) : new Set());
+    const [signup, visibleSignup, waitlist, hidden] = await Promise.all([
+      fetchActiveSignupCountsBySession(ids),
+      fetchVisibleSignupCountsBySession(ids),
+      fetchWaitlistCountsBySession(ids),
+      isSuperUser ? fetchSessionIdsWithHiddenAthletes(ids) : Promise.resolve(new Set<string>()),
+    ]);
+    if (!loadSeq.isLatest(ticket)) return;
+    setRows(list);
+    setSignupBySession(signup);
+    setVisibleSignupBySession(visibleSignup);
+    setWaitlistBySession(waitlist);
+    setHiddenSessionIds(hidden);
+    setLoadedFrom(fromDate);
+    setHasData(true);
 
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
-  }, [isSuperUser]);
+  }, [isSuperUser, loadSeq]);
 
   useFocusEffect(
     useCallback(() => {
       load(false);
     }, [load])
   );
+
+  const visibleWeekLoaded = isStaffWeekLoaded(weekStartIso, loadedFrom);
+  useEffect(() => {
+    if (needsEarlierStaffRange(weekStartIso, loadedFrom)) void load(false);
+  }, [weekStartIso, loadedFrom, load]);
+  const calendarLoading = showInitialSkeleton(loading, hasData) || !visibleWeekLoaded;
+  usePerfScreen("manager.rosterCalendar", !calendarLoading);
 
   const filteredRows = useMemo(() => {
     if (showSmall && !showBig) return rows.filter((s) => (s.max_participants ?? 0) <= 6);
@@ -360,7 +387,7 @@ export default function ManagerRosterCalendarScreen() {
 
         <SessionsWeekCalendar
           items={items}
-          isLoading={loading}
+          isLoading={calendarLoading}
           emptyLabel={t("empty.noSessionsFound")}
           onDayPress={(iso) => setSheetDay(iso)}
           weekOffset={calendarWeekOffset}

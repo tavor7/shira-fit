@@ -11,19 +11,19 @@ function applyBrowseEndFilter<T extends { lte: (col: string, val: string) => T }
   return query.lte("session_date", end);
 }
 
-/** Staff calendar: sessions with trainer name + optional calendar_color (retries if column missing). */
-export async function fetchStaffTrainingSessionsForCalendar() {
-  let res = await supabase
-    .from("training_sessions")
-    .select("*, trainer:profiles!coach_id(full_name, calendar_color)")
-    .order("session_date")
-    .order("start_time");
+/**
+ * Staff calendar: sessions with trainer name + optional calendar_color (retries if column missing).
+ * `fromDate` (Performance Phase 2, see staffCalendarRange): only sessions on or after that date; omitted = all sessions.
+ */
+export async function fetchStaffTrainingSessionsForCalendar(opts?: { fromDate?: string }) {
+  const from = opts?.fromDate;
+  let q = supabase.from("training_sessions").select("*, trainer:profiles!coach_id(full_name, calendar_color)");
+  if (from) q = q.gte("session_date", from);
+  let res = await q.order("session_date").order("start_time");
   if (res.error && isMissingColumnError(res.error.message, "calendar_color")) {
-    res = await supabase
-      .from("training_sessions")
-      .select("*, trainer:profiles!coach_id(full_name)")
-      .order("session_date")
-      .order("start_time");
+    let q2 = supabase.from("training_sessions").select("*, trainer:profiles!coach_id(full_name)");
+    if (from) q2 = q2.gte("session_date", from);
+    res = await q2.order("session_date").order("start_time");
   }
   return res;
 }
