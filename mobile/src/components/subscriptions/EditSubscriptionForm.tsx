@@ -17,11 +17,14 @@ import { SubscriptionImpactConfirmModal } from "./SubscriptionImpactConfirmModal
 import {
   emptyWeeklyLimits,
   rpcCorrectSubscriptionStartDate,
+  rpcCorrectSubscriptionStartDateWithFutureRegistrations,
   rpcEditSubscriptionVersion,
   rpcGetSubscriptionDetail,
+  type StartDateCorrectionOutcome,
   type SubscriptionImpact,
   type WeeklyLimits,
 } from "../../lib/subscriptions";
+import { formatISODateFull } from "../../lib/dateFormat";
 import { rowFlipFor } from "../../lib/layoutDirection";
 import { useScreenContentStyle } from "../../hooks/useScreenLayout";
 import { selectionA11y } from "../../lib/a11ySelection";
@@ -34,7 +37,7 @@ type Mode = "beginning" | "date";
  * impact-preview/confirm pattern via the shared SubscriptionImpactConfirmModal, which stays a real
  * modal layered on top of this still-mounted screen. */
 export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: string }) {
-  const { t, isRTL } = useI18n();
+  const { t, isRTL, language } = useI18n();
   const screenContent = useScreenContentStyle("narrow");
   const { showToast } = useToast();
   const { promptDiscardChanges, discardDialog } = useDiscardChangesPrompt(isRTL);
@@ -49,6 +52,15 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
   const [canCorrectStartDate, setCanCorrectStartDate] = useState(false);
   const [startDateDraft, setStartDateDraft] = useState("");
   const [startDateSubmitting, setStartDateSubmitting] = useState(false);
+  /** Scenario B (future registrations, no completed activity): a dry-run preview from
+   * correct_subscription_start_date_with_future_registrations(confirmed=false), always shown
+   * before any write -- confirming re-calls the same RPC with confirmed=true, which re-validates
+   * eligibility fresh rather than trusting this remembered preview. null means no preview has been
+   * run yet for the current startDateDraft; "ineligible" (error === "has_history") means this
+   * subscription needs the scenario-C flow this screen does not offer. */
+  const [startDatePreview, setStartDatePreview] = useState<StartDateCorrectionOutcome | null>(null);
+  const [startDateIneligible, setStartDateIneligible] = useState(false);
+  const [startDatePreviewing, setStartDatePreviewing] = useState(false);
 
   const [mode, setMode] = useState<Mode>("date");
   const [effectiveDate, setEffectiveDate] = useState(toISODateLocal(new Date()));
@@ -168,6 +180,55 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
     }
   }
 
+  async function runPreviewStartDateCorrectionWithFutureRegistrations() {
+    if (startDatePreviewing || !startDateDraft || startDateDraft === subscriptionStartDate) return;
+    setStartDatePreviewing(true);
+    setStartDatePreview(null);
+    setStartDateIneligible(false);
+    try {
+      const res = await rpcCorrectSubscriptionStartDateWithFutureRegistrations(supabase, subscriptionId, startDateDraft, false);
+      if (!res.ok) {
+        if (res.error === "has_history") {
+          setStartDateIneligible(true);
+        } else {
+          showToast({ message: t("subscriptions.genericError"), detail: res.error, variant: "error" });
+        }
+        return;
+      }
+      setStartDatePreview(res);
+    } catch (e) {
+      showToast({ message: t("subscriptions.genericError"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+    } finally {
+      setStartDatePreviewing(false);
+    }
+  }
+
+  async function runConfirmStartDateCorrectionWithFutureRegistrations() {
+    if (startDateSubmitting || !startDatePreview) return;
+    setStartDateSubmitting(true);
+    try {
+      const res = await rpcCorrectSubscriptionStartDateWithFutureRegistrations(supabase, subscriptionId, startDateDraft, true);
+      if (!res.ok) {
+        // Eligibility changed since the preview (e.g. a session completed in the meantime) --
+        // the server re-validated fresh and refused; never apply a stale preview's diff.
+        setStartDatePreview(null);
+        if (res.error === "has_history") {
+          setStartDateIneligible(true);
+        } else {
+          showToast({ message: t("subscriptions.genericError"), detail: res.error, variant: "error" });
+        }
+        return;
+      }
+      setSubscriptionStartDate(res.plan_start_date ?? startDateDraft);
+      setStartDatePreview(null);
+      showToast({ message: t("subscriptions.edit.startDateSuccess"), variant: "success" });
+    } catch (e) {
+      showToast({ message: t("subscriptions.genericError"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+    } finally {
+      setStartDateSubmitting(false);
+    }
+  }
+
   async function runEdit(confirmed: boolean) {
     if (submitting) return;
     setSubmitting(true);
@@ -244,7 +305,79 @@ export function EditSubscriptionForm({ subscriptionId }: { subscriptionId: strin
                 </Text>
               </Pressable>
             </View>
-          ) : null}
+          ) : (
+            <View style={sf.card}>
+              <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.edit.startDateLabel")}</Text>
+              <Text style={[sf.sectionHint, isRTL && sf.sectionHintRtl]}>{t("subscriptions.edit.startDateFutureRegHint")}</Text>
+              <View style={styles.spaced}>
+                <DatePickerField
+                  appearance="embedded"
+                  label={t("subscriptions.edit.startDateLabel")}
+                  value={startDateDraft}
+                  onChange={(v) => {
+                    setStartDateDraft(v);
+                    setStartDatePreview(null);
+                    setStartDateIneligible(false);
+                  }}
+                />
+              </View>
+              {startDateIneligible ? (
+                <Text style={[styles.startDateIneligibleTxt, isRTL && styles.rtlText]}>
+                  {t("subscriptions.edit.startDateHasHistory")}
+                </Text>
+              ) : startDatePreview ? (
+                <View style={styles.startDatePreviewBox}>
+                  <Text style={[styles.startDatePreviewSummary, isRTL && styles.rtlText]}>
+                    {t("subscriptions.edit.startDatePreviewSummary").replace("{n}", String(startDatePreview.count))}
+                  </Text>
+                  {startDatePreview.items.slice(0, 8).map((it) => (
+                    <Text
+                      key={`${it.registration_id ?? it.manual_participant_id}-${it.session_date}`}
+                      style={[styles.startDatePreviewRow, isRTL && styles.rtlText]}
+                    >
+                      {formatISODateFull(it.session_date, language)} —{" "}
+                      {it.new_covered ? t("subscriptions.edit.startDatePreviewNowCovered") : t("subscriptions.edit.startDatePreviewNoLongerCovered")}
+                    </Text>
+                  ))}
+                  {startDatePreview.count > 8 ? (
+                    <Text style={[styles.startDatePreviewRow, isRTL && styles.rtlText]}>
+                      {t("subscriptions.edit.startDatePreviewMore").replace("{n}", String(startDatePreview.count - 8))}
+                    </Text>
+                  ) : null}
+                  <View style={styles.startDatePreviewActions}>
+                    <PrimaryButton
+                      label={t("subscriptions.edit.startDateConfirmApply")}
+                      loading={startDateSubmitting}
+                      loadingLabel={t("common.loading")}
+                      onPress={() => void runConfirmStartDateCorrectionWithFutureRegistrations()}
+                    />
+                    <Pressable
+                      onPress={() => setStartDatePreview(null)}
+                      style={({ pressed }) => [styles.secondaryAction, pressed && { opacity: 0.85 }]}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.secondaryActionTxt}>{t("common.cancel")}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => void runPreviewStartDateCorrectionWithFutureRegistrations()}
+                  disabled={startDatePreviewing || !startDateDraft || startDateDraft === subscriptionStartDate}
+                  style={({ pressed }) => [
+                    styles.secondaryAction,
+                    (startDatePreviewing || !startDateDraft || startDateDraft === subscriptionStartDate) && { opacity: 0.5 },
+                    pressed && { opacity: 0.85 },
+                  ]}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.secondaryActionTxt}>
+                    {startDatePreviewing ? t("common.loading") : t("subscriptions.edit.startDatePreviewButton")}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          )}
 
           <View style={sf.card}>
             <Text style={[sf.cardTitle, isRTL && styles.rtlText]}>{t("subscriptions.edit.modeLabel")}</Text>
@@ -318,6 +451,11 @@ function ModeChip({ label, active, onPress }: { label: string; active: boolean; 
 }
 
 const styles = StyleSheet.create({
+  startDateIneligibleTxt: { marginTop: theme.spacing.sm, color: theme.colors.textMuted, fontSize: 13, lineHeight: 18 },
+  startDatePreviewBox: { marginTop: theme.spacing.sm, gap: 6 },
+  startDatePreviewSummary: { fontWeight: "800", color: theme.colors.text, fontSize: 14 },
+  startDatePreviewRow: { color: theme.colors.textMuted, fontSize: 13 },
+  startDatePreviewActions: { flexDirection: "row", gap: theme.spacing.sm, marginTop: theme.spacing.sm, alignItems: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.backgroundAlt },
   errorText: { color: theme.colors.error, fontWeight: "700", padding: theme.spacing.lg },
   spaced: { marginTop: theme.spacing.md },

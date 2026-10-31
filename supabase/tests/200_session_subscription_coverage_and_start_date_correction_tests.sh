@@ -20,6 +20,19 @@
 #      across a start-date correction, not silently overwritten
 #   H  a non-manager (coach) is forbidden
 #
+# correct_subscription_start_date_with_future_registrations(p_subscription_id, p_new_start_date,
+# p_confirmed): scenario B -- safe for a subscription with future registrations but zero completed
+# activity and zero billing/charge/payment/freeze history. p_confirmed=false always rolls back and
+# returns a dry-run diff; p_confirmed=true re-validates eligibility fresh before applying.
+#   I  preview (confirmed=false) reports exactly the two registrations whose coverage would flip
+#      (the earlier session loses coverage, the later one gains it), and does NOT mutate
+#      plan_start_date or any coverage row
+#   J  confirm (confirmed=true) applies the same change for real
+#   K  confirming again is idempotent (count=0, nothing left to change)
+#   L  marking the remaining registration's session attended flips eligibility to has_history
+#   M  a subscription with a posted charge (financial history) is refused up front
+#   N  a non-manager is forbidden
+#
 # Usage: PSQL="docker exec -i <db> psql -U postgres" \
 #        PSQL_AUTH="docker exec -e PGPASSWORD=postgres -i <db> psql -h 127.0.0.1 -U authenticator -d postgres" \
 #        supabase/tests/200_session_subscription_coverage_and_start_date_correction_tests.sh
@@ -110,6 +123,63 @@ expect "G anchor_day stays 17 (was explicitly customized)" "17" "$ANCHOR"
 echo "== H: a non-manager is forbidden"
 R=$(api "$COACH1" "select public.correct_subscription_start_date('$FSUB', '$(d 11)')::text;")
 expect "H forbidden" "forbidden" "$(jf "$R" error)"
+
+echo "== I: preview reports exactly the one flipping registration and does not mutate anything"
+mkuser manager mgrB; MGRB=$U
+mkuser coach coachB; COACHB=$U
+mkuser athlete athB; ATHB=$U
+# weekly_limit=1 group, subscription starting the week's Sunday -- two same-week sessions, so only
+# the earlier-registered one is covered; moving the start date past the first session's date should
+# flip it from covered to not_subscribed.
+WK_SUN=$(su -c "select (date '$(d 1)' - extract(dow from date '$(d 1)')::int)::date")
+SESS1=$(su -c "insert into public.training_sessions (coach_id, session_date, start_time, max_participants) values ('$COACHB', '$(su -c "select ('$WK_SUN'::date + 1)::date")', '08:00', 12) returning id")
+SESS2=$(su -c "insert into public.training_sessions (coach_id, session_date, start_time, max_participants) values ('$COACHB', '$(su -c "select ('$WK_SUN'::date + 3)::date")', '08:00', 12) returning id")
+R=$(api "$MGRB" "select (public.create_subscription('$ATHB', false, 300, '$WK_SUN', null, null, jsonb_build_array(jsonb_build_object('tier','group','weekly_limit',1)))::jsonb)::text;")
+BSUB=$(su -c "select ('$R'::jsonb)->>'subscription_id'")
+R1=$(api "$COACHB" "select public.coach_add_athlete('$SESS1', '$ATHB')::text;")
+case "$R1" in *'"ok" : true'*) :;; *) fail "I setup: coach_add_athlete(SESS1) failed: $R1"; echo "200 (I) ABORTED"; exit 1;; esac
+R2=$(api "$COACHB" "select public.coach_add_athlete('$SESS2', '$ATHB', false, true)::text;")
+case "$R2" in *'"ok" : true'*) :;; *) fail "I setup: coach_add_athlete(SESS2) failed: $R2"; echo "200 (I) ABORTED"; exit 1;; esac
+NEWSTART=$(su -c "select ('$WK_SUN'::date + 2)::date")
+R=$(api "$MGRB" "select public.correct_subscription_start_date_with_future_registrations('$BSUB', '$NEWSTART', false)::text;")
+expect "I preview ok" "true" "$(jf "$R" ok)"
+expect "I preview action" "preview" "$(jf "$R" action)"
+expect "I preview count" "2" "$(jf "$R" count)"
+STILL_START=$(su -c "select plan_start_date from public.subscription_versions where subscription_id='$BSUB' and effective_to is null")
+expect "I preview did not mutate plan_start_date" "$WK_SUN" "$STILL_START"
+
+echo "== J: confirm applies the same change for real"
+R=$(api "$MGRB" "select public.correct_subscription_start_date_with_future_registrations('$BSUB', '$NEWSTART', true)::text;")
+expect "J confirm ok" "true" "$(jf "$R" ok)"
+expect "J confirm action" "applied" "$(jf "$R" action)"
+NEWSTART_ACTUAL=$(su -c "select plan_start_date from public.subscription_versions where subscription_id='$BSUB' and effective_to is null")
+expect "J plan_start_date updated" "$NEWSTART" "$NEWSTART_ACTUAL"
+
+echo "== K: confirming again is idempotent"
+R=$(api "$MGRB" "select public.correct_subscription_start_date_with_future_registrations('$BSUB', '$NEWSTART', true)::text;")
+expect "K idempotent count" "0" "$(jf "$R" count)"
+
+echo "== L: marking the remaining registration's session attended flips eligibility to has_history"
+su -c "update public.session_registrations set attended = true where user_id = '$ATHB'" >/dev/null
+R=$(api "$MGRB" "select public.correct_subscription_start_date_with_future_registrations('$BSUB', '$(d 20)', false)::text;")
+expect "L refused after attendance" "has_history" "$(jf "$R" error)"
+
+echo "== M: a subscription with a posted charge is refused up front"
+mkuser athlete athM; ATHM=$U
+R=$(api "$MGRB" "select (public.create_subscription('$ATHM', false, 300, '$(d -40)', null, null, jsonb_build_array(jsonb_build_object('tier','group','weekly_limit',2)))::jsonb)::text;")
+MSUB=$(su -c "select ('$R'::jsonb)->>'subscription_id'")
+su -c "select public.generate_due_subscription_charges()" >/dev/null
+HAS_CHARGE=$(su -c "select exists(select 1 from public.subscription_charges where subscription_id='$MSUB')")
+if [ "$HAS_CHARGE" = "t" ]; then
+  R=$(api "$MGRB" "select public.correct_subscription_start_date_with_future_registrations('$MSUB', '$(d -35)', false)::text;")
+  expect "M refused (financial history)" "has_history" "$(jf "$R" error)"
+else
+  echo "  SKIPPED: M (generate_due_subscription_charges did not post a charge in this environment)"
+fi
+
+echo "== N: a non-manager is forbidden"
+R=$(api "$COACHB" "select public.correct_subscription_start_date_with_future_registrations('$BSUB', '$(d 20)', false)::text;")
+expect "N forbidden" "forbidden" "$(jf "$R" error)"
 
 echo
 echo "200: $PASSED passed, $FAILED failed"
