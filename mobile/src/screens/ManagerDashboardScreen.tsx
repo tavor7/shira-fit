@@ -152,6 +152,19 @@ export default function ManagerDashboardScreen() {
   const [capacityMismatchCount, setCapacityMismatchCount] = useState(0);
   const [expandedCoachId, setExpandedCoachId] = useState<string | null>(null);
   const [showAthleteList, setShowAthleteList] = useState(false);
+  // Performance Phase 5: collapsed sections rendered their whole content while hidden (Global: every coach's full session
+  // list and every athlete row), which was most of the Overview's render time. A section's content now mounts the first
+  // time it is opened and then stays mounted (closing still animates; totals are computed separately, unchanged).
+  const [openedCoachIds, setOpenedCoachIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [athleteListOpened, setAthleteListOpened] = useState(false);
+  const toggleCoach = (coachId: string) => {
+    setExpandedCoachId((cur) => (cur === coachId ? null : coachId));
+    setOpenedCoachIds((prev) => (prev.has(coachId) ? prev : new Set(prev).add(coachId)));
+  };
+  const toggleAthleteList = () => {
+    setShowAthleteList((v) => !v);
+    setAthleteListOpened(true);
+  };
   const [addPayAthlete, setAddPayAthlete] = useState<WeeklyFinanceAthlete | null>(null);
   const [addPayFromFamily, setAddPayFromFamily] = useState(false);
   const [accountCounts, setAccountCounts] = useState<ActiveAccountCounts | null>(null);
@@ -825,7 +838,7 @@ export default function ManagerDashboardScreen() {
                   return (
                     <View key={c.coach_id} style={styles.coachRowWrap}>
                       <Pressable
-                        onPress={() => setExpandedCoachId(open ? null : c.coach_id)}
+                        onPress={() => toggleCoach(c.coach_id)}
                         style={({ pressed }) => [styles.coachRow, pressed && styles.coachRowPressed]}
                         accessibilityRole="button"
                         accessibilityState={{ expanded: open }}
@@ -846,6 +859,7 @@ export default function ManagerDashboardScreen() {
                         <AnimatedChevron open={open} style={styles.chev} />
                       </Pressable>
                       <AnimatedOptionExpand open={open}>
+                        {open || openedCoachIds.has(c.coach_id) ? (
                         <View style={styles.sessionList}>
                           {c.sessions.map((s) => (
                             <Pressable
@@ -873,6 +887,7 @@ export default function ManagerDashboardScreen() {
                             </Pressable>
                           ))}
                         </View>
+                        ) : null}
                       </AnimatedOptionExpand>
                     </View>
                   );
@@ -1024,7 +1039,7 @@ export default function ManagerDashboardScreen() {
             ) : null}
 
             <Pressable
-              onPress={() => setShowAthleteList((v) => !v)}
+              onPress={toggleAthleteList}
               style={({ pressed }) => [styles.ghostBtn, styles.ghostBtnSpaced, pressed && styles.ghostBtnPressed]}
               accessibilityRole="button"
               accessibilityState={{ expanded: showAthleteList }}
@@ -1035,6 +1050,7 @@ export default function ManagerDashboardScreen() {
             </Pressable>
 
             <AnimatedOptionExpand open={showAthleteList}>
+              {showAthleteList || athleteListOpened ? (
               <View style={styles.athleteList}>
                 {athleteListModel.families.length === 0 && athleteListModel.solo.length === 0 ? (
                   <Text style={[styles.muted, isRTL && styles.rtl]}>{t("dashboard.financeNoAthleteRows")}</Text>
@@ -1085,6 +1101,7 @@ export default function ManagerDashboardScreen() {
                   </>
                 )}
               </View>
+              ) : null}
             </AnimatedOptionExpand>
           </View>
 
