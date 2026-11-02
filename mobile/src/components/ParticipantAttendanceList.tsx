@@ -35,7 +35,9 @@ import {
 import { shouldWarnBeforeRecordingCoveredPayment } from "../lib/coveredPaymentWarning";
 import { RosterSlotRateChip, formatRosterIls, type SessionRateMeta } from "./RosterSlotRateChip";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
-import { takeRosterWave1 } from "../lib/rosterWave";
+import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueries";
+import { isMissingColumnError } from "../lib/dbColumnErrors";
+import { createLoadSequencer } from "../lib/screenRefresh";
 import { hasSessionNotStarted } from "../lib/sessionTime";
 import type { MoveParticipantTarget } from "./MoveParticipantSheet";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
@@ -225,6 +227,19 @@ export function ParticipantAttendanceList({
   const [loading, setLoading] = useState(true);
   /** The session whose rows are currently on screen (step 5: silent refocus only for the same session). */
   const rowsSessionIdRef = useRef<string | null>(null);
+  // Newest load wins (Performance Phase 5): loads overlap — first load, realtime, refocus, reload after a write, and
+  // adjacent-session navigation (this component is reused with a new sessionId) — and used to be applied in completion
+  // order, so an older response could replace newer rows, or rows of the previous session. A load applies its results
+  // only if no load started after it, it is still for the session on screen, and the list is still mounted.
+  const [loadSeq] = useState(createLoadSequencer);
+  // Session change or unmount: in-flight loads are void. (React runs this cleanup before the new session's focus effect
+  // starts its first load, so that load is never invalidated by it.)
+  useEffect(
+    () => () => {
+      loadSeq.next();
+    },
+    [loadSeq, sessionId]
+  );
   usePerfScreen("session.roster", !loading);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [duplicateRosterSessionId, setDuplicateRosterSessionId] = useState<string | null>(null);
@@ -389,6 +404,8 @@ export function ParticipantAttendanceList({
   }
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
+    const ticket = loadSeq.next();
+    const stale = () => !loadSeq.isLatest(ticket);
     const silent = opts?.silent === true;
     if (!silent) {
       setLoading(true);
@@ -399,8 +416,32 @@ export function ParticipantAttendanceList({
 
     // Performance Phase 1 / step 4: the session row, roster price overrides, registrations, manual participants and
     // (for coaches) receipt locks are independent, so they load in one wave instead of five sequential round trips.
-    // Performance Phase 5: the wave lives in lib/rosterWave; manager Session Detail may have started it already.
-    const [{ data: s }, { data: rosterPriceRows }, regRes, manRes, lockRes, coverageRes] = await takeRosterWave1(sessionId);
+    const fetchManual = async () => {
+      let res = await supabase
+        .from("session_manual_participants")
+        .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone, date_of_birth)")
+        .eq("session_id", sessionId);
+      if (res.error && isMissingColumnError(res.error.message, "date_of_birth")) {
+        res = (await supabase
+          .from("session_manual_participants")
+          .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone)")
+          .eq("session_id", sessionId)) as typeof res;
+      }
+      return res;
+    };
+    const [{ data: s }, { data: rosterPriceRows }, regRes, manRes, lockRes, coverageRes] = await Promise.all([
+      supabase
+        .from("training_sessions")
+        .select("max_participants, session_date, start_time, coach_id, is_kickbox, custom_slot_price_ils")
+        .eq("id", sessionId)
+        .single(),
+      supabase.from("session_roster_slot_prices").select("user_id, manual_participant_id, price_ils").eq("session_id", sessionId),
+      fetchSessionRegistrationsWithProfiles(sessionId),
+      fetchManual(),
+      supabase.rpc("session_payment_receipt_locks", { p_session_id: sessionId }),
+      supabase.rpc("session_subscription_coverage", { p_session_id: sessionId }),
+    ]);
+    if (stale()) return;
     const sess = s as {
       max_participants?: number;
       session_date?: string;
@@ -408,22 +449,6 @@ export function ParticipantAttendanceList({
       is_kickbox?: boolean;
       custom_slot_price_ils?: number | string | null;
     } | null;
-    setMaxParticipants(sess?.max_participants ?? null);
-    setSessionNotStarted(
-      !!(sess?.session_date && sess?.start_time && hasSessionNotStarted(sess.session_date, sess.start_time))
-    );
-    if (sess?.max_participants && sess.session_date) {
-      const custom = sess.custom_slot_price_ils;
-      setSessionMeta({
-        max_participants: sess.max_participants,
-        is_kickbox: !!sess.is_kickbox,
-        session_date: sess.session_date,
-        custom_slot_price_ils:
-          custom != null && custom !== "" && Number.isFinite(Number(custom)) ? Number(custom) : null,
-      });
-    } else {
-      setSessionMeta(null);
-    }
 
     const rosterMap: Record<string, number> = {};
     for (const rp of (rosterPriceRows as { user_id?: string; manual_participant_id?: string; price_ils: number | string }[] | null) ?? []) {
@@ -454,10 +479,6 @@ export function ParticipantAttendanceList({
         expectedPaymentSlots: 0,
       });
       return;
-    }
-
-    if (errors.length > 0) {
-      setLoadError(errors.join(" · "));
     }
 
     const regRows: Row[] = ((data as RegRow[]) ?? []).map((r) => {
@@ -565,6 +586,28 @@ export function ParticipantAttendanceList({
         }
       })
     );
+    if (stale()) return;
+
+    // Everything is loaded and this is still the newest load: apply it all together.
+    setMaxParticipants(sess?.max_participants ?? null);
+    setSessionNotStarted(
+      !!(sess?.session_date && sess?.start_time && hasSessionNotStarted(sess.session_date, sess.start_time))
+    );
+    if (sess?.max_participants && sess.session_date) {
+      const custom = sess.custom_slot_price_ils;
+      setSessionMeta({
+        max_participants: sess.max_participants,
+        is_kickbox: !!sess.is_kickbox,
+        session_date: sess.session_date,
+        custom_slot_price_ils:
+          custom != null && custom !== "" && Number.isFinite(Number(custom)) ? Number(custom) : null,
+      });
+    } else {
+      setSessionMeta(null);
+    }
+    if (errors.length > 0) {
+      setLoadError(errors.join(" · "));
+    }
     const coverageData = coverageRes?.data as
       | { ok?: boolean; covered_user_ids?: string[]; covered_manual_ids?: string[] }
       | null
@@ -645,9 +688,11 @@ export function ParticipantAttendanceList({
         .eq("start_time", slot.start_time)
         .eq("coach_id", slot.coach_id)
         .neq("id", sessionId);
+      if (stale()) return;
       const siblingIds = ((siblings as { id: string }[] | null) ?? []).map((x) => x.id);
       if (siblingIds.length > 0) {
         const counts = await fetchActiveSignupCountsBySession(siblingIds);
+        if (stale()) return;
         const withRoster = siblingIds.find((sid) => (counts[sid] ?? 0) > 0) ?? null;
         setDuplicateRosterSessionId(withRoster);
         onDuplicateRosterSession?.(withRoster);
@@ -655,7 +700,7 @@ export function ParticipantAttendanceList({
     }
 
     setLoading(false);
-  }, [sessionId, onParticipantCountChange, onAttendanceStatsChange, onDuplicateRosterSession]);
+  }, [sessionId, onParticipantCountChange, onAttendanceStatsChange, onDuplicateRosterSession, loadSeq]);
 
   // Performance Phase 1 / step 5: refocusing (e.g. back from a participant's profile) refreshes silently when THIS
   // session's roster is already on screen, instead of swapping it for skeletons. A different session (adjacent-session
