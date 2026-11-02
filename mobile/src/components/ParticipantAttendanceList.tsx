@@ -1181,22 +1181,8 @@ export function ParticipantAttendanceList({
                     {displayLtr(item.phone)}
                   </Text>
                 ) : null}
-                {sessionMeta && showDueLines && effectivePrice > 0 && covered ? (
-                  <>
-                    <Text
-                      style={[styles.coveredLine, isRTL && styles.rtlText]}
-                      numberOfLines={1}
-                    >
-                      {t("managerSession.rosterSlotCoveredBySubscription")}
-                    </Text>
-                    <Text style={[styles.sub, isRTL && styles.rtlText]} numberOfLines={1}>
-                      {t("managerSession.rosterSlotRegularPrice").replace(
-                        "{amount}",
-                        formatRosterIls(effectivePrice, language)
-                      )}
-                    </Text>
-                  </>
-                ) : sessionMeta && showDueLines && effectivePrice > 0 ? (
+                {/* Covered rows show their coverage in the full-width footer below the attendance controls. */}
+                {sessionMeta && showDueLines && effectivePrice > 0 && !covered ? (
                   <Text
                     style={[
                       styles.dueLine,
@@ -1363,6 +1349,21 @@ export function ParticipantAttendanceList({
                 })()}
               </View>
             </View>
+            {sessionMeta && showDueLines && effectivePrice > 0 && covered ? (
+              <View style={[styles.coveredFooter, rowFlipFor(isRTL) && styles.coveredFooterRtl]}>
+                <View style={styles.coveredBadge}>
+                  <Text style={[styles.coveredLine, isRTL && styles.rtlText]}>
+                    {t("managerSession.rosterSlotCoveredBySubscription")}
+                  </Text>
+                </View>
+                <Text style={[styles.coveredRegularPrice, isRTL && styles.rtlText]}>
+                  {t("managerSession.rosterSlotRegularPrice").replace(
+                    "{amount}",
+                    formatRosterIls(effectivePrice, language)
+                  )}
+                </Text>
+              </View>
+            ) : null}
             {sessionMeta && viewerIsManager && !unknownFinance.rates ? (
               <RosterSlotRateChip
                 sessionId={sessionId}
@@ -1590,7 +1591,20 @@ const styles = StyleSheet.create({
   sub: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
   dueLine: { marginTop: 6, fontSize: 14, fontWeight: "800", color: theme.colors.text },
   dueLineCustom: { color: theme.colors.cta },
-  coveredLine: { marginTop: 6, fontSize: 14, fontWeight: "800", color: theme.colors.info },
+  // Full width under the row, so the attendance controls never squeeze the coverage text. Wraps on the narrowest phones.
+  coveredFooter: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: theme.spacing.sm },
+  coveredFooterRtl: { flexDirection: "row-reverse" },
+  coveredBadge: {
+    flexShrink: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.infoBorder,
+    backgroundColor: theme.colors.infoBg,
+  },
+  coveredLine: { fontSize: 13, fontWeight: "800", color: theme.colors.info },
+  coveredRegularPrice: { flexShrink: 1, color: theme.colors.textMuted, fontSize: 12 },
   paymentLine: { marginTop: 6, fontSize: 13, fontWeight: "800" },
   paymentUnpaid: { color: theme.colors.error },
   paymentCash: { color: theme.colors.success },
