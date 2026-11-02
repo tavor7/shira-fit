@@ -22,7 +22,11 @@ import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
 import { useAppAlert } from "../context/AppAlertContext";
 import { useAuth } from "../context/AuthContext";
-import { fetchHiddenRegistrationKeys, hiddenRegistrationKey } from "../lib/superUserHidden";
+import {
+  fetchHiddenRegistrationKeys,
+  fetchHiddenRegistrationKeysResult,
+  hiddenRegistrationKey,
+} from "../lib/superUserHidden";
 import { getDocumentPdfSignedUrl, logDocumentEvent } from "../lib/documents";
 import {
   coerceSessionPaymentMethodKey,
@@ -35,9 +39,16 @@ import {
   type AthleteFamily,
   type AthleteFamilyMember,
   memberPayeeKey,
-  fetchAthleteFamilyForPayee,
+  fetchAthleteFamilyForPayeeResult,
   resolveFamilyMemberByPayee,
 } from "../lib/athleteFamilies";
+import {
+  lookupFailures,
+  reportStateAfterLoad,
+  type LookupFailure,
+  type ParticipantHistoryReportState,
+} from "../lib/participantHistoryLoad";
+import { RefreshFailedNotice } from "../components/RefreshFailedNotice";
 import type { PricingRateTierRow } from "../lib/pricingRates";
 import {
   computeBillingSummary,
@@ -155,6 +166,13 @@ export default function ParticipantHistoryScreen({
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
   /** True after a successful Load for the current athlete/date range (hides billing card on fetch error). */
   const [reportReady, setReportReady] = useState(false);
+  /**
+   * Whether what is on screen can be trusted (participantHistoryLoad): a failed lookup that the amounts depend on never
+   * shows as an empty or complete report. `hasCompleteReportRef` = the shown report came from a load where every
+   * required lookup succeeded (a failed background refresh may then keep it, marked out of date).
+   */
+  const [reportState, setReportState] = useState<ParticipantHistoryReportState>({ kind: "ok", missingDetails: [] });
+  const hasCompleteReportRef = useRef(false);
   const [emptyHint, setEmptyHint] = useState<string>(t("participantHistory.emptyDefault"));
   const [editAmountOpen, setEditAmountOpen] = useState(false);
   const [editAmountBusy, setEditAmountBusy] = useState(false);
@@ -596,12 +614,12 @@ export default function ParticipantHistoryScreen({
 
   // Performance Phase 5: the family effect below and load() both ask for the same athlete's family at the same moment;
   // the second caller shares the request still in flight (nothing is cached once it settles).
-  const familyInFlightRef = useRef<{ key: string; promise: ReturnType<typeof fetchAthleteFamilyForPayee> } | null>(null);
+  const familyInFlightRef = useRef<{ key: string; promise: ReturnType<typeof fetchAthleteFamilyForPayeeResult> } | null>(null);
   const fetchFamilyShared = useCallback((id: string, manual: boolean) => {
     const key = `${manual ? "m" : "u"}:${id}`;
     const running = familyInFlightRef.current;
     if (running && running.key === key) return running.promise;
-    const promise = fetchAthleteFamilyForPayee(id, manual);
+    const promise = fetchAthleteFamilyForPayeeResult(id, manual);
     familyInFlightRef.current = { key, promise };
     const clear = () => {
       if (familyInFlightRef.current?.promise === promise) familyInFlightRef.current = null;
@@ -616,8 +634,9 @@ export default function ParticipantHistoryScreen({
       return;
     }
     void (async () => {
-      const family = await fetchFamilyShared(athleteId, payeeIsManual);
-      setFamilyContext(family);
+      // On failure keep what is there: load() reports the failure (a failed lookup is not "no family").
+      const { family, error } = await fetchFamilyShared(athleteId, payeeIsManual);
+      if (!error) setFamilyContext(family);
     })();
   }, [athleteId, payeeIsManual, fetchFamilyShared]);
 
@@ -742,10 +761,39 @@ export default function ParticipantHistoryScreen({
     if (!silent) {
       setLoading(true);
       setReportReady(false);
+      setReportState({ kind: "ok", missingDetails: [] });
     }
 
-    const activeFamily = await fetchFamilyShared(athleteId, payeeIsManual);
+    // A lookup the amounts depend on failed: never show totals computed without it. A first load (or anything without a
+    // complete report on screen) shows an error + retry instead of rows / totals — it used to clear the report and leave
+    // "No records" behind once the toast was gone. A background refresh keeps the complete report it had, marked out of
+    // date. Nothing is saved anywhere; this only decides what is shown.
+    const failLoad = (failures: LookupFailure[]) => {
+      const state = reportStateAfterLoad(failures, { silent, hasCompleteReport: hasCompleteReportRef.current });
+      if (state.kind === "failed") {
+        hasCompleteReportRef.current = false;
+        setRows([]);
+        setAccountPayments([]);
+        setCoveredRegistrationIds(new Set());
+        setSubscriptionChargesIls(0);
+        setSubscriptionCharges([]);
+        setReceiptBySourceId({});
+        setReportReady(false);
+        setHasSearched(true);
+      }
+      setReportState(state);
+      setLoading(false);
+      if (state.kind !== "ok") showError(state.message);
+    };
+
+    const familyRes = await fetchFamilyShared(athleteId, payeeIsManual);
     if (mySeq !== loadSeqRef.current) return;
+    if (familyRes.error) {
+      // Without the family the report would silently cover one member only (other members' sessions and payments missing).
+      failLoad(lookupFailures({ family: familyRes }));
+      return;
+    }
+    const activeFamily = familyRes.family;
     setFamilyContext(activeFamily);
 
     const familyId = activeFamily?.id ?? null;
@@ -863,46 +911,19 @@ export default function ParticipantHistoryScreen({
     // instead of letting it clobber the more recent (possibly broader) result.
     if (mySeq !== loadSeqRef.current) return;
 
-    if (histRes.error) {
-      if (!silent) {
-        setLoading(false);
-        setRows([]);
-        setAccountPayments([]);
-        setCoveredRegistrationIds(new Set());
-        setSubscriptionChargesIls(0);
-        setSubscriptionCharges([]);
-        setReportReady(false);
-        setHasSearched(true);
-      }
-      showError(histRes.error.message);
-      return;
-    }
-    if (priceRes.error) {
-      if (!silent) {
-        setLoading(false);
-        setRows([]);
-        setAccountPayments([]);
-        setCoveredRegistrationIds(new Set());
-        setSubscriptionChargesIls(0);
-        setSubscriptionCharges([]);
-        setReportReady(false);
-        setHasSearched(true);
-      }
-      showError(priceRes.error.message);
-      return;
-    }
-    if (acctRes.error) {
-      if (!silent) {
-        setLoading(false);
-        setRows([]);
-        setAccountPayments([]);
-        setCoveredRegistrationIds(new Set());
-        setSubscriptionChargesIls(0);
-        setSubscriptionCharges([]);
-        setReportReady(false);
-        setHasSearched(true);
-      }
-      showError(acctRes.error.message);
+    // Subscription charges are part of the expected total, so their failure is not "no charges" (it was unchecked).
+    const ovFailure = Array.isArray(ovRes)
+      ? (ovRes.find((chunk) => chunk.error) ?? null)
+      : (ovRes as { error?: { message: string } | null });
+    const primaryFailures = lookupFailures({
+      history: histRes,
+      globalTiers: priceRes,
+      payments: acctRes,
+      athleteTiers: ovFailure,
+      subscriptionCharges: subChargesRes,
+    });
+    if (primaryFailures.length > 0) {
+      failLoad(primaryFailures);
       return;
     }
 
@@ -910,20 +931,6 @@ export default function ParticipantHistoryScreen({
     let athTiers: PricingRateTierRow[] = [];
     if (familyId && Array.isArray(ovRes)) {
       for (const chunk of ovRes) {
-        if (chunk.error) {
-          if (!silent) {
-            setLoading(false);
-            setRows([]);
-            setAccountPayments([]);
-            setCoveredRegistrationIds(new Set());
-            setSubscriptionChargesIls(0);
-        setSubscriptionCharges([]);
-            setReportReady(false);
-            setHasSearched(true);
-          }
-          showError(chunk.error.message);
-          return;
-        }
         tierRowMap[chunk.key] = (
           (chunk.data as {
             max_participants: number;
@@ -941,21 +948,7 @@ export default function ParticipantHistoryScreen({
       const pickerKey = memberPayeeKey(payeeIsManual ? "manual" : "app", athleteId);
       athTiers = tierRowMap[pickerKey] ?? [];
     } else {
-      const singleOv = ovRes as { error?: { message: string } | null; data?: unknown };
-      if (singleOv.error) {
-        if (!silent) {
-          setLoading(false);
-          setRows([]);
-          setAccountPayments([]);
-          setCoveredRegistrationIds(new Set());
-          setSubscriptionChargesIls(0);
-        setSubscriptionCharges([]);
-          setReportReady(false);
-          setHasSearched(true);
-        }
-        showError(singleOv.error.message);
-        return;
-      }
+      const singleOv = ovRes as { data?: unknown };
       athTiers = (
         (singleOv.data as {
           max_participants: number;
@@ -984,10 +977,10 @@ export default function ParticipantHistoryScreen({
     // Performance Phase 5: everything below depends only on the history / payments above, not on each other, so it is
     // requested in one parallel wave (it used to be five waves one after another: coverage, staff names, receipts,
     // sessions, roster prices). Results are applied together, after the stale-load check, so the report never shows
-    // rows without their coverage / receipts / prices. Same queries; failures are handled exactly as before (these
-    // lookups fall back to empty, as they did).
+    // rows without their coverage / receipts / prices. A failed lookup is not an empty result: coverage and prices decide
+    // amounts (→ failLoad); receipts, staff names and hidden markers only add details (→ shown as missing).
     const noRows = <T,>() => Promise.resolve({ data: [] as T[], error: null });
-    const [appCovRes, manualCovRes, hidden, staffRes, docRes, sessRes, rosterPriceRes] = await Promise.all([
+    const [appCovRes, manualCovRes, hiddenRes, staffRes, docRes, sessRes, rosterPriceRes] = await Promise.all([
       showFinance && appRegIds.length > 0
         ? supabase
             .from("subscription_registration_coverage")
@@ -1002,7 +995,9 @@ export default function ParticipantHistoryScreen({
             .eq("covered", true)
             .in("manual_participant_id", manualRegIds)
         : noRows<{ manual_participant_id: string | null }>(),
-      isSuperUser ? fetchHiddenRegistrationKeys(sessionIds) : Promise.resolve(new Set<string>()),
+      isSuperUser
+        ? fetchHiddenRegistrationKeysResult(sessionIds)
+        : Promise.resolve({ keys: new Set<string>(), error: null as string | null }),
       staffIds.length > 0
         ? supabase.from("profiles").select("user_id, full_name").in("user_id", staffIds)
         : noRows<{ user_id: string; full_name: string | null }>(),
@@ -1027,6 +1022,21 @@ export default function ParticipantHistoryScreen({
         : noRows<{ session_id: string; user_id: string | null; manual_participant_id: string | null; price_ils: number | string }>(),
     ]);
     if (mySeq !== loadSeqRef.current) return;
+
+    const waveFailures = lookupFailures({
+      coverage: appCovRes.error ? appCovRes : manualCovRes,
+      sessionPrices: sessRes,
+      rosterPrices: rosterPriceRes,
+      receipts: docRes,
+      staffNames: staffRes,
+      hiddenKeys: hiddenRes,
+    });
+    const outcome = reportStateAfterLoad(waveFailures, { silent, hasCompleteReport: hasCompleteReportRef.current });
+    if (outcome.kind !== "ok") {
+      failLoad(waveFailures);
+      return;
+    }
+    const detailsMissing = new Set(outcome.missingDetails);
 
     setRows(next);
 
@@ -1068,7 +1078,7 @@ export default function ParticipantHistoryScreen({
       })
     );
 
-    setHiddenKeys(hidden);
+    setHiddenKeys(hiddenRes.keys);
     const nameByStaff: Record<string, string> = Object.fromEntries(
       ((staffRes.data ?? []) as { user_id: string; full_name: string | null }[]).map((p) => [p.user_id, (p.full_name ?? "").trim()])
     );
@@ -1078,7 +1088,7 @@ export default function ParticipantHistoryScreen({
         created_by_name: p.created_by ? nameByStaff[p.created_by] ?? null : null,
       }))
     );
-    if (showFinance && receiptSourceIds.length > 0) {
+    if (showFinance && receiptSourceIds.length > 0 && !detailsMissing.has("receipts")) {
       setReceiptBySourceId(
         Object.fromEntries(
           ((docRes.data ?? []) as {
@@ -1169,6 +1179,8 @@ export default function ParticipantHistoryScreen({
       setEmptyHint(t("ui.participantHistory.noRecordsForThoseDates"));
     }
 
+    hasCompleteReportRef.current = true;
+    setReportState(outcome);
     if (!silent) setLoading(false);
     setReportReady(true);
     setHasSearched(true);
@@ -1393,6 +1405,33 @@ export default function ParticipantHistoryScreen({
               </View>
             ) : null}
 
+            {/* In the header, not the list's empty slot: the list keeps its athlete section header even with no rows. */}
+            {athleteId && !loading && reportState.kind === "failed" ? (
+              <EmptyState
+                tone="error"
+                title={t("participantHistory.loadFailedTitle")}
+                body={t("participantHistory.loadFailedBody")}
+                actionLabel={t("auth.retryConnection")}
+                onAction={() => void load()}
+                isRTL={isRTL}
+              />
+            ) : null}
+            {athleteId && !loading && reportState.kind === "stale" ? (
+              <RefreshFailedNotice message={t("participantHistory.refreshFailedAmounts")} onRetry={() => void load()} />
+            ) : null}
+            {athleteId && !loading && reportState.kind === "ok" && reportState.missingDetails.length > 0 ? (
+              <EmptyState
+                compact
+                tone="error"
+                title={t("participantHistory.missingDetails").replace(
+                  "{items}",
+                  reportState.missingDetails.map((d) => t(`participantHistory.missingDetail.${d}`)).join(", ")
+                )}
+                actionLabel={t("auth.retryConnection")}
+                onAction={() => void load()}
+                isRTL={isRTL}
+              />
+            ) : null}
             <CrossfadeSwap
               loading={!!(athleteId && loading)}
               skeleton={
@@ -1403,7 +1442,7 @@ export default function ParticipantHistoryScreen({
               }
             >
             {showFinance && billingSummary && athleteId && reportReady ? (
-              <View style={styles.billingCard}>
+              <View style={[styles.billingCard, reportState.kind === "stale" && styles.billingCardStale]}>
                 <Text style={[styles.billingTitle, isRTL && styles.rtlText]}>{t("billing.summaryTitle")}</Text>
                 <View style={[styles.billingStatGrid, rtlRowFlip && styles.billingStatGridRtl]}>
                   <View style={styles.billingStatTile}>
@@ -1544,6 +1583,7 @@ export default function ParticipantHistoryScreen({
                 }}
                 onDelete={confirmDeleteAccountPayment}
                 receiptDocumentNumber={receiptBySourceId[item.pay.id]?.document_number ?? null}
+                reporterUnavailable={reportState.kind === "ok" && reportState.missingDetails.includes("staffNames")}
                 onViewReceipt={() => {
                   const doc = receiptBySourceId[item.pay.id];
                   if (doc) void openReceipt(doc);
@@ -1562,6 +1602,8 @@ export default function ParticipantHistoryScreen({
               superUserHidden={isSuperUser && hiddenKeys.has(hiddenRegistrationKey(item.reg.session_id, item.reg.athlete_user_id))}
               canToggleHide={
                 isSuperUser &&
+                // Unknown hidden state: do not offer hide / unhide based on a guess.
+                !(reportState.kind === "ok" && reportState.missingDetails.includes("hiddenKeys")) &&
                 isManagerHistory &&
                 item.reg.reg_status === "active" &&
                 !isManualHistoryRow(item.reg)
@@ -1610,7 +1652,7 @@ export default function ParticipantHistoryScreen({
         ListEmptyComponent={
           !athleteId ? (
             <EmptyState icon="person-outline" title={t("participantHistory.chooseAthlete")} isRTL={isRTL} />
-          ) : !hasSearched || loading ? null : (
+          ) : !hasSearched || loading || reportState.kind === "failed" ? null : (
             <EmptyState icon="file-tray-outline" title={emptyHint} isRTL={isRTL} />
           )
         }

@@ -7,12 +7,12 @@ import { useI18n } from "../context/I18nContext";
  * A refresh failed but earlier data is still on screen (Performance Phase 1 / step 5): say so, so the shown counts and
  * places are not taken as current, and offer a retry. Registration itself is always decided by the server.
  */
-export function RefreshFailedNotice({ onRetry }: { onRetry: () => void }) {
+export function RefreshFailedNotice({ onRetry, message }: { onRetry: () => void; message?: string }) {
   const { t, isRTL } = useI18n();
   return (
     <View style={styles.banner} accessibilityRole="alert">
       <AppText variant="caption" isRTL={isRTL} style={styles.txt}>
-        {t("common.refreshFailedKeptData")}
+        {message ?? t("common.refreshFailedKeptData")}
       </AppText>
       <Pressable onPress={onRetry} accessibilityRole="button" hitSlop={8}>
         <AppText variant="caption" isRTL={isRTL} style={styles.retry}>

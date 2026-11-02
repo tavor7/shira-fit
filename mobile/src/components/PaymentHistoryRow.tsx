@@ -23,6 +23,8 @@ type Props = {
   /** Set when this payment has an active receipt with a ready PDF; the document number to show on the badge. */
   receiptDocumentNumber?: string | null;
   onViewReceipt?: () => void;
+  /** The lookup of who recorded payments failed: say so instead of claiming nobody was recorded. */
+  reporterUnavailable?: boolean;
 };
 
 export function PaymentHistoryRow({
@@ -37,6 +39,7 @@ export function PaymentHistoryRow({
   onDelete,
   receiptDocumentNumber,
   onViewReceipt,
+  reporterUnavailable = false,
 }: Props) {
   const p = pay;
   const isDiscount = normalizePaymentMethodKey(p.payment_method) === "discount";
@@ -49,7 +52,7 @@ export function PaymentHistoryRow({
   const recorder = (p.created_by_name ?? "").trim();
   const reporterLine = recorder
     ? t("participantHistory.reportedBy").replace("{name}", firstWordOfDisplayName(recorder))
-    : t("participantHistory.reportedByUnknown");
+    : t(reporterUnavailable && p.created_by ? "participantHistory.reportedByUnavailable" : "participantHistory.reportedByUnknown");
   const payeeMember = resolveFamilyMemberByPayee(familyContext, p.payee_id, p.payee_is_manual);
   const assignedName = payeeMember?.name?.trim() || null;
   const payerName = (p.payer_name ?? "").trim();

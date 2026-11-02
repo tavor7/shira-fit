@@ -87,10 +87,21 @@ export async function fetchAthleteFamilyForPayee(
   payeeId: string,
   payeeIsManual: boolean
 ): Promise<AthleteFamily | null> {
+  return (await fetchAthleteFamilyForPayeeResult(payeeId, payeeIsManual)).family;
+}
+
+/**
+ * Like fetchAthleteFamilyForPayee, but a failed lookup is reported instead of looking like "no family" — callers whose
+ * totals depend on the family (all members' sessions and payments) must not treat a failure as a single athlete.
+ */
+export async function fetchAthleteFamilyForPayeeResult(
+  payeeId: string,
+  payeeIsManual: boolean
+): Promise<{ family: AthleteFamily | null; error: string | null }> {
   const { data, error } = await supabase.rpc("get_athlete_family", {
     p_payee_id: payeeId,
     p_payee_is_manual: payeeIsManual,
   });
-  if (error) return null;
-  return parseFamilyRpcResponse(data);
+  if (error) return { family: null, error: error.message || "get_athlete_family failed" };
+  return { family: parseFamilyRpcResponse(data), error: null };
 }
