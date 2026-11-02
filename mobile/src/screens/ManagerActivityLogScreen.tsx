@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
@@ -32,6 +32,7 @@ import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { selectionA11y } from "../lib/a11ySelection";
 import { formatISODateLong } from "../lib/dateFormat";
 import type { LanguageCode } from "../i18n/translations";
+import { createLoadSequencer } from "../lib/screenRefresh";
 
 type Row = ActivityLogRow;
 
@@ -298,8 +299,13 @@ export default function ManagerActivityLogScreen() {
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [revertingId, setRevertingId] = useState<string | null>(null);
 
-  const reload = useCallback(
+  const [loadSeq] = useState(createLoadSequencer);
+  const inFlightRef = useRef<{ key: string; promise: Promise<void> } | null>(null);
+
+  const loadOnce = useCallback(
     async (forcePage?: number) => {
+      const ticket = loadSeq.next();
+      const stale = () => !loadSeq.isLatest(ticket);
       const bounds = isoBoundsFromLocalDates(dateFrom, dateTo);
       if (!bounds) {
         setRows([]);
@@ -317,6 +323,7 @@ export default function ManagerActivityLogScreen() {
       try {
         await supabase.rpc("manager_prune_activity_logs");
         const { data: retRaw } = await supabase.rpc("get_activity_log_retention_days");
+        if (stale()) return;
         const ret = Math.min(730, Math.max(1, Number(retRaw) || 14));
         setRetentionDays(ret);
 
@@ -335,6 +342,7 @@ export default function ManagerActivityLogScreen() {
         const { data, error, count } = await evQuery
           .order("created_at", { ascending: false })
           .range(rangeFrom, rangeTo);
+        if (stale()) return;
 
         const total = typeof count === "number" ? count : 0;
         setTotalCount(total);
@@ -362,6 +370,7 @@ export default function ManagerActivityLogScreen() {
         for (const r of list) collectActivityLogIds(r, profileIds, sessionIds, manualIds);
 
         const sessions = await fetchSessionsRaw([...sessionIds]);
+        if (stale()) return;
         const sum: Record<string, string> = {};
         for (const s of sessions) {
           sum[s.id] = sessionOneLine(s, language, t);
@@ -373,19 +382,33 @@ export default function ManagerActivityLogScreen() {
           fetchProfileLabels([...profileIds]),
           fetchManualParticipantLabels([...manualIds]),
         ]);
+        if (stale()) return;
         setProfileLabels(labels);
         setManualLabels(manual);
       } finally {
-        setLoading(false);
+        if (!stale()) setLoading(false);
       }
     },
-    [activityGroup, dateFrom, dateTo, language, pageIndex, t]
+    [activityGroup, dateFrom, dateTo, language, pageIndex, t, loadSeq]
   );
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+  // Performance Phase 5: one load per open / filter change (it ran twice: mount effect + focus effect, including the
+  // prune RPC). A reload identical to one still running joins it; when filters change mid-load, only the newest applies.
+  const reload = useCallback(
+    (forcePage?: number): Promise<void> => {
+      const key = JSON.stringify([dateFrom, dateTo, activityGroup, language, forcePage ?? pageIndex]);
+      const running = inFlightRef.current;
+      if (running && running.key === key) return running.promise;
+      const promise = loadOnce(forcePage).finally(() => {
+        if (inFlightRef.current?.promise === promise) inFlightRef.current = null;
+      });
+      inFlightRef.current = { key, promise };
+      return promise;
+    },
+    [loadOnce, activityGroup, dateFrom, dateTo, language, pageIndex]
+  );
 
+  // Runs on open, on every return to the screen, and whenever a filter or the page changes (reload changes then).
   useFocusEffect(
     useCallback(() => {
       void reload();

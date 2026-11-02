@@ -32,8 +32,12 @@ const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const MAX_EMAIL_LEN = 254;
 const MAX_PASSWORD_LEN = 128;
-/** How long the success moment (button pop + logo pulse + form fade) holds before navigating away. */
-const SUCCESS_HOLD_MS = 1500;
+/**
+ * How long the success moment (button pop + logo pulse + form fade) holds before navigating away. Performance Phase 5:
+ * was 1500 ms, which a real-device trace showed as most of the time between "Sign in" and Home; the button pop and form
+ * fade finish within this, and Home's own loading starts as soon as it opens.
+ */
+const SUCCESS_HOLD_MS = 600;
 
 type ClassifiedLoginError =
   | "invalid_credentials"

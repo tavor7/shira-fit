@@ -45,14 +45,16 @@ export function displayTimeRange(startTime: string, durationMinutes: number): st
  * Whole amounts drop ".00"; fractional amounts show two decimals. Display only — never feed the
  * result back into calculations, comparisons, exports or storage.
  */
+// Performance Phase 5: one NumberFormat each instead of a new one per call (Number.toLocaleString builds one every
+// time); identical output to `n.toLocaleString("en-US", { minimumFractionDigits, maximumFractionDigits })`.
+const MONEY_WHOLE = new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const MONEY_CENTS = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export function displayMoney(amount: number): string {
   if (!Number.isFinite(amount)) return "";
   const cents = Math.round(Math.abs(amount) * 100);
   const whole = cents % 100 === 0;
-  const body = (cents / 100).toLocaleString("en-US", {
-    minimumFractionDigits: whole ? 0 : 2,
-    maximumFractionDigits: whole ? 0 : 2,
-  });
+  const body = (whole ? MONEY_WHOLE : MONEY_CENTS).format(cents / 100);
   return displayLtr(`${amount < 0 && cents !== 0 ? "-" : ""}₪${body}`);
 }
 
