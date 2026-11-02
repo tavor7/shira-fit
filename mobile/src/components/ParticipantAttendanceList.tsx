@@ -1164,10 +1164,10 @@ export function ParticipantAttendanceList({
             style={styles.card}
           >
             {entering ? <EnteringHighlight /> : null}
-            {/* Phase 5 / E: one dense row — name, payment state, a compact attendance control and an overflow menu. */}
+            {/* Phase 5 / E: one dense row — name, a compact attendance control and an overflow menu. Details sit below it. */}
             <View style={[styles.denseRow, rowFlipFor(isRTL) && styles.denseRowRtl]}>
               <View style={[styles.nameBlock, rowFlipFor(isRTL) && styles.nameBlockRtl]}>
-                <Text {...userContentTextProps} style={[styles.name, isRTL && styles.rtlText]} numberOfLines={1}>
+                <Text {...userContentTextProps} style={[styles.name, isRTL && styles.rtlText]} numberOfLines={2}>
                   {item.name}
                   {item.birthdayToday ? (
                     <Text style={styles.bday}>
@@ -1180,91 +1180,6 @@ export function ParticipantAttendanceList({
                   <Text {...userContentTextProps} style={[styles.sub, isRTL && styles.rtlText]} numberOfLines={1}>
                     {displayLtr(item.phone)}
                   </Text>
-                ) : null}
-                {/* Covered rows show their coverage in the full-width footer below the attendance controls. */}
-                {sessionMeta && showDueLines && effectivePrice > 0 && !covered ? (
-                  <Text
-                    style={[
-                      styles.dueLine,
-                      isRTL && styles.rtlText,
-                      hasRateOverride && styles.dueLineCustom,
-                    ]}
-                    numberOfLines={2}
-                  >
-                    {t("managerSession.rosterSlotRateDue").replace(
-                      "{amount}",
-                      formatRosterIls(effectivePrice, language)
-                    )}
-                    {hasRateOverride ? ` · ${t("managerSession.rosterSlotRateCustomBadge")}` : ""}
-                  </Text>
-                ) : null}
-                {item.attended === true ? (
-                  <Pressable
-                    onPress={() => {
-                      if (busy || isPaymentLocked(item)) return;
-                      openPaymentModal(item, "arrived");
-                    }}
-                    disabled={busy || isPaymentLocked(item)}
-                    accessibilityRole="button"
-                    style={({ pressed }) => [styles.paymentTouch, pressed && { opacity: 0.85 }]}
-                  >
-                    <Text
-                      style={[
-                        styles.paymentLine,
-                        isRTL && styles.rtlText,
-                        paymentDisplayTone(item.paymentMethod) === "unpaid" && styles.paymentUnpaid,
-                        paymentDisplayTone(item.paymentMethod) === "cash_paybox" && styles.paymentCash,
-                        paymentDisplayTone(item.paymentMethod) === "other" && styles.paymentOther,
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {t("ui.participantAttendanceList.payment")}
-                      {paymentDisplayTone(item.paymentMethod) === "unpaid"
-                        ? t("ui.participantAttendanceList.unpaid")
-                        : paymentMethodAttendanceLabel(item.paymentMethod, language)}
-                      {item.amountPaid != null ? ` · ${displayMoney(item.amountPaid)}` : ""}
-                    </Text>
-                  </Pressable>
-                ) : item.attended === false && item.chargeNoShow ? (
-                  <Pressable
-                    onPress={() => {
-                      if (busy || isPaymentLocked(item)) return;
-                      openPaymentModal(item, "absent_penalty");
-                    }}
-                    disabled={busy || isPaymentLocked(item)}
-                    accessibilityRole="button"
-                    style={({ pressed }) => [styles.paymentTouch, pressed && { opacity: 0.85 }]}
-                  >
-                    <Text
-                      style={[
-                        styles.paymentLine,
-                        isRTL && styles.rtlText,
-                        paymentDisplayTone(item.paymentMethod) === "unpaid" && styles.paymentUnpaid,
-                        paymentDisplayTone(item.paymentMethod) === "cash_paybox" && styles.paymentCash,
-                        paymentDisplayTone(item.paymentMethod) === "other" && styles.paymentOther,
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {t("ui.participantAttendanceList.noShowPayment")}
-                      {paymentDisplayTone(item.paymentMethod) === "unpaid"
-                        ? t("ui.participantAttendanceList.unpaid")
-                        : paymentMethodAttendanceLabel(item.paymentMethod, language)}
-                      {item.amountPaid != null ? ` · ${displayMoney(item.amountPaid)}` : ""}
-                    </Text>
-                  </Pressable>
-                ) : null}
-                {isPaymentLocked(item) ? (
-                  <View style={[styles.lockRow, rowFlipFor(isRTL) && styles.lockRowRtl]} accessible accessibilityRole="text">
-                    <AppIcon name="lock-closed-outline" size="sm" color={theme.colors.textMuted} />
-                    <Text style={[styles.lockTxt, isRTL && styles.rtlText]}>
-                      {t(isPaymentLockUnknown(item) ? "attendance.paymentLockUnknown" : "attendance.paymentLockedReceipt")}
-                    </Text>
-                  </View>
-                ) : null}
-                {item.kind === "registered" && superUserHiddenUserIds?.has(item.userId) ? (
-                  <View style={[styles.hiddenBadge, styles.hiddenBadgeInline]}>
-                    <Text style={styles.hiddenBadgeTxt}>{t("superUser.hiddenBadge")}</Text>
-                  </View>
                 ) : null}
               </View>
               <View style={[styles.denseRight, rowFlipFor(isRTL) && styles.denseRightRtl]}>
@@ -1364,6 +1279,105 @@ export function ParticipantAttendanceList({
                 </Text>
               </View>
             ) : null}
+            {/* Due amount, payment and lock state are full width too, so nothing is squeezed beside the attendance controls. */}
+              {sessionMeta && showDueLines && effectivePrice > 0 && !covered ? (
+                <Text
+                  style={[
+                    styles.dueLine,
+                    isRTL && styles.rtlText,
+                    hasRateOverride && styles.dueLineCustom,
+                  ]}
+                  numberOfLines={2}
+                >
+                  {t("managerSession.rosterSlotRateDue").replace(
+                    "{amount}",
+                    formatRosterIls(effectivePrice, language)
+                  )}
+                  {hasRateOverride ? ` · ${t("managerSession.rosterSlotRateCustomBadge")}` : ""}
+                </Text>
+              ) : null}
+              {item.attended === true ? (
+                <Pressable
+                  onPress={() => {
+                    if (busy || isPaymentLocked(item)) return;
+                    openPaymentModal(item, "arrived");
+                  }}
+                  disabled={busy || isPaymentLocked(item)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.paymentTouch, pressed && { opacity: 0.85 }]}
+                >
+                  <Text
+                    style={[
+                      styles.paymentLine,
+                      isRTL && styles.rtlText,
+                      paymentDisplayTone(item.paymentMethod) === "unpaid" && styles.paymentUnpaid,
+                      paymentDisplayTone(item.paymentMethod) === "cash_paybox" && styles.paymentCash,
+                      paymentDisplayTone(item.paymentMethod) === "other" && styles.paymentOther,
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {t("ui.participantAttendanceList.payment")}
+                    {paymentDisplayTone(item.paymentMethod) === "unpaid"
+                      ? t("ui.participantAttendanceList.unpaid")
+                      : paymentMethodAttendanceLabel(item.paymentMethod, language)}
+                    {item.amountPaid != null ? ` · ${displayMoney(item.amountPaid)}` : ""}
+                  </Text>
+                </Pressable>
+              ) : item.attended === false && item.chargeNoShow ? (
+                <Pressable
+                  onPress={() => {
+                    if (busy || isPaymentLocked(item)) return;
+                    openPaymentModal(item, "absent_penalty");
+                  }}
+                  disabled={busy || isPaymentLocked(item)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.paymentTouch, pressed && { opacity: 0.85 }]}
+                >
+                  <Text
+                    style={[
+                      styles.paymentLine,
+                      isRTL && styles.rtlText,
+                      paymentDisplayTone(item.paymentMethod) === "unpaid" && styles.paymentUnpaid,
+                      paymentDisplayTone(item.paymentMethod) === "cash_paybox" && styles.paymentCash,
+                      paymentDisplayTone(item.paymentMethod) === "other" && styles.paymentOther,
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {t("ui.participantAttendanceList.noShowPayment")}
+                    {paymentDisplayTone(item.paymentMethod) === "unpaid"
+                      ? t("ui.participantAttendanceList.unpaid")
+                      : paymentMethodAttendanceLabel(item.paymentMethod, language)}
+                    {item.amountPaid != null ? ` · ${displayMoney(item.amountPaid)}` : ""}
+                  </Text>
+                </Pressable>
+              ) : null}
+              {isPaymentLocked(item) ? (
+                <View style={[styles.lockRow, rowFlipFor(isRTL) && styles.lockRowRtl]}>
+                  <AppIcon name="lock-closed-outline" size="sm" color={theme.colors.textMuted} />
+                  <Text style={[styles.lockTxt, isRTL && styles.rtlText]}>
+                    {t(isPaymentLockUnknown(item) ? "attendance.paymentLockUnknownShort" : "attendance.paymentLockedReceiptShort")}
+                  </Text>
+                  <Pressable
+                    onPress={() =>
+                      showOk(
+                        t("attendance.paymentLockDetailsTitle"),
+                        t(isPaymentLockUnknown(item) ? "attendance.paymentLockUnknown" : "attendance.paymentLockedReceipt")
+                      )
+                    }
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("attendance.paymentLockDetailsA11y")}
+                    style={({ pressed }) => pressed && { opacity: 0.7 }}
+                  >
+                    <AppIcon name="information-circle-outline" size="sm" color={theme.colors.textMuted} />
+                  </Pressable>
+                </View>
+              ) : null}
+              {item.kind === "registered" && superUserHiddenUserIds?.has(item.userId) ? (
+                <View style={[styles.hiddenBadge, styles.hiddenBadgeInline]}>
+                  <Text style={styles.hiddenBadgeTxt}>{t("superUser.hiddenBadge")}</Text>
+                </View>
+              ) : null}
             {sessionMeta && viewerIsManager && !unknownFinance.rates ? (
               <RosterSlotRateChip
                 sessionId={sessionId}
@@ -1539,8 +1553,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
   },
-  // Wraps when the name column would drop below 80px (320px phones), moving the row actions to their own line.
-  denseRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  // Wraps when the name column would drop below 110px (320px phones), moving the row actions to their own line.
+  denseRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 },
   denseRowRtl: { flexDirection: "row-reverse" },
   denseRight: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 0 },
   denseRightRtl: { flexDirection: "row-reverse" },
@@ -1584,7 +1598,7 @@ const styles = StyleSheet.create({
   undoBtnTxt: { color: theme.colors.text, fontWeight: "800", fontSize: 14, textDecorationLine: "underline" },
   nameRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 },
   nameRowRtl: { flexDirection: "row-reverse" },
-  nameBlock: { flex: 1, alignItems: "flex-start", minWidth: 80 },
+  nameBlock: { flex: 1, alignItems: "flex-start", minWidth: 110 },
   nameBlockRtl: { alignItems: "flex-end" },
   name: { flex: 1, ...theme.typography.title, color: theme.colors.text },
   bday: { color: theme.colors.cta, fontWeight: "900" },

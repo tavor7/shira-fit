@@ -34,6 +34,35 @@ describe("roster subscription coverage footer", () => {
     expect(src).toContain("rowFlipFor(isRTL) && styles.coveredFooterRtl");
   });
 
+  it("keeps every detail out of the row beside the attendance controls", () => {
+    const row = src.slice(src.indexOf("styles.denseRow,"), start);
+    for (const part of ["styles.lockRow", "styles.paymentLine", "styles.dueLine", "styles.hiddenBadge"]) {
+      expect(row).not.toContain(part);
+      expect(src.indexOf(part, start)).toBeGreaterThan(start);
+    }
+  });
+
+  it("wraps the row on the narrowest phones instead of squeezing the name column", () => {
+    expect(src).toMatch(/denseRow: \{[^}]*flexWrap: "wrap"/);
+    expect(src).toMatch(/nameBlock: \{[^}]*minWidth: 110/);
+  });
+
+  it("shows the short lock message in the card and the full explanation only on demand", () => {
+    expect(translations.en["attendance.paymentLockedReceiptShort"]).toBe("Payment locked — receipt issued.");
+    expect(translations.he["attendance.paymentLockedReceiptShort"]).toBe("התשלום נעול — הופקה קבלה.");
+    const lockRow = src.slice(src.indexOf("styles.lockRow,"), src.indexOf("styles.lockRow,") + 1100);
+    const inCard = lockRow.slice(0, lockRow.indexOf("<Pressable"));
+    expect(inCard).toContain("attendance.paymentLockedReceiptShort");
+    expect(inCard).not.toContain('"attendance.paymentLockedReceipt"');
+    expect(lockRow).toContain("showOk(");
+    expect(lockRow).toContain('"attendance.paymentLockedReceipt"');
+    for (const lang of ["en", "he"] as const) {
+      for (const key of ["attendance.paymentLockUnknownShort", "attendance.paymentLockDetailsTitle", "attendance.paymentLockDetailsA11y"]) {
+        expect(translations[lang][key]).toBeTruthy();
+      }
+    }
+  });
+
   it("has the label in both languages", () => {
     expect(translations.en[KEY]).toBe("Subscription covered");
     expect(translations.he[KEY]).toBe("מכוסה במנוי");
