@@ -31,6 +31,13 @@ export async function fetchSessionIdsWithHiddenAthletes(sessionIds?: string[]): 
 
 /** Set of "sessionId:userId" keys currently hidden. */
 export async function fetchHiddenRegistrationKeys(sessionIds?: string[]): Promise<Set<string>> {
+  return (await fetchHiddenRegistrationKeysResult(sessionIds)).keys;
+}
+
+/** Like fetchHiddenRegistrationKeys, but reports a failed lookup instead of returning "nothing hidden". */
+export async function fetchHiddenRegistrationKeysResult(
+  sessionIds?: string[]
+): Promise<{ keys: Set<string>; error: string | null }> {
   let query = supabase
     .from("super_user_hidden_registrations")
     .select("session_id, user_id")
@@ -39,8 +46,11 @@ export async function fetchHiddenRegistrationKeys(sessionIds?: string[]): Promis
     query = query.in("session_id", sessionIds);
   }
   const { data, error } = await query;
-  if (error || !data) return new Set();
-  return new Set(
-    (data as { session_id: string; user_id: string }[]).map((r) => hiddenRegistrationKey(r.session_id, r.user_id))
-  );
+  if (error || !data) return { keys: new Set(), error: error?.message || "hidden registrations unavailable" };
+  return {
+    keys: new Set(
+      (data as { session_id: string; user_id: string }[]).map((r) => hiddenRegistrationKey(r.session_id, r.user_id))
+    ),
+    error: null,
+  };
 }

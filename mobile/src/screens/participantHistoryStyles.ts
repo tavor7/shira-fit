@@ -418,6 +418,8 @@ export const participantHistoryStyles = StyleSheet.create({
     borderColor: theme.colors.borderMuted,
     gap: 8,
   },
+  /** Last successful figures kept after a failed refresh (RefreshFailedNotice above says so). */
+  billingCardStale: { opacity: 0.55 },
   billingTitle: { fontSize: 13, fontWeight: "800", color: theme.colors.textMuted, letterSpacing: 0.3, textTransform: "uppercase" },
   billingStatGrid: { flexDirection: "row", gap: 8 },
   billingStatGridRtl: { flexDirection: "row-reverse" },
