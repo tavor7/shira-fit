@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { View, Text, SectionList, Pressable, Platform, Linking } from "react-native";
 import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-router";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
@@ -168,11 +168,17 @@ export default function ParticipantHistoryScreen({
   const [reportReady, setReportReady] = useState(false);
   /**
    * Whether what is on screen can be trusted (participantHistoryLoad): a failed lookup that the amounts depend on never
-   * shows as an empty or complete report. `hasCompleteReportRef` = the shown report came from a load where every
-   * required lookup succeeded (a failed background refresh may then keep it, marked out of date).
+   * shows as an empty or complete report. `completeReportKeyRef` = the selection (athlete, payee kind, dates) whose report
+   * on screen came from a load where every required lookup succeeded — only that same selection's failed background
+   * refresh may keep it, marked out of date. Another athlete's figures never stand in for this one's.
    */
   const [reportState, setReportState] = useState<ParticipantHistoryReportState>({ kind: "ok", missingDetails: [] });
-  const hasCompleteReportRef = useRef(false);
+  const completeReportKeyRef = useRef<string | null>(null);
+  const selectionKey = `${athleteId}|${payeeIsManual ? "m" : "u"}|${start.trim()}|${end.trim()}`;
+  const selectionKeyRef = useRef(selectionKey);
+  useLayoutEffect(() => {
+    selectionKeyRef.current = selectionKey;
+  }, [selectionKey]);
   const [emptyHint, setEmptyHint] = useState<string>(t("participantHistory.emptyDefault"));
   const [editAmountOpen, setEditAmountOpen] = useState(false);
   const [editAmountBusy, setEditAmountBusy] = useState(false);
@@ -742,7 +748,12 @@ export default function ParticipantHistoryScreen({
   const loadSeqRef = useRef(0);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
+    const myKey = `${athleteId}|${payeeIsManual ? "m" : "u"}|${start.trim()}|${end.trim()}`;
+    // A load for a selection that is no longer on screen (e.g. the refresh after an action on athlete A, finishing after
+    // switching to athlete B) does nothing, and does not void the current selection's load.
+    if (selectionKeyRef.current !== myKey) return;
     const mySeq = ++loadSeqRef.current;
+    const isCurrent = () => mySeq === loadSeqRef.current && selectionKeyRef.current === myKey;
     const silent = opts?.silent === true;
     const s = start.trim();
     const e = end.trim();
@@ -762,6 +773,16 @@ export default function ParticipantHistoryScreen({
       setLoading(true);
       setReportReady(false);
       setReportState({ kind: "ok", missingDetails: [] });
+      if (completeReportKeyRef.current !== myKey) {
+        // A different selection's rows / totals must not stay on screen, under this athlete's name, while this loads.
+        completeReportKeyRef.current = null;
+        setRows([]);
+        setAccountPayments([]);
+        setCoveredRegistrationIds(new Set());
+        setSubscriptionChargesIls(0);
+        setSubscriptionCharges([]);
+        setReceiptBySourceId({});
+      }
     }
 
     // A lookup the amounts depend on failed: never show totals computed without it. A first load (or anything without a
@@ -769,9 +790,9 @@ export default function ParticipantHistoryScreen({
     // "No records" behind once the toast was gone. A background refresh keeps the complete report it had, marked out of
     // date. Nothing is saved anywhere; this only decides what is shown.
     const failLoad = (failures: LookupFailure[]) => {
-      const state = reportStateAfterLoad(failures, { silent, hasCompleteReport: hasCompleteReportRef.current });
+      const state = reportStateAfterLoad(failures, { silent, hasCompleteReport: completeReportKeyRef.current === myKey });
       if (state.kind === "failed") {
-        hasCompleteReportRef.current = false;
+        completeReportKeyRef.current = null;
         setRows([]);
         setAccountPayments([]);
         setCoveredRegistrationIds(new Set());
@@ -787,7 +808,7 @@ export default function ParticipantHistoryScreen({
     };
 
     const familyRes = await fetchFamilyShared(athleteId, payeeIsManual);
-    if (mySeq !== loadSeqRef.current) return;
+    if (!isCurrent()) return;
     if (familyRes.error) {
       // Without the family the report would silently cover one member only (other members' sessions and payments missing).
       failLoad(lookupFailures({ family: familyRes }));
@@ -909,7 +930,7 @@ export default function ParticipantHistoryScreen({
 
     // A newer load() call started while these were in flight — drop this stale response
     // instead of letting it clobber the more recent (possibly broader) result.
-    if (mySeq !== loadSeqRef.current) return;
+    if (!isCurrent()) return;
 
     // Subscription charges are part of the expected total, so their failure is not "no charges" (it was unchecked).
     const ovFailure = Array.isArray(ovRes)
@@ -1021,7 +1042,7 @@ export default function ParticipantHistoryScreen({
             .in("session_id", sessionIds)
         : noRows<{ session_id: string; user_id: string | null; manual_participant_id: string | null; price_ils: number | string }>(),
     ]);
-    if (mySeq !== loadSeqRef.current) return;
+    if (!isCurrent()) return;
 
     const waveFailures = lookupFailures({
       coverage: appCovRes.error ? appCovRes : manualCovRes,
@@ -1031,7 +1052,7 @@ export default function ParticipantHistoryScreen({
       staffNames: staffRes,
       hiddenKeys: hiddenRes,
     });
-    const outcome = reportStateAfterLoad(waveFailures, { silent, hasCompleteReport: hasCompleteReportRef.current });
+    const outcome = reportStateAfterLoad(waveFailures, { silent, hasCompleteReport: completeReportKeyRef.current === myKey });
     if (outcome.kind !== "ok") {
       failLoad(waveFailures);
       return;
@@ -1179,7 +1200,7 @@ export default function ParticipantHistoryScreen({
       setEmptyHint(t("ui.participantHistory.noRecordsForThoseDates"));
     }
 
-    hasCompleteReportRef.current = true;
+    completeReportKeyRef.current = myKey;
     setReportState(outcome);
     if (!silent) setLoading(false);
     setReportReady(true);
