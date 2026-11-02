@@ -1,7 +1,7 @@
 import { supabase } from "./supabase";
 import { isMissingColumnError } from "./dbColumnErrors";
 
-/** Registration row joined with athlete profile (two queries — avoids PostgREST embed ambiguity). */
+/** Registration row joined with athlete profile. */
 export type SessionRegistrationWithProfile = {
   user_id: string;
   attended: boolean | null;
@@ -16,48 +16,33 @@ export type SessionRegistrationWithProfile = {
   } | null;
 };
 
+/**
+ * Active registrations of a session with the athlete's profile, in one request (Performance Phase 5; it used to be
+ * registrations, then profiles, one after the other). The foreign key is named explicitly because session_registrations
+ * has two relationships to profiles (user_id and payment_recorded_by). The embedded profile is read under the same RLS as
+ * a separate profiles query, so the same rows are visible; a profile the caller may not read is null, as before.
+ */
 export async function fetchSessionRegistrationsWithProfiles(
   sessionId: string
 ): Promise<{ rows: SessionRegistrationWithProfile[]; error: string | null }> {
-  const { data: regs, error: regErr } = await supabase
+  const base = "user_id, attended, charge_no_show, payment_method, amount_paid";
+  let res = await supabase
     .from("session_registrations")
-    .select("user_id, attended, charge_no_show, payment_method, amount_paid")
+    .select(`${base}, profile:profiles!session_registrations_user_id_fkey(user_id, full_name, username, phone, date_of_birth)`)
     .eq("session_id", sessionId)
     .eq("status", "active");
-
-  if (regErr) return { rows: [], error: regErr.message };
-
-  const list = (regs ?? []) as Omit<SessionRegistrationWithProfile, "profile">[];
-  if (list.length === 0) return { rows: [], error: null };
-
-  const userIds = [...new Set(list.map((r) => r.user_id))];
-  let profRes = await supabase
-    .from("profiles")
-    .select("user_id, full_name, username, phone, date_of_birth")
-    .in("user_id", userIds);
-
-  if (profRes.error && isMissingColumnError(profRes.error.message, "date_of_birth")) {
-    profRes = (await supabase
-      .from("profiles")
-      .select("user_id, full_name, username, phone")
-      .in("user_id", userIds)) as typeof profRes;
+  if (res.error && isMissingColumnError(res.error.message, "date_of_birth")) {
+    res = (await supabase
+      .from("session_registrations")
+      .select(`${base}, profile:profiles!session_registrations_user_id_fkey(user_id, full_name, username, phone)`)
+      .eq("session_id", sessionId)
+      .eq("status", "active")) as typeof res;
   }
-
-  if (profRes.error) return { rows: [], error: profRes.error.message };
-
-  const byUserId = new Map(
-    ((profRes.data ?? []) as { user_id: string; full_name: string; username?: string; phone?: string | null; date_of_birth?: string | null }[]).map(
-      (p) => [p.user_id, p]
-    )
-  );
-
-  return {
-    rows: list.map((r) => ({
-      ...r,
-      profile: byUserId.get(r.user_id) ?? null,
-    })),
-    error: null,
-  };
+  if (res.error) return { rows: [], error: res.error.message };
+  const rows = ((res.data ?? []) as unknown as (Omit<SessionRegistrationWithProfile, "profile"> & {
+    profile: SessionRegistrationWithProfile["profile"] | SessionRegistrationWithProfile["profile"][];
+  })[]).map((r) => ({ ...r, profile: Array.isArray(r.profile) ? r.profile[0] ?? null : r.profile ?? null }));
+  return { rows, error: null };
 }
 
 export type RosterAthleteEntry = { name: string; phone: string | null };
