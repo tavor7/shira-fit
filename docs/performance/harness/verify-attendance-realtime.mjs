@@ -3,7 +3,7 @@
 //   R2 coach sets it back to Not set                  -> time until the manager's screen shows it (the manager skipped the
 //                                                         echo of its own R1 write; this proves later changes still arrive)
 //   R3 an athlete registers through the API           -> both rosters gain the participant
-//   R4 the athlete cancels                            -> both rosters drop them; the manager's cancellations list updates
+//   R4 the athlete cancels                            -> both rosters drop them; both cancellations lists update
 // Synthetic registrations / cancellations are removed afterwards so every run starts from the same data.
 // Usage: PLAYWRIGHT_MODULE_DIR=… BASE=http://127.0.0.1:<port> ANON=<local anon key> ENGINE=chromium|webkit node verify-attendance-realtime.mjs
 import { createRequire } from "node:module";
@@ -46,6 +46,7 @@ async function open(email, p) {
 }
 const firstRadio = (page, name) => page.getByRole("radio", { name }).locator("visible=true").first();
 const checked = async (page, name) => (await firstRadio(page, name).getAttribute("aria-checked")) === "true";
+const rosterRows = (page) => page.locator('[role="radiogroup"][aria-label="Attendance"]').count();
 const hasText = async (page, re) => (await page.getByText(re).locator("visible=true").count()) > 0;
 async function until(fn, timeoutMs = 10_000) {
   const t0 = Date.now();
@@ -88,15 +89,20 @@ try {
   // R3 / R4
   const name = psql(`select full_name from profiles p join auth.users u on u.id = p.user_id where u.email = '${ATHLETE}'`);
   const re = new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const mgrRows0 = await rosterRows(mgr);
+  const coachRows0 = await rosterRows(coach);
   const tok = await token(ATHLETE);
   const reg = await rpc(tok, "register_for_session", { p_session_id: SID, p_accept_extra_subscription_charge: false });
   out.R3_register = reg?.ok === true ? "ok" : JSON.stringify(reg).slice(0, 80);
-  out.R3_manager_roster_shows_athlete_ms = await until(() => hasText(mgr, re));
-  out.R3_coach_roster_shows_athlete_ms = await until(() => hasText(coach, re));
+  out.R3_manager_roster_rows_plus1_ms = await until(async () => (await rosterRows(mgr)) === mgrRows0 + 1);
+  out.R3_coach_roster_rows_plus1_ms = await until(async () => (await rosterRows(coach)) === coachRows0 + 1);
+  out.R3_coach_shows_athlete_name_ms = await until(() => hasText(coach, re));
   const can = await rpc(tok, "cancel_registration", { p_session_id: SID, p_reason: "perf harness cleanup" });
   out.R4_cancel = can?.ok === true ? "ok" : JSON.stringify(can).slice(0, 80);
   out.R4_manager_cancellations_list_shows_it_ms = await until(() => hasText(mgr, /perf harness cleanup/));
-  out.R4_coach_roster_drops_athlete_ms = await until(async () => !(await hasText(coach, re)));
+  out.R4_coach_cancellations_list_shows_it_ms = await until(() => hasText(coach, /perf harness cleanup/));
+  out.R4_manager_roster_rows_back_ms = await until(async () => (await rosterRows(mgr)) === mgrRows0);
+  out.R4_coach_roster_rows_back_ms = await until(async () => (await rosterRows(coach)) === coachRows0);
 } finally {
   psql(`delete from cancellations c using auth.users u where c.session_id = '${SID}' and c.user_id = u.id and u.email = '${ATHLETE}';
         delete from session_registrations r using auth.users u where r.session_id = '${SID}' and r.user_id = u.id and u.email = '${ATHLETE}';`);
