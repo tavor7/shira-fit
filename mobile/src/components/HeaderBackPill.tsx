@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions } from "react-native";
 import { useNavigation } from "expo-router/react-navigation";
-import { router, usePathname, type Href } from "expo-router";
+import { usePathname, type Href } from "expo-router";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
 import { useManagerAthletePreview } from "../context/ManagerAthletePreviewContext";
@@ -20,6 +20,7 @@ import {
 import { STUDIO_SETUP_INDEX_MAX_WIDTH } from "./ManagerOverviewTabs";
 import { logRedirectToManagerSessions } from "../lib/managerSessionsRedirectLog";
 import { theme } from "../theme";
+import { useSectionReplace } from "../lib/menuNavigation";
 
 const MANAGER_SESSIONS_HREF = "/(app)/manager/sessions" satisfies Href;
 
@@ -73,6 +74,9 @@ export function HeaderBackPill() {
     return a11yToSessions;
   }, [t, onPendingGate, canPop, inSessionDrilldown, isManager, pathname, managerParent]);
 
+  // Return to an already-open section instead of building a second copy (see menuNavigation).
+  const sectionReplace = useSectionReplace();
+
   if (!visible) return null;
 
   function replaceHref(href: Href, reason: string) {
@@ -83,7 +87,7 @@ export function HeaderBackPill() {
         profileRole: profile?.role ?? null,
       });
     }
-    router.replace(href);
+    sectionReplace(href as string);
   }
 
   function onPress() {

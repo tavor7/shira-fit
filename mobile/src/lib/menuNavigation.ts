@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { router, useNavigationContainerRef, type Href } from "expo-router";
 
 /**
- * Performance Phase 3 (PROTOTYPE, needs UX approval): staff menu destinations are sections, not drill-ins.
+ * Performance Phase 3: staff menu destinations are sections, not drill-ins (UX approved 2026-11-02).
  *
  * The menu used router.push for every item, so each tap added another copy of a screen on top of the stack; after 12
  * taps a manager had 13 mounted screens (three copies each of Sessions, Overview, Money, Roster calendar), 91 MB of JS
@@ -42,6 +42,23 @@ export function useMenuNavigate(): (href: string) => void {
       const root = (ref.isReady?.() ? ref.getRootState?.() : null) as NavState | null;
       if (isInAppStack(root, href)) router.dismissTo(href as Href);
       else router.push(href as Href);
+    },
+    [ref]
+  );
+}
+
+/**
+ * Same rule for the header back pill's "back to section" (Overview, Sessions, Setup): return to the section when it is
+ * already open underneath; otherwise replace the current screen as before. It used router.replace unconditionally, which
+ * built a second copy of a section that was already open (e.g. Overview → "Back to sessions calendar" left two homes).
+ */
+export function useSectionReplace(): (href: string) => void {
+  const ref = useNavigationContainerRef();
+  return useCallback(
+    (href: string) => {
+      const root = (ref.isReady?.() ? ref.getRootState?.() : null) as NavState | null;
+      if (isInAppStack(root, href)) router.dismissTo(href as Href);
+      else router.replace(href as Href);
     },
     [ref]
   );
