@@ -15,8 +15,7 @@ import { DaySessionsSheet } from "../../../src/components/DaySessionsSheet";
 import { useI18n } from "../../../src/context/I18nContext";
 import { useToast } from "../../../src/context/ToastContext";
 import { checkWaitlistSpotsAndNotify } from "../../../src/lib/waitlistSpotNotifier";
-import { syncExpoPushTokenIfNeeded } from "../../../src/lib/pushTokenSync";
-import { syncWebPushSubscriptionIfNeeded } from "../../../src/lib/webPushSync";
+import { syncPushRegistrationIfStale } from "../../../src/lib/pushSyncSchedule";
 import { touchWeeklyRegistrationOpenIfDue } from "../../../src/lib/touchWeeklyRegistrationOpen";
 import { fetchAthleteHomeAlertItems, type HomePriorityAlertItem } from "../../../src/lib/homePriorityAlerts";
 import { HomePriorityAlerts } from "../../../src/components/HomePriorityAlerts";
@@ -261,8 +260,8 @@ function AthleteSessionsScreenContent() {
     useCallback(() => {
       load(false);
       void loadMyUpcoming();
-      void syncExpoPushTokenIfNeeded();
-      void syncWebPushSubscriptionIfNeeded();
+      // Safety-net push re-sync: at most every 10 minutes (login and preference changes sync immediately elsewhere).
+      syncPushRegistrationIfStale();
       void checkWaitlistSpotsAndNotify();
     }, [load, loadMyUpcoming])
   );
