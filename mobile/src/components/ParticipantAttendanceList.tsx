@@ -43,6 +43,8 @@ import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
 import { displayLtr, displayMoney } from "../lib/displayFormat";
 import { useWebBackDismiss } from "../lib/webBackDismiss";
 import { usePerfScreen } from "../hooks/usePerfScreen";
+import type { RealtimeChange } from "../hooks/useRealtimeRefetch";
+import { rosterChangesAreNews } from "../lib/rosterRealtime";
 
 type RegRow = {
   user_id: string;
@@ -125,13 +127,23 @@ export type SessionAttendanceStats = {
 
 type Props = {
   sessionId: string;
-  onChanged?: () => void;
+  /**
+   * After this roster saved something. `reason` (Performance Phase 4) says what: "attendance" (attendance / payment /
+   * no-show charge, single or bulk) or "price" (per-athlete rate). Neither can change the session's waitlist,
+   * cancellations or notes, so the parent may skip reloading those.
+   */
+  onChanged?: (reason: "attendance" | "price") => void;
   /** Active roster size (app athletes + quick-add rows) after each load. */
   onParticipantCountChange?: (count: number) => void;
   /** Breakdown of attendance flags for ended-session summaries. */
   onAttendanceStatsChange?: (stats: SessionAttendanceStats) => void;
   /** Increment when registrations change (add/remove) so the list reloads without leaving the screen. */
   refreshNonce?: number;
+  /**
+   * Realtime changes for this session (Performance Phase 4): the roster reloads only when they can make it out of date
+   * (see rosterChangesAreNews). Increment `seq` for every delivery.
+   */
+  realtimeChanges?: { seq: number; changes: RealtimeChange[] | null };
   /** Manager-only: show remove control */
   onRemoveAthlete?: (userId: string) => void | Promise<void>;
   /** Staff: remove quick-added/manual participant from this session */
@@ -192,6 +204,7 @@ export function ParticipantAttendanceList({
   onParticipantCountChange,
   onAttendanceStatsChange,
   refreshNonce = 0,
+  realtimeChanges,
   onRemoveAthlete,
   onRemoveManualParticipant,
   showMarkAllArrived = true,
@@ -682,6 +695,17 @@ export function ParticipantAttendanceList({
     if (refreshNonce > 0) load({ silent: true });
   }, [refreshNonce, load]);
 
+  // Realtime: skip the reload when every change is already on screen (e.g. the echo of this roster's own write, which
+  // it reloaded right after saving); anything else reloads exactly as before.
+  const rowsForRealtimeRef = useRef(rows);
+  rowsForRealtimeRef.current = rows;
+  const realtimeSeq = realtimeChanges?.seq ?? 0;
+  useEffect(() => {
+    if (realtimeSeq === 0 || !realtimeChanges) return;
+    if (rosterChangesAreNews(realtimeChanges.changes, rowsForRealtimeRef.current)) load({ silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realtimeSeq]);
+
   useEffect(() => {
     return () => {
       if (enteringClearTimerRef.current) clearTimeout(enteringClearTimerRef.current);
@@ -840,7 +864,7 @@ export function ParticipantAttendanceList({
       })
     );
     await load({ silent: true });
-    onChanged?.();
+    onChanged?.("attendance");
   }
 
   async function markAllArrived() {
@@ -904,7 +928,7 @@ export function ParticipantAttendanceList({
         done.push({ row, attended: row.attended, paymentMethod: row.paymentMethod, amountPaid: row.amountPaid, chargeNoShow: row.chargeNoShow });
       }
       await load({ silent: true });
-      onChanged?.();
+      onChanged?.("attendance");
     } finally {
       setBusyKey(null);
     }
@@ -930,7 +954,7 @@ export function ParticipantAttendanceList({
         if (err) failed += 1;
       }
       await load({ silent: true });
-      onChanged?.();
+      onChanged?.("attendance");
     } finally {
       setBusyKey(null);
     }
@@ -1231,7 +1255,7 @@ export function ParticipantAttendanceList({
                 onOpenChange={(v) => setRateOpenFor(v ? item.id : null)}
                 onSaved={() => {
                   void load({ silent: true });
-                  onChanged?.();
+                  onChanged?.("price");
                 }}
               />
             ) : null}
