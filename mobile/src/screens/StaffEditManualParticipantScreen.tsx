@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { PaymentReminderCard } from "../components/PaymentReminderCard";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -211,6 +212,8 @@ export default function StaffEditManualParticipantScreen() {
           {t("common.loading")}
         </AppText>
       ) : null}
+
+      {manualId ? <PaymentReminderCard payeeId={manualId} payeeIsManual /> : null}
 
       {manualId ? (
         <View style={styles.metaCard}>

@@ -1,4 +1,5 @@
 import { selectionA11y } from "../lib/a11ySelection";
+import { PaymentReminderCard } from "../components/PaymentReminderCard";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
@@ -454,6 +455,8 @@ export default function StaffEditProfileScreen() {
           ) : null}
         </View>
       ) : null}
+
+      {isManager && userId ? <PaymentReminderCard payeeId={userId} payeeIsManual={false} /> : null}
 
       {isManager && role ? (
         <View style={styles.roleCard}>

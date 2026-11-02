@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { theme } from "../theme";
 import { AppText } from "./AppText";
@@ -16,6 +17,13 @@ type Props = {
   isRTL?: boolean;
   previewLabel?: string;
   style?: StyleProp<ViewStyle>;
+  /** Payment reminder: the amount, large, above the message. */
+  amountLabel?: string;
+  /** Replaces `body` when the text needs inline emphasis. */
+  bodyContent?: ReactNode;
+  hideKickerEmoji?: boolean;
+  /** Overrides the initials taken from the sender's name. */
+  avatarLabel?: string;
 };
 
 /** Shared card UI for recipient modal and manager live preview. */
@@ -27,11 +35,15 @@ export function ManagerMessageCard({
   isRTL,
   previewLabel,
   style,
+  amountLabel,
+  bodyContent,
+  hideKickerEmoji,
+  avatarLabel,
 }: Props) {
   const palette = getManagerMessageThemeStyle(messageTheme);
   const senderLabel = senderName.trim() || "Studio";
   const displayBody = body.trim() || "…";
-  const avatarInitials = initialsFromName(senderLabel);
+  const avatarInitials = avatarLabel ?? initialsFromName(senderLabel);
 
   return (
     <View style={[styles.wrap, style]}>
@@ -52,7 +64,7 @@ export function ManagerMessageCard({
             </View>
           </View>
           <AppText variant="caption" isRTL={isRTL} style={[styles.kicker, { color: palette.kickerColor }]}>
-            {palette.emoji} {inboxKicker}
+            {hideKickerEmoji ? inboxKicker : `${palette.emoji} ${inboxKicker}`}
           </AppText>
           <AppText variant="headline" isRTL={isRTL} style={styles.senderName}>
             {senderLabel}
@@ -66,8 +78,13 @@ export function ManagerMessageCard({
               { backgroundColor: palette.bubbleBg, borderColor: palette.bubbleBorder },
             ]}
           >
+            {amountLabel ? (
+              <AppText variant="display" style={styles.amount}>
+                {amountLabel}
+              </AppText>
+            ) : null}
             <AppText variant="body" isRTL={isRTL} style={[styles.bubbleText, { color: palette.bubbleText }]}>
-              {displayBody}
+              {bodyContent ?? displayBody}
             </AppText>
           </View>
         </View>
@@ -159,5 +176,13 @@ const styles = StyleSheet.create({
   },
   bubbleText: {
     lineHeight: 22,
+  },
+  amount: {
+    textAlign: "center",
+    fontSize: 32,
+    lineHeight: 36,
+    color: theme.colors.text,
+    fontVariant: ["tabular-nums"],
+    marginBottom: theme.spacing.sm,
   },
 });
