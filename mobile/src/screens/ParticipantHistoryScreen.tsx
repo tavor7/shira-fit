@@ -594,16 +594,32 @@ export default function ParticipantHistoryScreen({
   const billingBalanceDisplay = useCountUp(billingSummary?.balance ?? 0);
   const billingDiscountDisplay = useCountUp(billingSummary?.discountTotal ?? 0);
 
+  // Performance Phase 5: the family effect below and load() both ask for the same athlete's family at the same moment;
+  // the second caller shares the request still in flight (nothing is cached once it settles).
+  const familyInFlightRef = useRef<{ key: string; promise: ReturnType<typeof fetchAthleteFamilyForPayee> } | null>(null);
+  const fetchFamilyShared = useCallback((id: string, manual: boolean) => {
+    const key = `${manual ? "m" : "u"}:${id}`;
+    const running = familyInFlightRef.current;
+    if (running && running.key === key) return running.promise;
+    const promise = fetchAthleteFamilyForPayee(id, manual);
+    familyInFlightRef.current = { key, promise };
+    const clear = () => {
+      if (familyInFlightRef.current?.promise === promise) familyInFlightRef.current = null;
+    };
+    promise.then(clear, clear);
+    return promise;
+  }, []);
+
   useEffect(() => {
     if (!athleteId) {
       setFamilyContext(null);
       return;
     }
     void (async () => {
-      const family = await fetchAthleteFamilyForPayee(athleteId, payeeIsManual);
+      const family = await fetchFamilyShared(athleteId, payeeIsManual);
       setFamilyContext(family);
     })();
-  }, [athleteId, payeeIsManual]);
+  }, [athleteId, payeeIsManual, fetchFamilyShared]);
 
   useEffect(() => {
     const uid = presetUid;
@@ -728,7 +744,7 @@ export default function ParticipantHistoryScreen({
       setReportReady(false);
     }
 
-    const activeFamily = await fetchAthleteFamilyForPayee(athleteId, payeeIsManual);
+    const activeFamily = await fetchFamilyShared(athleteId, payeeIsManual);
     if (mySeq !== loadSeqRef.current) return;
     setFamilyContext(activeFamily);
 
@@ -956,34 +972,72 @@ export default function ParticipantHistoryScreen({
     }
 
     const next = (histRes.data as ParticipantHistoryRow[]) ?? [];
+    const payRows = (acctRes.data as AthleteAccountPayment[]) ?? [];
+    const sessionIds = [...new Set(next.map((r) => r.session_id).filter(Boolean))];
+    const staffIds = [...new Set(payRows.map((p) => p.created_by).filter((id): id is string => !!id))];
+    const receiptSourceIds = [
+      ...new Set([...next.map((r) => r.registration_id), ...payRows.map((p) => p.id)]),
+    ];
+    const appRegIds = next.filter((r) => !isManualHistoryRow(r)).map((r) => r.registration_id);
+    const manualRegIds = next.filter((r) => isManualHistoryRow(r)).map((r) => r.registration_id);
+
+    // Performance Phase 5: everything below depends only on the history / payments above, not on each other, so it is
+    // requested in one parallel wave (it used to be five waves one after another: coverage, staff names, receipts,
+    // sessions, roster prices). Results are applied together, after the stale-load check, so the report never shows
+    // rows without their coverage / receipts / prices. Same queries; failures are handled exactly as before (these
+    // lookups fall back to empty, as they did).
+    const noRows = <T,>() => Promise.resolve({ data: [] as T[], error: null });
+    const [appCovRes, manualCovRes, hidden, staffRes, docRes, sessRes, rosterPriceRes] = await Promise.all([
+      showFinance && appRegIds.length > 0
+        ? supabase
+            .from("subscription_registration_coverage")
+            .select("registration_id")
+            .eq("covered", true)
+            .in("registration_id", appRegIds)
+        : noRows<{ registration_id: string | null }>(),
+      showFinance && manualRegIds.length > 0
+        ? supabase
+            .from("subscription_registration_coverage")
+            .select("manual_participant_id")
+            .eq("covered", true)
+            .in("manual_participant_id", manualRegIds)
+        : noRows<{ manual_participant_id: string | null }>(),
+      isSuperUser ? fetchHiddenRegistrationKeys(sessionIds) : Promise.resolve(new Set<string>()),
+      staffIds.length > 0
+        ? supabase.from("profiles").select("user_id, full_name").in("user_id", staffIds)
+        : noRows<{ user_id: string; full_name: string | null }>(),
+      showFinance && receiptSourceIds.length > 0
+        ? supabase
+            .from("documents")
+            .select("id, source_id, document_number, pdf_url, signature_hash")
+            .in("source_id", receiptSourceIds)
+            .eq("status", "ACTIVE")
+        : noRows<{ id: string; source_id: string; document_number: string; pdf_url: string | null; signature_hash: string | null }>(),
+      sessionIds.length > 0
+        ? supabase
+            .from("training_sessions")
+            .select("id, custom_slot_price_ils, is_kickbox, trainer:profiles!coach_id(full_name)")
+            .in("id", sessionIds)
+        : noRows<{ id: string; custom_slot_price_ils?: number | null; is_kickbox?: boolean; trainer?: unknown }>(),
+      sessionIds.length > 0
+        ? supabase
+            .from("session_roster_slot_prices")
+            .select("session_id, user_id, manual_participant_id, price_ils")
+            .in("session_id", sessionIds)
+        : noRows<{ session_id: string; user_id: string | null; manual_participant_id: string | null; price_ils: number | string }>(),
+    ]);
+    if (mySeq !== loadSeqRef.current) return;
+
     setRows(next);
 
     if (!showFinance) {
       setCoveredRegistrationIds(new Set());
     } else {
-      const appRegIds = next.filter((r) => !isManualHistoryRow(r)).map((r) => r.registration_id);
-      const manualIds = next.filter((r) => isManualHistoryRow(r)).map((r) => r.registration_id);
-      const [appCovRes, manualCovRes] = await Promise.all([
-        appRegIds.length > 0
-          ? supabase
-              .from("subscription_registration_coverage")
-              .select("registration_id")
-              .eq("covered", true)
-              .in("registration_id", appRegIds)
-          : Promise.resolve({ data: [] as { registration_id: string | null }[], error: null }),
-        manualIds.length > 0
-          ? supabase
-              .from("subscription_registration_coverage")
-              .select("manual_participant_id")
-              .eq("covered", true)
-              .in("manual_participant_id", manualIds)
-          : Promise.resolve({ data: [] as { manual_participant_id: string | null }[], error: null }),
-      ]);
       const covered = new Set<string>();
-      for (const row of appCovRes.data ?? []) {
+      for (const row of (appCovRes.data ?? []) as { registration_id: string | null }[]) {
         if (row.registration_id) covered.add(row.registration_id);
       }
-      for (const row of manualCovRes.data ?? []) {
+      for (const row of (manualCovRes.data ?? []) as { manual_participant_id: string | null }[]) {
         if (row.manual_participant_id) covered.add(row.manual_participant_id);
       }
       setCoveredRegistrationIds(covered);
@@ -1014,41 +1068,20 @@ export default function ParticipantHistoryScreen({
       })
     );
 
-    setHiddenKeys(
-      isSuperUser
-        ? await fetchHiddenRegistrationKeys([...new Set(next.map((r) => r.session_id))])
-        : new Set()
+    setHiddenKeys(hidden);
+    const nameByStaff: Record<string, string> = Object.fromEntries(
+      ((staffRes.data ?? []) as { user_id: string; full_name: string | null }[]).map((p) => [p.user_id, (p.full_name ?? "").trim()])
     );
-    const payRows = (acctRes.data as AthleteAccountPayment[]) ?? [];
-    const staffIds = [...new Set(payRows.map((p) => p.created_by).filter((id): id is string => !!id))];
-    let nameByStaff: Record<string, string> = {};
-    if (staffIds.length > 0) {
-      const { data: staffProfiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name")
-        .in("user_id", staffIds);
-      nameByStaff = Object.fromEntries(
-        (staffProfiles ?? []).map((p) => [p.user_id, (p.full_name ?? "").trim()])
-      );
-    }
     setAccountPayments(
       payRows.map((p) => ({
         ...p,
         created_by_name: p.created_by ? nameByStaff[p.created_by] ?? null : null,
       }))
     );
-    const receiptSourceIds = [
-      ...new Set([...next.map((r) => r.registration_id), ...payRows.map((p) => p.id)]),
-    ];
     if (showFinance && receiptSourceIds.length > 0) {
-      const { data: docRows } = await supabase
-        .from("documents")
-        .select("id, source_id, document_number, pdf_url, signature_hash")
-        .in("source_id", receiptSourceIds)
-        .eq("status", "ACTIVE");
       setReceiptBySourceId(
         Object.fromEntries(
-          ((docRows ?? []) as {
+          ((docRes.data ?? []) as {
             id: string;
             source_id: string;
             document_number: string;
@@ -1086,12 +1119,7 @@ export default function ParticipantHistoryScreen({
     setAthleteTiers(athTiers);
     setAthleteTiersByMember(tierRowMap);
 
-    const sessionIds = [...new Set(next.map((r) => r.session_id).filter(Boolean))];
     if (sessionIds.length > 0) {
-      const { data: sessRows } = await supabase
-        .from("training_sessions")
-        .select("id, custom_slot_price_ils, is_kickbox, trainer:profiles!coach_id(full_name)")
-        .in("id", sessionIds);
       const customMap: Record<string, number | null> = {};
       const kickboxMap: Record<string, boolean> = {};
       const coachMap: Record<string, string> = {};
@@ -1100,7 +1128,7 @@ export default function ParticipantHistoryScreen({
         kickboxMap[sid] = false;
         coachMap[sid] = "";
       }
-      for (const row of (sessRows as {
+      for (const row of (sessRes.data as {
         id: string;
         custom_slot_price_ils?: number | null;
         is_kickbox?: boolean;
@@ -1116,12 +1144,8 @@ export default function ParticipantHistoryScreen({
       setSessionKickboxById(kickboxMap);
       setSessionCoachById(coachMap);
 
-      const { data: rosterPriceRows } = await supabase
-        .from("session_roster_slot_prices")
-        .select("session_id, user_id, manual_participant_id, price_ils")
-        .in("session_id", sessionIds);
       const rosterMap: Record<string, number> = {};
-      for (const row of (rosterPriceRows as {
+      for (const row of (rosterPriceRes.data as {
         session_id: string;
         user_id: string | null;
         manual_participant_id: string | null;
@@ -1140,6 +1164,7 @@ export default function ParticipantHistoryScreen({
       setSessionRosterPriceByKey({});
     }
 
+
     if (next.length === 0 && ((acctRes.data as unknown[]) ?? []).length === 0) {
       setEmptyHint(t("ui.participantHistory.noRecordsForThoseDates"));
     }
@@ -1147,7 +1172,7 @@ export default function ParticipantHistoryScreen({
     if (!silent) setLoading(false);
     setReportReady(true);
     setHasSearched(true);
-  }, [start, end, phone, athleteId, payeeIsManual, language, isSuperUser, t, showFinance]);
+  }, [start, end, phone, athleteId, payeeIsManual, language, isSuperUser, t, showFinance, fetchFamilyShared]);
 
   const loadRef = useRef(load);
   loadRef.current = load;
