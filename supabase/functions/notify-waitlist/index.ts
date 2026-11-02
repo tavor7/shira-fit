@@ -1,7 +1,8 @@
 /**
  * Call when a spot opens (after cancel/remove). POST { "session_id": "uuid" }
  * Authorization: Bearer CRON_SECRET (same as cron) or service invoke.
- * Sends Expo push to first waitlisted user (FIFO by requested_at).
+ * Sends Expo push to the first waitlisted user who could actually register (FIFO by requested_at).
+ * Sends nothing for a session that has started, is hidden or is closed for registration.
  * Does not remove waitlist rows — staff can see the full list and add people manually.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -66,18 +67,30 @@ Deno.serve(async (req) => {
       headers: { ...cors, "Content-Type": "application/json" },
     });
 
-  const { data: first } = await supabase
-    .from("waitlist_requests")
-    .select("id, user_id, profiles(expo_push_token)")
-    .eq("session_id", sessionId)
-    .order("requested_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const { data: skipReason, error: skipError } = await supabase.rpc("_waitlist_notify_skip_reason", {
+    p_session_id: sessionId,
+  });
+  // A failed check must not lose a genuine opening, so only a definite answer stops the message.
+  if (skipError) console.error(`notify-waitlist: eligibility check failed: ${skipError.message}`);
+  if (skipReason)
+    return new Response(JSON.stringify({ ok: true, notified: false, reason: skipReason }), {
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
 
-  if (!first?.user_id)
+  const { data: firstUserId, error: firstError } = await supabase.rpc("_waitlist_first_eligible_user", {
+    p_session_id: sessionId,
+  });
+  if (firstError) console.error(`notify-waitlist: first in line lookup failed: ${firstError.message}`);
+
+  if (!firstUserId)
     return new Response(JSON.stringify({ ok: true, notified: false }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
+  const { data: firstProfile } = await supabase
+    .from("profiles")
+    .select("expo_push_token")
+    .eq("user_id", firstUserId)
+    .maybeSingle();
 
   const { data: settings } = await supabase
     .from("app_settings")
@@ -100,7 +113,7 @@ Deno.serve(async (req) => {
   const waitlistTitle = "התפנה מקום";
   const waitlistBody = `התפנה מקום לאימון בתאריך ${dateLabel} בשעה ${timeLabel}. היכנסו לאפליקציה כדי להירשם.`;
 
-  const token = (first as { profiles?: { expo_push_token?: string } }).profiles?.expo_push_token;
+  const token = (firstProfile as { expo_push_token?: string } | null)?.expo_push_token;
   if (token) {
     await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
@@ -115,16 +128,21 @@ Deno.serve(async (req) => {
   }
 
   try {
-    await sendWebPushToUser(supabase, first.user_id, {
-      title: waitlistTitle,
-      body: waitlistBody,
-      data: { session_id: sessionId },
-    });
+    await sendWebPushToUser(
+      supabase,
+      firstUserId,
+      {
+        title: waitlistTitle,
+        body: waitlistBody,
+        data: { session_id: sessionId },
+      },
+      "waitlist_spot"
+    );
   } catch {
     // Best-effort — a missing VAPID config or an offline browser shouldn't fail the response.
   }
 
-  return new Response(JSON.stringify({ ok: true, notified: true, user_id: first.user_id }), {
+  return new Response(JSON.stringify({ ok: true, notified: true, user_id: firstUserId }), {
     headers: { ...cors, "Content-Type": "application/json" },
   });
 });
