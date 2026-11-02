@@ -35,8 +35,7 @@ import {
 import { shouldWarnBeforeRecordingCoveredPayment } from "../lib/coveredPaymentWarning";
 import { RosterSlotRateChip, formatRosterIls, type SessionRateMeta } from "./RosterSlotRateChip";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
-import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueries";
-import { isMissingColumnError } from "../lib/dbColumnErrors";
+import { takeRosterWave1 } from "../lib/rosterWave";
 import { hasSessionNotStarted } from "../lib/sessionTime";
 import type { MoveParticipantTarget } from "./MoveParticipantSheet";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
@@ -400,31 +399,8 @@ export function ParticipantAttendanceList({
 
     // Performance Phase 1 / step 4: the session row, roster price overrides, registrations, manual participants and
     // (for coaches) receipt locks are independent, so they load in one wave instead of five sequential round trips.
-    const fetchManual = async () => {
-      let res = await supabase
-        .from("session_manual_participants")
-        .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone, date_of_birth)")
-        .eq("session_id", sessionId);
-      if (res.error && isMissingColumnError(res.error.message, "date_of_birth")) {
-        res = (await supabase
-          .from("session_manual_participants")
-          .select("manual_participant_id, attended, charge_no_show, payment_method, amount_paid, manual_participants(full_name, phone)")
-          .eq("session_id", sessionId)) as typeof res;
-      }
-      return res;
-    };
-    const [{ data: s }, { data: rosterPriceRows }, regRes, manRes, lockRes, coverageRes] = await Promise.all([
-      supabase
-        .from("training_sessions")
-        .select("max_participants, session_date, start_time, coach_id, is_kickbox, custom_slot_price_ils")
-        .eq("id", sessionId)
-        .single(),
-      supabase.from("session_roster_slot_prices").select("user_id, manual_participant_id, price_ils").eq("session_id", sessionId),
-      fetchSessionRegistrationsWithProfiles(sessionId),
-      fetchManual(),
-      supabase.rpc("session_payment_receipt_locks", { p_session_id: sessionId }),
-      supabase.rpc("session_subscription_coverage", { p_session_id: sessionId }),
-    ]);
+    // Performance Phase 5: the wave lives in lib/rosterWave; manager Session Detail may have started it already.
+    const [{ data: s }, { data: rosterPriceRows }, regRes, manRes, lockRes, coverageRes] = await takeRosterWave1(sessionId);
     const sess = s as {
       max_participants?: number;
       session_date?: string;

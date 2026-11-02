@@ -96,6 +96,7 @@ import { classifyUserError, userFacingErrorMessage } from "../../../../src/lib/u
 import { StatusChip } from "../../../../src/components/StatusChip";
 import { useWebBackDismiss } from "../../../../src/lib/webBackDismiss";
 import { usePerfScreen } from "../../../../src/hooks/usePerfScreen";
+import { prefetchRosterWave1 } from "../../../../src/lib/rosterWave";
 
 /** Temporary: draft write/hydrate diagnostics for manager session only. Set false to hide. */
 const MANAGER_SESSION_DRAFT_DIAGNOSTICS = false;
@@ -839,6 +840,12 @@ export default function ManagerSessionDetail() {
   // needing to resubscribe the channel every time it changes.
   const editingSessionRef = useRef(editingSession);
   editingSessionRef.current = editingSession;
+
+  // Performance Phase 5: the roster below mounts only once this screen's session row has loaded; start its first request
+  // wave now, in parallel, so it is not one round trip late (lib/rosterWave).
+  useEffect(() => {
+    if (id) prefetchRosterWave1(String(id));
+  }, [id]);
 
   const realtimeSubs = useMemo(
     () =>
