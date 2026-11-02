@@ -230,7 +230,7 @@ expect "no push device is not a failure" skipped:no_push_device "$(status_of "$S
 
 echo "--- a notification failure never blocks the change that caused it"
 S=$(new_session 7); fill_to "$S" 7; rpc_err "$SUB" "$S" >/dev/null
-su -c "alter table public.session_availability_openings add constraint t207_boom check (false) not valid" >/dev/null
+su -c "alter table public.session_availability_openings drop constraint if exists t207_boom; alter table public.session_availability_openings add constraint t207_boom check (false) not valid" >/dev/null
 as "${FILLERS[0]}" "select public.cancel_registration('$S','t')" >/dev/null
 expect "the cancellation still happened" cancelled "$(su -c "select status from public.session_registrations where session_id='$S' and user_id='${FILLERS[0]}'")"
 su -c "alter table public.session_availability_openings drop constraint t207_boom" >/dev/null
