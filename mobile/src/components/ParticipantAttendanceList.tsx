@@ -42,8 +42,10 @@ import {
   NO_UNKNOWN_FINANCE,
   anyFinanceUnknown,
   expectedTotalUnknown,
+  paymentCoverageDecision,
   paymentLockUnknown,
   rpcLookupFailed,
+  writeRecordsPayment,
   unknownFinanceItems,
   type RosterFinanceUnknown,
 } from "../lib/rosterFinanceLookups";
@@ -278,6 +280,9 @@ export function ParticipantAttendanceList({
     msg.includes("payment_locked_receipt_issued") ? t("attendance.paymentLockedReceipt") : msg;
   const [payFor, setPayFor] = useState<Row | null>(null);
   const [payPhase, setPayPhase] = useState<"method" | "amount">("method");
+  /** The payment the modal was opened with (null = recording a first payment) and whether the covered warning was accepted. */
+  const [payExisting, setPayExisting] = useState<number | null>(null);
+  const [payCoveredWarningAccepted, setPayCoveredWarningAccepted] = useState(false);
   const [payChosenMethod, setPayChosenMethod] = useState<string | null>(null);
   const [payAmountDraft, setPayAmountDraft] = useState("");
   const [payMode, setPayMode] = useState<"arrived" | "absent_penalty">("arrived");
@@ -820,19 +825,8 @@ export function ParticipantAttendanceList({
     // and a manager who confirms through this can still record a legitimate supplemental charge
     // (e.g. a drop-in add-on) exactly as before. This is a UX guard only: it changes no calculation,
     // creates no charge, and never blocks the action outright.
-    // Coverage could not be checked: say so before a first payment instead of silently skipping the covered-session
-    // warning below (a failed check is not "not covered"). Same choice as that warning: cancel or continue.
-    if (existing == null && unknownFinance.coverage) {
-      showConfirm({
-        title: t("attendance.coverageUnknownWarningTitle"),
-        message: t("attendance.coverageUnknownWarningMessage"),
-        cancelLabel: t("common.cancel"),
-        confirmLabel: t("attendance.coveredPaymentWarningConfirm"),
-        confirmVariant: "primary",
-        onConfirm: () => openPaymentModalConfirmed(row, mode, existing),
-      });
-      return;
-    }
+    // (Coverage unknown at load: the modal still opens — "Unpaid" records attendance only — and saving a payment re-checks
+    // coverage in setStatus, which refuses it while coverage cannot be determined.)
     if (shouldWarnBeforeRecordingCoveredPayment(isCoveredBySubscription(row), existing)) {
       showConfirm({
         title: t("attendance.coveredPaymentWarningTitle"),
@@ -840,14 +834,21 @@ export function ParticipantAttendanceList({
         cancelLabel: t("common.cancel"),
         confirmLabel: t("attendance.coveredPaymentWarningConfirm"),
         confirmVariant: "primary",
-        onConfirm: () => openPaymentModalConfirmed(row, mode, existing),
+        onConfirm: () => openPaymentModalConfirmed(row, mode, existing, true),
       });
       return;
     }
-    openPaymentModalConfirmed(row, mode, existing);
+    openPaymentModalConfirmed(row, mode, existing, false);
   }
 
-  function openPaymentModalConfirmed(row: Row, mode: "arrived" | "absent_penalty", existing: number | null) {
+  function openPaymentModalConfirmed(
+    row: Row,
+    mode: "arrived" | "absent_penalty",
+    existing: number | null,
+    coveredWarningAccepted: boolean
+  ) {
+    setPayExisting(existing);
+    setPayCoveredWarningAccepted(coveredWarningAccepted);
     setPayMode(mode);
     setPayFor(row);
     setPayPhase("method");
@@ -882,10 +883,43 @@ export function ParticipantAttendanceList({
     status: AttendanceStatus,
     paymentMethod?: string | null,
     amountPaid?: number | null,
-    chargeNoShow?: boolean
+    chargeNoShow?: boolean,
+    paymentGate: { firstPayment: boolean; coveredWarningAccepted: boolean } = { firstPayment: true, coveredWarningAccepted: false }
   ) {
     const key = row.id;
     setBusyKey(key);
+    // Saving a payment re-checks subscription coverage first — the roster's copy may have failed to load or be stale.
+    // A failed check refuses the payment (Try again): a failed lookup is not proof the session is not covered. A covered
+    // session gets the existing covered-session warning (unless already accepted). Attendance-only writes are not
+    // checked. Client-side only: the server does not refuse a payment on a covered session (extra charges are allowed).
+    if (writeRecordsPayment(paymentMethod, amountPaid)) {
+      const fresh = await supabase.rpc("session_subscription_coverage", { p_session_id: sessionId });
+      const decision = paymentCoverageDecision(fresh, row.id, paymentGate);
+      if (decision !== "proceed") {
+        setBusyKey(null);
+        const retry = (gate: typeof paymentGate) => void setStatus(row, status, paymentMethod, amountPaid, chargeNoShow, gate);
+        showConfirm(
+          decision === "blocked"
+            ? {
+                title: t("attendance.paymentBlockedCoverageTitle"),
+                message: t("attendance.paymentBlockedCoverageMessage"),
+                cancelLabel: t("common.cancel"),
+                confirmLabel: t("auth.retryConnection"),
+                confirmVariant: "primary",
+                onConfirm: () => retry(paymentGate),
+              }
+            : {
+                title: t("attendance.coveredPaymentWarningTitle"),
+                message: t("attendance.coveredPaymentWarningMessage"),
+                cancelLabel: t("common.cancel"),
+                confirmLabel: t("attendance.coveredPaymentWarningConfirm"),
+                confirmVariant: "primary",
+                onConfirm: () => retry({ ...paymentGate, coveredWarningAccepted: true }),
+              }
+        );
+        return;
+      }
+    }
     const pCharge =
       status === "absent" ? (chargeNoShow ?? false) : false;
     const { data, error } =
@@ -1455,9 +1489,10 @@ export function ParticipantAttendanceList({
                       showOk(t("common.error"), t("attendance.invalidAmount"));
                       return;
                     }
+                    const gate = { firstPayment: payExisting == null, coveredWarningAccepted: payCoveredWarningAccepted };
                     closePaymentModal();
-                    if (payMode === "absent_penalty") void setStatus(row, "absent", method, parsed, true);
-                    else void setStatus(row, "arrived", method, parsed);
+                    if (payMode === "absent_penalty") void setStatus(row, "absent", method, parsed, true, gate);
+                    else void setStatus(row, "arrived", method, parsed, false, gate);
                   }}
                 >
                   <Text style={styles.payBtnTxtPrimary}>{t("ui.participantAttendanceList.confirm")}</Text>

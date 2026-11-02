@@ -64,3 +64,37 @@ export function paymentLockUnknown(
 export function unknownFinanceItems(u: RosterFinanceUnknown): (keyof RosterFinanceUnknown)[] {
   return (["participants", "coverage", "prices", "locks", "rates"] as const).filter((k) => u[k]);
 }
+
+/** Row keys (`u:<user_id>` / `m:<manual_participant_id>`) covered according to a session_subscription_coverage result. */
+export function coveredRowKeys(data: unknown): Set<string> {
+  const d = data as { ok?: boolean; covered_user_ids?: string[]; covered_manual_ids?: string[] } | null | undefined;
+  const keys = new Set<string>();
+  if (!d?.ok) return keys;
+  for (const u of d.covered_user_ids ?? []) keys.add(`u:${u}`);
+  for (const m of d.covered_manual_ids ?? []) keys.add(`m:${m}`);
+  return keys;
+}
+
+/** Whether a roster write records (or changes) a payment, as opposed to attendance only. */
+export function writeRecordsPayment(paymentMethod: string | null | undefined, amountPaid: number | null | undefined): boolean {
+  return isSessionPaymentRecorded(paymentMethod) || (amountPaid != null && amountPaid > 0);
+}
+
+/**
+ * Before a payment is saved, coverage is checked again (fresh `session_subscription_coverage` result for this session):
+ * - the check failed → `blocked`: a failed lookup is not proof that the session is not covered; nothing is saved;
+ * - covered, first payment on the row, covered-session warning not yet accepted → `warnCovered` (existing rule: warn,
+ *   the manager may still record a genuine extra charge);
+ * - otherwise → `proceed` (not covered, an edit of an existing payment, warning already accepted, or a viewer the server
+ *   answers `forbidden` — unchanged behaviour).
+ */
+export function paymentCoverageDecision(
+  fresh: { error?: unknown; data?: unknown } | null | undefined,
+  rowKey: string,
+  opts: { firstPayment: boolean; coveredWarningAccepted: boolean }
+): "blocked" | "warnCovered" | "proceed" {
+  if (rpcLookupFailed(fresh)) return "blocked";
+  const covered = coveredRowKeys(fresh?.data).has(rowKey);
+  if (covered && opts.firstPayment && !opts.coveredWarningAccepted) return "warnCovered";
+  return "proceed";
+}
