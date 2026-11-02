@@ -4,6 +4,23 @@ import { parseISODateLocal } from "./isoDate";
 
 export { appLocale } from "./appLocale";
 
+/**
+ * Performance Phase 5: `date.toLocaleDateString(locale, options)` builds a new Intl.DateTimeFormat on every call, which
+ * dominated the Overview's render time (Global mode formats two dates per coach session line). Every call below passes
+ * explicit date / time fields, so `new Intl.DateTimeFormat(locale, options).format(date)` returns exactly the same
+ * string (ECMA-402: no defaults are added when such fields are present); one formatter is kept per locale + options.
+ */
+const dateTimeFormats = new Map<string, Intl.DateTimeFormat>();
+function fmtDate(d: Date, locale: string, options: Intl.DateTimeFormatOptions): string {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let f = dateTimeFormats.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat(locale, options);
+    dateTimeFormats.set(key, f);
+  }
+  return f.format(d);
+}
+
 function langOrEn(language: LanguageCode | undefined): LanguageCode {
   return language ?? "en";
 }
@@ -22,7 +39,7 @@ export function formatISODateFull(iso: string, language?: LanguageCode): string 
   const d = parseISODateLocal(iso);
   if (!d) return iso;
   const lang = langOrEn(language);
-  return d.toLocaleDateString(appLocale(lang), {
+  return fmtDate(d, appLocale(lang), {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -34,7 +51,7 @@ export function formatMonthYear(iso: string, language?: LanguageCode): string {
   const d = parseISODateLocal(iso);
   if (!d) return iso;
   const lang = langOrEn(language);
-  return d.toLocaleDateString(appLocale(lang), { month: "long", year: "numeric" });
+  return fmtDate(d, appLocale(lang), { month: "long", year: "numeric" });
 }
 
 /** YYYY-MM-DD → "4 May" / Hebrew equivalent — no weekday, no year (compact alerts). */
@@ -42,7 +59,7 @@ export function formatISODateDayMonth(iso: string, language?: LanguageCode): str
   const d = parseISODateLocal(iso);
   if (!d) return iso;
   const lang = langOrEn(language);
-  return d.toLocaleDateString(appLocale(lang), {
+  return fmtDate(d, appLocale(lang), {
     day: "numeric",
     month: "long",
   });
@@ -53,8 +70,8 @@ export function formatISODateWeekdayDayMonth(iso: string, language?: LanguageCod
   const d = parseISODateLocal(iso);
   if (!d) return iso;
   const lang = langOrEn(language);
-  const weekday = d.toLocaleDateString(appLocale(lang), { weekday: "short" });
-  const dayMonth = normalizeShortMonth(d.toLocaleDateString(appLocale(lang), { day: "numeric", month: "short" }));
+  const weekday = fmtDate(d, appLocale(lang), { weekday: "short" });
+  const dayMonth = normalizeShortMonth(fmtDate(d, appLocale(lang), { day: "numeric", month: "short" }));
   return `${weekday}, ${dayMonth}`;
 }
 
@@ -63,8 +80,8 @@ export function formatISODateDayMonthWithWeekday(iso: string, language?: Languag
   const d = parseISODateLocal(iso);
   if (!d) return iso;
   const lang = langOrEn(language);
-  const dm = d.toLocaleDateString(appLocale(lang), { day: "numeric", month: "long" });
-  const weekday = d.toLocaleDateString(appLocale(lang), { weekday: "long" });
+  const dm = fmtDate(d, appLocale(lang), { day: "numeric", month: "long" });
+  const weekday = fmtDate(d, appLocale(lang), { weekday: "long" });
   return `${dm} · ${weekday}`;
 }
 
@@ -74,7 +91,7 @@ export function formatISODateFullWithWeekdayAfter(iso: string, language?: Langua
   if (!d) return iso;
   const lang = langOrEn(language);
   const date = formatISODateFull(iso, lang);
-  const weekday = d.toLocaleDateString(appLocale(lang), { weekday: "long" });
+  const weekday = fmtDate(d, appLocale(lang), { weekday: "long" });
   return `${date} · ${weekday}`;
 }
 
@@ -90,8 +107,8 @@ export function formatISODateWeekdayDayMonthYear(iso: string, language?: Languag
   if (!d) return iso;
   const lang = langOrEn(language);
   const locale = appLocale(lang);
-  const weekday = d.toLocaleDateString(locale, { weekday: "short" });
-  const dayMonthYear = normalizeShortMonth(d.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }));
+  const weekday = fmtDate(d, locale, { weekday: "short" });
+  const dayMonthYear = normalizeShortMonth(fmtDate(d, locale, { day: "numeric", month: "short", year: "numeric" }));
   return `${weekday}, ${dayMonthYear}`;
 }
 
@@ -100,7 +117,7 @@ export function formatISODateLong(iso: string, language?: LanguageCode): string 
   const d = parseISODateLocal(iso);
   if (!d) return iso;
   const lang = langOrEn(language);
-  return d.toLocaleDateString(appLocale(lang), {
+  return fmtDate(d, appLocale(lang), {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -127,19 +144,19 @@ export function formatISODateRangeCompact(startIso: string, endIso: string, lang
   const sameMonth = sameYear && start.getMonth() === end.getMonth();
 
   if (sameMonth) {
-    const startDay = start.toLocaleDateString(locale, { day: "numeric" });
-    const endFull = end.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+    const startDay = fmtDate(start, locale, { day: "numeric" });
+    const endFull = fmtDate(end, locale, { day: "numeric", month: "long", year: "numeric" });
     return `${startDay}${dash}${endFull}`;
   }
 
   if (sameYear) {
-    const startPart = start.toLocaleDateString(locale, { day: "numeric", month: "long" });
-    const endFull = end.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+    const startPart = fmtDate(start, locale, { day: "numeric", month: "long" });
+    const endFull = fmtDate(end, locale, { day: "numeric", month: "long", year: "numeric" });
     return `${startPart} ${dash} ${endFull}`;
   }
 
-  const startFull = start.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
-  const endFull = end.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+  const startFull = fmtDate(start, locale, { day: "numeric", month: "long", year: "numeric" });
+  const endFull = fmtDate(end, locale, { day: "numeric", month: "long", year: "numeric" });
   return `${startFull} ${dash} ${endFull}`;
 }
 
@@ -148,7 +165,7 @@ export function formatDateTimeForDisplay(iso: string, language?: LanguageCode): 
   const d = parseInstantIso(iso);
   if (!d) return iso;
   const lang = langOrEn(language);
-  return d.toLocaleString(appLocale(lang), {
+  return fmtDate(d, appLocale(lang), {
     day: "numeric",
     month: "long",
     year: "numeric",
