@@ -26,7 +26,12 @@ import {
   paymentDisplayTone,
   SESSION_PAYMENT_METHOD_KEYS,
 } from "../lib/paymentMethod";
-import { fetchSessionBillingPriceIls, resolveRowBillingPriceIls } from "../lib/sessionSlotPrice";
+import {
+  billingPayeeKey,
+  fetchSessionBillingPriceIls,
+  fetchSessionBillingPricesIls,
+  resolveRowBillingPriceIls,
+} from "../lib/sessionSlotPrice";
 import { shouldWarnBeforeRecordingCoveredPayment } from "../lib/coveredPaymentWarning";
 import { RosterSlotRateChip, formatRosterIls, type SessionRateMeta } from "./RosterSlotRateChip";
 import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
@@ -533,25 +538,38 @@ export function ParticipantAttendanceList({
       }
     }
 
-    // Fire every roster row's price lookup concurrently instead of one-at-a-time —
-    // with N participants this turns N sequential round-trips into one wait.
+    // Performance Phase 2: one batch request for the session_billing_price_ils value of every row that needs it (rows
+    // with a roster override and a known session don't). If the batch is unavailable, each row falls back to its own
+    // request, concurrently, exactly as before.
+    const needsRpc = all.filter((r) => !metaForBilling || rosterMap[r.id] == null);
+    const batchPrices = await fetchSessionBillingPricesIls(
+      supabase,
+      sessionId,
+      needsRpc.map((r) => ({
+        userId: r.kind === "registered" ? r.userId : null,
+        manualParticipantId: r.kind === "manual" ? r.manualId : null,
+      }))
+    );
     let priceFetchFailed = false;
     const prices = await Promise.all(
       all.map(async (r) => {
         const userId = r.kind === "registered" ? r.userId : null;
         const manualParticipantId = r.kind === "manual" ? r.manualId : null;
         const rosterOverride = rosterMap[r.id] ?? null;
+        const known = batchPrices?.get(billingPayeeKey(userId, manualParticipantId));
         try {
-          return metaForBilling
-            ? await resolveRowBillingPriceIls(
-                supabase,
-                sessionId,
-                userId,
-                manualParticipantId,
-                metaForBilling,
-                rosterOverride
-              )
-            : await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
+          if (metaForBilling) {
+            return await resolveRowBillingPriceIls(
+              supabase,
+              sessionId,
+              userId,
+              manualParticipantId,
+              metaForBilling,
+              rosterOverride,
+              known
+            );
+          }
+          return known !== undefined ? known : await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
         } catch {
           priceFetchFailed = true;
           return 0;

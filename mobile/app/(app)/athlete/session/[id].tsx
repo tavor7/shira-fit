@@ -94,16 +94,16 @@ export default function AthleteSessionDetail() {
     return () => cancelAnimationFrame(t);
   }, [sessionId]);
 
-  async function refreshCount() {
-    const m = await fetchActiveSignupCountsBySession([sessionId]);
-    setCount(m[sessionId] ?? 0);
+  /** Participant names, or null when the request failed (the current list is then kept). */
+  async function fetchNames(): Promise<string[] | null> {
+    const { data: ppl, error } = await supabase.rpc("list_session_participants", { p_session_id: sessionId });
+    if (error) return null;
+    return Array.isArray(ppl) ? (ppl as { full_name: string }[]).map((x) => x.full_name).filter(Boolean) : [];
   }
 
   async function loadNames() {
-    const { data: ppl, error } = await supabase.rpc("list_session_participants", { p_session_id: sessionId });
-    if (error) return;
-    const list = Array.isArray(ppl) ? (ppl as { full_name: string }[]).map((x) => x.full_name).filter(Boolean) : [];
-    setNames(list);
+    const list = await fetchNames();
+    if (list) setNames(list);
   }
 
   const loadSeqRef = useRef(0);
@@ -210,10 +210,15 @@ export default function AthleteSessionDetail() {
       }
       showToast({ message: t("athleteSession.registeredToast"), variant: "success" });
       setJustRegistered(true);
+      // Performance Phase 2: the new roster and count are fetched while the success animation plays (they used to be
+      // requested one after the other once it ended) and applied after it, in the same order as before.
+      const namesP = fetchNames();
+      const countP = fetchActiveSignupCountsBySession([sessionId]);
       await new Promise((resolve) => setTimeout(resolve, theme.motion.normal + 500));
       setJustRegistered(false);
       setRegistered(true);
-      await loadNames();
+      const names = await namesP;
+      if (names) setNames(names);
       if (session) {
         await scheduleSessionReminders({
           sessionId,
@@ -224,7 +229,8 @@ export default function AthleteSessionDetail() {
         });
       }
       await clearWaitlistSpotFlag(sessionId);
-      await refreshCount();
+      const counts = await countP;
+      setCount(counts[sessionId] ?? 0);
     } else if (result.error !== "cancelled") {
       // "cancelled" means the athlete declined the subscription-limit consent dialog: no
       // registration, no error toast, no state change.
@@ -344,11 +350,16 @@ export default function AthleteSessionDetail() {
         data.late_cancellation === true ? t("athleteSession.cancelledLateNotice") : t("athleteSession.cancelledOk");
       showToast({ message: cancelMsg, variant: "success" });
       setJustCancelled(true);
+      // Performance Phase 2: fetched during the 500 ms confirmation, applied after it in the same order as before.
+      const countP = fetchActiveSignupCountsBySession([sessionId]);
+      const namesP = fetchNames();
       await new Promise((resolve) => setTimeout(resolve, 500));
       setJustCancelled(false);
       setRegistered(false);
-      await refreshCount();
-      await loadNames();
+      const counts = await countP;
+      setCount(counts[sessionId] ?? 0);
+      const names = await namesP;
+      if (names) setNames(names);
       /* Notify waitlist: configure Supabase Cron or webhook to POST notify-waitlist with CRON_SECRET */
     } else {
       const err = String(data?.error ?? "");

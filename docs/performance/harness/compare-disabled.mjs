@@ -55,7 +55,7 @@ async function settle(page, net) {
 
 function trackNetwork(page, reqs) {
   const net = { inFlight: 0, lastActivity: Date.now() };
-  const mine = (r) => new URL(r.url()).port === "57499";
+  const mine = (r) => new URL(r.url()).port === (process.env.PERF_PROXY_PORT ?? "57499");
   page.on("request", (r) => {
     if (!mine(r)) return;
     net.inFlight += 1;

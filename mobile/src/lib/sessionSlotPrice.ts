@@ -116,6 +116,47 @@ export async function fetchSessionBillingPriceIls(
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Key of a roster row in the batch result: `u:<user id>` or `m:<manual participant id>`. */
+export function billingPayeeKey(userId: string | null, manualParticipantId?: string | null): string {
+  return userId ? `u:${userId}` : `m:${manualParticipantId ?? ""}`;
+}
+
+/**
+ * DB `session_billing_prices_ils` - the same authoritative `session_billing_price_ils` value for many roster rows in one
+ * request (Performance Phase 2). Returns null when the batch is unavailable (older database) or fails for any reason;
+ * callers then use the per-row `fetchSessionBillingPriceIls`, exactly as before.
+ */
+export async function fetchSessionBillingPricesIls(
+  supabase: SupabaseClient,
+  sessionId: string,
+  payees: SessionBillingPayee[]
+): Promise<Map<string, number> | null> {
+  const userIds = [...new Set(payees.map((p) => p.userId).filter((x): x is string => !!x))];
+  const manualIds = [
+    ...new Set(payees.filter((p) => !p.userId).map((p) => p.manualParticipantId).filter((x): x is string => !!x)),
+  ];
+  if (userIds.length === 0 && manualIds.length === 0) return new Map();
+  try {
+    const { data, error } = await supabase.rpc("session_billing_prices_ils", {
+      p_session_id: sessionId,
+      p_user_ids: userIds,
+      p_manual_participant_ids: manualIds,
+    });
+    if (error || !Array.isArray(data)) return null;
+    const out = new Map<string, number>();
+    for (const row of data as { user_id: string | null; manual_participant_id: string | null; price_ils: unknown }[]) {
+      const n = Number(row.price_ils);
+      out.set(billingPayeeKey(row.user_id, row.manual_participant_id), Number.isFinite(n) ? n : 0);
+    }
+    // Every requested row must be answered; otherwise do not trust the batch.
+    for (const id of userIds) if (!out.has(billingPayeeKey(id))) return null;
+    for (const id of manualIds) if (!out.has(billingPayeeKey(null, id))) return null;
+    return out;
+  } catch {
+    return null;
+  }
+}
+
 type RowBillingMeta = {
   max_participants: number;
   is_kickbox: boolean;
@@ -132,13 +173,18 @@ export async function resolveRowBillingPriceIls(
   userId: string | null,
   manualParticipantId: string | null,
   sessionMeta: RowBillingMeta,
-  rosterOverrideIls?: number | null
+  rosterOverrideIls?: number | null,
+  /** This row's `session_billing_price_ils` value when already fetched in a batch; skips that request. */
+  knownRpcPriceIls?: number
 ): Promise<number> {
   if (rosterOverrideIls != null && Number.isFinite(rosterOverrideIls)) {
     return rosterOverrideIls;
   }
 
-  const rpcPrice = await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
+  const rpcPrice =
+    knownRpcPriceIls !== undefined
+      ? knownRpcPriceIls
+      : await fetchSessionBillingPriceIls(supabase, sessionId, userId, manualParticipantId);
   if (rpcPrice > 0) return rpcPrice;
 
   const sessionCustom = sessionMeta.custom_slot_price_ils;

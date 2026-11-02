@@ -1,14 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { router, usePathname } from "expo-router";
 import { theme } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { isAthleteAccountDisabled } from "../lib/profileAccount";
 import { FoldableActionsMenu, type FoldableActionsMenuItem } from "./FoldableActionsMenu";
-import { supabase } from "../lib/supabase";
 import { useI18n } from "../context/I18nContext";
 import { useEffectiveNavRole } from "../context/ManagerAthletePreviewContext";
-import { rpcGetMySubscription } from "../lib/athleteSubscription";
+import { useAppNavStatus } from "../context/AppNavStatusContext";
 import type { AppIconName } from "./AppIcon";
 import { useStaffRailVisible } from "../hooks/useStaffRail";
 import { STUDIO_SETUP_INDEX_MAX_WIDTH } from "./ManagerOverviewTabs";
@@ -30,52 +29,8 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
   const { t } = useI18n();
   const pathname = usePathname() ?? "";
   const { width } = useWindowDimensions();
-  const [pendingApproveCount, setPendingApproveCount] = useState(0);
-  const [hasSubscription, setHasSubscription] = useState(false);
-
-  useEffect(() => {
-    if (profile?.role !== "manager") {
-      setPendingApproveCount(0);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const { count, error } = await supabase
-        .from("profiles")
-        .select("user_id", { count: "exact", head: true })
-        .eq("role", "athlete")
-        .eq("approval_status", "pending");
-      if (!cancelled && !error) setPendingApproveCount(count ?? 0);
-      if (!cancelled && error) setPendingApproveCount(0);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile?.role, pathname]);
-
-  // "My Subscription" only belongs in this menu for an athlete who actually has one -- an
-  // approved, non-disabled athlete with no subscription (the common case, since this is opt-in
-  // manager-side) should never see a menu item that only leads to an empty state.
-  useEffect(() => {
-    const eligible =
-      profile?.role === "athlete" && profile?.approval_status === "approved" && !isAthleteAccountDisabled(profile);
-    if (!eligible) {
-      setHasSubscription(false);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await rpcGetMySubscription(supabase);
-        if (!cancelled) setHasSubscription(res.ok && res.has_subscription === true);
-      } catch {
-        if (!cancelled) setHasSubscription(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile?.role, profile?.approval_status, profile?.disabled_at, pathname]);
+  // Shared across every header and the rail: one request per navigation, not one per mounted screen.
+  const { pendingApproveCount, hasSubscription } = useAppNavStatus();
 
   const navRole = useEffectiveNavRole(profile);
 

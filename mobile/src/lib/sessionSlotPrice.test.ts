@@ -156,3 +156,76 @@ describe("resolveSessionBillingPriceLocal", () => {
     });
   });
 });
+
+describe("fetchSessionBillingPricesIls (Performance Phase 2 batch)", () => {
+  const { fetchSessionBillingPricesIls, resolveRowBillingPriceIls } = jest.requireActual("./sessionSlotPrice");
+  const client = (impl: (fn: string, args: Record<string, unknown>) => unknown) => {
+    const rpc = jest.fn(async (fn: string, args: Record<string, unknown>) => impl(fn, args));
+    return { rpc } as unknown as import("@supabase/supabase-js").SupabaseClient & { rpc: jest.Mock };
+  };
+
+  it("sends one request for every row and maps answers by row key", async () => {
+    const c = client(() => ({
+      data: [
+        { user_id: "a", manual_participant_id: null, price_ils: "60" },
+        { user_id: null, manual_participant_id: "m1", price_ils: 45 },
+      ],
+      error: null,
+    }));
+    const m = await fetchSessionBillingPricesIls(c, "s1", [
+      { userId: "a" },
+      { userId: null, manualParticipantId: "m1" },
+      { userId: "a" },
+    ]);
+    expect(c.rpc).toHaveBeenCalledTimes(1);
+    expect(c.rpc).toHaveBeenCalledWith("session_billing_prices_ils", {
+      p_session_id: "s1",
+      p_user_ids: ["a"],
+      p_manual_participant_ids: ["m1"],
+    });
+    expect(m?.get("u:a")).toBe(60);
+    expect(m?.get("m:m1")).toBe(45);
+  });
+
+  it("returns null (so callers fall back to per-row requests) when the function is missing or fails", async () => {
+    const missing = client(() => ({ data: null, error: { code: "PGRST202", message: "not found" } }));
+    expect(await fetchSessionBillingPricesIls(missing, "s1", [{ userId: "a" }])).toBeNull();
+    const thrown = client(() => {
+      throw new Error("offline");
+    });
+    expect(await fetchSessionBillingPricesIls(thrown, "s1", [{ userId: "a" }])).toBeNull();
+  });
+
+  it("returns null when any requested row is missing from the answer", async () => {
+    const partial = client(() => ({ data: [{ user_id: "a", manual_participant_id: null, price_ils: 60 }], error: null }));
+    expect(await fetchSessionBillingPricesIls(partial, "s1", [{ userId: "a" }, { userId: "b" }])).toBeNull();
+  });
+
+  it("makes no request for an empty roster", async () => {
+    const c = client(() => ({ data: [], error: null }));
+    expect((await fetchSessionBillingPricesIls(c, "s1", [])).size).toBe(0);
+    expect(c.rpc).not.toHaveBeenCalled();
+  });
+
+  const meta = { max_participants: 6, is_kickbox: false, session_date: "2026-11-02", custom_slot_price_ils: null };
+
+  it("resolveRowBillingPriceIls uses a batch value instead of requesting it", async () => {
+    const c = client(() => ({ data: 999, error: null }));
+    expect(await resolveRowBillingPriceIls(c, "s1", "a", null, meta, null, 70)).toBe(70);
+    expect(c.rpc).not.toHaveBeenCalled();
+  });
+
+  it("keeps the existing fallback chain when the batch value is 0", async () => {
+    const c = client((fn: string) => ({ data: fn === "participant_capacity_price_ils" ? 55 : 0, error: null }));
+    expect(await resolveRowBillingPriceIls(c, "s1", "a", null, meta, null, 0)).toBe(55);
+    expect(c.rpc).toHaveBeenCalledTimes(1);
+    expect(c.rpc.mock.calls[0][0]).toBe("participant_capacity_price_ils");
+    expect(await resolveRowBillingPriceIls(c, "s1", "a", null, { ...meta, custom_slot_price_ils: 80 }, null, 0)).toBe(80);
+  });
+
+  it("a roster override still wins without any request", async () => {
+    const c = client(() => ({ data: 1, error: null }));
+    expect(await resolveRowBillingPriceIls(c, "s1", "a", null, meta, 33, 70)).toBe(33);
+    expect(c.rpc).not.toHaveBeenCalled();
+  });
+});

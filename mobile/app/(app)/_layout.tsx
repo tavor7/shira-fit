@@ -29,6 +29,7 @@ import { getLoginHrefWithOptionalRedirectWeb } from "../../src/lib/webLastRoute"
 import { useManagerAthletePreview } from "../../src/context/ManagerAthletePreviewContext";
 import { canRoleAccessAppPath, getRoleAccessDeniedRedirect } from "../../src/lib/roleRouteAccess";
 import { AppPresenceProvider } from "../../src/context/AppPresenceContext";
+import { AppNavStatusProvider } from "../../src/context/AppNavStatusContext";
 
 const headerStyle = appHeaderStyle;
 const headerTitleStyle = appHeaderTitleStyle;
@@ -144,6 +145,7 @@ export default function AppLayout() {
 
   return (
     <AppPresenceProvider>
+      <AppNavStatusProvider>
       <LegalConsentGateModal />
       <SubscriptionTermsGateModal />
       <ReceiptRequirementsGateModal />
@@ -180,6 +182,7 @@ export default function AppLayout() {
     />
       </View>
       </View>
+      </AppNavStatusProvider>
     </AppPresenceProvider>
   );
 }

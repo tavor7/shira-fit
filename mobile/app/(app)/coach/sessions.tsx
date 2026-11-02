@@ -27,6 +27,7 @@ import { usePerfScreen } from "../../../src/hooks/usePerfScreen";
 import { createLoadSequencer, showInitialSkeleton } from "../../../src/lib/screenRefresh";
 import { UserScopedScreen } from "../../../src/components/UserScopedScreen";
 import { RefreshFailedNotice } from "../../../src/components/RefreshFailedNotice";
+import { isStaffWeekLoaded, needsEarlierStaffRange, staffCalendarFromDate } from "../../../src/lib/staffCalendarRange";
 
 export default function CoachSessionsScreen() {
   return (
@@ -50,6 +51,8 @@ function CoachSessionsScreenContent() {
   const [loading, setLoading] = useState(true);
   /** Performance Phase 1 / step 5: once the calendar has data, refreshes keep it on screen (no skeleton). */
   const [hasData, setHasData] = useState(false);
+  /** Performance Phase 2: first session date currently loaded (see staffCalendarRange); null = nothing loaded yet. */
+  const [loadedFrom, setLoadedFrom] = useState<string | null>(null);
   const showSkeleton = showInitialSkeleton(loading, hasData);
   const [loadSeq] = useState(createLoadSequencer);
   usePerfScreen("coach.home", !showSkeleton);
@@ -84,8 +87,9 @@ function CoachSessionsScreenContent() {
     // instead of five sequential steps. Alerts are computed afterwards: they use the same data but must not hold the
     // calendar back. The sequence guard keeps a slower, older alerts result from overwriting a newer one.
     const w = weekRangeRef.current;
+    const fromDate = staffCalendarFromDate(w.start);
     const [{ data, error }, notes] = await Promise.all([
-      fetchStaffTrainingSessionsForCalendar(),
+      fetchStaffTrainingSessionsForCalendar({ fromDate }),
       w.start && w.end ? fetchStudioCalendarNotesForRange(w.start, w.end) : Promise.resolve(null),
     ]);
     if (!loadSeq.isLatest(ticket)) return;
@@ -110,6 +114,7 @@ function CoachSessionsScreenContent() {
     setWaitlistBySession(waitlist);
     setVisibleSignupBySession(visibleSignup);
     if (notes) setStudioNotes(notes);
+    setLoadedFrom(fromDate);
     setRefreshSeq((n) => n + 1);
     setHasData(true);
 
@@ -137,6 +142,12 @@ function CoachSessionsScreenContent() {
       load(false);
     }, [load])
   );
+
+  // Browsing back to (or past) the first loaded week loads the earlier range; an unloaded week shows its loading state.
+  const visibleWeekLoaded = isStaffWeekLoaded(weekRange.start, loadedFrom);
+  useEffect(() => {
+    if (needsEarlierStaffRange(weekRange.start, loadedFrom)) void load(false);
+  }, [weekRange.start, loadedFrom, load]);
 
   const visibleRows = useMemo(
     () => dedupeSessionsBySignupCount(rows, signupBySession),
@@ -198,7 +209,7 @@ function CoachSessionsScreenContent() {
         <StaffAthleteScheduleLookup variant="coach" />
         <SessionsWeekCalendar
           items={items}
-          isLoading={showSkeleton}
+          isLoading={showSkeleton || !visibleWeekLoaded}
           emptyLabel={t("empty.noSessionsFound")}
           onDayPress={(iso) => setSheetDay(iso)}
           weekOffset={calendarWeekOffset}

@@ -53,6 +53,7 @@ import { pickerBodyMinHeight } from "../lib/modalLayout";
 import { displayMoney } from "../lib/displayFormat";
 import { useScreenContentStyle } from "../hooks/useScreenLayout";
 import { pluralKey } from "../lib/pluralKey";
+import { usePerfScreen } from "../hooks/usePerfScreen";
 
 type DateMode = "all" | "range";
 type PaymentMethodFilter = "all" | SessionPaymentMethodKey;
@@ -130,6 +131,7 @@ export default function AccountPaymentsScreen() {
   const [totalReceived, setTotalReceived] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  usePerfScreen("manager.accountPayments", !loading);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [manualReceiptBusyRowId, setManualReceiptBusyRowId] = useState<string | null>(null);
