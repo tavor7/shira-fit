@@ -38,6 +38,18 @@ import { fetchActiveSignupCountsBySession } from "../lib/sessionSignupCounts";
 import { fetchSessionRegistrationsWithProfiles } from "../lib/sessionRosterQueries";
 import { isMissingColumnError } from "../lib/dbColumnErrors";
 import { createLoadSequencer } from "../lib/screenRefresh";
+import {
+  NO_UNKNOWN_FINANCE,
+  anyFinanceUnknown,
+  expectedTotalUnknown,
+  paymentCoverageDecision,
+  paymentLockUnknown,
+  rpcLookupFailed,
+  writeRecordsPayment,
+  unknownFinanceItems,
+  type RosterFinanceUnknown,
+} from "../lib/rosterFinanceLookups";
+import { RefreshFailedNotice } from "./RefreshFailedNotice";
 import { hasSessionNotStarted } from "../lib/sessionTime";
 import type { MoveParticipantTarget } from "./MoveParticipantSheet";
 import { rowFlipFor, userContentTextProps } from "../lib/layoutDirection";
@@ -124,6 +136,10 @@ export type SessionAttendanceStats = {
   expectedPaymentsIls: number;
   /** Count of roster slots included in expectedPaymentsIls. */
   expectedPaymentSlots: number;
+  /** A lookup the expected amount depends on failed (coverage, prices, a participant list): expectedPaymentsIls is not known. */
+  expectedUnavailable?: boolean;
+  /** A participant list failed to load: the counts and collected total cover only part of the roster. */
+  rosterIncomplete?: boolean;
 };
 
 type Props = {
@@ -251,7 +267,10 @@ export function ParticipantAttendanceList({
   const viewerIsManager = profile?.role === "manager";
   /** A payment with an issued receipt is read-only for everyone, including managers (enforced by the database; mirrored here). */
   const [lockedKeys, setLockedKeys] = useState<Set<string>>(() => new Set());
-  const isPaymentLocked = (item: Row) => lockedKeys.has(item.id);
+  const [unknownFinance, setUnknownFinance] = useState<RosterFinanceUnknown>(NO_UNKNOWN_FINANCE);
+  /** Receipt locks could not be checked and this row has a recorded payment: it may be receipted, so editing pauses. */
+  const isPaymentLockUnknown = (item: Row) => paymentLockUnknown(unknownFinance, item, lockedKeys.has(item.id));
+  const isPaymentLocked = (item: Row) => lockedKeys.has(item.id) || isPaymentLockUnknown(item);
   /** Rows whose registration/manual participation was already decided `covered = true` by the
    * subscription coverage engine (subscription_registration_coverage) for this session's date —
    * fetched read-only via session_subscription_coverage(), never recomputed here. */
@@ -261,6 +280,9 @@ export function ParticipantAttendanceList({
     msg.includes("payment_locked_receipt_issued") ? t("attendance.paymentLockedReceipt") : msg;
   const [payFor, setPayFor] = useState<Row | null>(null);
   const [payPhase, setPayPhase] = useState<"method" | "amount">("method");
+  /** The payment the modal was opened with (null = recording a first payment) and whether the covered warning was accepted. */
+  const [payExisting, setPayExisting] = useState<number | null>(null);
+  const [payCoveredWarningAccepted, setPayCoveredWarningAccepted] = useState(false);
   const [payChosenMethod, setPayChosenMethod] = useState<string | null>(null);
   const [payAmountDraft, setPayAmountDraft] = useState("");
   const [payMode, setPayMode] = useState<"arrived" | "absent_penalty">("arrived");
@@ -429,7 +451,7 @@ export function ParticipantAttendanceList({
       }
       return res;
     };
-    const [{ data: s }, { data: rosterPriceRows }, regRes, manRes, lockRes, coverageRes] = await Promise.all([
+    const [{ data: s }, rosterPriceRes, regRes, manRes, lockRes, coverageRes] = await Promise.all([
       supabase
         .from("training_sessions")
         .select("max_participants, session_date, start_time, coach_id, is_kickbox, custom_slot_price_ils")
@@ -451,6 +473,7 @@ export function ParticipantAttendanceList({
     } | null;
 
     const rosterMap: Record<string, number> = {};
+    const rosterPriceRows = rosterPriceRes.data;
     for (const rp of (rosterPriceRows as { user_id?: string; manual_participant_id?: string; price_ils: number | string }[] | null) ?? []) {
       const key = rp.user_id ? `u:${rp.user_id}` : `m:${rp.manual_participant_id}`;
       const n = Number(rp.price_ils);
@@ -463,6 +486,7 @@ export function ParticipantAttendanceList({
 
     if (error && mErr) {
       setRows([]);
+      setUnknownFinance({ ...NO_UNKNOWN_FINANCE, participants: true });
       setLoadError(errors.join(" · "));
       setLoading(false);
       onParticipantCountChange?.(0);
@@ -477,6 +501,8 @@ export function ParticipantAttendanceList({
         noShowCollectedIls: 0,
         expectedPaymentsIls: 0,
         expectedPaymentSlots: 0,
+        expectedUnavailable: true,
+        rosterIncomplete: true,
       });
       return;
     }
@@ -630,6 +656,15 @@ export function ParticipantAttendanceList({
       const msg = t("attendance.failedToLoadPrices");
       setLoadError((prev) => (prev ? `${prev} · ${msg}` : msg));
     }
+    // Failed lookups are unknown, not empty: not "nobody covered", "nothing locked", "no override" or ₪0 (rosterFinanceLookups).
+    const unknown: RosterFinanceUnknown = {
+      coverage: rpcLookupFailed(coverageRes),
+      locks: rpcLookupFailed(lockRes),
+      prices: priceFetchFailed,
+      rates: !!rosterPriceRes.error,
+      participants: errors.length > 0,
+    };
+    setUnknownFinance(unknown);
     setRosterPriceByRowId(rosterMap);
     setEffectivePriceByRowId(effectiveMap);
     if (lockRes) {
@@ -677,6 +712,8 @@ export function ParticipantAttendanceList({
       noShowCollectedIls,
       expectedPaymentsIls,
       expectedPaymentSlots,
+      expectedUnavailable: expectedTotalUnknown(unknown),
+      rosterIncomplete: unknown.participants,
     });
 
     if (all.length === 0 && s) {
@@ -788,6 +825,8 @@ export function ParticipantAttendanceList({
     // and a manager who confirms through this can still record a legitimate supplemental charge
     // (e.g. a drop-in add-on) exactly as before. This is a UX guard only: it changes no calculation,
     // creates no charge, and never blocks the action outright.
+    // (Coverage unknown at load: the modal still opens — "Unpaid" records attendance only — and saving a payment re-checks
+    // coverage in setStatus, which refuses it while coverage cannot be determined.)
     if (shouldWarnBeforeRecordingCoveredPayment(isCoveredBySubscription(row), existing)) {
       showConfirm({
         title: t("attendance.coveredPaymentWarningTitle"),
@@ -795,14 +834,21 @@ export function ParticipantAttendanceList({
         cancelLabel: t("common.cancel"),
         confirmLabel: t("attendance.coveredPaymentWarningConfirm"),
         confirmVariant: "primary",
-        onConfirm: () => openPaymentModalConfirmed(row, mode, existing),
+        onConfirm: () => openPaymentModalConfirmed(row, mode, existing, true),
       });
       return;
     }
-    openPaymentModalConfirmed(row, mode, existing);
+    openPaymentModalConfirmed(row, mode, existing, false);
   }
 
-  function openPaymentModalConfirmed(row: Row, mode: "arrived" | "absent_penalty", existing: number | null) {
+  function openPaymentModalConfirmed(
+    row: Row,
+    mode: "arrived" | "absent_penalty",
+    existing: number | null,
+    coveredWarningAccepted: boolean
+  ) {
+    setPayExisting(existing);
+    setPayCoveredWarningAccepted(coveredWarningAccepted);
     setPayMode(mode);
     setPayFor(row);
     setPayPhase("method");
@@ -837,10 +883,43 @@ export function ParticipantAttendanceList({
     status: AttendanceStatus,
     paymentMethod?: string | null,
     amountPaid?: number | null,
-    chargeNoShow?: boolean
+    chargeNoShow?: boolean,
+    paymentGate: { firstPayment: boolean; coveredWarningAccepted: boolean } = { firstPayment: true, coveredWarningAccepted: false }
   ) {
     const key = row.id;
     setBusyKey(key);
+    // Saving a payment re-checks subscription coverage first — the roster's copy may have failed to load or be stale.
+    // A failed check refuses the payment (Try again): a failed lookup is not proof the session is not covered. A covered
+    // session gets the existing covered-session warning (unless already accepted). Attendance-only writes are not
+    // checked. Client-side only: the server does not refuse a payment on a covered session (extra charges are allowed).
+    if (writeRecordsPayment(paymentMethod, amountPaid)) {
+      const fresh = await supabase.rpc("session_subscription_coverage", { p_session_id: sessionId });
+      const decision = paymentCoverageDecision(fresh, row.id, paymentGate);
+      if (decision !== "proceed") {
+        setBusyKey(null);
+        const retry = (gate: typeof paymentGate) => void setStatus(row, status, paymentMethod, amountPaid, chargeNoShow, gate);
+        showConfirm(
+          decision === "blocked"
+            ? {
+                title: t("attendance.paymentBlockedCoverageTitle"),
+                message: t("attendance.paymentBlockedCoverageMessage"),
+                cancelLabel: t("common.cancel"),
+                confirmLabel: t("auth.retryConnection"),
+                confirmVariant: "primary",
+                onConfirm: () => retry(paymentGate),
+              }
+            : {
+                title: t("attendance.coveredPaymentWarningTitle"),
+                message: t("attendance.coveredPaymentWarningMessage"),
+                cancelLabel: t("common.cancel"),
+                confirmLabel: t("attendance.coveredPaymentWarningConfirm"),
+                confirmVariant: "primary",
+                onConfirm: () => retry({ ...paymentGate, coveredWarningAccepted: true }),
+              }
+        );
+        return;
+      }
+    }
     const pCharge =
       status === "absent" ? (chargeNoShow ?? false) : false;
     const { data, error } =
@@ -1008,6 +1087,20 @@ export function ParticipantAttendanceList({
     </View>
   );
 
+  const financeNotice = anyFinanceUnknown(unknownFinance) ? (
+    <RefreshFailedNotice
+      message={t("attendance.financeUnavailable").replace(
+        "{items}",
+        unknownFinanceItems(unknownFinance)
+          .map((k) => t(`attendance.financeUnavailableItem.${k}`))
+          .join(", ")
+      )}
+      onRetry={() => void load()}
+    />
+  ) : null;
+  // Amounts due and "covered" lines are derived from coverage and prices; unknown inputs → no line (the notice says why).
+  const showDueLines = !unknownFinance.coverage && !unknownFinance.prices;
+
   if (rows.length === 0) {
     return (
       <CrossfadeSwap loading={loading} skeleton={skeleton}>
@@ -1015,8 +1108,12 @@ export function ParticipantAttendanceList({
           {loadError ? (
             <Text style={[styles.loadError, isRTL && styles.rtlText]}>{loadError}</Text>
           ) : null}
+          {financeNotice}
           {duplicateBanner}
-          <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("attendance.noActiveRegistrations")}</Text>
+          {/* Both participant lists failed: that is not "no registrations". */}
+          {unknownFinance.participants ? null : (
+            <Text style={[styles.muted, isRTL && styles.rtlText]}>{t("attendance.noActiveRegistrations")}</Text>
+          )}
         </View>
       </CrossfadeSwap>
     );
@@ -1026,6 +1123,7 @@ export function ParticipantAttendanceList({
     <CrossfadeSwap loading={loading} skeleton={skeleton}>
     <View style={styles.list}>
       {loadError ? <Text style={[styles.loadError, isRTL && styles.rtlText]}>{loadError}</Text> : null}
+      {financeNotice}
       {duplicateBanner}
       {bulkUndo ? (
         <View style={[styles.undoBar, rowFlipFor(isRTL) && styles.undoBarRtl]} accessibilityLiveRegion="polite" accessibilityRole="alert">
@@ -1083,7 +1181,7 @@ export function ParticipantAttendanceList({
                     {displayLtr(item.phone)}
                   </Text>
                 ) : null}
-                {sessionMeta && effectivePrice > 0 && covered ? (
+                {sessionMeta && showDueLines && effectivePrice > 0 && covered ? (
                   <>
                     <Text
                       style={[styles.coveredLine, isRTL && styles.rtlText]}
@@ -1098,7 +1196,7 @@ export function ParticipantAttendanceList({
                       )}
                     </Text>
                   </>
-                ) : sessionMeta && effectivePrice > 0 ? (
+                ) : sessionMeta && showDueLines && effectivePrice > 0 ? (
                   <Text
                     style={[
                       styles.dueLine,
@@ -1172,7 +1270,9 @@ export function ParticipantAttendanceList({
                 {isPaymentLocked(item) ? (
                   <View style={[styles.lockRow, rowFlipFor(isRTL) && styles.lockRowRtl]} accessible accessibilityRole="text">
                     <AppIcon name="lock-closed-outline" size="sm" color={theme.colors.textMuted} />
-                    <Text style={[styles.lockTxt, isRTL && styles.rtlText]}>{t("attendance.paymentLockedReceipt")}</Text>
+                    <Text style={[styles.lockTxt, isRTL && styles.rtlText]}>
+                      {t(isPaymentLockUnknown(item) ? "attendance.paymentLockUnknown" : "attendance.paymentLockedReceipt")}
+                    </Text>
                   </View>
                 ) : null}
                 {item.kind === "registered" && superUserHiddenUserIds?.has(item.userId) ? (
@@ -1230,7 +1330,8 @@ export function ParticipantAttendanceList({
                 {(() => {
                   const actions: FoldableActionsMenuItem[] = [];
                   // Per-athlete prices are manager-only (the server refuses coaches).
-                  if (sessionMeta && viewerIsManager) actions.push({ label: t("ui.rosterSlotRateChip.rate"), onPress: () => setRateOpenFor(item.id) });
+                  // Unknown overrides: the editor would show "no custom rate" for a row that may have one.
+                  if (sessionMeta && viewerIsManager && !unknownFinance.rates) actions.push({ label: t("ui.rosterSlotRateChip.rate"), onPress: () => setRateOpenFor(item.id) });
                   if (item.kind === "registered" && superUserHiddenUserIds && onToggleHideAthlete) {
                     const isHidden = superUserHiddenUserIds.has(item.userId);
                     actions.push({
@@ -1262,7 +1363,7 @@ export function ParticipantAttendanceList({
                 })()}
               </View>
             </View>
-            {sessionMeta && viewerIsManager ? (
+            {sessionMeta && viewerIsManager && !unknownFinance.rates ? (
               <RosterSlotRateChip
                 sessionId={sessionId}
                 userId={item.kind === "registered" ? item.userId : null}
@@ -1388,9 +1489,10 @@ export function ParticipantAttendanceList({
                       showOk(t("common.error"), t("attendance.invalidAmount"));
                       return;
                     }
+                    const gate = { firstPayment: payExisting == null, coveredWarningAccepted: payCoveredWarningAccepted };
                     closePaymentModal();
-                    if (payMode === "absent_penalty") void setStatus(row, "absent", method, parsed, true);
-                    else void setStatus(row, "arrived", method, parsed);
+                    if (payMode === "absent_penalty") void setStatus(row, "absent", method, parsed, true, gate);
+                    else void setStatus(row, "arrived", method, parsed, false, gate);
                   }}
                 >
                   <Text style={styles.payBtnTxtPrimary}>{t("ui.participantAttendanceList.confirm")}</Text>

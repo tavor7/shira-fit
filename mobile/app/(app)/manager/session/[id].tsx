@@ -1787,12 +1787,19 @@ export default function ManagerSessionDetail() {
                       {t("managerSession.summaryTilePayments")}
                     </Text>
                     <Text style={[styles.summaryTileHero, isRTL && styles.rtlText]} accessibilityRole="header">
-                      {attendanceStats.expectedPaymentSlots > 0
-                        ? `${formatIls(totalPaidDisplay, language)} / ${formatIls(expectedPaymentsDisplay, language)}`
-                        : formatIls(totalPaidDisplay, language)}
+                      {/* The roster could not load everything the amounts depend on: no partial / derived figure as if complete. */}
+                      {attendanceStats.rosterIncomplete
+                        ? "—"
+                        : attendanceStats.expectedPaymentSlots > 0 && !attendanceStats.expectedUnavailable
+                          ? `${formatIls(totalPaidDisplay, language)} / ${formatIls(expectedPaymentsDisplay, language)}`
+                          : formatIls(totalPaidDisplay, language)}
                     </Text>
                     <Text style={[styles.summaryTileHint, isRTL && styles.rtlText]}>
-                      {attendanceStats.expectedPaymentSlots > 0
+                      {attendanceStats.rosterIncomplete
+                        ? t("managerSession.summaryPaymentsIncomplete")
+                        : attendanceStats.expectedUnavailable
+                          ? t("managerSession.summaryPaymentsExpectedUnavailable")
+                          : attendanceStats.expectedPaymentSlots > 0
                         ? attendanceStats.totalPaidIls >= attendanceStats.expectedPaymentsIls
                           ? t("managerSession.summaryPaymentsFullyCollected").replace(
                               "{expected}",
