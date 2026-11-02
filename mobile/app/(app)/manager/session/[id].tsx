@@ -46,7 +46,7 @@ import { useDiscardChangesPrompt } from "../../../../src/hooks/useDiscardChanges
 import { useAppAlert } from "../../../../src/context/AppAlertContext";
 import { useSessionPresence, type PresentStaffMember } from "../../../../src/hooks/useSessionPresence";
 import { SessionPresenceBar } from "../../../../src/components/SessionPresenceBar";
-import { useRealtimeRefetch } from "../../../../src/hooks/useRealtimeRefetch";
+import { useRealtimeRefetch, type RealtimeChange } from "../../../../src/hooks/useRealtimeRefetch";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { usePersistedState } from "../../../../src/hooks/usePersistedState";
 import {
@@ -249,6 +249,7 @@ export default function ManagerSessionDetail() {
   const [serverFormReady, setServerFormReady] = useState(false);
   const { showToast } = useToast();
   const [participantsRev, setParticipantsRev] = useState(0);
+  const [rosterRealtime, setRosterRealtime] = useState<{ seq: number; changes: RealtimeChange[] | null }>({ seq: 0, changes: null });
   const [participantCount, setParticipantCount] = useState(0);
   const isSuperUser = profile?.is_super_user === true;
   const [hiddenUserIds, setHiddenUserIds] = useState<Set<string>>(new Set());
@@ -852,14 +853,23 @@ export default function ManagerSessionDetail() {
         : [],
     [id]
   );
-  useRealtimeRefetch(realtimeSubs, () => {
+  useRealtimeRefetch(realtimeSubs, (changes) => {
+    // Performance Phase 4: refresh what the changed tables can affect (everything when the changes are unknown). Notes
+    // are not in the realtime publication; they keep being refreshed with every delivery, once.
+    const tables = changes ? new Set(changes.map((c) => c.table)) : null;
+    const changed = (table: string) => tables === null || tables.has(table);
+    const sessionRowChanged = changed("training_sessions");
     // Skip re-pulling the session row (and thus the edit form's fields) while this manager is
     // mid-edit — don't clobber in-progress input just because someone else's change came in.
-    if (!editingSessionRef.current) void load();
-    loadWaitlist();
-    loadCancellations();
-    loadNotes();
-    setParticipantsRev((n) => n + 1);
+    if (sessionRowChanged && !editingSessionRef.current) {
+      void load(); // also reloads waitlist, cancellations and notes
+    } else {
+      if (sessionRowChanged || changed("waitlist_requests")) loadWaitlist();
+      if (sessionRowChanged || changed("cancellations")) loadCancellations();
+      loadNotes();
+    }
+    // The roster reloads only if these changes can make it out of date (see rosterChangesAreNews).
+    setRosterRealtime((r) => ({ seq: r.seq + 1, changes }));
     // Hidden under a pushed screen: refresh once on return instead of on every change (this screen has no focus reload).
   }, 500, "deferUntilFocus");
 
@@ -1932,7 +1942,9 @@ export default function ManagerSessionDetail() {
       <ParticipantAttendanceList
         sessionId={id}
         refreshNonce={participantsRev}
-        onChanged={afterParticipantsChange}
+        // No onChanged: the roster only saves attendance / payment / rate, which cannot change this screen's waitlist,
+        // cancellations or notes (it used to reload all three after every tap). Performance Phase 4.
+        realtimeChanges={rosterRealtime}
         onParticipantCountChange={handleParticipantCountChange}
         onAttendanceStatsChange={handleAttendanceStatsChange}
         onRemoveAthlete={removeAthlete}

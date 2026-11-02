@@ -17,6 +17,13 @@ export type RealtimeTableSub = {
  */
 export type RealtimeHiddenMode = "always" | "skip" | "deferUntilFocus";
 
+/** One Postgres change delivered in a debounce window (Performance Phase 4). `new` is the row after an INSERT / UPDATE. */
+export type RealtimeChange = {
+  table: string;
+  eventType: "INSERT" | "UPDATE" | "DELETE";
+  new: Record<string, unknown> | null;
+};
+
 /**
  * Monotonic per-hook-instance suffix so two mounts (e.g. leaving a screen and coming right back
  * to it) never share a channel topic name. `removeChannel` on unmount does a network round trip
@@ -34,13 +41,16 @@ let instanceCounter = 0;
  * waiting for a manual pull-to-refresh. Reuses whatever fetch function the caller already has;
  * this hook only decides *when* to call it, not how to merge data.
  *
+ * `onChange` receives the changes of the debounce window, or `null` when they are unknown (changes missed while the screen
+ * was hidden): callers that refresh selectively must refresh everything on `null`. Callers may ignore the argument.
+ *
  * Performance Phase 2: menu navigation pushes screens, so earlier screens stay mounted underneath. With "always", every
  * hidden copy refetched on every change (one attendance tap on Session Detail reloaded each hidden staff home in
  * full). `whenHidden` lets a screen skip or defer that work; the subscription itself stays open, so no change is missed.
  */
 export function useRealtimeRefetch(
   subs: RealtimeTableSub[],
-  onChange: () => void,
+  onChange: (changes: RealtimeChange[] | null) => void,
   debounceMs = 500,
   whenHidden: RealtimeHiddenMode = "always"
 ) {
@@ -54,7 +64,7 @@ export function useRealtimeRefetch(
       focusedRef.current = true;
       if (missedRef.current) {
         missedRef.current = false;
-        if (whenHidden === "deferUntilFocus") onChangeRef.current();
+        if (whenHidden === "deferUntilFocus") onChangeRef.current(null);
       }
       return () => {
         focusedRef.current = false;
@@ -69,16 +79,22 @@ export function useRealtimeRefetch(
     const instanceId = ++instanceCounter;
     const channel = supabase.channel(`realtime-refetch:${instanceId}:${subsKey}`);
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let pending: RealtimeChange[] = [];
 
     const fire = () => {
+      const changes = pending;
+      pending = [];
       if (!focusedRef.current && whenHidden !== "always") {
         missedRef.current = true;
         return;
       }
-      onChangeRef.current();
+      onChangeRef.current(changes);
     };
 
-    const scheduleRefetch = () => {
+    const scheduleRefetch = (table: string) => (payload: { eventType?: string; new?: unknown }) => {
+      const eventType = payload?.eventType === "INSERT" || payload?.eventType === "UPDATE" ? payload.eventType : "DELETE";
+      const row = payload?.new && typeof payload.new === "object" && Object.keys(payload.new).length > 0 ? (payload.new as Record<string, unknown>) : null;
+      pending.push({ table, eventType, new: row });
       if (timer) clearTimeout(timer);
       timer = setTimeout(fire, debounceMs);
     };
@@ -92,7 +108,7 @@ export function useRealtimeRefetch(
           table: sub.table,
           ...(sub.filter ? { filter: sub.filter } : {}),
         },
-        scheduleRefetch
+        scheduleRefetch(sub.table)
       );
     }
     channel.subscribe();

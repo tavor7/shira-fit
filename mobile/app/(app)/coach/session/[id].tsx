@@ -355,7 +355,8 @@ export default function CoachSessionDetail() {
       <ParticipantAttendanceList
         sessionId={id}
         refreshNonce={participantsRev}
-        onChanged={afterParticipantsChange}
+        // No onChanged: the roster only saves attendance / payment / rate, which cannot change this screen's waitlist,
+        // cancellations or notes (it used to reload all three after every tap). Performance Phase 4.
         onParticipantCountChange={handleParticipantCountChange}
         onAttendanceStatsChange={preserveScrollPosition}
         onRemoveAthlete={canManageParticipants ? removeAthlete : undefined}
