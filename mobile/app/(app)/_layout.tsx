@@ -2,8 +2,7 @@ import { useEffect } from "react";
 import { Stack, Redirect, usePathname, type Href } from "expo-router";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
-import { syncExpoPushTokenIfNeeded } from "../../src/lib/pushTokenSync";
-import { syncWebPushSubscriptionIfNeeded } from "../../src/lib/webPushSync";
+import { syncPushRegistrationNow } from "../../src/lib/pushSyncSchedule";
 import { AppHeaderRight } from "../../src/components/AppHeaderRight";
 import { AppHeaderTitle } from "../../src/components/AppHeaderTitle";
 import { StaffSideRail } from "../../src/components/StaffSideRail";
@@ -57,8 +56,7 @@ export default function AppLayout() {
    */
   useEffect(() => {
     if (!session) return;
-    void syncExpoPushTokenIfNeeded();
-    void syncWebPushSubscriptionIfNeeded();
+    syncPushRegistrationNow();
     // Deliberately keyed on the user id, not the whole session object: session is a new
     // object reference on every token refresh, and re-running this on each refresh would
     // defeat the point of a once-per-login sync.
