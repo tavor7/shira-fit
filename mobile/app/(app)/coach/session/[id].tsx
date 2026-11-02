@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router, Stack } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Platform, TouchableOpacity } from "react-native";
 import { supabase } from "../../../../src/lib/supabase";
 import { theme } from "../../../../src/theme";
@@ -28,6 +28,7 @@ import { EmptyState } from "../../../../src/components/EmptyState";
 import { classifyUserError } from "../../../../src/lib/userFacingError";
 import { usePerfScreen } from "../../../../src/hooks/usePerfScreen";
 import { getCurrentUserId } from "../../../../src/lib/currentUser";
+import { useRealtimeRefetch, type RealtimeChange } from "../../../../src/hooks/useRealtimeRefetch";
 type W = {
   user_id: string;
   requested_at: string;
@@ -131,36 +132,73 @@ export default function CoachSessionDetail() {
     setNotes((data as unknown as NoteRow[]) ?? []);
   }
 
+  async function loadSession() {
+    const { data: s, error: sErr } = await supabase
+      .from("training_sessions")
+      .select("coach_id, session_date, start_time, max_participants, is_kickbox")
+      .eq("id", id)
+      .single();
+    setSessionMissing(!s && !!sErr && (classifyUserError(sErr) === "notFound" || sErr.code === "22P02"));
+    const row = s as {
+      coach_id?: string;
+      session_date?: string;
+      start_time?: string;
+      max_participants?: number;
+      is_kickbox?: boolean;
+    } | null;
+    setCoachId(row?.coach_id ?? null);
+    setSessionMaxParticipants(Math.max(0, Number(row?.max_participants) || 0));
+    setIsKickbox(!!row?.is_kickbox);
+    if (row?.session_date && row?.start_time) {
+      setSessionSchedule({ session_date: row.session_date, start_time: row.start_time });
+    } else {
+      setSessionSchedule(null);
+    }
+  }
+
   useEffect(() => {
     loadWaitlist();
     loadCancellations();
     loadNotes();
     void (async () => {
-      const uid = await getCurrentUserId();
-      setMyId(uid);
-      const { data: s, error: sErr } = await supabase
-        .from("training_sessions")
-        .select("coach_id, session_date, start_time, max_participants, is_kickbox")
-        .eq("id", id)
-        .single();
-      setSessionMissing(!s && !!sErr && (classifyUserError(sErr) === "notFound" || sErr.code === "22P02"));
-      const row = s as {
-        coach_id?: string;
-        session_date?: string;
-        start_time?: string;
-        max_participants?: number;
-        is_kickbox?: boolean;
-      } | null;
-      setCoachId(row?.coach_id ?? null);
-      setSessionMaxParticipants(Math.max(0, Number(row?.max_participants) || 0));
-      setIsKickbox(!!row?.is_kickbox);
-      if (row?.session_date && row?.start_time) {
-        setSessionSchedule({ session_date: row.session_date, start_time: row.start_time });
-      } else {
-        setSessionSchedule(null);
-      }
+      setMyId(await getCurrentUserId());
+      await loadSession();
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Live updates (Performance Phase 4): other staff's attendance / payment changes, registrations, cancellations and
+  // waitlist changes on this session, same tables and filters as the manager screen. Realtime delivers only rows this
+  // coach may already read (RLS), so nothing new is exposed. Each change refreshes only what it can affect; the roster
+  // reloads only when the change is news (rosterChangesAreNews). Hidden under a pushed screen: one refresh on return.
+  const realtimeSubs = useMemo(
+    () =>
+      id
+        ? [
+            { table: "training_sessions", filter: `id=eq.${id}` },
+            { table: "session_registrations", filter: `session_id=eq.${id}` },
+            { table: "cancellations", filter: `session_id=eq.${id}` },
+            { table: "waitlist_requests", filter: `session_id=eq.${id}` },
+            { table: "session_manual_participants", filter: `session_id=eq.${id}` },
+          ]
+        : [],
+    [id]
+  );
+  const [rosterRealtime, setRosterRealtime] = useState<{ seq: number; changes: RealtimeChange[] | null }>({ seq: 0, changes: null });
+  useRealtimeRefetch(
+    realtimeSubs,
+    (changes) => {
+      const tables = changes ? new Set(changes.map((c) => c.table)) : null;
+      const changed = (table: string) => tables === null || tables.has(table);
+      if (changed("training_sessions")) void loadSession();
+      if (changed("waitlist_requests")) void loadWaitlist();
+      if (changed("cancellations")) void loadCancellations();
+      void loadNotes(); // notes are not in the realtime publication; refreshed once per delivery, as on the manager screen
+      setRosterRealtime((r) => ({ seq: r.seq + 1, changes }));
+    },
+    500,
+    "deferUntilFocus"
+  );
 
   async function addNote() {
     const body = noteDraft.trim();
@@ -355,6 +393,7 @@ export default function CoachSessionDetail() {
       <ParticipantAttendanceList
         sessionId={id}
         refreshNonce={participantsRev}
+        realtimeChanges={rosterRealtime}
         // No onChanged: the roster only saves attendance / payment / rate, which cannot change this screen's waitlist,
         // cancellations or notes (it used to reload all three after every tap). Performance Phase 4.
         onParticipantCountChange={handleParticipantCountChange}
