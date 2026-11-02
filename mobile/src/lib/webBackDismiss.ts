@@ -8,8 +8,15 @@ import { Platform } from "react-native";
  * a capture-phase popstate listener runs before expo-router's and stops the event, so the router never
  * sees that pop, and the dialog's own onClose runs. When a dialog closes normally its entry is removed
  * again (history.back(), likewise hidden from the router). When the app navigates while a dialog entry is
- * on top (an action inside the dialog), the dialog entry is popped first and the router's push/replace
- * is applied after it — so history ends up exactly as it would without the dialog: no stray entries.
+ * on top (an action inside the dialog), the dialog entry is popped first and the router's push/replace - or its
+ * back / go(-n) when it closes screens - is applied after it, so history ends up exactly as it would without the
+ * dialog: no stray entries.
+ *
+ * Back traversals (Performance Phase 3): the router closes screens with history.go(-n). That call was not patched, so a
+ * dialog action that closed screens (the ≡ menu returning to an open section) issued go(-n) with the dialog entry
+ * still on top, and the dialog's own clean-up history.back() ran 5 ms later: two overlapping traversals. Chromium
+ * applied both (one step too many: the next Back left the app), WebKit cancelled the router's (history no longer
+ * matched the screens). Traversals are now sequenced like pushes: dialog entry first, then the router's go / back.
  *
  * The popstate listener MUST be registered before expo-router's own popstate listener. At the window target, Chromium
  * (Chrome, Edge, Android) runs listeners in registration order whatever their capture flag (WebKit runs capture ones
@@ -38,6 +45,8 @@ function currentToken(): string | undefined {
 
 let origPush: History["pushState"];
 let origReplace: History["replaceState"];
+let origGo: History["go"];
+let origBack: History["back"];
 
 function flush() {
   if (fallback) clearTimeout(fallback);
@@ -52,7 +61,7 @@ function popSilently(after?: () => void) {
   if (after) queued.push(after);
   if (suppress > 0) return; // a silent pop is already under way; `after` runs with it
   suppress += 1;
-  window.history.back();
+  origBack();
   // Safety net: if the browser never fires popstate, don't hold the router's navigation hostage.
   fallback = setTimeout(() => {
     suppress = 0;
@@ -66,6 +75,8 @@ function install() {
   const h = window.history as H;
   origPush = h.pushState.bind(h);
   origReplace = h.replaceState.bind(h);
+  origGo = h.go.bind(h);
+  origBack = h.back.bind(h);
   if (!h.__dlgPatched) {
     h.__dlgPatched = true;
     // Router navigation while a dialog entry is on top: drop the dialog entry first.
@@ -82,6 +93,21 @@ function install() {
         return;
       }
       origReplace(data, unused, url);
+    };
+    // Router closing screens while a dialog entry is on top: drop the dialog entry first, then traverse.
+    h.go = (delta?: number) => {
+      if (delta !== undefined && delta < 0 && (currentToken() || suppress > 0)) {
+        popSilently(() => origGo(delta));
+        return;
+      }
+      origGo(delta);
+    };
+    h.back = () => {
+      if (currentToken() || suppress > 0) {
+        popSilently(() => origBack());
+        return;
+      }
+      origBack();
     };
   }
   window.addEventListener(
