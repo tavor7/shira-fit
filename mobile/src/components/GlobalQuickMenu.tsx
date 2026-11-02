@@ -8,6 +8,7 @@ import { FoldableActionsMenu, type FoldableActionsMenuItem } from "./FoldableAct
 import { useI18n } from "../context/I18nContext";
 import { useEffectiveNavRole } from "../context/ManagerAthletePreviewContext";
 import { useAppNavStatus } from "../context/AppNavStatusContext";
+import { useMenuNavigate } from "../lib/menuNavigation";
 import type { AppIconName } from "./AppIcon";
 import { useStaffRailVisible } from "../hooks/useStaffRail";
 import { STUDIO_SETUP_INDEX_MAX_WIDTH } from "./ManagerOverviewTabs";
@@ -33,6 +34,8 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
   const { pendingApproveCount, hasSubscription } = useAppNavStatus();
 
   const navRole = useEffectiveNavRole(profile);
+  // Staff sections return to an existing copy instead of stacking another (Phase 3 prototype, see menuNavigation).
+  const go = useMenuNavigate();
 
   const items = useMemo<RouteItem[]>(() => {
     const role = navRole;
@@ -54,19 +57,19 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
         {
           label: t("menu.sessions"),
         icon: "calendar-outline",
-          onPress: () => router.push("/(app)/manager/sessions"),
+          onPress: () => go("/(app)/manager/sessions"),
           isActive: (p) => startsWithAny(p, ["/manager/sessions"]),
         },
         {
           label: t("menu.rosterCalendar"),
         icon: "list-outline",
-          onPress: () => router.push("/(app)/manager/roster-calendar"),
+          onPress: () => go("/(app)/manager/roster-calendar"),
           isActive: (p) => startsWithAny(p, ["/manager/roster-calendar"]),
         },
         {
           label: t("menu.overview"),
         icon: "stats-chart-outline",
-          onPress: () => router.push("/(app)/manager/dashboard"),
+          onPress: () => go("/(app)/manager/dashboard"),
           isActive: (p) =>
             startsWithAny(p, [
               "/manager/dashboard",
@@ -83,7 +86,7 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
         {
           label: t("menu.money"),
         icon: "wallet-outline",
-          onPress: () => router.push("/(app)/manager/account-payments"),
+          onPress: () => go("/(app)/manager/account-payments"),
           isActive: (p) =>
             startsWithAny(p, [
               "/manager/account-payments",
@@ -97,7 +100,7 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
           label: t("menu.managerSetup"),
         icon: "settings-outline",
           onPress: () =>
-            router.push((width < STUDIO_SETUP_INDEX_MAX_WIDTH ? "/(app)/manager/setup" : "/(app)/staff/users") as never),
+            go(width < STUDIO_SETUP_INDEX_MAX_WIDTH ? "/(app)/manager/setup" : "/(app)/staff/users"),
           isActive: (p) =>
             startsWithAny(p, [
               "/manager/setup",
@@ -117,7 +120,7 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
         {
           label: t("menu.approve"),
         icon: "person-add-outline",
-          onPress: () => router.push("/(app)/manager/approve"),
+          onPress: () => go("/(app)/manager/approve"),
           isActive: (p) => startsWithAny(p, ["/manager/approve"]),
           badgeCount: pendingApproveCount > 0 ? pendingApproveCount : undefined,
         },
@@ -127,7 +130,7 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
         managerItems.push({
           label: t("menu.superUserHidden"),
         icon: "eye-off-outline",
-          onPress: () => router.push("/(app)/super/hidden-workouts" as never),
+          onPress: () => go("/(app)/super/hidden-workouts"),
           isActive: (p) => startsWithAny(p, ["/super/hidden-workouts"]),
         });
       }
@@ -140,31 +143,31 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
         {
           label: t("menu.sessions"),
         icon: "calendar-outline",
-          onPress: () => router.push("/(app)/coach/sessions"),
+          onPress: () => go("/(app)/coach/sessions"),
           isActive: (p) => startsWithAny(p, ["/coach/sessions"]),
         },
         {
           label: t("menu.editUsers"),
         icon: "people-outline",
-          onPress: () => router.push("/(app)/staff/users"),
+          onPress: () => go("/(app)/staff/users"),
           isActive: (p) => startsWithAny(p, ["/staff/users", "/staff/profile", "/staff/manual"]),
         },
         {
           label: t("menu.search"),
         icon: "search-outline",
-          onPress: () => router.push("/(app)/staff/search"),
+          onPress: () => go("/(app)/staff/search"),
           isActive: (p) => startsWithAny(p, ["/staff/search"]),
         },
         {
           label: t("menu.participantHistory"),
         icon: "time-outline",
-          onPress: () => router.push("/(app)/coach/participant-history"),
+          onPress: () => go("/(app)/coach/participant-history"),
           isActive: (p) => startsWithAny(p, ["/coach/participant-history"]),
         },
         {
           label: t("menu.pricingHub"),
         icon: "pricetags-outline",
-          onPress: () => router.push("/(app)/coach/pricing" as never),
+          onPress: () => go("/(app)/coach/pricing"),
           isActive: (p) => startsWithAny(p, ["/coach/pricing"]),
         },
         legalItem,
@@ -204,6 +207,7 @@ export function useAppNavItems(): { items: RouteItem[]; pathname: string } {
     pendingApproveCount,
     hasSubscription,
     t,
+    go,
   ]);
 
   return { items, pathname };
