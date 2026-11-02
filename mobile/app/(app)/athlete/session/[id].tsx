@@ -24,6 +24,12 @@ import { appendNetworkHint } from "../../../../src/lib/networkErrors";
 import { StatusChip } from "../../../../src/components/StatusChip";
 import { scheduleSessionReminders, cancelSessionReminders } from "../../../../src/lib/sessionReminders";
 import { clearWaitlistSpotFlag } from "../../../../src/lib/waitlistSpotNotifier";
+import {
+  availabilityAlertAction,
+  fetchAvailabilityAlertState,
+  setAvailabilityAlert,
+  type AvailabilityAlertState,
+} from "../../../../src/lib/sessionAvailabilityAlerts";
 import { fetchActiveSignupCountsBySession } from "../../../../src/lib/sessionSignupCounts";
 import { SessionAdjacentNav } from "../../../../src/components/SessionAdjacentNav";
 import { KickboxSessionBadge } from "../../../../src/components/KickboxSessionBadge";
@@ -81,6 +87,8 @@ export default function AthleteSessionDetail() {
   const [loadError, setLoadError] = useState<string>("");
   const [registering, setRegistering] = useState(false);
   const [waitlisting, setWaitlisting] = useState(false);
+  const [availabilityAlert, setAvailabilityAlertState] = useState<AvailabilityAlertState | null>(null);
+  const [availabilityAlertBusy, setAvailabilityAlertBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [justCancelled, setJustCancelled] = useState(false);
   const [regOpenState, setRegOpenState] = useState<SessionRegistrationOpenState | null>(null);
@@ -123,7 +131,7 @@ export default function AthleteSessionDetail() {
     // needed when the session is not open yet, so it stays a follow-up request in that case only. The screen still
     // renders once all of it is here, so the action buttons never show before the athlete's own status is known.
     const u = await getCurrentUserId();
-    const [sessionRes, counts, regRes, waitRes, pplRes] = await Promise.all([
+    const [sessionRes, counts, regRes, waitRes, pplRes, alertState] = await Promise.all([
       supabase.from("training_sessions").select("*, trainer:profiles!coach_id(full_name)").eq("id", sessionId).single(),
       fetchActiveSignupCountsBySession([sessionId]),
       u
@@ -131,6 +139,7 @@ export default function AthleteSessionDetail() {
         : null,
       u ? supabase.from("waitlist_requests").select("id").eq("session_id", sessionId).eq("user_id", u).maybeSingle() : null,
       supabase.rpc("list_session_participants", { p_session_id: sessionId }),
+      fetchAvailabilityAlertState(sessionId),
     ]);
     if (seq !== loadSeqRef.current) return;
 
@@ -152,6 +161,7 @@ export default function AthleteSessionDetail() {
     setCount(counts[sessionId] ?? 0);
     setRegistered(!!regRes?.data);
     setOnWaitlist(!!waitRes?.data);
+    setAvailabilityAlertState(alertState);
     if (!pplRes.error) {
       const ppl = pplRes.data;
       const list = Array.isArray(ppl) ? (ppl as { full_name: string }[]).map((x) => x.full_name).filter(Boolean) : [];
@@ -296,6 +306,22 @@ export default function AthleteSessionDetail() {
       });
   }
 
+  async function toggleAvailabilityAlert(subscribe: boolean) {
+    if (availabilityAlertBusy) return;
+    setAvailabilityAlertBusy(true);
+    const res = await setAvailabilityAlert(sessionId, subscribe);
+    setAvailabilityAlertBusy(false);
+    if (!res.ok) {
+      showToast({ message: t("athleteSession.availabilityError"), variant: "error" });
+      return;
+    }
+    setAvailabilityAlertState((prev) => ({ enabled: prev?.enabled ?? subscribe, subscribed: subscribe }));
+    showToast({
+      message: t(subscribe ? "athleteSession.availabilitySubscribedToast" : "athleteSession.availabilityUnsubscribedToast"),
+      variant: "success",
+    });
+  }
+
   async function leaveWaitlist() {
     if (registering || waitlisting || cancelling) return;
     setWaitlisting(true);
@@ -419,6 +445,16 @@ export default function AthleteSessionDetail() {
   const sessionNotEnded = hasSessionNotEnded(session.session_date, session.start_time, session.duration_minutes ?? 60);
   const sessionNotStarted = hasSessionNotStarted(session.session_date, session.start_time);
   const canCancelRegistration = sessionNotStarted;
+  const alertAction = availabilityAlert
+    ? availabilityAlertAction({
+        ...availabilityAlert,
+        maxParticipants: session.max_participants,
+        full,
+        registered,
+        registrationOpen: regOpen,
+        sessionNotStarted,
+      })
+    : null;
 
   return (
     <>
@@ -495,6 +531,23 @@ export default function AthleteSessionDetail() {
                 style={styles.btn2}
               />
             )}
+            {alertAction ? (
+              <>
+                <ActionButton
+                  label={t(
+                    alertAction === "subscribe"
+                      ? "athleteSession.availabilitySubscribe"
+                      : "athleteSession.availabilityUnsubscribe"
+                  )}
+                  onPress={() => void toggleAvailabilityAlert(alertAction === "subscribe")}
+                  disabled={availabilityAlertBusy}
+                  style={styles.btn2}
+                />
+                <AppText variant="caption" muted isRTL={isRTL} style={styles.closedHint}>
+                  {t("athleteSession.availabilityHint")}
+                </AppText>
+              </>
+            ) : null}
             {!sessionNotEnded ? null : !full && !regOpen ? (
               <AppText variant="caption" muted isRTL={isRTL} style={styles.closedHint}>
                 {sessionRegistrationClosedHint(regOpenState, t, language)}

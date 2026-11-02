@@ -16,6 +16,7 @@ import { isRtlScript } from "./bidiEmbed";
 import { loadNotificationPrefs } from "./notificationPrefs";
 import { displayTimeRange } from "./displayFormat";
 import { getCurrentUserId } from "./currentUser";
+import { fetchMyAvailabilitySubscriptions } from "./sessionAvailabilityAlerts";
 
 function tr(lang: LanguageCode, key: string, params?: Record<string, string | number>): string {
   let s = translations[lang][key] ?? key;
@@ -572,7 +573,8 @@ export function buildAthleteRegistrationItems(
 }
 
 /**
- * Waitlisted sessions with free capacity, registration open, user not actively registered; session not ended.
+ * Waitlisted or availability-subscribed sessions with free capacity, registration open, user not actively registered;
+ * session not ended. Someone who is both gets one alert, worded as the waitlist one.
  */
 export async function fetchAthleteWaitlistOpenSpotItems(
   language: LanguageCode,
@@ -581,10 +583,13 @@ export async function fetchAthleteWaitlistOpenSpotItems(
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
-  const { data: waits, error: wErr } = await supabase.from("waitlist_requests").select("session_id").eq("user_id", userId);
-  if (wErr || !waits?.length) return [];
-
-  const sessionIds = [...new Set(waits.map((w) => w.session_id))];
+  const [{ data: waits, error: wErr }, subscribedIds] = await Promise.all([
+    supabase.from("waitlist_requests").select("session_id").eq("user_id", userId),
+    fetchMyAvailabilitySubscriptions(),
+  ]);
+  const waitlistedIds = new Set((wErr ? [] : (waits ?? [])).map((w) => w.session_id));
+  const sessionIds = [...new Set([...waitlistedIds, ...subscribedIds])];
+  if (sessionIds.length === 0) return [];
   const counts = await fetchActiveSignupCountsBySession(sessionIds);
   const { data: sessions, error: sErr } = await supabase
     .from("training_sessions")
@@ -612,7 +617,9 @@ export async function fetchAthleteWaitlistOpenSpotItems(
     const dateStr = formatISODateFull(s.session_date, language);
     rows.push({
       session: s,
-      label: tr(language, "homeAlerts.athleteWaitlistSpot", { date: dateStr }),
+      label: tr(language, waitlistedIds.has(s.id) ? "homeAlerts.athleteWaitlistSpot" : "homeAlerts.athleteAvailabilitySpot", {
+        date: dateStr,
+      }),
     });
   }
   rows.sort(

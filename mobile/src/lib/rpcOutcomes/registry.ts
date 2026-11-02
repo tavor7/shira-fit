@@ -152,6 +152,9 @@ export const DYNAMIC_ERROR_SITES: Readonly<Record<string, readonly string[]>> = 
  * (technical / uncertain / overrides) so that a reviewer sees the evidence next to the decision.
  */
 export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, RuleEntry>>>> = {
+  _session_availability_outbox_process: {
+    internal: [T, "Internal, cron-only function with no app-visible caller; its own outer exception handler's generic fallback, never a client outcome."],
+  },
   _system_push_outbox_process: {
     missing_vault_secrets: [T, "The critical-push outbox processor is dark-launched (critical_push_enabled defaults to false) and has no app-visible caller; a missing vault configuration is an operational/infra state, not a classification a user can ever observe."],
     internal: [T, "Internal, cron-only function with no app-visible caller; its own outer exception handler's generic fallback, never a business outcome."],
@@ -657,6 +660,17 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   },
   get_subscription_weekly_usage: {
     subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
+  },
+  subscribe_session_availability: {
+    account_disabled: [V, "The CALLER's own account is disabled (profiles.disabled_at). Authorization outcome."],
+    already_registered: B,
+    feature_disabled: [B, "The availability alert feature flag is off, a rollout state rather than a failure."],
+    not_approved_athlete: [V, "The caller is not an approved athlete. Authorization outcome."],
+    not_full: B,
+    not_group_session: B,
+    registration_closed: B,
+    session_not_available: B,
+    session_started: B,
   },
   subscription_compute_impact: {
     effective_from_before_current_version: B,
