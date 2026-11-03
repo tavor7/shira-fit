@@ -11,7 +11,7 @@
 #
 # Scenarios
 #   A  a payment dated while the subscription is active succeeds and is linked
-#   B  a payment dated ON/AFTER stopped_effective_date is refused (subscription_not_eligible_for_date)
+#   B  a payment dated ON/AFTER stopped_effective_date is accepted only up to what is still owed
 #   C  a payment dated BEFORE the stop date (even though the subscription is stopped as of today)
 #      still succeeds -- eligibility is evaluated as of paid_at, not "today"
 #   D  a payment dated after plan_end_date is refused
@@ -74,15 +74,18 @@ expect "A succeeds" "true" "$(jf "$R" ok)"
 PID=$(jf "$R" payment_id)
 expect "A payment is linked to the subscription" "$SUB" "$(su -c "select source_subscription_id from public.athlete_account_payments where id='$PID'")"
 
-echo "== B: payment dated on/after stopped_effective_date is refused"
+echo "== B: on or after the stop date, only what is still owed (owner decision 2026-11-03; full coverage in 226)"
 mksub "$(d -30)"
 STOP=$(d -5)
 api "$M" "select public.stop_subscription('$SUB', '$STOP', true)::text;" >/dev/null
 pay "$SUB" "$STOP"
-expect "B refused on the stop date itself" "false" "$(jf "$R" ok)"
-expect "B error is subscription_not_eligible_for_date" "subscription_not_eligible_for_date" "$(jf "$R" error)"
+expect "B accepted on the stop date while it owes" "true" "$(jf "$R" ok)"
 pay "$SUB" "$(d -1)"
-expect "B refused after the stop date too" "false" "$(jf "$R" ok)"
+expect "B accepted after the stop date while it owes" "true" "$(jf "$R" ok)"
+R=$(api "$M" "select public.record_subscription_payment('$SUB',100000,'cash',null,null,'$(d -1)',null)::text;")
+expect "B never more than it owes" "amount_exceeds_outstanding" "$(jf "$R" error)"
+R=$(api "$M" "select public.record_subscription_payment('$SUB',1,'cash',null,null,'$(d 3)',null)::text;")
+expect "B no future date" "subscription_not_eligible_for_date" "$(jf "$R" error)"
 
 echo "== C: a payment dated BEFORE the stop date still succeeds, even though the subscription is stopped as of today"
 mksub "$(d -30)"
