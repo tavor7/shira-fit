@@ -90,7 +90,7 @@ mksub() { # price, returns SUB/VER via globals, and a FRESH athlete A each time 
   VER=$(su -c "select id from public.subscription_versions where subscription_id = '$SUB' and effective_to is null limit 1")
 }
 mksession() { # session_date [start_time] [duration_minutes], returns SX
-  SX=$(su -c "insert into public.training_sessions (session_date, start_time, duration_minutes, coach_id, max_participants, is_open_for_registration) values ('$1', '${2:-08:00}', ${3:-60}, '$CO', 6, true) returning id" | head -1)
+  SX=$(su -c "insert into public.training_sessions (session_date, start_time, duration_minutes, coach_id, max_participants, is_open_for_registration) values ('$1', '${2:-08:00}', ${3:-60}, '$CO', 8, true) returning id" | head -1)
 }
 regcov() { # session_id, session_date, covered(true/false) -> REG, COV
   REG=$(su -c "insert into public.session_registrations (session_id, user_id, status) values ('$1', '$A', 'active') returning id" | head -1)
@@ -213,11 +213,13 @@ expect "I its coverage row is untouched (still covered=true)" "t" "$(su -c "sele
 mksub 300
 mksession "$TODAY" "00:10" 1
 regcov "$SX" "$TODAY" true
-R=$(api "$M" "select public.delete_subscription_with_future_registrations('$SUB', 'remove', true)::text;")
+# Owner decision 4: a covered session that already took place is listed and, once confirmed, moves to regular price.
+R=$(api "$M" "select public.delete_subscription_with_future_registrations('$SUB')::text;")
+R=$(api "$M" "select public.delete_subscription_with_future_registrations('$SUB', 'remove', true, null, null, '$(jf "$R" fingerprint)')::text;")
 expect "I (delete) tombstoned" "tombstoned" "$(jf "$R" action)"
 expect "I (delete) nothing resolved for the already-ended same-day session" "0" "$(jf "$R" future_registrations_resolved)"
 expect "I (delete) the already-ended registration stays active (untouched)" "active" "$(su -c "select status from public.session_registrations where id='$REG'")"
-expect "I (delete) its coverage row is untouched (still covered=true)" "t" "$(su -c "select covered from public.subscription_registration_coverage where id='$COV'")"
+expect "I (delete) it moved to regular price" "f" "$(su -c "select covered from public.subscription_registration_coverage where id='$COV'")"
 
 echo "== J: preview/confirm staleness -- a registration added after preview is never silently resolved"
 mksub 300
