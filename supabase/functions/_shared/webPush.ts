@@ -46,7 +46,7 @@ async function logDeliveryOutcome(
   row: { userId: string; subscriptionId: string; notificationKind: string | null; outcome: "sent" | "failed" | "pruned"; httpStatus?: number | null; errorDetail?: string | null }
 ): Promise<void> {
   try {
-    await adminClient.from("web_push_delivery_log").insert({
+    const { error } = await adminClient.from("web_push_delivery_log").insert({
       user_id: row.userId,
       subscription_id: row.subscriptionId,
       notification_kind: row.notificationKind,
@@ -54,6 +54,7 @@ async function logDeliveryOutcome(
       http_status: row.httpStatus ?? null,
       error_detail: row.errorDetail ? row.errorDetail.slice(0, 500) : null,
     });
+    if (error) console.error(`web_push_delivery_log insert failed: ${error.message}`);
   } catch (logErr) {
     // A logging failure must never change or interrupt the actual send/prune behavior.
     console.error(`web_push_delivery_log insert failed: ${logErr instanceof Error ? logErr.message : String(logErr)}`);
@@ -104,8 +105,7 @@ export async function sendWebPushToUser(
       } catch (err) {
         const statusCode = (err as { statusCode?: number } | null)?.statusCode;
         if (statusCode === 404 || statusCode === 410) {
-          await adminClient.from("web_push_subscriptions").delete().eq("id", row.id);
-          pruned += 1;
+          // Logged first: the log row references the subscription, so it could not be written after the delete.
           await logDeliveryOutcome(adminClient, {
             userId,
             subscriptionId: row.id,
@@ -113,6 +113,8 @@ export async function sendWebPushToUser(
             outcome: "pruned",
             httpStatus: statusCode,
           });
+          await adminClient.from("web_push_subscriptions").delete().eq("id", row.id);
+          pruned += 1;
           return;
         }
         const errorDetail = `body=${(err as { body?: string } | null)?.body} message=${err instanceof Error ? err.message : String(err)}`;

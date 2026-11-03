@@ -70,8 +70,14 @@ Deno.serve(async (req) => {
   const { data: skipReason, error: skipError } = await supabase.rpc("_waitlist_notify_skip_reason", {
     p_session_id: sessionId,
   });
-  // A failed check must not lose a genuine opening, so only a definite answer stops the message.
-  if (skipError) console.error(`notify-waitlist: eligibility check failed: ${skipError.message}`);
+  // Without an answer nothing is sent: a brief error must not announce a hidden, closed or started session.
+  if (skipError) {
+    console.error(`notify-waitlist: eligibility check failed: ${skipError.message}`);
+    return new Response(JSON.stringify({ ok: false, notified: false, reason: "eligibility_check_failed" }), {
+      status: 500,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
   if (skipReason)
     return new Response(JSON.stringify({ ok: true, notified: false, reason: skipReason }), {
       headers: { ...cors, "Content-Type": "application/json" },
