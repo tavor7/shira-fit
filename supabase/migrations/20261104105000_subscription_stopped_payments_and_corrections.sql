@@ -893,3 +893,6 @@ create trigger subscription_payment_cap_check
   before insert or update of amount_ils on public.athlete_account_payments
   for each row execute function public._subscription_payment_cap_check();
 revoke all on function public._subscription_payment_cap_check() from public, anon, authenticated;
+
+-- A trigger function has no business being callable by clients.
+revoke all on function public._validate_athlete_account_payment() from public, anon, authenticated;

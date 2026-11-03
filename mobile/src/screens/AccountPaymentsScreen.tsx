@@ -526,7 +526,13 @@ export default function AccountPaymentsScreen() {
     await reload();
   }
 
-  function confirmDelete(paymentId: string) {
+  async function confirmDelete(paymentId: string) {
+    // Subscription payments are reversed with a reason, never deleted, so they skip the delete confirmation.
+    const { data } = await supabase.from("athlete_account_payments").select("source_subscription_id").eq("id", paymentId).maybeSingle();
+    if (data?.source_subscription_id) {
+      setReversePaymentId(paymentId);
+      return;
+    }
     showConfirm({
       title: t("common.confirm"),
       message: t("billing.deletePaymentConfirm"),
@@ -924,7 +930,7 @@ export default function AccountPaymentsScreen() {
                     </Pressable>
                     <View style={styles.actionSep} />
                     <Pressable
-                      onPress={() => confirmDelete(item.record_id)}
+                      onPress={() => void confirmDelete(item.record_id)}
                       disabled={busy}
                       hitSlop={10}
                       style={({ pressed }) => [styles.actionItem, styles.actionItemDanger, pressed && !busy && styles.actionItemPressed]}
