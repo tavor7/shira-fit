@@ -79,6 +79,8 @@ export type SubscriptionFreezeRow = {
   freeze_until: string;
   created_at: string;
   cancelled_at: string | null;
+  ended_early_at?: string | null;
+  original_freeze_until?: string | null;
 };
 
 export type SubscriptionChargeRow = {
@@ -244,6 +246,95 @@ export type SubscriptionOverviewStats = {
   charges_total_ils: number;
   payments_total_ils: number;
   outstanding_ils: number;
+  running_count: number;
+  frozen_count: number;
+  scheduled_count: number;
+  open_balance_ils: number;
+  open_balance_count: number;
+  credit_ils: number;
+  charges_next_7d_count: number;
+  charges_next_7d_ils: number;
+  ending_next_14d_count: number;
+};
+
+export type SubscriptionWeekUtilizationRow = {
+  payee_id: string;
+  payee_is_manual: boolean;
+  payee_display_name: string;
+  subscription_id: string;
+  tier: SubscriptionTier;
+  available: number;
+  occupied: number;
+  attended: number;
+  penalty: number;
+  unmarked: number;
+  reserved: number;
+  released: number;
+  extra: number;
+  remaining: number;
+  over: number;
+};
+
+/** manager_subscription_week_utilization. used + unmarked + reserved + remaining = available + over_allocated. */
+export type SubscriptionWeekUtilization = {
+  ok: true;
+  week_start: string;
+  week_end: string;
+  mode: "closed" | "current" | "future";
+  available: number;
+  used: number;
+  attended: number;
+  penalty: number;
+  unmarked: number;
+  reserved: number;
+  remaining: number;
+  over_allocated: number;
+  released: number;
+  extra_regular_price: number;
+  rows: SubscriptionWeekUtilizationRow[];
+};
+
+export type SubscriptionDeleteHistoryItem = {
+  coverage_id: string;
+  session_id: string;
+  session_date: string;
+  start_time: string;
+  slot_state: "attended" | "penalty" | "unmarked";
+  regular_price_ils: number;
+  amount_paid_ils: number;
+  has_receipt: boolean;
+  will_reprice: boolean;
+  new_debt_ils: number;
+};
+
+export type SubscriptionDeleteImpact = {
+  history_sessions: SubscriptionDeleteHistoryItem[];
+  future_registrations: FutureRegistrationItem[];
+  future_registrations_count: number;
+  new_debt_ils: number;
+  receipt_locked_count: number;
+  charges_to_reverse_ils: number;
+  blocking_payments_ils: number;
+  blocking_payments_count: number;
+  payee_discounts_ils: number;
+  fingerprint: string;
+};
+
+export type UnfreezeKind = "future_cancel" | "current_end_early" | "past_reversal";
+
+export type UnfreezeOutcome = {
+  action: "preview" | "applied" | "already_applied";
+  kind?: UnfreezeKind;
+  freeze_from?: string;
+  freeze_until?: string;
+  session_changes?: { session_date: string; covered_before: boolean; covered_after: boolean; reason_after: string | null }[];
+  sessions_kept_at_paid_regular_price?: number;
+  next_billing_before?: string | null;
+  next_billing_after?: string | null;
+  plan_end_before?: string | null;
+  plan_end_after?: string | null;
+  charges_change_ils?: number;
+  next_charge_becomes_due?: boolean;
 };
 
 export type SubscriptionOverviewBreakdownRow = {
@@ -259,6 +350,8 @@ export type SubscriptionOverviewBreakdownRow = {
   charges_total_ils: number;
   payments_total_ils: number;
   outstanding_ils: number;
+  next_billing_date: string | null;
+  effective_plan_end_date: string | null;
 };
 
 export type FieldValidationError = { field: string; messageKey: string };
@@ -594,7 +687,8 @@ export async function rpcDeleteSubscription(
   subscriptionId: string,
   confirmed: boolean = false,
   futureRegistrationAction: FutureRegistrationAction | null = null,
-  expectedFutureRegistrations: FutureRegistrationItem[] | null = null
+  expectedFutureRegistrations: FutureRegistrationItem[] | null = null,
+  expectedImpactFingerprint: string | null = null
 ): Promise<RpcOutcome<DeleteSubscriptionOutcome>> {
   const expected = expectedFutureRegistrations ? futureRegistrationExpectedIds(expectedFutureRegistrations) : null;
   const { data, error } = await supabase.rpc("delete_subscription_with_future_registrations", {
@@ -603,9 +697,54 @@ export async function rpcDeleteSubscription(
     p_confirmed: confirmed,
     p_expected_future_registration_ids: expected?.registrationIds ?? null,
     p_expected_future_manual_participant_ids: expected?.manualParticipantIds ?? null,
+    p_expected_impact_fingerprint: expectedImpactFingerprint,
   });
   if (error) throw error;
   return data as RpcOutcome<DeleteSubscriptionOutcome>;
+}
+
+export async function rpcSubscriptionDeleteImpact(
+  supabase: SupabaseClient,
+  subscriptionId: string
+): Promise<RpcOutcome<SubscriptionDeleteImpact>> {
+  const { data, error } = await supabase.rpc("subscription_delete_impact", { p_subscription_id: subscriptionId });
+  if (error) throw error;
+  return data as RpcOutcome<SubscriptionDeleteImpact>;
+}
+
+export async function rpcUnfreezeSubscription(
+  supabase: SupabaseClient,
+  freezeId: string,
+  confirmed: boolean
+): Promise<RpcOutcome<UnfreezeOutcome>> {
+  const { data, error } = await supabase.rpc("unfreeze_subscription", { p_freeze_id: freezeId, p_confirmed: confirmed });
+  if (error) throw error;
+  return data as RpcOutcome<UnfreezeOutcome>;
+}
+
+export async function rpcManagerSubscriptionWeekUtilization(
+  supabase: SupabaseClient,
+  weekStart: string
+): Promise<SubscriptionWeekUtilization | RpcError> {
+  const { data, error } = await supabase.rpc("manager_subscription_week_utilization", { p_week_start: weekStart });
+  if (error) throw error;
+  return data as SubscriptionWeekUtilization | RpcError;
+}
+
+/** The subscription a payment on this date may be recorded against. The server's rule, so this can't drift from it. */
+export async function rpcSubscriptionPaymentTarget(
+  supabase: SupabaseClient,
+  payeeId: string,
+  payeeIsManual: boolean,
+  paidAt: string
+): Promise<string | null> {
+  const { data, error } = await supabase.rpc("subscription_payment_target", {
+    p_payee_id: payeeId,
+    p_payee_is_manual: payeeIsManual,
+    p_paid_at: paidAt,
+  });
+  if (error) throw error;
+  return (data as string | null) ?? null;
 }
 
 export async function rpcReactivateSubscription(

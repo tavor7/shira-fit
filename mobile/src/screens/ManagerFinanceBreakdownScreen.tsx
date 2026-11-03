@@ -220,6 +220,11 @@ export default function ManagerFinanceBreakdownScreen() {
                   </Pressable>
                   <AnimatedOptionExpand open={open}>
                     <View style={styles.sessionList}>
+                      {Math.abs(d.subscription_charges_ils) > 0.005 ? (
+                        <Text style={[styles.sectionLbl, isRTL && styles.rtl]}>
+                          {t("dashboard.financeBreakdownSubscriptionCharges").replace("{amount}", formatFinanceIls(d.subscription_charges_ils, language))}
+                        </Text>
+                      ) : null}
                       {d.sessions.length > 0 ? (
                         <>
                           <Text style={[styles.sectionLbl, isRTL && styles.rtl]}>{t("dashboard.financeDailyAtSessions")}</Text>

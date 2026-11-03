@@ -4,7 +4,6 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useToast } from "../context/ToastContext";
-import { useAppAlert } from "../context/AppAlertContext";
 import { supabase } from "../lib/supabase";
 import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -18,16 +17,22 @@ import {
   rpcDeleteSubscription,
   rpcGetSubscriptionDetail,
   rpcGetSubscriptionWeeklyUsage,
+  rpcSubscriptionDeleteImpact,
+  rpcUnfreezeSubscription,
   tierLabelKey,
   type FutureRegistrationAction,
   type FutureRegistrationItem,
+  type SubscriptionDeleteImpact,
   type SubscriptionDetail,
   type SubscriptionPaymentRow,
   type SubscriptionVersionRow,
   type SubscriptionWeeklyUsage,
+  type UnfreezeOutcome,
 } from "../lib/subscriptions";
 import { AddSubscriptionPaymentModal } from "../components/AddSubscriptionPaymentModal";
 import { FutureRegistrationsChoiceModal } from "../components/subscriptions/FutureRegistrationsChoiceModal";
+import { SubscriptionDeleteImpactModal } from "../components/subscriptions/SubscriptionDeleteImpactModal";
+import { UnfreezeSubscriptionModal } from "../components/subscriptions/UnfreezeSubscriptionModal";
 import { paymentMethodHistoryLabel } from "../lib/paymentMethod";
 import { rowFlipFor } from "../lib/layoutDirection";
 import { managerTermsStatusText, rpcGetSubscriptionTermsStatus, type ManagerTermsStatusItem } from "../lib/subscriptionTerms";
@@ -42,7 +47,6 @@ export function ManagerSubscriptionDetailScreen() {
   const { t, language, isRTL } = useI18n();
   const screenContent = useScreenContentStyle("standard");
   const { showToast } = useToast();
-  const { showConfirm } = useAppAlert();
 
   const [detail, setDetail] = useState<SubscriptionDetail | null>(null);
   const [payeeName, setPayeeName] = useState("");
@@ -56,6 +60,12 @@ export function ManagerSubscriptionDetailScreen() {
   const [futureRegs, setFutureRegs] = useState<FutureRegistrationItem[]>([]);
   const [futureRegsOpen, setFutureRegsOpen] = useState(false);
   const [futureRegsNotice, setFutureRegsNotice] = useState<string | undefined>(undefined);
+  const [deleteImpact, setDeleteImpact] = useState<SubscriptionDeleteImpact | null>(null);
+  const [deleteImpactOpen, setDeleteImpactOpen] = useState(false);
+  const [deleteImpactNotice, setDeleteImpactNotice] = useState<string | undefined>(undefined);
+  const [unfreezeId, setUnfreezeId] = useState<string | null>(null);
+  const [unfreezePreview, setUnfreezePreview] = useState<UnfreezeOutcome | null>(null);
+  const [unfreezing, setUnfreezing] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [usage, setUsage] = useState<SubscriptionWeeklyUsage | null>(null);
   const [usageLoading, setUsageLoading] = useState(true);
@@ -195,45 +205,19 @@ export function ManagerSubscriptionDetailScreen() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
-  function requestDelete() {
-    showConfirm({
-      title: t("subscriptions.delete.title"),
-      message: t("subscriptions.delete.message"),
-      cancelLabel: t("common.cancel"),
-      confirmLabel: t("subscriptions.delete.confirmLabel"),
-      confirmVariant: "danger",
-      onConfirm: () => void runDelete(),
-    });
-  }
-
-  async function finishDelete(res: { ok: true; action: "preview" | "tombstoned" | "already_deleted"; future_registrations?: FutureRegistrationItem[] }) {
-    if (res.action === "preview") {
-      setFutureRegs(res.future_registrations ?? []);
-      setFutureRegsNotice(undefined);
-      setFutureRegsOpen(true);
-      return;
-    }
-    setFutureRegsOpen(false);
-    showToast({ message: t("subscriptions.delete.success"), variant: "success" });
-    router.replace("/(app)/manager/subscriptions");
-  }
-
-  // First call: previews (p_confirmed=false). A subscription with nothing upcoming never gets a
-  // "preview" back and deletes in this single round trip -- no extra step added for the common case.
-  async function runDelete() {
+  // Deleting always starts from the server's own account of what it would change.
+  async function requestDelete() {
     if (!id || deleting) return;
     setDeleting(true);
     try {
-      const res = await rpcDeleteSubscription(supabase, String(id), false, null);
+      const res = await rpcSubscriptionDeleteImpact(supabase, String(id));
       if (!res.ok) {
-        if (res.error === "subscription_has_payments") {
-          showToast({ message: t("subscriptions.delete.blockedByPayments"), variant: "error" });
-        } else {
-          showToast({ message: t("subscriptions.genericError"), detail: res.error, variant: "error" });
-        }
+        showToast({ message: t("subscriptions.genericError"), detail: res.error, variant: "error" });
         return;
       }
-      await finishDelete(res);
+      setDeleteImpact(res);
+      setDeleteImpactNotice(undefined);
+      setDeleteImpactOpen(true);
     } catch (e) {
       showToast({ message: t("subscriptions.genericError"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
     } finally {
@@ -241,30 +225,93 @@ export function ManagerSubscriptionDetailScreen() {
     }
   }
 
-  // Second call, from the future-registrations choice dialog: always confirmed, with the chosen action.
-  async function confirmDeleteWithFutureAction(action: FutureRegistrationAction) {
-    if (!id || deleting) return;
+  // Reviewed. Upcoming bookings still need the manager's choice; otherwise the delete can go ahead.
+  function continueDelete() {
+    if (!deleteImpact) return;
+    if (deleteImpact.future_registrations_count > 0) {
+      setFutureRegs(deleteImpact.future_registrations);
+      setFutureRegsNotice(undefined);
+      setDeleteImpactOpen(false);
+      setFutureRegsOpen(true);
+      return;
+    }
+    void runDelete(null);
+  }
+
+  async function runDelete(action: FutureRegistrationAction | null) {
+    if (!id || deleting || !deleteImpact) return;
     setDeleting(true);
     try {
-      const res = await rpcDeleteSubscription(supabase, String(id), true, action, futureRegs);
+      const res = await rpcDeleteSubscription(supabase, String(id), true, action, action ? futureRegs : null, deleteImpact.fingerprint);
       if (!res.ok) {
-        // See StopSubscriptionForm's identical handling: the list changed since preview (or the
-        // staleness check was never satisfied) -- refresh it from this same response and require an
-        // explicit new review + confirm, never a silent retry.
-        if (res.error === "future_registrations_changed" || res.error === "future_registrations_expectation_required") {
-          setFutureRegs(res.future_registrations ?? []);
-          setFutureRegsNotice(t("subscriptions.futureRegs.changed"));
-          setFutureRegsOpen(true);
+        if (res.error === "subscription_has_payments") {
+          showToast({ message: t("subscriptions.delete.blockedByPayments"), variant: "error" });
+          return;
+        }
+        // The list changed since the manager read it: show the new one and ask again, never retry silently.
+        if (
+          res.error === "delete_impact_changed" ||
+          res.error === "future_registrations_changed" ||
+          res.error === "future_registrations_expectation_required" ||
+          res.error === "future_registration_action_required"
+        ) {
+          const fresh = await rpcSubscriptionDeleteImpact(supabase, String(id));
+          if (fresh.ok) setDeleteImpact(fresh);
+          setFutureRegsOpen(false);
+          setDeleteImpactNotice(t("subscriptions.deleteImpact.changed"));
+          setDeleteImpactOpen(true);
           return;
         }
         showToast({ message: t("subscriptions.genericError"), detail: res.error, variant: "error" });
         return;
       }
-      await finishDelete(res);
+      setDeleteImpactOpen(false);
+      setFutureRegsOpen(false);
+      showToast({ message: t("subscriptions.delete.success"), variant: "success" });
+      router.replace("/(app)/manager/subscriptions");
     } catch (e) {
       showToast({ message: t("subscriptions.genericError"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function requestUnfreeze(freezeId: string) {
+    if (unfreezing) return;
+    setUnfreezing(true);
+    try {
+      const res = await rpcUnfreezeSubscription(supabase, freezeId, false);
+      if (!res.ok) {
+        showToast({ message: t("subscriptions.genericError"), detail: res.error, variant: "error" });
+        return;
+      }
+      setUnfreezeId(freezeId);
+      setUnfreezePreview(res);
+    } catch (e) {
+      showToast({ message: t("subscriptions.genericError"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+    } finally {
+      setUnfreezing(false);
+    }
+  }
+
+  async function confirmUnfreeze() {
+    if (!unfreezeId || unfreezing) return;
+    setUnfreezing(true);
+    try {
+      const res = await rpcUnfreezeSubscription(supabase, unfreezeId, true);
+      if (!res.ok) {
+        showToast({ message: t("subscriptions.genericError"), detail: res.error, variant: "error" });
+        return;
+      }
+      setUnfreezePreview(null);
+      setUnfreezeId(null);
+      showToast({ message: t("subscriptions.unfreeze.success"), variant: "success" });
+      void load();
+      void loadUsage({ current: false });
+    } catch (e) {
+      showToast({ message: t("subscriptions.genericError"), detail: e instanceof Error ? e.message : undefined, variant: "error" });
+    } finally {
+      setUnfreezing(false);
     }
   }
 
@@ -289,9 +336,13 @@ export function ManagerSubscriptionDetailScreen() {
             isRTL={isRTL}
           />
           {detail.next_billing_date ? (
-            <KeyValue label={t("subscriptions.rowNextBilling")} value={formatISODateFull(detail.next_billing_date, language)} isRTL={isRTL} />
+            <KeyValue
+              label={t(current?.display_status === "scheduled" ? "subscriptions.overview.firstChargeLabel" : "subscriptions.rowNextBilling")}
+              value={formatISODateFull(detail.next_billing_date, language)}
+              isRTL={isRTL}
+            />
           ) : null}
-          <KeyValue label={t("subscriptions.detail.anchorDay")} value={t("subscriptions.detail.anchorDayValue").replace("{day}", String(current?.anchor_day ?? ""))} isRTL={isRTL} />
+          <KeyValue label={t("subscriptions.detail.billingDay")} value={t("subscriptions.detail.anchorDayValue").replace("{day}", String(current?.anchor_day ?? ""))} isRTL={isRTL} />
           {terms ? (
             <KeyValue
               label={t("subscriptions.terms.label")}
@@ -380,7 +431,7 @@ export function ManagerSubscriptionDetailScreen() {
         </View>
 
         <Section title={t("subscriptions.detail.versionHistoryTitle")} isRTL={isRTL}>
-          {versions.map((v) => (
+          {versions.filter((v) => v.effective_to !== v.effective_from).map((v) => (
             <Text key={v.id} style={[styles.historyLine, isRTL && styles.rtl]}>
               {t("subscriptions.detail.versionLine")
                 .replace("{start}", formatISODateFull(v.effective_from, language))
@@ -395,10 +446,21 @@ export function ManagerSubscriptionDetailScreen() {
             <Text style={[styles.historyLine, isRTL && styles.rtl]}>{t("subscriptions.detail.noFreezes")}</Text>
           ) : (
             detail.freezes.map((f) => (
-              <Text key={f.id} style={[styles.historyLine, isRTL && styles.rtl]}>
-                {formatISODateFull(f.freeze_from, language)} – {formatISODateFull(f.freeze_until, language)}
-                {f.cancelled_at ? ` (${t("common.cancel")})` : ""}
-              </Text>
+              <View key={f.id} style={[styles.freezeRow, rowFlipFor(isRTL) && styles.kvRtl]}>
+                <Text style={[styles.historyLine, styles.freezeText, isRTL && styles.rtl]}>
+                  {formatISODateFull(f.freeze_from, language)} – {formatISODateFull(f.freeze_until, language)}
+                  {f.cancelled_at
+                    ? ` (${t("subscriptions.unfreeze.statusCancelled")})`
+                    : f.ended_early_at
+                      ? ` (${t("subscriptions.unfreeze.statusEndedEarly")})`
+                      : ""}
+                </Text>
+                {!f.cancelled_at && !f.ended_early_at && !isTombstoned ? (
+                  <Pressable onPress={() => void requestUnfreeze(f.id)} style={styles.freezeBtn} accessibilityRole="button" disabled={unfreezing}>
+                    <Text style={styles.freezeBtnText}>{t("subscriptions.unfreeze.action")}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             ))
           )}
         </Section>
@@ -476,7 +538,7 @@ export function ManagerSubscriptionDetailScreen() {
               />
             ) : null}
             {!isTombstoned ? (
-              <PrimaryButton label={t("subscriptions.action.delete")} onPress={requestDelete} loading={deleting} variant="danger" style={styles.actionBtn} />
+              <PrimaryButton label={t("subscriptions.action.delete")} onPress={() => void requestDelete()} loading={deleting} variant="danger" style={styles.actionBtn} />
             ) : null}
           </View>
         </Section>
@@ -499,7 +561,28 @@ export function ManagerSubscriptionDetailScreen() {
           setFutureRegsOpen(false);
           setFutureRegsNotice(undefined);
         }}
-        onConfirm={(action) => void confirmDeleteWithFutureAction(action)}
+        onConfirm={(action) => void runDelete(action)}
+      />
+      <SubscriptionDeleteImpactModal
+        visible={deleteImpactOpen}
+        impact={deleteImpact}
+        busy={deleting}
+        notice={deleteImpactNotice}
+        onCancel={() => {
+          setDeleteImpactOpen(false);
+          setDeleteImpactNotice(undefined);
+        }}
+        onConfirm={continueDelete}
+      />
+      <UnfreezeSubscriptionModal
+        visible={unfreezePreview !== null}
+        preview={unfreezePreview}
+        busy={unfreezing}
+        onCancel={() => {
+          setUnfreezePreview(null);
+          setUnfreezeId(null);
+        }}
+        onConfirm={() => void confirmUnfreeze()}
       />
     </View>
   );
@@ -557,5 +640,9 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm },
   actionBtn: { flexGrow: 1, minWidth: 120 },
   recordPaymentBtn: { marginTop: theme.spacing.sm },
+  freezeRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: theme.spacing.sm },
+  freezeText: { flexShrink: 1 },
+  freezeBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 12 },
+  freezeBtnText: { fontSize: 13, fontWeight: "800", color: theme.colors.text, textDecorationLine: "underline" },
   rtl: { textAlign: "right", writingDirection: "rtl" },
 });

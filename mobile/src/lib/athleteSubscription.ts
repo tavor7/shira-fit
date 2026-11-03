@@ -44,6 +44,8 @@ export type AthleteSubscriptionSummary =
       ok: true;
       has_subscription: true;
       is_frozen: boolean;
+      /** Not started yet: "next billing" is the first charge, and there is no allowance this week. */
+      is_scheduled?: boolean;
       monthly_price_ils: number;
       plan_start_date: string;
       /** Configured end date, unaffected by freezes -- prefer effective_plan_end_date for display. */
@@ -100,7 +102,7 @@ export type AthleteNextWeekViewModel = {
 export type AthleteSubscriptionViewModel =
   | { kind: "none" }
   | {
-      kind: "active" | "frozen";
+      kind: "active" | "frozen" | "scheduled";
       monthlyPriceIls: number;
       planStartDate: string;
       /** Effective (freeze-extended) end date -- always the one to display; null iff no end date. */
@@ -156,7 +158,7 @@ export function buildAthleteSubscriptionViewModel(
 ): AthleteSubscriptionViewModel {
   if (!summary.has_subscription) return { kind: "none" };
   return {
-    kind: summary.is_frozen ? "frozen" : "active",
+    kind: summary.is_frozen ? "frozen" : summary.is_scheduled ? "scheduled" : "active",
     monthlyPriceIls: summary.monthly_price_ils,
     planStartDate: summary.plan_start_date,
     planEndDate: summary.effective_plan_end_date,
@@ -164,7 +166,7 @@ export function buildAthleteSubscriptionViewModel(
     nextBillingDate: summary.next_billing_date,
     currentFreeze: summary.current_freeze,
     upcomingFreeze: summary.upcoming_freeze,
-    tiers: summary.weekly_usage.map(tierUsageFromRow),
+    tiers: summary.weekly_usage.map(tierUsageFromRow).filter((tier) => tier.weeklyLimit > 0 || tier.used > 0 || tier.extra > 0),
     nextWeek: buildNextWeekViewModel(summary.next_week),
   };
 }

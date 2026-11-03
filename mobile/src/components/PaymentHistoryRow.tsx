@@ -153,7 +153,7 @@ export function PaymentHistoryRow({
             <ActivityIndicator size="small" color={theme.colors.error} />
           ) : (
             <Text style={[styles.actionBarLabelDanger, isRTL && styles.rtlText]}>
-              {t("participantHistory.removeShort")}
+              {t(isSubscriptionPayment ? "billing.reversePaymentAction" : "participantHistory.removeShort")}
             </Text>
           )}
         </Pressable>

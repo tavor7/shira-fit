@@ -236,7 +236,7 @@ export type AthleteAccountPayment = {
 export type SubscriptionChargeHistoryRow = {
   id: string;
   amount_ils: number | string;
-  charge_type: "recurring" | "proration" | "freeze_credit" | "stop_proration" | "reversal";
+  charge_type: "recurring" | "proration" | "freeze_credit" | "stop_proration" | "reversal" | "edit_correction" | "unfreeze_correction";
   created_at: string;
   /** The billing period this charge belongs to — the date the Reports screen attributes it to. */
   period_start: string;

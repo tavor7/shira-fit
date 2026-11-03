@@ -16,7 +16,7 @@ import {
   type SessionPaymentMethodKey,
 } from "../lib/paymentMethod";
 import { rowFlipFor } from "../lib/layoutDirection";
-import { generateClientRequestId, rpcRecordSubscriptionPayment } from "../lib/subscriptions";
+import { generateClientRequestId, rpcRecordSubscriptionPayment, rpcSubscriptionPaymentTarget } from "../lib/subscriptions";
 
 /**
  * "Discount" is recorded through the separate AddDiscountModal, not offered as a chip
@@ -102,16 +102,8 @@ export function AddAccountPaymentModal({
   const [paymentPurpose, setPaymentPurpose] = useState<"subscription" | "general" | null>(null);
   const clientRequestIdRef = useRef(generateClientRequestId());
 
-  // Subscription-payment eligibility for one payee as of one date -- exactly mirrors
-  // record_subscription_payment's own server-side check (migration 20261029220000): prefer the
-  // version effective on the selected date; if none covers it yet because the subscription hasn't
-  // started (an advance payment against a scheduled subscription is legitimate, not "inactive"),
-  // fall back to its earliest version instead. Either way, ineligible if that version is already
-  // stopped or past its plan_end_date as of the date; a frozen version is still eligible -- a
-  // freeze pauses billing/coverage, it does not end the relationship. The RPC is the actual
-  // authority (this is a client-side replica, not the enforcement -- see that migration's
-  // comment), reading subscriptions/subscription_versions directly since RLS already scopes them
-  // to managers only, the same role record_subscription_payment itself requires.
+  // Which subscription a payment on this date can be recorded against, as decided by the server's own rule
+  // (subscription_payment_target, which record_subscription_payment also uses).
   useEffect(() => {
     if (!visible || isEdit) {
       setActiveSubscriptionId(null);
@@ -127,42 +119,11 @@ export function AddAccountPaymentModal({
     let cancelled = false;
     setEligibilityLoading(true);
     void (async () => {
-      const { data } = await supabase
-        .from("subscriptions")
-        .select(
-          "id, subscription_versions(id, effective_from, effective_to, stopped_effective_date, plan_end_date)"
-        )
-        .eq("payee_id", payeeId)
-        .eq("payee_is_manual", payeeIsManual)
-        .is("deleted_at", null);
-      type VersionRow = {
-        id: string;
-        effective_from: string;
-        effective_to: string | null;
-        stopped_effective_date: string | null;
-        plan_end_date: string | null;
-      };
-      type SubRow = { id: string; subscription_versions: VersionRow[] | null };
       let eligibleId: string | null = null;
-      for (const sub of (data as SubRow[] | null) ?? []) {
-        const all = sub.subscription_versions ?? [];
-        // The version effective at dateToCheck, if any.
-        const covering = all
-          .filter((v) => v.effective_from <= dateToCheck && (v.effective_to === null || v.effective_to > dateToCheck))
-          .sort((a, b) => b.effective_from.localeCompare(a.effective_from))[0];
-        // Otherwise, if dateToCheck is before the subscription has even started, an advance
-        // payment is still legitimate -- fall back to the earliest (not-yet-started) version so a
-        // stop applied in advance still correctly blocks it. Mirrors
-        // record_subscription_payment's own fallback exactly.
-        const notYetStarted = all
-          .filter((v) => v.effective_from > dateToCheck)
-          .sort((a, b) => a.effective_from.localeCompare(b.effective_from))[0];
-        const v = covering ?? notYetStarted;
-        if (!v) continue;
-        if (v.stopped_effective_date !== null && dateToCheck >= v.stopped_effective_date) continue;
-        if (v.plan_end_date !== null && dateToCheck > v.plan_end_date) continue;
-        eligibleId = sub.id;
-        break;
+      try {
+        eligibleId = await rpcSubscriptionPaymentTarget(supabase, payeeId, payeeIsManual, dateToCheck);
+      } catch {
+        eligibleId = null;
       }
       if (cancelled) return;
       setActiveSubscriptionId((prev) => {
