@@ -220,6 +220,7 @@ export function collectActivityLogIds(
   if (typeof mu.edited_user_id === "string") profileIds.add(mu.edited_user_id);
   if (typeof mu.user_id === "string") profileIds.add(mu.user_id);
   if (typeof mu.recipient_user_id === "string") profileIds.add(mu.recipient_user_id);
+  if (typeof mu.authorized_by === "string") profileIds.add(mu.authorized_by);
   if (typeof mu.session_id === "string") sessionIds.add(mu.session_id);
   if (typeof mu.from_session_id === "string") sessionIds.add(mu.from_session_id);
   if (typeof mu.to_session_id === "string") sessionIds.add(mu.to_session_id);
@@ -465,6 +466,11 @@ export function buildActivityLogDetailLines(
     if (mu.payment_method != null) lines.push(`${L(he, "Payment method", "אמצעי תשלום")}: ${formatPaymentMethod(mu.payment_method, language)}`);
     if (mu.paid_at != null) lines.push(`${L(he, "Paid on", "תאריך תשלום")}: ${str(mu.paid_at)}`);
     if (mu.reason != null && String(mu.reason).trim()) lines.push(`${L(he, "Reason", "סיבה")}: ${str(mu.reason)}`);
+    if (mu.performed_by != null && String(mu.performed_by).trim()) lines.push(`${L(he, "Performed by", "בוצע על ידי")}: ${str(mu.performed_by)}`);
+    if (typeof mu.authorized_by === "string") {
+      const by = formatUserRef(mu.authorized_by, profileLabels);
+      if (by) lines.push(`${L(he, "Authorized by", "אושר על ידי")}: ${by}`);
+    }
     if (mu.payer_name != null && String(mu.payer_name).trim()) lines.push(`${L(he, "Payer", "משלם")}: ${str(mu.payer_name)}`);
     if (mu.changes && typeof mu.changes === "object") {
       appendChangeLines(lines, mu.changes as Record<string, unknown>, he, language, profileLabels, attendanceFieldLabel, attendanceFmt);
