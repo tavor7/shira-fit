@@ -21,6 +21,8 @@ type Props = {
   defaultAmountIls: number;
   /** Pre-formatted lifetime balance for this subscription ("Owes X" / "Credit X"), shown as context only -- never allocated to a specific period. Omit (null/undefined) when there's nothing to show (e.g. balance is exactly even). */
   outstandingLabel?: string | null;
+  /** A stopped subscription: the default is what it owes, not a month's price. */
+  isStopped?: boolean;
   onSaved: () => void | Promise<void>;
 };
 
@@ -37,6 +39,7 @@ export function AddSubscriptionPaymentModal({
   payeeLabel,
   defaultAmountIls,
   outstandingLabel,
+  isStopped,
   onSaved,
 }: Props) {
   const { t, isRTL, language } = useI18n();
@@ -83,7 +86,7 @@ export function AddSubscriptionPaymentModal({
         clientRequestId: clientRequestIdRef.current,
       });
       if (!res.ok) {
-        showError(res.error === "subscription_not_found" ? t("subscriptions.detail.loadError") : t("subscriptions.genericError"));
+        showError(res.error === "amount_exceeds_outstanding" || res.error === "no_outstanding_balance" ? t(`subscriptions.payment.${res.error}`) : res.error === "subscription_not_found" ? t("subscriptions.detail.loadError") : t("subscriptions.genericError"));
         setBusy(false);
         return;
       }
@@ -149,7 +152,7 @@ export function AddSubscriptionPaymentModal({
           style={[styles.input, isRTL && styles.inputRtl]}
           editable={!busy}
         />
-        {defaultAmountIls > 0 ? (
+        {defaultAmountIls > 0 && !isStopped ? (
           <Text style={[styles.hint, isRTL && styles.rtlText]}>
             {t("subscriptions.payment.monthlyPriceHint").replace("{price}", displayMoney(defaultAmountIls))}
           </Text>

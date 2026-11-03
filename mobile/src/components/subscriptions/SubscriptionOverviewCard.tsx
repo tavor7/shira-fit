@@ -19,6 +19,7 @@ import {
 } from "../../lib/subscriptions";
 import { buildOverviewAttention, buildUtilizationViewModel, type UtilizationLegendKey } from "../../lib/subscriptionUtilization";
 import { AnimatedOptionExpand } from "../AnimatedOptionExpand";
+import { SubscriptionCorrectionsModal } from "./SubscriptionCorrectionsModal";
 
 type Props = {
   /** The Overview's selected money period. */
@@ -66,6 +67,7 @@ export function SubscriptionOverviewCard({ rangeStart, rangeEnd, anchorDate }: P
   const [week, setWeek] = useState<SubscriptionWeekUtilization | null>(null);
   const [weekLoading, setWeekLoading] = useState(true);
   const [weekError, setWeekError] = useState(false);
+  const [correctionsOpen, setCorrectionsOpen] = useState(false);
   const [showHow, setShowHow] = useState(false);
   const [showList, setShowList] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
@@ -176,6 +178,7 @@ export function SubscriptionOverviewCard({ rangeStart, rangeEnd, anchorDate }: P
             chargesNext7Count: stats.charges_next_7d_count,
             chargesNext7Ils: stats.charges_next_7d_ils,
             endingNext14Count: stats.ending_next_14d_count,
+            pendingCorrections: stats.pending_corrections_count,
           })
         : [],
     [stats, week?.over_allocated]
@@ -323,14 +326,30 @@ export function SubscriptionOverviewCard({ rangeStart, rangeEnd, anchorDate }: P
       {attention.length > 0 ? (
         <View style={styles.block}>
           <Text style={[styles.panelTitle, isRTL && styles.rtl]}>{t("subscriptions.overview.attention")}</Text>
-          {attention.map((a) => (
-            <View key={a.key} style={[styles.attentionRow, a.key === "overAllocated" && styles.attentionRowAlert]}>
-              <Text style={[styles.attentionTitle, isRTL && styles.rtl]}>
-                {pluralKey(t, `subscriptions.overview.attention.${a.key}`, a.count).replace("{n}", String(a.count))}
-              </Text>
-              {a.amountIls != null ? <Text style={[styles.attentionSub, isRTL && styles.rtl]}>{displayMoney(a.amountIls)}</Text> : null}
-            </View>
-          ))}
+          {attention.map((a) => {
+            const body = (
+              <>
+                <Text style={[styles.attentionTitle, isRTL && styles.rtl]}>
+                  {pluralKey(t, `subscriptions.overview.attention.${a.key}`, a.count).replace("{n}", String(a.count))}
+                </Text>
+                {a.amountIls != null ? <Text style={[styles.attentionSub, isRTL && styles.rtl]}>{displayMoney(a.amountIls)}</Text> : null}
+              </>
+            );
+            return a.key === "pendingCorrections" ? (
+              <Pressable
+                key={a.key}
+                onPress={() => setCorrectionsOpen(true)}
+                style={({ pressed }) => [styles.attentionRow, styles.attentionRowAlert, pressed && styles.pressed]}
+                accessibilityRole="button"
+              >
+                {body}
+              </Pressable>
+            ) : (
+              <View key={a.key} style={[styles.attentionRow, a.key === "overAllocated" && styles.attentionRowAlert]}>
+                {body}
+              </View>
+            );
+          })}
         </View>
       ) : null}
 
@@ -436,6 +455,7 @@ export function SubscriptionOverviewCard({ rangeStart, rangeEnd, anchorDate }: P
           )}
         </View>
       </AnimatedOptionExpand>
+      <SubscriptionCorrectionsModal visible={correctionsOpen} onClose={() => setCorrectionsOpen(false)} onChanged={() => void loadStats()} />
     </View>
   );
 }

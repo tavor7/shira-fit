@@ -27,7 +27,8 @@ export function SubscriptionDeleteImpactModal({ visible, impact, busy, notice, o
   const flip = rowFlipFor(isRTL);
   if (!impact) return null;
   const blocked = impact.blocking_payments_count > 0;
-  const sessions = impact.history_sessions;
+  const repriced = impact.history_sessions.filter((s) => !s.has_receipt);
+  const locked = impact.history_sessions.filter((s) => s.has_receipt);
 
   return (
     <AppModal visible={visible} onClose={onCancel} variant="dialog" scrollContent="short" backdropAccessibilityLabel={t("common.cancel")}>
@@ -62,17 +63,38 @@ export function SubscriptionDeleteImpactModal({ visible, impact, busy, notice, o
                 </Text>
               ) : null}
 
-              {sessions.length > 0 ? (
+              {impact.future_registrations_count > 0 ? (
+                <Line label={t("subscriptions.deleteImpact.futureBookings")} value={String(impact.future_registrations_count)} flip={flip} isRTL={isRTL} />
+              ) : null}
+
+              {repriced.length > 0 ? (
                 <View style={styles.list}>
                   <Text style={[styles.header, isRTL && styles.rtl]}>{t("subscriptions.deleteImpact.sessionsHeader")}</Text>
-                  {sessions.map((s) => (
+                  {repriced.map((s) => (
                     <View key={s.coverage_id} style={[styles.row, flip && styles.rowRtl]}>
                       <Text style={[styles.rowLabel, isRTL && styles.rtl]}>
                         {formatISODateFull(s.session_date, language)} · {t(`subscriptions.deleteImpact.state.${s.slot_state}`)}
+                        {s.amount_paid_ils > 0 ? ` · ${t("subscriptions.deleteImpact.paid").replace("{amount}", displayMoney(s.amount_paid_ils))}` : ""}
                       </Text>
-                      <Text style={styles.rowValue}>
-                        {s.has_receipt ? t("subscriptions.deleteImpact.hasReceipt") : displayMoney(s.regular_price_ils)}
+                      <Text style={styles.rowValue}>{displayMoney(s.regular_price_ils)}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              {locked.length > 0 ? (
+                <View style={styles.list}>
+                  <Text style={[styles.header, isRTL && styles.rtl]}>{t("subscriptions.deleteImpact.lockedHeader")}</Text>
+                  {locked.map((s) => (
+                    <View key={s.coverage_id} style={[styles.row, flip && styles.rowRtl]}>
+                      <Text style={[styles.rowLabel, isRTL && styles.rtl]}>
+                        {formatISODateFull(s.session_date, language)} · {t(`subscriptions.deleteImpact.state.${s.slot_state}`)}
+                        {" · "}
+                        {t("subscriptions.deleteImpact.paid").replace("{amount}", displayMoney(s.amount_paid_ils))}
+                        {" · "}
+                        {s.receipts.map((r) => (r.number != null ? `#${r.number}` : t("subscriptions.corrections.externalReceipt"))).join(", ")}
                       </Text>
+                      <Text style={styles.rowValue}>{displayMoney(s.regular_price_ils)}</Text>
                     </View>
                   ))}
                 </View>

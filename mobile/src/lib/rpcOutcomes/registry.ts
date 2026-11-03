@@ -455,6 +455,21 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   subscription_delete_impact: {
     subscription_not_found: [B, "Looks a row up by an id the UI took from a screen it displayed earlier; absence means the row is gone."],
   },
+  manager_resolve_subscription_correction: {
+    invalid_decision: V,
+    reason_required: V,
+    correction_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier."],
+    already_decided_differently: [B, "Another manager decided this correction first."],
+    correction_changed: [B, "The session's regular price changed after the manager saw it; the screen reloads and asks again."],
+  },
+  _subscription_corrections_guard: {
+    subscription_record_immutable: [B, "Correction records are history and are only written by their RPCs."],
+    subscription_correction_already_decided: [B, "A decided correction cannot change."],
+  },
+  _subscription_payment_cap_check: {
+    no_outstanding_balance: [B, "A direct write cannot exceed what a stopped subscription owes."],
+    amount_exceeds_outstanding: [B, "A direct write cannot exceed what a stopped subscription owes."],
+  },
   unfreeze_subscription: {
     freeze_not_found: [B, "Looks a freeze up by an id the UI took from the history it displayed earlier."],
     subscription_not_found: [B, "The subscription was deleted after the screen loaded."],
@@ -515,6 +530,8 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     source_subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
   },
   record_subscription_payment: {
+    no_outstanding_balance: [B, "A stopped subscription only accepts money it still owes (owner decision 2026-11-03)."],
+    amount_exceeds_outstanding: [B, "A stopped subscription only accepts money it still owes (owner decision 2026-11-03)."],
     invalid_amount: V,
     invalid_payment_method: V,
     invalid_subscription: V,

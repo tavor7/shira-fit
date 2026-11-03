@@ -255,6 +255,7 @@ export type SubscriptionOverviewStats = {
   charges_next_7d_count: number;
   charges_next_7d_ils: number;
   ending_next_14d_count: number;
+  pending_corrections_count: number;
 };
 
 export type SubscriptionWeekUtilizationRow = {
@@ -303,6 +304,7 @@ export type SubscriptionDeleteHistoryItem = {
   regular_price_ils: number;
   amount_paid_ils: number;
   has_receipt: boolean;
+  receipts: { number: number | null; status: string; amount_ils: number | null }[];
   will_reprice: boolean;
   new_debt_ils: number;
 };
@@ -313,11 +315,27 @@ export type SubscriptionDeleteImpact = {
   future_registrations_count: number;
   new_debt_ils: number;
   receipt_locked_count: number;
+  repriced_count: number;
+  correction_debt_if_applied_ils: number;
   charges_to_reverse_ils: number;
   blocking_payments_ils: number;
   blocking_payments_count: number;
   payee_discounts_ils: number;
   fingerprint: string;
+};
+
+export type SubscriptionCorrection = {
+  id: string;
+  subscription_id: string;
+  session_id: string | null;
+  session_date: string;
+  payee_display_name: string;
+  slot_state: "attended" | "penalty" | "unmarked";
+  regular_price_ils: number;
+  amount_paid_ils: number;
+  balance_change_if_applied_ils: number;
+  receipts: { number: number | null; status: string; amount_ils: number | null }[];
+  status: "pending" | "applied_regular_price" | "kept_covered";
 };
 
 export type UnfreezeKind = "future_cancel" | "current_end_early" | "past_reversal";
@@ -710,6 +728,31 @@ export async function rpcSubscriptionDeleteImpact(
   const { data, error } = await supabase.rpc("subscription_delete_impact", { p_subscription_id: subscriptionId });
   if (error) throw error;
   return data as RpcOutcome<SubscriptionDeleteImpact>;
+}
+
+export async function rpcListSubscriptionCorrections(
+  supabase: SupabaseClient
+): Promise<RpcOutcome<{ corrections: SubscriptionCorrection[] }>> {
+  const { data, error } = await supabase.rpc("manager_list_subscription_corrections", { p_pending_only: true });
+  if (error) throw error;
+  return data as RpcOutcome<{ corrections: SubscriptionCorrection[] }>;
+}
+
+export async function rpcResolveSubscriptionCorrection(
+  supabase: SupabaseClient,
+  correctionId: string,
+  decision: "applied_regular_price" | "kept_covered",
+  reason: string,
+  expectedPriceIls: number
+): Promise<RpcOutcome<{ action: string; status?: string }>> {
+  const { data, error } = await supabase.rpc("manager_resolve_subscription_correction", {
+    p_correction_id: correctionId,
+    p_decision: decision,
+    p_reason: reason,
+    p_expected_price: expectedPriceIls,
+  });
+  if (error) throw error;
+  return data as RpcOutcome<{ action: string; status?: string }>;
 }
 
 export async function rpcUnfreezeSubscription(

@@ -64,9 +64,11 @@ export function buildOverviewAttention(input: {
   chargesNext7Count: number;
   chargesNext7Ils: number;
   endingNext14Count: number;
+  pendingCorrections: number;
 }): OverviewAttentionItem[] {
   const out: OverviewAttentionItem[] = [];
   if (input.overAllocated > 0) out.push({ key: "overAllocated", count: input.overAllocated });
+  if (input.pendingCorrections > 0) out.push({ key: "pendingCorrections", count: input.pendingCorrections });
   if (input.openBalanceCount > 0) out.push({ key: "openBalance", count: input.openBalanceCount, amountIls: input.openBalanceIls });
   if (input.chargesNext7Count > 0) out.push({ key: "chargesSoon", count: input.chargesNext7Count, amountIls: input.chargesNext7Ils });
   if (input.endingNext14Count > 0) out.push({ key: "endingSoon", count: input.endingNext14Count });

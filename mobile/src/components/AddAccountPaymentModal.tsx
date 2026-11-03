@@ -248,7 +248,9 @@ export function AddAccountPaymentModal({
         setBusy(false);
         if (!res.ok) {
           showError(
-            res.error === "invalid_subscription" || res.error === "subscription_not_found"
+            res.error === "amount_exceeds_outstanding" || res.error === "no_outstanding_balance"
+              ? t(`subscriptions.payment.${res.error}`)
+              : res.error === "invalid_subscription" || res.error === "subscription_not_found"
               ? t("subscriptions.detail.loadError")
               : res.error === "subscription_not_eligible_for_date"
                 ? t("billing.subscriptionNotEligibleForDate")

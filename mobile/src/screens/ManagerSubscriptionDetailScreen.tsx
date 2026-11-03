@@ -175,6 +175,7 @@ export function ManagerSubscriptionDetailScreen() {
   const current: SubscriptionVersionRow | undefined = versions.find((v) => v.effective_to === null) ?? versions[versions.length - 1];
   const isActiveGroup = current ? ACTIVE_STATUSES.has(current.display_status) : false;
   const isTombstoned = detail.subscription.deleted_at != null;
+  const isStopped = current?.display_status === "stopped";
   const activeFreeze = detail.freezes.find(
     (f) => !f.cancelled_at && f.freeze_from <= todayIso() && f.freeze_until >= todayIso()
   );
@@ -495,7 +496,7 @@ export function ManagerSubscriptionDetailScreen() {
               </View>
             ))
           )}
-          {!isTombstoned ? (
+          {!isTombstoned && (!isStopped || outstanding > 0.005) ? (
             <PrimaryButton
               label={t("subscriptions.payment.recordAction")}
               onPress={() => setPaymentModalOpen(true)}
@@ -548,7 +549,8 @@ export function ManagerSubscriptionDetailScreen() {
         onClose={() => setPaymentModalOpen(false)}
         subscriptionId={String(id)}
         payeeLabel={payeeName}
-        defaultAmountIls={current?.monthly_price_ils ?? 0}
+        defaultAmountIls={isStopped ? outstanding : current?.monthly_price_ils ?? 0}
+        isStopped={isStopped}
         outstandingLabel={outstanding !== 0 ? outstandingLabel : null}
         onSaved={loadPayments}
       />

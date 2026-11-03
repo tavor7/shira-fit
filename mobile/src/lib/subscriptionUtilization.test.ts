@@ -40,9 +40,13 @@ describe("buildUtilizationViewModel", () => {
 });
 
 describe("buildOverviewAttention", () => {
-  const none = { overAllocated: 0, openBalanceCount: 0, openBalanceIls: 0, chargesNext7Count: 0, chargesNext7Ils: 0, endingNext14Count: 0 };
+  const none = { overAllocated: 0, openBalanceCount: 0, openBalanceIls: 0, chargesNext7Count: 0, chargesNext7Ils: 0, endingNext14Count: 0, pendingCorrections: 0 };
   it("is empty when nothing needs attention", () => {
     expect(buildOverviewAttention(none)).toEqual([]);
+  });
+  it("keeps an unresolved correction visible, ahead of routine items", () => {
+    const items = buildOverviewAttention({ ...none, pendingCorrections: 2, chargesNext7Count: 1, chargesNext7Ils: 360 });
+    expect(items.map((i) => i.key)).toEqual(["pendingCorrections", "chargesSoon"]);
   });
   it("puts an integrity problem first", () => {
     const items = buildOverviewAttention({ ...none, overAllocated: 1, openBalanceCount: 2, openBalanceIls: 720 });

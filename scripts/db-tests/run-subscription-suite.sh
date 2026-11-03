@@ -38,7 +38,7 @@ SUITES=(
   212_admin_reverse_account_payment_tests.sh
 )
 # Remediation suites, added with the fixes they protect.
-for f in supabase/tests/22[0-9]_subscription_*.sh; do [ -e "$f" ] && SUITES+=("$(basename "$f")"); done
+for f in supabase/tests/2[23][0-9]_subscription_*.sh; do [ -e "$f" ] && SUITES+=("$(basename "$f")"); done
 
 failed=(); passed=0
 for s in "${SUITES[@]}"; do

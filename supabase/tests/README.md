@@ -44,3 +44,14 @@ They create users and sessions (`auth.users`, profiles, registrations), some **c
 ingestion configuration (`173`), several take advisory locks or hold row locks while racing sessions, and `144` replays about 8,000 observer
 cycles. The migration checks (`151`, `157`) execute the migration file itself. Even with a rollback, that can lock live tables, change live
 configuration or leave fixtures behind, and a "pass" on production data proves nothing. Production is verified only with read-only queries.
+
+## Retired suites
+
+`71_billing_tests_freeze_stop.sql`, `72_billing_tests_retro_idem.sql`, `92_billing_segmentation_anchor_freeze.sql` and
+`124_freeze_pause_semantics_tests.sql` were removed. They ran on the stub schema against the function versions of their own
+phase, could not run on a real stack, and described a freeze moving the start of the cycle it falls in. Every scenario still
+relevant (B5-B12, VC1, VC2, A, D, F, G-L) now lives in `228_subscription_freeze_billing_rules_tests.sh`, under the same
+scenario ids, and runs in CI.
+
+Other stub-schema suites (`70`, `76`, `80`, `81`, `90`, `91`, `101`, `123`) test superseded versions of their own phase in the same
+way. They are historical: the current rules are the ones in CI.

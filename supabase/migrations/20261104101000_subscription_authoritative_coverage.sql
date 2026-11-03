@@ -1359,6 +1359,12 @@ begin
     return json_build_object('ok', false, 'error', 'no_current_version');
   end if;
 
+  -- Checked first: the impact preview tries the insert, and would report the standing freeze as an overlap.
+  if exists (select 1 from public.subscription_freezes f where f.subscription_id = p_subscription_id
+             and f.cancelled_at is null and f.freeze_from = p_freeze_from and f.freeze_until = p_freeze_until) then
+    return json_build_object('ok', true, 'action', 'already_applied');
+  end if;
+
   v_impact := public.subscription_compute_impact(
     p_subscription_id, 'freeze', p_freeze_from, p_freeze_until
   );
@@ -1370,12 +1376,7 @@ begin
     return json_build_object('ok', true, 'action', 'preview', 'impact', v_impact);
   end if;
 
-  -- A true retry is the same freeze still standing. After an unfreeze the same dates are a new freeze, so the ledger key
-  -- is the freeze row itself.
-  if exists (select 1 from public.subscription_freezes f where f.subscription_id = p_subscription_id
-             and f.cancelled_at is null and f.freeze_from = p_freeze_from and f.freeze_until = p_freeze_until) then
-    return json_build_object('ok', true, 'action', 'already_applied');
-  end if;
+  -- After an unfreeze the same dates are a new freeze, so the ledger key is the freeze row itself.
 
   begin
     insert into public.subscription_freezes (subscription_id, freeze_from, freeze_until, created_by)
