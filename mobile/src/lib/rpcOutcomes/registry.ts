@@ -427,6 +427,17 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     not_chargeable: B,
     not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
   },
+  admin_reverse_account_payment: {
+    already_reversed: B,
+    authorizer_not_manager: V,
+    has_receipt_history: B,
+    linked_to_subscription: B,
+    not_for_user_sessions: V,
+    not_found: B,
+    payment_does_not_match: V,
+    performed_by_required: V,
+    reason_required: V,
+  },
   manager_reverse_account_payment: {
     already_reversed: B,
     has_receipt_history: [B, "A payment with any receipt history has its own correction path through the receipt."],
