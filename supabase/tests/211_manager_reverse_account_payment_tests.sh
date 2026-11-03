@@ -49,6 +49,6 @@ X=$(pay "$A" 5 current_date)
 expect "the guard still blocks a direct reversal" 1 "$(as "$MGR" "update public.athlete_account_payments set reversed_at=now() where id='$X'" | grep -c unauthorized_payment_reversal)"
 RC=$(new_user athlete); SUB=$(su -c "insert into public.subscriptions (payee_id,payee_is_manual) values ('$RC',false) returning id")
 L=$(su -c "insert into public.athlete_account_payments (payee_id,payee_is_manual,amount_ils,payment_method,source_subscription_id) values ('$RC',false,10,'cash','$SUB') returning id" 2>/dev/null)
-[ -n "$L" ] && expect "a subscription-linked payment is refused" linked_to_subscription "$(as "$MGR" "select public.manager_reverse_account_payment('$L','x y z')" | err)"
+[ -n "$L" ] && expect "a subscription-linked payment can be reversed: hard delete is closed for it, so this is its one correction path" ok "$(as "$MGR" "select public.manager_reverse_account_payment('$L','x y z')" | err)"
 echo "passed=$PASSED failed=$FAILED"
 [ "$FAILED" -eq 0 ]
