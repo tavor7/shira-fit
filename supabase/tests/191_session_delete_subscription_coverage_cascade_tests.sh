@@ -42,7 +42,8 @@ api_as() { local role=$1 uid=$2; shift 2
     printf '%s\n' "$1"; echo "commit;"; } | $PSQL_AUTH -qAt -v ON_ERROR_STOP=1 -f - 2>&1; }
 api() { api_as authenticated "$@"; }
 jf() { su -c "select ('$1'::jsonb) #>> '{$2}'"; }
-refused() { case "$2" in *subscription_record_immutable*) ok "$1 (refused, as expected)";; *) fail "$1 NOT refused: $(echo "$2" | head -1 | cut -c1-160)";; esac; }
+# Two layers now: managers have no write privilege at all, and the trigger still refuses for any role that does.
+refused() { case "$2" in *subscription_record_immutable*|*"permission denied"*) ok "$1 (refused, as expected)";; *) fail "$1 NOT refused: $(echo "$2" | head -1 | cut -c1-160)";; esac; }
 refused_receipt() { case "$2" in *session_has_receipted_payment*) ok "$1 (refused, as expected)";; *) fail "$1 NOT refused: $(echo "$2" | head -1 | cut -c1-160)";; esac; }
 succeeded() { case "$2" in *subscription_record_immutable*|*ERROR*) fail "$1: $(echo "$2" | head -1 | cut -c1-200)";; *'"ok" : true'*) ok "$1";; *) fail "$1 (no ok:true): $(echo "$2" | head -1 | cut -c1-160)";; esac; }
 ledger_fp() { su -c "select
