@@ -152,20 +152,6 @@ export const DYNAMIC_ERROR_SITES: Readonly<Record<string, readonly string[]>> = 
  * (technical / uncertain / overrides) so that a reviewer sees the evidence next to the decision.
  */
 export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, RuleEntry>>>> = {
-  cancel_payment_reminder: {
-    not_found_or_already_read: [B, "The reminder was already read, cancelled or closed by the time a manager tried to cancel it."],
-  },
-  manager_payment_reminder_status: {
-    invalid_request: V,
-  },
-  send_payment_reminder: {
-    already_pending: [B, "The account already has an unread reminder. Expected when two managers or a double tap race."],
-    balance_changed: [B, "The balance moved between display and confirmation. The manager sees the new amount and decides again."],
-    has_hidden_registrations: B,
-    invalid_request: V,
-    no_debt: B,
-    recipient_not_eligible: [V, "Reminders go only to active, approved athlete accounts."],
-  },
   _system_push_outbox_process: {
     missing_vault_secrets: [T, "The critical-push outbox processor is dark-launched (critical_push_enabled defaults to false) and has no app-visible caller; a missing vault configuration is an operational/infra state, not a classification a user can ever observe."],
     internal: [T, "Internal, cron-only function with no app-visible caller; its own outer exception handler's generic fallback, never a business outcome."],
@@ -440,6 +426,20 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   },
   manager_subscription_overview_stats: {
     invalid_range: V,
+  },
+  cancel_payment_reminder: {
+    not_found_or_already_read: [B, "The reminder was already read, cancelled or closed by the time a manager tried to cancel it."],
+  },
+  manager_payment_reminder_status: {
+    invalid_request: V,
+  },
+  send_payment_reminder: {
+    already_pending: [B, "The account already has an unread reminder. Expected when two managers or a double tap race."],
+    balance_changed: [B, "The balance moved between display and confirmation. The manager sees the new amount and decides again."],
+    has_hidden_registrations: B,
+    invalid_request: V,
+    no_debt: B,
+    recipient_not_eligible: [V, "Reminders go only to active, approved athlete accounts."],
   },
   mark_manager_direct_message_read: {
     invalid_message: V,
