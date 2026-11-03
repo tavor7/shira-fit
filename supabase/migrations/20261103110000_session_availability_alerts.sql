@@ -488,6 +488,30 @@ exception when others then
 end;
 $function$;
 
+-- The waitlist's "next person" step must not repeat an alert this person already got for the same opening. Only called
+-- by the waitlist triggers from 20261103102000, whose tables this reads; plpgsql, so this applies without them too.
+create or replace function public._waitlist_recipient_already_told(p_opening_id uuid, p_user_id uuid)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path to 'public'
+as $function$
+begin
+  return exists (
+    select 1 from public.session_waitlist_notices n
+    where n.opening_id = p_opening_id and n.user_id = p_user_id
+  ) or exists (
+    select 1
+    from public.session_waitlist_openings o
+    join public.session_availability_deliveries d on d.session_id = o.session_id and d.created_at >= o.opened_at
+    where o.id = p_opening_id and d.user_id = p_user_id and d.status in ('processing', 'accepted')
+  );
+end;
+$function$;
+
+revoke all on function public._waitlist_recipient_already_told(uuid, uuid) from public, anon, authenticated;
+
 -- Client API.
 
 create or replace function public.subscribe_session_availability(p_session_id uuid)

@@ -166,6 +166,21 @@ su -c "insert into public.waitlist_requests (session_id, user_id) values ('$S','
 su -c "update public.training_sessions set max_participants=8 where id='$S'" >/dev/null
 expect "capacity increase has no waitlist push, so the subscriber is told" processing "$(status_of "$S" "$SUB")"
 
+if [ "$(su -c "select to_regclass('public.session_waitlist_openings') is not null")" = t ]; then
+  echo "--- no second message when the line moves up"
+  ORIGW=$(su -c "select pg_get_functiondef('public.invoke_notify_waitlist_edge(uuid)'::regprocedure)")
+  su -c "create table if not exists public.t207_calls (session_id uuid); create or replace function public.invoke_notify_waitlist_edge(p_session_id uuid) returns void language sql security definer set search_path to 'public' as 'insert into public.t207_calls values (p_session_id)'" >/dev/null
+  S=$(new_session 7); fill_to "$S" 7; rpc_err "$SUB2" "$S" >/dev/null
+  su -c "insert into public.waitlist_requests (session_id, user_id, requested_at) values ('$S','$PLAIN', now() - interval '1 hour'), ('$S','$SUB2', now())" >/dev/null
+  as "${FILLERS[0]}" "select public.cancel_registration('$S','t')" >/dev/null
+  expect "second in line, subscribed, got the alert" processing "$(status_of "$S" "$SUB2")"
+  expect "the head got the waitlist push" 1 "$(su -c "select count(*) from public.t207_calls where session_id='$S'")"
+  su -c "delete from public.waitlist_requests where session_id='$S' and user_id='$PLAIN'" >/dev/null
+  expect "moving to the head does not send them a second message" 1 "$(su -c "select count(*) from public.t207_calls where session_id='$S'")"
+  echo "$ORIGW" | $PSQL -q -v ON_ERROR_STOP=1 >/dev/null
+  su -c "drop table public.t207_calls" >/dev/null
+fi
+
 echo "--- eligibility at send time"
 reason() { su -c "select coalesce(public._session_availability_skip_reason('$1','$2'),'send')"; }
 S=$(new_session 7); fill_to "$S" 6; su -c "insert into public.session_availability_subscriptions (session_id, user_id) values ('$S','$SUB')" >/dev/null
