@@ -115,6 +115,7 @@ const ACTIVITY_GROUP_TYPES: Record<Exclude<ActivityGroupId, "all">, string[]> = 
     "account_payment_created",
     "account_payment_updated",
     "account_payment_deleted",
+    "account_payment_reversed",
     "pricing_setting_created",
     "pricing_setting_updated",
     "pricing_setting_deleted",

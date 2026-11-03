@@ -452,6 +452,7 @@ export function buildActivityLogDetailLines(
   if (
     item.event_type === "account_payment_created" ||
     item.event_type === "account_payment_updated" ||
+    item.event_type === "account_payment_reversed" ||
     item.event_type === "account_payment_deleted"
   ) {
     const payeeId = typeof mu.payee_id === "string" ? mu.payee_id : null;
@@ -463,6 +464,7 @@ export function buildActivityLogDetailLines(
     if (mu.amount_ils != null) lines.push(`${L(he, "Amount", "סכום")}: ${attendanceFmt("amount_ils", mu.amount_ils)}`);
     if (mu.payment_method != null) lines.push(`${L(he, "Payment method", "אמצעי תשלום")}: ${formatPaymentMethod(mu.payment_method, language)}`);
     if (mu.paid_at != null) lines.push(`${L(he, "Paid on", "תאריך תשלום")}: ${str(mu.paid_at)}`);
+    if (mu.reason != null && String(mu.reason).trim()) lines.push(`${L(he, "Reason", "סיבה")}: ${str(mu.reason)}`);
     if (mu.payer_name != null && String(mu.payer_name).trim()) lines.push(`${L(he, "Payer", "משלם")}: ${str(mu.payer_name)}`);
     if (mu.changes && typeof mu.changes === "object") {
       appendChangeLines(lines, mu.changes as Record<string, unknown>, he, language, profileLabels, attendanceFieldLabel, attendanceFmt);
@@ -642,6 +644,7 @@ export function activityLogEventLabel(eventType: string, language: string): stri
     participant_moved: { en: "Participant moved between sessions", he: "משתתף הועבר בין אימונים" },
     manual_participant_disabled: { en: "Quick-add person disabled", he: "משתתף מהיר הושבת" },
     manual_participant_enabled: { en: "Quick-add person enabled", he: "משתתף מהיר הופעל" },
+    account_payment_reversed: { en: "Account payment reversed", he: "תשלום בוטל" },
     manager_direct_message_sent: { en: "Direct message sent", he: "הודעה אישית נשלחה" },
     manager_direct_message_cancelled: { en: "Direct message cancelled", he: "הודעה אישית בוטלה" },
     birthday_message_settings_updated: { en: "Birthday message settings updated", he: "הגדרות הודעת יום הולדת עודכנו" },
