@@ -13,7 +13,7 @@ Six migrations, in this order, then the web app. No Edge Function changes.
 | `20261104102000` | Delete impact review, unfreeze; new columns on `subscription_freezes` | No |
 | `20261104103000` | Ledger protection, grants, Reports and family totals, utilization RPC | No |
 | `20261104104000` | Error-reporting allowlist rows (4 new rows in `system_issue_rules`) | No existing row |
-| `20261104105000` | Stopped-subscription payments, corrections table and workflow | No |
+| `20261104105000` | Payments on stopped and ended subscriptions, corrections table and workflow | No |
 
 ### What changes for existing data after deployment
 
@@ -23,6 +23,27 @@ The migrations change no row, but behaviour changes the next time something touc
 - **Ended sessions without coverage stay as they are.** Dina Gerzon (25 and 28 Oct) and Yuval Fuchs (29 Oct) keep their regular prices.
 - **Numbers that change immediately, with no data change:** Reports' daily expected and collected totals; family expected and collected (outstanding is unchanged, so reminders are unaffected); the Overview labels and figures.
 - **Next billing** for a scheduled subscription shows its first charge.
+
+## Owner decisions in this release
+
+- **Over-quota sessions:** an unpaid session may become covered when allowance frees up. A session already paid at the regular price keeps that price, with no automatic credit. Only money recorded on the session itself counts as paid: general account payments and subscription payments do not pin a session.
+- **Stopped and ended subscriptions:** a payment is accepted only up to the outstanding subscription debt, and never for a future date. It does not reactivate the subscription, create a charge or restore coverage. Production has no ended subscription and no stopped subscription with debt today.
+- **Receipt-locked sessions:** the manager's review and audit trail ship, but moving a receipted session to the regular price does not run until the accounting treatment is confirmed. See below.
+
+## Open item: accounting confirmation for receipt-locked corrections
+
+Moving a receipted session to the regular price may require a new tax document. Until this is confirmed:
+
+- A manager's request is recorded as `awaiting_accounting`, with who, when and why. No price, balance, payment, receipt or document changes.
+- The Overview, the corrections dialog and the delete dialog show the session as pending accounting review.
+- The session stays covered. A manager can still choose to keep it covered, which changes no amount.
+
+The gate is the `subscription_correction_accounting_confirmed` key in `system_monitoring_config`. It is absent, so off, after release. No client can read or write it. Turning it on is a separate owner decision, made after the accountant confirms the treatment, and may need follow-up work if a tax document is required:
+
+```sql
+insert into public.system_monitoring_config (key, value) values ('subscription_correction_accounting_confirmed', 'true'::jsonb)
+on conflict (key) do update set value = excluded.value;
+```
 
 ## Compatibility: the old app on the new database
 
@@ -88,6 +109,7 @@ Note: `_subscription_integrity_check` writes to `system_issues` if it finds a pr
 | Apply migrations to production | Owner, separately |
 | Merge to `main` (deploys Render) | Owner, separately |
 | Any correction to a historical payment, session or charge | Owner, per record |
+| Turning on applied corrections after accounting confirms | Owner, separately |
 | Running the rollback script | Owner, separately |
 
 ## Historical records awaiting manual review

@@ -1,13 +1,16 @@
 -- Owner decisions of 2026-11-03: payments after a stop, and receipt-locked sessions after a deletion.
 --
--- Payments after a stop: a stopped subscription can receive money up to what it still owes. Its status, billing, coverage
--- and allowance are untouched; the payment is an ordinary subscription payment, reversible like any other.
+-- Payments after a stop or an end: a stopped or ended subscription can receive money up to what it still owes. Its status,
+-- billing, coverage and allowance are untouched; the payment is an ordinary subscription payment, reversible like any other.
 --
 -- Receipt-locked sessions: deleting a subscription still moves its covered sessions to regular price, but a session with
 -- receipt history waits for a manager's decision, recorded here. This table holds decisions, not money: applying one moves
 -- the session to the regular price, which is what Reports and balances read, the same as any other repriced session.
--- Receipts, documents and payments are never read for change here. Moving a session to the regular price can only raise
--- what is expected, so no credit note or other document is produced. Money collected later gets its receipt the normal way.
+-- Receipts, documents and payments are never read for change here, and no document is produced.
+--
+-- Accounting review: moving a receipted session to the regular price may call for a new tax document, and that treatment is
+-- not confirmed yet. Until the owner sets subscription_correction_accounting_confirmed in system_monitoring_config (no client
+-- can write it; it is off by default), a manager's request to apply is recorded as awaiting_accounting and changes no amount.
 --
 -- Also: a penalty already charged at the regular price stays at that price if a covered booking is later cancelled.
 --
@@ -26,17 +29,22 @@ create table if not exists public.subscription_deletion_corrections (
   regular_price_ils numeric(12, 2) not null,
   amount_paid_ils numeric(12, 2) not null,
   receipts jsonb not null default '[]'::jsonb,
-  status text not null default 'pending' check (status in ('pending', 'applied_regular_price', 'kept_covered')),
+  status text not null default 'pending' check (status in ('pending', 'awaiting_accounting', 'applied_regular_price', 'kept_covered')),
+  review_reason text,
+  review_requested_by uuid references public.profiles(user_id) on delete set null,
+  review_requested_at timestamptz,
   decision_reason text,
   decided_by uuid references public.profiles(user_id) on delete set null,
   decided_at timestamptz,
   created_at timestamptz not null default now(),
   constraint subscription_deletion_corrections_decided_chk
-    check ((status = 'pending') = (decided_at is null) and (status = 'pending' or decision_reason is not null))
+    check ((status in ('pending', 'awaiting_accounting')) = (decided_at is null)
+           and (status in ('pending', 'awaiting_accounting') or decision_reason is not null)
+           and (status <> 'awaiting_accounting' or (review_reason is not null and review_requested_at is not null)))
 );
 
 create index if not exists subscription_deletion_corrections_pending_idx
-  on public.subscription_deletion_corrections (created_at) where status = 'pending';
+  on public.subscription_deletion_corrections (created_at) where status in ('pending', 'awaiting_accounting');
 
 alter table public.subscription_deletion_corrections enable row level security;
 revoke all on public.subscription_deletion_corrections from public, anon, authenticated;
@@ -54,10 +62,17 @@ begin
   if tg_op = 'DELETE' then
     raise exception 'subscription_record_immutable' using errcode = 'P0001', detail = 'Correction records cannot be deleted.';
   end if;
-  if old.status <> 'pending' then
+  if old.status in ('applied_regular_price', 'kept_covered') then
     if (new.status, new.decision_reason, new.decided_by, new.decided_at) is distinct from (old.status, old.decision_reason, old.decided_by, old.decided_at) then
       raise exception 'subscription_correction_already_decided' using errcode = 'P0001';
     end if;
+  end if;
+  if old.status = 'awaiting_accounting'
+     and (new.status = 'pending' or (new.review_reason, new.review_requested_by, new.review_requested_at) is distinct from (old.review_reason, old.review_requested_by, old.review_requested_at)) then
+    raise exception 'subscription_correction_already_decided' using errcode = 'P0001';
+  end if;
+  if new.status = 'applied_regular_price' and old.status <> 'applied_regular_price' and not public._system_flag('subscription_correction_accounting_confirmed', false) then
+    raise exception 'accounting_review_required' using errcode = 'P0001';
   end if;
   return new;
 end;
@@ -80,7 +95,24 @@ as $$
                    where a.source_subscription_id = p_subscription_id and a.reversed_at is null), 0);
 $$;
 
--- Add Payment also offers a stopped subscription, while it still owes.
+-- True once a payment can only settle what is owed: the subscription has stopped or ended, by today or by the payment's date.
+-- An end date moved by a freeze counts from where the freeze moved it.
+create or replace function public._subscription_settlement_only(p_subscription_id uuid, p_paid_at date)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((
+    select (v.stopped_effective_date is not null and greatest(p_paid_at, public._studio_today_date()) >= v.stopped_effective_date)
+        or (v.plan_end_date is not null and greatest(p_paid_at, public._studio_today_date()) > public.subscription_shifted_date(p_subscription_id, v.plan_end_date))
+    from public.subscription_versions v
+    where v.subscription_id = p_subscription_id and v.effective_to is null
+  ), false);
+$$;
+
+-- Add Payment also offers a stopped or ended subscription, while it still owes.
 create or replace function public.subscription_payment_target(p_payee_id uuid, p_payee_is_manual boolean, p_paid_at date)
 returns uuid
 language sql
@@ -94,8 +126,7 @@ as $$
   where public.is_manager(auth.uid())
     and s.payee_id = p_payee_id and s.payee_is_manual = p_payee_is_manual and s.deleted_at is null
     and (
-      case when v.stopped_effective_date is not null
-                and (p_paid_at >= v.stopped_effective_date or public._studio_today_date() >= v.stopped_effective_date)
+      case when public._subscription_settlement_only(s.id, p_paid_at)
            then p_paid_at <= public._studio_today_date() and public._subscription_outstanding(s.id) > 0
            else public._subscription_payment_eligible(s.id, p_paid_at)
       end
@@ -182,7 +213,7 @@ begin
     select g.*, ts.session_date, public._session_has_ended(ts) as ended,
            cov.id as coverage_id, cov.subscription_id as was_subscription_id,
            exists (select 1 from public.subscription_deletion_corrections k
-                   where k.coverage_id = cov.id and k.status in ('pending', 'kept_covered')) as correction_hold, cov.covered as was_covered, cov.non_coverage_reason as was_reason,
+                   where k.coverage_id = cov.id and k.status in ('pending', 'awaiting_accounting', 'kept_covered')) as correction_hold, cov.covered as was_covered, cov.non_coverage_reason as was_reason,
            public._subscription_slot_state(g.status, g.attended, g.charge_no_show, g.charged_cancellation, public._session_has_ended(ts)) as state
     from (
       select reg.id as registration_id, null::uuid as manual_row_id, reg.session_id, reg.registered_at as created_at,
@@ -209,7 +240,7 @@ begin
     continue when r.state = 'cancelled';
     -- History stays as it is: coverage is never created for a session that already ended.
     continue when r.coverage_id is null and r.ended;
-    -- A receipt-locked session awaiting, or kept by, a manager's correction decision changes only through that decision.
+    -- A receipt-locked session awaiting a decision or accounting review, or kept by a decision, changes only through that workflow.
     continue when r.correction_hold;
 
     v_ctx := public.subscription_effective_context(v_payee_id, v_payee_is_manual, r.session_date, p_tier);
@@ -328,7 +359,6 @@ declare
   v_payment_id uuid;
   v_paid_at date;
   v_today date := public._studio_today_date();
-  v_stopped date;
   v_outstanding numeric;
 begin
   if v_uid is null or not public.is_manager(v_uid) then
@@ -375,12 +405,8 @@ begin
 
   v_paid_at := coalesce(p_paid_at, public._studio_today_date());
 
-  select sv.stopped_effective_date into v_stopped
-  from public.subscription_versions sv
-  where sv.subscription_id = v_sub.id and sv.effective_to is null;
-
-  if v_stopped is not null and (v_paid_at >= v_stopped or v_today >= v_stopped) then
-    -- A stopped subscription can still receive money it is owed, up to what it is owed. The admin lock taken above
+  if public._subscription_settlement_only(v_sub.id, v_paid_at) then
+    -- A stopped or ended subscription can still receive money it is owed, up to what it is owed. The admin lock taken above
     -- serializes this check against other payments. Nothing here touches its status, billing or coverage.
     if v_paid_at > v_today then
       return json_build_object('ok', false, 'error', 'subscription_not_eligible_for_date');
@@ -731,7 +757,8 @@ begin
         'charges_next_7d_count', count(*) filter (where live and next_charge between v_today and v_today + 7),
         'charges_next_7d_ils', coalesce(sum(monthly_price_ils) filter (where live and next_charge between v_today and v_today + 7), 0),
         'ending_next_14d_count', count(*) filter (where live and plan_end between v_today and v_today + 14 and status in ('active', 'frozen')),
-        'pending_corrections_count', (select count(*) from public.subscription_deletion_corrections k where k.status = 'pending')
+        'pending_corrections_count', (select count(*) from public.subscription_deletion_corrections k where k.status = 'pending'),
+        'awaiting_accounting_count', (select count(*) from public.subscription_deletion_corrections k where k.status = 'awaiting_accounting')
       )
       from cur
     )
@@ -755,19 +782,28 @@ begin
   if v_uid is null or not public.is_manager(v_uid) then
     return json_build_object('ok', false, 'error', 'forbidden');
   end if;
-  return json_build_object('ok', true, 'corrections', coalesce((
+  return json_build_object('ok', true, 'accounting_confirmed', public._system_flag('subscription_correction_accounting_confirmed', false), 'corrections', coalesce((
     select json_agg(json_build_object(
       'id', k.id, 'subscription_id', k.subscription_id, 'session_id', k.session_id, 'session_date', k.session_date,
       'payee_display_name', coalesce(case when not s.payee_is_manual then p.full_name else mp.full_name end, '(unknown)'),
-      'slot_state', k.slot_state, 'regular_price_ils', k.regular_price_ils, 'amount_paid_ils', k.amount_paid_ils,
-      'balance_change_if_applied_ils', case when k.slot_state in ('attended', 'penalty') then k.regular_price_ils else 0 end,
-      'receipts', k.receipts, 'status', k.status, 'decision_reason', k.decision_reason, 'decided_at', k.decided_at
+      'slot_state', k.slot_state, 'regular_price_ils', pr.price, 'amount_paid_ils', k.amount_paid_ils,
+      'balance_change_if_applied_ils', case when k.slot_state in ('attended', 'penalty') then pr.price else 0 end,
+      'receipts', k.receipts, 'status', k.status, 'decision_reason', k.decision_reason, 'decided_at', k.decided_at,
+      'review_reason', k.review_reason, 'review_requested_at', k.review_requested_at
     ) order by k.session_date, k.created_at)
     from public.subscription_deletion_corrections k
     join public.subscriptions s on s.id = k.subscription_id
     left join public.profiles p on not s.payee_is_manual and p.user_id = s.payee_id
     left join public.manual_participants mp on s.payee_is_manual and mp.id = s.payee_id
-    where not coalesce(p_pending_only, true) or k.status = 'pending'
+    cross join lateral (
+      -- Today's price, the one the decision is checked against.
+      select coalesce(public.session_billing_price_ils(
+        k.session_id,
+        (select r.user_id from public.session_registrations r where r.id = k.registration_id),
+        (select m.manual_participant_id from public.session_manual_participants m where m.id = k.manual_participant_id)
+      ), 0) as price
+    ) pr
+    where not coalesce(p_pending_only, true) or k.status in ('pending', 'awaiting_accounting')
   ), '[]'::json));
 end;
 $$;
@@ -788,6 +824,7 @@ declare
   v_price numeric;
   v_event_id uuid;
   v_source uuid;
+  v_confirmed boolean := public._system_flag('subscription_correction_accounting_confirmed', false);
 begin
   if v_uid is null or not public.is_manager(v_uid) then
     return json_build_object('ok', false, 'error', 'forbidden');
@@ -803,7 +840,10 @@ begin
   if not found then
     return json_build_object('ok', false, 'error', 'correction_not_found');
   end if;
-  if k.status <> 'pending' then
+  if k.status = 'awaiting_accounting' and p_decision = 'applied_regular_price' and not v_confirmed then
+    return json_build_object('ok', true, 'action', 'awaiting_accounting', 'status', k.status);
+  end if;
+  if k.status in ('applied_regular_price', 'kept_covered') then
     if k.status = p_decision then
       return json_build_object('ok', true, 'action', 'already_decided');
     end if;
@@ -817,6 +857,17 @@ begin
   ), 0);
   if p_expected_price is distinct from v_price then
     return json_build_object('ok', false, 'error', 'correction_changed', 'regular_price_ils', v_price);
+  end if;
+
+  -- Until the accounting treatment is confirmed, a request to apply is recorded and changes no amount.
+  if p_decision = 'applied_regular_price' and not v_confirmed then
+    update public.subscription_deletion_corrections
+    set status = 'awaiting_accounting', review_reason = v_reason, review_requested_by = v_uid, review_requested_at = now(), regular_price_ils = v_price
+    where id = k.id;
+    perform public._insert_activity_event(v_uid, 'subscription_correction_review_requested', 'subscription', k.subscription_id::text,
+      jsonb_build_object('correction_id', k.id, 'reason', v_reason, 'session_date', k.session_date,
+        'regular_price_ils', v_price, 'amount_paid_ils', k.amount_paid_ils, 'receipts', k.receipts));
+    return json_build_object('ok', true, 'action', 'awaiting_accounting', 'status', 'awaiting_accounting');
   end if;
 
   if p_decision = 'applied_regular_price' then
@@ -851,11 +902,12 @@ grant execute on function public.manager_resolve_subscription_correction(uuid, t
 revoke all on function public.subscription_payment_target(uuid, boolean, date) from public, anon;
 grant execute on function public.subscription_payment_target(uuid, boolean, date) to authenticated;
 revoke all on function public._subscription_outstanding(uuid) from public, anon, authenticated;
+revoke all on function public._subscription_settlement_only(uuid, date) from public, anon, authenticated;
 revoke all on function public._subscription_delete_history(uuid) from public, anon, authenticated;
 revoke all on function public._subscription_corrections_guard() from public, anon, authenticated;
 
--- Managers can write account payments directly (the app's general payment path), so the stopped-subscription limit also
--- holds at the table: no direct insert or amount edit can take a stopped subscription past what it owes.
+-- Managers can write account payments directly (the app's general payment path), so the settlement limit also holds at the
+-- table: no direct insert or amount edit can take a stopped or ended subscription past what it owes.
 create or replace function public._subscription_payment_cap_check()
 returns trigger
 language plpgsql
@@ -863,16 +915,16 @@ security definer
 set search_path = public
 as $$
 declare
-  v_stopped date;
   v_outstanding numeric;
 begin
   if new.source_subscription_id is null or new.reversed_at is not null then
     return new;
   end if;
-  select sv.stopped_effective_date into v_stopped
-  from public.subscription_versions sv
-  where sv.subscription_id = new.source_subscription_id and sv.effective_to is null;
-  if v_stopped is null or public._studio_today_date() < v_stopped then
+  -- Lowering a recorded amount can never overpay.
+  if tg_op = 'UPDATE' and new.amount_ils <= old.amount_ils then
+    return new;
+  end if;
+  if not public._subscription_settlement_only(new.source_subscription_id, new.paid_at::date) then
     return new;
   end if;
   perform pg_advisory_xact_lock(public.subscription_admin_lock_key(new.source_subscription_id));

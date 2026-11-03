@@ -14,7 +14,7 @@
 #   B  a payment dated ON/AFTER stopped_effective_date is accepted only up to what is still owed
 #   C  a payment dated BEFORE the stop date (even though the subscription is stopped as of today)
 #      still succeeds -- eligibility is evaluated as of paid_at, not "today"
-#   D  a payment dated after plan_end_date is refused
+#   D  after plan_end_date a payment only settles what is still owed
 #   E  a payment dated during an active freeze still succeeds -- a freeze pauses billing/coverage,
 #      it does not end the relationship
 #   F  an ADVANCE payment dated before plan_start_date succeeds -- the subscription hasn't started
@@ -94,15 +94,21 @@ api "$M" "select public.stop_subscription('$SUB', '$STOP2', true)::text;" >/dev/
 pay "$SUB" "$(d -10)"
 expect "C succeeds for a date before the stop" "true" "$(jf "$R" ok)"
 
-echo "== D: a payment dated after plan_end_date is refused"
+echo "== D: after plan_end_date a payment only settles what is still owed"
 mksub "$(d -60)"
 END=$(d -10)
 su -c "update public.subscription_versions set plan_end_date = '$END' where id = '$VER'" >/dev/null
+pay "$SUB" "$(d 3)"
+expect "D future date refused" "subscription_not_eligible_for_date" "$(jf "$R" error)"
 pay "$SUB" "$(d -5)"
-expect "D refused after plan_end_date" "false" "$(jf "$R" ok)"
-expect "D error is subscription_not_eligible_for_date" "subscription_not_eligible_for_date" "$(jf "$R" error)"
+expect "D accepted after the end while money is owed" "true" "$(jf "$R" ok)"
 pay "$SUB" "$(d -30)"
-expect "D succeeds for a date within the plan window" "true" "$(jf "$R" ok)"
+expect "D accepted for a date within the plan window" "true" "$(jf "$R" ok)"
+OWED=$(su -c "select public._subscription_outstanding('$SUB')")
+R=$(api "$M" "select public.record_subscription_payment('$SUB', $OWED, 'cash', null, null, '$TODAY')::text;")
+expect "D rest of the debt accepted" "true" "$(jf "$R" ok)"
+pay "$SUB" "$TODAY"
+expect "D refused once nothing is owed" "no_outstanding_balance" "$(jf "$R" error)"
 
 echo "== E: a payment dated during an active freeze still succeeds"
 mksub "$(d -30)"

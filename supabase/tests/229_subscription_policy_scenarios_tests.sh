@@ -18,6 +18,18 @@ expect "no credit or refund was made" "50.00|0" "$LEDGER_AMOUNT|$(su -c "select 
 three; su -c "update public.session_registrations set amount_paid=50,payment_method='cash' where id='$R2'; insert into public.external_manual_receipts(row_kind,record_id,note) values ('session_reg','$R2','t')" >/dev/null; mark "$R1" false false
 expect "receipted: keeps its price" "false:paid_at_regular_price" "$(cov "$R2")"
 
+echo "== 3.1: a general account payment is not a payment for a session"
+three
+P=$(api "$M" "insert into public.athlete_account_payments(payee_id,payee_is_manual,amount_ils,payment_method,paid_at) values ('$A',false,50,'cash','$TODAY') returning id;" | head -1)
+mark "$R1" false false
+expect "the over-quota session is still promoted" "true:" "$(cov "$R2")"
+expect "the session shows no money taken" "0" "$(su -c "select coalesce(amount_paid,0)::int from public.session_registrations where id='$R2'")"
+expect "the payment is unchanged and stays general" "50.00|true|1" "$(su -c "select amount_ils||'|'||(source_subscription_id is null)||'|'||(select count(*) from public.athlete_account_payments where payee_id='$A') from public.athlete_account_payments where id='$P'")"
+three
+api "$M" "select public.record_subscription_payment('$SUB',50,'cash',null,null,null,null);" >/dev/null
+mark "$R1" false false
+expect "a subscription payment does not pin it either" "true:" "$(cov "$R2")"
+
 echo "== 3.3: sessions on the stop date, against deleting"
 mkuser athlete; A=$U; mksub "$A" "$(d -20)" 2; W=$(su -c "select date '$TODAY' - extract(dow from date '$TODAY')::int")
 ver=$VER

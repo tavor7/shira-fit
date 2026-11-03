@@ -465,10 +465,11 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   _subscription_corrections_guard: {
     subscription_record_immutable: [B, "Correction records are history and are only written by their RPCs."],
     subscription_correction_already_decided: [B, "A decided correction cannot change."],
+    accounting_review_required: [B, "Applying a correction waits for accounting confirmation; only the resolver RPC writes this table."],
   },
   _subscription_payment_cap_check: {
-    no_outstanding_balance: [B, "A direct write cannot exceed what a stopped subscription owes."],
-    amount_exceeds_outstanding: [B, "A direct write cannot exceed what a stopped subscription owes."],
+    no_outstanding_balance: [B, "A direct write cannot exceed what a stopped or ended subscription owes."],
+    amount_exceeds_outstanding: [B, "A direct write cannot exceed what a stopped or ended subscription owes."],
   },
   unfreeze_subscription: {
     freeze_not_found: [B, "Looks a freeze up by an id the UI took from the history it displayed earlier."],

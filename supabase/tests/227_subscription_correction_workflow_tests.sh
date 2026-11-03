@@ -16,6 +16,8 @@ setup() { # a subscription with one plain covered session and one covered, paid,
 }
 delete_sub() { R=$(api "$M" "select public.delete_subscription_with_future_registrations('$SUB')::text;"); FP=$(jf "$R" fingerprint); R=$(api "$M" "select public.delete_subscription_with_future_registrations('$SUB',null,true,null,null,'$FP')::text;"); }
 cid() { su -c "select id from public.subscription_deletion_corrections where subscription_id='$SUB'"; }
+gate() { su -c "insert into public.system_monitoring_config(key,value) values ('subscription_correction_accounting_confirmed','$1'::jsonb) on conflict (key) do update set value=excluded.value" >/dev/null; }
+impact() { su -c "select count(*) from public.subscription_impact_event_registrations er where er.registration_id='$R2' and not er.new_covered"; }
 
 echo "== The preview separates what is repriced from what waits"
 setup
@@ -61,6 +63,52 @@ contains "anon refused" "permission denied" "$(api_as anon "" "select public.man
 for stmt in "update public.subscription_deletion_corrections set status='kept_covered' where true" "delete from public.subscription_deletion_corrections where true" "insert into public.subscription_deletion_corrections(subscription_id,session_date,slot_state,regular_price_ils,amount_paid_ils) values ('$SUB','$TODAY','attended',1,1)"; do
   contains "manager cannot write directly" "denied" "$(api "$M" "$stmt;")"
 done
+
+echo "== Before accounting confirms, a request to apply changes no amount"
+DOCS_BEFORE=$(docs "$R2"); PAID_BEFORE=$(su -c "select amount_paid from public.session_registrations where id='$R2'")
+J=$(api "$M" "select public.manager_list_subscription_corrections(true)::text;"); expect "the screen is told" "false" "$(jf "$J" accounting_confirmed)"
+R=$(api "$M" "select public.manager_resolve_subscription_correction('$C','applied_regular_price','agreed with the athlete',80)::text;")
+expect "recorded as waiting" "awaiting_accounting" "$(jf "$R" action)"; expect "status" "awaiting_accounting" "$(jf "$R" status)"
+expect "still covered" "true:" "$(cov "$R2")"; expect "no debt" "0" "$(owes "$R2")"
+expect "payment untouched" "$PAID_BEFORE" "$(su -c "select amount_paid from public.session_registrations where id='$R2'")"
+expect "documents untouched" "$DOCS_BEFORE" "$(docs "$R2")"
+expect "receipt untouched" "$RECEIPT_BEFORE" "$(su -c "select md5(e::text) from public.external_manual_receipts e where record_id='$R2'")"
+expect "no impact rows" "0" "$(impact)"
+expect "who, when, why" "agreed with the athlete|true|true" "$(su -c "select review_reason||'|'||(review_requested_by='$M' and review_requested_at is not null)||'|'||(decided_at is null) from public.subscription_deletion_corrections where id='$C'")"
+expect "audit event" "1" "$(su -c "select count(*) from public.user_activity_events where event_type='subscription_correction_review_requested' and metadata->>'correction_id'='$C'")"
+expect "no decision event" "0" "$(su -c "select count(*) from public.user_activity_events where event_type='subscription_correction_decided' and metadata->>'correction_id'='$C'")"
+R=$(api "$M" "select public.manager_resolve_subscription_correction('$C','applied_regular_price','again',80)::text;"); expect "repeat changes nothing" "awaiting_accounting" "$(jf "$R" action)"
+expect "first reason kept" "agreed with the athlete" "$(su -c "select review_reason from public.subscription_deletion_corrections where id='$C'")"
+expect "one audit event still" "1" "$(su -c "select count(*) from public.user_activity_events where event_type='subscription_correction_review_requested' and metadata->>'correction_id'='$C'")"
+J=$(api "$M" "select public.manager_subscription_overview_stats('$TODAY','$TODAY')::text;"); expect "Overview counts it" "t" "$(su -c "select (('$J'::jsonb)->>'awaiting_accounting_count')::int >= 1")"
+expect "still listed, marked" "awaiting_accounting" "$(api "$M" "select e->>'status' from json_array_elements(public.manager_list_subscription_corrections(true)->'corrections') e where e->>'id'='$C';")"
+mark "$R2" false; mark "$R2" true
+expect "attendance edit does not decide it" "true:" "$(cov "$R2")"
+contains "the table refuses applying directly" "accounting_review_required" "$($PSQL -qAt -c "update public.subscription_deletion_corrections set status='applied_regular_price', decision_reason='x', decided_at=now() where id='$C'" 2>&1)"
+contains "and refuses going back" "subscription_correction_already_decided" "$($PSQL -qAt -c "update public.subscription_deletion_corrections set status='pending', review_reason=null, review_requested_at=null where id='$C'" 2>&1)"
+contains "a manager cannot confirm accounting" "denied" "$(api "$M" "insert into public.system_monitoring_config(key,value) values ('subscription_correction_accounting_confirmed','true'::jsonb);")"
+for who in "$M" "$A" "$CO"; do expect "and no client can read or change it" "0" "$(api "$who" "update public.system_monitoring_config set value='true'::jsonb where key='subscription_correction_accounting_confirmed' returning 1;" 2>&1 | grep -c '^1$')"; done
+
+echo "== A waiting request can still be kept covered"
+SUB0=$SUB; C0=$C; R20=$R2; A0=$A
+setup; delete_sub; C=$(cid)
+api "$M" "select public.manager_resolve_subscription_correction('$C','applied_regular_price','asked',80);" >/dev/null
+R=$(api "$M" "select public.manager_resolve_subscription_correction('$C','kept_covered','accounting said no',80)::text;"); expect "kept" "kept_covered" "$(jf "$R" status)"
+expect "no debt" "0" "$(owes "$R2")"; expect "both reasons stay" "asked|accounting said no" "$(su -c "select review_reason||'|'||decision_reason from public.subscription_deletion_corrections where id='$C'")"
+R=$(api "$M" "select public.manager_resolve_subscription_correction('$C','applied_regular_price','later',80)::text;"); expect "cannot flip" "already_decided_differently" "$(jf "$R" error)"
+SUB=$SUB0; C=$C0; R2=$R20; A=$A0
+
+echo "== A price change is shown, then accepted at the new price"
+setup; delete_sub; K=$(cid)
+su -c "update public.training_sessions set custom_slot_price_ils=90 where id='$S2'" >/dev/null
+contains "listed at today's price" "90" "$(api "$M" "select e->>'regular_price_ils' from json_array_elements(public.manager_list_subscription_corrections(true)->'corrections') e where e->>'id'='$K';")"
+R=$(api "$M" "select public.manager_resolve_subscription_correction('$K','kept_covered','a reason',80)::text;"); expect "the old price is refused" "correction_changed" "$(jf "$R" error)"
+R=$(api "$M" "select public.manager_resolve_subscription_correction('$K','kept_covered','a reason',90)::text;"); expect "the listed price is accepted" "kept_covered" "$(jf "$R" status)"
+SUB=$SUB0; C=$C0; R2=$R20; A=$A0
+
+echo "== Once the owner confirms accounting, the waiting request can be applied"
+gate true
+expect "the screen is told" "true" "$(jf "$(api "$M" "select public.manager_list_subscription_corrections(true)::text;")" accounting_confirmed)"
 
 echo "== Applying moves it to regular price, once, with an audit trail"
 R=$(api "$M" "select public.manager_resolve_subscription_correction('$C','applied_regular_price','agreed with the athlete',80)::text;")
@@ -113,4 +161,5 @@ echo "== Reports show the result"
 W=$(lastsun 1); J=$(api "$M" "select public.manager_weekly_stats_core('$W','week')::text;")
 expect "both sessions priced for this athlete" "160.00" "$(su -c "select a->>'expected_ils' from jsonb_array_elements(('$J'::jsonb)#>'{finance,athletes}') a where a->>'id'='$A'")"
 expect "the ₪50 still counts as collected" "50.00" "$(su -c "select a->>'collected_sessions_ils' from jsonb_array_elements(('$J'::jsonb)#>'{finance,athletes}') a where a->>'id'='$A'")"
+gate false
 finish
