@@ -15,6 +15,8 @@ import { EmptyState } from "../components/EmptyState";
 import { FadeSlideIn } from "../components/FadeSlideIn";
 import { PressableScale } from "../components/PressableScale";
 import { UserAvatar } from "../components/UserAvatar";
+import { AccountBalanceChip, useAccountBalances } from "../components/AccountBalanceChip";
+import { balanceKey } from "../lib/paymentReminders";
 import { Pill, type PillTone } from "../components/Pill";
 import { useSearchListBottomPadding } from "../hooks/useSearchListBottomPadding";
 import {
@@ -72,6 +74,7 @@ export default function StaffUsersScreen() {
     phoneCounts: {},
   });
   const listBottomPad = useSearchListBottomPadding();
+  const balances = useAccountBalances(isManager);
 
   const loadDuplicateNameCounts = useCallback(async () => {
     let query = supabase.from("profiles").select("full_name");
@@ -280,6 +283,11 @@ export default function StaffUsersScreen() {
                     ) : null}
                   </View>
                 </View>
+                {balances && (item.kind === "manual" || item.role === "athlete" || balances[balanceKey("app", item.user_id)]) ? (
+                  <AccountBalanceChip
+                    row={balances[item.kind === "profile" ? balanceKey("app", item.user_id) : balanceKey("manual", item.id)]}
+                  />
+                ) : null}
               </View>
             </PressableScale>
             </FadeSlideIn>

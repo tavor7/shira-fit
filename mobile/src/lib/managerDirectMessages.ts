@@ -21,6 +21,8 @@ export type PendingManagerMessage = {
   created_at: string;
   sender_name: string;
   message_theme: ManagerMessageTheme;
+  /** Payment reminder only: the amount the server rechecked just now. */
+  payment_reminder?: { amount: number; is_family: boolean };
 };
 
 export type SentManagerMessage = {
@@ -103,6 +105,10 @@ export async function fetchPendingManagerDirectMessage(): Promise<PendingManager
     created_at: String(m.created_at ?? ""),
     sender_name: String(m.sender_name ?? ""),
     message_theme: normalizeManagerMessageTheme(m.message_theme),
+    payment_reminder:
+      m.message_kind === "payment_reminder"
+        ? { amount: Number(m.amount_ils ?? 0), is_family: m.is_family === true }
+        : undefined,
   };
 }
 
@@ -112,7 +118,8 @@ export async function markManagerDirectMessageRead(messageId: string): Promise<b
   });
   if (error) return false;
   const o = parseRpcObject(data);
-  return o?.ok === true;
+  // not_found: it was cancelled or closed while on screen, so it is no longer waiting for this person.
+  return o?.ok === true || o?.error === "not_found";
 }
 
 export async function cancelManagerDirectMessage(
@@ -131,6 +138,7 @@ export async function fetchSentManagerDirectMessages(limit = 40): Promise<SentMa
   const { data, error } = await supabase
     .from("manager_direct_messages")
     .select("id, body, created_at, read_at, recipient_id, message_theme")
+    .eq("message_kind", "general")
     .order("created_at", { ascending: false })
     .limit(limit);
 

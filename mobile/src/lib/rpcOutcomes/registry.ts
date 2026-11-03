@@ -437,6 +437,20 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   manager_subscription_overview_stats: {
     invalid_range: V,
   },
+  cancel_payment_reminder: {
+    not_found_or_already_read: [B, "The reminder was already read, cancelled or closed by the time a manager tried to cancel it."],
+  },
+  manager_payment_reminder_status: {
+    invalid_request: V,
+  },
+  send_payment_reminder: {
+    already_pending: [B, "The account already has an unread reminder. Expected when two managers or a double tap race."],
+    balance_changed: [B, "The balance moved between display and confirmation. The manager sees the new amount and decides again."],
+    has_hidden_registrations: B,
+    invalid_request: V,
+    no_debt: B,
+    recipient_not_eligible: [V, "Reminders go only to active, approved athlete accounts."],
+  },
   mark_manager_direct_message_read: {
     invalid_message: V,
     not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],

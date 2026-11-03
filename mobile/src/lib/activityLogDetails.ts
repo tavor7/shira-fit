@@ -550,6 +550,13 @@ export function buildActivityLogDetailLines(
     return lines;
   }
 
+  if (item.event_type === "payment_reminder_sent" || item.event_type === "payment_reminder_cancelled") {
+    const to = formatUserRef(typeof mu.recipient_user_id === "string" ? mu.recipient_user_id : null, profileLabels);
+    if (to) lines.push(`${L(he, "Recipient", "נמען")}: ${to}`);
+    if (mu.amount_ils != null) lines.push(`${L(he, "Amount", "סכום")}: ₪${Number(mu.amount_ils)}`);
+    return lines;
+  }
+
   if (item.event_type === "birthday_message_settings_updated") {
     if (mu.enabled != null) lines.push(`${L(he, "Enabled", "מופעל")}: ${formatBool(mu.enabled, he)}`);
     if (typeof mu.theme === "string" && mu.theme) lines.push(`${L(he, "Theme", "ערכת נושא")}: ${mu.theme}`);
@@ -645,6 +652,8 @@ export function activityLogEventLabel(eventType: string, language: string): stri
     participant_moved: { en: "Participant moved between sessions", he: "משתתף הועבר בין אימונים" },
     manual_participant_disabled: { en: "Quick-add person disabled", he: "משתתף מהיר הושבת" },
     manual_participant_enabled: { en: "Quick-add person enabled", he: "משתתף מהיר הופעל" },
+    payment_reminder_sent: { en: "Payment reminder sent", he: "נשלחה תזכורת תשלום" },
+    payment_reminder_cancelled: { en: "Payment reminder cancelled", he: "תזכורת תשלום בוטלה" },
     manager_direct_message_sent: { en: "Direct message sent", he: "הודעה אישית נשלחה" },
     manager_direct_message_cancelled: { en: "Direct message cancelled", he: "הודעה אישית בוטלה" },
     birthday_message_settings_updated: { en: "Birthday message settings updated", he: "הגדרות הודעת יום הולדת עודכנו" },

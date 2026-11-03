@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { AppState, Modal, StyleSheet, View } from "react-native";
+import { AppState, Modal, StyleSheet, Text, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
@@ -11,6 +11,7 @@ import {
 import { fetchReceiptRequirementsSnapshot, receiptRequirementsMode } from "../lib/receiptRequirements";
 import { PrimaryButton } from "./PrimaryButton";
 import { ManagerMessageCard } from "./ManagerMessageCard";
+import { displayMoney } from "../lib/displayFormat";
 
 /** Shows the oldest unread manager message after app load; chains if multiple are pending. */
 export function ManagerDirectMessageModal() {
@@ -74,7 +75,14 @@ export function ManagerDirectMessageModal() {
 
   if (!session || loading || !signupSync.settled || blockedByRequirements || !message) return null;
 
-  const senderLabel = message.sender_name.trim() || t("managerMessage.studioFallback");
+  const reminder = message.payment_reminder;
+  const senderLabel = reminder
+    ? t("paymentReminder.sender")
+    : message.sender_name.trim() || t("managerMessage.studioFallback");
+  const reminderAmount = reminder ? displayMoney(reminder.amount) : "";
+  const [reminderBefore, reminderAfter] = reminder
+    ? t(reminder.is_family ? "paymentReminder.messageFamily" : "paymentReminder.message").split("{amount}")
+    : ["", ""];
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
@@ -83,8 +91,20 @@ export function ManagerDirectMessageModal() {
           messageTheme={message.message_theme}
           senderName={senderLabel}
           body={message.body}
-          inboxKicker={t("managerMessage.inboxKicker")}
+          inboxKicker={t(reminder ? "paymentReminder.kicker" : "managerMessage.inboxKicker")}
           isRTL={isRTL}
+          hideKickerEmoji={!!reminder}
+          avatarLabel={reminder ? "SF" : undefined}
+          amountLabel={reminder ? reminderAmount : undefined}
+          bodyContent={
+            reminder ? (
+              <>
+                {reminderBefore}
+                <Text style={styles.reminderAmountInline}>{reminderAmount}</Text>
+                {reminderAfter}
+              </>
+            ) : undefined
+          }
         />
         <PrimaryButton
           label={dismissing ? t("common.loading") : t("managerMessage.gotIt")}
@@ -113,4 +133,5 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 400,
   },
+  reminderAmountInline: { fontWeight: "800" },
 });

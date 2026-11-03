@@ -132,6 +132,8 @@ const ACTIVITY_GROUP_TYPES: Record<Exclude<ActivityGroupId, "all">, string[]> = 
   messaging: [
     "manager_direct_message_sent",
     "manager_direct_message_cancelled",
+    "payment_reminder_sent",
+    "payment_reminder_cancelled",
     "birthday_message_settings_updated",
     "whatsapp_settings_updated",
   ],

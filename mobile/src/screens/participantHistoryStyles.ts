@@ -13,6 +13,7 @@ export const participantHistoryStyles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
     borderRadius: theme.radius.lg,
   },
+  reminderCard: { marginHorizontal: theme.spacing.md, marginBottom: theme.spacing.sm },
   familyBanner: {
     marginHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.sm,
@@ -129,6 +130,9 @@ export const participantHistoryStyles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.borderMuted,
   },
+  pickerItemRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  pickerItemRowRtl: { flexDirection: "row-reverse" },
+  pickerItemText: { flex: 1, minWidth: 0 },
   pickerItemName: { ...theme.typography.title, color: theme.colors.text },
   pickerItemRole: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4 },
   pickerEmpty: { padding: theme.spacing.lg, color: theme.colors.textSoft, textAlign: "center" },

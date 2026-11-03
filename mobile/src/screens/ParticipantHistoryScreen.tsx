@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { PaymentReminderCard } from "../components/PaymentReminderCard";
+import { AccountBalanceChip, useAccountBalances } from "../components/AccountBalanceChip";
+import { balanceKey } from "../lib/paymentReminders";
 import { View, Text, SectionList, Pressable, Platform, Linking } from "react-native";
 import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-router";
 import { ReportDateRangeControls } from "../components/ReportDateRangeControls";
@@ -116,6 +119,7 @@ export default function ParticipantHistoryScreen({
     (pathname?.startsWith("/manager/reports") ?? false);
   /** Studio finance (account payments, balance, receipts) is manager-only (RLS + RPCs); coaches see sessions and attendance. */
   const showFinance = !isCoachHistory;
+  const pickerBalances = useAccountBalances(isManagerHistory);
 
   const openSession = useCallback(
     (sessionId: string) => {
@@ -1263,10 +1267,19 @@ export default function ParticipantHistoryScreen({
               setPickerOpen(false);
             }}
           >
-            <Text style={styles.pickerItemName}>{item.full_name}</Text>
-            <Text style={styles.pickerItemRole}>
-              {item.kind === "athlete" ? athleteSearchSubtitle(item.phone) : `${item.phone} · ${t("participantHistory.quickAdd")}`}
-            </Text>
+            <View style={[styles.pickerItemRow, rtlRowFlip && styles.pickerItemRowRtl]}>
+              <View style={styles.pickerItemText}>
+                <Text style={styles.pickerItemName}>{item.full_name}</Text>
+                <Text style={styles.pickerItemRole}>
+                  {item.kind === "athlete" ? athleteSearchSubtitle(item.phone) : `${item.phone} · ${t("participantHistory.quickAdd")}`}
+                </Text>
+              </View>
+              {pickerBalances ? (
+                <AccountBalanceChip
+                  row={pickerBalances[item.kind === "athlete" ? balanceKey("app", item.user_id) : balanceKey("manual", item.id)]}
+                />
+              ) : null}
+            </View>
           </Pressable>
         )}
         ListEmptyComponent={<EmptyState icon="search-outline" title={t("participantHistory.noAthletes")} isRTL={isRTL} />}
@@ -1380,6 +1393,14 @@ export default function ParticipantHistoryScreen({
               ) : null}
             </View>
 
+            {isManagerHistory && athleteId ? (
+              <PaymentReminderCard
+                payeeId={athleteId}
+                payeeIsManual={payeeIsManual}
+                refreshKey={accountPayments.reduce((sum, row) => sum + Number(row.amount_ils ?? 0), 0)}
+                style={styles.reminderCard}
+              />
+            ) : null}
             {familyContext && athleteId ? (
               <View style={styles.familyBanner}>
                 <View style={styles.familyBannerHead}>
