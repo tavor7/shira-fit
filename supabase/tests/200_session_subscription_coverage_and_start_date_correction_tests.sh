@@ -131,7 +131,8 @@ mkuser athlete athB; ATHB=$U
 # weekly_limit=1 group, subscription starting the week's Sunday -- two same-week sessions, so only
 # the earlier-registered one is covered; moving the start date past the first session's date should
 # flip it from covered to not_subscribed.
-WK_SUN=$(su -c "select (date '$(d 1)' - extract(dow from date '$(d 1)')::int)::date")
+# Next week's Sunday, so both sessions are still in the future whichever weekday this runs on.
+WK_SUN=$(su -c "select (date '$(d 7)' - extract(dow from date '$(d 7)')::int)::date")
 SESS1=$(su -c "insert into public.training_sessions (coach_id, session_date, start_time, max_participants) values ('$COACHB', '$(su -c "select ('$WK_SUN'::date + 1)::date")', '08:00', 12) returning id")
 SESS2=$(su -c "insert into public.training_sessions (coach_id, session_date, start_time, max_participants) values ('$COACHB', '$(su -c "select ('$WK_SUN'::date + 3)::date")', '08:00', 12) returning id")
 R=$(api "$MGRB" "select (public.create_subscription('$ATHB', false, 300, '$WK_SUN', null, null, jsonb_build_array(jsonb_build_object('tier','group','weekly_limit',1)))::jsonb)::text;")

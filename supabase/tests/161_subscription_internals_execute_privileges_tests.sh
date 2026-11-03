@@ -63,7 +63,7 @@ for fn in "${INTERNALS[@]}"; do
 done
 expect "P billing job keeps postgres (pg_cron) and service_role (edge function)" "true true" \
   "$(su -c "select has_function_privilege('postgres', 'public.generate_due_subscription_charges()'::regprocedure, 'EXECUTE') || ' ' || has_function_privilege('service_role', 'public.generate_due_subscription_charges()'::regprocedure, 'EXECUTE')")"
-for fn in 'public.create_subscription(uuid, boolean, numeric, date, date, smallint, jsonb)' 'public.edit_subscription_version(uuid, date, numeric, date, boolean, jsonb, boolean)' \
+for fn in 'public.create_subscription(uuid, boolean, numeric, date, date, smallint, jsonb, numeric, text, text, text, uuid)' 'public.edit_subscription_version(uuid, date, numeric, date, boolean, jsonb, boolean)' \
           'public.freeze_subscription(uuid, date, date, boolean)' 'public.stop_subscription(uuid, date, boolean)' 'public.reactivate_subscription(uuid, date, date)' \
           'public.delete_subscription(uuid)' 'public.get_my_subscription()' 'public.get_subscription_detail(uuid)' 'public.list_active_subscriptions()' \
           'public.list_subscription_history()' 'public.manager_weekly_stats(date, text)' 'public.register_for_session(uuid, boolean)' 'public.cancel_registration(uuid, text)' \

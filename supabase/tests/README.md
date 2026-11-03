@@ -1,6 +1,6 @@
 # SQL tests (`supabase/tests`)
 
-There is no pgTAP setup and no CI job for these tests (`.github/workflows` only runs the mobile Jest, tsc and lint checks). They are run by
+There is no pgTAP setup. The subscription suites run in CI (`.github/workflows/subscription-db-tests.yml`, via `scripts/db-tests/run-subscription-suite.sh`) against a throwaway stack; the rest are run by
 hand against a **scratch database**. Each file's header comment says what it covers and anything special it needs.
 
 ## Two kinds of files
