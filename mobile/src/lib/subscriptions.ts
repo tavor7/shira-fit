@@ -256,6 +256,7 @@ export type SubscriptionOverviewStats = {
   charges_next_7d_ils: number;
   ending_next_14d_count: number;
   pending_corrections_count: number;
+  awaiting_accounting_count: number;
 };
 
 export type SubscriptionWeekUtilizationRow = {
@@ -335,7 +336,9 @@ export type SubscriptionCorrection = {
   amount_paid_ils: number;
   balance_change_if_applied_ils: number;
   receipts: { number: number | null; status: string; amount_ils: number | null }[];
-  status: "pending" | "applied_regular_price" | "kept_covered";
+  status: "pending" | "awaiting_accounting" | "applied_regular_price" | "kept_covered";
+  review_reason: string | null;
+  review_requested_at: string | null;
 };
 
 export type UnfreezeKind = "future_cancel" | "current_end_early" | "past_reversal";
@@ -732,10 +735,10 @@ export async function rpcSubscriptionDeleteImpact(
 
 export async function rpcListSubscriptionCorrections(
   supabase: SupabaseClient
-): Promise<RpcOutcome<{ corrections: SubscriptionCorrection[] }>> {
+): Promise<RpcOutcome<{ corrections: SubscriptionCorrection[]; accounting_confirmed: boolean }>> {
   const { data, error } = await supabase.rpc("manager_list_subscription_corrections", { p_pending_only: true });
   if (error) throw error;
-  return data as RpcOutcome<{ corrections: SubscriptionCorrection[] }>;
+  return data as RpcOutcome<{ corrections: SubscriptionCorrection[]; accounting_confirmed: boolean }>;
 }
 
 export async function rpcResolveSubscriptionCorrection(

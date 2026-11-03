@@ -642,6 +642,7 @@ export function activityLogEventLabel(eventType: string, language: string): stri
     subscription_stopped: { en: "Subscription stopped", he: "מנוי הופסק" },
     subscription_deleted: { en: "Subscription deleted", he: "מנוי נמחק" },
     subscription_correction_decided: { en: "Correction decided after subscription deletion", he: "התקבלה החלטה לתיקון לאחר מחיקת מנוי" },
+    subscription_correction_review_requested: { en: "Correction sent to accounting review", he: "תיקון הועבר לבדיקה חשבונאית" },
     account_payment_reversed: { en: "Account payment reversed", he: "תשלום בוטל" },
     account_payment_deleted: { en: "Account payment deleted", he: "תשלום חשבון נמחק" },
     pricing_setting_created: { en: "Pricing setting added", he: "הגדרת מחיר נוספה" },

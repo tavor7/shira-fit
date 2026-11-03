@@ -19,13 +19,15 @@ type Props = { visible: boolean; onClose: () => void; onChanged: () => void };
 
 /**
  * Receipt-locked sessions left by a deleted subscription. Each waits for the manager's decision; neither choice touches a
- * receipt or a payment. Moving a session to the regular price only raises what is expected from the athlete.
+ * receipt or a payment. Until the accounting treatment is confirmed, asking for the regular price only sends the session to
+ * accounting review and changes no amount.
  */
 export function SubscriptionCorrectionsModal({ visible, onClose, onChanged }: Props) {
   const { t, language, isRTL } = useI18n();
   const { showToast } = useToast();
   const flip = rowFlipFor(isRTL);
   const [items, setItems] = useState<SubscriptionCorrection[] | null>(null);
+  const [accountingConfirmed, setAccountingConfirmed] = useState(false);
   const [failed, setFailed] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
@@ -35,8 +37,10 @@ export function SubscriptionCorrectionsModal({ visible, onClose, onChanged }: Pr
     setFailed(false);
     try {
       const res = await rpcListSubscriptionCorrections(supabase);
-      if (res.ok) setItems(res.corrections);
-      else {
+      if (res.ok) {
+        setItems(res.corrections);
+        setAccountingConfirmed(res.accounting_confirmed);
+      } else {
         setItems(null);
         setFailed(true);
       }
@@ -67,7 +71,10 @@ export function SubscriptionCorrectionsModal({ visible, onClose, onChanged }: Pr
         await load();
         return;
       }
-      showToast({ message: t("subscriptions.corrections.saved"), variant: "success" });
+      showToast({
+        message: t(res.action === "awaiting_accounting" ? "subscriptions.corrections.awaitingSaved" : "subscriptions.corrections.saved"),
+        variant: "success",
+      });
       setOpenId(null);
       setReason("");
       await load();
@@ -96,9 +103,16 @@ export function SubscriptionCorrectionsModal({ visible, onClose, onChanged }: Pr
           ) : items.length === 0 ? (
             <Text style={[styles.message, isRTL && styles.rtl]}>{t("subscriptions.corrections.none")}</Text>
           ) : (
-            items.map((item) => (
+            items.map((item) => {
+              const awaiting = item.status === "awaiting_accounting";
+              return (
               <View key={item.id} style={styles.item}>
                 <Text style={[styles.name, isRTL && styles.rtl]}>{item.payee_display_name}</Text>
+                {awaiting ? (
+                  <View style={[styles.chip, isRTL && styles.chipRtl]}>
+                    <Text style={styles.chipText}>{t("subscriptions.corrections.awaitingChip")}</Text>
+                  </View>
+                ) : null}
                 <Text style={[styles.line, isRTL && styles.rtl]}>
                   {formatISODateFull(item.session_date, language)} · {t(`subscriptions.deleteImpact.state.${item.slot_state}`)}
                 </Text>
@@ -116,10 +130,17 @@ export function SubscriptionCorrectionsModal({ visible, onClose, onChanged }: Pr
                     {item.receipts.map((r) => (r.number != null ? `#${r.number}` : t("subscriptions.corrections.externalReceipt"))).join(", ")}
                   </Text>
                 </View>
+                {awaiting && item.review_requested_at ? (
+                  <Text style={[styles.line, isRTL && styles.rtl]}>
+                    {t("subscriptions.corrections.awaitingExplain")
+                      .replace("{date}", formatISODateFull(item.review_requested_at.slice(0, 10), language))
+                      .replace("{reason}", item.review_reason ?? "")}
+                  </Text>
+                ) : null}
                 {openId === item.id ? (
                   <View style={styles.decide}>
                     <Text style={[styles.line, isRTL && styles.rtl]}>
-                      {t("subscriptions.corrections.applyEffect").replace("{amount}", displayMoney(item.balance_change_if_applied_ils))}
+                      {t(accountingConfirmed ? "subscriptions.corrections.applyEffect" : "subscriptions.corrections.requestEffect").replace("{amount}", displayMoney(item.balance_change_if_applied_ils))}
                     </Text>
                     <TextInput
                       value={reason}
@@ -137,14 +158,16 @@ export function SubscriptionCorrectionsModal({ visible, onClose, onChanged }: Pr
                         variant="ghost"
                         style={styles.btn}
                       />
-                      <PrimaryButton
-                        label={t("subscriptions.corrections.apply")}
-                        onPress={() => void decide(item, "applied_regular_price")}
-                        disabled={reason.trim().length < 3}
-                        loading={busy}
-                        variant="danger"
-                        style={styles.btn}
-                      />
+                      {accountingConfirmed || !awaiting ? (
+                        <PrimaryButton
+                          label={t(accountingConfirmed ? "subscriptions.corrections.apply" : "subscriptions.corrections.request")}
+                          onPress={() => void decide(item, "applied_regular_price")}
+                          disabled={reason.trim().length < 3}
+                          loading={busy}
+                          variant={accountingConfirmed ? "danger" : undefined}
+                          style={styles.btn}
+                        />
+                      ) : null}
                     </View>
                   </View>
                 ) : (
@@ -158,7 +181,8 @@ export function SubscriptionCorrectionsModal({ visible, onClose, onChanged }: Pr
                   />
                 )}
               </View>
-            ))
+              );
+            })
           )}
         </ScrollView>
         <PrimaryButton label={t("common.close")} onPress={onClose} variant="ghost" />
@@ -179,6 +203,9 @@ const styles = StyleSheet.create({
   value: { fontSize: 13, fontWeight: "800", color: theme.colors.text, flexShrink: 1 },
   row: { flexDirection: "row", justifyContent: "space-between", gap: theme.spacing.sm },
   rowRtl: { flexDirection: "row-reverse" },
+  chip: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 3, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border },
+  chipRtl: { alignSelf: "flex-end" },
+  chipText: { fontSize: 12, fontWeight: "800", color: theme.colors.text },
   decide: { gap: 8 },
   input: { minHeight: 44, paddingHorizontal: 12, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.borderInput, backgroundColor: theme.colors.surface, color: theme.colors.text, fontSize: 16 },
   actions: { flexDirection: "row", gap: theme.spacing.sm },

@@ -22,7 +22,7 @@ type Props = {
   /** Pre-formatted lifetime balance for this subscription ("Owes X" / "Credit X"), shown as context only -- never allocated to a specific period. Omit (null/undefined) when there's nothing to show (e.g. balance is exactly even). */
   outstandingLabel?: string | null;
   /** A stopped subscription: the default is what it owes, not a month's price. */
-  isStopped?: boolean;
+  settlementOnly?: boolean;
   onSaved: () => void | Promise<void>;
 };
 
@@ -39,7 +39,7 @@ export function AddSubscriptionPaymentModal({
   payeeLabel,
   defaultAmountIls,
   outstandingLabel,
-  isStopped,
+  settlementOnly,
   onSaved,
 }: Props) {
   const { t, isRTL, language } = useI18n();
@@ -152,7 +152,7 @@ export function AddSubscriptionPaymentModal({
           style={[styles.input, isRTL && styles.inputRtl]}
           editable={!busy}
         />
-        {defaultAmountIls > 0 && !isStopped ? (
+        {defaultAmountIls > 0 && !settlementOnly ? (
           <Text style={[styles.hint, isRTL && styles.rtlText]}>
             {t("subscriptions.payment.monthlyPriceHint").replace("{price}", displayMoney(defaultAmountIls))}
           </Text>

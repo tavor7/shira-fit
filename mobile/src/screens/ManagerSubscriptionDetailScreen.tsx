@@ -175,7 +175,8 @@ export function ManagerSubscriptionDetailScreen() {
   const current: SubscriptionVersionRow | undefined = versions.find((v) => v.effective_to === null) ?? versions[versions.length - 1];
   const isActiveGroup = current ? ACTIVE_STATUSES.has(current.display_status) : false;
   const isTombstoned = detail.subscription.deleted_at != null;
-  const isStopped = current?.display_status === "stopped";
+  // A stopped or ended subscription takes payments only up to what it still owes.
+  const settlementOnly = current?.display_status === "stopped" || current?.display_status === "completed";
   const activeFreeze = detail.freezes.find(
     (f) => !f.cancelled_at && f.freeze_from <= todayIso() && f.freeze_until >= todayIso()
   );
@@ -496,7 +497,7 @@ export function ManagerSubscriptionDetailScreen() {
               </View>
             ))
           )}
-          {!isTombstoned && (!isStopped || outstanding > 0.005) ? (
+          {!isTombstoned && (!settlementOnly || outstanding > 0.005) ? (
             <PrimaryButton
               label={t("subscriptions.payment.recordAction")}
               onPress={() => setPaymentModalOpen(true)}
@@ -549,8 +550,8 @@ export function ManagerSubscriptionDetailScreen() {
         onClose={() => setPaymentModalOpen(false)}
         subscriptionId={String(id)}
         payeeLabel={payeeName}
-        defaultAmountIls={isStopped ? outstanding : current?.monthly_price_ils ?? 0}
-        isStopped={isStopped}
+        defaultAmountIls={settlementOnly ? outstanding : current?.monthly_price_ils ?? 0}
+        settlementOnly={settlementOnly}
         outstandingLabel={outstanding !== 0 ? outstandingLabel : null}
         onSaved={loadPayments}
       />

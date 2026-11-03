@@ -179,6 +179,7 @@ export function SubscriptionOverviewCard({ rangeStart, rangeEnd, anchorDate }: P
             chargesNext7Ils: stats.charges_next_7d_ils,
             endingNext14Count: stats.ending_next_14d_count,
             pendingCorrections: stats.pending_corrections_count,
+            awaitingAccounting: stats.awaiting_accounting_count,
           })
         : [],
     [stats, week?.over_allocated]
@@ -335,7 +336,7 @@ export function SubscriptionOverviewCard({ rangeStart, rangeEnd, anchorDate }: P
                 {a.amountIls != null ? <Text style={[styles.attentionSub, isRTL && styles.rtl]}>{displayMoney(a.amountIls)}</Text> : null}
               </>
             );
-            return a.key === "pendingCorrections" ? (
+            return a.key === "pendingCorrections" || a.key === "awaitingAccounting" ? (
               <Pressable
                 key={a.key}
                 onPress={() => setCorrectionsOpen(true)}

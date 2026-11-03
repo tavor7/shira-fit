@@ -123,6 +123,7 @@ const ACTIVITY_GROUP_TYPES: Record<Exclude<ActivityGroupId, "all">, string[]> = 
     "subscription_stopped",
     "subscription_deleted",
     "subscription_correction_decided",
+    "subscription_correction_review_requested",
     "account_payment_reversed",
     "pricing_setting_created",
     "pricing_setting_updated",
