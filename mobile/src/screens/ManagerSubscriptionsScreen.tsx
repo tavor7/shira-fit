@@ -16,6 +16,7 @@ import { formatISODateFull } from "../lib/dateFormat";
 import type { LanguageCode } from "../i18n/translations";
 import {
   rpcListActiveSubscriptions,
+  rpcManagerSubscriptionOverviewBreakdown,
   rpcListSubscriptionHistory,
   type SubscriptionHistoryRow,
   type SubscriptionListRow,
@@ -58,12 +59,17 @@ export function ManagerSubscriptionsScreen() {
   usePerfScreen("manager.subscriptions", !loading);
   const [error, setError] = useState<string | null>(null);
   const [awaitingTerms, setAwaitingTerms] = useState<Set<string>>(new Set());
+  const [balances, setBalances] = useState<Map<string, number>>(new Map());
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [a, h] = await Promise.all([rpcListActiveSubscriptions(supabase), rpcListSubscriptionHistory(supabase)]);
+      // The balance is extra information on the row; without it the list is still right, so a failure only hides it.
+      rpcManagerSubscriptionOverviewBreakdown(supabase)
+        .then((rows) => setBalances(Array.isArray(rows) ? new Map(rows.map((r) => [r.subscription_id, r.outstanding_ils])) : new Map()))
+        .catch(() => setBalances(new Map()));
       setActive(a);
       setHistory(h);
       // Terms status is informational here (the server enforces the hold); a failure just hides the chip.
@@ -156,6 +162,7 @@ export function ManagerSubscriptionsScreen() {
                   isRTL={isRTL}
                   t={t}
                   awaitingTerms={awaitingTerms.has(row.subscription_id)}
+                  balance={balances.get(row.subscription_id)}
                   onPress={() => router.push(`/(app)/manager/subscriptions/${row.subscription_id}`)}
                 />
               ))
@@ -185,6 +192,7 @@ function ActiveSubscriptionRow({
   isRTL,
   t,
   awaitingTerms,
+  balance,
   onPress,
 }: {
   row: SubscriptionListRow;
@@ -192,6 +200,7 @@ function ActiveSubscriptionRow({
   isRTL: boolean;
   t: (k: string) => string;
   awaitingTerms?: boolean;
+  balance?: number;
   onPress: () => void;
 }) {
   return (
@@ -229,7 +238,14 @@ function ActiveSubscriptionRow({
       </View>
       {row.next_billing_date ? (
         <Text style={[styles.rowMetaText, isRTL && styles.rtl]}>
-          {t("subscriptions.rowNextBilling")}: {formatISODateFull(row.next_billing_date, language)}
+          {t(row.display_status === "scheduled" ? "subscriptions.overview.firstChargeLabel" : "subscriptions.rowNextBilling")}: {formatISODateFull(row.next_billing_date, language)}
+        </Text>
+      ) : null}
+      {balance != null && Math.abs(balance) > 0.005 ? (
+        <Text style={[styles.rowMetaText, isRTL && styles.rtl]}>
+          {balance > 0
+            ? t("billing.balanceOwes").replace("{n}", displayMoney(balance))
+            : t("billing.balanceCredit").replace("{n}", displayMoney(-balance))}
         </Text>
       ) : null}
     </Pressable>

@@ -31,7 +31,8 @@ api_as() { local role=$1 uid=$2; shift 2
     [ -n "$uid" ] && echo "set local request.jwt.claims = '{\"sub\":\"$uid\",\"role\":\"$role\"}';"
     printf '%s\n' "$1"; echo "commit;"; } | $PSQL_AUTH -qAt -v ON_ERROR_STOP=1 -f - 2>&1; }
 api() { api_as authenticated "$@"; }
-refused() { case "$2" in *subscription_record_immutable*) ok "$1 (refused)";; *) fail "$1 NOT refused: $(echo "$2" | head -1 | cut -c1-160)";; esac; }
+# Two layers now: managers have no write privilege at all, and the trigger still refuses for any role that does.
+refused() { case "$2" in *subscription_record_immutable*|*"permission denied"*) ok "$1 (refused)";; *) fail "$1 NOT refused: $(echo "$2" | head -1 | cut -c1-160)";; esac; }
 allowed() { case "$2" in *subscription_record_immutable*|*ERROR*) fail "$1: $(echo "$2" | head -1 | cut -c1-160)";; *) ok "$1";; esac; }
 
 n=$(date +%s%N | tail -c 9)
@@ -74,14 +75,14 @@ refused "G subscription_impact_events" "$(api "$M" "delete from public.subscript
 
 echo "== U2: subscription_registration_coverage and subscription_impact_event_registrations stay deletable (20261026160000 fix -- no money column, always cascade-on-registration-delete by original schema design)"
 COV=$(su -c "insert into public.subscription_registration_coverage (subscription_id, version_id, registration_id, session_date, week_start, tier, covered, non_coverage_reason, decided_by) values ('$SUB', '$VER', '$REGX', current_date, current_date, 'personal', false, 'frozen', 'reconcile') returning id" 2>&1 | head -1)
-case "$COV" in *-*-*-*-*) allowed "U2 direct delete of a subscription_registration_coverage row" "$(api "$M" "delete from public.subscription_registration_coverage where id = '$COV'; select 1;")";; *) fail "U2 coverage fixture insert failed: $COV";; esac
+case "$COV" in *-*-*-*-*) allowed "U2 direct delete of a subscription_registration_coverage row" "$(su -c "delete from public.subscription_registration_coverage where id = '$COV'; select 1;")";; *) fail "U2 coverage fixture insert failed: $COV";; esac
 
 EVTREG=$(su -c "insert into public.subscription_impact_event_registrations (event_id, registration_id, previous_covered, new_covered) values ('$EVT', '$REGX', true, false) returning id" 2>&1 | head -1)
-case "$EVTREG" in *-*-*-*-*) allowed "U2 direct delete of a subscription_impact_event_registrations row" "$(api "$M" "delete from public.subscription_impact_event_registrations where id = '$EVTREG'; select 1;")";; *) fail "U2 impact_event_registrations fixture insert failed: $EVTREG";; esac
+case "$EVTREG" in *-*-*-*-*) allowed "U2 direct delete of a subscription_impact_event_registrations row" "$(su -c "delete from public.subscription_impact_event_registrations where id = '$EVTREG'; select 1;")";; *) fail "U2 impact_event_registrations fixture insert failed: $EVTREG";; esac
 
 echo "== U: subscription_version_allowances stays deletable (edit_subscription_version depends on this)"
 su -c "insert into public.subscription_version_allowances (version_id, tier, weekly_limit) values ('$VER', 'pair', 2) on conflict do nothing" >/dev/null
-allowed "U direct delete of a subscription_version_allowances row" "$(api "$M" "delete from public.subscription_version_allowances where version_id = '$VER' and tier = 'pair'; select 1;")"
+allowed "U direct delete of a subscription_version_allowances row" "$(su -c "delete from public.subscription_version_allowances where version_id = '$VER' and tier = 'pair'; select 1;")"
 
 echo "== P: the real deletion path (delete_subscription, a tombstone) is unaffected"
 R=$(api "$M" "select public.delete_subscription('$SUB')::text;")

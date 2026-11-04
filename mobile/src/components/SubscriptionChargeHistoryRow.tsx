@@ -19,6 +19,8 @@ const LABEL_KEY_BY_TYPE: Record<SubscriptionCharge["charge_type"], string> = {
   freeze_credit: "billing.subscriptionChargeFreezeCredit",
   stop_proration: "billing.subscriptionChargeStopProration",
   reversal: "billing.subscriptionChargeReversal",
+  edit_correction: "billing.subscriptionChargeEditCorrection",
+  unfreeze_correction: "billing.subscriptionChargeUnfreezeCorrection",
 };
 
 // Display-only: this amount is already folded into computeBillingSummary's subscriptionChargesIls.

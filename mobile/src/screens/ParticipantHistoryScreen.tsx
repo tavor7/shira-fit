@@ -15,6 +15,7 @@ import { theme } from "../theme";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
 import { AddDiscountModal } from "../components/AddDiscountModal";
 import { AppSearchSheet } from "../components/AppSearchSheet";
+import { ReversePaymentModal } from "../components/ReversePaymentModal";
 import { supabase } from "../lib/supabase";
 import { athletePickerLabel, athleteSearchSubtitle } from "../lib/displayName";
 
@@ -168,6 +169,7 @@ export default function ParticipantHistoryScreen({
   const [addDiscountOpen, setAddDiscountOpen] = useState(false);
   const [editAccountPayment, setEditAccountPayment] = useState<AthleteAccountPayment | null>(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+  const [reversePaymentId, setReversePaymentId] = useState<string | null>(null);
   /** True after a successful Load for the current athlete/date range (hides billing card on fetch error). */
   const [reportReady, setReportReady] = useState(false);
   /**
@@ -234,6 +236,21 @@ export default function ParticipantHistoryScreen({
     } catch (e) {
       showError(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  async function reverseSubscriptionPayment(reason: string) {
+    if (!reversePaymentId) return;
+    setDeletingPaymentId(reversePaymentId);
+    const { data, error } = await supabase.rpc("manager_reverse_account_payment", { p_payment_id: reversePaymentId, p_reason: reason });
+    setDeletingPaymentId(null);
+    const code = error ? error.message : data?.ok === true ? null : String(data?.error ?? "failed");
+    if (code) {
+      showError(code === "has_receipt_history" ? t("billing.cannotDeleteReceiptedPaymentMessage") : code);
+      return;
+    }
+    setReversePaymentId(null);
+    showToast({ message: t("billing.paymentReversedToast"), variant: "success" });
+    await load({ silent: true });
   }
 
   function confirmDeleteAccountPayment(paymentId: string) {
@@ -1285,6 +1302,12 @@ export default function ParticipantHistoryScreen({
         ListEmptyComponent={<EmptyState icon="search-outline" title={t("participantHistory.noAthletes")} isRTL={isRTL} />}
       />
 
+      <ReversePaymentModal
+        visible={reversePaymentId !== null}
+        busy={deletingPaymentId !== null && deletingPaymentId === reversePaymentId}
+        onCancel={() => setReversePaymentId(null)}
+        onConfirm={(reason) => void reverseSubscriptionPayment(reason)}
+      />
       <AddAccountPaymentModal
         visible={addPayOpen}
         onClose={() => {
@@ -1623,7 +1646,7 @@ export default function ParticipantHistoryScreen({
                   setEditAccountPayment(pay);
                   setAddPayOpen(true);
                 }}
-                onDelete={confirmDeleteAccountPayment}
+                onDelete={item.pay.source_subscription_id ? setReversePaymentId : confirmDeleteAccountPayment}
                 receiptDocumentNumber={receiptBySourceId[item.pay.id]?.document_number ?? null}
                 reporterUnavailable={reportState.kind === "ok" && reportState.missingDetails.includes("staffNames")}
                 onViewReceipt={() => {

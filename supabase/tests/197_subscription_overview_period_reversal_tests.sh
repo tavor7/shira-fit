@@ -60,7 +60,7 @@ BP_START=$(su -c "select bp.period_start::text from public.subscription_billing_
 
 # Baseline: before the reversal, this subscription's full 360 is counted in a window spanning its billing period start.
 R_BEFORE=$(api "$M" "select public.manager_subscription_overview_stats('$BP_START'::date, '$BP_START'::date)::text;")
-CHARGES_BEFORE=$(echo "$R_BEFORE" | grep -o '"charges_total_ils" : [0-9.-]*' | head -1 | grep -o '[0-9.-]*$')
+CHARGES_BEFORE=$(echo "$R_BEFORE" | grep -o '"charges_total_ils" *: *[0-9.-]*' | head -1 | grep -o '[0-9.-]*$')
 
 R=$(api "$M" "select public.delete_subscription('$SUB')::text;")
 case "$R" in *'"ok" : true'*'"action" : "tombstoned"'*) ok "1 delete_subscription tombstoned the subscription and reversed its charge";; *) fail "1 delete_subscription: $R";; esac
@@ -69,7 +69,7 @@ ORIG_BP=$(su -c "select billing_period_id::text from public.subscription_charges
 expect "1 the reversal shares the SAME billing_period_id as the charge it reverses" "$ORIG_BP" "$REV_BP"
 
 R_AFTER=$(api "$M" "select public.manager_subscription_overview_stats('$BP_START'::date, '$BP_START'::date)::text;")
-CHARGES_AFTER=$(echo "$R_AFTER" | grep -o '"charges_total_ils" : [0-9.-]*' | head -1 | grep -o '[0-9.-]*$')
+CHARGES_AFTER=$(echo "$R_AFTER" | grep -o '"charges_total_ils" *: *[0-9.-]*' | head -1 | grep -o '[0-9.-]*$')
 DELTA=$(su -c "select ($CHARGES_AFTER - $CHARGES_BEFORE)::text")
 expect "1 charges_total_ils for the billing-period window drops by exactly 360 (nets to 0 for this subscription), not 0 (the pre-fix bug)" "-360.00" "$DELTA"
 
@@ -86,7 +86,7 @@ expect "2 manager_subscription_overview_breakdown hides the cancelled subscripti
 
 echo "== 3: a window that does not include the billing period start sees neither the charge nor its reversal"
 R_OUTSIDE=$(api "$M" "select public.manager_subscription_overview_stats('$BP_START'::date + 90, '$BP_START'::date + 120)::text;")
-CHARGES_OUTSIDE=$(echo "$R_OUTSIDE" | grep -o '"charges_total_ils" : [0-9.-]*' | head -1 | grep -o '[0-9.-]*$')
+CHARGES_OUTSIDE=$(echo "$R_OUTSIDE" | grep -o '"charges_total_ils" *: *[0-9.-]*' | head -1 | grep -o '[0-9.-]*$')
 DIRECT_OUTSIDE=$(su -c "select coalesce(sum(c.amount_ils),0)::text from public.subscription_charges c join public.subscription_billing_periods bp on bp.id = c.billing_period_id where bp.period_start between ('$BP_START'::date + 90) and ('$BP_START'::date + 120)")
 expect "3 a window after the billing period start independently matches a direct sum (no leakage into a later window)" "$DIRECT_OUTSIDE" "$CHARGES_OUTSIDE"
 
@@ -100,7 +100,7 @@ R2=$(api "$M" "select public.create_subscription('$A2', false, 250, current_date
 SUB2=$(echo "$R2" | grep -o '"subscription_id" : "[^"]*"' | head -1 | sed 's/.*"\([0-9a-f-]*\)"$/\1/')
 BP2_START=$(su -c "select bp.period_start::text from public.subscription_billing_periods bp join public.subscription_charges c on c.billing_period_id = bp.id where c.subscription_id = '$SUB2'")
 R2_STATS=$(api "$M" "select public.manager_subscription_overview_stats('$BP2_START'::date, '$BP2_START'::date)::text;")
-C2=$(echo "$R2_STATS" | grep -o '"charges_total_ils" : [0-9.-]*' | head -1 | grep -o '[0-9.-]*$')
+C2=$(echo "$R2_STATS" | grep -o '"charges_total_ils" *: *[0-9.-]*' | head -1 | grep -o '[0-9.-]*$')
 DIRECT2=$(su -c "select coalesce(sum(c.amount_ils),0)::text from public.subscription_charges c join public.subscription_billing_periods bp on bp.id = c.billing_period_id where bp.period_start = '$BP2_START'::date")
 expect "4 an un-reversed charge's window matches a direct sum exactly (still counted in full)" "$DIRECT2" "$C2"
 BREAKDOWN2=$(api "$M" "select charges_total_ils::text from public.manager_subscription_overview_breakdown() where subscription_id = '$SUB2';")
@@ -108,7 +108,7 @@ expect "4 manager_subscription_overview_breakdown's own charges_total_ils for a 
 
 echo "== 5: lifetime outstanding_ils still nets the cancelled subscription to 0"
 R5=$(api "$M" "select public.manager_subscription_overview_stats('2000-01-01'::date, '2100-01-01'::date)::text;")
-OUT5=$(echo "$R5" | grep -o '"outstanding_ils" : [0-9.-]*' | head -1 | grep -o '[0-9.-]*$')
+OUT5=$(echo "$R5" | grep -o '"outstanding_ils" *: *[0-9.-]*' | head -1 | grep -o '[0-9.-]*$')
 DIRECT5=$(su -c "select (coalesce((select sum(amount_ils) from public.subscription_charges),0) - coalesce((select sum(amount_ils) from public.athlete_account_payments where source_subscription_id is not null and reversed_at is null),0))::text")
 expect "5 lifetime outstanding_ils matches a direct independent computation" "$DIRECT5" "$OUT5"
 

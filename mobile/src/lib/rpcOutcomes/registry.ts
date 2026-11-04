@@ -61,7 +61,8 @@ export const DELEGATES: Readonly<Record<string, readonly string[]>> = {
   ],
   manager_weekly_stats: ["manager_weekly_stats_core"],
   staff_update_profile_text: ["staff_update_profile"],
-  stop_subscription: ["subscription_compute_impact"],
+  delete_subscription: ["delete_subscription_with_future_registrations"],
+  stop_subscription: ["stop_subscription_with_future_registrations"],
   stop_subscription_with_future_registrations: ["subscription_compute_impact"],
   sync_signup_electronic_receipts_consent: ["_try_sync_signup_consent_for_user"],
   sync_signup_legal_consents: ["_try_sync_signup_legal_consents_for_user"],
@@ -90,7 +91,7 @@ export const CONSUMED_CALLS: Readonly<Record<string, Readonly<Record<string, str
   cron_maintain_session_series_horizon: { _maintain_session_series_horizon_core: "cron entry point; result discarded (PERFORM)" },
   edit_subscription_version: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
   freeze_subscription: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
-  generate_due_subscription_charges: { subscription_generate_or_correct_billing_period: "per-subscription outcome recorded in the job result" },
+  generate_due_subscription_charges: { _subscription_integrity_check: "monitoring only; result discarded and exceptions swallowed", subscription_generate_or_correct_billing_period: "per-subscription outcome recorded in the job result" },
   manager_revert_activity_event: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
   reactivate_subscription: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
   register_for_session: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
@@ -99,7 +100,7 @@ export const CONSUMED_CALLS: Readonly<Record<string, Readonly<Record<string, str
     _series_add_manual_participant_checked: "result discarded (PERFORM) inside an exception-swallowing block; the function returns void anyway",
   },
   staff_move_session_participant: { subscription_reserve_or_reject: "decision record; only a RAISE can escape (defensive ones, and subscription_terms_required)" },
-  stop_subscription: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
+  _subscription_apply_unfreeze: { subscription_generate_or_correct_billing_period: "result discarded (PERFORM)" },
   stop_subscription_with_future_registrations: {
     subscription_generate_or_correct_billing_period: "result discarded (PERFORM)",
     _subscription_resolve_future_registrations: "returns a plain int (rows resolved), not an error-code-bearing result; stored into v_future_resolved and reported back as a count, never relayed as a code",
@@ -133,6 +134,7 @@ export const DYNAMIC_ERROR_SITES: Readonly<Record<string, readonly string[]>> = 
   _series_add_manual_participant_checked: ["p_entities"],
   clear_must_change_password: ["sqlerrm"],
   coach_add_athlete: ["p_entities", "sqlerrm"],
+  _subscription_integrity_check: ["p_entities"],
   edit_subscription_version: ["v_impact->>"],
   financial_backup_record_health_snapshot: ["p_message"],
   freeze_subscription: ["v_impact->>"],
@@ -143,7 +145,6 @@ export const DYNAMIC_ERROR_SITES: Readonly<Record<string, readonly string[]>> = 
   staff_set_account_disabled: ["sqlerrm"],
   staff_set_manual_participant_disabled: ["sqlerrm"],
   staff_set_session_roster_slot_price: ["sqlerrm"],
-  stop_subscription: ["v_impact->>"],
   stop_subscription_with_future_registrations: ["v_impact->>"],
 };
 
@@ -172,6 +173,8 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     session_payment_has_receipt_history: [B, "Raised on DELETE only when ANY document (including a cancelled one) has ever referenced this row -- narrowly extends history protection to deletion once a receipt has ever existed, even after cancellation (owner rule 2026-10-22); ordinary attendance/payment UPDATEs are unaffected."],
   },
   _guard_receipted_account_payment: {
+    subscription_payment_use_reversal: [B, "Subscription payments are reversed, not deleted; the UI offers reversal for them."],
+    subscription_payment_link_immutable: [V, "No screen edits this link; only a direct write reaches it."],
     account_payment_locked_receipt_issued: [B, "Raised by the row trigger when ANY caller, including a manager, tries to change a receipt-relevant field of (or delete) an athlete_account_payments row that already has an active issued receipt; a business-state refusal protecting receipt/payment consistency (owner rule 2026-10-20), matching _guard_receipted_session_payment's payment_locked_receipt_issued since 2026-10-20."],
     account_payment_reversed_immutable: [B, "Raised on any UPDATE or DELETE of a row already marked reversed_at (State D, owner rule 2026-10-22): a reversed payment is kept purely for historical auditability and can never again be edited, deleted, or un-reversed through ordinary editing."],
     account_payment_has_receipt_history: [B, "Raised on DELETE only when a receipt has ever been issued for this payment, even if since cancelled (State C, owner rule 2026-10-22): the row must survive because a document still references it by id, even though that document is itself cancelled."],
@@ -204,6 +207,7 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     missing_user_id: V,
   },
   _validate_athlete_account_payment: {
+    subscription_payment_wrong_payee: [V, "A payment may only be linked to the payee's own subscription."],
     account_disabled_payee: B,
     invalid_athlete_payee: V,
     invalid_manual_payee: V,
@@ -299,11 +303,9 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   delete_session_note: {
     not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
   },
-  delete_subscription: {
-    subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
-    subscription_has_payments: [B, "Owner policy (2026-10-26): a subscription with any valid (unreversed) payment, even partial, cannot be deleted. Expected rejection -- the UI should show a localized warning and suggest stop_subscription instead."],
-  },
   delete_subscription_with_future_registrations: {
+    delete_impact_changed: [B, "The sessions or prices changed after the manager reviewed them; the fresh list is returned for a new review."],
+    future_registrations_not_resolved: [T, "The resolver acted on fewer bookings than the checked list; the whole operation rolled back. Should never occur."],
     subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
     subscription_has_payments: [B, "Owner policy (2026-10-26): a subscription with any valid (unreversed) payment, even partial, cannot be deleted. Expected rejection -- the UI should show a localized warning and suggest stop instead."],
     invalid_future_registration_action: V,
@@ -441,12 +443,40 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   manager_reverse_account_payment: {
     already_reversed: B,
     has_receipt_history: [B, "A payment with any receipt history has its own correction path through the receipt."],
-    linked_to_subscription: B,
     not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted."],
     reason_required: V,
   },
   manager_subscription_overview_stats: {
     invalid_range: V,
+  },
+  manager_subscription_week_utilization: {
+    invalid_week: V,
+  },
+  subscription_delete_impact: {
+    subscription_not_found: [B, "Looks a row up by an id the UI took from a screen it displayed earlier; absence means the row is gone."],
+  },
+  manager_resolve_subscription_correction: {
+    invalid_decision: V,
+    reason_required: V,
+    correction_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier."],
+    already_decided_differently: [B, "Another manager decided this correction first."],
+    correction_changed: [B, "The session's regular price changed after the manager saw it; the screen reloads and asks again."],
+  },
+  _subscription_corrections_guard: {
+    subscription_record_immutable: [B, "Correction records are history and are only written by their RPCs."],
+    subscription_correction_already_decided: [B, "A decided correction cannot change."],
+    accounting_review_required: [B, "Applying a correction waits for accounting confirmation; only the resolver RPC writes this table."],
+  },
+  _subscription_payment_cap_check: {
+    no_outstanding_balance: [B, "A direct write cannot exceed what a stopped or ended subscription owes."],
+    amount_exceeds_outstanding: [B, "A direct write cannot exceed what a stopped or ended subscription owes."],
+  },
+  unfreeze_subscription: {
+    freeze_not_found: [B, "Looks a freeze up by an id the UI took from the history it displayed earlier."],
+    subscription_not_found: [B, "The subscription was deleted after the screen loaded."],
+  },
+  _subscription_charges_append_only: {
+    subscription_ledger_append_only: [T, "All charge writes are inserts by the billing RPCs, so an update reaching this trigger is a defect or a manual change."],
   },
   cancel_payment_reminder: {
     not_found_or_already_read: [B, "The reminder was already read, cancelled or closed by the time a manager tried to cancel it."],
@@ -501,6 +531,8 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     source_subscription_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
   },
   record_subscription_payment: {
+    no_outstanding_balance: [B, "A stopped subscription only accepts money it still owes (owner decision 2026-11-03)."],
+    amount_exceeds_outstanding: [B, "A stopped subscription only accepts money it still owes (owner decision 2026-11-03)."],
     invalid_amount: V,
     invalid_payment_method: V,
     invalid_subscription: V,
@@ -675,11 +707,8 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     series_date_conflict: B,
     session_not_found: [B, "Looks a row up by an id the UI took from a list it displayed earlier; absence means the row was deleted/changed in the meantime (stale reference), an expected state."],
   },
-  stop_subscription: {
-    no_current_version: [T, "Every subscription keeps exactly one open version (stop_subscription only sets stopped_effective_date; prod has 0 subscriptions without one). Occurrence = invariant violation."],
-    stop_date_required: V,
-  },
   stop_subscription_with_future_registrations: {
+    future_registrations_not_resolved: [T, "The resolver acted on fewer bookings than the checked list; the whole stop rolled back. Should never occur."],
     no_current_version: [T, "Every subscription keeps exactly one open version (stop_subscription only sets stopped_effective_date; prod has 0 subscriptions without one). Occurrence = invariant violation."],
     stop_date_required: V,
     invalid_future_registration_action: V,

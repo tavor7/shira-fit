@@ -1,0 +1,23 @@
+name: Subscription database tests
+
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/**", "scripts/db-tests/**", ".github/workflows/subscription-db-tests.yml"]
+  pull_request:
+    paths: ["supabase/**", "scripts/db-tests/**", ".github/workflows/subscription-db-tests.yml"]
+
+jobs:
+  subscription-suites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.75.0
+      # A throwaway stack on the runner: every migration replayed from empty. Never touches a hosted project.
+      - run: supabase start -x studio,mailpit,realtime,edge-runtime,logflare,vector,supavisor,imgproxy,postgres-meta
+      - run: scripts/db-tests/run-subscription-suite.sh
+        env:
+          DB_CONTAINER: supabase_db_receipt-archive-automation

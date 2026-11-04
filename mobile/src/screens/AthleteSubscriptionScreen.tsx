@@ -119,7 +119,9 @@ export function AthleteSubscriptionScreen() {
         ) : (
           <View style={styles.summaryCard}>
             <AppText variant="label" isRTL={isRTL} style={styles.summaryLabel}>
-              {t("athleteSubscription.activeLabel")}
+              {vm.kind === "scheduled"
+                ? t("athleteSubscription.scheduledLabel").replace("{date}", formatISODateFull(vm.planStartDate, language))
+                : t("athleteSubscription.activeLabel")}
             </AppText>
             <AppText variant="display" isRTL={isRTL} style={styles.summaryPrice}>
               {t("athleteSubscription.priceLine").replace("{price}", formatIls(vm.monthlyPriceIls))}
@@ -127,7 +129,7 @@ export function AthleteSubscriptionScreen() {
             {vm.nextBillingDate ? (
               <View style={[styles.summaryRow, rowFlipFor(isRTL) && styles.summaryRowRtl]}>
                 <AppText variant="caption" muted isRTL={isRTL}>
-                  {t("athleteSubscription.nextBilling")}
+                  {t(vm.kind === "scheduled" ? "athleteSubscription.firstCharge" : "athleteSubscription.nextBilling")}
                 </AppText>
                 <AppText variant="caption" isRTL={isRTL} style={styles.summaryValue}>
                   {formatISODateFull(vm.nextBillingDate, language)}

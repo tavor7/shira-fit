@@ -60,7 +60,7 @@ G=$(gms "$E1")
 expect "this week starts on Sunday (studio timezone)" "$W|0" "$(jf "$G" week_start)|$(su -c "select extract(dow from date '$W')::int")"
 expect "next week = the following Sunday" "$N" "$(nw "$G" week_start)"
 expect "next week ends on Saturday" "$(d "$N" 6)|6" "$(nw "$G" week_end)|$(su -c "select extract(dow from date '$(nw "$G" week_end)')::int")"
-contains "anon gets nothing (pre-existing not_authenticated guard)" "not_authenticated" "$(api_as anon "" "select public.get_my_subscription()::text;")"
+contains "anon cannot execute it at all" "permission denied" "$(api_as anon "" "select public.get_my_subscription()::text;")"
 
 echo "== E1: full next week with covered, extra, cancelled and waitlisted sessions"
 S1=$(sess 1 "10:05"); S2=$(sess 2 "10:05"); S3=$(sess 3 "10:05"); S4=$(sess 4 "10:05"); SF=$(sess 5 "10:05" 1)
@@ -78,7 +78,8 @@ expect "this week unaffected by next week's bookings" "0|0" "$(grp "$G" weekly_u
 contains "this week's rows keep their fields" '"configured_weekly_limit"' "$(su -c "select ('$G'::jsonb)->'weekly_usage'")"
 contains "on-time cancellation" '"ok" : true' "$(api "$E1" "select public.cancel_registration('$S1', 'test')::text;")"
 G=$(gms "$E1")
-expect "on-time cancellation stops counting (no double count, no charge)" "1|1" "$(grpn "$G" used)|$(grpn "$G" extra)"
+# The freed slot goes to the over-quota booking (reconcile), so the week reads 2 covered, 0 extra.
+expect "on-time cancellation frees its slot for the over-quota booking" "2|0" "$(grpn "$G" used)|$(grpn "$G" extra)"
 su -c "update public.cancellations set charged_full_price = true where session_id = '$S1' and user_id = '$E1'" >/dev/null
 G=$(gms "$E1")
 expect "a full-price late cancellation counts as used" "2" "$(grpn "$G" used)"

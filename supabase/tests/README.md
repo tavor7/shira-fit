@@ -1,6 +1,6 @@
 # SQL tests (`supabase/tests`)
 
-There is no pgTAP setup and no CI job for these tests (`.github/workflows` only runs the mobile Jest, tsc and lint checks). They are run by
+There is no pgTAP setup. The subscription suites run in CI (`.github/workflows/subscription-db-tests.yml`, via `scripts/db-tests/run-subscription-suite.sh`) against a throwaway stack; the rest are run by
 hand against a **scratch database**. Each file's header comment says what it covers and anything special it needs.
 
 ## Two kinds of files
@@ -44,3 +44,19 @@ They create users and sessions (`auth.users`, profiles, registrations), some **c
 ingestion configuration (`173`), several take advisory locks or hold row locks while racing sessions, and `144` replays about 8,000 observer
 cycles. The migration checks (`151`, `157`) execute the migration file itself. Even with a rollback, that can lock live tables, change live
 configuration or leave fixtures behind, and a "pass" on production data proves nothing. Production is verified only with read-only queries.
+
+## Suites with special needs
+
+`186` goes through the real gateway: set `REST_URL` (the stack's API URL plus `/rest/v1`) and `APIKEY` (the anon key). It is not in CI.
+`231` replaces `_studio_today_date` and `_session_has_ended` to pin the clock, and restores them on exit. Never run it anywhere but a disposable database.
+
+## Retired suites
+
+`71_billing_tests_freeze_stop.sql`, `72_billing_tests_retro_idem.sql`, `92_billing_segmentation_anchor_freeze.sql` and
+`124_freeze_pause_semantics_tests.sql` were removed. They ran on the stub schema against the function versions of their own
+phase, could not run on a real stack, and described a freeze moving the start of the cycle it falls in. Every scenario still
+relevant (B5-B12, VC1, VC2, A, D, F, G-L) now lives in `228_subscription_freeze_billing_rules_tests.sh`, under the same
+scenario ids, and runs in CI.
+
+Other stub-schema suites (`70`, `76`, `80`, `81`, `90`, `91`, `101`, `123`) test superseded versions of their own phase in the same
+way. They are historical: the current rules are the ones in CI.

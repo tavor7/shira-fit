@@ -14,7 +14,7 @@
 #      request (no smuggling the flag in alongside a legitimate-looking update)
 #   5  a crude SQL-injection-style attempt through PostgREST's filter syntax cannot reach set_config either
 #      (PostgREST parameterizes its filters; this is expected to fail as a syntax/type error, not succeed)
-#   6  anonymous and athlete callers cannot even see or touch the row (RLS, unchanged from the existing policy)
+#   6  anonymous callers have no table privilege and athletes are stopped by RLS: neither can see or touch the row
 #   7  the legitimate workflow (cancel_document with payment reversal) still succeeds through the same real
 #      gateway, proving the lockdown does not also break the authorized path
 # Requires: a running local Supabase stack (REST gateway + DB), reachable at $REST_URL, with the local dev JWT
@@ -92,10 +92,10 @@ code=$(curl -s -o /tmp/186_resp.json -w "%{http_code}" \
   -H "apikey: $APIKEY" -H "Authorization: Bearer $MJWT")
 [ "$code" = "400" ] && grep -q "invalid input syntax" /tmp/186_resp.json && ok "5 injection-style filter rejected as a syntax/type error (PostgREST parameterizes filters)" || fail "5 injection attempt: HTTP $code $(cat /tmp/186_resp.json)"
 
-echo "== 6: anonymous and athlete callers cannot even see or touch the row (unchanged RLS)"
+echo "== 6: anonymous and athlete callers cannot even see or touch the row"
 code=$(rest GET "/athlete_account_payments?id=eq.$PAY" "$APIKEY")
-expect "6 anon GET returns an empty list (RLS, manager-only select)" "200" "$code"
-grep -q '^\[\]$' /tmp/186_resp.json && ok "6 anon sees zero rows" || fail "6 anon response: $(cat /tmp/186_resp.json)"
+expect "6 anon GET is refused (no table privilege since 20261104103000)" "401" "$code"
+grep -q 'permission denied' /tmp/186_resp.json && ! grep -q "$PAY" /tmp/186_resp.json && ok "6 anon sees no row" || fail "6 anon response: $(cat /tmp/186_resp.json)"
 code=$(rest PATCH "/athlete_account_payments?id=eq.$PAY" "$AJWT" '{"reversed_at":"2026-10-20T00:00:00Z"}')
 grep -q '^\[\]$' /tmp/186_resp.json && ok "6 athlete PATCH affects zero rows (RLS, manager-only write)" || fail "6 athlete PATCH: HTTP $code $(cat /tmp/186_resp.json)"
 expect "6 reversed_at is still null after every attempt" "" "$(su -c "select reversed_at::text from public.athlete_account_payments where id = '$PAY'")"

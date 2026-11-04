@@ -158,9 +158,9 @@ expect "14 the subscription row itself is NOT tombstoned (blocked attempt modifi
 
 echo "== 15: manager_subscription_overview_stats -- additive, no double counting"
 R=$(api "$M" "select public.manager_subscription_overview_stats(current_date - 30, current_date + 30)::text;")
-case "$R" in *'"ok" : true'*) ok "15 manager_subscription_overview_stats succeeds for a manager";; *) fail "15 $R";; esac
+case "$R" in *'"ok": true'*|*'"ok" : true'*) ok "15 manager_subscription_overview_stats succeeds for a manager";; *) fail "15 $R";; esac
 forbidden "15 coach calling manager_subscription_overview_stats" "$(api "$CO" "select public.manager_subscription_overview_stats(current_date - 30, current_date + 30)::text;")"
-PAYMENTS_TOTAL=$(echo "$R" | grep -o '"payments_total_ils" : [0-9.]*' | head -1 | grep -o '[0-9.]*$')
+PAYMENTS_TOTAL=$(echo "$R" | grep -o '"payments_total_ils" *: *[0-9.]*' | head -1 | grep -o '[0-9.]*$')
 DIRECT_TOTAL=$(su -c "select coalesce(sum(amount_ils),0)::text from public.athlete_account_payments where source_subscription_id is not null and reversed_at is null and paid_at between current_date - 30 and current_date + 30")
 expect "15 payments_total_ils matches a direct independent sum (no double counting / undercounting)" "$DIRECT_TOTAL" "$PAYMENTS_TOTAL"
 

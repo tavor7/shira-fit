@@ -84,6 +84,8 @@ export type DailyExpectedSession = {
 export type DailyExpectedDay = {
   date: string;
   expected_ils: number;
+  /** Subscription charges posted for this day; already included in expected_ils. */
+  subscription_charges_ils: number;
   sessions: DailyExpectedSession[];
 };
 
@@ -103,6 +105,7 @@ export type FinanceBreakdownSession = {
 export type FinanceBreakdownDay = {
   date: string;
   expected_ils: number;
+  subscription_charges_ils: number;
   collected_ils: number;
   sessions_ils: number;
   account_ils: number;
@@ -225,6 +228,7 @@ export function parseExpectedByDay(raw: unknown): DailyExpectedDay[] {
     out.push({
       date,
       expected_ils: num(r.expected_ils),
+      subscription_charges_ils: num(r.subscription_charges_ils),
       sessions,
     });
   }
@@ -265,6 +269,7 @@ export function mergeFinanceBreakdownDays(finance: WeeklyFinance | null): Financ
     return {
       date,
       expected_ils: exp?.expected_ils ?? 0,
+      subscription_charges_ils: exp?.subscription_charges_ils ?? 0,
       collected_ils: coll?.collected_ils ?? 0,
       sessions_ils: coll?.sessions_ils ?? 0,
       account_ils: coll?.account_ils ?? 0,

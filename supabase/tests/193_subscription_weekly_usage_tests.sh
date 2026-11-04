@@ -104,10 +104,7 @@ expect "C frozen_days is present" "0" "$(jf "$R" frozen_days)"
 
 echo "== D: unauthorized access"
 anon_out=$(api_as "anon" "" "select public.get_subscription_weekly_usage('$SUB', '$WEDNESDAY')::text;")
-if is_error "$anon_out"; then fail "D anon call raised an error instead of a clean forbidden JSON: $(echo "$anon_out" | head -1 | cut -c1-160)"; else
-  expect "D anon reaches the function and gets ok:false" "false" "$(jf "$anon_out" ok)"
-  expect "D anon gets error:forbidden (not an exception)" "forbidden" "$(jf "$anon_out" error)"
-fi
+case "$anon_out" in *"permission denied"*) ok "D anon cannot execute it at all";; *) fail "D anon reached the function: $(echo "$anon_out" | head -1 | cut -c1-160)";; esac
 athlete_out=$(api_as "authenticated" "$A" "select public.get_subscription_weekly_usage('$SUB', '$WEDNESDAY')::text;")
 expect "D the subscription's own athlete (non-manager) is refused" "forbidden" "$(jf "$athlete_out" error)"
 

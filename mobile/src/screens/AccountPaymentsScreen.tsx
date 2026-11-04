@@ -24,6 +24,7 @@ import { SortToggleButton } from "../components/SortToggleButton";
 import { AppSearchField } from "../components/AppSearchField";
 import { AppModal } from "../components/AppModal";
 import { AddAccountPaymentModal } from "../components/AddAccountPaymentModal";
+import { ReversePaymentModal } from "../components/ReversePaymentModal";
 import { SelectionPulse } from "../components/SelectionPulse";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ListRowSkeleton } from "../components/ListRowSkeleton";
@@ -134,6 +135,7 @@ export default function AccountPaymentsScreen() {
   usePerfScreen("manager.accountPayments", !loading);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reversePaymentId, setReversePaymentId] = useState<string | null>(null);
   const [manualReceiptBusyRowId, setManualReceiptBusyRowId] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -505,7 +507,32 @@ export default function AccountPaymentsScreen() {
     setAddPayOpen(true);
   }
 
-  function confirmDelete(paymentId: string) {
+  async function reverseSubscriptionPayment(reason: string) {
+    if (!reversePaymentId) return;
+    setDeletingId(reversePaymentId);
+    const { data, error } = await supabase.rpc("manager_reverse_account_payment", { p_payment_id: reversePaymentId, p_reason: reason });
+    setDeletingId(null);
+    const code = error ? error.message : data?.ok === true ? null : String(data?.error ?? "failed");
+    if (code) {
+      showToast({
+        message: t("common.error"),
+        detail: code === "has_receipt_history" ? t("billing.cannotDeleteReceiptedPaymentMessage") : code,
+        variant: "error",
+      });
+      return;
+    }
+    setReversePaymentId(null);
+    showToast({ message: t("billing.paymentReversedToast"), variant: "success" });
+    await reload();
+  }
+
+  async function confirmDelete(paymentId: string) {
+    // Subscription payments are reversed with a reason, never deleted, so they skip the delete confirmation.
+    const { data } = await supabase.from("athlete_account_payments").select("source_subscription_id").eq("id", paymentId).maybeSingle();
+    if (data?.source_subscription_id) {
+      setReversePaymentId(paymentId);
+      return;
+    }
     showConfirm({
       title: t("common.confirm"),
       message: t("billing.deletePaymentConfirm"),
@@ -518,7 +545,10 @@ export default function AccountPaymentsScreen() {
           const { error } = await supabase.from("athlete_account_payments").delete().eq("id", paymentId);
           setDeletingId(null);
           if (error) {
-            if (error.message.includes("account_payment_locked_receipt_issued")) {
+            if (error.message.includes("subscription_payment_use_reversal")) {
+              // Subscription payments are reversed with a reason, never deleted.
+              setReversePaymentId(paymentId);
+            } else if (error.message.includes("account_payment_locked_receipt_issued")) {
               showToast({
                 message: t("billing.cannotModifyPaymentTitle"),
                 detail: t("billing.cannotModifyPaymentMessage"),
@@ -900,7 +930,7 @@ export default function AccountPaymentsScreen() {
                     </Pressable>
                     <View style={styles.actionSep} />
                     <Pressable
-                      onPress={() => confirmDelete(item.record_id)}
+                      onPress={() => void confirmDelete(item.record_id)}
                       disabled={busy}
                       hitSlop={10}
                       style={({ pressed }) => [styles.actionItem, styles.actionItemDanger, pressed && !busy && styles.actionItemPressed]}
@@ -1036,6 +1066,13 @@ export default function AccountPaymentsScreen() {
             : null}
         </View>
       </AppModal>
+
+      <ReversePaymentModal
+        visible={reversePaymentId !== null}
+        busy={deletingId !== null && deletingId === reversePaymentId}
+        onCancel={() => setReversePaymentId(null)}
+        onConfirm={(reason) => void reverseSubscriptionPayment(reason)}
+      />
 
       {addPayee ? (
         <AddAccountPaymentModal
