@@ -45,6 +45,11 @@ ingestion configuration (`173`), several take advisory locks or hold row locks w
 cycles. The migration checks (`151`, `157`) execute the migration file itself. Even with a rollback, that can lock live tables, change live
 configuration or leave fixtures behind, and a "pass" on production data proves nothing. Production is verified only with read-only queries.
 
+## Suites with special needs
+
+`186` goes through the real gateway: set `REST_URL` (the stack's API URL plus `/rest/v1`) and `APIKEY` (the anon key). It is not in CI.
+`231` replaces `_studio_today_date` and `_session_has_ended` to pin the clock, and restores them on exit. Never run it anywhere but a disposable database.
+
 ## Retired suites
 
 `71_billing_tests_freeze_stop.sql`, `72_billing_tests_retro_idem.sql`, `92_billing_segmentation_anchor_freeze.sql` and
