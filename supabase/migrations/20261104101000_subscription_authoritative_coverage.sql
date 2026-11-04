@@ -549,6 +549,65 @@ $$;
 -- 7. Weekly usage, read by the athlete view, the manager's detail screen and the Overview's reconciliation test.
 --    Counted per person, like the limit it is compared with. p_subscription_id is kept for its callers.
 -- ---------------------------------------------------------------------------
+-- What the week allowed for one session, leaving out changes that take effect after it: days up to the session count as they
+-- were, later days count as eligible. A change effective on or before the session is part of the answer.
+create or replace function public._subscription_session_entitlement(
+  p_payee_id uuid, p_payee_is_manual boolean, p_tier public.subscription_tier, p_week_start date, p_session_date date
+)
+returns int
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_ctx public.subscription_effective_context_result;
+  v_day public.subscription_effective_context_result;
+  v_limit int;
+  v_eligible int := 0;
+  d date;
+begin
+  v_ctx := public.subscription_effective_context(p_payee_id, p_payee_is_manual, p_session_date, p_tier);
+  v_limit := coalesce(v_ctx.weekly_limit, 0);
+  if v_ctx.subscription_id is null or not v_ctx.in_window or v_limit <= 0 then
+    return 0;
+  end if;
+  for d in select generate_series(p_week_start, p_week_start + 5, interval '1 day')::date loop
+    if d > p_session_date then
+      v_eligible := v_eligible + 1;
+    else
+      v_day := public.subscription_effective_context(p_payee_id, p_payee_is_manual, d, p_tier);
+      if v_day.in_window and not v_day.is_frozen then
+        v_eligible := v_eligible + 1;
+      end if;
+    end if;
+  end loop;
+  return ceil(v_limit * v_eligible / 6.0)::int;
+end;
+$$;
+
+-- The allowance to report for a week: the effective limit, or more when completed sessions keep coverage they validly held
+-- before a later change reduced it. Bookings are always checked against the effective limit itself.
+create or replace function public._subscription_week_reported_limit(
+  p_payee_id uuid, p_payee_is_manual boolean, p_tier public.subscription_tier, p_week_start date
+)
+returns int
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select greatest(
+    public.subscription_effective_weekly_limit(p_payee_id, p_payee_is_manual, p_tier, p_week_start),
+    coalesce((
+      select least(count(*)::int, public._subscription_session_entitlement(p_payee_id, p_payee_is_manual, p_tier, p_week_start, min(sl.session_date)))
+      from public._subscription_week_slots(p_week_start, p_payee_id, p_payee_is_manual) sl
+      where sl.tier = p_tier and sl.covered and sl.slot_state in ('attended', 'penalty', 'unmarked')
+      having count(*) > 0
+    ), 0)
+  );
+$$;
+
 create or replace function public._subscription_week_usage(
   p_subscription_id uuid, p_payee_id uuid, p_payee_is_manual boolean, p_week_start date, p_tiers public.subscription_tier[]
 )
@@ -570,7 +629,7 @@ as $$
              lateral public.subscription_effective_context(p_payee_id, p_payee_is_manual, d::date, t.tier) ctx
         where ctx.in_window
       ), 0) as configured_weekly_limit,
-      public.subscription_effective_weekly_limit(p_payee_id, p_payee_is_manual, t.tier, p_week_start) as effective_weekly_limit,
+      public._subscription_week_reported_limit(p_payee_id, p_payee_is_manual, t.tier, p_week_start) as effective_weekly_limit,
       (select count(*) from counted c where c.tier = t.tier and c.covered and c.occupies) as used,
       (select count(*) from counted c where c.tier = t.tier and c.covered and c.slot_state = 'attended') as attended,
       (select count(*) from counted c where c.tier = t.tier and c.covered and c.slot_state = 'penalty') as penalty,
@@ -2469,7 +2528,7 @@ begin
     jsonb_build_object(
       'tier', a.tier,
       'configured_weekly_limit', a.weekly_limit,
-      'effective_weekly_limit', public.subscription_effective_weekly_limit(v_sub.payee_id, false, a.tier, v_week_start),
+      'effective_weekly_limit', public._subscription_week_reported_limit(v_sub.payee_id, false, a.tier, v_week_start),
       'used', (
         select count(*)
         from public._subscription_week_slots(v_week_start, v_sub.payee_id, false) sl

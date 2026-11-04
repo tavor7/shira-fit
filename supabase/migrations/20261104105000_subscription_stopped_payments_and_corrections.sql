@@ -14,6 +14,11 @@
 --
 -- Also: a penalty already charged at the regular price stays at that price if a covered booking is later cancelled.
 --
+-- Completed sessions and later changes: a stop, freeze, lowered allowance or shortened period does not take away coverage a
+-- session validly held before the change took effect. Such a session is measured against what the week allowed on its own
+-- date, and counts first, so future bookings still face the reduced limit. A change effective before the session, deletion,
+-- no-show release and receipt-lock decisions all work as they did.
+--
 -- Changes no existing row.
 
 create table if not exists public.subscription_deletion_corrections (
@@ -77,6 +82,10 @@ begin
   return new;
 end;
 $$;
+
+-- Whether a released no-show held a covered slot when it was released, so correcting the attendance restores exactly that.
+alter table public.subscription_registration_coverage
+  add column if not exists released_from_covered boolean not null default false;
 
 drop trigger if exists subscription_corrections_guard on public.subscription_deletion_corrections;
 create trigger subscription_corrections_guard
@@ -195,6 +204,8 @@ declare
   v_ctx public.subscription_effective_context_result;
   v_covered boolean;
   v_reason public.subscription_non_coverage_reason;
+  v_released_from_covered boolean;
+  v_today date := public._studio_today_date();
   r record;
 begin
   select payee_id, payee_is_manual into v_payee_id, v_payee_is_manual
@@ -210,7 +221,8 @@ begin
   v_limit := public.subscription_effective_weekly_limit(v_payee_id, v_payee_is_manual, p_tier, p_week_start);
 
   for r in
-    select g.*, ts.session_date, public._session_has_ended(ts) as ended,
+    select g.*, ts.session_date, public._session_has_ended(ts) as ended, h.held,
+           coalesce(cov.released_from_covered, false) as released_from_covered,
            cov.id as coverage_id, cov.subscription_id as was_subscription_id,
            exists (select 1 from public.subscription_deletion_corrections k
                    where k.coverage_id = cov.id and k.status in ('pending', 'awaiting_accounting', 'kept_covered')) as correction_hold, cov.covered as was_covered, cov.non_coverage_reason as was_reason,
@@ -232,9 +244,20 @@ begin
     join public.training_sessions ts on ts.id = g.session_id
     left join public.subscription_registration_coverage cov
       on cov.registration_id = g.registration_id or cov.manual_participant_id = g.manual_row_id
+    cross join lateral (
+      -- Held a covered slot, and the session is over (or began on an earlier date and is crossing midnight).
+      select (coalesce(cov.covered, false) or coalesce(cov.released_from_covered, false))
+             and (public._session_has_ended(ts) or ts.session_date < v_today)
+             and public._subscription_slot_state(g.status, g.attended, g.charge_no_show, g.charged_cancellation, public._session_has_ended(ts))
+                 in ('attended', 'penalty', 'unmarked', 'reserved') as held
+    ) h
     where ts.session_date between p_week_start and p_week_start + 6
       and public.subscription_tier_for_capacity(ts.max_participants) = p_tier
-    order by g.created_at asc, coalesce(g.registration_id, g.manual_row_id) asc
+    -- Completed sessions count first, by date, so what is left for future bookings does not depend on booking order.
+    order by case when h.held then 0 else 1 end,
+             case when h.held then ts.session_date end,
+             case when h.held then ts.start_time end,
+             g.created_at asc, coalesce(g.registration_id, g.manual_row_id) asc
   loop
     -- A cancelled booking holds nothing and is left as recorded.
     continue when r.state = 'cancelled';
@@ -244,6 +267,7 @@ begin
     continue when r.correction_hold;
 
     v_ctx := public.subscription_effective_context(v_payee_id, v_payee_is_manual, r.session_date, p_tier);
+    v_released_from_covered := false;
 
     if r.was_reason = 'subscription_deleted' and (r.ended or v_ctx.subscription_id is null) then
       -- Deleting a subscription moved this session to regular price; attendance edits must not undo that.
@@ -252,11 +276,19 @@ begin
     elsif r.state = 'released' then
       v_covered := false;
       v_reason := 'no_show_released';
-    elsif r.was_covered and r.ended and exists (
+      v_released_from_covered := coalesce(r.was_covered, false) or r.released_from_covered;
+    elsif r.held and r.ended and (exists (
       select 1 from public.subscription_versions sv
       where sv.subscription_id = r.was_subscription_id and sv.stopped_effective_date = r.session_date
-    ) then
-      -- A session on the stop date that had already taken place stays as it was.
+    ) or exists (
+      select 1 from public.subscription_freezes f
+      where f.subscription_id = r.was_subscription_id and f.cancelled_at is null and f.freeze_from = r.session_date
+    ) or exists (
+      select 1 from public.subscription_versions sv
+      where sv.subscription_id = r.was_subscription_id and sv.version_no > 1 and sv.effective_from = r.session_date
+    )) then
+      -- A session on the day a stop, freeze or edit takes effect that had already taken place stays as it was. Had the change
+      -- come first, the reconcile it ran would already have taken the coverage away.
       v_covered := true;
       v_reason := null;
       v_covered_count := v_covered_count + 1;
@@ -274,6 +306,11 @@ begin
       -- A penalty charged at the regular price stays that way: another booking being cancelled does not make it free.
       v_covered := false;
       v_reason := 'allowance_exceeded';
+    elsif r.held and v_covered_count < public._subscription_session_entitlement(v_payee_id, v_payee_is_manual, p_tier, p_week_start, r.session_date) then
+      -- Valid coverage on a completed session: a change that took effect after it does not take this away.
+      v_covered := true;
+      v_reason := null;
+      v_covered_count := v_covered_count + 1;
     elsif v_covered_count >= v_limit then
       v_covered := false;
       v_reason := 'allowance_exceeded';
@@ -291,12 +328,12 @@ begin
     if r.registration_id is not null then
       insert into public.subscription_registration_coverage(
         subscription_id, version_id, registration_id, manual_participant_id,
-        session_date, week_start, tier, covered, non_coverage_reason, decided_at, decided_by
+        session_date, week_start, tier, covered, non_coverage_reason, released_from_covered, decided_at, decided_by
       )
       values (
         coalesce(v_ctx.subscription_id, p_subscription_id), v_ctx.version_id, r.registration_id, null,
         r.session_date, p_week_start, p_tier,
-        v_covered, v_reason, now(), 'reconcile'
+        v_covered, v_reason, v_released_from_covered, now(), 'reconcile'
       )
       on conflict (registration_id) where registration_id is not null do update set
         subscription_id = excluded.subscription_id,
@@ -306,24 +343,26 @@ begin
         tier = excluded.tier,
         covered = excluded.covered,
         non_coverage_reason = excluded.non_coverage_reason,
+        released_from_covered = excluded.released_from_covered,
         decided_at = now(),
         decided_by = 'reconcile'
       where (public.subscription_registration_coverage.subscription_id, public.subscription_registration_coverage.version_id,
              public.subscription_registration_coverage.session_date, public.subscription_registration_coverage.week_start,
              public.subscription_registration_coverage.tier, public.subscription_registration_coverage.covered,
-             public.subscription_registration_coverage.non_coverage_reason)
+             public.subscription_registration_coverage.non_coverage_reason,
+             public.subscription_registration_coverage.released_from_covered)
         is distinct from
             (excluded.subscription_id, excluded.version_id, excluded.session_date, excluded.week_start, excluded.tier,
-             excluded.covered, excluded.non_coverage_reason);
+             excluded.covered, excluded.non_coverage_reason, excluded.released_from_covered);
     else
       insert into public.subscription_registration_coverage(
         subscription_id, version_id, registration_id, manual_participant_id,
-        session_date, week_start, tier, covered, non_coverage_reason, decided_at, decided_by
+        session_date, week_start, tier, covered, non_coverage_reason, released_from_covered, decided_at, decided_by
       )
       values (
         coalesce(v_ctx.subscription_id, p_subscription_id), v_ctx.version_id, null, r.manual_row_id,
         r.session_date, p_week_start, p_tier,
-        v_covered, v_reason, now(), 'reconcile'
+        v_covered, v_reason, v_released_from_covered, now(), 'reconcile'
       )
       on conflict (manual_participant_id) where manual_participant_id is not null do update set
         subscription_id = excluded.subscription_id,
@@ -333,15 +372,17 @@ begin
         tier = excluded.tier,
         covered = excluded.covered,
         non_coverage_reason = excluded.non_coverage_reason,
+        released_from_covered = excluded.released_from_covered,
         decided_at = now(),
         decided_by = 'reconcile'
       where (public.subscription_registration_coverage.subscription_id, public.subscription_registration_coverage.version_id,
              public.subscription_registration_coverage.session_date, public.subscription_registration_coverage.week_start,
              public.subscription_registration_coverage.tier, public.subscription_registration_coverage.covered,
-             public.subscription_registration_coverage.non_coverage_reason)
+             public.subscription_registration_coverage.non_coverage_reason,
+             public.subscription_registration_coverage.released_from_covered)
         is distinct from
             (excluded.subscription_id, excluded.version_id, excluded.session_date, excluded.week_start, excluded.tier,
-             excluded.covered, excluded.non_coverage_reason);
+             excluded.covered, excluded.non_coverage_reason, excluded.released_from_covered);
     end if;
   end loop;
 end;
@@ -902,6 +943,8 @@ grant execute on function public.manager_resolve_subscription_correction(uuid, t
 revoke all on function public.subscription_payment_target(uuid, boolean, date) from public, anon;
 grant execute on function public.subscription_payment_target(uuid, boolean, date) to authenticated;
 revoke all on function public._subscription_outstanding(uuid) from public, anon, authenticated;
+revoke all on function public._subscription_session_entitlement(uuid, boolean, public.subscription_tier, date, date) from public, anon, authenticated;
+revoke all on function public._subscription_week_reported_limit(uuid, boolean, public.subscription_tier, date) from public, anon, authenticated;
 revoke all on function public._subscription_settlement_only(uuid, date) from public, anon, authenticated;
 revoke all on function public._subscription_delete_history(uuid) from public, anon, authenticated;
 revoke all on function public._subscription_corrections_guard() from public, anon, authenticated;
