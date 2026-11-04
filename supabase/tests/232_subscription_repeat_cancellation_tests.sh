@@ -11,9 +11,10 @@ book() { mksession "$1"; S=$SX; register "$A" "$S"; }
 att() { api "$1" "select public.set_registration_attendance('$2','$3','$4',null,null,${5:-false})::text;"; }
 attended() { su -c "select coalesce(attended::text,'null') from public.session_registrations where session_id='$1' and user_id='$2'"; }
 money() { su -c "select (select coalesce(sum(amount_ils),0) from public.subscription_charges c join public.subscriptions s on s.id=c.subscription_id where s.payee_id='$1')
-  ||'|'||(select count(*) from public.athlete_account_payments where user_id='$1')
+  ||'|'||(select coalesce(sum(amount_ils),0) from public.athlete_account_payments where payee_id='$1')
   ||'|'||(select coalesce(sum(amount_paid),0) from public.session_registrations where user_id='$1')
   ||'|'||(select coalesce(sum(penalty_collected_ils),0) from public.cancellations where user_id='$1')"; }
+same_money() { local now; now=$(money "$A"); case "$M0" in *\|*\|*\|*) expect "$1" "$M0" "$now";; *) fail "$1: no balance could be read: [$M0]";; esac; }
 # role session status expected-attended expected-coverage [charge]
 step() { R=$(att "$1" "$S" "$A" "$2" "${5:-false}"); contains "$2: accepted" '"ok" : true' "$R"; expect "$2: attendance" "$3" "$(attended "$S" "$A")"; expect "$2: coverage" "$4" "$(cov "$REG")"; }
 
@@ -27,13 +28,13 @@ expect "a repeated update logs nothing new" "$E0" "$(su -c "select count(*) from
 step "$M" absent false "false:no_show_released"
 step "$M" absent false "true:" true
 step "$M" unset null "true:"
-expect "no money moved" "$M0" "$(money "$A")"
+same_money "no money moved"
 
 echo "coach"
 step "$CO" arrived true "true:"
 step "$CO" absent false "false:no_show_released"
 step "$CO" unset null "true:"
-expect "no money moved" "$M0" "$(money "$A")"
+same_money "no money moved"
 mkuser coach; R=$(att "$U" "$S" "$A" arrived); contains "another coach is refused" 'forbidden' "$R"
 expect "and nothing changed" "null" "$(attended "$S" "$A")"
 mkuser athlete; R=$(att "$U" "$S" "$A" arrived); contains "an athlete is refused" 'forbidden' "$R"
@@ -66,14 +67,14 @@ expect "the first is covered" "true:" "$(cov "$R1")"; expect "the second is over
 step "$M" arrived true "false:allowance_exceeded"; step "$M" arrived true "false:allowance_exceeded"
 S=$S1; REG=$R1; step "$M" arrived true "true:"
 expect "the allowance is not exceeded" "1" "$(su -c "select count(*) from public.subscription_registration_coverage where registration_id in ('$R1','$R2') and covered")"
-expect "no money moved" "$M0" "$(money "$A")"
+same_money "no money moved"
 
 echo "freeze and stop"
 newsub 2; book "$(wk 2 1)"; M0=$(money "$A")
 R=$(api "$M" "select public.freeze_subscription('$SUB','$(wk 2 0)','$(wk 2 6)',true)::text;"); expect "the freeze is accepted for this athlete" "true" "$(jf "$R" ok)"
 expect "frozen" "false:frozen" "$(cov "$REG")"
 step "$M" arrived true "false:frozen"; step "$M" unset null "false:frozen"
-expect "no money moved by attendance" "$M0" "$(money "$A")"
+same_money "no money moved by attendance"
 newsub 2; book "$(wk 2 1)"
 R=$(api "$M" "select public.stop_subscription_with_future_registrations('$SUB','$(wk 1 6)',true,'charge_regular_price',ARRAY['$REG']::uuid[],ARRAY[]::uuid[])::text;"); expect "the stop is accepted for this athlete" "true" "$(jf "$R" ok)"
 AFTER=$(cov "$REG"); case "$AFTER" in false:*) ok "uncovered by the stop";; *) fail "uncovered by the stop: got $AFTER";; esac
