@@ -3,16 +3,16 @@ import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
-import { useReceiptRequirements } from "../hooks/useReceiptRequirements";
+import type { ReceiptRequirementsState } from "../hooks/useReceiptRequirements";
 import { recordUserConsent } from "../lib/consent";
 import { supabase } from "../lib/supabase";
 import { ReceiptRequirementsGateCard, receiptGateTitle } from "./ReceiptRequirementsGateCard";
 import { useInertSiblings } from "../hooks/useInertSiblings";
 
-export function ReceiptRequirementsGateModal() {
+export function ReceiptRequirementsGateModal({ gate }: { gate: ReceiptRequirementsState }) {
   const { session, profile, refreshProfile } = useAuth();
   const { language, t, isRTL } = useI18n();
-  const { loading, mode, consent, blocksApp, reload } = useReceiptRequirements();
+  const { loading, mode, consent, blocksApp, reload } = gate;
 
   const overlayRef = useRef<View>(null);
   const shown = !!session && !loading && blocksApp && mode !== "none";

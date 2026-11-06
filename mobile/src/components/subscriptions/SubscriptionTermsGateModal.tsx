@@ -5,7 +5,7 @@ import { useI18n } from "../../context/I18nContext";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { useInertSiblings } from "../../hooks/useInertSiblings";
-import { useSubscriptionTermsGate } from "../../hooks/useSubscriptionTermsGate";
+import type { SubscriptionTermsGateState } from "../../hooks/useSubscriptionTermsGate";
 import { supabase } from "../../lib/supabase";
 import { rowFlipFor } from "../../lib/layoutDirection";
 import { rpcAcceptSubscriptionTerms, termsTextFor } from "../../lib/subscriptionTerms";
@@ -20,13 +20,13 @@ import { LanguageToggleChip } from "../LanguageToggleChip";
  * only reading, the unchecked-by-default consent checkbox, accepting, switching language and logging out (essential
  * authentication). Being unable to close it is never consent: only the athlete's own accept_subscription_terms call
  * records it, and the server also refuses the athlete's own registrations while acceptance is pending.
- * Stacked below LegalConsentGateModal (Terms of Use / Privacy), which is accepted first when both apply.
+ * Shown by BlockingGates only once Terms of Use / Privacy and receipt details no longer block.
  */
-export function SubscriptionTermsGateModal() {
+export function SubscriptionTermsGateModal({ gate }: { gate: SubscriptionTermsGateState }) {
   const { session, signOut } = useAuth();
   const { t, language, isRTL } = useI18n();
   const { showToast } = useToast();
-  const { loading, document, reload } = useSubscriptionTermsGate();
+  const { loading, document, reload } = gate;
   const [checked, setChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");

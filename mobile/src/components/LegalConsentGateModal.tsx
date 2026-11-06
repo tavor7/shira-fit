@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { theme } from "../theme";
 import { useI18n } from "../context/I18nContext";
 import { useAuth } from "../context/AuthContext";
-import { useLegalConsentGate } from "../hooks/useLegalConsentGate";
+import type { LegalConsentGateState } from "../hooks/useLegalConsentGate";
 import { useInertSiblings } from "../hooks/useInertSiblings";
 import { recordUserConsent } from "../lib/consent";
 import { AppText } from "./AppText";
@@ -18,15 +18,15 @@ const DOC_ROUTE: Record<string, string> = {
 
 /**
  * Existing-user mandatory re-consent gate for Terms of Use / Privacy Policy.
- * Rendered as an overlay (not a route redirect) inside (app)/_layout.tsx, matching the
+ * Rendered as an overlay (not a route redirect) by BlockingGates in (app)/_layout.tsx, matching the
  * existing ReceiptRequirementsGateModal pattern — no redirect loops, survives refresh.
  * Deliberately has no logout/dismiss escape hatch: accepting is the only way through,
  * and the gate re-appears on every login/foreground until they do.
  */
-export function LegalConsentGateModal() {
+export function LegalConsentGateModal({ gate }: { gate: LegalConsentGateState }) {
   const { session } = useAuth();
   const { language, t, isRTL } = useI18n();
-  const { loading, required, blocksApp, reload } = useLegalConsentGate();
+  const { loading, required, blocksApp, reload } = gate;
   const [checked, setChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
