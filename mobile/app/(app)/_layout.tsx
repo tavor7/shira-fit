@@ -19,9 +19,7 @@ import {
 } from "../../src/lib/sessionsHomeNavigation";
 import { isAthleteAccountDisabled, isNotificationsOnboardingNeeded, isPasswordChangeRequired } from "../../src/lib/profileAccount";
 import { useI18n } from "../../src/context/I18nContext";
-import { ReceiptRequirementsGateModal } from "../../src/components/ReceiptRequirementsGateModal";
-import { LegalConsentGateModal } from "../../src/components/LegalConsentGateModal";
-import { SubscriptionTermsGateModal } from "../../src/components/subscriptions/SubscriptionTermsGateModal";
+import { BlockingGates } from "../../src/components/BlockingGates";
 import { NotificationActivationModal } from "../../src/components/NotificationActivationModal";
 import { ManagerDirectMessageModal } from "../../src/components/ManagerDirectMessageModal";
 import { getLoginHrefWithOptionalRedirectWeb } from "../../src/lib/webLastRoute";
@@ -144,9 +142,8 @@ export default function AppLayout() {
   return (
     <AppPresenceProvider>
       <AppNavStatusProvider>
-      <LegalConsentGateModal />
-      <SubscriptionTermsGateModal />
-      <ReceiptRequirementsGateModal />
+      {/* One mandatory gate at a time: legal, then receipt details, then subscription terms. */}
+      <BlockingGates />
       <NotificationActivationModal />
       <ManagerDirectMessageModal />
       {/* Phase 5 / D: persistent staff navigation beside the screens on wide web; mirrors in Hebrew via <html dir>. */}

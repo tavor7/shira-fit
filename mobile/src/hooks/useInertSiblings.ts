@@ -17,6 +17,8 @@ export function useInertSiblings(ref: RefObject<unknown>, active: boolean) {
     const marked: HTMLElement[] = [];
     for (const sib of Array.from(parent.children)) {
       if (sib === el || !(sib instanceof HTMLElement) || sib.hasAttribute("inert")) continue;
+      // Never another blocking dialog: two overlays marking each other inert left neither tappable.
+      if (sib.getAttribute("aria-modal") === "true") continue;
       sib.setAttribute("inert", "");
       marked.push(sib);
     }
