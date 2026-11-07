@@ -246,6 +246,9 @@ export async function listDocuments(opts?: {
   date_end?: string | null;
   status?: DocumentStatus | null;
   customer_type?: DocumentCustomerType | null;
+  /** Payee filters run server-side, before limit/offset, so older matching documents are not paged away. */
+  profile_user_id?: string | null;
+  manual_participant_id?: string | null;
   limit?: number;
   offset?: number;
 }): Promise<{ rows: DocumentRow[]; total: number }> {
@@ -256,6 +259,8 @@ export async function listDocuments(opts?: {
     p_customer_type: opts?.customer_type ?? null,
     p_limit: opts?.limit ?? 200,
     p_offset: opts?.offset ?? 0,
+    p_profile_user_id: opts?.profile_user_id ?? null,
+    p_manual_participant_id: opts?.manual_participant_id ?? null,
   });
   if (error) throw error;
   const parsed = parseRpc<{ rows: DocumentRow[]; total: number }>(data);
