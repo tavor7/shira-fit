@@ -14,7 +14,7 @@ CP=$(cust "$TAG-P" null "'$P'"); CA=$(cust "$TAG-A" "'$A'" null); CF=$(cust "$TA
 # documents: customer, number suffix, created_at expression. source_type 'manual', so the listed date is created_at.
 mkdocs() { su -c "insert into public.documents (document_number, customer_id, gross_amount, net_amount, vat_amount, vat_rate, service_type,
     customer_name, business_name, business_id, business_address, business_phone, business_email, source_type, created_at)
-  select '$TAG-' || $2, '$1', 50, 50, 0, 0, 'other', '$TAG', 'B', '1', 'A', '0', 'b@t.local', 'manual', $3 $4" >/dev/null; }
+  select '$TAG-' || $2, '$1', 50, 50, 0, 0, 'other', '$TAG', 'B', '1', 'A', '0', 'b@t.local', 'manual', $3 ${4:-}" >/dev/null; }
 mkdocs "$CP" "'0926'" "now() - interval '150 days'"
 mkdocs "$CP" "'1024'" "now() - interval '110 days'"
 mkdocs "$CA" "'1300'" "now() - interval '10 days'"
