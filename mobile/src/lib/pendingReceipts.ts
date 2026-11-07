@@ -146,6 +146,23 @@ export async function listPaymentsWithoutReceipt(opts?: {
   return { payments, total_count: first.total_count, total_amount: first.total_amount };
 }
 
+export type BulkReceiptIssuePreview = {
+  /** Selected payments dated before the latest already-issued receipt: they are numbered after it. */
+  predating_count: number;
+  latest_issued_number: string | null;
+};
+
+/** Read-only check before a bulk issue. The server numbers a batch by business payment date regardless of row order. */
+export async function previewBulkReceiptIssue(rowIds: string[]): Promise<BulkReceiptIssuePreview> {
+  const { data, error } = await supabase.rpc("bulk_receipt_issue_preview", { p_row_ids: rowIds });
+  if (error) throw error;
+  const parsed = parseRpc<{ predating_count?: unknown; latest_issued_number?: unknown }>(data);
+  return {
+    predating_count: num(parsed.predating_count),
+    latest_issued_number: typeof parsed.latest_issued_number === "string" ? parsed.latest_issued_number : null,
+  };
+}
+
 export async function createDocumentsFromPayments(rowIds: string[]): Promise<CreateDocumentsFromPaymentsResult> {
   const { data, error } = await supabase.rpc("create_documents_from_payments", {
     p_row_ids: rowIds,

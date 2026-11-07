@@ -28,8 +28,11 @@ import { documentServiceTypeLabel } from "../lib/documentServiceTypes";
 import {
   createDocumentsFromPayments,
   listPaymentsWithoutReceipt,
+  previewBulkReceiptIssue,
   type PendingReceiptPayment,
 } from "../lib/pendingReceipts";
+import { bulkPredatingWarningMessage } from "../lib/bulkReceiptWarning";
+import { useAppAlert } from "../context/AppAlertContext";
 import { toISODateLocal } from "../lib/isoDate";
 import { useBottomChrome, useReportBottomBar } from "../context/BottomChromeContext";
 import { barBottomInset, fullBleedInnerPadding } from "../lib/screenLayout";
@@ -59,6 +62,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
   const screenContent = useScreenContentStyle("standard");
   const { width: viewportWidth } = useWindowDimensions();
   const { showToast } = useToast();
+  const { showConfirm } = useAppAlert();
   const { job: bulkJob, runJob: runBulkJob, cancelJob: cancelBulkJob } = useBulkJobs();
   const lang = ((language === "he" ? "he" : "en"));
   // Global by default: from the floor date (server-enforced regardless of what's picked below) through today.
@@ -162,12 +166,39 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
     }
   }
 
-  async function createSelected() {
+  /** Warns, without blocking, when selected payments are dated before an issued receipt; then issues. */
+  async function confirmCreateSelected() {
     if (selectedCount === 0 || bulkJob || createFetchingRef.current) return;
+    const rowIds = [...selected];
+    createFetchingRef.current = true;
+    let warning: string | null = null;
+    try {
+      warning = bulkPredatingWarningMessage(t("ui.pendingReceipts.predatingWarningMessage"), await previewBulkReceiptIssue(rowIds));
+    } catch {
+      // The warning is advisory: if the check fails, issuing must still be possible.
+    }
+    createFetchingRef.current = false;
+    if (!warning) {
+      await createSelected(rowIds);
+      return;
+    }
+    showConfirm({
+      title: t("ui.pendingReceipts.predatingWarningTitle"),
+      message: warning,
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("ui.pendingReceipts.issueAnyway"),
+      confirmVariant: "primary",
+      onConfirm: () => void createSelected(rowIds),
+    });
+  }
+
+  /** The server numbers the batch by business payment date, so the order of rowIds does not matter. */
+  async function createSelected(rowIds: string[]) {
+    if (rowIds.length === 0 || bulkJob || createFetchingRef.current) return;
     createFetchingRef.current = true;
     let result: Awaited<ReturnType<typeof createDocumentsFromPayments>>;
     try {
-      result = await createDocumentsFromPayments([...selected]);
+      result = await createDocumentsFromPayments(rowIds);
     } catch (e) {
       createFetchingRef.current = false;
       showToast({
@@ -512,7 +543,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
                   ? t("ui.pendingReceipts.createPdf")
                   : t("ui.pendingReceipts.createReceipts")
               }
-              onPress={() => void createSelected()}
+              onPress={() => void confirmCreateSelected()}
               disabled={creating || !!bulkJob}
               style={styles.footerBtn}
             />
