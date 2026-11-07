@@ -364,6 +364,7 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
   },
   list_documents: {
     invalid_customer_type: V,
+    invalid_payee_filter: V,
   },
   list_receipt_go_live_gaps: {
     invalid_gap_type: V,

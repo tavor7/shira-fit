@@ -66,6 +66,16 @@ import {
 } from "../lib/documents";
 import { DOCUMENT_PAYMENT_METHOD_KEYS, documentPaymentMethodLabel } from "../lib/documentPaymentMethod";
 import { documentServiceTypeLabel } from "../lib/documentServiceTypes";
+import {
+  DOCUMENTS_PAGE_SIZE,
+  appendDocumentsPage,
+  documentDateKind,
+  documentsListState,
+  hasMoreDocuments,
+  payeeFilterArgs,
+  sortDocuments,
+  type PayeeFilter,
+} from "../lib/documentsListing";
 import { buildCsv, downloadCsvWeb } from "../lib/csvExport";
 import { AccountingExportTooLargeError, runAccountingExport } from "../lib/accountingExport";
 import { supabase } from "../lib/supabase";
@@ -80,14 +90,6 @@ function customerTypeBadgeLabel(type: DocumentCustomerType | null | undefined, l
   if (!type || type === "regular") return null;
   if (type === "manual") return language === "he" ? "מהיר" : "Quick add";
   return language === "he" ? "משפחה" : "Family";
-}
-
-type PayeeFilter = { type: "all" } | { type: "app" | "manual"; id: string; label: string };
-
-function matchesPayeeFilter(doc: DocumentRow, filter: PayeeFilter): boolean {
-  if (filter.type === "all") return true;
-  if (filter.type === "app") return doc.customer_profile_user_id === filter.id;
-  return doc.customer_manual_participant_id === filter.id;
 }
 
 function parseMoney(raw: string): number | null {
@@ -173,6 +175,12 @@ export default function DocumentsInvoicesScreen() {
   const [settings, setSettings] = useState<ReceiptSettings | null>(null);
   const [settingsForm, setSettingsForm] = useState<Partial<ReceiptSettings>>({});
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
+  const [docsTotal, setDocsTotal] = useState(0);
+  const [docsLoading, setDocsLoading] = useState(true);
+  const [docsLoadingMore, setDocsLoadingMore] = useState(false);
+  const [docsError, setDocsError] = useState(false);
+  /** Bumped per filter change, so a slow response for an earlier range or payee cannot overwrite the current list. */
+  const docsRequestRef = useRef(0);
   const [reportRows, setReportRows] = useState<DocumentReportRow[]>([]);
   const [monthlySummaries, setMonthlySummaries] = useState<MonthlySummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,20 +214,67 @@ export default function DocumentsInvoicesScreen() {
 
   const canCancelDocument = isManager || (isCoach && !!settings?.staff_can_cancel_documents);
 
-  const filteredDocuments = useMemo(
-    () => documents.filter((d) => matchesPayeeFilter(d, payeeFilter)),
-    [documents, payeeFilter]
+  const sortedDocuments = useMemo(() => sortDocuments(documents, docsSortOrder), [documents, docsSortOrder]);
+  const docsListState = documentsListState({ loading: docsLoading, error: docsError, count: documents.length });
+  const docsHasMore = !docsLoading && !docsError && hasMoreDocuments(documents.length, docsTotal);
+
+  const docsQuery = useMemo(
+    () => ({
+      date_start: `${dateStart}T00:00:00.000Z`,
+      date_end: `${dateEnd}T23:59:59.999Z`,
+      ...payeeFilterArgs(payeeFilter),
+    }),
+    [dateStart, dateEnd, payeeFilter]
   );
 
-  const sortedDocuments = useMemo(() => {
-    return [...filteredDocuments].sort((a, b) => {
-      const aTime = new Date(a.paid_at).getTime();
-      const bTime = new Date(b.paid_at).getTime();
-      if (aTime !== bTime) return docsSortOrder === "asc" ? aTime - bTime : bTime - aTime;
-      const cmp = a.document_number.localeCompare(b.document_number);
-      return docsSortOrder === "asc" ? cmp : -cmp;
-    });
-  }, [filteredDocuments, docsSortOrder]);
+  const loadDocuments = useCallback(async () => {
+    const request = ++docsRequestRef.current;
+    setDocsLoading(true);
+    setDocsError(false);
+    try {
+      const { rows, total } = await listDocuments({ ...docsQuery, limit: DOCUMENTS_PAGE_SIZE });
+      if (request !== docsRequestRef.current) return;
+      setDocuments(rows);
+      setDocsTotal(total);
+    } catch (e) {
+      if (request !== docsRequestRef.current) return;
+      setDocuments([]);
+      setDocsTotal(0);
+      setDocsError(true);
+      showToast({
+        message: t("ui.documentsInvoices.failedToLoadDocuments"),
+        detail: e instanceof Error ? e.message : String(e),
+        variant: "error",
+      });
+    } finally {
+      if (request === docsRequestRef.current) setDocsLoading(false);
+    }
+  }, [docsQuery, showToast, t]);
+
+  useEffect(() => {
+    void loadDocuments();
+  }, [loadDocuments]);
+
+  async function loadMoreDocuments() {
+    if (docsLoading || docsLoadingMore) return;
+    const request = docsRequestRef.current;
+    setDocsLoadingMore(true);
+    try {
+      const { rows, total } = await listDocuments({ ...docsQuery, limit: DOCUMENTS_PAGE_SIZE, offset: documents.length });
+      if (request !== docsRequestRef.current) return;
+      setDocuments((current) => appendDocumentsPage(current, rows));
+      setDocsTotal(total);
+    } catch (e) {
+      if (request !== docsRequestRef.current) return;
+      showToast({
+        message: t("ui.documentsInvoices.failedToLoadDocuments"),
+        detail: e instanceof Error ? e.message : String(e),
+        variant: "error",
+      });
+    } finally {
+      setDocsLoadingMore(false);
+    }
+  }
 
   const reportTotals = useMemo(() => {
     const active = reportRows.filter((r) => r.status === "ACTIVE");
@@ -247,7 +302,8 @@ export default function DocumentsInvoicesScreen() {
     });
   }, [monthlySummaries, dateStart, dateEnd]);
 
-  const load = useCallback(async () => {
+  /** Settings, reports and summaries. The documents list loads separately (loadDocuments), so a payee change refetches only the list. */
+  const loadMeta = useCallback(async () => {
     try {
       const s = await fetchReceiptSettings();
       setSettings(s);
@@ -272,20 +328,6 @@ export default function DocumentsInvoicesScreen() {
       }
       const startIso = `${dateStart}T00:00:00.000Z`;
       const endIso = `${dateEnd}T23:59:59.999Z`;
-      try {
-        const { rows } = await listDocuments({
-          date_start: startIso,
-          date_end: endIso,
-        });
-        setDocuments(rows);
-      } catch (e) {
-        setDocuments([]);
-        showToast({
-          message: t("ui.documentsInvoices.failedToLoadDocuments"),
-          detail: e instanceof Error ? e.message : String(e),
-          variant: "error",
-        });
-      }
       if (isManager) {
         try {
           setReportRows(await fetchDocumentReport(startIso, endIso));
@@ -319,8 +361,13 @@ export default function DocumentsInvoicesScreen() {
   }, [dateStart, dateEnd, isManager, showToast, t]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadMeta();
+  }, [loadMeta]);
+
+  /** Full refresh, after an action that changes documents. */
+  const load = useCallback(async () => {
+    await Promise.all([loadMeta(), loadDocuments()]);
+  }, [loadMeta, loadDocuments]);
 
   async function saveSettings() {
     if (!isManager) return;
@@ -644,7 +691,7 @@ export default function DocumentsInvoicesScreen() {
       });
       return;
     }
-    const eligible = filteredDocuments.filter((d) => d.status === "ACTIVE" && d.pdf_url);
+    const eligible = documents.filter((d) => d.status === "ACTIVE" && d.pdf_url);
     if (eligible.length === 0) {
       showToast({
         message: t("ui.documentsInvoices.noDocumentsWithPdfInRange"),
@@ -876,6 +923,7 @@ export default function DocumentsInvoicesScreen() {
         </View>
 
         <Text style={[styles.docMeta, isRTL && styles.rtl]}>
+          {t(`ui.documentsInvoices.dateKind.${documentDateKind(item.source_type)}`)}{" "}
           {item.source_type === "account_payment"
             ? formatISODateFull(item.paid_at.slice(0, 10), lang)
             : formatDateTimeForDisplay(item.paid_at, lang)}
@@ -883,6 +931,11 @@ export default function DocumentsInvoicesScreen() {
           {documentServiceTypeLabel(item.service_type, lang)}
           {item.payment_method ? ` · ${documentPaymentMethodLabel(item.payment_method, lang)}` : ""}
         </Text>
+        {documentDateKind(item.source_type) !== "issued" ? (
+          <Text style={[styles.docMeta, isRTL && styles.rtl]}>
+            {t("ui.documentsInvoices.dateKind.issued")} {formatDateTimeForDisplay(item.created_at, lang)}
+          </Text>
+        ) : null}
 
         {needsMethod ? (
           <View style={styles.warnBox}>
@@ -1539,18 +1592,50 @@ export default function DocumentsInvoicesScreen() {
             renderItem={renderDocumentItem}
             ListHeaderComponent={documentsListHeader}
             ListEmptyComponent={
-              <View style={styles.emptyBox}>
-                <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>
-                  {payeeFilter.type !== "all"
-                    ? t("ui.documentsInvoices.noDocumentsForThisName")
-                    : t("ui.documentsInvoices.noDocumentsInRange")}
-                </Text>
-                <Text style={[styles.emptyHint, isRTL && styles.rtl]}>
-                  {payeeFilter.type !== "all"
-                    ? t("ui.documentsInvoices.tryAnotherNameOrClearThe")
-                    : t("ui.documentsInvoices.tryAWiderDateRangeOr")}
-                </Text>
-              </View>
+              docsListState === "loading" ? (
+                <View style={styles.loaderSkeletonList}>
+                  <ListRowSkeleton />
+                  <ListRowSkeleton />
+                  <ListRowSkeleton />
+                </View>
+              ) : docsListState === "error" ? (
+                <View style={styles.emptyBox}>
+                  <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>{t("ui.documentsInvoices.failedToLoadDocuments")}</Text>
+                  <PrimaryButton label={t("ui.documentsInvoices.retryLoadDocuments")} onPress={() => void loadDocuments()} variant="ghost" size="compact" />
+                </View>
+              ) : (
+                <View style={styles.emptyBox}>
+                  <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>
+                    {payeeFilter.type !== "all"
+                      ? t("ui.documentsInvoices.noDocumentsForThisName")
+                      : t("ui.documentsInvoices.noDocumentsInRange")}
+                  </Text>
+                  <Text style={[styles.emptyHint, isRTL && styles.rtl]}>
+                    {payeeFilter.type !== "all"
+                      ? t("ui.documentsInvoices.tryAnotherNameOrClearThe")
+                      : t("ui.documentsInvoices.tryAWiderDateRangeOr")}
+                  </Text>
+                </View>
+              )
+            }
+            ListFooterComponent={
+              docsHasMore ? (
+                <View style={styles.loadMoreBox}>
+                  <Text style={[styles.emptyHint, isRTL && styles.rtl]}>
+                    {t("ui.documentsInvoices.showingNOfTotal")
+                      .replace("{n}", String(documents.length))
+                      .replace("{total}", String(docsTotal))}
+                  </Text>
+                  <PrimaryButton
+                    label={t("ui.documentsInvoices.loadMoreDocuments")}
+                    onPress={() => void loadMoreDocuments()}
+                    loading={docsLoadingMore}
+                    loadingLabel={t("common.loading")}
+                    variant="ghost"
+                    size="compact"
+                  />
+                </View>
+              ) : null
             }
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={theme.colors.cta} />}
             contentContainerStyle={[styles.listContent, screenContent]}
@@ -1822,6 +1907,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   emptyTitle: { ...theme.typography.title, color: theme.colors.text },
+  loadMoreBox: { paddingVertical: theme.spacing.lg, alignItems: "center", gap: theme.spacing.sm },
   emptyHint: { fontSize: 14, fontWeight: "500", color: theme.colors.textMuted, textAlign: "center", lineHeight: 20 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   /** User content keeps its own writing direction (so Latin names truncate at their end); only the alignment follows the UI. */

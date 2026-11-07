@@ -39,6 +39,8 @@ SUITES=(
 )
 # Remediation suites, added with the fixes they protect.
 for f in supabase/tests/2[23][0-9]_subscription_*.sh; do [ -e "$f" ] && SUITES+=("$(basename "$f")"); done
+# Receipts listing (same harness, same disposable stack).
+SUITES+=(233_receipts_list_documents_payee_paging_tests.sh)
 
 failed=(); passed=0
 for s in "${SUITES[@]}"; do
