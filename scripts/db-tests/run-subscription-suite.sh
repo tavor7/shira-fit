@@ -36,6 +36,7 @@ SUITES=(
   200_session_subscription_coverage_and_start_date_correction_tests.sh
   211_manager_reverse_account_payment_tests.sh
   212_admin_reverse_account_payment_tests.sh
+  234_bulk_receipt_chronological_numbering_tests.sh
 )
 # Remediation suites, added with the fixes they protect.
 for f in supabase/tests/2[23][0-9]_subscription_*.sh; do [ -e "$f" ] && SUITES+=("$(basename "$f")"); done

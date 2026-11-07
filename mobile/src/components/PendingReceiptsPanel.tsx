@@ -28,8 +28,11 @@ import { documentServiceTypeLabel } from "../lib/documentServiceTypes";
 import {
   createDocumentsFromPayments,
   listPaymentsWithoutReceipt,
+  previewBulkReceiptIssue,
   type PendingReceiptPayment,
 } from "../lib/pendingReceipts";
+import { bulkIssueStep } from "../lib/bulkReceiptWarning";
+import { useAppAlert } from "../context/AppAlertContext";
 import { toISODateLocal } from "../lib/isoDate";
 import { useBottomChrome, useReportBottomBar } from "../context/BottomChromeContext";
 import { barBottomInset, fullBleedInnerPadding } from "../lib/screenLayout";
@@ -59,6 +62,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
   const screenContent = useScreenContentStyle("standard");
   const { width: viewportWidth } = useWindowDimensions();
   const { showToast } = useToast();
+  const { showConfirm } = useAppAlert();
   const { job: bulkJob, runJob: runBulkJob, cancelJob: cancelBulkJob } = useBulkJobs();
   const lang = ((language === "he" ? "he" : "en"));
   // Global by default: from the floor date (server-enforced regardless of what's picked below) through today.
@@ -162,12 +166,49 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
     }
   }
 
-  async function createSelected() {
+  /**
+   * Checks the selection first. Payments dated before an issued receipt are issued after the manager confirms; if the
+   * check itself fails, nothing is issued until it succeeds.
+   */
+  async function confirmCreateSelected() {
     if (selectedCount === 0 || bulkJob || createFetchingRef.current) return;
+    const rowIds = [...selected];
+    createFetchingRef.current = true;
+    let detail: string | undefined;
+    const check = await previewBulkReceiptIssue(rowIds).then(
+      (preview) => ({ ok: true as const, preview }),
+      (e: unknown) => {
+        detail = e instanceof Error ? e.message : undefined;
+        return { ok: false as const };
+      }
+    );
+    createFetchingRef.current = false;
+    const step = bulkIssueStep(t("ui.pendingReceipts.predatingWarningMessage"), check);
+    if (step.kind === "blocked") {
+      showToast({ message: t("ui.pendingReceipts.preIssueCheckFailed"), detail, variant: "error" });
+      return;
+    }
+    if (step.kind === "issue") {
+      await createSelected(rowIds);
+      return;
+    }
+    showConfirm({
+      title: t("ui.pendingReceipts.predatingWarningTitle"),
+      message: step.message,
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("ui.pendingReceipts.issueAnyway"),
+      confirmVariant: "primary",
+      onConfirm: () => void createSelected(rowIds),
+    });
+  }
+
+  /** The server numbers the batch by business payment date, so the order of rowIds does not matter. */
+  async function createSelected(rowIds: string[]) {
+    if (rowIds.length === 0 || bulkJob || createFetchingRef.current) return;
     createFetchingRef.current = true;
     let result: Awaited<ReturnType<typeof createDocumentsFromPayments>>;
     try {
-      result = await createDocumentsFromPayments([...selected]);
+      result = await createDocumentsFromPayments(rowIds);
     } catch (e) {
       createFetchingRef.current = false;
       showToast({
@@ -512,7 +553,7 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
                   ? t("ui.pendingReceipts.createPdf")
                   : t("ui.pendingReceipts.createReceipts")
               }
-              onPress={() => void createSelected()}
+              onPress={() => void confirmCreateSelected()}
               disabled={creating || !!bulkJob}
               style={styles.footerBtn}
             />

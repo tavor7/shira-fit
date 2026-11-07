@@ -278,6 +278,9 @@ export const OPERATION_RULES: Readonly<Record<string, Readonly<Record<string, Ru
     no_rows_selected: B,
     too_many_rows: B,
   },
+  bulk_receipt_issue_preview: {
+    no_rows_selected: B,
+  },
   create_subscription: {
     conflicting_active_subscription: B,
     invalid_allowance: V,
