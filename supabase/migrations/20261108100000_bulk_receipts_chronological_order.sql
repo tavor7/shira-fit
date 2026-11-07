@@ -7,8 +7,11 @@
 -- Now the batch is sorted on the server before any number is allocated:
 --   1. business payment time, earliest first, as Israel wall-clock time (_payment_business_local_ts):
 --        session payment       session_date + start_time (the scheduled start)
---        account payment       paid_at, the date the manager entered, at 00:00 (date-only: no time-zone conversion,
---                              so the payment can never move to another day)
+--        account payment       paid_at, the date the manager entered, at 00:00 UTC (02:00/03:00 in Israel, so always
+--                              on that Israel calendar date). This is the instant the Receipts list and reports already
+--                              use (_document_payment_paid_at under the production TimeZone, UTC), so the numbering order
+--                              and the Receipts list order agree for every kind, including night-time cancellations.
+--                              Spelled out with an explicit UTC conversion so it does not depend on the session TimeZone.
 --        cancellation penalty  cancelled_at in Asia/Jerusalem
 --   2. kind: account, then session (registered or quick-add), then cancellation
 --   3. row_id, so equal times always come out in the same order
@@ -31,8 +34,8 @@ begin
   end if;
 end $$;
 
--- Business payment time of a document's source, as Israel wall-clock time. Same rules as _document_payment_paid_at,
--- except that a date-only account payment stays on its own date at 00:00 instead of depending on the session TimeZone.
+-- Business payment time of a document's source, as Israel wall-clock time: the same instant as _document_payment_paid_at
+-- (production TimeZone UTC), independent of the session TimeZone.
 create or replace function public._business_local_ts(p_source_type public.document_source_type, p_source_id uuid)
 returns timestamp
 language sql
@@ -40,7 +43,10 @@ stable
 set search_path to 'public'
 as $function$
   select case p_source_type
-    when 'account_payment' then (select a.paid_at::timestamp from public.athlete_account_payments a where a.id = p_source_id)
+    when 'account_payment' then (
+      select (a.paid_at::timestamp at time zone 'UTC') at time zone 'Asia/Jerusalem'
+      from public.athlete_account_payments a where a.id = p_source_id
+    )
     when 'cancellation_penalty' then (select c.cancelled_at at time zone 'Asia/Jerusalem' from public.cancellations c where c.id = p_source_id)
     when 'session_payment' then coalesce(
       (select s.session_date + s.start_time

@@ -12,7 +12,7 @@ su -c "update public.receipt_settings set digital_receipts_enabled = true, busin
 
 # One set of five payments over three days (Israel time), named by their expected position:
 #   P1 session reg   day+0 09:00, recorded LAST (late attendance entry)
-#   P2 account       day+1, date only (00:00), recorded late too
+#   P2 account       day+1, date only (00:00 UTC = 02:00/03:00 Israel), recorded late too
 #   P3 quick-add     day+1 07:00 }  same session, same timestamp:
 #   P4 session reg   day+1 07:00 }  tie broken by kind, then row id (session_manual < session_reg)
 #   P5 cancellation  day+2 10:00
@@ -74,9 +74,26 @@ expect "receipts issued before are untouched" "$ISSUED" "$(su -c "select string_
 
 echo "date-only account payments stay on their date in any session time zone"
 ACC=$(echo "$A2" | cut -d: -f2)
+ACC_TS=$(su -c "select ('$(d 401)'::timestamp at time zone 'UTC') at time zone 'Asia/Jerusalem'")
+expect "the expected time is on the entered Israel date" "$(d 401)" "$(echo "$ACC_TS" | cut -c1-10)"
 for tz in UTC Asia/Jerusalem America/Los_Angeles Pacific/Kiritimati; do
-  expect "account payment at 00:00 on its own date ($tz)" "$(d 401) 00:00:00" "$(su -c "set timezone to '$tz'; select public._business_local_ts('account_payment', '$ACC')")"
+  expect "account payment at 00:00 UTC on its own date ($tz)" "$ACC_TS" "$(su -c "set timezone to '$tz'; select public._business_local_ts('account_payment', '$ACC')")"
 done
+expect "numbering time equals the Receipts list time for every receipt of this suite" "0" "$(su -c "set timezone to 'UTC';
+  select count(*) from public.documents d where d.source_id in (select split_part(x, ':', 2)::uuid from unnest(array['$A1','$A2','$A3','$A4','$A5']) x)
+    and public._business_local_ts(d.source_type, d.source_id) is distinct from (public._document_payment_paid_at(d.source_type, d.source_id) at time zone 'Asia/Jerusalem')")"
+
+echo "a night-time cancellation and an account payment on the same Israel date: numbering agrees with the Receipts list"
+mksession "$(d 420)" 8 "20:00"; mkuser athlete; NU=$U
+NA="account:$(su -c "insert into public.athlete_account_payments (payee_id, payee_is_manual, amount_ils, payment_method, paid_at, created_by) values ('$NU', false, 40, 'cash', '$(d 420)', '$M') returning id" | head -1)"
+mkuser athlete
+NC="cancellation:$(su -c "insert into public.cancellations (session_id, user_id, reason, charged_full_price, penalty_collected_ils, payment_method, cancelled_at)
+  values ('$SX', '$U', 'night', true, 20, 'cash', ('$(d 420)'::date + time '01:00') at time zone 'Asia/Jerusalem') returning id" | head -1)"
+R=$(issue "$(arr "$NA" "$NC")")
+expect "both created" "2" "$(jf "$R" created_count)"
+expect "the 01:00 cancellation is numbered before the account payment" "ok" "$(in_order "$NC" "$NA")"
+expect "and the Receipts list orders them the same way" "1" "$(su -c "select (public._document_payment_paid_at('cancellation_penalty', '$(echo "$NC" | cut -d: -f2)')
+  < public._document_payment_paid_at('account_payment', '$(echo "$NA" | cut -d: -f2)'))::int")"
 expect "session payment at its scheduled start" "$(d 401) 07:00:00" "$(su -c "set timezone to 'America/Los_Angeles'; select public._payment_row_business_local_ts('$A4')")"
 expect "a malformed row id has no date" "" "$(su -c "select public._payment_row_business_local_ts('account:not-a-uuid')")"
 

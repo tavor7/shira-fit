@@ -31,7 +31,7 @@ import {
   previewBulkReceiptIssue,
   type PendingReceiptPayment,
 } from "../lib/pendingReceipts";
-import { bulkPredatingWarningMessage } from "../lib/bulkReceiptWarning";
+import { bulkIssueStep } from "../lib/bulkReceiptWarning";
 import { useAppAlert } from "../context/AppAlertContext";
 import { toISODateLocal } from "../lib/isoDate";
 import { useBottomChrome, useReportBottomBar } from "../context/BottomChromeContext";
@@ -166,25 +166,35 @@ export function PendingReceiptsPanel({ enabled, header, onCreated, testingMode =
     }
   }
 
-  /** Warns, without blocking, when selected payments are dated before an issued receipt; then issues. */
+  /**
+   * Checks the selection first. Payments dated before an issued receipt are issued after the manager confirms; if the
+   * check itself fails, nothing is issued until it succeeds.
+   */
   async function confirmCreateSelected() {
     if (selectedCount === 0 || bulkJob || createFetchingRef.current) return;
     const rowIds = [...selected];
     createFetchingRef.current = true;
-    let warning: string | null = null;
-    try {
-      warning = bulkPredatingWarningMessage(t("ui.pendingReceipts.predatingWarningMessage"), await previewBulkReceiptIssue(rowIds));
-    } catch {
-      // The warning is advisory: if the check fails, issuing must still be possible.
-    }
+    let detail: string | undefined;
+    const check = await previewBulkReceiptIssue(rowIds).then(
+      (preview) => ({ ok: true as const, preview }),
+      (e: unknown) => {
+        detail = e instanceof Error ? e.message : undefined;
+        return { ok: false as const };
+      }
+    );
     createFetchingRef.current = false;
-    if (!warning) {
+    const step = bulkIssueStep(t("ui.pendingReceipts.predatingWarningMessage"), check);
+    if (step.kind === "blocked") {
+      showToast({ message: t("ui.pendingReceipts.preIssueCheckFailed"), detail, variant: "error" });
+      return;
+    }
+    if (step.kind === "issue") {
       await createSelected(rowIds);
       return;
     }
     showConfirm({
       title: t("ui.pendingReceipts.predatingWarningTitle"),
-      message: warning,
+      message: step.message,
       cancelLabel: t("common.cancel"),
       confirmLabel: t("ui.pendingReceipts.issueAnyway"),
       confirmVariant: "primary",
