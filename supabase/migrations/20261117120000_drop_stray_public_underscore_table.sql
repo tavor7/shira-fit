@@ -5,10 +5,15 @@
 -- than add policies. Aborts if it ever gained rows; no CASCADE, so any dependent
 -- object also aborts the drop.
 do $$
+declare
+  has_rows boolean;
 begin
-  if to_regclass('public."_"') is not null
-     and exists (select 1 from public."_") then
-    raise exception 'public."_" is not empty; refusing to drop';
+  -- Dynamic SQL: a static reference fails on fresh databases where the table never existed.
+  if to_regclass('public."_"') is not null then
+    execute 'select exists (select 1 from public."_")' into has_rows;
+    if has_rows then
+      raise exception 'public."_" is not empty; refusing to drop';
+    end if;
   end if;
 end $$;
 
