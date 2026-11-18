@@ -20,8 +20,8 @@ export async function syncPendingSignupConsent(): Promise<boolean> {
 }
 
 /** Fallback for terms_of_service / privacy_policy / marketing_communications signup
- *  consent when the inline record call at signup had no session yet (email confirmation
- *  pending) — mirrors syncPendingSignupConsent's role for electronic_receipts. */
+ *  consent. The auth.users signup trigger normally records it at account creation (no
+ *  email confirmation needed); this only picks up anything that trigger could not. */
 export async function syncPendingSignupLegalConsents(): Promise<number> {
   const { data, error } = await supabase.rpc("sync_signup_legal_consents");
   if (error) throw error;
